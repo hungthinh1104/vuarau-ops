@@ -5,7 +5,7 @@ import type {
   IsoInstant,
   Money,
   WorkspaceId,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import type { CustomerDebtSummary } from "../shared/state.ts";
 import { addMoney, zeroMoney } from "../shared/money.ts";
 

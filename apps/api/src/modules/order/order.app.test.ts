@@ -13,7 +13,7 @@ import {
   WORKSPACE_ID,
   orderLineInputs,
   validDraftOrder,
-} from "@vuanha/test-fixtures";
+} from "@vuarau/test-fixtures";
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { createOrder } from "./create-order.handler.ts";
 import { confirmOrder } from "./confirm-order.handler.ts";

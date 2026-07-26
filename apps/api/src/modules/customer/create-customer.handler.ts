@@ -1,7 +1,7 @@
-import type { CreateCustomerCommand, CustomerDto } from "@vuanha/domain-contracts";
-import { createCustomerCommandSchema } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { decideCreateCustomer, ok } from "@vuanha/domain-kernel";
+import type { CreateCustomerCommand, CustomerDto } from "@vuarau/domain-contracts";
+import { createCustomerCommandSchema } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { decideCreateCustomer, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { toCustomerDto } from "../shared/mappers.ts";

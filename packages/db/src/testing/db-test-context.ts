@@ -6,7 +6,7 @@ import type {
   ProductId,
   WorkspaceId,
   WorkspaceRole,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import { createDatabase, type Database } from "../client.ts";
 import { runMigrations } from "../migrate.ts";
 import { toLedgerEntryDto } from "../repositories/row-mappers.ts";

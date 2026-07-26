@@ -12,7 +12,7 @@ import type {
   ProductId,
   Quantity,
   WorkspaceId,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 
 /**
  * Aggregate state as the domain sees it — not as the database stores it and not

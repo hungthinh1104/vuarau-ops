@@ -4,10 +4,10 @@ import type {
   Permission,
   WorkspaceId,
   WorkspaceRole,
-} from "@vuanha/domain-contracts";
-import { ALLOWED, denied, roleHasPermission } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { err, ok } from "@vuanha/domain-kernel";
+} from "@vuarau/domain-contracts";
+import { ALLOWED, denied, roleHasPermission } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { err, ok } from "@vuarau/domain-kernel";
 import type { Repositories, WorkspaceMembership } from "../../infrastructure/persistence/ports.ts";
 import type { AuthenticatedPrincipal } from "../../infrastructure/auth/principal.ts";
 

@@ -4,18 +4,18 @@ import type {
   DebtCapabilities,
   OrderDto,
   PaymentDto,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import type {
   CustomerDebtSummary,
   CustomerState,
   OrderState,
   PaymentState,
-} from "@vuanha/domain-kernel";
+} from "@vuarau/domain-kernel";
 import {
   orderCapabilities,
   paymentCapabilities,
   remainingReversibleAmount,
-} from "@vuanha/domain-kernel";
+} from "@vuarau/domain-kernel";
 
 /**
  * Domain state → API DTO. Explicit, field by field.

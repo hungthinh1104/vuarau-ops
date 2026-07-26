@@ -4,8 +4,8 @@ import type {
   DebtLedgerEntryDto,
   WorkspaceId,
   WorkspaceRole,
-} from "@vuanha/domain-contracts";
-import type { PaymentReversalState } from "@vuanha/domain-kernel";
+} from "@vuarau/domain-contracts";
+import type { PaymentReversalState } from "@vuarau/domain-kernel";
 import type { IdGenerator } from "../../clock.ts";
 import type { CommandReceipt, Repositories, UnitOfWork, WorkspaceMembership } from "../ports.ts";
 import type {
@@ -13,7 +13,7 @@ import type {
   CustomerState,
   OrderState,
   PaymentState,
-} from "@vuanha/domain-kernel";
+} from "@vuarau/domain-kernel";
 
 /**
  * An in-memory implementation of every port, used by the application and contract

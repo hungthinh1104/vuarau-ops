@@ -1,4 +1,4 @@
-import type { CurrencyCode, Money } from "@vuanha/domain-contracts";
+import type { CurrencyCode, Money } from "@vuarau/domain-contracts";
 
 /**
  * Integer money arithmetic. Every operation here is exact — there is no rounding

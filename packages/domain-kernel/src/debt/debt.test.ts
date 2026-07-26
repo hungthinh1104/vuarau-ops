@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdjustCustomerDebtCommand } from "@vuanha/domain-contracts";
+import type { AdjustCustomerDebtCommand } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   ADJUSTMENT_ID,
@@ -13,7 +13,7 @@ import {
   orderConfirmationEntry,
   paymentEntry,
   vnd,
-} from "@vuanha/test-fixtures";
+} from "@vuarau/test-fixtures";
 import { calculateDebtBalance, decideAdjustDebt, buildDebtSummary } from "./index.ts";
 
 function adjustCommand(

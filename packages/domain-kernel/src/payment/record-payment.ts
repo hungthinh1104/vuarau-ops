@@ -1,4 +1,4 @@
-import type { IsoInstant, RecordCustomerPaymentCommand } from "@vuanha/domain-contracts";
+import type { IsoInstant, RecordCustomerPaymentCommand } from "@vuarau/domain-contracts";
 import type { Decision, LedgerEntryDraft } from "../shared/effects.ts";
 import type { PaymentState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";

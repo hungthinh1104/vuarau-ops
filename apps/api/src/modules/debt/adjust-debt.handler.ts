@@ -1,7 +1,7 @@
-import type { AdjustCustomerDebtCommand, CustomerDebtSummaryDto } from "@vuanha/domain-contracts";
-import { adjustCustomerDebtCommandSchema } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { decideAdjustDebt, err, ok } from "@vuanha/domain-kernel";
+import type { AdjustCustomerDebtCommand, CustomerDebtSummaryDto } from "@vuarau/domain-contracts";
+import { adjustCustomerDebtCommandSchema } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { decideAdjustDebt, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyLedgerEffects, emptyDebtSummary } from "../shared/debt-effects.ts";

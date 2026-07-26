@@ -1,5 +1,5 @@
-import type { Capability, PaymentCapabilities } from "@vuanha/domain-contracts";
-import { ALLOWED, denied } from "@vuanha/domain-contracts";
+import type { Capability, PaymentCapabilities } from "@vuarau/domain-contracts";
+import { ALLOWED, denied } from "@vuarau/domain-contracts";
 import type { PaymentState } from "../shared/state.ts";
 
 /** Same check `decideReversePayment` makes, so the button and the server agree. */

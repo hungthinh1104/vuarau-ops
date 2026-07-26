@@ -1,5 +1,5 @@
 {
-  "name": "@vuanha/test-fixtures",
+  "name": "@vuarau/test-fixtures",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@vuanha/domain-contracts": "workspace:*",
-    "@vuanha/domain-kernel": "workspace:*"
+    "@vuarau/domain-contracts": "workspace:*",
+    "@vuarau/domain-kernel": "workspace:*"
   }
 }

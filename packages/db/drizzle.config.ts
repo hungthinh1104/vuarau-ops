@@ -5,7 +5,7 @@ export default defineConfig({
   out: "./migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env["DATABASE_URL"] ?? "postgres://postgres:postgres@localhost:55432/vuanha_test",
+    url: process.env["DATABASE_URL"] ?? "postgres://postgres:postgres@localhost:55432/vuarau_test",
   },
   strict: true,
   verbose: true,

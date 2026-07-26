@@ -1,5 +1,5 @@
-import type { Money, Quantity } from "@vuanha/domain-contracts";
-import { QUANTITY_SCALE } from "@vuanha/domain-contracts";
+import type { Money, Quantity } from "@vuarau/domain-contracts";
+import { QUANTITY_SCALE } from "@vuarau/domain-contracts";
 
 /**
  * BR-ORDER-004 — the only division in the system, and therefore the only place a

@@ -1,7 +1,7 @@
-import type { ConfirmOrderCommand, OrderDto } from "@vuanha/domain-contracts";
-import { confirmOrderCommandSchema } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { decideConfirmOrder, err, ok } from "@vuanha/domain-kernel";
+import type { ConfirmOrderCommand, OrderDto } from "@vuarau/domain-contracts";
+import { confirmOrderCommandSchema } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { decideConfirmOrder, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyLedgerEffects } from "../shared/debt-effects.ts";

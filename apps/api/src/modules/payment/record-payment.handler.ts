@@ -1,7 +1,7 @@
-import type { PaymentDto, RecordCustomerPaymentCommand } from "@vuanha/domain-contracts";
-import { recordCustomerPaymentCommandSchema } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { decideRecordPayment, err, ok } from "@vuanha/domain-kernel";
+import type { PaymentDto, RecordCustomerPaymentCommand } from "@vuarau/domain-contracts";
+import { recordCustomerPaymentCommandSchema } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { decideRecordPayment, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyLedgerEffects } from "../shared/debt-effects.ts";

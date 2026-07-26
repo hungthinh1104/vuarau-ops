@@ -1,4 +1,4 @@
-import type { ActorId, IsoInstant, WorkspaceRole } from "@vuanha/domain-contracts";
+import type { ActorId, IsoInstant, WorkspaceRole } from "@vuarau/domain-contracts";
 import {
   ACCOUNTANT_ACTOR_ID,
   ACTOR_ID,
@@ -12,7 +12,7 @@ import {
   WORKSPACE_ID,
   activeCustomer,
   subjectFor,
-} from "@vuanha/test-fixtures";
+} from "@vuarau/test-fixtures";
 import type { Clock } from "../infrastructure/clock.ts";
 import type { AuthenticatedPrincipal } from "../infrastructure/auth/principal.ts";
 import type { CommandContext, CommandDeps } from "../modules/shared/command-pipeline.ts";

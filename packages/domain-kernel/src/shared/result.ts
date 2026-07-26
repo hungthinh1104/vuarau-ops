@@ -1,5 +1,5 @@
-import type { DomainError, DomainRejectionCode } from "@vuanha/domain-contracts";
-import { isRetryableCode } from "@vuanha/domain-contracts";
+import type { DomainError, DomainRejectionCode } from "@vuarau/domain-contracts";
+import { isRetryableCode } from "@vuarau/domain-contracts";
 
 /**
  * Decision functions return refusals; they never throw.

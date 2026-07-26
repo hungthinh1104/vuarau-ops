@@ -4,10 +4,10 @@ import type {
   CustomerId,
   DebtLedgerEntryDto,
   WorkspaceId,
-} from "@vuanha/domain-contracts";
-import { DEFAULT_CURRENCY } from "@vuanha/domain-contracts";
-import type { CustomerDebtSummary, DomainResult } from "@vuanha/domain-kernel";
-import { ok } from "@vuanha/domain-kernel";
+} from "@vuarau/domain-contracts";
+import { DEFAULT_CURRENCY } from "@vuarau/domain-contracts";
+import type { CustomerDebtSummary, DomainResult } from "@vuarau/domain-kernel";
+import { ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { authorizeWorkspaceAccess, debtCapabilities } from "../shared/authorization.ts";
 import { emptyDebtSummary, rebuildCustomerDebtSummary } from "../shared/debt-effects.ts";

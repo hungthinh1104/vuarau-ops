@@ -1,4 +1,4 @@
-import type { Money, PaymentStatus } from "@vuanha/domain-contracts";
+import type { Money, PaymentStatus } from "@vuarau/domain-contracts";
 import type { PaymentState } from "../shared/state.ts";
 import { subtractMoney } from "../shared/money.ts";
 

@@ -10,7 +10,7 @@ import type {
   PaymentId,
   WorkspaceId,
   WorkspaceRole,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import type {
   AuditDraft,
   CustomerDebtSummary,
@@ -19,7 +19,7 @@ import type {
   OrderState,
   PaymentReversalState,
   PaymentState,
-} from "@vuanha/domain-kernel";
+} from "@vuarau/domain-kernel";
 
 /**
  * Ports are declared by the application layer, which is the layer that needs

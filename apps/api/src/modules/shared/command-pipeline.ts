@@ -1,7 +1,7 @@
 import type { z } from "zod";
-import type { CommandEnvelope, IsoInstant, Permission } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { err, ok } from "@vuanha/domain-kernel";
+import type { CommandEnvelope, IsoInstant, Permission } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { err, ok } from "@vuarau/domain-kernel";
 import type { Clock } from "../../infrastructure/clock.ts";
 import type { AuthenticatedPrincipal } from "../../infrastructure/auth/principal.ts";
 import type {

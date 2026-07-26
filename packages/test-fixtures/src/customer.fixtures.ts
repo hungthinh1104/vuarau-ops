@@ -1,5 +1,5 @@
-import type { CustomerId, Money } from "@vuanha/domain-contracts";
-import type { CustomerState } from "@vuanha/domain-kernel";
+import type { CustomerId, Money } from "@vuarau/domain-contracts";
+import type { CustomerState } from "@vuarau/domain-kernel";
 import {
   CUSTOMER_ID,
   CUSTOMER_WITH_DEBT_ID,

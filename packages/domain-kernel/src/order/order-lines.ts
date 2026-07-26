@@ -4,7 +4,7 @@ import type {
   OrderLineId,
   ProductId,
   Quantity,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import type { OrderLineState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";

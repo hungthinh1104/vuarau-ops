@@ -1,5 +1,5 @@
-import type { Capability, OrderCapabilities } from "@vuanha/domain-contracts";
-import { ALLOWED, denied } from "@vuanha/domain-contracts";
+import type { Capability, OrderCapabilities } from "@vuarau/domain-contracts";
+import { ALLOWED, denied } from "@vuarau/domain-contracts";
 import type { OrderState } from "../shared/state.ts";
 import { validateOrderLines } from "./order-lines.ts";
 

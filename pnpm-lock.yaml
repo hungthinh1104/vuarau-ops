@@ -38,13 +38,13 @@ importers:
       '@trpc/server':
         specifier: ^11.7.1
         version: 11.18.0(typescript@5.9.3)
-      '@vuanha/db':
+      '@vuarau/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@vuanha/domain-contracts':
+      '@vuarau/domain-contracts':
         specifier: workspace:*
         version: link:../../packages/domain-contracts
-      '@vuanha/domain-kernel':
+      '@vuarau/domain-kernel':
         specifier: workspace:*
         version: link:../../packages/domain-kernel
       jose:
@@ -54,7 +54,7 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@vuanha/test-fixtures':
+      '@vuarau/test-fixtures':
         specifier: workspace:*
         version: link:../../packages/test-fixtures
 
@@ -66,10 +66,10 @@ importers:
 
   packages/db:
     dependencies:
-      '@vuanha/domain-contracts':
+      '@vuarau/domain-contracts':
         specifier: workspace:*
         version: link:../domain-contracts
-      '@vuanha/domain-kernel':
+      '@vuarau/domain-kernel':
         specifier: workspace:*
         version: link:../domain-kernel
       drizzle-orm:
@@ -91,20 +91,20 @@ importers:
 
   packages/domain-kernel:
     dependencies:
-      '@vuanha/domain-contracts':
+      '@vuarau/domain-contracts':
         specifier: workspace:*
         version: link:../domain-contracts
     devDependencies:
-      '@vuanha/test-fixtures':
+      '@vuarau/test-fixtures':
         specifier: workspace:*
         version: link:../test-fixtures
 
   packages/test-fixtures:
     dependencies:
-      '@vuanha/domain-contracts':
+      '@vuarau/domain-contracts':
         specifier: workspace:*
         version: link:../domain-contracts
-      '@vuanha/domain-kernel':
+      '@vuarau/domain-kernel':
         specifier: workspace:*
         version: link:../domain-kernel
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type {
   RecordCustomerPaymentCommand,
   ReverseCustomerPaymentCommand,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   COMMAND_ID,
@@ -21,7 +21,7 @@ import {
   partiallyReversedPayment,
   recordedPayment,
   vnd,
-} from "@vuanha/test-fixtures";
+} from "@vuarau/test-fixtures";
 import {
   decideRecordPayment,
   decideReversePayment,

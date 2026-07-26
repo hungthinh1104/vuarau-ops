@@ -1,5 +1,5 @@
-import type { OrderLineInput } from "@vuanha/domain-contracts";
-import type { OrderLineState, OrderState } from "@vuanha/domain-kernel";
+import type { OrderLineInput } from "@vuarau/domain-contracts";
+import type { OrderLineState, OrderState } from "@vuarau/domain-kernel";
 import {
   CONFIRMED_ORDER_ID,
   CUSTOMER_ID,

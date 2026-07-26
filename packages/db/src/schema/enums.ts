@@ -8,7 +8,7 @@ import {
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
   UNITS,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 
 /**
  * Postgres enums built from the contract constants, so the database and the API

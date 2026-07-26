@@ -1,5 +1,5 @@
 {
-  "name": "@vuanha/db",
+  "name": "@vuarau/db",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,8 @@
     "db:seed": "node src/seeds/seed.ts"
   },
   "dependencies": {
-    "@vuanha/domain-contracts": "workspace:*",
-    "@vuanha/domain-kernel": "workspace:*",
+    "@vuarau/domain-contracts": "workspace:*",
+    "@vuarau/domain-kernel": "workspace:*",
     "drizzle-orm": "^0.44.7",
     "postgres": "^3.4.7"
   },

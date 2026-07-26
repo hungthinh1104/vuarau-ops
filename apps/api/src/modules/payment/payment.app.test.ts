@@ -14,7 +14,7 @@ import {
   THIRD_COMMAND_ID,
   WORKSPACE_ID,
   vnd,
-} from "@vuanha/test-fixtures";
+} from "@vuarau/test-fixtures";
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { recordCustomerPayment } from "./record-payment.handler.ts";
 import { reverseCustomerPayment } from "./reverse-payment.handler.ts";

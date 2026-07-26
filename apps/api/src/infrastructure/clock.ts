@@ -1,4 +1,4 @@
-import type { IsoInstant } from "@vuanha/domain-contracts";
+import type { IsoInstant } from "@vuarau/domain-contracts";
 
 /**
  * The only source of `recordedAt` in the system.

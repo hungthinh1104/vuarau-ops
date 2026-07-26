@@ -1,5 +1,5 @@
 {
-  "name": "@vuanha/domain-kernel",
+  "name": "@vuarau/domain-kernel",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,9 +12,9 @@
     "./debt": "./src/debt/index.ts"
   },
   "dependencies": {
-    "@vuanha/domain-contracts": "workspace:*"
+    "@vuarau/domain-contracts": "workspace:*"
   },
   "devDependencies": {
-    "@vuanha/test-fixtures": "workspace:*"
+    "@vuarau/test-fixtures": "workspace:*"
   }
 }

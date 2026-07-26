@@ -16,7 +16,7 @@ import {
   WORKSPACE_ID,
   orderLineInputs,
   vnd,
-} from "@vuanha/test-fixtures";
+} from "@vuarau/test-fixtures";
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { adjustCustomerDebt } from "./adjust-debt.handler.ts";
 import { getCustomerDebtSummary, rebuildDebtSummary } from "./debt.queries.ts";

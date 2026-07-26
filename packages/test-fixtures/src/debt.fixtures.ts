@@ -1,4 +1,4 @@
-import type { DebtLedgerEntryDto } from "@vuanha/domain-contracts";
+import type { DebtLedgerEntryDto } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   COMMAND_ID,

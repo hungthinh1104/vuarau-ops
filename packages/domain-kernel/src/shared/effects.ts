@@ -10,7 +10,7 @@ import type {
   LedgerSourceType,
   Money,
   WorkspaceId,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 
 /**
  * What a decision function *describes* rather than performs.

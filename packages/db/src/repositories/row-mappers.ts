@@ -10,15 +10,15 @@ import type {
   OrderId,
   PaymentId,
   WorkspaceId,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import type {
   CustomerDebtSummary,
   CustomerState,
   OrderLineState,
   OrderState,
   PaymentState,
-} from "@vuanha/domain-kernel";
-import { derivePaymentStatus } from "@vuanha/domain-kernel";
+} from "@vuarau/domain-kernel";
+import { derivePaymentStatus } from "@vuarau/domain-kernel";
 
 /**
  * Row ⇄ domain state. Explicit in both directions.

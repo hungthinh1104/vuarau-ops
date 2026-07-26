@@ -4,7 +4,7 @@
 
 ## Context
 
-VuaNha serves individual wholesale depots. A large depot has perhaps a dozen
+vuarau-ops serves individual wholesale depots. A large depot has perhaps a dozen
 concurrent users. The domain boundaries — customer, order, payment, debt — are
 understood in outline but not proven; the payment/debt boundary in particular has
 already shifted once during this bootstrap.

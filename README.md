@@ -1,4 +1,4 @@
-# VuaNha
+# vuarau-ops
 
 Operational decision system for wholesale vegetable depots (vựa rau) in Vietnam.
 
@@ -26,12 +26,12 @@ validation, traceability, and all test projects.
 Database tests skip when `DATABASE_URL` is unset. To run them:
 
 ```bash
-docker run -d --name vuanha-dev-pg \
-  -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=vuanha_test \
+docker run -d --name vuarau-ops-dev-pg \
+  -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=vuarau_test \
   -p 55432:5432 postgres:17-alpine
 
 cp .env.example .env
-export DATABASE_URL=postgres://postgres:postgres@localhost:55432/vuanha_test
+export DATABASE_URL=postgres://postgres:postgres@localhost:55432/vuarau_test
 
 pnpm db:migrate
 pnpm db:seed

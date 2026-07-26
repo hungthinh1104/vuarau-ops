@@ -1,5 +1,5 @@
 {
-  "name": "@vuanha/api",
+  "name": "@vuarau/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,13 +11,13 @@
   },
   "dependencies": {
     "@trpc/server": "^11.7.1",
-    "@vuanha/db": "workspace:*",
-    "@vuanha/domain-contracts": "workspace:*",
-    "@vuanha/domain-kernel": "workspace:*",
+    "@vuarau/db": "workspace:*",
+    "@vuarau/domain-contracts": "workspace:*",
+    "@vuarau/domain-kernel": "workspace:*",
     "jose": "^6.2.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@vuanha/test-fixtures": "workspace:*"
+    "@vuarau/test-fixtures": "workspace:*"
   }
 }

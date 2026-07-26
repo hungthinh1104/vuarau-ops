@@ -25,9 +25,9 @@ const BOUNDARIES: readonly Boundary[] = [
   {
     scope: "packages/domain-contracts/src",
     forbidden: [
-      "@vuanha/domain-kernel",
-      "@vuanha/db",
-      "@vuanha/api",
+      "@vuarau/domain-kernel",
+      "@vuarau/db",
+      "@vuarau/api",
       "@trpc/",
       "drizzle-orm",
       "postgres",
@@ -40,8 +40,8 @@ const BOUNDARIES: readonly Boundary[] = [
   {
     scope: "packages/domain-kernel/src",
     forbidden: [
-      "@vuanha/db",
-      "@vuanha/api",
+      "@vuarau/db",
+      "@vuarau/api",
       "@trpc/",
       "drizzle-orm",
       "postgres",
@@ -50,7 +50,7 @@ const BOUNDARIES: readonly Boundary[] = [
       "react",
       "node:",
       "zod",
-      "@vuanha/test-fixtures",
+      "@vuarau/test-fixtures",
     ],
     why: "The domain kernel is framework-free and deterministic (ADR-0003).",
     exceptions: [
@@ -61,17 +61,17 @@ const BOUNDARIES: readonly Boundary[] = [
   },
   {
     scope: "packages/db/src",
-    forbidden: ["@vuanha/api", "@trpc/", "next", "react"],
+    forbidden: ["@vuarau/api", "@trpc/", "next", "react"],
     why: "Persistence knows nothing about the application layer or transport.",
   },
   {
     scope: "packages/test-fixtures/src",
-    forbidden: ["@vuanha/db", "@vuanha/api", "drizzle-orm", "postgres", "@trpc/"],
+    forbidden: ["@vuarau/db", "@vuarau/api", "drizzle-orm", "postgres", "@trpc/"],
     why: "Fixtures are shared by every test project and must stay dependency-light.",
   },
   {
     scope: "apps/api/src",
-    forbidden: ["@vuanha/web", "next", "react", "drizzle-orm"],
+    forbidden: ["@vuarau/web", "next", "react", "drizzle-orm"],
     why: "The API talks to persistence through ports, never the query builder directly.",
   },
 ];

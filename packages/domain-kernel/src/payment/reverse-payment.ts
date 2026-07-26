@@ -2,7 +2,7 @@ import type {
   DebtLedgerEntryId,
   IsoInstant,
   ReverseCustomerPaymentCommand,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import type { Decision, LedgerEntryDraft } from "../shared/effects.ts";
 import type { PaymentState, PaymentWithReversal } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";

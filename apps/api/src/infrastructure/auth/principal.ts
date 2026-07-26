@@ -1,6 +1,6 @@
-import type { ActorId } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { err, ok } from "@vuanha/domain-kernel";
+import type { ActorId } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { err, ok } from "@vuarau/domain-kernel";
 import type { UnitOfWork } from "../persistence/ports.ts";
 import type { JwtVerifier } from "./jwt-verifier.ts";
 

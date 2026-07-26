@@ -3,7 +3,7 @@ import {
   AUDIT_ACTIONS,
   AUDIT_AGGREGATE_TYPES,
   DOMAIN_REJECTION_CODES,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 
 /**
  * Kept apart from the other enums so that the audit table's vocabulary can grow

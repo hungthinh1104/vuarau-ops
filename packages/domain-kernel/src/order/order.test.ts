@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ConfirmOrderCommand, CreateOrderCommand } from "@vuanha/domain-contracts";
+import type { ConfirmOrderCommand, CreateOrderCommand } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   COMMAND_ID,
@@ -16,7 +16,7 @@ import {
   orderLineInputs,
   validDraftOrder,
   vnd,
-} from "@vuanha/test-fixtures";
+} from "@vuarau/test-fixtures";
 import { decideConfirmOrder, decideCreateOrder } from "./index.ts";
 import { calculateLineTotal } from "../shared/quantity.ts";
 

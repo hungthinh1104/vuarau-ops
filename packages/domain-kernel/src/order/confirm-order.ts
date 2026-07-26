@@ -1,4 +1,4 @@
-import type { ConfirmOrderCommand, IsoInstant } from "@vuanha/domain-contracts";
+import type { ConfirmOrderCommand, IsoInstant } from "@vuarau/domain-contracts";
 import type { Decision, LedgerEntryDraft } from "../shared/effects.ts";
 import type { OrderState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";

@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { createHTTPHandler } from "@trpc/server/adapters/standalone";
-import { createDatabase, createUnitOfWork } from "@vuanha/db";
+import { createDatabase, createUnitOfWork } from "@vuarau/db";
 import { appRouter } from "./infrastructure/trpc/router.ts";
 import { createContext } from "./infrastructure/trpc/context.ts";
 import { createSupabaseJwtVerifier, type JwtVerifier } from "./infrastructure/auth/jwt-verifier.ts";
@@ -64,5 +64,5 @@ const deps: CommandDeps = {
 
 const port = Number(process.env["PORT"] ?? 3000);
 createServer(createApiHandler(deps, verifier)).listen(port, () => {
-  console.warn(`VuaNha API listening on http://localhost:${port}`);
+  console.warn(`vuarau-ops API listening on http://localhost:${port}`);
 });

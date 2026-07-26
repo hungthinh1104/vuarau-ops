@@ -1,7 +1,7 @@
-import type { CreateOrderCommand, OrderDto } from "@vuanha/domain-contracts";
-import { createOrderCommandSchema } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { decideCreateOrder, err, ok } from "@vuanha/domain-kernel";
+import type { CreateOrderCommand, OrderDto } from "@vuarau/domain-contracts";
+import { createOrderCommandSchema } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { decideCreateOrder, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { toOrderDto } from "../shared/mappers.ts";

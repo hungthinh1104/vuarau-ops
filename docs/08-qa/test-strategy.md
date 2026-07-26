@@ -23,11 +23,11 @@ reported as skipped — the summary says so.
 To run them locally:
 
 ```bash
-docker run -d --name vuanha-dev-pg \
-  -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=vuanha_test \
+docker run -d --name vuarau-ops-dev-pg \
+  -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=vuarau_test \
   -p 55432:5432 postgres:17-alpine
 
-export DATABASE_URL=postgres://postgres:postgres@localhost:55432/vuanha_test
+export DATABASE_URL=postgres://postgres:postgres@localhost:55432/vuarau_test
 pnpm db:migrate
 pnpm test:db
 ```
@@ -51,7 +51,7 @@ the repository does the wrong thing with X.
 balances. No test reaches into a private field or asserts call counts on internal
 helpers.
 
-**Deterministic fixtures.** `@vuanha/test-fixtures` exports fixed UUIDs and fixed
+**Deterministic fixtures.** `@vuarau/test-fixtures` exports fixed UUIDs and fixed
 timestamps. No `Math.random()`, no `new Date()`, no faker. A test that fails
 should fail every time.
 

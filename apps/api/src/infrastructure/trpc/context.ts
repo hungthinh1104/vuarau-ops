@@ -1,4 +1,4 @@
-import type { DomainError } from "@vuanha/domain-contracts";
+import type { DomainError } from "@vuarau/domain-contracts";
 import type { CommandDeps } from "../../modules/shared/command-pipeline.ts";
 import type { JwtVerifier } from "../auth/jwt-verifier.ts";
 import { bearerTokenFrom } from "../auth/jwt-verifier.ts";

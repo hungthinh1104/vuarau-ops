@@ -1,4 +1,4 @@
-import type { PaymentState } from "@vuanha/domain-kernel";
+import type { PaymentState } from "@vuarau/domain-kernel";
 import {
   CUSTOMER_ID,
   FULLY_REVERSED_PAYMENT_ID,

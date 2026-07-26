@@ -1,7 +1,7 @@
-import type { PaymentDto, ReverseCustomerPaymentCommand } from "@vuanha/domain-contracts";
-import { reverseCustomerPaymentCommandSchema } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { decideReversePayment, err, ok } from "@vuanha/domain-kernel";
+import type { PaymentDto, ReverseCustomerPaymentCommand } from "@vuarau/domain-contracts";
+import { reverseCustomerPaymentCommandSchema } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { decideReversePayment, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyLedgerEffects } from "../shared/debt-effects.ts";

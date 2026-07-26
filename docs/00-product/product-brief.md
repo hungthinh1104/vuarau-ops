@@ -1,6 +1,6 @@
 # Product brief
 
-**VuaNha** is an operational decision system for wholesale vegetable depots (vựa rau)
+**vuarau-ops** is an operational decision system for wholesale vegetable depots (vựa rau)
 in Vietnam.
 
 It is not an ERP, not an accounting package, and not a warehouse management system.

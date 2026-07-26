@@ -1,4 +1,4 @@
-import type { CreateOrderCommand, IsoInstant } from "@vuanha/domain-contracts";
+import type { CreateOrderCommand, IsoInstant } from "@vuarau/domain-contracts";
 import type { Decision } from "../shared/effects.ts";
 import type { OrderState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";

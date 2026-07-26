@@ -1,8 +1,8 @@
 import { TRPCError, initTRPC } from "@trpc/server";
 import { ZodError } from "zod";
-import type { DomainError, DomainRejectionCode } from "@vuanha/domain-contracts";
-import { isRetryableCode } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
+import type { DomainError, DomainRejectionCode } from "@vuarau/domain-contracts";
+import { isRetryableCode } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
 import type { ApiContext } from "./context.ts";
 
 /**

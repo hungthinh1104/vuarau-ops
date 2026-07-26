@@ -1,4 +1,4 @@
-import type { IsoInstant } from "@vuanha/domain-contracts";
+import type { IsoInstant } from "@vuarau/domain-contracts";
 
 /**
  * Fixed instants modelling the gap that matters: a sale at dawn, entered mid-morning.

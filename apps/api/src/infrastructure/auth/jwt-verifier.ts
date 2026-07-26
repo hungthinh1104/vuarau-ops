@@ -1,7 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import type { DomainError } from "@vuanha/domain-contracts";
-import type { DomainResult } from "@vuanha/domain-kernel";
-import { err, ok } from "@vuanha/domain-kernel";
+import type { DomainError } from "@vuarau/domain-contracts";
+import type { DomainResult } from "@vuarau/domain-kernel";
+import { err, ok } from "@vuarau/domain-kernel";
 
 /**
  * Verifies a Supabase access token and returns nothing but its subject.

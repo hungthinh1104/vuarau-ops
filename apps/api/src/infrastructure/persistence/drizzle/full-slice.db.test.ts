@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDbTestContext, createUnitOfWork, hasDatabase, type DbTestContext } from "@vuanha/db";
+import { createDbTestContext, createUnitOfWork, hasDatabase, type DbTestContext } from "@vuarau/db";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
 import { createOrder } from "../../../modules/order/create-order.handler.ts";

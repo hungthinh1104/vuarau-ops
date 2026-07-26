@@ -14,7 +14,7 @@ import type {
   OrderId,
   PaymentId,
   WorkspaceId,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import type {
   CustomerDebtSummary,
   CustomerState,
@@ -22,7 +22,7 @@ import type {
   OrderState,
   PaymentReversalState,
   PaymentState,
-} from "@vuanha/domain-kernel";
+} from "@vuarau/domain-kernel";
 import {
   actors,
   auditLogs,

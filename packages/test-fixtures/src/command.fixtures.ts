@@ -1,4 +1,4 @@
-import type { CommandEnvelope, IdempotencyKey } from "@vuanha/domain-contracts";
+import type { CommandEnvelope, IdempotencyKey } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   COMMAND_ID,

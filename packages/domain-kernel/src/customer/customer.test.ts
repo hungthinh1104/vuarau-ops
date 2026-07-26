@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CreateCustomerCommand } from "@vuanha/domain-contracts";
+import type { CreateCustomerCommand } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   COMMAND_ID,
@@ -8,7 +8,7 @@ import {
   RECORDED_AT,
   TRANSACTION_TIME,
   WORKSPACE_ID,
-} from "@vuanha/test-fixtures";
+} from "@vuarau/test-fixtures";
 import { decideCreateCustomer } from "./index.ts";
 
 function createCustomerCommand(

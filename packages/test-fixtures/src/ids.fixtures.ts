@@ -10,7 +10,7 @@ import type {
   PaymentReversalId,
   ProductId,
   WorkspaceId,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 
 /**
  * Fixed, readable, valid v4-shaped UUIDs.

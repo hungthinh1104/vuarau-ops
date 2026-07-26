@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { PERMISSIONS, ROLE_PERMISSIONS, roleHasPermission } from "@vuanha/domain-contracts";
+import { PERMISSIONS, ROLE_PERMISSIONS, roleHasPermission } from "@vuarau/domain-contracts";
 import {
   ACCOUNTANT_ACTOR_ID,
   ACTOR_ID,
@@ -15,7 +15,7 @@ import {
   WAREHOUSE_ACTOR_ID,
   WORKSPACE_ID,
   vnd,
-} from "@vuanha/test-fixtures";
+} from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { adjustCustomerDebt } from "../debt/adjust-debt.handler.ts";
 import { getCustomerDebtSummary } from "../debt/debt.queries.ts";

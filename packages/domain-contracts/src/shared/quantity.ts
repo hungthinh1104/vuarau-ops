@@ -9,7 +9,7 @@ import { z } from "zod";
  * `{ valueScaled: 1500, unit: "kg" }`.
  *
  * Line total arithmetic and its rounding rule live in
- * `@vuanha/domain-kernel/shared/quantity` (BR-ORDER-004).
+ * `@vuarau/domain-kernel/shared/quantity` (BR-ORDER-004).
  */
 
 export const QUANTITY_SCALE = 1000;

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { SignJWT } from "jose";
-import { ACTOR_ID, subjectFor } from "@vuanha/test-fixtures";
+import { ACTOR_ID, subjectFor } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { bearerTokenFrom, createSupabaseJwtVerifier } from "./jwt-verifier.ts";
 import { resolvePrincipal } from "./principal.ts";

@@ -8,7 +8,7 @@ import {
   recordCustomerPaymentCommandSchema,
   reverseCustomerPaymentCommandSchema,
   workspaceIdSchema,
-} from "@vuanha/domain-contracts";
+} from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "./trpc.ts";
 import { createCustomer } from "../../modules/customer/create-customer.handler.ts";
 import { createOrder } from "../../modules/order/create-order.handler.ts";

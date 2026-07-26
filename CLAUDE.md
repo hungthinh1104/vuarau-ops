@@ -1,4 +1,4 @@
-# VuaNha — working agreement
+# vuarau-ops — working agreement
 
 An **operational decision system for wholesale vegetable depots (vựa rau) in
 Vietnam**. Not an ERP, not accounting, not inventory software.
@@ -71,10 +71,10 @@ pnpm db:generate pnpm db:migrate pnpm db:seed
 Postgres for `test:db`:
 
 ```bash
-docker run -d --name vuanha-dev-pg \
-  -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=vuanha_test \
+docker run -d --name vuarau-ops-dev-pg \
+  -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=vuarau_test \
   -p 55432:5432 postgres:17-alpine
-export DATABASE_URL=postgres://postgres:postgres@localhost:55432/vuanha_test
+export DATABASE_URL=postgres://postgres:postgres@localhost:55432/vuarau_test
 ```
 
 ## The six commands

@@ -12,10 +12,10 @@ excludes production UI.
 
 The backend was designed so that the web app can be added without changing it:
 
-- `@vuanha/domain-contracts` is dependency-free apart from Zod and is safe to
+- `@vuarau/domain-contracts` is dependency-free apart from Zod and is safe to
   import from browser code. Branded ids, `Money`, DTO schemas, and the stable
   rejection-code catalogue all come from there.
-- `AppRouter` is exported from `@vuanha/api`, so a tRPC client gets full type
+- `AppRouter` is exported from `@vuarau/api`, so a tRPC client gets full type
   inference with no code generation step.
 - DTOs already carry server-computed `capabilities`, so the UI can disable a
   control for exactly the reason the server would refuse it — without
