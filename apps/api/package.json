@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "node --watch src/server.ts",
     "ops:rebuild-balance": "node src/operations/rebuild-account-balance.ts",
-    "ops:pilot": "node src/operations/pilot-onboarding.ts"
+    "ops:pilot": "node src/operations/pilot-onboarding.ts",
+    "ops:check-env": "node src/operations/check-env.ts"
   },
   "dependencies": {
     "@trpc/server": "^11.7.1",

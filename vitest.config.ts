@@ -35,6 +35,7 @@ export default defineConfig({
           ...sharedTestConfig,
           name: "application",
           include: ["apps/api/src/**/*.app.test.ts"],
+          setupFiles: ["./apps/api/src/testing/setup.ts"],
         },
       },
       {
@@ -42,6 +43,7 @@ export default defineConfig({
           ...sharedTestConfig,
           name: "contract",
           include: ["apps/api/src/**/*.contract.test.ts"],
+          setupFiles: ["./apps/api/src/testing/setup.ts"],
         },
       },
       {
@@ -49,6 +51,7 @@ export default defineConfig({
           ...sharedTestConfig,
           name: "db",
           include: ["packages/db/src/**/*.db.test.ts", "apps/api/src/**/*.db.test.ts"],
+          setupFiles: ["./apps/api/src/testing/setup.ts"],
           // No truncation between files: every db test creates its own workspace
           // and asserts within it, so parallel files cannot see each other's rows.
           // That is the same isolation the product depends on, exercised for free.

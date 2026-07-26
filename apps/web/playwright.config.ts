@@ -90,13 +90,13 @@ export default defineConfig({
         {
           command: "node ../api/src/server.ts",
           /*
-           * A real procedure, not `/`. The router answers 404 at the root, which
-           * Playwright does not accept as "ready", and probing a procedure proves
-           * more anyway: the server is up *and* the router is mounted. Without a
-           * token it answers 401, which is both an accepted status and the
-           * correct answer (BR-AUTH-001).
+           * The readiness probe, which is exactly the question Playwright is
+           * asking: configuration accepted **and** the database answering. It
+           * used to probe `session.me` and accept its 401 — true but indirect,
+           * and it went green against a server whose database was unreachable,
+           * so the first spec discovered that instead.
            */
-          url: `http://127.0.0.1:${E2E_API_PORT}/session.me?input=%7B%7D`,
+          url: `http://127.0.0.1:${E2E_API_PORT}/health/ready`,
           env: apiEnvironment,
           reuseExistingServer: false,
           timeout: 60_000,

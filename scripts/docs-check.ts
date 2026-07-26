@@ -44,6 +44,7 @@ const REQUIRED = [
   "04-business-rules/error-code-catalog.md",
   "04-business-rules/authorization-rules.md",
   "04-business-rules/read-rules.md",
+  "04-business-rules/operations-rules.md",
   "05-casebook/sale-cases.md",
   "05-casebook/payment-cases.md",
   "05-casebook/customer-account-cases.md",
@@ -82,6 +83,8 @@ const REQUIRED = [
   "10-ai-coding/REVIEW_CHECKLIST.md",
   "10-ai-coding/CHANGE_PROTOCOL.md",
   "10-ai-coding/bootstrap-progress.md",
+  "11-operations/deployment-contract.md",
+  "11-operations/device-smoke-check.md",
 ];
 
 /** Every ADR must argue its case, not merely state a conclusion. */

@@ -10,6 +10,7 @@ import type {
   WorkspaceMembership,
 } from "../../infrastructure/persistence/ports.ts";
 import { hashPayload } from "../../infrastructure/hash.ts";
+import { currentRequestId, log } from "../../infrastructure/logging.ts";
 import { authorizeWorkspaceAccess } from "./authorization.ts";
 
 /**
@@ -86,6 +87,7 @@ export async function runCommand<
 }): Promise<DomainResult<TResult>> {
   const { commandType, schema, input, ctx, requiredPermission, execute } = options;
   const { deps, principal } = ctx;
+  const startedAt = Date.now();
 
   // 1. Validate the payload shape.
   const parsed = schema.safeParse(input);
@@ -113,6 +115,26 @@ export async function runCommand<
 
   const payloadHash = hashPayload(command.payload);
 
+  /*
+   * One line per command, carrying only identifiers, an outcome and a duration
+   * (BR-OPS-001). Not the payload, not the amount, not who the customer is —
+   * `commandId` is enough to find the audit record, which is where the business
+   * detail belongs and is access-controlled.
+   */
+  const record = (outcome: "accepted" | "rejected" | "replayed", code: string | null): void => {
+    log({
+      event: "command",
+      requestId: currentRequestId(),
+      commandId: command.commandId,
+      commandType,
+      workspaceId: command.workspaceId,
+      actorId: command.actorId,
+      outcome,
+      code,
+      durationMs: Date.now() - startedAt,
+    });
+  };
+
   try {
     return await deps.uow.transaction(async (repos) => {
       // 4. Identity, membership, and permission — before any business data is
@@ -137,6 +159,7 @@ export async function runCommand<
         payloadHash,
       });
       if (replay !== null) {
+        record("replayed", null);
         return replay;
       }
 
@@ -175,11 +198,16 @@ export async function runCommand<
 
       // 11. Store the result so a retry gets the answer, not "already done".
       await repos.receipts.complete(command.workspaceId, command.idempotencyKey, result.value);
+      record("accepted", null);
       return result;
     });
   } catch (error) {
     if (error instanceof RollbackForRejection) {
-      return error.rejection as DomainResult<TResult>;
+      const rejection = error.rejection as DomainResult<TResult>;
+      // Logged after the rollback, so nothing claims to have happened that did
+      // not. The code is from the closed rejection set; the message is not logged.
+      record("rejected", rejection.ok ? null : rejection.error.code);
+      return rejection;
     }
     throw error;
   }

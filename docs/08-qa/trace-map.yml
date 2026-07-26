@@ -640,6 +640,29 @@ business_rules:
       - packages/domain-kernel/src/sale/post-sale.ts
       - packages/domain-contracts/src/account/index.ts
 
+  # --- operations ---------------------------------------------------------------
+  BR-OPS-001:
+    title: Server logs carry correlation identifiers and no business data
+    risk: P0
+    doc: docs/04-business-rules/operations-rules.md
+    cases: []
+    tests: [TC-OPS-003, TC-OPS-004]
+    implementation:
+      - apps/api/src/infrastructure/logging.ts
+      - apps/api/src/infrastructure/readiness.ts
+      - apps/api/src/modules/shared/command-pipeline.ts
+
+  BR-OPS-002:
+    title: The server refuses to start on a configuration it cannot trust
+    risk: P1
+    doc: docs/04-business-rules/operations-rules.md
+    cases: []
+    tests: [TC-OPS-001, TC-OPS-002]
+    implementation:
+      - apps/api/src/infrastructure/config.ts
+      - apps/api/src/operations/check-env.ts
+      - apps/api/src/server.ts
+
   # --- payment ------------------------------------------------------------------
   BR-PAYMENT-001:
     title: Payment amount must be greater than zero
@@ -1379,6 +1402,20 @@ contract_tests:
   TC-E2E-021:
     title: The depot list comes from session.workspaces against a real database
     file: apps/web/e2e/sign-in.spec.ts
+
+  # --- running the thing ------------------------------------------------------
+  TC-OPS-001:
+    title: The server configuration is judged whole, and names every bad variable
+    file: apps/api/src/infrastructure/config.app.test.ts
+  TC-OPS-002:
+    title: A secret-shaped NEXT_PUBLIC_ variable fails the configuration
+    file: apps/api/src/infrastructure/config.app.test.ts
+  TC-OPS-003:
+    title: The configuration summary prints no value it read
+    file: apps/api/src/infrastructure/config.app.test.ts
+  TC-OPS-004:
+    title: A real command logs identifiers and no name, note or amount
+    file: apps/api/src/infrastructure/logging.app.test.ts
 
 # Retired identifiers. Never reissued. The old → new mapping is in
 # docs/02-use-cases/use-case-catalog.md.
