@@ -98,7 +98,7 @@ export function principalFor(actorId: ActorId): AuthenticatedPrincipal {
   return { actorId, subject: subjectFor(actorId) };
 }
 
-/** Sums a customer's ledger entries — the only definition of a balance there is. */
+/** Sums a customer's account entries — the only definition of a balance there is. */
 export function ledgerBalance(harness: Harness, customerId: string): number {
   return harness.db
     .entriesFor(WORKSPACE_ID, customerId)

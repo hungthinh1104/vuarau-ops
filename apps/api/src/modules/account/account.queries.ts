@@ -41,12 +41,12 @@ export async function getCustomerAccountBalance(
     }
 
     const stored = await repos.accountBalances.get(workspaceId, customerId);
-    // A customer with no entries has no summary row. Their balance is zero
+    // A customer with no entries has no balance row. Their balance is zero
     // because nothing has moved it, and this reports that without writing a row.
-    const summary: CustomerAccountBalance =
+    const balance: CustomerAccountBalance =
       stored ?? emptyAccountBalance(workspaceId, customerId, currency, ctx.deps.clock.now());
 
-    return ok(toAccountBalanceDto(summary, accountCapabilities(authorized.value.role)));
+    return ok(toAccountBalanceDto(balance, accountCapabilities(authorized.value.role)));
   });
 }
 

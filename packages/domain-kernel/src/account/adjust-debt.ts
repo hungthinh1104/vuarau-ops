@@ -11,13 +11,18 @@ export type AdjustDebtInput = {
 
 /**
  * The only command that moves money with no underlying business document — an
- * opening balance from the paper book, a write-off, a correction to a confirmed
- * sale (CASE-SALE-007).
+ * opening balance carried in from the paper book, a write-off, a dispute
+ * settlement, a migration correction (BR-ACCOUNT-010).
  *
- * It changes no aggregate, so the decision's `aggregate` is `null`: the ledger
+ * Correcting a wrong posted sale is **not** on that list. That is `VoidSale` plus
+ * an optional replacement (ADR-0012): an adjustment would leave the wrong sale
+ * document standing while quietly patching the balance, so the document and the
+ * balance would tell different stories and only one of them would be right.
+ *
+ * It changes no aggregate, so the decision's `aggregate` is `null`: the account
  * entry *is* the record. That is why the reason is mandatory and why it is written
- * onto the entry rather than only into the audit log — someone reading the debt
- * book must see why the number moved without joining another table.
+ * onto the entry rather than only into the audit log — somebody reading the
+ * account book must see why the number moved without joining another table.
  */
 export function decideAdjustDebt({
   command,

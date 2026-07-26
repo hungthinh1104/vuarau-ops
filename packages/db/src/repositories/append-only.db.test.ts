@@ -88,7 +88,7 @@ describe.skipIf(!hasDatabase)("database append-only guarantees", () => {
 
   describe("BR-SALE-007 / TC-SALE-012", () => {
     it("makes a second ledger entry for the same source impossible", async () => {
-      // The structural backstop behind "confirming twice must not double a debt":
+      // The structural backstop behind "posting twice must not double a receivable":
       // even if a code path slipped past idempotency, the constraint refuses.
       const sourceId = crypto.randomUUID();
       await insertAccountEntry(sourceId, 100_000);

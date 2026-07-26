@@ -96,7 +96,7 @@ async function runCasebookLedger(): Promise<void> {
   });
   await postSale(harness.ctx, {
     commandId: SECOND_COMMAND_ID,
-    idempotencyKey: "casebook-sale-confirm-key",
+    idempotencyKey: "casebook-sale-post-key",
     workspaceId: WORKSPACE_ID,
     actorId: ACTOR_ID,
     occurredAt: TRANSACTION_TIME,

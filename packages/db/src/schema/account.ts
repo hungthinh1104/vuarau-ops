@@ -18,8 +18,8 @@ import { actors, workspaces } from "./workspace.ts";
 import { customers } from "./customer.ts";
 
 /**
- * The source of truth for customer debt. **Append-only** — a trigger raises on
- * UPDATE and DELETE (BR-ACCOUNT-005).
+ * The customer account ledger — the source of truth for what a customer owes.
+ * **Append-only**: a trigger raises on UPDATE and DELETE (BR-ACCOUNT-005).
  *
  * `amount_minor` is signed: positive means the customer owes more.
  */
@@ -51,10 +51,10 @@ export const customerAccountEntries = pgTable(
   },
   (table) => [
     /**
-     * The structural guarantee behind BR-SALE-007: one confirmation of an sale
-     * can produce at most one entry for it. A retry that slipped past the
-     * idempotency layer hits this constraint and rolls back, rather than doubling
-     * a customer's debt.
+     * The structural guarantee behind BR-SALE-007 and BR-SALE-013: one posting
+     * of a sale, and one void of it, can each produce at most one entry. A retry
+     * that slipped past the idempotency layer hits this constraint and rolls
+     * back, rather than doubling what a customer owes.
      */
     unique("customer_account_entries_source_unique").on(table.sourceType, table.sourceId),
     index("customer_account_entries_workspace_customer_time_idx").on(

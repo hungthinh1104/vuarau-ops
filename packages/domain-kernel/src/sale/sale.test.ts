@@ -118,7 +118,7 @@ describe("BR-SALE-004 / TC-SALE-002", () => {
 });
 
 describe("BR-SALE-007 / TC-SALE-003", () => {
-  it("produces exactly one debt ledger effect when a valid sale is confirmed", () => {
+  it("produces exactly one account effect when a valid sale is posted", () => {
     const result = decidePostSale({
       command: postSaleCommand(validDraftSale.version),
       sale: validDraftSale,
@@ -271,7 +271,7 @@ describe("BR-SALE-003 / TC-SALE-007", () => {
 });
 
 describe("BR-SALE-005 / TC-SALE-008", () => {
-  it("refuses to post a sale that is already confirmed", () => {
+  it("refuses to post a sale that is already posted", () => {
     // CASE-SALE-003 — a deliberate second posting, not a retry. A retry
     // never reaches the domain; the idempotency layer answers it (BR-COMMAND-001).
     const result = decidePostSale({

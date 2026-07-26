@@ -23,7 +23,7 @@ import { vnd } from "./customer.fixtures.ts";
  * separately-maintained number.
  */
 
-export const orderConfirmationEntry: CustomerAccountEntryDto = {
+export const salePostingEntry: CustomerAccountEntryDto = {
   id: LEDGER_ENTRY_1_ID,
   workspaceId: WORKSPACE_ID,
   customerId: CUSTOMER_ID,
@@ -40,7 +40,7 @@ export const orderConfirmationEntry: CustomerAccountEntryDto = {
 };
 
 export const paymentEntry: CustomerAccountEntryDto = {
-  ...orderConfirmationEntry,
+  ...salePostingEntry,
   id: LEDGER_ENTRY_2_ID,
   amount: vnd(-500_000),
   sourceType: "payment",
@@ -51,7 +51,7 @@ export const paymentEntry: CustomerAccountEntryDto = {
 
 /** Balance after both entries: 875 000 − 500 000 = 375 000 ₫. */
 export const ledgerWithOrderAndPayment: readonly CustomerAccountEntryDto[] = [
-  orderConfirmationEntry,
+  salePostingEntry,
   paymentEntry,
 ];
 

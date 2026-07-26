@@ -5,7 +5,7 @@ import { createRepositories, type IdMinter } from "../repositories/index.ts";
  * One database transaction per command (BR-COMMAND-005).
  *
  * Everything a command writes — aggregate, ledger entries, summary, audit record,
- * command receipt — commits together or not at all. A confirmed sale without its
+ * command receipt — commits together or not at all. A posted sale without its
  * ledger entry is corrupt data, and a partial failure is exactly when it would
  * happen.
  *

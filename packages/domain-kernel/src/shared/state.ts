@@ -23,7 +23,7 @@ import type {
  */
 
 /**
- * The debt summary as the domain computes it.
+ * The customer account balance as the domain computes it.
  *
  * Distinct from `CustomerAccountBalanceDto`, which additionally carries
  * `capabilities` — and capabilities depend on *who is asking*, which the kernel

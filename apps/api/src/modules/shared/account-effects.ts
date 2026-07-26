@@ -11,7 +11,7 @@ import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 
 /**
  * The single place ledger entries are written and the single place the debt
- * summary is touched (BR-ACCOUNT-002).
+ * balance is touched (BR-ACCOUNT-002).
  *
  * Sale and Payment handlers *describe* an effect; only this function appends one.
  * That is what makes "debt changes only through ledger-producing commands"
@@ -97,8 +97,8 @@ async function advanceSummary(
 /**
  * BR-ACCOUNT-006 — discard the projection and recompute it from the entries.
  *
- * This is the recovery procedure for a summary that has drifted (CASE-ACCOUNT-007),
- * and it is safe by construction: the entries are the truth and the summary is
+ * This is the recovery procedure for a balance that has drifted (CASE-ACCOUNT-007),
+ * and it is safe by construction: the entries are the truth and the balance is
  * disposable.
  */
 export async function rebuildCustomerAccountBalance(
@@ -109,9 +109,9 @@ export async function rebuildCustomerAccountBalance(
   updatedAt: IsoInstant,
 ): Promise<CustomerAccountBalance> {
   const entries = await repos.accountEntries.listByCustomer(workspaceId, customerId);
-  const summary = buildAccountBalance({ workspaceId, customerId, entries, currency, updatedAt });
-  await repos.accountBalances.save(summary);
-  return summary;
+  const balance = buildAccountBalance({ workspaceId, customerId, entries, currency, updatedAt });
+  await repos.accountBalances.save(balance);
+  return balance;
 }
 
 export function emptyAccountBalance(

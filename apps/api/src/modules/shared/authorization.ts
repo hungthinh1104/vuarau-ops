@@ -16,7 +16,7 @@ import type { AuthenticatedPrincipal } from "../../infrastructure/auth/principal
  * so that a read cannot accidentally be laxer than the write beside it
  * (BR-AUTH-001 … BR-AUTH-004).
  *
- * Sale matters, and each step answers a different operator question:
+ * Order matters, and each step answers a different operator question:
  *
  *   1. is the caller claiming to be somebody else?   → ACTOR_IMPERSONATION_DENIED
  *   2. are they a member of this workspace at all?   → WORKSPACE_ACCESS_DENIED

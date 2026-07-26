@@ -55,7 +55,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
 
   const accountEntryRows = () => ctx.accountEntryRows();
 
-  it("BR-SALE-007 / TC-SALE-003 — confirming creates exactly one ledger entry", async () => {
+  it("BR-SALE-007 / TC-SALE-003 — posting creates exactly one account entry", async () => {
     const created = await createSaleDraft(owner, {
       ...envelope("db-sale-create"),
       payload: {
@@ -95,22 +95,22 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     // A draft moves no money.
     expect(await accountEntryRows()).toHaveLength(0);
 
-    const confirmed = await postSale(owner, {
-      ...envelope("db-sale-confirm"),
+    const posted = await postSale(owner, {
+      ...envelope("db-sale-post"),
       expectedVersion: 1,
       payload: { saleId },
     });
 
-    expect(confirmed.ok).toBe(true);
+    expect(posted.ok).toBe(true);
     const entries = await accountEntryRows();
     expect(entries).toHaveLength(1);
     expect(entries[0]?.amount.amountMinor).toBe(875_000);
     expect(entries[0]?.sourceType).toBe("sale_posting");
   });
 
-  it("BR-COMMAND-001 / TC-SALE-004 — a retried confirmation does not duplicate debt", async () => {
+  it("BR-COMMAND-001 / TC-SALE-004 — a retried posting does not duplicate the receivable", async () => {
     const replay = await postSale(owner, {
-      ...envelope("db-sale-confirm"),
+      ...envelope("db-sale-post"),
       expectedVersion: 1,
       payload: { saleId },
     });
@@ -124,7 +124,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
 
   it("BR-SALE-006 / TC-SALE-005 — a stale version is rejected by the real update", async () => {
     const stale = await postSale(owner, {
-      ...envelope("db-sale-confirm-stale"),
+      ...envelope("db-sale-post-stale"),
       expectedVersion: 1,
       payload: { saleId },
     });
@@ -184,27 +184,115 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(summary.ok && summary.value.balance.amountMinor).toBe(875_000);
   });
 
+  it("BR-SALE-012 / TC-SALE-027 — a wrong posted sale is corrected by voiding and replacing it", async () => {
+    // CASE-SALE-007, against real SQL. This is the path BR-ACCOUNT-010 mandates:
+    // the sale said 875 000 ₫, the customer took one thùng of ớt and not two, and
+    // the truth is 625 000 ₫.
+    //
+    // It used to be one `AdjustCustomerDebt` of −250 000 with a free-text reason.
+    // That produced the right balance beside a sale document that still said the
+    // wrong thing, so the two disagreed and only the ledger explained why.
+    const voided = await voidSale(owner, {
+      ...envelope("db-sale-void-correction"),
+      payload: {
+        saleVoidId: crypto.randomUUID(),
+        saleId,
+        reasonCode: "wrong_amount",
+        reason: "Ghi nhầm 2 thùng ớt, thực tế 1 thùng",
+      },
+    });
+
+    expect(voided.ok).toBe(true);
+    if (!voided.ok) return;
+    expect(voided.value.financialState).toBe("voided");
+
+    // Exact compensation: posting and void sum to zero for that sale.
+    const afterVoid = await getCustomerAccountBalance(owner, ctx.workspaceId, ctx.customerId);
+    expect(afterVoid.ok && afterVoid.value.balance.amountMinor).toBe(0);
+
+    const replacementId = crypto.randomUUID();
+    const replacement = await createSaleDraft(owner, {
+      ...envelope("db-sale-replacement-draft"),
+      payload: {
+        saleId: replacementId,
+        customerId: ctx.customerId,
+        currency: "VND",
+        lines: [
+          {
+            lineId: crypto.randomUUID(),
+            productId: ctx.productIds[0],
+            productName: "Cà chua",
+            quantity: { valueScaled: 12_500, unit: "kg" },
+            unitPrice: { amountMinor: 18_000, currency: "VND" },
+          },
+          {
+            lineId: crypto.randomUUID(),
+            productId: ctx.productIds[1],
+            productName: "Rau muống",
+            quantity: { valueScaled: 30_000, unit: "bo" },
+            unitPrice: { amountMinor: 5_000, currency: "VND" },
+          },
+          {
+            lineId: crypto.randomUUID(),
+            productId: ctx.productIds[2],
+            productName: "Ớt hiểm",
+            quantity: { valueScaled: 1_000, unit: "thung" },
+            unitPrice: { amountMinor: 250_000, currency: "VND" },
+          },
+        ],
+        note: null,
+        dueAt: null,
+        replacesSaleId: saleId,
+      },
+    });
+
+    expect(replacement.ok).toBe(true);
+    if (!replacement.ok) return;
+    // The link is stored, so the correction chain is followable from the database
+    // and not only from a sentence somebody typed (BR-SALE-016).
+    expect(replacement.value.replacesSaleId).toBe(saleId);
+
+    const posted = await postSale(owner, {
+      ...envelope("db-sale-replacement-post"),
+      expectedVersion: 1,
+      payload: { saleId: replacementId },
+    });
+    expect(posted.ok).toBe(true);
+
+    // +875 000, −875 000, +625 000. Three entries, all standing, arithmetic right.
+    const entries = await accountEntryRows();
+    expect(entries.filter((entry) => entry.sourceType === "sale_posting")).toHaveLength(2);
+    expect(entries.filter((entry) => entry.sourceType === "sale_void")).toHaveLength(1);
+    expect(entries.filter((entry) => entry.sourceType === "manual_adjustment")).toHaveLength(0);
+
+    const balance = await getCustomerAccountBalance(owner, ctx.workspaceId, ctx.customerId);
+    expect(balance.ok && balance.value.balance.amountMinor).toBe(625_000);
+  });
+
   it("BR-ACCOUNT-003 / TC-ACCOUNT-003 — an adjustment carries its reason onto the entry", async () => {
+    // A movement with no underlying document, which is what this command is for:
+    // nợ cũ carried in from the paper book. Correcting a sale is not on that list
+    // (BR-ACCOUNT-010) and is tested through VoidSale above.
     const adjusted = await adjustCustomerDebt(owner, {
       ...envelope("db-debt-adjust"),
       payload: {
         adjustmentId: crypto.randomUUID(),
         customerId: ctx.customerId,
-        direction: "decrease",
-        amount: { amountMinor: 250_000, currency: "VND" },
-        reasonCode: "data_entry_correction",
-        reason: "Đơn 875k ghi nhầm 2 thùng ớt, thực tế 1 thùng",
+        direction: "increase",
+        amount: { amountMinor: 50_000, currency: "VND" },
+        reasonCode: "opening_balance",
+        reason: "Nợ cũ từ sổ giấy, chốt ngày 30/6",
       },
     });
 
     expect(adjusted.ok).toBe(true);
     if (!adjusted.ok) return;
-    expect(adjusted.value.balance.amountMinor).toBe(625_000);
+    expect(adjusted.value.balance.amountMinor).toBe(675_000);
 
     const entries = await accountEntryRows();
     const adjustment = entries.find((entry) => entry.sourceType === "manual_adjustment");
-    expect(adjustment?.reason).toBe("Đơn 875k ghi nhầm 2 thùng ớt, thực tế 1 thùng");
-    expect(adjustment?.reasonCode).toBe("data_entry_correction");
+    expect(adjustment?.reason).toBe("Nợ cũ từ sổ giấy, chốt ngày 30/6");
+    expect(adjustment?.reasonCode).toBe("opening_balance");
   });
 
   it("BR-ACCOUNT-001 / TC-ACCOUNT-001 — the summary equals the sum of the stored entries", async () => {

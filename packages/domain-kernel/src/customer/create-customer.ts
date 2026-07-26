@@ -12,7 +12,7 @@ export type CreateCustomerInput = {
 /**
  * T-CUST-001 — master data, not a financial record.
  *
- * No ledger entry is produced. A new customer's debt is zero because they have no
+ * No account entry is produced. A new customer's balance is zero because they have no
  * entries, not because a zero was stored anywhere (ADR-0004).
  *
  * The blank-name check duplicates what the Zod schema already enforces, on

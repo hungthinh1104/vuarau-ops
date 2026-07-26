@@ -35,7 +35,7 @@ takes `workspaceId` as a required argument.
 
 ## Consequences
 
-**Good.** One transaction spans an sale posting and its ledger entry. One
+**Good.** One transaction spans a sale posting and its account entry. One
 deploy, one log stream, one database to back up. Module boundaries can be moved
 with a refactor rather than a migration plan.
 

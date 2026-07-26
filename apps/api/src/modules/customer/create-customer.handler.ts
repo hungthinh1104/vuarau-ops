@@ -6,7 +6,7 @@ import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { toCustomerDto } from "../shared/mappers.ts";
 
-/** UC-CUSTOMER-001. Creates master data; writes no ledger entry. */
+/** UC-CUSTOMER-001. Creates master data; writes no account entry. */
 export function createCustomer(
   ctx: CommandContext,
   input: unknown,

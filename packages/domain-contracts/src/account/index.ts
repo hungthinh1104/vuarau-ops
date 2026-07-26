@@ -12,11 +12,12 @@ import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand } from "../shared/command.ts";
 
 /**
- * The debt ledger is the source of truth for what a customer owes (ADR-0004).
+ * The customer account ledger is the source of truth for what a customer owes
+ * (ADR-0004).
  * Entries are append-only. Nothing in this system updates or deletes one.
  *
  * Sign convention, applied everywhere without exception:
- *   positive amount ⇒ the customer owes MORE  (sale confirmed, payment reversed)
+ *   positive amount ⇒ the customer owes MORE  (sale posted, payment reversed)
  *   negative amount ⇒ the customer owes LESS  (payment recorded)
  *
  * See docs/07-data/ledger-model.md.
@@ -60,9 +61,9 @@ export const customerAccountEntryDtoSchema = z.object({
   amount: moneySchema,
   sourceType: accountEntrySourceTypeSchema,
   /**
-   * Id of the record that caused this entry: an sale, a payment, a payment
-   * reversal, or an adjustment. Typed loosely because `sourceType` discriminates
-   * it; the database enforces the pairing per source type.
+   * Id of the record that caused this entry: a sale, a sale void, a payment, a
+   * payment reversal, or an adjustment. Typed loosely because `sourceType`
+   * discriminates it; the database enforces the pairing per source type.
    */
   sourceId: z.uuid(),
   /** Set when this entry compensates an earlier one. Never overwrites it. */
@@ -83,12 +84,12 @@ export const debtAdjustmentDirectionSchema = z.enum(DEBT_ADJUSTMENT_DIRECTIONS);
 export type DebtAdjustmentDirection = z.infer<typeof debtAdjustmentDirectionSchema>;
 
 export const adjustCustomerDebtPayloadSchema = z.object({
-  /** Client-supplied identity of the adjustment; becomes the ledger `sourceId`. */
+  /** Client-supplied identity of the adjustment; becomes the entry `sourceId`. */
   adjustmentId: z.uuid(),
   customerId: customerIdSchema,
   direction: debtAdjustmentDirectionSchema,
   /**
-   * Always positive; `direction` decides the sign of the ledger entry.
+   * Always positive; `direction` decides the sign of the account entry.
    * Enforced by the domain (BR-ACCOUNT-008) for a stable rejection code.
    */
   amount: moneySchema,

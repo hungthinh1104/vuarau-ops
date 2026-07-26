@@ -429,25 +429,25 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
       },
 
       /** Upsert: the projection is disposable and always safe to overwrite. */
-      async save(summary: CustomerAccountBalance): Promise<void> {
+      async save(balance: CustomerAccountBalance): Promise<void> {
         await tx
           .insert(customerAccountBalances)
           .values({
-            workspaceId: summary.workspaceId,
-            customerId: summary.customerId,
-            balanceMinor: summary.balance.amountMinor,
-            currency: summary.balance.currency,
-            entryCount: summary.entryCount,
-            lastEntryTransactionTime: fromIsoOrNull(summary.lastEntryTransactionTime),
-            updatedAt: fromIso(summary.updatedAt),
+            workspaceId: balance.workspaceId,
+            customerId: balance.customerId,
+            balanceMinor: balance.balance.amountMinor,
+            currency: balance.balance.currency,
+            entryCount: balance.entryCount,
+            lastEntryTransactionTime: fromIsoOrNull(balance.lastEntryTransactionTime),
+            updatedAt: fromIso(balance.updatedAt),
           })
           .onConflictDoUpdate({
             target: [customerAccountBalances.workspaceId, customerAccountBalances.customerId],
             set: {
-              balanceMinor: summary.balance.amountMinor,
-              entryCount: summary.entryCount,
-              lastEntryTransactionTime: fromIsoOrNull(summary.lastEntryTransactionTime),
-              updatedAt: fromIso(summary.updatedAt),
+              balanceMinor: balance.balance.amountMinor,
+              entryCount: balance.entryCount,
+              lastEntryTransactionTime: fromIsoOrNull(balance.lastEntryTransactionTime),
+              updatedAt: fromIso(balance.updatedAt),
             },
           });
       },

@@ -27,9 +27,9 @@ export type SaleLineLike = {
 /**
  * Validates every line and computes its total.
  *
- * Runs on creation *and* again on confirmation. Re-validating at confirm time is
- * not redundant: the rows have been in the database in between, and confirmation
- * is the step that turns them into a debt.
+ * Runs on creation *and* again at posting. Re-validating then is not redundant:
+ * the rows have been in the database in between, and posting is the step that
+ * turns them into a receivable.
  */
 export function validateSaleLines(
   lines: readonly SaleLineLike[],
@@ -89,7 +89,7 @@ export function validateSaleLines(
   return ok(validated);
 }
 
-/** BR-SALE-001. The only way an sale total is ever produced. */
+/** BR-SALE-001. The only way a sale total is ever produced. */
 export function calculateSaleTotal(lines: readonly SaleLineState[], currency: CurrencyCode): Money {
   return sumMoney(
     lines.map((line) => line.lineTotal),

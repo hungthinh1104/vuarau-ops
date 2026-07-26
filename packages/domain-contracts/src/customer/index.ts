@@ -10,7 +10,7 @@ import { isoInstantSchema } from "../shared/time.ts";
 
 /**
  * The id is supplied by the client, not the server. A worker on a 4G dead spot
- * must be able to create a customer and immediately attach an sale to them, and
+ * must be able to create a customer and immediately attach a sale to them, and
  * the retry of that create must not mint a second customer.
  */
 export const createCustomerPayloadSchema = z.object({

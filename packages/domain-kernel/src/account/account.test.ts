@@ -11,7 +11,7 @@ import {
   TRANSACTION_TIME,
   WORKSPACE_ID,
   ledgerWithOrderAndPayment,
-  orderConfirmationEntry,
+  salePostingEntry,
   paymentEntry,
   vnd,
 } from "@vuarau/test-fixtures";
@@ -83,8 +83,8 @@ describe("BR-ACCOUNT-001 / TC-ACCOUNT-001", () => {
   it("gives the same answer whatever sale the entries arrive in", () => {
     // The rebuild path (BR-ACCOUNT-006) reads rows in index sale, which is not the
     // sale they were written. A sum that depended on that would drift.
-    const forwards = calculateAccountBalance([orderConfirmationEntry, paymentEntry], "VND");
-    const backwards = calculateAccountBalance([paymentEntry, orderConfirmationEntry], "VND");
+    const forwards = calculateAccountBalance([salePostingEntry, paymentEntry], "VND");
+    const backwards = calculateAccountBalance([paymentEntry, salePostingEntry], "VND");
     expect(forwards).toEqual(backwards);
   });
 });
@@ -93,7 +93,7 @@ describe("BR-ACCOUNT-007 / TC-ACCOUNT-007", () => {
   it("allows the balance to go negative — the customer is in credit (ASM-001)", () => {
     // CASE-PAYMENT-003: an overpayment against a 375 000 ₫ balance.
     const overpayment = { ...paymentEntry, amount: vnd(-1_000_000) };
-    const balance = calculateAccountBalance([orderConfirmationEntry, overpayment], "VND");
+    const balance = calculateAccountBalance([salePostingEntry, overpayment], "VND");
     expect(balance.amountMinor).toBe(-125_000);
   });
 });

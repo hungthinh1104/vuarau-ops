@@ -18,7 +18,7 @@ export type PostSaleInput = {
  * now known; the line snapshots are re-affirmed here rather than taken on trust
  * from draft time, because a draft may have sat overnight (BR-SALE-011).
  *
- * Check sale matters. The version is checked first (BR-SALE-006): if another
+ * Check order matters. The version is checked first (BR-SALE-006): if another
  * worker has already posted this sale, the caller's view is stale, and "someone
  * else changed this" is a more truthful answer than "already posted" — it points
  * them at reloading rather than at retrying.

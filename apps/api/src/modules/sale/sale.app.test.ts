@@ -39,7 +39,7 @@ const createInput = (idempotencyKey: string = IDEMPOTENCY_KEY) => ({
   },
 });
 
-const confirmInput = (overrides: Record<string, unknown> = {}) => ({
+const postInput = (overrides: Record<string, unknown> = {}) => ({
   commandId: SECOND_COMMAND_ID,
   idempotencyKey: OTHER_IDEMPOTENCY_KEY,
   workspaceId: WORKSPACE_ID,
@@ -51,12 +51,12 @@ const confirmInput = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("BR-COMMAND-001 / TC-SALE-004", () => {
-  it("does not duplicate debt when the same confirm command is retried", async () => {
+  it("does not duplicate the receivable when the same post command is retried", async () => {
     // CASE-SALE-005: the response was lost, the client retried with the same key.
     await createSaleDraft(harness.ctx, createInput());
 
-    const first = await postSale(harness.ctx, confirmInput());
-    const retry = await postSale(harness.ctx, confirmInput());
+    const first = await postSale(harness.ctx, postInput());
+    const retry = await postSale(harness.ctx, postInput());
 
     expect(first.ok).toBe(true);
     expect(retry.ok).toBe(true);
@@ -68,9 +68,9 @@ describe("BR-COMMAND-001 / TC-SALE-004", () => {
   it("returns the original result to the retry, not an error", async () => {
     await createSaleDraft(harness.ctx, createInput());
 
-    const first = await postSale(harness.ctx, confirmInput());
+    const first = await postSale(harness.ctx, postInput());
     // A retry carries a new commandId — the key is what dedupes.
-    const retry = await postSale(harness.ctx, confirmInput({ commandId: COMMAND_ID }));
+    const retry = await postSale(harness.ctx, postInput({ commandId: COMMAND_ID }));
 
     expect(first.ok && retry.ok).toBe(true);
     if (!first.ok || !retry.ok) return;
@@ -78,24 +78,22 @@ describe("BR-COMMAND-001 / TC-SALE-004", () => {
     expect(retry.value.status).toBe("posted");
   });
 
-  it("writes exactly one audit record for the confirmation", async () => {
+  it("writes exactly one audit record for the posting", async () => {
     await createSaleDraft(harness.ctx, createInput());
-    await postSale(harness.ctx, confirmInput());
-    await postSale(harness.ctx, confirmInput());
+    await postSale(harness.ctx, postInput());
+    await postSale(harness.ctx, postInput());
 
-    const confirmations = harness.db
-      .auditRecords()
-      .filter((record) => record.action === "sale.posted");
-    expect(confirmations).toHaveLength(1);
+    const postings = harness.db.auditRecords().filter((record) => record.action === "sale.posted");
+    expect(postings).toHaveLength(1);
   });
 });
 
 describe("BR-SALE-006 / TC-SALE-005", () => {
-  it("rejects a confirmation carrying a stale aggregate version", async () => {
+  it("rejects a posting carrying a stale aggregate version", async () => {
     // CASE-SALE-004: the sale is at version 2, the phone still believes 1.
     harness.db.seedSale({ ...validDraftSale, version: 2 });
 
-    const result = await postSale(harness.ctx, confirmInput({ expectedVersion: 1 }));
+    const result = await postSale(harness.ctx, postInput({ expectedVersion: 1 }));
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -105,7 +103,7 @@ describe("BR-SALE-006 / TC-SALE-005", () => {
 
   it("leaves no ledger entry and no version change behind when it rejects", async () => {
     harness.db.seedSale({ ...validDraftSale, version: 2 });
-    await postSale(harness.ctx, confirmInput({ expectedVersion: 1 }));
+    await postSale(harness.ctx, postInput({ expectedVersion: 1 }));
 
     expect(harness.db.accountEntries()).toHaveLength(0);
     expect(harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID)).toBeNull();
@@ -114,11 +112,11 @@ describe("BR-SALE-006 / TC-SALE-005", () => {
   it("lets the caller succeed once it re-reads and sends the current version", async () => {
     harness.db.seedSale({ ...validDraftSale, version: 2 });
 
-    const conflict = await postSale(harness.ctx, confirmInput({ expectedVersion: 1 }));
+    const conflict = await postSale(harness.ctx, postInput({ expectedVersion: 1 }));
     expect(conflict.ok).toBe(false);
 
     // A refused command does not consume its idempotency key.
-    const retried = await postSale(harness.ctx, confirmInput({ expectedVersion: 2 }));
+    const retried = await postSale(harness.ctx, postInput({ expectedVersion: 2 }));
     expect(retried.ok).toBe(true);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(875_000);
   });
@@ -129,7 +127,7 @@ describe("BR-COMMAND-003 / TC-SALE-011", () => {
     // CASE-SALE-006: sold at 05:00, entered days later.
     await createSaleDraft(harness.ctx, createInput());
     harness.clock.set(RECORDED_AT);
-    await postSale(harness.ctx, confirmInput());
+    await postSale(harness.ctx, postInput());
 
     const entry = harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)[0]!;
     expect(entry.transactionTime).toBe(TRANSACTION_TIME);
@@ -138,7 +136,7 @@ describe("BR-COMMAND-003 / TC-SALE-011", () => {
 
   it("ages the summary from the transaction time, not the recording time", async () => {
     await createSaleDraft(harness.ctx, createInput());
-    await postSale(harness.ctx, confirmInput());
+    await postSale(harness.ctx, postInput());
 
     const summary = harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID);
     expect(summary?.lastEntryTransactionTime).toBe(TRANSACTION_TIME);
@@ -148,7 +146,7 @@ describe("BR-COMMAND-003 / TC-SALE-011", () => {
 describe("BR-SALE-007 / TC-SALE-003", () => {
   it("moves the customer's balance by exactly the sale total, once", async () => {
     await createSaleDraft(harness.ctx, createInput());
-    await postSale(harness.ctx, confirmInput());
+    await postSale(harness.ctx, postInput());
 
     const summary = harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID);
     expect(summary?.balance.amountMinor).toBe(875_000);

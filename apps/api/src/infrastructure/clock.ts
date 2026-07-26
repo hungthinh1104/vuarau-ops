@@ -17,7 +17,7 @@ export const systemClock: Clock = {
 };
 
 /**
- * Ids for rows the domain does not name: ledger entries and audit records.
+ * Ids for rows the domain does not name: account entries and audit records.
  * A port for the same reason as the clock — a decision function that generated a
  * UUID would stop being deterministic.
  */

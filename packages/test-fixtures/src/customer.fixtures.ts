@@ -29,7 +29,7 @@ export const activeCustomer: CustomerState = {
 };
 
 /**
- * A customer with no ledger entries at all. Their balance is zero because nothing
+ * A customer with no account entries at all. Their balance is zero because nothing
  * has ever moved it — not because a zero was stored anywhere (ADR-0004).
  */
 export const customerWithZeroDebt: CustomerState = {
