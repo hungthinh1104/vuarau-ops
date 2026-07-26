@@ -1,0 +1,142 @@
+# Validation plan
+
+How H1 and H2 get settled, and what would count as settling them.
+
+```text
+H1 — frontend commands integrate safely with the real backend
+H2 — a worker can record a real multi-line sale faster than the current
+     paper/memory process
+```
+
+The two need different evidence, and conflating them is the failure this document
+exists to prevent. **A green test suite is evidence for H1 and evidence for
+nothing else.** No count of passing tests may be reported as product validation.
+
+---
+
+## H1 — integration safety
+
+Settled by automated tests against a **real API process and a real PostgreSQL
+database**, not fixtures. A mocked happy path proves that the mock was written to
+match the component, which nobody doubted.
+
+| Field                   | Value                                                                                                                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Task**                | Record a payment, and post a multi-line sale, through the browser against a live server                                                                                     |
+| **Expected user**       | Any active member — the tests run as `sales` and as `warehouse`, because the interesting answers differ by role                                                             |
+| **Test data**           | The development seed: one workspace, five actors (one per role), three customers                                                                                            |
+| **Timing metric**       | None. H1 is about correctness; timing belongs to H2                                                                                                                         |
+| **Observed errors**     | Every rejection the workflow can reach, asserted by code — `SALE_EMPTY`, `SALE_LINE_INVALID`, `PERMISSION_DENIED`, `SALE_VERSION_CONFLICT`, `WORKSPACE_MEMBERSHIP_INACTIVE` |
+| **User wording**        | Not applicable                                                                                                                                                              |
+| **Missing information** | Recorded as a gap in this document rather than worked around in a test                                                                                                      |
+| **Pass/fail criterion** | See below. All must hold; any one failing fails H1                                                                                                                          |
+
+### H1 pass criteria
+
+```text
+1. A payment recorded through the UI appears in account.timeline with the
+   same amount, and moves the balance by exactly that amount.
+2. A duplicate tap produces exactly one account entry.
+3. A dropped connection followed by a resend produces exactly one account entry,
+   and the resend carries the original commandId and idempotencyKey.
+4. A posted sale creates exactly one account entry of +total, and no more.
+5. A control the caller's role forbids is disabled before it is pressed, and
+   refused with PERMISSION_DENIED if pressed anyway.
+6. A stale draft is refused with a version conflict and offers reload, never a
+   silent retry.
+7. Entered data survives every recoverable failure above.
+8. No fixture data is reachable from a production route.
+```
+
+Where each is asserted is in [../08-qa/trace-map.yml](../08-qa/trace-map.yml) under
+`TC-WEB-*`. The Playwright suite runs against a real API and skips — loudly, never
+silently — when `DATABASE_URL` is unset.
+
+### What H1 cannot tell us
+
+That the numbers on screen are the numbers a depot would recognise. A test asserts
+that 875.000 ₫ arrived; only a person can say whether that was the load they sold.
+
+---
+
+## H2 — is it faster than the notebook
+
+Settled by watching **15–20 real transactions** with a real worker, on their own
+phone. Nothing in this repository can settle it, and this plan does not pretend
+otherwise.
+
+| Field                   | Value                                                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Task**                | Record the sale you just made, the way you would normally record it                                                                                                            |
+| **Expected user**       | A depot worker or owner, roughly 40–60, who currently uses paper or memory. Not somebody who has seen the software before                                                      |
+| **Test data**           | Their own customers and their own loads. Seeded demo data invalidates the timing — recognising a name is most of the speed                                                     |
+| **Timing metric**       | Wall clock from "starts entering" to "sees the posted sale". Median across the session, reported with the range, never as an average that one 90-second fumble disappears into |
+| **Observed errors**     | Every mistake, correction and re-entry, with what caused it. A mistake the worker fixed without comment still counts                                                           |
+| **User wording**        | Their words for what they are doing, verbatim and in Vietnamese. If they say "ghi sổ" where the screen says "chốt đơn", the screen is wrong                                    |
+| **Missing information** | Anything they looked for and did not find, including things they asked out loud and things they scrolled hunting for                                                           |
+| **Pass/fail criterion** | See the targets below                                                                                                                                                          |
+
+### H2 targets
+
+Pilot targets, not claims. They are written down before the pilot so that a
+disappointing result cannot be reinterpreted afterwards.
+
+```text
+one-line sale:                         median under 10 seconds
+three-line sale:                       median under 25 seconds
+duplicate financial effects:           zero
+lost entered data after a recoverable failure:  zero
+users correctly distinguish draft from posted:  100% of pilot tasks
+users correctly understand the resulting balance: 100% of pilot tasks
+```
+
+The first two come from the product brief's "a worker records a sale in under ten
+seconds". The last two are the ones that would stop the product: somebody who
+cannot tell a draft from a posted sale will eventually think they charged a
+customer and did not, and somebody who misreads the resulting balance will collect
+the wrong amount.
+
+The zero targets are absolute. One duplicated receivable in twenty transactions is
+a failure, not a 95% pass — a depot that finds a phantom debt stops trusting every
+other number in the book.
+
+### How to run it
+
+The worksheet is `pilot-worksheet.md` in this folder, one row per transaction. It
+is empty on purpose. **Do not fill it in with expected values.**
+
+1. Set up a workspace with the worker's own customers. Do not seed demo data.
+2. Ask them to record a sale they have actually just made, in their own way. Do
+   not demonstrate the screen first; a demonstrated screen measures how well they
+   copy, not whether they can use it.
+3. Time from first tap to the posted sale being visible. Say nothing during it.
+4. Write their wording down as they say it, not a tidied version.
+5. When a task is done, ask two questions and nothing else:
+   - _"Khách này giờ nợ bao nhiêu?"_ — do they read the balance correctly?
+   - _"Đơn này đã ghi vào sổ chưa?"_ — do they know draft from posted?
+6. Record what happened, including the transactions that went badly. Especially
+   those.
+
+---
+
+## Known gaps that would affect either hypothesis
+
+Recorded rather than worked around, because a gap a pilot rediscovers is a wasted
+session.
+
+| Gap                                                      | Effect                                                                              |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| No sign-in screen                                        | The pilot needs a token supplied out of band — see `apps/web/README.md`             |
+| No `workspace.list` procedure                            | The workspace must be chosen from a configured list, not discovered from the server |
+| No offline queue                                         | A transaction attempted with no signal is held in the tab and lost if it is closed  |
+| No product recall or last price                          | Every line is typed in full, which is the largest single cost in the timing target  |
+| `AdjustCustomerDebt` has no screen                       | An owner correcting an opening balance cannot do it in the UI yet                   |
+| Reads are not audited (ASM-022)                          | "Who looked at this balance" is unanswerable                                        |
+| The role table is a developer's guess (ASM-017, ASM-018) | A pilot may reveal that `sales` should or should not hold a permission it has today |
+
+## Related
+
+- [product-brief.md](product-brief.md) — what the hypotheses are for
+- `pilot-worksheet.md` — the empty sheet, one row per observed transaction
+- [../08-qa/test-strategy.md](../08-qa/test-strategy.md) — what the automated suites do and do not cover
+- [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md) — the ASM entries a pilot could settle

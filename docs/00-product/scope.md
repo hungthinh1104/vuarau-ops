@@ -1,29 +1,34 @@
-# Scope — bootstrap phase
+# Scope — workflow validation phase
 
 ## In scope
 
-| Area                  | Delivered                                                                                         |
-| --------------------- | ------------------------------------------------------------------------------------------------- |
-| Repository foundation | pnpm workspace, strict TypeScript, Vitest projects, lint, format                                  |
-| Domain contracts      | Branded ids, money, quantity, commands, DTOs, events, rejection codes, capabilities               |
-| Domain kernel         | Pure decision functions for customer, sale, payment, customer account                             |
-| Application layer     | Six command handlers with idempotency, optimistic concurrency, audit, one transaction per command |
-| Database              | Drizzle schema + migration for the slice, repositories, transaction runner, append-only guards    |
-| API                   | tRPC router with contract tests                                                                   |
-| Documentation         | This tree, with stable IDs and a machine-checked trace map                                        |
-| Tests                 | Domain, application, contract, and database projects                                              |
+| Area                  | Delivered                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| Repository foundation | pnpm workspace, strict TypeScript, five Vitest projects, lint, format, boundary/docs/trace checks       |
+| Domain contracts      | Branded ids, money, quantity, commands, DTOs, events, rejection codes, capabilities, pagination         |
+| Domain kernel         | Pure decision functions for customer, sale, payment, customer account, membership                       |
+| Application layer     | Twelve command handlers and ten queries: idempotency, optimistic concurrency, audit, one transaction    |
+| Database              | Drizzle schema, seven migrations, repositories, transaction runner, append-only and immutability guards |
+| API                   | tRPC router with contract tests; every read authorized like a command                                   |
+| Frontend foundation   | Next App Router, design system from `design.md`, typed tRPC client, Storybook over the state catalog    |
+| Production workflows  | **In progress** — payment capture and quick sale, against the real backend                              |
+| Documentation         | This tree, with stable IDs and a machine-checked trace map                                              |
+| Tests                 | Domain, application, contract, database and web projects, plus Playwright against a real API            |
 
-### The one vertical slice
+### The vertical slice
 
 ```
-Customer → Sale draft → Posted sale → Customer account entry
-        → Customer payment → Payment reversal
-        → Customer customer account balance → Audit history
+Authentication → Customer → Sale draft → Posted sale → Customer account entry
+              → Payment → Payment reversal → Sale void → Audit history
 ```
 
-Six commands, no more:
-`CreateCustomer`, `CreateSaleDraft`, `PostSale`, `RecordCustomerPayment`,
-`ReverseCustomerPayment`, `AdjustCustomerDebt`.
+Twelve commands, listed in
+[command-contracts.md](../06-api-contracts/command-contracts.md). Seven of them
+move money or could be mistaken for a command that does; five are lifecycle
+commands with no account effect at all.
+
+There is no `updateEntity`, no `patch`, and no procedure that takes a status as an
+argument ([ADR-0002](../09-decisions/ADR-0002-command-based-writes.md)).
 
 ## Out of scope — deliberately not built
 
@@ -31,9 +36,9 @@ Building any of these now would commit the product to a shape it has not earned.
 
 | Excluded                                                         | Why now is too early                                                                                                                                                 |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Production web UI                                                | Backend contracts must settle first; `apps/web` is a placeholder                                                                                                     |
-| Mobile UI                                                        | Same                                                                                                                                                                 |
-| Dashboards, reporting                                            | No accumulated ledger data to report on                                                                                                                              |
+| Screens beyond payment capture and quick sale                    | Two workflows are enough to answer H1 and H2; a third built before those are observed is a third guess                                                               |
+| Product master search, last-price recall, pricing intelligence   | The sale line takes a typed product name by design (BR-SALE-011). Recall needs history nobody has yet                                                                |
+| Dashboards, reporting                                            | No accumulated ledger data to report on, and design.md says workflows come first                                                                                     |
 | AI / LLM parsing of free-text entry                              | The deterministic write path must be trustworthy before anything writes to it automatically                                                                          |
 | Demand forecasting, supplier scoring, customer health scoring    | Require months of ledger history                                                                                                                                     |
 | Advanced pricing recommendations                                 | Requires a pricing model that does not exist                                                                                                                         |

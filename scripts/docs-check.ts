@@ -17,6 +17,7 @@ const DOCS = join(ROOT, "docs");
 const REQUIRED = [
   "00-product/product-brief.md",
   "00-product/scope.md",
+  "00-product/validation-plan.md",
   "01-domain/glossary.md",
   "01-domain/context-map.md",
   "02-use-cases/use-case-catalog.md",

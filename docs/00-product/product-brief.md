@@ -48,16 +48,71 @@ A depot cannot do that at 4 a.m. with a truck waiting.
 - A mistake is corrected in one action that leaves both the error and the fix
   visible.
 
-## Current phase
+## Current phase — workflow validation
 
-One vertical slice, backend only:
+The vertical slice is **implemented end to end**, backend and frontend
+foundation. What has not been tested is whether it helps anybody.
+
+### What exists
 
 ```
-Customer → Sale draft → Posted sale → Customer account entry
-        → Payment → Payment reversal → Debt summary → Audit history
+Authentication → Customer → Sale draft → Posted sale → Customer account entry
+              → Payment → Payment reversal → Sale void → Audit history
 ```
 
-See [scope.md](scope.md) for what that deliberately excludes.
+Twelve commands and ten queries, all implemented and tested against PostgreSQL:
+
+| Commands                                                                             | Queries                                                   |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| `CreateCustomer` · `UpdateCustomer` · `DeactivateCustomer`                           | `session.me`                                              |
+| `CreateSaleDraft` · `UpdateSaleDraft` · `DiscardSaleDraft` · `PostSale` · `VoidSale` | `customer.search` · `customer.get`                        |
+| `RecordCustomerPayment` · `ReverseCustomerPayment`                                   | `sale.get` · `sale.list`                                  |
+| `AdjustCustomerDebt`                                                                 | `payment.get` · `payment.list`                            |
+| `RevokeWorkspaceMembership`                                                          | `account.balance` · `account.timeline` · `audit.timeline` |
+
+Every use case in the [catalog](../02-use-cases/use-case-catalog.md) is
+implemented; no P0 rule is planned. The full surface is in
+[command-contracts.md](../06-api-contracts/command-contracts.md) and
+[read-models.md](../06-api-contracts/read-models.md).
+
+### What is complete, and what that does not mean
+
+**The frontend foundation is complete.** `apps/web` is a working Next application
+with a design system built from `design.md`, a typed tRPC client, and a Storybook
+covering every state in the
+[UI state catalog](../06-api-contracts/ui-state-catalog.md).
+
+**The production workflows are not.** A design system is not a product. Nobody has
+recorded a real sale in this software, and every claim in "What good looks like"
+above — ten seconds, no lost writes, a correction anybody can follow — is an
+intention rather than a measurement.
+
+That gap is the whole of the current phase.
+
+## The two hypotheses under test
+
+```text
+H1 — frontend commands integrate safely with the real backend
+H2 — a worker can record a real multi-line sale faster than the current
+     paper/memory process
+```
+
+**H1 is testable by us.** It asks whether idempotency, capabilities, version
+conflicts and the unknown-network path behave against a real server and a real
+database, rather than against fixtures. Automated tests can settle it, and
+[validation-plan.md](validation-plan.md) says which ones.
+
+**H2 is not.** It asks whether a depot worker, on their own phone, at their own
+pace, beats the notebook they already trust. No test in this repository can answer
+that, and no green suite should be reported as if it had. It is settled by watching
+15–20 real transactions, which is what the pilot worksheet in
+[validation-plan.md](validation-plan.md) is for.
+
+The order matters. Putting an unsafe workflow in front of a depot would produce
+feedback about the wrong thing — and if it duplicated a receivable, it would cost
+somebody real money to find out.
+
+See [scope.md](scope.md) for what remains deliberately excluded.
 
 ## Related
 
