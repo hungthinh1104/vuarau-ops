@@ -61,11 +61,11 @@ Authentication → Customer → Sale draft → Posted sale → Customer account 
               → Payment → Payment reversal → Sale void → Audit history
 ```
 
-Twelve commands and ten queries, all implemented and tested against PostgreSQL:
+Twelve commands and eleven queries, all implemented and tested against PostgreSQL:
 
 | Commands                                                                             | Queries                                                   |
 | ------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| `CreateCustomer` · `UpdateCustomer` · `DeactivateCustomer`                           | `session.me`                                              |
+| `CreateCustomer` · `UpdateCustomer` · `DeactivateCustomer`                           | `session.me` · `session.workspaces`                       |
 | `CreateSaleDraft` · `UpdateSaleDraft` · `DiscardSaleDraft` · `PostSale` · `VoidSale` | `customer.search` · `customer.get`                        |
 | `RecordCustomerPayment` · `ReverseCustomerPayment`                                   | `sale.get` · `sale.list`                                  |
 | `AdjustCustomerDebt`                                                                 | `payment.get` · `payment.list`                            |

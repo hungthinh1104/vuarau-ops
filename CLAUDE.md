@@ -34,8 +34,8 @@ before assuming a business policy.
 ## Repository map
 
 ```
-apps/api                  the only backend. modules/ = business, infrastructure/ = adapters
-apps/web                  placeholder — no UI in this phase
+apps/api                  the only backend. modules/ = business, infrastructure/ = adapters, operations/ = shell tools
+apps/web                  the production web app. Next App Router, design system, Storybook
 packages/domain-contracts  ids, money, commands, DTOs, rejection codes  (zod only)
 packages/domain-kernel     pure decisions — no framework, no clock, no I/O
 packages/db                drizzle schema, migrations, repositories, seeds
@@ -59,14 +59,30 @@ even Zod. Decision functions are deterministic: ids arrive in the payload,
 
 ```bash
 pnpm install
-pnpm verify            # format, lint, typecheck, boundaries, docs, trace, tests
+pnpm verify            # every gate below, in order
+
 pnpm test:domain       # pure decisions — fastest useful signal
 pnpm test:application  # command handlers over in-memory ports
 pnpm test:contract     # tRPC round-trips
-pnpm test:db           # real Postgres; skips silently without DATABASE_URL
+pnpm test:db           # real Postgres
+pnpm test:web          # components and stories, in jsdom
+pnpm web:build         # Next production build
+pnpm web:storybook     # Storybook build
+pnpm web:e2e           # Playwright: real browser, real API process, real Postgres
+
 pnpm boundary:check pnpm trace:check pnpm docs:check
 pnpm db:generate pnpm db:migrate pnpm db:seed
+
+# Operator tools. Shell access is the authorization boundary; none is a procedure.
+pnpm --filter @vuarau/api ops:pilot help
+pnpm --filter @vuarau/api ops:rebuild-balance <workspaceId> <customerId>
 ```
+
+`test:db` and `web:e2e` **skip** without `DATABASE_URL` so a laptop with no
+Postgres still gets a green `pnpm verify` — and **fail rather than skip when `CI`
+is set**. On a laptop a skip is a convenience; in CI it is a green build that
+asserted nothing about the database, discovered later by an incident whose test
+"passed" every day.
 
 Postgres for `test:db`:
 
@@ -77,10 +93,22 @@ docker run -d --name vuarau-ops-dev-pg \
 export DATABASE_URL=postgres://postgres:postgres@localhost:55432/vuarau_test
 ```
 
-## The seven commands
+## The twelve commands
 
-`CreateCustomer` · `CreateSaleDraft` · `PostSale` · `VoidSale` ·
-`RecordCustomerPayment` · `ReverseCustomerPayment` · `AdjustCustomerDebt`
+```
+customer   CreateCustomer · UpdateCustomer · DeactivateCustomer
+sale       CreateSaleDraft · UpdateSaleDraft · DiscardSaleDraft · PostSale · VoidSale
+payment    RecordCustomerPayment · ReverseCustomerPayment
+account    AdjustCustomerDebt
+platform   RevokeWorkspaceMembership
+```
+
+Seven of them move money or could be mistaken for one that does; five are
+lifecycle commands with no account effect at all.
+
+The read surface is eleven procedures: `session.me` · `session.workspaces` ·
+`customer.search` · `customer.get` · `sale.get` · `sale.list` · `payment.get` ·
+`payment.list` · `account.balance` · `account.timeline` · `audit.timeline`.
 
 There is no `updateEntity`, `updateSaleStatus`, `patchCustomerDebt`,
 `setPaymentStatus`, or `CancelSale`, and none is to be added. Every command
@@ -92,6 +120,32 @@ Each also declares one required permission. `AdjustCustomerDebt` needs
 `accountant` only. The role table is one literal in
 `packages/domain-contracts/src/shared/authorization.ts` — a table, not a policy
 engine ([ADR-0011](docs/09-decisions/ADR-0011-role-permission-mapping.md)).
+
+## Current phase — shadow pilot
+
+The product is complete enough to put in front of one depot worker and watch.
+Both browser workflows — **record a payment** and **quick sale** — run end to end
+against a real server and a real database. Sign-in is Supabase (email plus a
+six-digit code), and the depot list comes from `session.workspaces`, never from a
+build-time variable (BR-AUTH-008). A facilitator prepares the depot with
+`ops:pilot`: create the workspace, provision a member, import the worker's own
+customers from a CSV.
+
+The pilot mode is **shadow usability** and is written down before the first
+session ([pilot-mode.md](docs/00-product/pilot-mode.md)): an isolated workspace,
+real names and real numbers, and the depot's notebook remains its book. It is not
+an operational pilot, and the four things that would make it one — void and
+replacement UI, a rehearsed restore, real role assignment, an incident runbook —
+are listed there rather than assumed.
+
+Excluded in this phase, on top of [scope.md](docs/00-product/scope.md): a void or
+replacement **screen**, a role-management screen, a customer-import screen, an
+offline queue, an analytics service, and any dashboard.
+
+**No claim about H2 has been earned.** Nothing in this repository can measure
+whether a worker records a sale accurately and unaided inside the target time; a
+green suite is evidence for integration safety and nothing else
+([validation-plan.md](docs/00-product/validation-plan.md)).
 
 ## Sale, not order
 
@@ -150,6 +204,8 @@ Docs are the specification, not a description written afterwards
 | How do I make a change?                              | [docs/10-ai-coding/CHANGE_PROTOCOL.md](docs/10-ai-coding/CHANGE_PROTOCOL.md)                                       |
 | What must a review catch?                            | [docs/10-ai-coding/REVIEW_CHECKLIST.md](docs/10-ai-coding/REVIEW_CHECKLIST.md)                                     |
 | What is still undecided?                             | [docs/09-decisions/decision-backlog.md](docs/09-decisions/decision-backlog.md)                                     |
+| What kind of pilot is this?                          | [docs/00-product/pilot-mode.md](docs/00-product/pilot-mode.md)                                                     |
+| How do I set a depot up for one?                     | [docs/00-product/pilot-onboarding.md](docs/00-product/pilot-onboarding.md)                                         |
 
 ## If you are about to guess a business policy — don't
 

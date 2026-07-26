@@ -98,11 +98,15 @@ Retired when the `Order` → `Sale` terminology closed, 2026-07-26.
 The rule at the top of this document says a code is never renamed, and this is a
 deliberate, one-time exception. It is recorded here rather than glossed over.
 
-The rule exists to protect **clients in the field**. There are none: no UI is
-built, no external consumer exists, and the repository holds no production data.
-The cost of the exception is therefore zero today, and it will never be zero again
+The rule exists to protect **clients in the field**. When this was done there were
+none: no UI existed, no external consumer existed, and the repository held no
+production data. The cost of the exception was therefore zero at the time, and it
+would never be zero again
 — every month that passes makes `ORDER_*` codes harder to remove and more likely to
 be read by somebody as evidence that orders are still a concept in this system.
+
+There is a browser client now, and it branches on these codes. The exception is
+therefore closed: **no code in this table is renamed again.**
 
 The alternative — `SALE_EMPTY` as an alias for `ORDER_EMPTY`, forever — leaves two
 names for one refusal in the catalogue a client is meant to branch on, and the

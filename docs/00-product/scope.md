@@ -1,4 +1,4 @@
-# Scope — workflow validation phase
+# Scope — shadow pilot phase
 
 ## In scope
 
@@ -7,13 +7,14 @@
 | Repository foundation | pnpm workspace, strict TypeScript, five Vitest projects, lint, format, boundary/docs/trace checks       |
 | Domain contracts      | Branded ids, money, quantity, commands, DTOs, events, rejection codes, capabilities, pagination         |
 | Domain kernel         | Pure decision functions for customer, sale, payment, customer account, membership                       |
-| Application layer     | Twelve command handlers and ten queries: idempotency, optimistic concurrency, audit, one transaction    |
+| Application layer     | Twelve command handlers and eleven queries: idempotency, optimistic concurrency, audit, one transaction |
 | Database              | Drizzle schema, seven migrations, repositories, transaction runner, append-only and immutability guards |
 | API                   | tRPC router with contract tests; every read authorized like a command                                   |
 | Frontend foundation   | Next App Router, design system from `design.md`, typed tRPC client, Storybook over the state catalog    |
-| Production workflows  | **In progress** — payment capture and quick sale, against the real backend                              |
+| Production workflows  | Payment capture and quick sale, against the real backend                                                |
+| Access                | Supabase sign-in, server-derived workspace discovery, pilot onboarding CLI                              |
 | Documentation         | This tree, with stable IDs and a machine-checked trace map                                              |
-| Tests                 | Domain, application, contract, database and web projects, plus Playwright against a real API            |
+| Tests                 | Five Vitest projects, Next and Storybook builds, and Playwright against a real API and PostgreSQL       |
 
 ### The vertical slice
 
@@ -49,7 +50,9 @@ Building any of these now would commit the product to a shape it has not earned.
 | Microservices, Kafka, Kubernetes                                 | See [ADR-0001](../09-decisions/ADR-0001-modular-monolith.md)                                                                                                         |
 | Full event sourcing                                              | The customer account ledger is append-only; the rest of the system is not, and does not need to be ([ADR-0004](../09-decisions/ADR-0004-append-only-debt-ledger.md)) |
 | Full double-entry accounting                                     | The depot needs customer debt, not a general ledger and trial balance                                                                                                |
-| Deployment pipelines                                             | CI runs quality gates only                                                                                                                                           |
+| Deployment pipelines and hosting choices                         | CI is a quality gate; hosting is not chosen here and no vendor is named                                                                                              |
+| Void or replacement **screen**                                   | The command exists and is tested; correcting a posted sale is an operator's job at a shell this phase, which is why the pilot is a shadow one                        |
+| Role-management and customer-import screens                      | Both are once-per-depot jobs done by a facilitator with shell access                                                                                                 |
 
 ## Extension points left open, not built
 
