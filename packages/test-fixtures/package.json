@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./ids": "./src/ids.fixtures.ts",
+    "./time": "./src/time.fixtures.ts"
   },
   "dependencies": {
     "@vuarau/domain-contracts": "workspace:*",

@@ -19,6 +19,14 @@ type Boundary = {
   readonly why: string;
   /** Files exempt from the rule, with a stated reason. */
   readonly exceptions?: readonly string[];
+  /**
+   * Specifiers allowed even though a `forbidden` prefix matches them.
+   *
+   * Needed for exactly one shape: a package whose barrel is off-limits but whose
+   * subpaths are not. Checked before `forbidden`, and matched exactly rather than
+   * by prefix, so widening it takes a deliberate line.
+   */
+  readonly allowedSpecifiers?: readonly string[];
 };
 
 const BOUNDARIES: readonly Boundary[] = [
@@ -74,6 +82,42 @@ const BOUNDARIES: readonly Boundary[] = [
     forbidden: ["@vuarau/web", "next", "react", "drizzle-orm"],
     why: "The API talks to persistence through ports, never the query builder directly.",
   },
+  {
+    scope: "apps/web/src",
+    forbidden: [
+      "@vuarau/db",
+      "@vuarau/domain-kernel",
+      "drizzle-orm",
+      "postgres",
+      "@trpc/server",
+      "jose",
+      "node:",
+      // The barrel re-exports fixtures built on the kernel. The two kernel-free
+      // subpaths below are what the browser actually needs.
+      "@vuarau/test-fixtures",
+    ],
+    allowedSpecifiers: ["@vuarau/test-fixtures/ids", "@vuarau/test-fixtures/time"],
+    why: "The browser gets contracts and nothing else: no persistence, no kernel, no Node.",
+    exceptions: [
+      // Reads the UI state catalog and the story files off disk to prove the two
+      // agree. It is a build-time check that happens to live beside the UI.
+      "apps/web/src/ui/catalog-coverage.test.ts",
+    ],
+  },
+  {
+    /*
+     * `@vuarau/api` is imported for its **type** only — `AppRouter`, erased before
+     * a bundler sees it. That is what gives the client full inference with no code
+     * generation, and it is safe exactly as long as no value crosses.
+     *
+     * So the rule is not "never import it" but "import it in one file", and that
+     * file is `api/trpc.ts`, where the `import type` is visible in review.
+     */
+    scope: "apps/web/src",
+    forbidden: ["@vuarau/api"],
+    why: "Only apps/web/src/api/trpc.ts may name the server package, and only as a type.",
+    exceptions: ["apps/web/src/api/trpc.ts"],
+  },
 ];
 
 const IMPORT_PATTERN = /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+["']([^"']+)["']/g;
@@ -84,8 +128,9 @@ async function* walk(directory: string): AsyncGenerator<string> {
     const full = join(directory, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === "node_modules" || entry.name === "dist") continue;
+      if (entry.name === ".next" || entry.name === "storybook-static") continue;
       yield* walk(full);
-    } else if (entry.name.endsWith(".ts")) {
+    } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")) {
       yield full;
     }
   }
@@ -116,6 +161,7 @@ async function main(): Promise<void> {
       const source = readFileSync(file, "utf8");
       for (const match of source.matchAll(IMPORT_PATTERN)) {
         const specifier = match[1]!;
+        if (boundary.allowedSpecifiers?.includes(specifier)) continue;
         const forbidden = boundary.forbidden.find((banned) => specifier.startsWith(banned));
         if (forbidden !== undefined) {
           violations.push(

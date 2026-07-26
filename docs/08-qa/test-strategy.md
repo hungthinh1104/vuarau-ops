@@ -1,6 +1,6 @@
 # Test strategy
 
-## Four projects, four failure modes
+## Five projects, five failure modes
 
 Configured in `vitest.config.ts`.
 
@@ -10,9 +10,30 @@ Configured in `vitest.config.ts`.
 | `application` | `pnpm test:application` | Command handlers over in-memory ports (`apps/api/**/*.app.test.ts`)                            | nothing        |
 | `contract`    | `pnpm test:contract`    | tRPC caller round-trips and DTO shape (`apps/api/**/*.contract.test.ts`)                       | nothing        |
 | `db`          | `pnpm test:db`          | Real Postgres: migrations, repositories, constraints, triggers (`packages/db/**/*.db.test.ts`) | `DATABASE_URL` |
+| `web`         | `pnpm test:web`         | Components over fixed DTOs, in jsdom (`apps/web/**/*.test.ts{,x}`)                             | nothing        |
 
-The first three need no database, no clock control, and no network. That is a
-direct consequence of ADR-0003: a pure kernel is a fast test suite.
+Only `db` needs anything. That is a direct consequence of ADR-0003: a pure kernel
+is a fast test suite, and a UI that renders server-computed answers can be tested
+against fixtures rather than against a server.
+
+### What the `web` project is for
+
+Not "does the component render" — that is what a snapshot would tell you, and it
+tells you nothing when it changes. Each web test names a way this product can
+mislead somebody about money: a credit rendered as a debt, a placeholder zero read
+as a balance, a stale version silently retried, an idempotency key regenerated on
+resend. The tests are named `TC-WEB-*` and listed in
+[trace-map.yml](trace-map.yml) under `contract_tests`.
+
+They are **not** attached to business rules, and that is deliberate. A business
+rule is satisfied by the server; a screen that renders it wrongly does not make the
+rule unmet, it makes the screen a liar. Filing these under BR-\* entries would let
+"UI shipped" read as "rule implemented".
+
+Nothing in the `web` project touches the network. Every story and every test uses a
+fixture from `apps/web/src/fixtures`, and TC-WEB-001 parses each of those through
+the schema the server validates with — so the fixtures cannot drift from the API
+without failing.
 
 ## Database tests
 

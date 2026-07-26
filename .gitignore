@@ -7,3 +7,12 @@ coverage/
 !.env.example
 .DS_Store
 .vitest/
+
+# Next.js and Storybook build output
+.next/
+storybook-static/
+next-env.d.ts
+
+# Playwright
+test-results/
+playwright-report/

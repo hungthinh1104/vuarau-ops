@@ -146,7 +146,7 @@ async function main(): Promise<void> {
         }
       }
 
-      if (!relativePath.endsWith(".test.ts")) continue;
+      if (!relativePath.endsWith(".test.ts") && !relativePath.endsWith(".test.tsx")) continue;
 
       for (const id of idsIn(source, "TC")) {
         declaredTests.add(id);

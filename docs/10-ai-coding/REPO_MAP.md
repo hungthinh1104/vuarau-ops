@@ -20,7 +20,15 @@ apps/
         clock.ts                the only source of `recordedAt`
         hash.ts                 canonical payload hashing for idempotency
       server.ts                 HTTP entry point
-  web/                          placeholder — no UI in this phase
+  web/                          Next App Router — design system and Storybook only
+    src/
+      app/                      routes: the shell, and one demonstration route
+      api/                      tRPC client, session bootstrap, command identity
+      ui/                       primitives/, patterns/, format.ts, copy.ts
+      fixtures/                 typed sample data, parsed through published schemas
+      testing/                  Vitest setup, axe helper
+    e2e/                        Playwright skeleton
+    .storybook/                 react-vite builder
 
 packages/
   domain-contracts/             shapes only: ids, money, commands, DTOs, codes
@@ -36,20 +44,34 @@ scripts/                        boundary-check, trace-check, docs-check
 ## Dependency rules
 
 ```
-apps/api  ──▶ domain-kernel ──▶ domain-contracts
+apps/api  ──▶ domain-kernel ──▶ domain-contracts ◀── apps/web
     │              ▲                  ▲
     └────────▶ db ─┴──────────────────┘
 ```
 
-| Package            | May import                                                     | May **not** import                                                    |
-| ------------------ | -------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `domain-contracts` | `zod`                                                          | everything else                                                       |
-| `domain-kernel`    | `domain-contracts`                                             | tRPC, Drizzle, Supabase, Next.js, React, HTTP, `node:*`, browser APIs |
-| `db`               | `domain-contracts`, `domain-kernel`, `drizzle-orm`, `postgres` | `apps/*`, tRPC, Next.js, React                                        |
-| `apps/api`         | all packages                                                   | `apps/web`                                                            |
-| `test-fixtures`    | `domain-contracts`, `domain-kernel`                            | `db`, `apps/*`                                                        |
+| Package            | May import                                                     | May **not** import                                                         |
+| ------------------ | -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `domain-contracts` | `zod`                                                          | everything else                                                            |
+| `domain-kernel`    | `domain-contracts`                                             | tRPC, Drizzle, Supabase, Next.js, React, HTTP, `node:*`, browser APIs      |
+| `db`               | `domain-contracts`, `domain-kernel`, `drizzle-orm`, `postgres` | `apps/*`, tRPC, Next.js, React                                             |
+| `apps/api`         | all packages                                                   | `apps/web`                                                                 |
+| `apps/web`         | `domain-contracts`, React, Next, tRPC **client**               | `db`, `domain-kernel`, `drizzle-orm`, `postgres`, `@trpc/server`, `node:*` |
+| `test-fixtures`    | `domain-contracts`, `domain-kernel`                            | `db`, `apps/*`                                                             |
 
 Enforced by `scripts/boundary-check.ts`, run as part of `pnpm verify`.
+
+### The browser's two narrow exceptions
+
+`apps/web` names `@vuarau/api` in exactly one file,
+`apps/web/src/api/trpc.ts`, and only as `import type { AppRouter }`. The type is
+erased before a bundler sees it, which is what gives the client full inference with
+no code generation step — and is safe exactly as long as no value crosses. The rule
+is therefore "import it in one file", not "never import it", so the `import type`
+sits somewhere a reviewer will see it.
+
+It also imports `@vuarau/test-fixtures/ids` and `/time` — the two modules that
+depend on nothing but contracts — for its browser fixtures. The package's barrel is
+forbidden, because it re-exports fixtures built on the domain kernel.
 
 `db` → `domain-kernel` is allowed and points the right way: persistence maps rows
 to domain state, and the domain knows nothing about persistence. What `db` may
@@ -64,15 +86,17 @@ first crack in that.
 
 ## Where does my change go?
 
-| Change                  | File                                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| New rejection code      | `domain-contracts/src/shared/rejection-codes.ts` + `docs/04-business-rules/error-code-catalog.md` |
-| New command             | `domain-contracts/src/<module>/index.ts`, then kernel, then handler, then router                  |
-| A business rule changes | `domain-kernel/src/<module>/*.ts` + `docs/04-business-rules/` + its test                          |
-| A new lifecycle state   | state catalog **first**, then the enum, then the kernel                                           |
-| New table or column     | `db/src/schema/`, then `pnpm db:generate`, then `docs/07-data/data-model.md`                      |
-| New query               | `db/src/repositories/` + a port in `apps/api/src/infrastructure/persistence/ports.ts`             |
-| Anything touching money | kernel + docs + a P0 test. No exceptions.                                                         |
+| Change                  | File                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
+| New rejection code      | `domain-contracts/src/shared/rejection-codes.ts` + `docs/04-business-rules/error-code-catalog.md`            |
+| New command             | `domain-contracts/src/<module>/index.ts`, then kernel, then handler, then router                             |
+| A business rule changes | `domain-kernel/src/<module>/*.ts` + `docs/04-business-rules/` + its test                                     |
+| A new lifecycle state   | state catalog **first**, then the enum, then the kernel                                                      |
+| New table or column     | `db/src/schema/`, then `pnpm db:generate`, then `docs/07-data/data-model.md`                                 |
+| New query               | `db/src/repositories/` + a port in `apps/api/src/infrastructure/persistence/ports.ts`                        |
+| A new UI state          | `docs/06-api-contracts/ui-state-catalog.md` **first**, then `apps/web/src/ui/catalog-state.ts`, then a story |
+| A new component         | `apps/web/src/ui/primitives/` or `patterns/` + a story + a test of the rule it encodes                       |
+| Anything touching money | kernel + docs + a P0 test. No exceptions.                                                                    |
 
 ## Forbidden shapes
 

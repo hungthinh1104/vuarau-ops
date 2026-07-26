@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    /*
+     * The browser half of the workspace, and the only project that needs DOM.
+     *
+     * The root tsconfig stays Node-shaped and excludes this directory: mixing the
+     * two would mean either the API sees `document` or the UI does not, and both
+     * are ways to find out at runtime.
+     *
+     * `allowJs`, `incremental` and `resolveJsonModule` are Next's requirements —
+     * it rewrites this file on build until they are present, so they are written
+     * here deliberately rather than re-added by a tool on every CI run.
+     */
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "types": ["node"],
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./src/*"] },
+    "allowJs": true,
+    "incremental": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "e2e/**/*.ts",
+    ".storybook/**/*.ts",
+    "next-env.d.ts",
+    "next.config.ts",
+    "playwright.config.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".next", "storybook-static"]
+}

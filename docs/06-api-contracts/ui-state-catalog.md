@@ -3,16 +3,23 @@
 Every state a screen in this system must be able to render, and the server signal
 that produces it.
 
-No UI exists yet and none is built in this phase
-([scope](../00-product/scope.md)). This catalog exists so that when one is, the
-states are derived from what the backend actually returns rather than from what a
-designer guessed — and so that each of these becomes one Storybook story with no
-further analysis. **Storybook is not installed and is not to be installed here.**
+Every state here is a Storybook story in `apps/web`, and that is checked by machine
+rather than claimed: `catalog-coverage.test.ts` (TC-WEB-012) parses the coverage
+checklist at the end of this document and fails the build when a state named here
+has no story, or a story claims a state this document does not name.
+
+The states were derived from what the backend actually returns rather than from
+what a designer guessed, which is why the catalog was written before the UI was.
 
 A state is in this catalog because the backend can produce it. If the backend
 cannot produce it, it does not belong here; if the backend can produce it and it is
 not here, that is a gap, and the gap is where a user ends up staring at a spinner
 that never resolves.
+
+**Coverage means a story exists, not that a screen does.** The production
+workflows — customer search, sale entry, payment capture, sale void — are not
+built. What is covered is that each state has a rendering, a fixture, and a test of
+the rule it encodes.
 
 ---
 
@@ -236,20 +243,38 @@ that is not there.
 
 ## Coverage checklist
 
-Every one of these is a Storybook story when a UI is built. Nothing here needs a
-running backend — each is a fixed DTO plus a fixed rejection.
+Every one of these is a Storybook story. Nothing here needs a running backend —
+each is a fixed DTO plus a fixed rejection.
 
-- [ ] loading · empty
-- [ ] validation_error · business_rejection
-- [ ] permission_denied
-- [ ] stale_version
-- [ ] duplicate_safe_retry · command_in_progress
-- [ ] unknown_network_outcome
-- [ ] balance_receivable · balance_settled · balance_customer_credit
-- [ ] sale_draft · sale_discarded · sale_posted · sale_voided · sale_replaced
-- [ ] customer_active · customer_inactive · membership_revoked · last_owner_protected
-- [ ] no_due_date · due · overdue
-- [ ] payment_recorded · payment_partially_reversed · payment_reversed · reversal_amount_exceeded
+This list is parsed by TC-WEB-012, so its formatting is load-bearing: one state per
+`·`-separated item, lower_snake_case. A state added here without a story fails the
+build, which is the only reason the machine-readable copy in
+`apps/web/src/ui/catalog-state.ts` exists.
+
+- [x] loading · empty
+- [x] validation_error · business_rejection
+- [x] permission_denied
+- [x] stale_version
+- [x] duplicate_safe_retry · command_in_progress
+- [x] unknown_network_outcome
+- [x] balance_receivable · balance_settled · balance_customer_credit
+- [x] sale_draft · sale_discarded · sale_posted · sale_voided · sale_replaced
+- [x] customer_active · customer_inactive · membership_revoked · last_owner_protected
+- [x] no_due_date · due · overdue
+- [x] payment_recorded · payment_partially_reversed · payment_reversed · reversal_amount_exceeded
+
+### Combinations
+
+States that only make sense together, in `Patterns/Combinations`. A component in
+isolation can be right and the screen still wrong.
+
+- [x] posted sale with no due date
+- [x] voided sale with reason and actor
+- [x] replacement sale linked to the original, both directions
+- [x] customer credit after overpayment, with the compensating pair in the timeline
+- [x] payment partially reversed, showing original, reversed and remaining
+- [x] permission revoked between screen load and action
+- [x] unknown network outcome followed by duplicate-safe success
 
 ## Related
 

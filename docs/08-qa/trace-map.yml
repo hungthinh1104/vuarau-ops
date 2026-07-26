@@ -1143,6 +1143,66 @@ contract_tests:
     title: Malformed input returns INVALID_COMMAND_PAYLOAD, not a schema dump
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
 
+  # --- frontend --------------------------------------------------------------
+  # These prove the *rendering* of a rule the backend already owns, and they are
+  # listed here rather than under a business rule for a reason: a business rule is
+  # satisfied by the server, and a screen that renders it wrongly does not make the
+  # rule unmet — it makes the screen a liar. Attaching them to BR-* entries would
+  # let "UI shipped" read as "rule implemented", which is the confusion the
+  # use-case catalog exists to prevent.
+  #
+  # No use case is marked UI-complete by any of these. The production screens do
+  # not exist; what exists is a design system that cannot render these states
+  # wrongly without failing a test.
+  TC-WEB-001:
+    title: Every browser fixture parses through the schema the server validates with
+    file: apps/web/src/fixtures/fixtures.test.ts
+  TC-WEB-002:
+    title: Fixtures encode the facts the components depend on (sign, balance, permissions)
+    file: apps/web/src/fixtures/fixtures.test.ts
+  TC-WEB-003:
+    title: A customer credit is never rendered as a negative debt (BR-ACCOUNT-009)
+    file: apps/web/src/ui/money-rendering.test.tsx
+  TC-WEB-004:
+    title: Loading renders no amount, never a placeholder zero balance
+    file: apps/web/src/ui/money-rendering.test.tsx
+  TC-WEB-005:
+    title: Money and quantity entry produce integers or refuse; no client-side rounding
+    file: apps/web/src/ui/money-rendering.test.tsx
+  TC-WEB-006:
+    title: A partially reversed payment shows original, reversed and remaining
+    file: apps/web/src/ui/money-rendering.test.tsx
+  TC-WEB-007:
+    title: A control is enabled only when the session permission and the capability agree
+    file: apps/web/src/ui/exception-states.test.tsx
+  TC-WEB-008:
+    title: A permission denial stays renderable when authorization changes after load
+    file: apps/web/src/ui/exception-states.test.tsx
+  TC-WEB-009:
+    title: A stale version offers reload and nothing that resends the command
+    file: apps/web/src/ui/exception-states.test.tsx
+  TC-WEB-010:
+    title: An unknown network outcome preserves commandId and idempotencyKey across retries
+    file: apps/web/src/ui/exception-states.test.tsx
+  TC-WEB-011:
+    title: Rejection copy comes from the stable code, never from error.message
+    file: apps/web/src/ui/exception-states.test.tsx
+  TC-WEB-012:
+    title: Storybook covers every state the UI state catalog names, and no others
+    file: apps/web/src/ui/catalog-coverage.test.ts
+  TC-WEB-013:
+    title: Interactive primitives are labelled, keyboard-reachable and axe-clean
+    file: apps/web/src/ui/accessibility.test.tsx
+  TC-WEB-014:
+    title: The session bootstrap parses session.me and reads permissions from it
+    file: apps/web/src/api/session.test.ts
+  TC-WEB-015:
+    title: Workspace selection is explicit; no workspace is ever chosen silently
+    file: apps/web/src/api/session.test.ts
+  TC-WEB-016:
+    title: The retry policy reads `retryable` from the server and never retries a mutation
+    file: apps/web/src/api/session.test.ts
+
 # Retired identifiers. Never reissued. The old → new mapping is in
 # docs/02-use-cases/use-case-catalog.md.
 deprecated:

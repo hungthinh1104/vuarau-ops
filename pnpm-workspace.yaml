@@ -4,5 +4,12 @@ packages:
 
 # esbuild ships a platform-specific binary and needs its postinstall to run;
 # Vitest and drizzle-kit are unusable without it.
+#
+# sharp is Next's image optimiser, pulled in as an optional dependency. Declined
+# rather than allowed: nothing uses `next/image`, so building a native module on
+# every install would buy nothing. Recorded here instead of left pending, because
+# a pending approval makes `pnpm install` exit non-zero and every filtered script
+# fail with it.
 allowBuilds:
   esbuild: true
+  sharp: false
