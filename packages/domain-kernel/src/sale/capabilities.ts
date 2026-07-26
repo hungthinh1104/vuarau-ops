@@ -43,8 +43,22 @@ export function canPostSaleFacts(facts: SaleCapabilityFacts): Capability {
   if (facts.status === "posted") {
     return denied("SALE_ALREADY_POSTED", { saleId: facts.saleId });
   }
+  if (facts.status === "discarded") {
+    return denied("SALE_ALREADY_DISCARDED", { saleId: facts.saleId });
+  }
   if (facts.lineCount === 0) {
     return denied("SALE_EMPTY", { saleId: facts.saleId });
+  }
+  return ALLOWED;
+}
+
+/** Editing and discarding are the same question: is this still a live draft? */
+export function canEditDraftFacts(facts: SaleCapabilityFacts): Capability {
+  if (facts.status === "posted") {
+    return denied("SALE_ALREADY_POSTED", { saleId: facts.saleId });
+  }
+  if (facts.status === "discarded") {
+    return denied("SALE_ALREADY_DISCARDED", { saleId: facts.saleId });
   }
   return ALLOWED;
 }
@@ -88,22 +102,31 @@ export function canVoidSale(sale: SaleState): Capability {
 }
 
 /** The shape shared by both, so a list and a detail screen render identically. */
-function capabilitiesFrom(post: Capability, voidSale: Capability): SaleCapabilities {
+function capabilitiesFrom(
+  post: Capability,
+  voidSale: Capability,
+  editDraft: Capability,
+): SaleCapabilities {
   return {
     post,
     void: voidSale,
-    // T-SALE-003/004 are specified but not implemented (BR-SALE-018). The UI
-    // learns this from the server rather than hard-coding a roadmap.
-    edit: denied("COMMAND_NOT_AVAILABLE", { command: "EditSaleDraft" }),
-    discard: denied("COMMAND_NOT_AVAILABLE", { command: "DiscardSaleDraft" }),
+    // Editing and discarding ask the same question, so they get the same answer.
+    // They are separate fields because they are separate buttons.
+    edit: editDraft,
+    discard: editDraft,
   };
 }
 
 export function saleCapabilities(sale: SaleState): SaleCapabilities {
-  return capabilitiesFrom(canPostSale(sale), canVoidSale(sale));
+  const facts = factsFromSale(sale);
+  return capabilitiesFrom(canPostSale(sale), canVoidSale(sale), canEditDraftFacts(facts));
 }
 
 /** For list rows, which hold facts rather than a whole aggregate. */
 export function saleSummaryCapabilities(facts: SaleCapabilityFacts): SaleCapabilities {
-  return capabilitiesFrom(canPostSaleFacts(facts), canVoidSaleFacts(facts));
+  return capabilitiesFrom(
+    canPostSaleFacts(facts),
+    canVoidSaleFacts(facts),
+    canEditDraftFacts(facts),
+  );
 }

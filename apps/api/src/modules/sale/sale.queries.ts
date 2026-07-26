@@ -89,6 +89,7 @@ export function listSales(
         transactionTime: row.transactionTime,
         recordedAt: row.recordedAt,
         postedAt: row.postedAt,
+        discardedAt: row.discardedAt,
         dueAt: row.dueAt,
         replacesSaleId: row.replacesSaleId,
         replacedBySaleId: row.replacedBySaleId,

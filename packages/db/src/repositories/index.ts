@@ -92,6 +92,39 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           ? null
           : { workspaceId, actorId, role: row.role, isActive: row.isActive };
       },
+
+      async countActiveOwnersForUpdate(workspaceId: WorkspaceId): Promise<number> {
+        // Locked, not counted: two owners revoking each other simultaneously must
+        // not both read two (BR-AUTH-007). `FOR UPDATE` on the rows is what
+        // serialises them; a count without it is a snapshot either can win from.
+        const rows = await tx
+          .select({ actorId: workspaceMemberships.actorId })
+          .from(workspaceMemberships)
+          .where(
+            and(
+              eq(workspaceMemberships.workspaceId, workspaceId),
+              eq(workspaceMemberships.role, "owner"),
+              eq(workspaceMemberships.isActive, true),
+            ),
+          )
+          .for("update");
+        return rows.length;
+      },
+
+      async revokeMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean> {
+        const updated = await tx
+          .update(workspaceMemberships)
+          .set({ isActive: false })
+          .where(
+            and(
+              eq(workspaceMemberships.workspaceId, workspaceId),
+              eq(workspaceMemberships.actorId, actorId),
+              eq(workspaceMemberships.isActive, true),
+            ),
+          )
+          .returning({ actorId: workspaceMemberships.actorId });
+        return updated.length === 1;
+      },
     },
 
     actors: {
@@ -118,6 +151,42 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           .limit(1);
         const row = rows[0];
         return row === undefined ? null : toCustomerState(row);
+      },
+
+      async findByIdForUpdate(
+        workspaceId: WorkspaceId,
+        customerId: CustomerId,
+      ): Promise<CustomerState | null> {
+        const rows = await tx
+          .select()
+          .from(customers)
+          .where(and(eq(customers.workspaceId, workspaceId), eq(customers.id, customerId)))
+          .limit(1)
+          .for("update");
+        const row = rows[0];
+        return row === undefined ? null : toCustomerState(row);
+      },
+
+      async update(customer: CustomerState, expectedVersion: number): Promise<boolean> {
+        const updated = await tx
+          .update(customers)
+          .set({
+            displayName: customer.displayName,
+            phone: customer.phone,
+            note: customer.note,
+            isActive: customer.isActive,
+            version: customer.version,
+            updatedAt: fromIso(customer.updatedAt),
+          })
+          .where(
+            and(
+              eq(customers.workspaceId, customer.workspaceId),
+              eq(customers.id, customer.id),
+              eq(customers.version, expectedVersion),
+            ),
+          )
+          .returning({ id: customers.id });
+        return updated.length === 1;
       },
 
       async insert(customer: CustomerState): Promise<void> {
@@ -233,6 +302,66 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           )
           .returning({ id: sales.id });
         return updated.length === 1;
+      },
+
+      /**
+       * Edits or discards a draft. Conditional on the version **and** on the row
+       * still being a draft, so a posted sale is unreachable through this path
+       * whatever version arrives (BR-SALE-008).
+       */
+      async updateDraft(
+        sale: SaleState,
+        expectedVersion: number,
+        options: { replaceLines: boolean },
+      ): Promise<boolean> {
+        const updated = await tx
+          .update(sales)
+          .set({
+            status: sale.status,
+            totalAmountMinor: sale.totalAmount.amountMinor,
+            note: sale.note,
+            dueAt: fromIsoOrNull(sale.dueAt),
+            discardedAt: fromIsoOrNull(sale.discardedAt),
+            version: sale.version,
+          })
+          .where(
+            and(
+              eq(sales.workspaceId, sale.workspaceId),
+              eq(sales.id, sale.id),
+              eq(sales.version, expectedVersion),
+              eq(sales.status, "draft"),
+            ),
+          )
+          .returning({ id: sales.id });
+
+        if (updated.length !== 1) {
+          return false;
+        }
+
+        if (options.replaceLines) {
+          // Wholesale replacement, matching the command: a per-line diff would
+          // need a merge rule, and any merge rule produces a total nobody typed.
+          await tx.delete(saleLines).where(eq(saleLines.saleId, sale.id));
+          if (sale.lines.length > 0) {
+            await tx.insert(saleLines).values(
+              sale.lines.map((line, position) => ({
+                id: line.lineId,
+                workspaceId: sale.workspaceId,
+                saleId: sale.id,
+                productId: line.productId,
+                productName: line.productName,
+                quantityScaled: line.quantity.valueScaled,
+                unit: line.quantity.unit,
+                unitPriceMinor: line.unitPrice.amountMinor,
+                lineTotalMinor: line.lineTotal.amountMinor,
+                currency: sale.currency,
+                position,
+              })),
+            );
+          }
+        }
+
+        return true;
       },
 
       /**

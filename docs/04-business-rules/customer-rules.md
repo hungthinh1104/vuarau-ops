@@ -36,7 +36,7 @@ in the application layer today rather than by Postgres row-level security.
 
 ### BR-CUSTOMER-003 — Deactivation hides a customer; it never settles their balance
 
-**Risk:** P1 · **Code:** `CUSTOMER_ALREADY_INACTIVE` · **Planned tests:** TC-CUSTOMER-009, TC-CUSTOMER-010 · **Status: planned**
+**Risk:** P1 · **Code:** `CUSTOMER_ALREADY_INACTIVE` · **Tests:** TC-CUSTOMER-009
 
 `DeactivateCustomer` sets `is_active = false` and does nothing else. The customer
 row stays, every account entry stays, and the balance stays exactly what it was.
@@ -55,7 +55,7 @@ surfaced, recorded as ASM-019.
 
 ### BR-CUSTOMER-004 — Customer changes go through named commands with a version
 
-**Risk:** P1 · **Code:** `CUSTOMER_VERSION_CONFLICT` · **Planned tests:** TC-CUSTOMER-007, TC-CUSTOMER-008 · **Status: planned**
+**Risk:** P1 · **Code:** `CUSTOMER_VERSION_CONFLICT` · **Tests:** TC-CUSTOMER-007
 
 `UpdateCustomer` changes display name, phone and note. `DeactivateCustomer`
 changes activity. Nothing changes both, and no generic patch exists.

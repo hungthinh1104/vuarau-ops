@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { customerIdSchema, workspaceIdSchema } from "../shared/ids.ts";
-import { defineCommand } from "../shared/command.ts";
+import { defineCommand, defineVersionedCommand } from "../shared/command.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { moneySchema } from "../shared/money.ts";
 import { capabilitySchema } from "../shared/capability.ts";
@@ -29,6 +29,43 @@ export type CreateCustomerPayload = z.infer<typeof createCustomerPayloadSchema>;
 
 export const createCustomerCommandSchema = defineCommand(createCustomerPayloadSchema);
 export type CreateCustomerCommand = z.infer<typeof createCustomerCommandSchema>;
+
+/**
+ * A **named** command, not a generic patch. There is no `updateEntity` in this
+ * system and none is to be added: a generic patch is how a lifecycle field ends
+ * up changed by code that had no business touching it (BR-CUSTOMER-004).
+ *
+ * Note what is absent: `isActive` — that is `DeactivateCustomer`, a different
+ * decision with a different permission — and anything to do with money.
+ */
+export const updateCustomerPayloadSchema = z.object({
+  customerId: customerIdSchema,
+  displayName: z.string().max(200),
+  phone: z.string().trim().max(40).nullable().default(null),
+  note: z.string().trim().max(1000).nullable().default(null),
+});
+export type UpdateCustomerPayload = z.infer<typeof updateCustomerPayloadSchema>;
+
+export const updateCustomerCommandSchema = defineVersionedCommand(updateCustomerPayloadSchema);
+export type UpdateCustomerCommand = z.infer<typeof updateCustomerCommandSchema>;
+
+/**
+ * Hides a customer from new sales. It does **not** delete them and does not
+ * settle their balance: a deactivated customer who owes money still owes it, and
+ * still appears in the account book (BR-CUSTOMER-003).
+ *
+ * Anything else would make "tidy up the customer list" a way to make debt vanish.
+ */
+export const deactivateCustomerPayloadSchema = z.object({
+  customerId: customerIdSchema,
+  reason: z.string().trim().max(500).nullable().default(null),
+});
+export type DeactivateCustomerPayload = z.infer<typeof deactivateCustomerPayloadSchema>;
+
+export const deactivateCustomerCommandSchema = defineVersionedCommand(
+  deactivateCustomerPayloadSchema,
+);
+export type DeactivateCustomerCommand = z.infer<typeof deactivateCustomerCommandSchema>;
 
 export const customerDtoSchema = z.object({
   id: customerIdSchema,

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { actorIdSchema, workspaceIdSchema } from "../shared/ids.ts";
 import { permissionSchema, workspaceRoleSchema } from "../shared/authorization.ts";
+import { defineCommand } from "../shared/command.ts";
 
 /**
  * UC-AUTH-003 — what the caller may do, before they have any particular sale or
@@ -31,3 +32,40 @@ export const sessionDtoSchema = z.object({
   permissions: z.array(permissionSchema),
 });
 export type SessionDto = z.infer<typeof sessionDtoSchema>;
+
+/**
+ * UC-AUTH-002 — revoking a workspace membership.
+ *
+ * Sets `is_active = false`. It does **not** delete the membership row, and it
+ * does not touch anything that person recorded: their sales stand, their payments
+ * stand, and every account entry still names them (BR-ACCOUNT-004). An audit trail
+ * has to keep working after somebody leaves, which is when it is most needed.
+ *
+ * No `expectedVersion`. A membership has no user-editable content to lose an
+ * update of — the command sets one boolean to one value — and two concurrent
+ * revocations of the same person want the same end state. The race that *does*
+ * matter is two owners revoking each other simultaneously, and a version would
+ * not catch that; a row lock over the active-owner count does (BR-AUTH-007).
+ */
+export const revokeWorkspaceMembershipPayloadSchema = z.object({
+  actorId: actorIdSchema,
+  reason: z.string().trim().max(500).nullable().default(null),
+});
+export type RevokeWorkspaceMembershipPayload = z.infer<
+  typeof revokeWorkspaceMembershipPayloadSchema
+>;
+
+export const revokeWorkspaceMembershipCommandSchema = defineCommand(
+  revokeWorkspaceMembershipPayloadSchema,
+);
+export type RevokeWorkspaceMembershipCommand = z.infer<
+  typeof revokeWorkspaceMembershipCommandSchema
+>;
+
+export const workspaceMembershipDtoSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  actorId: actorIdSchema,
+  role: workspaceRoleSchema,
+  isActive: z.boolean(),
+});
+export type WorkspaceMembershipDto = z.infer<typeof workspaceMembershipDtoSchema>;

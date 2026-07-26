@@ -27,10 +27,18 @@ export const DOMAIN_REJECTION_CODES = [
   "WORKSPACE_MEMBERSHIP_INACTIVE",
   /** The actor is an active member, but their role lacks the permission. */
   "PERMISSION_DENIED",
+  /**
+   * Revoking the only remaining active owner. Refused, because a depot that locks
+   * itself out of its own account book has no self-service remedy (BR-AUTH-007).
+   */
+  "WORKSPACE_LAST_OWNER",
 
   // --- customer -------------------------------------------------------------
   "CUSTOMER_NOT_FOUND",
   "CUSTOMER_NAME_REQUIRED",
+  "CUSTOMER_VERSION_CONFLICT",
+  /** Deactivating a customer who already is. Their balance is untouched either way. */
+  "CUSTOMER_ALREADY_INACTIVE",
 
   // --- sale ------------------------------------------------------------------
   "SALE_NOT_FOUND",
@@ -42,6 +50,8 @@ export const DOMAIN_REJECTION_CODES = [
   "SALE_CURRENCY_MISMATCH",
   /** An update or delete was attempted against a posted sale (BR-SALE-008). */
   "SALE_IMMUTABLE",
+  /** Editing or discarding a draft that was already discarded. */
+  "SALE_ALREADY_DISCARDED",
 
   // --- sale correction --------------------------------------------------------
   /** Voiding a draft. A draft is discarded; there is no effect to compensate. */

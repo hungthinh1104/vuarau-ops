@@ -70,11 +70,11 @@ the caller's membership, using the static table in
 | Command / read                                           | Permission            | Roles                    | Status      |
 | -------------------------------------------------------- | --------------------- | ------------------------ | ----------- |
 | `CreateCustomer`                                         | `customer.create`     | owner, sales             | implemented |
-| `UpdateCustomer`                                         | `customer.update`     | owner, sales             | planned     |
-| `DeactivateCustomer`                                     | `customer.deactivate` | **owner**                | planned     |
+| `UpdateCustomer`                                         | `customer.update`     | owner, sales             | implemented |
+| `DeactivateCustomer`                                     | `customer.deactivate` | **owner**                | implemented |
 | `customer.search`, `customer.get`                        | `customer.read`       | all roles                | implemented |
 | `CreateSaleDraft`                                        | `sale.create`         | owner, sales             | implemented |
-| `EditSaleDraft`, `DiscardSaleDraft`                      | `sale.create`         | owner, sales             | planned     |
+| `UpdateSaleDraft`, `DiscardSaleDraft`                    | `sale.create`         | owner, sales             | implemented |
 | `PostSale`                                               | `sale.post`           | owner, sales             | implemented |
 | `VoidSale`                                               | `sale.void`           | **owner, accountant**    | implemented |
 | `sale.get`, `sale.list`                                  | `sale.read`           | all roles                | implemented |
@@ -84,7 +84,7 @@ the caller's membership, using the static table in
 | `AdjustCustomerDebt`                                     | `debt.adjust`         | **owner, accountant**    | implemented |
 | `account.balance`, `account.entries`, `account.timeline` | `debt.read`           | owner, accountant, sales | implemented |
 | `audit.timeline`                                         | `audit.read`          | **owner, accountant**    | implemented |
-| `RevokeMembership`                                       | `workspace.manage`    | **owner**                | planned     |
+| `RevokeWorkspaceMembership`                              | `workspace.manage`    | **owner**                | implemented |
 | `session.me`                                             | — (identity only)     | all roles                | implemented |
 
 The refusal names the permission and the role, so the answer to "why can't I do
@@ -139,7 +139,7 @@ narrows what an abuse of it could plausibly be explained as.
 
 ### BR-AUTH-007 — A workspace always keeps at least one active owner
 
-**Risk:** P1 · **Code:** `WORKSPACE_LAST_OWNER` · **Planned tests:** TC-AUTH-013, TC-AUTH-014 · **Status: planned**
+**Risk:** P1 · **Code:** `WORKSPACE_LAST_OWNER` · **Tests:** TC-AUTH-013
 
 `RevokeMembership` refuses when the target is the only remaining active `owner`.
 
@@ -147,6 +147,12 @@ A depot that revokes its last owner has locked itself out of its own account boo
 and there is no self-service remedy: every command that could restore access needs
 `workspace.manage`, which only an owner holds. The guard costs one query; the
 failure costs a support intervention against a production database.
+
+The count is taken **under a row lock**, not as a plain `SELECT count(*)`. Two
+owners revoking each other at the same moment would otherwise both read two and
+both proceed. A version column on the membership row would not have caught that —
+they are updating different rows — which is why revocation carries no
+`expectedVersion` and this lock instead.
 
 ---
 

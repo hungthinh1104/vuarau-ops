@@ -7,9 +7,8 @@ a separate concept (`CustomerOrder`) that this phase does not model
 
 Each rule has a stable ID, a risk class, the rejection code it produces, and the
 test that proves it. IDs are never reused; a superseded rule is marked deprecated,
-not deleted. One rule here is still marked **planned** — BR-SALE-018, the draft edit and
-discard commands. `pnpm trace:check` counts planned rules on every run so the gap
-stays visible rather than remembered.
+not deleted. Every rule here is implemented and carries a test. `pnpm trace:check` reports the
+planned count on every run; it is currently zero.
 
 Historical note: BR-SALE-001…009 were called BR-ORDER-001…009 until the
 terminology was closed. Same rules, same numbers, new vocabulary
@@ -65,20 +64,29 @@ currencies into one total is a P0 money bug, and the guard is three lines.
 
 ### BR-SALE-018 — A draft may be edited or discarded; a posted sale may not
 
-**Risk:** P1 · **Code:** `SALE_ALREADY_POSTED` · **Planned tests:** TC-SALE-019, TC-SALE-020 · **Cases:** CASE-SALE-009 · **Status: planned**
+**Risk:** P1 · **Codes:** `SALE_ALREADY_POSTED`, `SALE_ALREADY_DISCARDED` · **Tests:** TC-SALE-019, TC-SALE-020 · **Cases:** CASE-SALE-009
 
-`EditSaleDraft` would replace the line set of a `draft` sale wholesale and bump
-the version. `DiscardSaleDraft` would mark it discarded. Both refuse a `posted`
-sale with `SALE_ALREADY_POSTED`, which is BR-SALE-008 seen from the command side.
+`UpdateSaleDraft` replaces the line set of a `draft` sale **wholesale** and bumps
+the version. A per-line patch would need a merge rule for two workers editing the
+same draft, and any merge rule produces a total neither of them typed; whole
+replacement plus `expectedVersion` means one wins and the other reloads.
 
-Neither command is implemented. The capability reports `COMMAND_NOT_AVAILABLE` so
-a UI can render the control greyed out without inventing a roadmap
-([capabilities](../06-api-contracts/capabilities.md)).
+`DiscardSaleDraft` marks it `discarded`. Both refuse a `posted` sale with
+`SALE_ALREADY_POSTED` — BR-SALE-008 seen from the command side — and a discarded
+one with `SALE_ALREADY_DISCARDED`.
 
-Discard is specified as a lifecycle value, not a deletion: the draft row stays,
+Discard is a lifecycle value, not a deletion: the draft row and its lines stay,
 because "somebody entered this and then thought better of it" is information, and
 because a discarded draft resubmitted by an offline client must be recognised as a
 replay rather than accepted as new (BR-COMMAND-001).
+
+Neither has any account effect. A draft moves no money however many times it is
+edited, and discarding one moves none either (BR-SALE-010).
+
+`PostSale` refuses a discarded draft explicitly. The repository's
+`status = 'draft'` condition would refuse the write anyway — but as a version
+conflict, which is the wrong story to tell somebody who is looking at a draft that
+was thrown away.
 
 ---
 

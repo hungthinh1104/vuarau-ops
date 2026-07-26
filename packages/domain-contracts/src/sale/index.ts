@@ -18,15 +18,23 @@ import { pageRequestSchema } from "../shared/pagination.ts";
  * A **sale** is a completed transaction: goods handed over, price agreed
  * (ADR-0013). It is not a request for goods — that is a future `CustomerOrder`.
  *
- * Stored lifecycle: `draft → posted`, and `posted` is terminal because a posted
- * sale is immutable (BR-SALE-008). Everything that happens afterwards — voiding,
- * replacement — is recorded beside it.
+ * Stored lifecycle: `draft → posted` or `draft → discarded`. Both ends are
+ * terminal — a posted sale is immutable (BR-SALE-008), and a discarded one is a
+ * decision somebody made that stays on the record.
+ *
+ * Everything that happens to a posted sale afterwards — voiding, replacement — is
+ * recorded beside it, never in it.
+ *
+ * `discarded` is a lifecycle value rather than a deletion: "somebody entered this
+ * and then thought better of it" is information, and a discarded draft
+ * resubmitted by an offline client has to be recognised as a replay rather than
+ * accepted as new (BR-SALE-018).
  *
  * Deliberately free of allocation, picking, delivery, invoice, and payment state:
  * those are separate lifecycle dimensions and adding them here is how status
  * enums rot. See docs/03-state-machines/sale-state-machine.md.
  */
-export const SALE_STATUSES = ["draft", "posted"] as const;
+export const SALE_STATUSES = ["draft", "posted", "discarded"] as const;
 export const saleStatusSchema = z.enum(SALE_STATUSES);
 export type SaleStatus = z.infer<typeof saleStatusSchema>;
 
@@ -111,6 +119,35 @@ export type PostSalePayload = z.infer<typeof postSalePayloadSchema>;
 /** Posting mutates an existing aggregate, so the version is mandatory. */
 export const postSaleCommandSchema = defineVersionedCommand(postSalePayloadSchema);
 export type PostSaleCommand = z.infer<typeof postSaleCommandSchema>;
+
+/**
+ * Replaces the draft's line set wholesale rather than patching individual lines.
+ *
+ * A per-line patch would need a merge rule for two workers editing the same draft,
+ * and any merge rule produces a total neither of them typed. Whole replacement
+ * plus `expectedVersion` means one of them wins and the other is told to reload
+ * (BR-SALE-018).
+ */
+export const updateSaleDraftPayloadSchema = z.object({
+  saleId: saleIdSchema,
+  lines: z.array(saleLineInputSchema).max(200),
+  note: z.string().trim().max(1000).nullable().default(null),
+  dueAt: isoInstantSchema.nullable().default(null),
+});
+export type UpdateSaleDraftPayload = z.infer<typeof updateSaleDraftPayloadSchema>;
+
+export const updateSaleDraftCommandSchema = defineVersionedCommand(updateSaleDraftPayloadSchema);
+export type UpdateSaleDraftCommand = z.infer<typeof updateSaleDraftCommandSchema>;
+
+export const discardSaleDraftPayloadSchema = z.object({
+  saleId: saleIdSchema,
+  /** Optional: unlike a void, discarding moves no money and owes no explanation. */
+  reason: z.string().trim().max(500).nullable().default(null),
+});
+export type DiscardSaleDraftPayload = z.infer<typeof discardSaleDraftPayloadSchema>;
+
+export const discardSaleDraftCommandSchema = defineVersionedCommand(discardSaleDraftPayloadSchema);
+export type DiscardSaleDraftCommand = z.infer<typeof discardSaleDraftCommandSchema>;
 
 /**
  * Why a sale was voided. The code is what a report groups by; the free text is
@@ -198,6 +235,7 @@ export const saleDtoSchema = z.object({
   /** When we accepted the draft. */
   recordedAt: isoInstantSchema,
   postedAt: isoInstantSchema.nullable(),
+  discardedAt: isoInstantSchema.nullable(),
   dueAt: isoInstantSchema.nullable(),
   replacesSaleId: saleIdSchema.nullable(),
   /** Present iff this sale was voided. The sale row itself is never touched. */
@@ -266,6 +304,7 @@ export const saleSummaryDtoSchema = z.object({
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,
   postedAt: isoInstantSchema.nullable(),
+  discardedAt: isoInstantSchema.nullable(),
   dueAt: isoInstantSchema.nullable(),
   /** Both directions of the correction chain, so a list can show it (BR-SALE-016). */
   replacesSaleId: saleIdSchema.nullable(),

@@ -47,6 +47,17 @@ export function decidePostSale({
     });
   }
 
+  // A discarded draft is a decision somebody made. Posting one would resurrect
+  // it, and the repository's `status = 'draft'` condition would refuse the write
+  // anyway — but as a version conflict, which is the wrong story to tell
+  // (BR-SALE-018).
+  if (sale.status === "discarded") {
+    return err("SALE_ALREADY_DISCARDED", "This draft was discarded and cannot be posted.", {
+      saleId: sale.id,
+      status: sale.status,
+    });
+  }
+
   if (sale.lines.length === 0) {
     return err("SALE_EMPTY", "A sale cannot be posted without at least one line.", {
       saleId: sale.id,

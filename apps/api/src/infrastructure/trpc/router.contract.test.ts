@@ -91,11 +91,11 @@ describe("UC-ORDER-001 / TC-SALE-013 — sale procedures", () => {
 
     expect(created.capabilities.post.allowed).toBe(true);
     // Documented in the state machine, not implemented in this phase (ASM-005).
-    expect(created.capabilities.edit).toEqual({
-      allowed: false,
-      reasonCode: "COMMAND_NOT_AVAILABLE",
-      details: { command: "EditSaleDraft" },
-    });
+    // A live draft may be edited and discarded. Both were COMMAND_NOT_AVAILABLE
+    // until the commands shipped; the capability changed with them, which is the
+    // point of computing it from the same functions the guards use (ADR-0003).
+    expect(created.capabilities.edit).toEqual({ allowed: true });
+    expect(created.capabilities.discard).toEqual({ allowed: true });
   });
 
   it("flips the post capability once the sale is posted", async () => {

@@ -1,9 +1,11 @@
 import type {
+  Capability,
   CustomerCapabilities,
   CustomerDetailDto,
   CustomerSummaryDto,
   GetCustomerInput,
   Page,
+  Permission,
   SearchCustomersInput,
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
@@ -22,24 +24,30 @@ import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
  */
 
 /**
- * Which customer commands this caller may attempt at all — the authority half of
- * a capability, computed from the same role table the guard uses (ADR-0011).
+ * Which customer commands this caller may attempt — the authority half of a
+ * capability, computed from the same role table the guard uses (ADR-0011).
  *
- * `update` and `deactivate` are `COMMAND_NOT_AVAILABLE` until those commands
- * exist, so a UI greys them out from a server answer rather than from its own
- * idea of the roadmap.
+ * There is no state half: a customer is always editable, and always deactivatable
+ * unless already inactive — and the second is a fact about the customer, added by
+ * the caller that has one in hand.
  */
-export function customerCapabilities(role: WorkspaceRole): CustomerCapabilities {
-  return {
-    update: roleHasPermission(role, "customer.update")
-      ? denied("COMMAND_NOT_AVAILABLE", { command: "UpdateCustomer" })
-      : denied("PERMISSION_DENIED", { permission: "customer.update", role }),
-    deactivate: roleHasPermission(role, "customer.deactivate")
-      ? denied("COMMAND_NOT_AVAILABLE", { command: "DeactivateCustomer" })
-      : denied("PERMISSION_DENIED", { permission: "customer.deactivate", role }),
-    adjustAccount: roleHasPermission(role, "debt.adjust")
+export function customerCapabilities(
+  role: WorkspaceRole,
+  customer?: { isActive: boolean },
+): CustomerCapabilities {
+  const permitted = (permission: Permission): Capability =>
+    roleHasPermission(role, permission)
       ? { allowed: true }
-      : denied("PERMISSION_DENIED", { permission: "debt.adjust", role }),
+      : denied("PERMISSION_DENIED", { permission, role });
+
+  const deactivate = permitted("customer.deactivate");
+  return {
+    update: permitted("customer.update"),
+    deactivate:
+      deactivate.allowed && customer?.isActive === false
+        ? denied("CUSTOMER_ALREADY_INACTIVE", {})
+        : deactivate,
+    adjustAccount: permitted("debt.adjust"),
   };
 }
 
@@ -52,14 +60,16 @@ export function searchCustomers(
     workspaceId: input.workspaceId,
     permission: "customer.read",
     execute: async ({ repos, membership }) => {
-      const capabilities = customerCapabilities(membership.role);
       const result = await repos.customerReads.search({
         workspaceId: input.workspaceId,
         query: input.query,
         isActive: input.isActive,
         page: toPageQuery(input),
       });
-      return toPage(result, (row) => ({ ...row, capabilities }));
+      return toPage(result, (row) => ({
+        ...row,
+        capabilities: customerCapabilities(membership.role, row),
+      }));
     },
   });
 }
@@ -76,7 +86,7 @@ export async function getCustomer(
       const found = await repos.customerReads.get(input.workspaceId, input.customerId);
       return found === null
         ? null
-        : { ...found, capabilities: customerCapabilities(membership.role) };
+        : { ...found, capabilities: customerCapabilities(membership.role, found.customer) };
     },
   });
 

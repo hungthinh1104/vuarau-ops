@@ -70,6 +70,7 @@ export function toSaleDto(sale: SaleState, asOf: IsoInstant): SaleDto {
     transactionTime: sale.transactionTime,
     recordedAt: sale.recordedAt,
     postedAt: sale.postedAt,
+    discardedAt: sale.discardedAt,
     dueAt: sale.dueAt,
     replacesSaleId: sale.replacesSaleId,
     // Both derived, never stored (state catalog): a `voided` column would have to

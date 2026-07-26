@@ -5,6 +5,8 @@ import {
   auditTimelineInputSchema,
   createCustomerCommandSchema,
   createSaleDraftCommandSchema,
+  deactivateCustomerCommandSchema,
+  discardSaleDraftCommandSchema,
   customerIdSchema,
   getCustomerInputSchema,
   getPaymentInputSchema,
@@ -14,12 +16,21 @@ import {
   postSaleCommandSchema,
   recordCustomerPaymentCommandSchema,
   reverseCustomerPaymentCommandSchema,
+  revokeWorkspaceMembershipCommandSchema,
   searchCustomersInputSchema,
+  updateCustomerCommandSchema,
+  updateSaleDraftCommandSchema,
   voidSaleCommandSchema,
   workspaceIdSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "./trpc.ts";
 import { createCustomer } from "../../modules/customer/create-customer.handler.ts";
+import {
+  deactivateCustomer,
+  updateCustomer,
+} from "../../modules/customer/update-customer.handler.ts";
+import { discardSaleDraft, updateSaleDraft } from "../../modules/sale/edit-sale-draft.handler.ts";
+import { revokeWorkspaceMembership } from "../../modules/session/revoke-membership.handler.ts";
 import { createSaleDraft } from "../../modules/sale/create-sale-draft.handler.ts";
 import { postSale } from "../../modules/sale/post-sale.handler.ts";
 import { voidSale } from "../../modules/sale/void-sale.handler.ts";
@@ -38,7 +49,7 @@ import { getAuditTimeline } from "../../modules/audit/audit.queries.ts";
 import { getSession } from "../../modules/session/session.queries.ts";
 
 /**
- * Seven mutations, one per business command. No `update`, no `patch`, and no
+ * Twelve mutations, one per business command. No `update`, no `patch`, and no
  * procedure that takes a status as an argument (ADR-0002).
  *
  * Every procedure — read or write — requires a verified identity. There is no
@@ -62,12 +73,28 @@ const sessionRouter = router({
   me: authenticatedProcedure
     .input(z.object({ workspaceId: workspaceIdSchema }))
     .query(async ({ ctx, input }) => unwrap(await getSession(ctx, input.workspaceId))),
+
+  /**
+   * Revocation takes effect on the **next request**: membership is re-read on
+   * every command and every query, so there is no session to expire.
+   */
+  revokeMembership: commandProcedure
+    .input(revokeWorkspaceMembershipCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await revokeWorkspaceMembership(ctx, input))),
 });
 
 const customerRouter = router({
   create: commandProcedure
     .input(createCustomerCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await createCustomer(ctx, input))),
+
+  update: commandProcedure
+    .input(updateCustomerCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await updateCustomer(ctx, input))),
+
+  deactivate: commandProcedure
+    .input(deactivateCustomerCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await deactivateCustomer(ctx, input))),
 
   search: authenticatedProcedure
     .input(searchCustomersInputSchema)
@@ -82,6 +109,14 @@ const saleRouter = router({
   createDraft: commandProcedure
     .input(createSaleDraftCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await createSaleDraft(ctx, input))),
+
+  updateDraft: commandProcedure
+    .input(updateSaleDraftCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await updateSaleDraft(ctx, input))),
+
+  discardDraft: commandProcedure
+    .input(discardSaleDraftCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await discardSaleDraft(ctx, input))),
 
   post: commandProcedure
     .input(postSaleCommandSchema)

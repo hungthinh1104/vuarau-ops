@@ -43,6 +43,13 @@
       "when": 1785252307958,
       "tag": "0005_read_models",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785338707958,
+      "tag": "0006_customer_and_draft_lifecycle",
+      "breakpoints": true
     }
   ]
 }

@@ -48,12 +48,13 @@ use_cases:
   UC-AUTH-002:
     title: Revoke a workspace membership
     risk: P0
-    status: planned
     doc: docs/02-use-cases/platform-use-cases.md
-    rules: [BR-AUTH-003, BR-AUTH-004, BR-AUTH-007]
+    rules: [BR-AUTH-003, BR-AUTH-004, BR-AUTH-007, BR-ACCOUNT-004, BR-COMMAND-006]
     cases: []
-    tests: []
-    planned_tests: [TC-AUTH-013, TC-AUTH-014]
+    tests: [TC-AUTH-013]
+    implementation:
+      - packages/domain-kernel/src/session/revoke-membership.ts
+      - apps/api/src/modules/session/revoke-membership.handler.ts
 
   UC-AUTH-003:
     title: View my capabilities
@@ -102,22 +103,31 @@ use_cases:
   UC-CUSTOMER-004:
     title: Update a customer
     risk: P1
-    status: planned
     doc: docs/02-use-cases/customer-use-cases.md
-    rules: [BR-CUSTOMER-001, BR-CUSTOMER-002, BR-CUSTOMER-004, BR-AUTH-004, BR-COMMAND-001]
+    rules:
+      - BR-CUSTOMER-001
+      - BR-CUSTOMER-002
+      - BR-CUSTOMER-004
+      - BR-AUTH-004
+      - BR-ACCOUNT-002
+      - BR-COMMAND-001
+      - BR-COMMAND-006
     cases: []
-    tests: []
-    planned_tests: [TC-CUSTOMER-007, TC-CUSTOMER-008]
+    tests: [TC-CUSTOMER-007]
+    implementation:
+      - packages/domain-kernel/src/customer/update-customer.ts
+      - apps/api/src/modules/customer/update-customer.handler.ts
 
   UC-CUSTOMER-005:
     title: Deactivate a customer
     risk: P1
-    status: planned
     doc: docs/02-use-cases/customer-use-cases.md
-    rules: [BR-CUSTOMER-002, BR-CUSTOMER-003, BR-AUTH-004, BR-ACCOUNT-002]
+    rules: [BR-CUSTOMER-002, BR-CUSTOMER-003, BR-AUTH-004, BR-ACCOUNT-002, BR-COMMAND-006]
     cases: []
-    tests: []
-    planned_tests: [TC-CUSTOMER-009, TC-CUSTOMER-010]
+    tests: [TC-CUSTOMER-009]
+    implementation:
+      - packages/domain-kernel/src/customer/update-customer.ts
+      - apps/api/src/modules/customer/update-customer.handler.ts
 
   UC-SALE-001:
     title: Create, edit and discard a sale draft
@@ -134,11 +144,13 @@ use_cases:
       - BR-SALE-017
       - BR-SALE-018
     cases: [CASE-SALE-001, CASE-SALE-009]
-    tests: [TC-SALE-001, TC-SALE-002, TC-SALE-014]
+    tests: [TC-SALE-001, TC-SALE-002, TC-SALE-014, TC-SALE-019, TC-SALE-020]
     implementation:
       - packages/domain-kernel/src/sale/create-sale-draft.ts
+      - packages/domain-kernel/src/sale/edit-sale-draft.ts
       - packages/domain-kernel/src/sale/sale-lines.ts
       - apps/api/src/modules/sale/create-sale-draft.handler.ts
+      - apps/api/src/modules/sale/edit-sale-draft.handler.ts
 
   UC-SALE-002:
     title: Post a sale
@@ -375,6 +387,7 @@ use_cases:
     tests: [TC-ACCOUNT-002, TC-ACCOUNT-009]
     implementation:
       - apps/api/src/modules/shared/account-effects.ts
+      - apps/api/src/operations/rebuild-account-balance.ts
 
   UC-COMMAND-001:
     title: Handle a retry, a duplicate, or a stale version
@@ -575,10 +588,13 @@ business_rules:
   BR-SALE-018:
     title: A draft may be edited or discarded; a posted sale may not
     risk: P1
-    status: planned
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-009]
-    planned_tests: [TC-SALE-019, TC-SALE-020]
+    tests: [TC-SALE-019, TC-SALE-020]
+    implementation:
+      - packages/domain-kernel/src/sale/edit-sale-draft.ts
+      - apps/api/src/modules/sale/edit-sale-draft.handler.ts
+      - packages/db/migrations/0006_customer_and_draft_lifecycle.sql
 
   # --- payment ------------------------------------------------------------------
   BR-PAYMENT-001:
@@ -857,10 +873,12 @@ business_rules:
   BR-AUTH-007:
     title: A workspace always keeps at least one active owner
     risk: P1
-    status: planned
     doc: docs/04-business-rules/authorization-rules.md
     cases: []
-    planned_tests: [TC-AUTH-013, TC-AUTH-014]
+    tests: [TC-AUTH-013]
+    implementation:
+      - packages/domain-kernel/src/session/revoke-membership.ts
+      - packages/db/src/repositories/index.ts
 
   # --- reads --------------------------------------------------------------------
   BR-READ-001:
@@ -918,18 +936,21 @@ business_rules:
   BR-CUSTOMER-003:
     title: Deactivation hides a customer; it never settles their balance
     risk: P1
-    status: planned
     doc: docs/04-business-rules/customer-rules.md
     cases: []
-    planned_tests: [TC-CUSTOMER-009, TC-CUSTOMER-010]
+    tests: [TC-CUSTOMER-009]
+    implementation:
+      - packages/domain-kernel/src/customer/update-customer.ts
 
   BR-CUSTOMER-004:
     title: Customer changes go through named commands with a version
     risk: P1
-    status: planned
     doc: docs/04-business-rules/customer-rules.md
     cases: []
-    planned_tests: [TC-CUSTOMER-007, TC-CUSTOMER-008]
+    tests: [TC-CUSTOMER-007]
+    implementation:
+      - packages/domain-kernel/src/customer/update-customer.ts
+      - apps/api/src/modules/customer/update-customer.handler.ts
 
 cases:
   CASE-SALE-001:
@@ -976,8 +997,7 @@ cases:
     title: A draft is abandoned
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-010, BR-SALE-018]
-    tests: [TC-SALE-014]
-    planned_tests: [TC-SALE-020]
+    tests: [TC-SALE-014, TC-SALE-019, TC-SALE-020]
   CASE-SALE-010:
     title: Two people void the same sale at once
     doc: docs/05-casebook/sale-cases.md

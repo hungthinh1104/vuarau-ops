@@ -91,6 +91,7 @@ export type SaleState = {
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
   readonly postedAt: IsoInstant | null;
+  readonly discardedAt: IsoInstant | null;
   /** Null means no payment term was agreed, and nothing is overdue (BR-SALE-017). */
   readonly dueAt: IsoInstant | null;
   /** Set at draft creation when this sale corrects a voided one (BR-SALE-016). */

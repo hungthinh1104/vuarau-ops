@@ -47,6 +47,7 @@ export function decideCreateSaleDraft({
     transactionTime: command.occurredAt,
     recordedAt,
     postedAt: null,
+    discardedAt: null,
     dueAt: payload.dueAt,
     replacesSaleId: payload.replacesSaleId,
     voidRecord: null,

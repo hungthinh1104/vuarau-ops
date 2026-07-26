@@ -82,6 +82,7 @@ export type SaleRow = {
   transactionTime: Date;
   recordedAt: Date;
   postedAt: Date | null;
+  discardedAt: Date | null;
   dueAt: Date | null;
   replacesSaleId: string | null;
 };
@@ -152,6 +153,7 @@ export function toSaleState(
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
     postedAt: toIsoOrNull(row.postedAt),
+    discardedAt: toIsoOrNull(row.discardedAt),
     dueAt: toIsoOrNull(row.dueAt),
     replacesSaleId: row.replacesSaleId as SaleId | null,
     voidRecord: voidRow === null ? null : toSaleVoidState(voidRow),

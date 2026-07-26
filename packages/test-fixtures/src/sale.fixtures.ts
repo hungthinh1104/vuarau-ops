@@ -77,6 +77,7 @@ export const validDraftSale: SaleState = {
   transactionTime: TRANSACTION_TIME,
   recordedAt: RECORDED_AT,
   postedAt: null,
+  discardedAt: null,
   dueAt: null,
   replacesSaleId: null,
   voidRecord: null,

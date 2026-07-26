@@ -390,4 +390,85 @@ describe.skipIf(!hasDatabase)("database append-only guarantees", () => {
       expect(deleteMessage).toMatch(/append-only/i);
     });
   });
+
+  describe("BR-SALE-018 / TC-SALE-020", () => {
+    async function insertDraft(): Promise<{ saleId: string; lineId: string }> {
+      const saleId = crypto.randomUUID();
+      const lineId = crypto.randomUUID();
+      await ctx.database.db.insert(sales).values({
+        id: saleId,
+        workspaceId: ctx.workspaceId,
+        customerId: ctx.customerId,
+        status: "draft",
+        currency: "VND",
+        totalAmountMinor: 225_000,
+        note: null,
+        version: 1,
+        transactionTime: new Date(),
+        recordedAt: new Date(),
+        postedAt: null,
+        discardedAt: null,
+        dueAt: null,
+        replacesSaleId: null,
+      });
+      await ctx.database.db.insert(saleLines).values({
+        id: lineId,
+        workspaceId: ctx.workspaceId,
+        saleId,
+        productId: ctx.productIds[0],
+        productName: "Cà chua",
+        quantityScaled: 12_500,
+        unit: "kg",
+        unitPriceMinor: 18_000,
+        lineTotalMinor: 225_000,
+        currency: "VND",
+        position: 0,
+      });
+      return { saleId, lineId };
+    }
+
+    it("lets a draft's lines be replaced — the one legitimate line write", async () => {
+      // `sale_lines_posted_immutable` used to block every update and every
+      // delete, which was right when PostSale was the only writer. Editing a
+      // draft replaces its line set, so the guard had to move to the lines of a
+      // sale that is no longer a draft.
+      const { saleId, lineId } = await insertDraft();
+
+      await ctx.database.db.delete(saleLines).where(eq(saleLines.id, lineId));
+      const remaining = await ctx.database.db
+        .select()
+        .from(saleLines)
+        .where(eq(saleLines.saleId, saleId));
+      expect(remaining).toHaveLength(0);
+    });
+
+    it("refuses to touch the lines of a discarded draft", async () => {
+      const { saleId, lineId } = await insertDraft();
+      await ctx.database.db
+        .update(sales)
+        .set({ status: "discarded", version: 2, discardedAt: new Date() })
+        .where(eq(sales.id, saleId));
+
+      const message = await captureDatabaseError(
+        ctx.database.db
+          .update(saleLines)
+          .set({ unitPriceMinor: 1 })
+          .where(eq(saleLines.id, lineId)),
+      );
+      expect(message).toMatch(/immutable/i);
+    });
+
+    it("refuses to edit a discarded draft, so a decision cannot be resurrected", async () => {
+      const { saleId } = await insertDraft();
+      await ctx.database.db
+        .update(sales)
+        .set({ status: "discarded", version: 2, discardedAt: new Date() })
+        .where(eq(sales.id, saleId));
+
+      const message = await captureDatabaseError(
+        ctx.database.db.update(sales).set({ totalAmountMinor: 1 }).where(eq(sales.id, saleId)),
+      );
+      expect(message).toMatch(/immutable/i);
+    });
+  });
 });

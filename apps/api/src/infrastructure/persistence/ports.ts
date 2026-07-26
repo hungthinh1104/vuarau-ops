@@ -50,6 +50,14 @@ export type WorkspaceRepository = {
    * A repository that filtered inactive rows away would collapse the two.
    */
   findMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<WorkspaceMembership | null>;
+  /**
+   * Counts active owners **under a lock**, so two owners revoking each other at
+   * the same moment cannot both see a count of two (BR-AUTH-007). A version on
+   * the membership row would not have caught that; this is the race that matters.
+   */
+  countActiveOwnersForUpdate(workspaceId: WorkspaceId): Promise<number>;
+  /** Sets `is_active = false`. Never deletes the row (UC-AUTH-002). */
+  revokeMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean>;
 };
 
 /**
@@ -64,7 +72,22 @@ export type ActorRepository = {
 
 export type CustomerRepository = {
   findById(workspaceId: WorkspaceId, customerId: CustomerId): Promise<CustomerState | null>;
+  /** Takes a row lock, for the commands that change one (ADR-0009). */
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    customerId: CustomerId,
+  ): Promise<CustomerState | null>;
   insert(customer: CustomerState): Promise<void>;
+  /**
+   * Applies only if the stored version still matches. Covers both
+   * `UpdateCustomer` and `DeactivateCustomer`: the columns they touch are
+   * disjoint, and the domain decides which — the repository writes what it is
+   * given (BR-CUSTOMER-004).
+   *
+   * There is deliberately no `delete`. A customer's history and their account
+   * entries are never removed.
+   */
+  update(customer: CustomerState, expectedVersion: number): Promise<boolean>;
 };
 
 export type SaleRepository = {
@@ -86,6 +109,19 @@ export type SaleRepository = {
    * that into a version conflict rather than overwriting someone else's change.
    */
   post(sale: SaleState, expectedVersion: number): Promise<boolean>;
+  /**
+   * Edits or discards a **draft**, version-conditionally and status-conditionally.
+   * A posted sale cannot be reached through it whatever version is supplied
+   * (BR-SALE-008), which is the same belt-and-braces `post` carries.
+   *
+   * `replaceLines` is false for a discard: discarding keeps the lines, because
+   * the draft row stays and "what they had entered" is part of what stays.
+   */
+  updateDraft(
+    sale: SaleState,
+    expectedVersion: number,
+    options: { replaceLines: boolean },
+  ): Promise<boolean>;
   /**
    * Appends the void record. Note that nothing here touches the sale: the void is
    * written beside it, and the sale's financial state is derived from the pair

@@ -139,6 +139,24 @@ At a wholesale market at 3 a.m. this is not an edge case; it is Tuesday.
 
 ---
 
+## 6b. Customer and membership states
+
+| State                  | Source                                      | Rendering note                                  |
+| ---------------------- | ------------------------------------------- | ----------------------------------------------- |
+| `customer_active`      | `isActive: true`                            | The ordinary case                               |
+| `customer_inactive`    | `isActive: false`                           | Greyed, **still listed**, balance still shown   |
+| `membership_revoked`   | `WORKSPACE_MEMBERSHIP_INACTIVE` on any call | Sign the user out and say access was turned off |
+| `last_owner_protected` | `WORKSPACE_LAST_OWNER`                      | A `business_rejection`, naming why              |
+
+`customer_inactive` is the one that matters. A deactivated customer who still owes
+money must keep appearing with their balance (BR-CUSTOMER-003) — a list that hid
+them would let "tidy up the customers" quietly hide debt.
+
+`membership_revoked` can arrive on **any** call, not only at sign-in: membership is
+re-read on every request, so a worker whose access is revoked mid-shift finds out
+on their next tap. Treat it as a session-ending state everywhere, not as one more
+error banner.
+
 ## 7. Balance states
 
 Driven by `CustomerAccountBalanceDto.classification` (BR-ACCOUNT-009), never by the
@@ -162,12 +180,18 @@ because there is nothing wrong.
 
 ## 8. Sale states
 
-| State           | Source                                     | Rendering note                                           |
-| --------------- | ------------------------------------------ | -------------------------------------------------------- |
-| `sale_draft`    | `status: draft`                            | Editable, no money moved yet — say so                    |
-| `sale_posted`   | `status: posted`, `financialState: active` | The receivable stands                                    |
-| `sale_voided`   | `financialState: voided`                   | Struck through, **still visible**, with reason and actor |
-| `sale_replaced` | `replacesSaleId` on a newer sale           | Link both ways so a reader can follow the correction     |
+| State            | Source                                     | Rendering note                                           |
+| ---------------- | ------------------------------------------ | -------------------------------------------------------- |
+| `sale_draft`     | `status: draft`                            | Editable, no money moved yet — say so                    |
+| `sale_discarded` | `status: discarded`                        | Kept and visible, greyed. **Not** deleted from the list  |
+| `sale_posted`    | `status: posted`, `financialState: active` | The receivable stands                                    |
+| `sale_voided`    | `financialState: voided`                   | Struck through, **still visible**, with reason and actor |
+| `sale_replaced`  | `replacesSaleId` on a newer sale           | Link both ways so a reader can follow the correction     |
+
+A discarded draft stays on the list rather than vanishing. Somebody decided to
+throw it away, and that decision is part of the record — the same reasoning that
+keeps a voided sale visible. `capabilities.edit` and `capabilities.discard` both
+carry `SALE_ALREADY_DISCARDED`, so the controls grey out with a reason.
 
 A voided sale is never hidden. It happened, it was corrected, and both facts are
 part of the record (BR-SALE-008). Hiding it produces an account timeline whose
@@ -222,7 +246,8 @@ running backend — each is a fixed DTO plus a fixed rejection.
 - [ ] duplicate_safe_retry · command_in_progress
 - [ ] unknown_network_outcome
 - [ ] balance_receivable · balance_settled · balance_customer_credit
-- [ ] sale_draft · sale_posted · sale_voided · sale_replaced
+- [ ] sale_draft · sale_discarded · sale_posted · sale_voided · sale_replaced
+- [ ] customer_active · customer_inactive · membership_revoked · last_owner_protected
 - [ ] no_due_date · due · overdue
 - [ ] payment_recorded · payment_partially_reversed · payment_reversed · reversal_amount_exceeded
 

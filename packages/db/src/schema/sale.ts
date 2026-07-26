@@ -43,6 +43,8 @@ export const sales = pgTable(
     /** When we accepted the draft. */
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     postedAt: timestamp("posted_at", { withTimezone: true }),
+    /** A draft the worker thought better of. Kept, not deleted (BR-SALE-018). */
+    discardedAt: timestamp("discarded_at", { withTimezone: true }),
     /** Nullable, and a null is never overdue (BR-SALE-017). Most sales are null. */
     dueAt: timestamp("due_at", { withTimezone: true }),
     /** Set once, at draft creation, when this sale corrects a voided one. */

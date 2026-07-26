@@ -101,6 +101,7 @@ export type SaleSummaryRow = {
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
   readonly postedAt: IsoInstant | null;
+  readonly discardedAt: IsoInstant | null;
   readonly dueAt: IsoInstant | null;
   readonly replacesSaleId: SaleId | null;
   readonly replacedBySaleId: SaleId | null;
