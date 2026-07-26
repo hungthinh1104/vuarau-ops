@@ -2,17 +2,18 @@ import type { CreateOrderCommand, OrderDto } from "@vuanha/domain-contracts";
 import { createOrderCommandSchema } from "@vuanha/domain-contracts";
 import type { DomainResult } from "@vuanha/domain-kernel";
 import { decideCreateOrder, err, ok } from "@vuanha/domain-kernel";
-import type { CommandDeps } from "../shared/command-pipeline.ts";
+import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { toOrderDto } from "../shared/mappers.ts";
 
 /** UC-ORDER-001, first half. A draft moves no money (ASM-002). */
-export function createOrder(deps: CommandDeps, input: unknown): Promise<DomainResult<OrderDto>> {
+export function createOrder(ctx: CommandContext, input: unknown): Promise<DomainResult<OrderDto>> {
   return runCommand<CreateOrderCommand, OrderDto>({
     commandType: "CreateOrder",
     schema: createOrderCommandSchema,
     input,
-    deps,
+    ctx,
+    requiredPermission: "order.create",
     execute: async ({ command, repos, recordedAt }) => {
       // The customer must exist *in this workspace*. Knowing the id is not enough.
       const customer = await repos.customers.findById(

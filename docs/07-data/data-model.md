@@ -7,21 +7,21 @@ that has not been built.
 
 ## Tables
 
-| Table                     | Purpose                                 | Mutability                                |
-| ------------------------- | --------------------------------------- | ----------------------------------------- |
-| `workspaces`              | One depot = one tenant                  | mutable master data                       |
-| `actors`                  | Users who issue commands                | mutable master data                       |
-| `workspace_memberships`   | Which actor may act in which workspace  | mutable                                   |
-| `customers`               | Buyers                                  | mutable master data                       |
-| `products`                | Catalogue for order lines               | mutable master data                       |
-| `orders`                  | Sales, `draft` → `confirmed`            | status/version only                       |
-| `order_lines`             | Lines of an order, with price snapshots | replaced while `draft`                    |
-| `payments`                | Money received                          | `reversed_amount`/`status`/`version` only |
-| `payment_reversals`       | Compensating records                    | **append-only**                           |
-| `debt_ledger_entries`     | Source of truth for debt                | **append-only**                           |
-| `customer_debt_summaries` | Rebuildable projection                  | recomputable                              |
-| `command_receipts`        | Idempotency records                     | insert + one status update                |
-| `audit_logs`              | Business action history                 | **append-only**                           |
+| Table                     | Purpose                                                                   | Mutability                                |
+| ------------------------- | ------------------------------------------------------------------------- | ----------------------------------------- |
+| `workspaces`              | One depot = one tenant                                                    | mutable master data                       |
+| `actors`                  | Users who issue commands; `supabase_user_id` links a verified JWT subject | mutable master data                       |
+| `workspace_memberships`   | Which actor may act in which workspace                                    | mutable                                   |
+| `customers`               | Buyers                                                                    | mutable master data                       |
+| `products`                | Catalogue for order lines                                                 | mutable master data                       |
+| `orders`                  | Sales, `draft` → `confirmed`                                              | status/version only                       |
+| `order_lines`             | Lines of an order, with price snapshots                                   | replaced while `draft`                    |
+| `payments`                | Money received                                                            | `reversed_amount`/`status`/`version` only |
+| `payment_reversals`       | Compensating records                                                      | **append-only**                           |
+| `debt_ledger_entries`     | Source of truth for debt                                                  | **append-only**                           |
+| `customer_debt_summaries` | Rebuildable projection                                                    | recomputable                              |
+| `command_receipts`        | Idempotency records                                                       | insert + one status update                |
+| `audit_logs`              | Business action history                                                   | **append-only**                           |
 
 ## Conventions applied to every table
 
@@ -64,6 +64,7 @@ guard rather than the full one.
 | ---------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `UNIQUE (workspace_id, idempotency_key)`                   | `command_receipts`        | The mechanism behind BR-COMMAND-001 — two concurrent replays cannot both proceed                                  |
 | `UNIQUE (command_id)`                                      | `command_receipts`        | Detects `DUPLICATE_COMMAND`                                                                                       |
+| `UNIQUE (supabase_user_id)`                                | `actors`                  | One verified subject resolves to exactly one actor (BR-AUTH-005)                                                  |
 | `UNIQUE (source_type, source_id)`                          | `debt_ledger_entries`     | A second entry for the same order confirmation or payment is impossible at the storage layer, not merely unlikely |
 | `PRIMARY KEY (workspace_id, customer_id)`                  | `customer_debt_summaries` | One row per customer per workspace                                                                                |
 | `INDEX (workspace_id, customer_id, transaction_time DESC)` | `debt_ledger_entries`     | The customer debt-history screen, and every aging query                                                           |
@@ -81,7 +82,11 @@ unrepresentable.
 - No `deleted_at` on financial tables. Nothing is deleted.
 - No inventory, delivery, invoice, or supplier tables.
 - No row-level security yet — isolation is enforced in the application layer
-  (ASM-009).
+  (ASM-009). Milestone 1 added authentication and role-based authorization above
+  it; RLS remains the defence in depth that is still missing.
+- `actors.supabase_user_id` is `text`, not `uuid`: a JWT `sub` is a string by
+  specification, and typing the column to what Supabase happens to emit today
+  would reject any other issuer tomorrow.
 
 ## Related
 

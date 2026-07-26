@@ -2,21 +2,22 @@ import type { PaymentDto, RecordCustomerPaymentCommand } from "@vuanha/domain-co
 import { recordCustomerPaymentCommandSchema } from "@vuanha/domain-contracts";
 import type { DomainResult } from "@vuanha/domain-kernel";
 import { decideRecordPayment, err, ok } from "@vuanha/domain-kernel";
-import type { CommandDeps } from "../shared/command-pipeline.ts";
+import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyLedgerEffects } from "../shared/debt-effects.ts";
 import { toPaymentDto } from "../shared/mappers.ts";
 
 /** UC-PAYMENT-001. Money received, recorded exactly once however often it is sent. */
 export function recordCustomerPayment(
-  deps: CommandDeps,
+  ctx: CommandContext,
   input: unknown,
 ): Promise<DomainResult<PaymentDto>> {
   return runCommand<RecordCustomerPaymentCommand, PaymentDto>({
     commandType: "RecordCustomerPayment",
     schema: recordCustomerPaymentCommandSchema,
     input,
-    deps,
+    ctx,
+    requiredPermission: "payment.record",
     execute: async ({ command, repos, recordedAt }) => {
       const customer = await repos.customers.findById(
         command.workspaceId,

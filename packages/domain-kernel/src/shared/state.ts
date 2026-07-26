@@ -20,6 +20,23 @@ import type {
  * DTOs. Neither shape leaks into the other.
  */
 
+/**
+ * The debt summary as the domain computes it.
+ *
+ * Distinct from `CustomerDebtSummaryDto`, which additionally carries
+ * `capabilities` — and capabilities depend on *who is asking*, which the kernel
+ * must not know (ADR-0003). The application layer maps one to the other.
+ */
+export type CustomerDebtSummary = {
+  readonly workspaceId: WorkspaceId;
+  readonly customerId: CustomerId;
+  /** May be negative: that means the customer is in credit (ASM-001). */
+  readonly balance: Money;
+  readonly entryCount: number;
+  readonly lastEntryTransactionTime: IsoInstant | null;
+  readonly updatedAt: IsoInstant;
+};
+
 export type CustomerState = {
   readonly id: CustomerId;
   readonly workspaceId: WorkspaceId;

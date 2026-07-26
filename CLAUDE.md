@@ -16,6 +16,8 @@ before assuming a business policy.
 ```
 - Never update or delete a finalized financial record. Append a compensating one.
 - Never store a debt balance as the truth. The ledger is the truth; the summary is a cache.
+- Never trust `actorId` from a request. It is checked against a verified token, never its source.
+- Every command declares one permission. Every procedure requires a verified identity — reads included.
 - Never change a lifecycle status through a generic patch. Use a named command.
 - The backend owns business rules. The frontend consumes contracts and capabilities.
 - Money is integer minor units. Quantities are integer milli-units. No floats, ever.
@@ -84,6 +86,11 @@ There is no `updateEntity`, `updateOrderStatus`, `patchCustomerDebt`, or
 `setPaymentStatus`, and none is to be added. Every command carries
 `commandId`, `idempotencyKey`, `workspaceId`, `actorId`, `occurredAt`, and
 `expectedVersion` when it changes an existing aggregate.
+
+Each also declares one required permission. `AdjustCustomerDebt` needs
+`debt.adjust`, held by `owner` and `accountant` only. The role table is one
+literal in `packages/domain-contracts/src/shared/authorization.ts` — a table, not
+a policy engine ([ADR-0011](docs/09-decisions/ADR-0011-role-permission-mapping.md)).
 
 ## Documentation rules
 

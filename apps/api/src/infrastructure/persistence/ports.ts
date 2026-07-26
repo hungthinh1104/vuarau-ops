@@ -1,7 +1,6 @@
 import type {
   ActorId,
   CommandId,
-  CustomerDebtSummaryDto,
   CustomerId,
   DebtLedgerEntryDto,
   IdempotencyKey,
@@ -10,9 +9,11 @@ import type {
   OrderId,
   PaymentId,
   WorkspaceId,
+  WorkspaceRole,
 } from "@vuanha/domain-contracts";
 import type {
   AuditDraft,
+  CustomerDebtSummary,
   CustomerState,
   LedgerEntryDraft,
   OrderState,
@@ -31,8 +32,32 @@ import type {
  * a required parameter, so that omitting it does not compile (BR-CUSTOMER-002).
  */
 
+export type WorkspaceMembership = {
+  readonly workspaceId: WorkspaceId;
+  readonly actorId: ActorId;
+  /** Drives the permission check in the command pipeline (BR-AUTH-004). */
+  readonly role: WorkspaceRole;
+  /** Revokes access without deleting who was once a member (BR-AUTH-003). */
+  readonly isActive: boolean;
+};
+
 export type WorkspaceRepository = {
-  isMember(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean>;
+  /**
+   * Returns the membership including an **inactive** one, so the caller can tell
+   * "never had access" from "access was revoked" and answer with the right code.
+   * A repository that filtered inactive rows away would collapse the two.
+   */
+  findMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<WorkspaceMembership | null>;
+};
+
+/**
+ * Identity resolution — the one repository that is **not** workspace-scoped, and
+ * the only justified exception to the rule above. It runs before any workspace is
+ * known: a verified JWT names a subject, and this turns that subject into the
+ * local actor whose memberships are then checked (BR-AUTH-005).
+ */
+export type ActorRepository = {
+  findBySupabaseUserId(supabaseUserId: string): Promise<{ actorId: ActorId } | null>;
 };
 
 export type CustomerRepository = {
@@ -78,8 +103,8 @@ export type DebtLedgerRepository = {
 };
 
 export type DebtSummaryRepository = {
-  get(workspaceId: WorkspaceId, customerId: CustomerId): Promise<CustomerDebtSummaryDto | null>;
-  save(summary: CustomerDebtSummaryDto): Promise<void>;
+  get(workspaceId: WorkspaceId, customerId: CustomerId): Promise<CustomerDebtSummary | null>;
+  save(summary: CustomerDebtSummary): Promise<void>;
 };
 
 export type AuditRepository = {
@@ -121,6 +146,7 @@ export type CommandReceiptRepository = {
 
 export type Repositories = {
   readonly workspaces: WorkspaceRepository;
+  readonly actors: ActorRepository;
   readonly customers: CustomerRepository;
   readonly orders: OrderRepository;
   readonly payments: PaymentRepository;

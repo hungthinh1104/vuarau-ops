@@ -2,7 +2,7 @@ import type { ConfirmOrderCommand, OrderDto } from "@vuanha/domain-contracts";
 import { confirmOrderCommandSchema } from "@vuanha/domain-contracts";
 import type { DomainResult } from "@vuanha/domain-kernel";
 import { decideConfirmOrder, err, ok } from "@vuanha/domain-kernel";
-import type { CommandDeps } from "../shared/command-pipeline.ts";
+import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyLedgerEffects } from "../shared/debt-effects.ts";
 import { toOrderDto } from "../shared/mappers.ts";
@@ -13,12 +13,13 @@ import { toOrderDto } from "../shared/mappers.ts";
  * The order update, the ledger entry, the summary, the audit record and the
  * command receipt all commit together or not at all (BR-COMMAND-005).
  */
-export function confirmOrder(deps: CommandDeps, input: unknown): Promise<DomainResult<OrderDto>> {
+export function confirmOrder(ctx: CommandContext, input: unknown): Promise<DomainResult<OrderDto>> {
   return runCommand<ConfirmOrderCommand, OrderDto>({
     commandType: "ConfirmOrder",
     schema: confirmOrderCommandSchema,
     input,
-    deps,
+    ctx,
+    requiredPermission: "order.confirm",
     execute: async ({ command, repos, recordedAt }) => {
       const order = await repos.orders.findByIdForUpdate(
         command.workspaceId,

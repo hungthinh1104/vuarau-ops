@@ -5,4 +5,5 @@ export * from "./time.ts";
 export * from "./rejection-codes.ts";
 export * from "./errors.ts";
 export * from "./capability.ts";
+export * from "./authorization.ts";
 export * from "./command.ts";

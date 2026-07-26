@@ -20,6 +20,12 @@ Every write carries the same envelope. There is no generic `update` mutation, no
 }
 ```
 
+`actorId` is **checked**, not trusted: it must equal the actor the bearer token
+resolved to, or the command is refused with `ACTOR_IMPERSONATION_DENIED`
+(BR-AUTH-002). Every request carries `Authorization: Bearer <token>`, and the
+required permission per command is listed in
+[authorization-rules.md](../04-business-rules/authorization-rules.md).
+
 `expectedVersion` is mandatory on `ConfirmOrder` and `ReverseCustomerPayment`
 (they change existing aggregates) and absent from the four creation commands.
 
@@ -67,7 +73,9 @@ Every state-changing command runs the same eleven steps
 (`apps/api/src/modules/shared/command-pipeline.ts`):
 
 1. validate the payload schema → `INVALID_COMMAND_PAYLOAD`
-2. authorize workspace membership → `WORKSPACE_ACCESS_DENIED`
+2. authorize: identity, membership, activity, permission → `ACTOR_IMPERSONATION_DENIED`,
+   `WORKSPACE_ACCESS_DENIED`, `WORKSPACE_MEMBERSHIP_INACTIVE`, `PERMISSION_DENIED`
+   (see [UC-AUTH-001](../02-use-cases/UC-AUTH-001-authenticate-and-authorize.md))
 3. reject a future `occurredAt` → `TRANSACTION_TIME_IN_FUTURE`
 4. check the idempotency record → replay returns the original result
 5. **open the transaction**

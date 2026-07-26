@@ -1,10 +1,16 @@
 import type { z } from "zod";
-import type { CommandEnvelope, IsoInstant } from "@vuanha/domain-contracts";
+import type { CommandEnvelope, IsoInstant, Permission } from "@vuanha/domain-contracts";
 import type { DomainResult } from "@vuanha/domain-kernel";
 import { err, ok } from "@vuanha/domain-kernel";
 import type { Clock } from "../../infrastructure/clock.ts";
-import type { Repositories, UnitOfWork } from "../../infrastructure/persistence/ports.ts";
+import type { AuthenticatedPrincipal } from "../../infrastructure/auth/principal.ts";
+import type {
+  Repositories,
+  UnitOfWork,
+  WorkspaceMembership,
+} from "../../infrastructure/persistence/ports.ts";
 import { hashPayload } from "../../infrastructure/hash.ts";
+import { authorizeWorkspaceAccess } from "./authorization.ts";
 
 /**
  * The eleven-step pipeline every state-changing command runs
@@ -15,15 +21,28 @@ import { hashPayload } from "../../infrastructure/hash.ts";
  * likely way a P0 guarantee gets lost is one command that skipped a step.
  */
 
+/** Server-scoped collaborators, built once at startup. */
 export type CommandDeps = {
   readonly uow: UnitOfWork;
   readonly clock: Clock;
+};
+
+/**
+ * Request-scoped: the server's collaborators plus the identity it established
+ * from a verified token. Handlers take this, never a bare `CommandDeps`, so a
+ * command cannot be executed without somebody accountable for it.
+ */
+export type CommandContext = {
+  readonly deps: CommandDeps;
+  readonly principal: AuthenticatedPrincipal;
 };
 
 export type CommandExecution<TCommand, TResult> = (args: {
   readonly command: TCommand;
   readonly repos: Repositories;
   readonly recordedAt: IsoInstant;
+  /** The caller's membership, already verified to carry the permission. */
+  readonly membership: WorkspaceMembership;
 }) => Promise<DomainResult<TResult>>;
 
 /** Devices in the field have unreliable clocks; the past is fine, the future is not. */
@@ -48,10 +67,13 @@ export async function runCommand<
   readonly commandType: string;
   readonly schema: z.ZodType<TCommand>;
   readonly input: unknown;
-  readonly deps: CommandDeps;
+  readonly ctx: CommandContext;
+  /** What the caller's role must carry for this command (BR-AUTH-004). */
+  readonly requiredPermission: Permission;
   readonly execute: CommandExecution<TCommand, TResult>;
 }): Promise<DomainResult<TResult>> {
-  const { commandType, schema, input, deps, execute } = options;
+  const { commandType, schema, input, ctx, requiredPermission, execute } = options;
+  const { deps, principal } = ctx;
 
   // 1. Validate the payload shape.
   const parsed = schema.safeParse(input);
@@ -81,16 +103,18 @@ export async function runCommand<
 
   try {
     return await deps.uow.transaction(async (repos) => {
-      // 4. Workspace membership, before any business data is read.
-      const isMember = await repos.workspaces.isMember(command.workspaceId, command.actorId);
-      if (!isMember) {
-        throw new RollbackForRejection(
-          asRejection(
-            err("WORKSPACE_ACCESS_DENIED", "You do not have access to this workspace.", {
-              workspaceId: command.workspaceId,
-            }),
-          ),
-        );
+      // 4. Identity, membership, and permission — before any business data is
+      //    read, and before the idempotency key is claimed, so an unauthorized
+      //    caller cannot burn somebody else's key.
+      const authorized = await authorizeWorkspaceAccess({
+        repos,
+        principal,
+        workspaceId: command.workspaceId,
+        permission: requiredPermission,
+        claimedActorId: command.actorId,
+      });
+      if (!authorized.ok) {
+        throw new RollbackForRejection(authorized);
       }
 
       // 5. Idempotency (ADR-0008).
@@ -127,7 +151,12 @@ export async function runCommand<
       }
 
       // 7–10. Load, decide, persist — inside this same transaction.
-      const result = await execute({ command, repos, recordedAt });
+      const result = await execute({
+        command,
+        repos,
+        recordedAt,
+        membership: authorized.value,
+      });
       if (!result.ok) {
         throw new RollbackForRejection(result);
       }

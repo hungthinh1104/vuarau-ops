@@ -6,7 +6,6 @@ import type {
   AuditAggregateType,
   CommandId,
   CurrencyCode,
-  CustomerDebtSummaryDto,
   CustomerId,
   DebtLedgerEntryDto,
   IdempotencyKey,
@@ -17,6 +16,7 @@ import type {
   WorkspaceId,
 } from "@vuanha/domain-contracts";
 import type {
+  CustomerDebtSummary,
   CustomerState,
   LedgerEntryDraft,
   OrderState,
@@ -24,6 +24,7 @@ import type {
   PaymentState,
 } from "@vuanha/domain-kernel";
 import {
+  actors,
   auditLogs,
   commandReceipts,
   customerDebtSummaries,
@@ -38,8 +39,8 @@ import {
 import {
   fromIso,
   fromIsoOrNull,
+  toCustomerDebtSummary,
   toCustomerState,
-  toDebtSummaryDto,
   toIso,
   toLedgerEntryDto,
   toOrderState,
@@ -67,19 +68,39 @@ export type IdMinter = { newId(): string };
 export function createRepositories(tx: Tx, ids: IdMinter) {
   return {
     workspaces: {
-      async isMember(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean> {
+      // Note the absence of an `is_active` filter: the caller needs to see a
+      // revoked membership to answer WORKSPACE_MEMBERSHIP_INACTIVE rather than
+      // the misleading WORKSPACE_ACCESS_DENIED.
+      async findMembership(workspaceId: WorkspaceId, actorId: ActorId) {
         const rows = await tx
-          .select({ actorId: workspaceMemberships.actorId })
+          .select({
+            role: workspaceMemberships.role,
+            isActive: workspaceMemberships.isActive,
+          })
           .from(workspaceMemberships)
           .where(
             and(
               eq(workspaceMemberships.workspaceId, workspaceId),
               eq(workspaceMemberships.actorId, actorId),
-              eq(workspaceMemberships.isActive, true),
             ),
           )
           .limit(1);
-        return rows.length > 0;
+        const row = rows[0];
+        return row === undefined
+          ? null
+          : { workspaceId, actorId, role: row.role, isActive: row.isActive };
+      },
+    },
+
+    actors: {
+      async findBySupabaseUserId(supabaseUserId: string) {
+        const rows = await tx
+          .select({ id: actors.id })
+          .from(actors)
+          .where(eq(actors.supabaseUserId, supabaseUserId))
+          .limit(1);
+        const row = rows[0];
+        return row === undefined ? null : { actorId: row.id as ActorId };
       },
     },
 
@@ -342,7 +363,7 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
       async get(
         workspaceId: WorkspaceId,
         customerId: CustomerId,
-      ): Promise<CustomerDebtSummaryDto | null> {
+      ): Promise<CustomerDebtSummary | null> {
         const rows = await tx
           .select()
           .from(customerDebtSummaries)
@@ -354,11 +375,11 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           )
           .limit(1);
         const row = rows[0];
-        return row === undefined ? null : toDebtSummaryDto(row);
+        return row === undefined ? null : toCustomerDebtSummary(row);
       },
 
       /** Upsert: the projection is disposable and always safe to overwrite. */
-      async save(summary: CustomerDebtSummaryDto): Promise<void> {
+      async save(summary: CustomerDebtSummary): Promise<void> {
         await tx
           .insert(customerDebtSummaries)
           .values({

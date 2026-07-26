@@ -12,7 +12,48 @@ import { actors, customers, products, workspaces, workspaceMemberships } from ".
  * system with no command and no actor behind it (BR-DEBT-004).
  */
 const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
-const ACTOR_ID = "22222222-2222-4222-8222-222222222222";
+
+/**
+ * One actor per role, so a developer can exercise every permission path without
+ * hand-editing membership rows.
+ *
+ * `supabaseUserId` is set on every one: an actor without it cannot authenticate
+ * (BR-AUTH-005), which would make the seed useless for anything but SQL.
+ * These are fixed development uuids, not credentials — they authorise nothing on
+ * their own, because a real Supabase token still has to verify against them.
+ */
+const SEED_ACTORS = [
+  {
+    id: "22222222-2222-4222-8222-222222222201",
+    supabaseUserId: "22222222-2222-4222-8222-222222222201",
+    displayName: "Chủ vựa",
+    role: "owner" as const,
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222202",
+    supabaseUserId: "22222222-2222-4222-8222-222222222202",
+    displayName: "Kế toán",
+    role: "accountant" as const,
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222203",
+    supabaseUserId: "22222222-2222-4222-8222-222222222203",
+    displayName: "Nhân viên bán hàng",
+    role: "sales" as const,
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222204",
+    supabaseUserId: "22222222-2222-4222-8222-222222222204",
+    displayName: "Nhân viên kho",
+    role: "warehouse" as const,
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222205",
+    supabaseUserId: "22222222-2222-4222-8222-222222222205",
+    displayName: "Tài xế giao hàng",
+    role: "delivery" as const,
+  },
+];
 
 const CUSTOMERS = [
   {
@@ -40,10 +81,25 @@ export async function seed(connectionString: string): Promise<void> {
       .insert(workspaces)
       .values({ id: WORKSPACE_ID, name: "Vựa rau Bình Điền" })
       .onConflictDoNothing();
-    await db.insert(actors).values({ id: ACTOR_ID, displayName: "Chủ vựa" }).onConflictDoNothing();
+    await db
+      .insert(actors)
+      .values(
+        SEED_ACTORS.map((actor) => ({
+          id: actor.id,
+          supabaseUserId: actor.supabaseUserId,
+          displayName: actor.displayName,
+        })),
+      )
+      .onConflictDoNothing();
     await db
       .insert(workspaceMemberships)
-      .values({ workspaceId: WORKSPACE_ID, actorId: ACTOR_ID })
+      .values(
+        SEED_ACTORS.map((actor) => ({
+          workspaceId: WORKSPACE_ID,
+          actorId: actor.id,
+          role: actor.role,
+        })),
+      )
       .onConflictDoNothing();
 
     await db
@@ -89,5 +145,8 @@ if (process.argv[1]?.endsWith("seed.ts") === true) {
     process.exit(1);
   }
   await seed(url);
-  console.warn(`Seeded workspace ${WORKSPACE_ID} with ${CUSTOMERS.length} customers.`);
+  console.warn(
+    `Seeded workspace ${WORKSPACE_ID} with ${SEED_ACTORS.length} actors ` +
+      `(${SEED_ACTORS.map((a) => a.role).join(", ")}) and ${CUSTOMERS.length} customers.`,
+  );
 }

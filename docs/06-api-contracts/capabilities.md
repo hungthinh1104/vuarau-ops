@@ -31,6 +31,19 @@ type Capability = {
 }
 ```
 
+`CustomerDebtSummaryDto.capabilities`:
+
+```ts
+{
+  adjust: Capability;
+}
+```
+
+The debt one differs in kind: order and payment capabilities come from **aggregate
+state**, so the kernel computes them. `adjust` depends on _who is asking_, so the
+application layer computes it from the caller's role — via the same
+`roleHasPermission` call the guard uses (BR-AUTH-006).
+
 ## What they are for
 
 So the UI disables a button **for the same reason the server would refuse it**,
@@ -59,12 +72,13 @@ implementation. There is one copy of each rule.
 
 ## Current values
 
-| Capability        | `allowed` when                           | Otherwise                                                      |
-| ----------------- | ---------------------------------------- | -------------------------------------------------------------- |
-| `order.confirm`   | status is `draft` **and** ≥ 1 valid line | `ORDER_ALREADY_CONFIRMED`, `ORDER_CANCELLED`, or `ORDER_EMPTY` |
-| `order.cancel`    | never in this phase                      | `COMMAND_NOT_AVAILABLE` (ASM-005)                              |
-| `order.adjust`    | never in this phase                      | `COMMAND_NOT_AVAILABLE` (ASM-010)                              |
-| `payment.reverse` | `reversedAmount < amount`                | `PAYMENT_ALREADY_REVERSED`                                     |
+| Capability        | `allowed` when                                                | Otherwise                                                      |
+| ----------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
+| `order.confirm`   | status is `draft` **and** ≥ 1 valid line                      | `ORDER_ALREADY_CONFIRMED`, `ORDER_CANCELLED`, or `ORDER_EMPTY` |
+| `order.cancel`    | never in this phase                                           | `COMMAND_NOT_AVAILABLE` (ASM-005)                              |
+| `order.adjust`    | never in this phase                                           | `COMMAND_NOT_AVAILABLE` (ASM-010)                              |
+| `payment.reverse` | `reversedAmount < amount`                                     | `PAYMENT_ALREADY_REVERSED`                                     |
+| `debt.adjust`     | the caller's role carries `debt.adjust` — owner or accountant | `PERMISSION_DENIED`, naming the permission and the role        |
 
 `COMMAND_NOT_AVAILABLE` lets the UI grey out a control it can see in the model
 without hard-coding a roadmap. When `CancelOrder` ships, the capability starts

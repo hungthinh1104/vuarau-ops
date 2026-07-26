@@ -1,7 +1,21 @@
-import type { IsoInstant } from "@vuanha/domain-contracts";
-import { ACTOR_ID, LATEST_RECORDED_AT, WORKSPACE_ID, activeCustomer } from "@vuanha/test-fixtures";
+import type { ActorId, IsoInstant, WorkspaceRole } from "@vuanha/domain-contracts";
+import {
+  ACCOUNTANT_ACTOR_ID,
+  ACTOR_ID,
+  DELIVERY_ACTOR_ID,
+  FOREIGN_ACTOR_ID,
+  LATEST_RECORDED_AT,
+  OTHER_WORKSPACE_ID,
+  REVOKED_ACTOR_ID,
+  SALES_ACTOR_ID,
+  WAREHOUSE_ACTOR_ID,
+  WORKSPACE_ID,
+  activeCustomer,
+  subjectFor,
+} from "@vuanha/test-fixtures";
 import type { Clock } from "../infrastructure/clock.ts";
-import type { CommandDeps } from "../modules/shared/command-pipeline.ts";
+import type { AuthenticatedPrincipal } from "../infrastructure/auth/principal.ts";
+import type { CommandContext, CommandDeps } from "../modules/shared/command-pipeline.ts";
 import {
   InMemoryDatabase,
   sequentialIdGenerator,
@@ -9,7 +23,7 @@ import {
 
 /**
  * Wiring for the application and contract test projects: real handlers, real
- * pipeline, real in-memory repositories. Nothing is stubbed.
+ * pipeline, real authorization, real in-memory repositories. Nothing is stubbed.
  *
  * The clock defaults to the latest fixture instant so that every fixture's
  * `occurredAt` is in the past — back-dating is normal, forward-dating is refused
@@ -28,19 +42,60 @@ export function mutableClock(initial: IsoInstant = LATEST_RECORDED_AT): MutableC
   };
 }
 
+/** Every identity the authorization tests need, seeded once. */
+const SEEDED_MEMBERS: ReadonlyArray<{ actorId: ActorId; role: WorkspaceRole; isActive: boolean }> =
+  [
+    { actorId: ACTOR_ID, role: "owner", isActive: true },
+    { actorId: ACCOUNTANT_ACTOR_ID, role: "accountant", isActive: true },
+    { actorId: SALES_ACTOR_ID, role: "sales", isActive: true },
+    { actorId: WAREHOUSE_ACTOR_ID, role: "warehouse", isActive: true },
+    { actorId: DELIVERY_ACTOR_ID, role: "delivery", isActive: true },
+    // An owner whose access was turned off — distinct from never having had any.
+    { actorId: REVOKED_ACTOR_ID, role: "owner", isActive: false },
+  ];
+
 export type Harness = {
   readonly db: InMemoryDatabase;
   readonly deps: CommandDeps;
   readonly clock: MutableClock;
+  /** The default context: the `owner` actor, matching pre-Milestone-1 behaviour. */
+  readonly ctx: CommandContext;
+  /** A context for any seeded actor, so a test can pick the identity it means. */
+  contextFor(actorId: ActorId): CommandContext;
 };
 
 export function createHarness(): Harness {
   const db = new InMemoryDatabase(sequentialIdGenerator());
-  db.grantMembership(WORKSPACE_ID, ACTOR_ID);
+
+  for (const member of SEEDED_MEMBERS) {
+    db.grantMembership(WORKSPACE_ID, member.actorId, member.role, member.isActive);
+    db.registerActor(subjectFor(member.actorId), member.actorId);
+  }
+
+  // A member of a different workspace entirely: knowing an id is not access.
+  db.grantMembership(OTHER_WORKSPACE_ID, FOREIGN_ACTOR_ID, "owner", true);
+  db.registerActor(subjectFor(FOREIGN_ACTOR_ID), FOREIGN_ACTOR_ID);
+
   db.seedCustomer(activeCustomer);
 
   const clock = mutableClock();
-  return { db, deps: { uow: db.unitOfWork(), clock }, clock };
+  const deps: CommandDeps = { uow: db.unitOfWork(), clock };
+
+  const contextFor = (actorId: ActorId): CommandContext => ({
+    deps,
+    principal: principalFor(actorId),
+  });
+
+  return { db, deps, clock, ctx: contextFor(ACTOR_ID), contextFor };
+}
+
+/**
+ * Builds a principal the way a verified token would have. Tests that exercise
+ * token verification itself use the real verifier instead — see
+ * `jwt-verifier.app.test.ts`.
+ */
+export function principalFor(actorId: ActorId): AuthenticatedPrincipal {
+  return { actorId, subject: subjectFor(actorId) };
 }
 
 /** Sums a customer's ledger entries — the only definition of a balance there is. */

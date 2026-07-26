@@ -7,6 +7,39 @@
 # IDs are never reused. A retired artefact is marked deprecated, not deleted.
 
 use_cases:
+  UC-AUTH-001:
+    title: Authenticate and authorize a request
+    risk: P0
+    doc: docs/02-use-cases/UC-AUTH-001-authenticate-and-authorize.md
+    rules:
+      - BR-AUTH-001
+      - BR-AUTH-002
+      - BR-AUTH-003
+      - BR-AUTH-004
+      - BR-AUTH-005
+      - BR-AUTH-006
+      - BR-CUSTOMER-002
+    cases: []
+    tests:
+      - TC-AUTH-001
+      - TC-AUTH-002
+      - TC-AUTH-003
+      - TC-AUTH-004
+      - TC-AUTH-005
+      - TC-AUTH-006
+      - TC-AUTH-007
+      - TC-AUTH-008
+      - TC-AUTH-009
+      - TC-AUTH-010
+      - TC-AUTH-011
+      - TC-CUSTOMER-003
+    implementation:
+      - apps/api/src/infrastructure/auth/jwt-verifier.ts
+      - apps/api/src/infrastructure/auth/principal.ts
+      - apps/api/src/infrastructure/trpc/context.ts
+      - apps/api/src/modules/shared/authorization.ts
+      - apps/api/src/modules/shared/command-pipeline.ts
+
   UC-CUSTOMER-001:
     title: Create customer
     risk: P1
@@ -141,6 +174,7 @@ use_cases:
       - BR-DEBT-005
       - BR-DEBT-006
       - BR-DEBT-008
+      - BR-AUTH-006
       - BR-COMMAND-001
       - BR-COMMAND-005
     cases:
@@ -427,6 +461,65 @@ business_rules:
       - apps/api/src/modules/shared/command-pipeline.ts
       - packages/db/src/transaction/unit-of-work.ts
 
+  # --- authentication and authorization (Milestone 1) --------------------------
+  BR-AUTH-001:
+    title: Every command and every query requires a verified identity
+    risk: P0
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: []
+    tests: [TC-AUTH-001, TC-AUTH-010, TC-AUTH-011]
+    implementation:
+      - apps/api/src/infrastructure/auth/jwt-verifier.ts
+      - apps/api/src/infrastructure/trpc/trpc.ts
+
+  BR-AUTH-002:
+    title: A command may only act as the authenticated actor
+    risk: P0
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: []
+    tests: [TC-AUTH-002, TC-CUSTOMER-003]
+    implementation: [apps/api/src/modules/shared/authorization.ts]
+
+  BR-AUTH-003:
+    title: An inactive membership grants nothing
+    risk: P0
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: []
+    tests: [TC-AUTH-003]
+    implementation:
+      - apps/api/src/modules/shared/authorization.ts
+      - packages/db/src/repositories/index.ts
+
+  BR-AUTH-004:
+    title: Every command requires a permission its role carries
+    risk: P0
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: []
+    tests: [TC-AUTH-004, TC-AUTH-009]
+    implementation:
+      - packages/domain-contracts/src/shared/authorization.ts
+      - apps/api/src/modules/shared/command-pipeline.ts
+
+  BR-AUTH-005:
+    title: A verified subject resolves to exactly one local actor
+    risk: P1
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: []
+    tests: [TC-AUTH-008]
+    implementation:
+      - apps/api/src/infrastructure/auth/principal.ts
+      - packages/db/src/schema/workspace.ts
+
+  BR-AUTH-006:
+    title: Debt adjustment is restricted to owner and accountant
+    risk: P0
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: [CASE-DEBT-004, CASE-DEBT-005]
+    tests: [TC-AUTH-005, TC-AUTH-006]
+    implementation:
+      - packages/domain-contracts/src/shared/authorization.ts
+      - apps/api/src/modules/debt/adjust-debt.handler.ts
+
   # --- customer ---------------------------------------------------------------
   BR-CUSTOMER-001:
     title: A customer requires a non-blank display name
@@ -441,7 +534,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/customer-rules.md
     cases: []
-    tests: [TC-CUSTOMER-002, TC-CUSTOMER-003]
+    tests: [TC-CUSTOMER-002, TC-CUSTOMER-003, TC-AUTH-007]
     implementation:
       - apps/api/src/infrastructure/persistence/ports.ts
       - apps/api/src/modules/shared/command-pipeline.ts

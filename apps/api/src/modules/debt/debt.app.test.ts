@@ -57,7 +57,7 @@ const adjustInput = (overrides: Record<string, unknown> = {}) => ({
 
 /** Walks the customer through the whole casebook ledger in docs/05-casebook/debt-cases.md. */
 async function runCasebookLedger(): Promise<void> {
-  await createOrder(harness.deps, {
+  await createOrder(harness.ctx, {
     commandId: COMMAND_ID,
     idempotencyKey: "casebook-order-create-key",
     workspaceId: WORKSPACE_ID,
@@ -71,7 +71,7 @@ async function runCasebookLedger(): Promise<void> {
       note: null,
     },
   });
-  await confirmOrder(harness.deps, {
+  await confirmOrder(harness.ctx, {
     commandId: SECOND_COMMAND_ID,
     idempotencyKey: "casebook-order-confirm-key",
     workspaceId: WORKSPACE_ID,
@@ -80,7 +80,7 @@ async function runCasebookLedger(): Promise<void> {
     expectedVersion: 1,
     payload: { orderId: ORDER_ID },
   });
-  await recordCustomerPayment(harness.deps, {
+  await recordCustomerPayment(harness.ctx, {
     commandId: THIRD_COMMAND_ID,
     idempotencyKey: "casebook-payment-key",
     workspaceId: WORKSPACE_ID,
@@ -101,16 +101,20 @@ describe("BR-DEBT-001 / TC-DEBT-001", () => {
   it("keeps the summary equal to the sum of entries through the whole casebook", async () => {
     await runCasebookLedger();
 
-    const summary = await getCustomerDebtSummary(harness.deps, WORKSPACE_ID, CUSTOMER_ID);
-    expect(summary.balance.amountMinor).toBe(375_000);
-    expect(summary.balance.amountMinor).toBe(ledgerBalance(harness, CUSTOMER_ID));
-    expect(summary.entryCount).toBe(2);
+    const summary = await getCustomerDebtSummary(harness.ctx, WORKSPACE_ID, CUSTOMER_ID);
+    expect(summary.ok).toBe(true);
+    if (!summary.ok) return;
+    expect(summary.value.balance.amountMinor).toBe(375_000);
+    expect(summary.value.balance.amountMinor).toBe(ledgerBalance(harness, CUSTOMER_ID));
+    expect(summary.value.entryCount).toBe(2);
   });
 
   it("reports zero for a customer with no entries, without writing a row", async () => {
-    const summary = await getCustomerDebtSummary(harness.deps, WORKSPACE_ID, CUSTOMER_ID);
-    expect(summary.balance.amountMinor).toBe(0);
-    expect(summary.entryCount).toBe(0);
+    const summary = await getCustomerDebtSummary(harness.ctx, WORKSPACE_ID, CUSTOMER_ID);
+    expect(summary.ok).toBe(true);
+    if (!summary.ok) return;
+    expect(summary.value.balance.amountMinor).toBe(0);
+    expect(summary.value.entryCount).toBe(0);
     expect(harness.db.summaryFor(WORKSPACE_ID, CUSTOMER_ID)).toBeNull();
   });
 });
@@ -162,7 +166,7 @@ describe("BR-DEBT-006 / TC-DEBT-002", () => {
 describe("BR-DEBT-004 / TC-DEBT-004", () => {
   it("attributes every ledger entry to an actor and a command", async () => {
     await runCasebookLedger();
-    await adjustCustomerDebt(harness.deps, adjustInput());
+    await adjustCustomerDebt(harness.ctx, adjustInput());
 
     for (const entry of harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID)) {
       expect(entry.actorId).toBe(ACTOR_ID);
@@ -171,7 +175,7 @@ describe("BR-DEBT-004 / TC-DEBT-004", () => {
   });
 
   it("records an audit entry carrying the adjustment's reason", async () => {
-    await adjustCustomerDebt(harness.deps, adjustInput());
+    await adjustCustomerDebt(harness.ctx, adjustInput());
 
     const audit = harness.db.auditRecords().find((record) => record.action === "debt.adjusted");
     expect(audit?.reason).toBe("Nợ cũ từ sổ giấy");
@@ -183,13 +187,13 @@ describe("BR-DEBT-004 / TC-DEBT-004", () => {
 describe("BR-DEBT-002 / TC-DEBT-006", () => {
   it("moves the balance only through ledger-producing commands", async () => {
     // CASE-DEBT-004 and CASE-DEBT-005.
-    const increased = await adjustCustomerDebt(harness.deps, adjustInput());
+    const increased = await adjustCustomerDebt(harness.ctx, adjustInput());
     expect(increased.ok).toBe(true);
     if (!increased.ok) return;
     expect(increased.value.balance.amountMinor).toBe(50_000);
 
     const decreased = await adjustCustomerDebt(
-      harness.deps,
+      harness.ctx,
       adjustInput({
         commandId: SECOND_COMMAND_ID,
         idempotencyKey: OTHER_IDEMPOTENCY_KEY,
@@ -211,7 +215,7 @@ describe("BR-DEBT-002 / TC-DEBT-006", () => {
   });
 
   it("does not move any balance when master data is created", async () => {
-    const created = await createCustomer(harness.deps, {
+    const created = await createCustomer(harness.ctx, {
       commandId: COMMAND_ID,
       idempotencyKey: IDEMPOTENCY_KEY,
       workspaceId: WORKSPACE_ID,
@@ -230,7 +234,7 @@ describe("BR-DEBT-002 / TC-DEBT-006", () => {
   });
 
   it("does not move any balance when a draft order is created", async () => {
-    await createOrder(harness.deps, {
+    await createOrder(harness.ctx, {
       commandId: COMMAND_ID,
       idempotencyKey: "draft-only-key-0001",
       workspaceId: WORKSPACE_ID,
@@ -254,7 +258,7 @@ describe("BR-DEBT-003 / TC-DEBT-003", () => {
   it("refuses an adjustment with a blank reason and writes nothing", async () => {
     // CASE-DEBT-006.
     const result = await adjustCustomerDebt(
-      harness.deps,
+      harness.ctx,
       adjustInput({ payload: { ...adjustInput().payload, reason: "   " } }),
     );
 
@@ -273,7 +277,7 @@ describe("BR-DEBT-005 / TC-DEBT-005", () => {
       ...harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID),
     ]);
 
-    await adjustCustomerDebt(harness.deps, adjustInput());
+    await adjustCustomerDebt(harness.ctx, adjustInput());
 
     const entriesNow = harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID);
     expect(entriesNow).toHaveLength(3);

@@ -1,6 +1,7 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 import {
   CURRENCY_CODES,
+  WORKSPACE_ROLES,
   DEBT_ADJUSTMENT_REASON_CODES,
   LEDGER_SOURCE_TYPES,
   ORDER_STATUSES,
@@ -23,6 +24,7 @@ export const debtAdjustmentReasonCodeEnum = pgEnum(
   "debt_adjustment_reason_code",
   DEBT_ADJUSTMENT_REASON_CODES,
 );
+export const workspaceRoleEnum = pgEnum("workspace_role", WORKSPACE_ROLES);
 export const commandReceiptStatusEnum = pgEnum("command_receipt_status", [
   "in_progress",
   "completed",

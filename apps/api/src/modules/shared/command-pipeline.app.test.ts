@@ -42,9 +42,9 @@ const paymentInput = (overrides: Record<string, unknown> = {}) => ({
 
 describe("BR-COMMAND-001 / TC-COMMAND-001", () => {
   it("replays the stored result without writing anything a second time", async () => {
-    const first = await recordCustomerPayment(harness.deps, paymentInput());
+    const first = await recordCustomerPayment(harness.ctx, paymentInput());
     const replay = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       // A retry: new command id, same key. The key is what dedupes (ADR-0008).
       paymentInput({ commandId: SECOND_COMMAND_ID }),
     );
@@ -59,9 +59,9 @@ describe("BR-COMMAND-001 / TC-COMMAND-001", () => {
   });
 
   it("treats a different idempotency key as a genuinely different command", async () => {
-    await recordCustomerPayment(harness.deps, paymentInput());
+    await recordCustomerPayment(harness.ctx, paymentInput());
     await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       paymentInput({
         commandId: SECOND_COMMAND_ID,
         idempotencyKey: OTHER_IDEMPOTENCY_KEY,
@@ -81,10 +81,10 @@ describe("BR-COMMAND-001 / TC-COMMAND-001", () => {
 
 describe("BR-COMMAND-002 / TC-COMMAND-002", () => {
   it("rejects an idempotency key reused with a different payload", async () => {
-    await recordCustomerPayment(harness.deps, paymentInput());
+    await recordCustomerPayment(harness.ctx, paymentInput());
 
     const different = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       paymentInput({
         commandId: SECOND_COMMAND_ID,
         payload: { ...paymentInput().payload, amount: vnd(999_000) },
@@ -100,10 +100,10 @@ describe("BR-COMMAND-002 / TC-COMMAND-002", () => {
   });
 
   it("accepts a replay whose JSON field order differs", async () => {
-    const first = await recordCustomerPayment(harness.deps, paymentInput());
+    const first = await recordCustomerPayment(harness.ctx, paymentInput());
 
     const reordered = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       paymentInput({
         payload: {
           note: null,
@@ -125,7 +125,7 @@ describe("BR-COMMAND-002 / TC-COMMAND-002", () => {
 describe("BR-COMMAND-003 / TC-COMMAND-003", () => {
   it("takes the transaction time from the command and the recorded time from the server", async () => {
     // CASE-PAYMENT-008: captured offline at 08:30 on the 22nd, uploaded later.
-    const result = await recordCustomerPayment(harness.deps, paymentInput());
+    const result = await recordCustomerPayment(harness.ctx, paymentInput());
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -138,7 +138,7 @@ describe("BR-COMMAND-003 / TC-COMMAND-003", () => {
   });
 
   it("gives every row a command writes the same recorded instant", async () => {
-    await recordCustomerPayment(harness.deps, paymentInput());
+    await recordCustomerPayment(harness.ctx, paymentInput());
 
     const entry = harness.db.ledgerEntries()[0]!;
     const audit = harness.db.auditRecords()[0]!;
@@ -149,7 +149,7 @@ describe("BR-COMMAND-003 / TC-COMMAND-003", () => {
 describe("BR-COMMAND-004 / TC-COMMAND-005", () => {
   it("refuses a transaction time beyond the clock-skew tolerance", async () => {
     const result = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       paymentInput({ occurredAt: FUTURE_TRANSACTION_TIME }),
     );
 
@@ -161,7 +161,7 @@ describe("BR-COMMAND-004 / TC-COMMAND-005", () => {
 
   it("accepts a back-dated transaction time — that is normal, not an error", async () => {
     const result = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       paymentInput({ occurredAt: "2020-01-01T05:00:00.000+07:00" }),
     );
 
@@ -171,7 +171,7 @@ describe("BR-COMMAND-004 / TC-COMMAND-005", () => {
   it("tolerates a few minutes of phone clock drift", async () => {
     // 2 minutes ahead of the harness clock: a cheap device, not a fiction.
     const result = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       paymentInput({ occurredAt: "2026-07-23T09:02:30.000+07:00" }),
     );
 
@@ -182,7 +182,7 @@ describe("BR-COMMAND-004 / TC-COMMAND-005", () => {
 describe("BR-COMMAND-005 / TC-COMMAND-004", () => {
   it("leaves no partial effect when a command is refused", async () => {
     const result = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       paymentInput({ payload: { ...paymentInput().payload, amount: vnd(0) } }),
     );
 
@@ -196,24 +196,24 @@ describe("BR-COMMAND-005 / TC-COMMAND-004", () => {
   it("does not consume the idempotency key of a refused command", async () => {
     // The user fixes the amount and submits again with the same key.
     const refused = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       paymentInput({ payload: { ...paymentInput().payload, amount: vnd(0) } }),
     );
     expect(refused.ok).toBe(false);
 
-    const corrected = await recordCustomerPayment(harness.deps, paymentInput());
+    const corrected = await recordCustomerPayment(harness.ctx, paymentInput());
     expect(corrected.ok).toBe(true);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(-500_000);
   });
 
   it("rolls back every effect when persistence fails midway", async () => {
-    await recordCustomerPayment(harness.deps, paymentInput());
+    await recordCustomerPayment(harness.ctx, paymentInput());
 
     // A second payment reusing the same paymentId: the ledger's
     // UNIQUE (source_type, source_id) constraint throws mid-transaction.
     await expect(
       recordCustomerPayment(
-        harness.deps,
+        harness.ctx,
         paymentInput({ commandId: SECOND_COMMAND_ID, idempotencyKey: OTHER_IDEMPOTENCY_KEY }),
       ),
     ).rejects.toThrow(/Duplicate ledger entry/);
@@ -228,10 +228,10 @@ describe("BR-COMMAND-005 / TC-COMMAND-004", () => {
 
 describe("BR-COMMAND-001 / TC-COMMAND-006", () => {
   it("rejects a command id reused under a different idempotency key", async () => {
-    await recordCustomerPayment(harness.deps, paymentInput());
+    await recordCustomerPayment(harness.ctx, paymentInput());
 
     const reusedId = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       paymentInput({
         idempotencyKey: OTHER_IDEMPOTENCY_KEY,
         payload: {

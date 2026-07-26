@@ -29,8 +29,29 @@ export const WORKSPACE_ID = uuid("a", 1) as WorkspaceId;
 /** A second workspace, used only to prove isolation (BR-CUSTOMER-002). */
 export const OTHER_WORKSPACE_ID = uuid("a", 2) as WorkspaceId;
 
+/** The default actor in most tests. Holds the `owner` role. */
 export const ACTOR_ID = uuid("b", 1) as ActorId;
 export const OTHER_ACTOR_ID = uuid("b", 2) as ActorId;
+
+/**
+ * One actor per role, so a test can pick the identity that makes its point
+ * instead of mutating a shared one (BR-AUTH-004).
+ */
+export const OWNER_ACTOR_ID = ACTOR_ID;
+export const ACCOUNTANT_ACTOR_ID = uuid("b", 3) as ActorId;
+export const SALES_ACTOR_ID = uuid("b", 4) as ActorId;
+export const WAREHOUSE_ACTOR_ID = uuid("b", 5) as ActorId;
+export const DELIVERY_ACTOR_ID = uuid("b", 6) as ActorId;
+/** An active actor whose membership has been revoked (BR-AUTH-003). */
+export const REVOKED_ACTOR_ID = uuid("b", 7) as ActorId;
+/** A member of OTHER_WORKSPACE_ID only — used to prove isolation. */
+export const FOREIGN_ACTOR_ID = uuid("b", 8) as ActorId;
+
+/**
+ * Verified JWT subjects. In production these are Supabase `auth.users.id`
+ * values; here they are fixed so a failing test names the same subject twice.
+ */
+export const subjectFor = (actorId: ActorId): string => `sub-${actorId}`;
 
 export const CUSTOMER_ID = uuid("c", 1) as CustomerId;
 export const CUSTOMER_WITH_DEBT_ID = uuid("c", 2) as CustomerId;

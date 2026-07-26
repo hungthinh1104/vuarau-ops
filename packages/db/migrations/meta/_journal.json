@@ -15,6 +15,20 @@
       "when": 1785070942806,
       "tag": "0001_append_only_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785076578351,
+      "tag": "0002_workspace_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785079507958,
+      "tag": "0003_supabase_subject_is_text",
+      "breakpoints": true
     }
   ]
 }

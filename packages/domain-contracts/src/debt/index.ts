@@ -7,6 +7,7 @@ import {
   workspaceIdSchema,
 } from "../shared/ids.ts";
 import { moneySchema } from "../shared/money.ts";
+import { capabilitySchema } from "../shared/capability.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand } from "../shared/command.ts";
 
@@ -93,6 +94,17 @@ export const adjustCustomerDebtCommandSchema = defineCommand(adjustCustomerDebtP
 export type AdjustCustomerDebtCommand = z.infer<typeof adjustCustomerDebtCommandSchema>;
 
 /**
+ * What this actor may do to this customer's debt, computed from their role
+ * (BR-AUTH-004). Unlike order and payment capabilities — which come from
+ * aggregate state — this one depends on *who is asking*, so it is computed in the
+ * application layer, not the kernel.
+ */
+export const debtCapabilitiesSchema = z.object({
+  adjust: capabilitySchema,
+});
+export type DebtCapabilities = z.infer<typeof debtCapabilitiesSchema>;
+
+/**
  * A projection, not a fact. Always equal to the sum of the customer's ledger
  * entries, and rebuildable from them at any time (BR-DEBT-001).
  */
@@ -105,6 +117,7 @@ export const customerDebtSummaryDtoSchema = z.object({
   lastEntryTransactionTime: isoInstantSchema.nullable(),
   /** When this projection row was last recomputed. */
   updatedAt: isoInstantSchema,
+  capabilities: debtCapabilitiesSchema,
 });
 export type CustomerDebtSummaryDto = z.infer<typeof customerDebtSummaryDtoSchema>;
 

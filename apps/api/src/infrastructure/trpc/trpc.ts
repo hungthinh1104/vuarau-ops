@@ -34,31 +34,48 @@ const t = initTRPC.context<ApiContext>().create({
 });
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
 
 /**
- * A client may not attribute an action to another actor. Skipped entirely when no
- * authenticated identity was supplied — see the note in `context.ts`.
+ * There is deliberately no `publicProcedure` export.
+ *
+ * A depot's debt book has no public surface, and an exported unauthenticated
+ * procedure builder is an invitation to add one by accident. Anything that
+ * genuinely needs to be reachable without a token (a health check) should be
+ * served outside this router.
  */
-export const commandProcedure = t.procedure.use(async ({ ctx, next, getRawInput }) => {
-  const rawInput = (await getRawInput()) as { actorId?: string } | undefined;
-  const claimedActorId = rawInput?.actorId;
-  if (
-    ctx.authenticatedActorId !== undefined &&
-    claimedActorId !== undefined &&
-    claimedActorId !== ctx.authenticatedActorId
-  ) {
-    throw toTrpcError({
-      code: "WORKSPACE_ACCESS_DENIED",
-      message: "You cannot act on behalf of another actor.",
-      retryable: false,
-    });
+
+/**
+ * Requires a verified identity (BR-AUTH-001).
+ *
+ * Impersonation is **not** checked here. It is checked inside the command
+ * transaction, alongside membership and permission, so that one function decides
+ * every authorization question and a procedure cannot be added that forgets one
+ * of them. This middleware only refuses callers who have no identity at all.
+ */
+export const authenticatedProcedure = t.procedure.use(({ ctx, next }) => {
+  if (ctx.principal === null) {
+    throw toTrpcError(
+      ctx.authError ?? {
+        code: "AUTHENTICATION_REQUIRED",
+        message: "This operation requires an access token.",
+        retryable: false,
+      },
+    );
   }
-  return next();
+  return next({ ctx: { ...ctx, principal: ctx.principal } });
 });
+
+/** Every command procedure. Named for what it guards. */
+export const commandProcedure = authenticatedProcedure;
 
 /** tRPC codes are a coarse transport signal; clients branch on the domain code. */
 const TRANSPORT_CODE: Partial<Record<DomainRejectionCode, TRPCError["code"]>> = {
+  AUTHENTICATION_REQUIRED: "UNAUTHORIZED",
+  AUTHENTICATION_INVALID: "UNAUTHORIZED",
+  ACTOR_NOT_FOUND: "FORBIDDEN",
+  ACTOR_IMPERSONATION_DENIED: "FORBIDDEN",
+  WORKSPACE_MEMBERSHIP_INACTIVE: "FORBIDDEN",
+  PERMISSION_DENIED: "FORBIDDEN",
   WORKSPACE_ACCESS_DENIED: "FORBIDDEN",
   CUSTOMER_NOT_FOUND: "NOT_FOUND",
   ORDER_NOT_FOUND: "NOT_FOUND",

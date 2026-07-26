@@ -7,18 +7,21 @@ import {
   type DomainError,
 } from "@vuanha/domain-contracts";
 import {
+  ACCOUNTANT_ACTOR_ID,
   ACTOR_ID,
   CUSTOMER_ID,
   LATER_TRANSACTION_TIME,
   ORDER_ID,
   PAYMENT_ID,
+  SALES_ACTOR_ID,
   TRANSACTION_TIME,
+  WAREHOUSE_ACTOR_ID,
   WORKSPACE_ID,
   orderLineInputs,
 } from "@vuanha/test-fixtures";
-import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
+import { createHarness, principalFor, type Harness } from "../../testing/command-test-harness.ts";
 import { appRouter } from "./router.ts";
-import { createContext } from "./context.ts";
+import { createTrustedContext } from "./context.ts";
 
 /**
  * Contract tests exercise the real router through `createCaller` — no HTTP
@@ -30,7 +33,9 @@ let caller: ReturnType<typeof appRouter.createCaller>;
 
 beforeEach(() => {
   harness = createHarness();
-  caller = appRouter.createCaller(createContext(harness.deps));
+  // An authenticated owner. Token verification itself is exercised in
+  // `jwt-verifier.app.test.ts`; here the identity is taken as already resolved.
+  caller = appRouter.createCaller(createTrustedContext(harness.deps, principalFor(ACTOR_ID)));
 });
 
 const envelope = (key: string, occurredAt: string = TRANSACTION_TIME) => ({
@@ -253,30 +258,103 @@ describe("UC-DEBT-001 / TC-DEBT-008 — debt procedures", () => {
   });
 });
 
-describe("BR-CUSTOMER-002 / TC-CUSTOMER-003 — actor impersonation", () => {
+describe("BR-AUTH-002 / TC-CUSTOMER-003 — actor impersonation", () => {
   it("refuses a command whose actorId is not the authenticated actor", async () => {
-    const authenticated = appRouter.createCaller(createContext(harness.deps, ACTOR_ID));
-
     try {
-      await authenticated.order.create({
+      await caller.order.create({
         ...envelope("contract-impersonate"),
-        actorId: "00000000-0000-4000-8000-0000000000b9",
+        actorId: SALES_ACTOR_ID,
         payload: orderPayload,
       });
       expect.unreachable("acting as another actor must be refused");
     } catch (error) {
-      expect(domainErrorOf(error).code).toBe("WORKSPACE_ACCESS_DENIED");
+      expect(domainErrorOf(error).code).toBe("ACTOR_IMPERSONATION_DENIED");
+      expect((error as TRPCError).code).toBe("FORBIDDEN");
     }
   });
 
   it("allows a command whose actorId matches the authenticated actor", async () => {
-    const authenticated = appRouter.createCaller(createContext(harness.deps, ACTOR_ID));
-
-    const created = await authenticated.order.create({
+    const created = await caller.order.create({
       ...envelope("contract-authenticated"),
       payload: orderPayload,
     });
     expect(created.status).toBe("draft");
+  });
+});
+
+describe("BR-AUTH-001 / TC-AUTH-001 — unauthenticated access", () => {
+  it("refuses every procedure when no identity was established", async () => {
+    const anonymous = appRouter.createCaller({
+      deps: harness.deps,
+      principal: null,
+      authError: {
+        code: "AUTHENTICATION_REQUIRED",
+        message: "This operation requires an access token.",
+        retryable: false,
+      },
+    });
+
+    await expect(
+      anonymous.debt.summary({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
+    await expect(
+      anonymous.order.create({ ...envelope("contract-anon"), payload: orderPayload }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("refuses a read of a debt ledger without a token — this was open before Milestone 1", async () => {
+    const anonymous = appRouter.createCaller({
+      deps: harness.deps,
+      principal: null,
+      authError: {
+        code: "AUTHENTICATION_INVALID",
+        message: "The access token is not valid.",
+        retryable: false,
+      },
+    });
+
+    try {
+      await anonymous.debt.ledger({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID });
+      expect.unreachable("an unauthenticated ledger read must be refused");
+    } catch (error) {
+      expect(domainErrorOf(error).code).toBe("AUTHENTICATION_INVALID");
+    }
+  });
+});
+
+describe("BR-AUTH-006 / TC-AUTH-006 — debt capabilities on the summary", () => {
+  it("tells an owner they may adjust debt", async () => {
+    const summary = await caller.debt.summary({
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+    });
+    expect(summary.capabilities.adjust).toEqual({ allowed: true });
+  });
+
+  it("tells a warehouse worker they may not, with the code the command would return", async () => {
+    const warehouse = appRouter.createCaller(
+      createTrustedContext(harness.deps, principalFor(WAREHOUSE_ACTOR_ID)),
+    );
+
+    try {
+      await warehouse.debt.summary({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID });
+      expect.unreachable("warehouse has no debt.read permission");
+    } catch (error) {
+      expect(domainErrorOf(error).code).toBe("PERMISSION_DENIED");
+    }
+  });
+
+  it("tells an accountant they may adjust debt", async () => {
+    const accountant = appRouter.createCaller(
+      createTrustedContext(harness.deps, principalFor(ACCOUNTANT_ACTOR_ID)),
+    );
+
+    const summary = await accountant.debt.summary({
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+    });
+    expect(summary.capabilities.adjust).toEqual({ allowed: true });
   });
 });
 

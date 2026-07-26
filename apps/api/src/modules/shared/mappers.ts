@@ -1,5 +1,16 @@
-import type { CustomerDto, OrderDto, PaymentDto } from "@vuanha/domain-contracts";
-import type { CustomerState, OrderState, PaymentState } from "@vuanha/domain-kernel";
+import type {
+  CustomerDebtSummaryDto,
+  CustomerDto,
+  DebtCapabilities,
+  OrderDto,
+  PaymentDto,
+} from "@vuanha/domain-contracts";
+import type {
+  CustomerDebtSummary,
+  CustomerState,
+  OrderState,
+  PaymentState,
+} from "@vuanha/domain-kernel";
 import {
   orderCapabilities,
   paymentCapabilities,
@@ -74,5 +85,25 @@ export function toPaymentDto(payment: PaymentState): PaymentDto {
     transactionTime: payment.transactionTime,
     recordedAt: payment.recordedAt,
     capabilities: paymentCapabilities(payment),
+  };
+}
+
+/**
+ * The debt summary DTO is the domain value plus the caller's capabilities, which
+ * is why the capabilities are a parameter rather than something this function
+ * could work out: they depend on *who is asking* (BR-AUTH-004).
+ */
+export function toDebtSummaryDto(
+  summary: CustomerDebtSummary,
+  capabilities: DebtCapabilities,
+): CustomerDebtSummaryDto {
+  return {
+    workspaceId: summary.workspaceId,
+    customerId: summary.customerId,
+    balance: summary.balance,
+    entryCount: summary.entryCount,
+    lastEntryTransactionTime: summary.lastEntryTransactionTime,
+    updatedAt: summary.updatedAt,
+    capabilities,
   };
 }

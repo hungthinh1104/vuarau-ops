@@ -1,14 +1,19 @@
 import type {
   ActorId,
   AuditRecordDto,
-  CustomerDebtSummaryDto,
   DebtLedgerEntryDto,
   WorkspaceId,
+  WorkspaceRole,
 } from "@vuanha/domain-contracts";
 import type { PaymentReversalState } from "@vuanha/domain-kernel";
 import type { IdGenerator } from "../../clock.ts";
-import type { CommandReceipt, Repositories, UnitOfWork } from "../ports.ts";
-import type { CustomerState, OrderState, PaymentState } from "@vuanha/domain-kernel";
+import type { CommandReceipt, Repositories, UnitOfWork, WorkspaceMembership } from "../ports.ts";
+import type {
+  CustomerDebtSummary,
+  CustomerState,
+  OrderState,
+  PaymentState,
+} from "@vuanha/domain-kernel";
 
 /**
  * An in-memory implementation of every port, used by the application and contract
@@ -20,20 +25,23 @@ import type { CustomerState, OrderState, PaymentState } from "@vuanha/domain-ker
  * does the wrong thing with X — these tests assert on stored state instead.
  */
 type Store = {
-  memberships: Set<string>;
+  memberships: Map<string, WorkspaceMembership>;
+  /** Supabase subject → local actor id (BR-AUTH-005). */
+  actorsBySubject: Map<string, ActorId>;
   customers: Map<string, CustomerState>;
   orders: Map<string, OrderState>;
   payments: Map<string, PaymentState>;
   reversals: PaymentReversalState[];
   ledger: DebtLedgerEntryDto[];
-  summaries: Map<string, CustomerDebtSummaryDto>;
+  summaries: Map<string, CustomerDebtSummary>;
   audit: AuditRecordDto[];
   receipts: Map<string, CommandReceipt>;
 };
 
 function emptyStore(): Store {
   return {
-    memberships: new Set(),
+    memberships: new Map(),
+    actorsBySubject: new Map(),
     customers: new Map(),
     orders: new Map(),
     payments: new Map(),
@@ -52,8 +60,27 @@ export class InMemoryDatabase {
 
   constructor(private readonly ids: IdGenerator) {}
 
-  grantMembership(workspaceId: WorkspaceId, actorId: ActorId): void {
-    this.store.memberships.add(key(workspaceId, actorId));
+  /**
+   * `role` defaults to `owner` to match the migration's backfill, so a test that
+   * does not care about roles behaves exactly as it did before Milestone 1.
+   */
+  grantMembership(
+    workspaceId: WorkspaceId,
+    actorId: ActorId,
+    role: WorkspaceRole = "owner",
+    isActive = true,
+  ): void {
+    this.store.memberships.set(key(workspaceId, actorId), {
+      workspaceId,
+      actorId,
+      role,
+      isActive,
+    });
+  }
+
+  /** Links a verified JWT subject to a local actor. */
+  registerActor(supabaseUserId: string, actorId: ActorId): void {
+    this.store.actorsBySubject.set(supabaseUserId, actorId);
   }
 
   seedCustomer(customer: CustomerState): void {
@@ -90,12 +117,12 @@ export class InMemoryDatabase {
     return [...this.store.payments.values()];
   }
 
-  summaryFor(workspaceId: WorkspaceId, customerId: string): CustomerDebtSummaryDto | null {
+  summaryFor(workspaceId: WorkspaceId, customerId: string): CustomerDebtSummary | null {
     return this.store.summaries.get(key(workspaceId, customerId)) ?? null;
   }
 
   /** Lets a test corrupt a projection, to prove the rebuild repairs it (CASE-DEBT-007). */
-  overwriteSummary(summary: CustomerDebtSummaryDto): void {
+  overwriteSummary(summary: CustomerDebtSummary): void {
     this.store.summaries.set(key(summary.workspaceId, summary.customerId), summary);
   }
 
@@ -122,7 +149,19 @@ export class InMemoryDatabase {
 
     return {
       workspaces: {
-        isMember: async (workspaceId, actorId) => store.memberships.has(key(workspaceId, actorId)),
+        // Returns inactive memberships too — the same semantics as the Drizzle
+        // implementation, which this deliberately mirrors. Before Milestone 1 the
+        // two disagreed about `is_active` and no application test could have
+        // caught it.
+        findMembership: async (workspaceId, actorId) =>
+          store.memberships.get(key(workspaceId, actorId)) ?? null,
+      },
+
+      actors: {
+        findBySupabaseUserId: async (supabaseUserId) => {
+          const actorId = store.actorsBySubject.get(supabaseUserId);
+          return actorId === undefined ? null : { actorId };
+        },
       },
 
       customers: {

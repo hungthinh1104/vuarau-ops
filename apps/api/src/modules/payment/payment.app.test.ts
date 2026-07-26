@@ -60,7 +60,7 @@ const reverseInput = (overrides: Record<string, unknown> = {}) => ({
 
 describe("BR-PAYMENT-002 / TC-PAYMENT-001", () => {
   it("reduces the customer's debt exactly once", async () => {
-    const result = await recordCustomerPayment(harness.deps, recordInput());
+    const result = await recordCustomerPayment(harness.ctx, recordInput());
 
     expect(result.ok).toBe(true);
     expect(harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
@@ -71,7 +71,7 @@ describe("BR-PAYMENT-002 / TC-PAYMENT-001", () => {
   it("records who physically paid when it was not the customer", async () => {
     // CASE-PAYMENT-004 — the debt still belongs to the customer.
     const result = await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       recordInput({
         payload: { ...recordInput().payload, payerName: "Tài xế anh Hùng" },
       }),
@@ -84,9 +84,9 @@ describe("BR-PAYMENT-002 / TC-PAYMENT-001", () => {
   });
 
   it("keeps the summary equal to the sum of entries after every write", async () => {
-    await recordCustomerPayment(harness.deps, recordInput());
+    await recordCustomerPayment(harness.ctx, recordInput());
     await recordCustomerPayment(
-      harness.deps,
+      harness.ctx,
       recordInput({
         commandId: THIRD_COMMAND_ID,
         idempotencyKey: "fixture-idempotency-key-0003",
@@ -107,8 +107,8 @@ describe("BR-PAYMENT-002 / TC-PAYMENT-001", () => {
 describe("BR-COMMAND-001 / TC-PAYMENT-002", () => {
   it("returns the original result when the same payment command is retried", async () => {
     // CASE-PAYMENT-006 and CASE-PAYMENT-007 — double tap, or a lost response.
-    const first = await recordCustomerPayment(harness.deps, recordInput());
-    const retry = await recordCustomerPayment(harness.deps, recordInput());
+    const first = await recordCustomerPayment(harness.ctx, recordInput());
+    const retry = await recordCustomerPayment(harness.ctx, recordInput());
 
     expect(first.ok && retry.ok).toBe(true);
     if (!first.ok || !retry.ok) return;
@@ -116,8 +116,8 @@ describe("BR-COMMAND-001 / TC-PAYMENT-002", () => {
   });
 
   it("creates exactly one payment and one ledger entry across both attempts", async () => {
-    await recordCustomerPayment(harness.deps, recordInput());
-    await recordCustomerPayment(harness.deps, recordInput());
+    await recordCustomerPayment(harness.ctx, recordInput());
+    await recordCustomerPayment(harness.ctx, recordInput());
 
     expect(harness.db.payments()).toHaveLength(1);
     expect(harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
@@ -128,10 +128,10 @@ describe("BR-COMMAND-001 / TC-PAYMENT-002", () => {
 describe("BR-PAYMENT-005 / TC-PAYMENT-004", () => {
   it("creates a compensating ledger effect that restores the debt", async () => {
     // CASE-PAYMENT-009.
-    await recordCustomerPayment(harness.deps, recordInput());
+    await recordCustomerPayment(harness.ctx, recordInput());
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(-500_000);
 
-    const reversed = await reverseCustomerPayment(harness.deps, reverseInput());
+    const reversed = await reverseCustomerPayment(harness.ctx, reverseInput());
 
     expect(reversed.ok).toBe(true);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(0);
@@ -139,8 +139,8 @@ describe("BR-PAYMENT-005 / TC-PAYMENT-004", () => {
   });
 
   it("preserves the original payment and its entry rather than removing them", async () => {
-    await recordCustomerPayment(harness.deps, recordInput());
-    await reverseCustomerPayment(harness.deps, reverseInput());
+    await recordCustomerPayment(harness.ctx, recordInput());
+    await reverseCustomerPayment(harness.ctx, reverseInput());
 
     const entries = harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID);
     const original = entries.find((entry) => entry.sourceType === "payment");
@@ -155,8 +155,8 @@ describe("BR-PAYMENT-005 / TC-PAYMENT-004", () => {
   });
 
   it("marks the payment reversed without touching its amount", async () => {
-    await recordCustomerPayment(harness.deps, recordInput());
-    const result = await reverseCustomerPayment(harness.deps, reverseInput());
+    await recordCustomerPayment(harness.ctx, recordInput());
+    const result = await reverseCustomerPayment(harness.ctx, reverseInput());
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -171,10 +171,10 @@ describe("BR-COMMAND-001 / TC-PAYMENT-005", () => {
   it("does not create a second compensating effect when the reversal is retried", async () => {
     // CASE-PAYMENT-011 — a replay, not a second reversal, so no
     // PAYMENT_ALREADY_REVERSED either.
-    await recordCustomerPayment(harness.deps, recordInput());
+    await recordCustomerPayment(harness.ctx, recordInput());
 
-    const first = await reverseCustomerPayment(harness.deps, reverseInput());
-    const retry = await reverseCustomerPayment(harness.deps, reverseInput());
+    const first = await reverseCustomerPayment(harness.ctx, reverseInput());
+    const retry = await reverseCustomerPayment(harness.ctx, reverseInput());
 
     expect(first.ok).toBe(true);
     expect(retry.ok).toBe(true);
@@ -189,15 +189,15 @@ describe("BR-COMMAND-001 / TC-PAYMENT-005", () => {
 
 describe("BR-PAYMENT-007 / TC-PAYMENT-006", () => {
   it("rejects a reversal carrying a stale payment version", async () => {
-    await recordCustomerPayment(harness.deps, recordInput());
+    await recordCustomerPayment(harness.ctx, recordInput());
     // First reversal takes the payment to version 2.
     await reverseCustomerPayment(
-      harness.deps,
+      harness.ctx,
       reverseInput({ payload: { ...reverseInput().payload, amount: vnd(200_000) } }),
     );
 
     const stale = await reverseCustomerPayment(
-      harness.deps,
+      harness.ctx,
       reverseInput({
         commandId: THIRD_COMMAND_ID,
         idempotencyKey: "fixture-idempotency-key-0004",
@@ -221,14 +221,14 @@ describe("BR-PAYMENT-007 / TC-PAYMENT-006", () => {
 describe("BR-PAYMENT-003 / TC-PAYMENT-007", () => {
   it("refuses a reversal beyond the remaining reversible amount, writing nothing", async () => {
     // CASE-PAYMENT-010: 500 000 in, 200 000 reversed, 300 000 remains.
-    await recordCustomerPayment(harness.deps, recordInput());
+    await recordCustomerPayment(harness.ctx, recordInput());
     await reverseCustomerPayment(
-      harness.deps,
+      harness.ctx,
       reverseInput({ payload: { ...reverseInput().payload, amount: vnd(200_000) } }),
     );
 
     const tooMuch = await reverseCustomerPayment(
-      harness.deps,
+      harness.ctx,
       reverseInput({
         commandId: THIRD_COMMAND_ID,
         idempotencyKey: "fixture-idempotency-key-0005",

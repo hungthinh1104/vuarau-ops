@@ -2,7 +2,6 @@ import type {
   ActorId,
   CommandId,
   CurrencyCode,
-  CustomerDebtSummaryDto,
   CustomerId,
   DebtLedgerEntryDto,
   DebtLedgerEntryId,
@@ -13,6 +12,7 @@ import type {
   WorkspaceId,
 } from "@vuanha/domain-contracts";
 import type {
+  CustomerDebtSummary,
   CustomerState,
   OrderLineState,
   OrderState,
@@ -202,7 +202,8 @@ export type DebtSummaryRow = {
   updatedAt: Date;
 };
 
-export function toDebtSummaryDto(row: DebtSummaryRow): CustomerDebtSummaryDto {
+/** Returns the domain value; `capabilities` are added by the application layer. */
+export function toCustomerDebtSummary(row: DebtSummaryRow): CustomerDebtSummary {
   return {
     workspaceId: row.workspaceId as WorkspaceId,
     customerId: row.customerId as CustomerId,

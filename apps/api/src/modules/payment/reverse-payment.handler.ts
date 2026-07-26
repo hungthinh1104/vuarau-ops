@@ -2,7 +2,7 @@ import type { PaymentDto, ReverseCustomerPaymentCommand } from "@vuanha/domain-c
 import { reverseCustomerPaymentCommandSchema } from "@vuanha/domain-contracts";
 import type { DomainResult } from "@vuanha/domain-kernel";
 import { decideReversePayment, err, ok } from "@vuanha/domain-kernel";
-import type { CommandDeps } from "../shared/command-pipeline.ts";
+import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyLedgerEffects } from "../shared/debt-effects.ts";
 import { toPaymentDto } from "../shared/mappers.ts";
@@ -13,14 +13,15 @@ import { toPaymentDto } from "../shared/mappers.ts";
  * second payment (BR-PAYMENT-005).
  */
 export function reverseCustomerPayment(
-  deps: CommandDeps,
+  ctx: CommandContext,
   input: unknown,
 ): Promise<DomainResult<PaymentDto>> {
   return runCommand<ReverseCustomerPaymentCommand, PaymentDto>({
     commandType: "ReverseCustomerPayment",
     schema: reverseCustomerPaymentCommandSchema,
     input,
-    deps,
+    ctx,
+    requiredPermission: "payment.reverse",
     execute: async ({ command, repos, recordedAt }) => {
       const payment = await repos.payments.findByIdForUpdate(
         command.workspaceId,

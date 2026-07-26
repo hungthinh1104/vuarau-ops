@@ -1,12 +1,12 @@
 import type {
   CurrencyCode,
-  CustomerDebtSummaryDto,
   CustomerId,
   DebtLedgerEntryDto,
   IsoInstant,
   Money,
   WorkspaceId,
 } from "@vuanha/domain-contracts";
+import type { CustomerDebtSummary } from "../shared/state.ts";
 import { addMoney, zeroMoney } from "../shared/money.ts";
 
 /**
@@ -40,7 +40,7 @@ export function buildDebtSummary({
   entries,
   currency,
   updatedAt,
-}: BuildDebtSummaryInput): CustomerDebtSummaryDto {
+}: BuildDebtSummaryInput): CustomerDebtSummary {
   return {
     workspaceId,
     customerId,

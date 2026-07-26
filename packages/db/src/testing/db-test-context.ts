@@ -5,6 +5,7 @@ import type {
   DebtLedgerEntryDto,
   ProductId,
   WorkspaceId,
+  WorkspaceRole,
 } from "@vuanha/domain-contracts";
 import { createDatabase, type Database } from "../client.ts";
 import { runMigrations } from "../migrate.ts";
@@ -36,6 +37,17 @@ export type DbTestContext = {
   readonly customerId: CustomerId;
   /** Cà chua, rau muống, ớt — the three products CASE-ORDER-001 sells. */
   readonly productIds: readonly [ProductId, ProductId, ProductId];
+  /** The verified JWT subject that resolves to `actorId` (BR-AUTH-005). */
+  readonly subject: string;
+  /**
+   * One actor per role, plus a revoked one and a foreigner, so the authorization
+   * suite can exercise every branch against real rows.
+   */
+  readonly roleActors: Readonly<Record<WorkspaceRole, ActorId>>;
+  readonly revokedActorId: ActorId;
+  readonly foreignWorkspaceId: WorkspaceId;
+  readonly foreignActorId: ActorId;
+  subjectOf(actorId: ActorId): string;
   /**
    * The seeded customer's ledger, in business-time order.
    *
@@ -67,13 +79,53 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
   const database = createDatabase(DATABASE_URL!, { max: 4 });
 
   const workspaceId = crypto.randomUUID() as WorkspaceId;
-  const actorId = crypto.randomUUID() as ActorId;
+  const foreignWorkspaceId = crypto.randomUUID() as WorkspaceId;
   const customerId = crypto.randomUUID() as CustomerId;
   const now = new Date();
 
-  await database.db.insert(workspaces).values({ id: workspaceId, name: `test:${seedName}` });
-  await database.db.insert(actors).values({ id: actorId, displayName: `tester:${seedName}` });
-  await database.db.insert(workspaceMemberships).values({ workspaceId, actorId });
+  const subjectOf = (id: ActorId): string => `sub-${id}`;
+
+  const roleActors: Record<WorkspaceRole, ActorId> = {
+    owner: crypto.randomUUID() as ActorId,
+    accountant: crypto.randomUUID() as ActorId,
+    sales: crypto.randomUUID() as ActorId,
+    warehouse: crypto.randomUUID() as ActorId,
+    delivery: crypto.randomUUID() as ActorId,
+  };
+  const actorId = roleActors.owner;
+  const revokedActorId = crypto.randomUUID() as ActorId;
+  const foreignActorId = crypto.randomUUID() as ActorId;
+
+  await database.db.insert(workspaces).values([
+    { id: workspaceId, name: `test:${seedName}` },
+    { id: foreignWorkspaceId, name: `test:${seedName}:foreign` },
+  ]);
+
+  const allActors: Array<{ id: ActorId; label: string }> = [
+    ...Object.entries(roleActors).map(([role, id]) => ({ id, label: `${seedName}:${role}` })),
+    { id: revokedActorId, label: `${seedName}:revoked` },
+    { id: foreignActorId, label: `${seedName}:foreign` },
+  ];
+
+  await database.db.insert(actors).values(
+    allActors.map((actor) => ({
+      id: actor.id,
+      supabaseUserId: subjectOf(actor.id),
+      displayName: `tester:${actor.label}`,
+    })),
+  );
+
+  await database.db.insert(workspaceMemberships).values([
+    ...Object.entries(roleActors).map(([role, id]) => ({
+      workspaceId,
+      actorId: id,
+      role: role as WorkspaceRole,
+    })),
+    // Was a member, access revoked — a different answer from never having had any.
+    { workspaceId, actorId: revokedActorId, role: "owner" as const, isActive: false },
+    // Full rights, but in a different depot entirely.
+    { workspaceId: foreignWorkspaceId, actorId: foreignActorId, role: "owner" as const },
+  ]);
   await database.db.insert(customers).values({
     id: customerId,
     workspaceId,
@@ -111,6 +163,12 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
     actorId,
     customerId,
     productIds,
+    subject: subjectOf(actorId),
+    roleActors,
+    revokedActorId,
+    foreignWorkspaceId,
+    foreignActorId,
+    subjectOf,
 
     async ledgerRows() {
       const rows = await database.db

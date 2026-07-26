@@ -2,27 +2,33 @@ import type { AdjustCustomerDebtCommand, CustomerDebtSummaryDto } from "@vuanha/
 import { adjustCustomerDebtCommandSchema } from "@vuanha/domain-contracts";
 import type { DomainResult } from "@vuanha/domain-kernel";
 import { decideAdjustDebt, err, ok } from "@vuanha/domain-kernel";
-import type { CommandDeps } from "../shared/command-pipeline.ts";
+import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyLedgerEffects, emptyDebtSummary } from "../shared/debt-effects.ts";
+import { debtCapabilities } from "../shared/authorization.ts";
+import { toDebtSummaryDto } from "../shared/mappers.ts";
 
 /**
  * UC-DEBT-001 — the only command that moves money with no underlying document.
  *
- * Any workspace member may call it today (ASM-007), which is knowingly too
- * permissive. Until roles exist, the mitigation is attribution: actor, command,
- * reason code and reason text all land on the ledger entry itself.
+ * Requires the `debt.adjust` permission, which only `owner` and `accountant`
+ * carry (BR-AUTH-006). Before Milestone 1 any workspace member could call this —
+ * that was ASM-007, the largest hole left by the bootstrap.
+ *
+ * Attribution is unchanged and still mandatory: actor, command, reason code and
+ * reason text all land on the ledger entry itself.
  */
 export function adjustCustomerDebt(
-  deps: CommandDeps,
+  ctx: CommandContext,
   input: unknown,
 ): Promise<DomainResult<CustomerDebtSummaryDto>> {
   return runCommand<AdjustCustomerDebtCommand, CustomerDebtSummaryDto>({
     commandType: "AdjustCustomerDebt",
     schema: adjustCustomerDebtCommandSchema,
     input,
-    deps,
-    execute: async ({ command, repos, recordedAt }) => {
+    ctx,
+    requiredPermission: "debt.adjust",
+    execute: async ({ command, repos, recordedAt, membership }) => {
       const customer = await repos.customers.findById(
         command.workspaceId,
         command.payload.customerId,
@@ -52,8 +58,11 @@ export function adjustCustomerDebt(
         command.payload.customerId,
       );
       return ok(
-        summary ??
-          emptyDebtSummary(command.workspaceId, command.payload.customerId, currency, recordedAt),
+        toDebtSummaryDto(
+          summary ??
+            emptyDebtSummary(command.workspaceId, command.payload.customerId, currency, recordedAt),
+          debtCapabilities(membership.role),
+        ),
       );
     },
   });

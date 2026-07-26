@@ -3,30 +3,58 @@ import { createHTTPHandler } from "@trpc/server/adapters/standalone";
 import { createDatabase, createUnitOfWork } from "@vuanha/db";
 import { appRouter } from "./infrastructure/trpc/router.ts";
 import { createContext } from "./infrastructure/trpc/context.ts";
+import { createSupabaseJwtVerifier, type JwtVerifier } from "./infrastructure/auth/jwt-verifier.ts";
 import { randomIdGenerator, systemClock } from "./infrastructure/clock.ts";
 import type { CommandDeps } from "./modules/shared/command-pipeline.ts";
 
 /**
- * Development entry point. Wires the Drizzle adapters into the tRPC router.
+ * Development entry point. Wires the Drizzle adapters and a Supabase JWT
+ * verifier into the tRPC router.
  *
- * **Not production-ready, deliberately.** There is no authentication: the actor
- * identity is taken from the command envelope rather than a verified Supabase
- * JWT (see `context.ts`). No TLS, no CORS policy, no rate limiting, no graceful
- * shutdown. Building those now would be speculative infrastructure; what exists
- * is enough to exercise the slice against a real database.
+ * Since Milestone 1 the actor identity comes from a verified bearer token, not
+ * from the request body. What is still missing for production: TLS, a CORS
+ * policy, rate limiting, structured request logging, and graceful shutdown.
+ * Those are deployment concerns, listed rather than half-built.
  */
-export function createApiHandler(deps: CommandDeps) {
+export function createApiHandler(deps: CommandDeps, verifier: JwtVerifier) {
   return createHTTPHandler({
     router: appRouter,
-    createContext: () => createContext(deps),
+    createContext: ({ req }) =>
+      createContext({ deps, verifier, authorizationHeader: req.headers.authorization }),
   });
 }
 
-const databaseUrl = process.env["DATABASE_URL"];
-if (databaseUrl === undefined) {
-  console.error("DATABASE_URL is not set. Copy .env.example to .env and fill it in.");
+function required(name: string): string {
+  const value = process.env[name];
+  if (value === undefined || value.length === 0) {
+    console.error(`${name} is not set. Copy .env.example to .env and fill it in.`);
+    process.exit(1);
+  }
+  return value;
+}
+
+const databaseUrl = required("DATABASE_URL");
+const issuer = required("SUPABASE_JWT_ISSUER");
+
+/**
+ * Asymmetric keys (JWKS) are preferred: the API then never holds signing
+ * material, so a compromise here cannot mint tokens. The HS256 path exists for
+ * Supabase projects still on the legacy shared secret.
+ */
+const jwksUrl = process.env["SUPABASE_JWKS_URL"];
+const jwtSecret = process.env["SUPABASE_JWT_SECRET"];
+
+if ((jwksUrl === undefined) === (jwtSecret === undefined)) {
+  console.error("Set exactly one of SUPABASE_JWKS_URL or SUPABASE_JWT_SECRET.");
   process.exit(1);
 }
+
+const verifier = createSupabaseJwtVerifier({
+  issuer,
+  audience: process.env["SUPABASE_JWT_AUDIENCE"] ?? "authenticated",
+  ...(jwksUrl !== undefined ? { jwksUrl } : {}),
+  ...(jwtSecret !== undefined ? { jwtSecret } : {}),
+});
 
 const database = createDatabase(databaseUrl);
 const deps: CommandDeps = {
@@ -35,6 +63,6 @@ const deps: CommandDeps = {
 };
 
 const port = Number(process.env["PORT"] ?? 3000);
-createServer(createApiHandler(deps)).listen(port, () => {
+createServer(createApiHandler(deps, verifier)).listen(port, () => {
   console.warn(`VuaNha API listening on http://localhost:${port}`);
 });

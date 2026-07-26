@@ -14,6 +14,7 @@
     "@vuanha/db": "workspace:*",
     "@vuanha/domain-contracts": "workspace:*",
     "@vuanha/domain-kernel": "workspace:*",
+    "jose": "^6.2.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {

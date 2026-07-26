@@ -14,6 +14,7 @@ apps/
         debt/
         shared/                 command pipeline, idempotency, authorization
       infrastructure/
+        auth/                   JWT verification, principal resolution
         trpc/                   router, context, error mapping
         persistence/            port definitions + Drizzle and in-memory adapters
         clock.ts                the only source of `recordedAt`

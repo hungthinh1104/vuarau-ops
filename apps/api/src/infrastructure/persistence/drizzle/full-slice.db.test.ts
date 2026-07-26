@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDbTestContext, createUnitOfWork, hasDatabase, type DbTestContext } from "@vuanha/db";
-import type { CommandDeps } from "../../../modules/shared/command-pipeline.ts";
+import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
 import { createOrder } from "../../../modules/order/create-order.handler.ts";
 import { confirmOrder } from "../../../modules/order/confirm-order.handler.ts";
@@ -20,6 +20,8 @@ import { getCustomerDebtSummary, rebuildDebtSummary } from "../../../modules/deb
 describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
+  /** The command context an authenticated owner would have. */
+  let owner: CommandContext;
 
   beforeAll(async () => {
     ctx = await createDbTestContext("full-slice");
@@ -27,6 +29,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
       uow: createUnitOfWork(ctx.database.db, randomIdGenerator) as CommandDeps["uow"],
       clock: { now: () => new Date().toISOString() as ReturnType<CommandDeps["clock"]["now"]> },
     };
+    owner = { deps, principal: { actorId: ctx.actorId, subject: ctx.subject } };
   });
 
   afterAll(async () => {
@@ -49,7 +52,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
   const ledgerRows = () => ctx.ledgerRows();
 
   it("BR-ORDER-007 / TC-ORDER-003 — confirming creates exactly one ledger entry", async () => {
-    const created = await createOrder(deps, {
+    const created = await createOrder(owner, {
       ...envelope("db-order-create"),
       payload: {
         orderId,
@@ -88,7 +91,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     // A draft moves no money.
     expect(await ledgerRows()).toHaveLength(0);
 
-    const confirmed = await confirmOrder(deps, {
+    const confirmed = await confirmOrder(owner, {
       ...envelope("db-order-confirm"),
       expectedVersion: 1,
       payload: { orderId },
@@ -102,7 +105,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
   });
 
   it("BR-COMMAND-001 / TC-ORDER-004 — a retried confirmation does not duplicate debt", async () => {
-    const replay = await confirmOrder(deps, {
+    const replay = await confirmOrder(owner, {
       ...envelope("db-order-confirm"),
       expectedVersion: 1,
       payload: { orderId },
@@ -111,12 +114,12 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(replay.ok).toBe(true);
     expect(await ledgerRows()).toHaveLength(1);
 
-    const summary = await getCustomerDebtSummary(deps, ctx.workspaceId, ctx.customerId);
-    expect(summary.balance.amountMinor).toBe(875_000);
+    const summary = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
+    expect(summary.ok && summary.value.balance.amountMinor).toBe(875_000);
   });
 
   it("BR-ORDER-006 / TC-ORDER-005 — a stale version is rejected by the real update", async () => {
-    const stale = await confirmOrder(deps, {
+    const stale = await confirmOrder(owner, {
       ...envelope("db-order-confirm-stale"),
       expectedVersion: 1,
       payload: { orderId },
@@ -128,7 +131,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
   });
 
   it("BR-PAYMENT-002 / TC-PAYMENT-001 — a payment reduces the balance once", async () => {
-    const paid = await recordCustomerPayment(deps, {
+    const paid = await recordCustomerPayment(owner, {
       ...envelope("db-payment-record"),
       payload: {
         paymentId,
@@ -141,13 +144,15 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     });
 
     expect(paid.ok).toBe(true);
-    const summary = await getCustomerDebtSummary(deps, ctx.workspaceId, ctx.customerId);
-    expect(summary.balance.amountMinor).toBe(375_000);
-    expect(summary.entryCount).toBe(2);
+    const summary = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
+    expect(summary.ok).toBe(true);
+    if (!summary.ok) return;
+    expect(summary.value.balance.amountMinor).toBe(375_000);
+    expect(summary.value.entryCount).toBe(2);
   });
 
   it("BR-PAYMENT-005 / TC-PAYMENT-004 — a reversal compensates without erasing", async () => {
-    const reversed = await reverseCustomerPayment(deps, {
+    const reversed = await reverseCustomerPayment(owner, {
       ...envelope("db-payment-reverse"),
       expectedVersion: 1,
       payload: {
@@ -171,12 +176,12 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(compensating?.amount.amountMinor).toBe(500_000);
     expect(compensating?.reversalOfEntryId).toBe(original?.id);
 
-    const summary = await getCustomerDebtSummary(deps, ctx.workspaceId, ctx.customerId);
-    expect(summary.balance.amountMinor).toBe(875_000);
+    const summary = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
+    expect(summary.ok && summary.value.balance.amountMinor).toBe(875_000);
   });
 
   it("BR-DEBT-003 / TC-DEBT-003 — an adjustment carries its reason onto the entry", async () => {
-    const adjusted = await adjustCustomerDebt(deps, {
+    const adjusted = await adjustCustomerDebt(owner, {
       ...envelope("db-debt-adjust"),
       payload: {
         adjustmentId: crypto.randomUUID(),
@@ -202,24 +207,28 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     const entries = await ledgerRows();
     const sum = entries.reduce((total, entry) => total + entry.amount.amountMinor, 0);
 
-    const summary = await getCustomerDebtSummary(deps, ctx.workspaceId, ctx.customerId);
-    expect(summary.balance.amountMinor).toBe(sum);
-    expect(summary.entryCount).toBe(entries.length);
+    const summary = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
+    expect(summary.ok).toBe(true);
+    if (!summary.ok) return;
+    expect(summary.value.balance.amountMinor).toBe(sum);
+    expect(summary.value.entryCount).toBe(entries.length);
   });
 
   it("BR-DEBT-006 / TC-DEBT-002 — a rebuild reproduces the maintained summary exactly", async () => {
-    const incremental = await getCustomerDebtSummary(deps, ctx.workspaceId, ctx.customerId);
+    const incremental = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
     const rebuilt = await rebuildDebtSummary(deps, ctx.workspaceId, ctx.customerId);
 
-    expect(rebuilt.balance).toEqual(incremental.balance);
-    expect(rebuilt.entryCount).toBe(incremental.entryCount);
-    expect(rebuilt.lastEntryTransactionTime).toBe(incremental.lastEntryTransactionTime);
+    expect(incremental.ok).toBe(true);
+    if (!incremental.ok) return;
+    expect(rebuilt.balance).toEqual(incremental.value.balance);
+    expect(rebuilt.entryCount).toBe(incremental.value.entryCount);
+    expect(rebuilt.lastEntryTransactionTime).toBe(incremental.value.lastEntryTransactionTime);
   });
 
   it("BR-COMMAND-005 / TC-COMMAND-004 — a refused command leaves no row behind", async () => {
     const before = await ledgerRows();
 
-    const refused = await recordCustomerPayment(deps, {
+    const refused = await recordCustomerPayment(owner, {
       ...envelope("db-payment-invalid"),
       payload: {
         paymentId: crypto.randomUUID(),
@@ -237,10 +246,11 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(await ledgerRows()).toHaveLength(before.length);
   });
 
-  it("BR-CUSTOMER-002 / TC-CUSTOMER-002 — a foreign workspace cannot reach this data", async () => {
-    const result = await recordCustomerPayment(deps, {
+  it("BR-CUSTOMER-002 / TC-CUSTOMER-002 — an actor cannot act in a workspace they do not belong to", async () => {
+    // The owner of *this* depot, aiming at a workspace they are not a member of.
+    const result = await recordCustomerPayment(owner, {
       ...envelope("db-payment-foreign"),
-      workspaceId: crypto.randomUUID(),
+      workspaceId: ctx.foreignWorkspaceId,
       payload: {
         paymentId: crypto.randomUUID(),
         customerId: ctx.customerId,
@@ -254,5 +264,80 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("WORKSPACE_ACCESS_DENIED");
+  });
+
+  it("BR-AUTH-002 / TC-AUTH-002 — a command may not name an actor other than the caller", async () => {
+    const result = await recordCustomerPayment(owner, {
+      ...envelope("db-payment-impersonate"),
+      actorId: ctx.roleActors.sales,
+      payload: {
+        paymentId: crypto.randomUUID(),
+        customerId: ctx.customerId,
+        amount: { amountMinor: 100_000, currency: "VND" },
+        method: "cash",
+        payerName: null,
+        note: null,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("ACTOR_IMPERSONATION_DENIED");
+  });
+
+  it("BR-AUTH-004 / TC-AUTH-004 — sales cannot adjust debt against a real database", async () => {
+    const salesActorId = ctx.roleActors.sales;
+    const sales: CommandContext = {
+      deps,
+      principal: { actorId: salesActorId, subject: ctx.subjectOf(salesActorId) },
+    };
+
+    const before = await ledgerRows();
+    const result = await adjustCustomerDebt(sales, {
+      ...envelope("db-debt-adjust-sales"),
+      actorId: salesActorId,
+      payload: {
+        adjustmentId: crypto.randomUUID(),
+        customerId: ctx.customerId,
+        direction: "decrease",
+        amount: { amountMinor: 1_000_000, currency: "VND" },
+        reasonCode: "write_off",
+        reason: "Không được phép",
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("PERMISSION_DENIED");
+    expect(result.error.details).toMatchObject({ permission: "debt.adjust", role: "sales" });
+    // The refusal wrote nothing at all.
+    expect(await ledgerRows()).toHaveLength(before.length);
+  });
+
+  it("BR-AUTH-003 / TC-AUTH-003 — a revoked membership is refused, distinctly", async () => {
+    const revoked: CommandContext = {
+      deps,
+      principal: {
+        actorId: ctx.revokedActorId,
+        subject: ctx.subjectOf(ctx.revokedActorId),
+      },
+    };
+
+    const result = await recordCustomerPayment(revoked, {
+      ...envelope("db-payment-revoked"),
+      actorId: ctx.revokedActorId,
+      payload: {
+        paymentId: crypto.randomUUID(),
+        customerId: ctx.customerId,
+        amount: { amountMinor: 100_000, currency: "VND" },
+        method: "cash",
+        payerName: null,
+        note: null,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("WORKSPACE_MEMBERSHIP_INACTIVE");
   });
 });

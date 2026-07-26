@@ -7,24 +7,26 @@ code and docs.
 
 Nothing in this list has been silently decided.
 
-| ID      | Question                                                   | Current default                             | Reversibility                     | Priority |
-| ------- | ---------------------------------------------------------- | ------------------------------------------- | --------------------------------- | -------- |
-| ASM-001 | Can customer debt go negative (prepaid credit)?            | **Yes**, unguarded                          | Easy — one guard + one code       | **High** |
-| ASM-002 | Does debt arise at confirmation, delivery, or invoicing?   | **Confirmation**                            | Hard once data exists             | **High** |
-| ASM-003 | Can a payment exceed current debt?                         | **Yes** (follows ASM-001)                   | Easy                              | High     |
-| ASM-004 | Can a payment stay unallocated to an order?                | **Yes** — allocation is not modelled at all | Easy — additive read-side feature | Medium   |
-| ASM-005 | Can a confirmed order be cancelled once a payment exists?  | **No cancel command exists**                | Easy — nothing to undo            | High     |
-| ASM-006 | Are partial payment reversals allowed?                     | **Yes**                                     | Medium                            | Medium   |
-| ASM-007 | What permission is required to adjust debt?                | **Any workspace member**                    | Easy — additive check             | **High** |
-| ASM-008 | How do product price changes affect confirmed orders?      | **Never** — lines snapshot name and price   | Hard to change retroactively      | Medium   |
-| ASM-009 | Is workspace isolation enforced by RLS or the application? | **Application layer**                       | Medium — RLS is additive          | Medium   |
-| ASM-010 | How is a confirmed order corrected?                        | **`AdjustCustomerDebt` with a reason**      | Medium                            | High     |
-| ASM-011 | Are units convertible (lạng → gram)?                       | **No conversion at all**                    | Easy — additive                   | Low      |
-| ASM-012 | Should duplicate customer names be blocked?                | **Allowed, no warning**                     | Easy                              | Low      |
-| ASM-013 | Does the API need a compiled `dist/` build?                | **No** — Node 24 runs TypeScript directly   | Easy                              | Low      |
-| ASM-014 | How long are `command_receipts` retained?                  | **Forever** — no pruning                    | Easy                              | Medium   |
-| ASM-015 | Does a customer have a credit limit / debt policy?         | **No such concept**                         | Medium — additive                 | **High** |
-| ASM-016 | What makes a debt "overdue"? Payment terms?                | **Not modelled** — no due date, no terms    | Medium — additive                 | **High** |
+| ID      | Question                                                     | Current default                                                                   | Reversibility                     | Priority |
+| ------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------- | --------------------------------- | -------- |
+| ASM-001 | Can customer debt go negative (prepaid credit)?              | **Yes**, unguarded                                                                | Easy — one guard + one code       | **High** |
+| ASM-002 | Does debt arise at confirmation, delivery, or invoicing?     | **Confirmation**                                                                  | Hard once data exists             | **High** |
+| ASM-003 | Can a payment exceed current debt?                           | **Yes** (follows ASM-001)                                                         | Easy                              | High     |
+| ASM-004 | Can a payment stay unallocated to an order?                  | **Yes** — allocation is not modelled at all                                       | Easy — additive read-side feature | Medium   |
+| ASM-005 | Can a confirmed order be cancelled once a payment exists?    | **No cancel command exists**                                                      | Easy — nothing to undo            | High     |
+| ASM-006 | Are partial payment reversals allowed?                       | **Yes**                                                                           | Medium                            | Medium   |
+| ASM-007 | What permission is required to adjust debt?                  | **DECIDED** — `debt.adjust`, held by owner and accountant (Milestone 1, ADR-0011) | n/a                               | closed   |
+| ASM-008 | How do product price changes affect confirmed orders?        | **Never** — lines snapshot name and price                                         | Hard to change retroactively      | Medium   |
+| ASM-009 | Is workspace isolation enforced by RLS or the application?   | **Application layer**                                                             | Medium — RLS is additive          | Medium   |
+| ASM-010 | How is a confirmed order corrected?                          | **`AdjustCustomerDebt` with a reason**                                            | Medium                            | High     |
+| ASM-011 | Are units convertible (lạng → gram)?                         | **No conversion at all**                                                          | Easy — additive                   | Low      |
+| ASM-012 | Should duplicate customer names be blocked?                  | **Allowed, no warning**                                                           | Easy                              | Low      |
+| ASM-013 | Does the API need a compiled `dist/` build?                  | **No** — Node 24 runs TypeScript directly                                         | Easy                              | Low      |
+| ASM-014 | How long are `command_receipts` retained?                    | **Forever** — no pruning                                                          | Easy                              | Medium   |
+| ASM-015 | Does a customer have a credit limit / debt policy?           | **No such concept**                                                               | Medium — additive                 | **High** |
+| ASM-016 | What makes a debt "overdue"? Payment terms?                  | **Not modelled** — no due date, no terms                                          | Medium — additive                 | **High** |
+| ASM-017 | Is the role→permission mapping correct beyond `debt.adjust`? | **Least-privilege defaults**, unconfirmed                                         | Easy — one table                  | **High** |
+| ASM-018 | Existing memberships were backfilled as `owner`              | **Deliberate**; roles need assigning                                              | Easy                              | **High** |
 
 ---
 
@@ -80,9 +82,14 @@ guess into data.
 
 ---
 
-### ASM-007 — who may adjust debt
+### ASM-007 — who may adjust debt · **CLOSED (Milestone 1)**
 
-**Default:** any workspace member.
+**Decided:** `AdjustCustomerDebt` requires the `debt.adjust` permission, held by
+`owner` and `accountant` only (BR-AUTH-006, [ADR-0011](ADR-0011-role-permission-mapping.md)).
+`actorId` is no longer self-asserted: it must match a verified Supabase token
+([ADR-0010](ADR-0010-supabase-jwt-verification.md)).
+
+**Was:** any workspace member, with a self-asserted actor id.
 
 **Why this is the most uncomfortable default in the list:** `AdjustCustomerDebt`
 can move any balance by any amount with only a free-text reason. In a real depot,
@@ -93,11 +100,13 @@ nothing to check against.
 timestamp, reason code, and reason text, all on the ledger entry itself. The action
 is not prevented, but it is never anonymous.
 
-**This is the highest-priority follow-up in the whole backlog.** The UI design
-reference (`design.md`) independently assumes it: it lists a `permission_denied`
-state on order entry, payment recording, and debt adjustment, and defines separate
-patterns for owner, sales, warehouse, delivery, and accountant roles. The backend
-has none of that.
+The UI design reference (`design.md`) independently assumed this: it lists a
+`permission_denied` state on order entry, payment recording, and debt adjustment,
+and defines separate patterns for owner, sales, warehouse, delivery, and
+accountant roles. The backend now has all five roles.
+
+**What replaces it as highest priority: ASM-017 and ASM-018 below.** The mechanism
+exists; the policy it enforces is still a developer's guess.
 
 ---
 
@@ -119,6 +128,29 @@ not late. Both need the depot owner.
 
 **What is already in place:** every ledger entry carries business time, so any
 terms model can be applied retrospectively without a migration.
+
+---
+
+### ASM-017 / ASM-018 — the role table is a guess, and everyone is currently an owner
+
+**ASM-017.** Only `debt.adjust` was specified by Milestone 1. Every other
+role→permission pairing is a least-privilege default a developer chose. The two
+that most need a depot owner's answer:
+
+- may a **delivery driver record the cash they collect**? Defaulted to _no_, which
+  is safe and quite possibly wrong for how these depots actually work;
+- may **sales confirm orders**? Defaulted to _yes_, because that is the job — but
+  confirmation is the moment debt is created, so it deserves a decision rather
+  than an inference.
+
+**ASM-018.** Migration `0002` backfills `workspace_memberships.role` as `owner`.
+That was the only choice that could not lock an existing depot out of its own
+data — but it means that immediately after migrating, **every existing member
+holds `debt.adjust`**. The mechanism is in place and the policy is not yet
+applied.
+
+Closing ASM-018 is an operational task, not a code change: assign real roles, then
+verify no unintended owners remain.
 
 ---
 

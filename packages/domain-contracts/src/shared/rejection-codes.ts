@@ -8,8 +8,25 @@ import { z } from "zod";
  * change. See docs/04-business-rules/error-code-catalog.md.
  */
 export const DOMAIN_REJECTION_CODES = [
+  // --- authentication -------------------------------------------------------
+  /** No credential was presented at all. */
+  "AUTHENTICATION_REQUIRED",
+  /** A credential was presented and is not trustworthy: bad signature, expired,
+   *  wrong issuer or audience. Deliberately does not say which. */
+  "AUTHENTICATION_INVALID",
+  /** The token verified, but its subject maps to no actor in this system. */
+  "ACTOR_NOT_FOUND",
+  /** The command claims an `actorId` that is not the authenticated actor. */
+  "ACTOR_IMPERSONATION_DENIED",
+
   // --- workspace / authorization -------------------------------------------
+  /** The actor is not a member of the target workspace. */
   "WORKSPACE_ACCESS_DENIED",
+  /** Membership exists but has been deactivated. Distinct from never having had
+   *  access, because the operator's remedy is different. */
+  "WORKSPACE_MEMBERSHIP_INACTIVE",
+  /** The actor is an active member, but their role lacks the permission. */
+  "PERMISSION_DENIED",
 
   // --- customer -------------------------------------------------------------
   "CUSTOMER_NOT_FOUND",
