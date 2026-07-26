@@ -16,7 +16,7 @@ import { capabilitySchema } from "../shared/capability.ts";
  * Order lifecycle: draft → confirmed → (cancelled).
  * Deliberately free of allocation, picking, delivery, invoice, and payment
  * state — those are separate lifecycle dimensions and adding them here is how
- * status enums rot. See docs/03-state-machines/order-state-machine.md.
+ * status enums rot. See docs/03-state-machines/sale-state-machine.md.
  */
 export const ORDER_STATUSES = ["draft", "confirmed", "cancelled"] as const;
 export const orderStatusSchema = z.enum(ORDER_STATUSES);
@@ -35,7 +35,7 @@ export const orderLineInputSchema = z.object({
   /**
    * Price for one whole unit (one kg, one bó, one thùng). Zero is allowed —
    * depots give things away. Negative is refused by the domain with
-   * `ORDER_LINE_INVALID` (BR-ORDER-003), not by this schema, so the client gets
+   * `ORDER_LINE_INVALID` (BR-SALE-003), not by this schema, so the client gets
    * the specific code and the offending line index.
    */
   unitPrice: moneySchema,

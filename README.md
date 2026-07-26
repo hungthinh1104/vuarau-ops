@@ -8,7 +8,7 @@ that: every write is a named business command, every đồng of debt traces to a
 person and a request, and mistakes are corrected by compensating records rather
 than by editing history.
 
-**Status: backend foundation.** One vertical slice — customer → order → debt →
+**Status: backend foundation.** One vertical slice — customer → sale → customer account →
 payment → reversal → summary → audit. No UI.
 
 ## Quick start
@@ -73,7 +73,7 @@ scripts/                  boundary-check, trace-check, docs-check
 
 ## Design in one page
 
-- **Debt is a ledger, not a number.** `debt_ledger_entries` is append-only and is
+- **Debt is a ledger, not a number.** `customer_account_entries` is append-only and is
   the source of truth; the balance is a rebuildable projection. Corrections are
   compensating entries — nothing is edited or deleted
   ([ADR-0004](docs/09-decisions/ADR-0004-append-only-debt-ledger.md)).

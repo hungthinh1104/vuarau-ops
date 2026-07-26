@@ -5,7 +5,7 @@
 ## Intent
 
 A worker meets a buyer who is not yet in the system and needs them on file
-immediately, so an order can be attached in the next few seconds.
+immediately, so a sale can be attached in the next few seconds.
 
 ## Actor
 

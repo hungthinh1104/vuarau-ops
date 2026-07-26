@@ -8,7 +8,7 @@ Milestone 1 needed to stop every workspace member from being able to move any
 customer's balance (ASM-007). That requires a notion of "may this person do this".
 
 The design reference (`design.md`) names five roles — owner, accountant, sales,
-warehouse, delivery — and expects a `permission_denied` state on order entry,
+warehouse, delivery — and expects a `permission_denied` state on sale entry,
 payment recording, and debt adjustment.
 
 The tempting next step is a general mechanism: policies in the database, a rule
@@ -37,7 +37,7 @@ answer "who can write off a debt?" without running a query.
 | **Permissions stored per membership row**                        | Maximum flexibility, and every depot ends up with a bespoke matrix nobody can audit. Roles are the abstraction the depot already thinks in.                                                                                                                               |
 | **Roles checked ad hoc in each handler** (`if role !== "owner"`) | Scatters the policy across six files, and the seventh command forgets. One declared permission per command is checkable by reading the call sites.                                                                                                                        |
 | **Roles from the Supabase JWT**                                  | Hands the identity provider control over who can move money. See ADR-0010.                                                                                                                                                                                                |
-| **A single `is_admin` boolean**                                  | Cannot express "an accountant may reverse payments but not confirm orders", which is the actual shape of a depot.                                                                                                                                                         |
+| **A single `is_admin` boolean**                                  | Cannot express "an accountant may reverse payments but not post sales", which is the actual shape of a depot.                                                                                                                                                             |
 
 ## Consequences
 

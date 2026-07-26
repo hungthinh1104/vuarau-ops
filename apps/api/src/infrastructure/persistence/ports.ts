@@ -86,7 +86,7 @@ export type PaymentRepository = {
 
 /**
  * Note the absence of `update` and `delete`. The ledger is append-only
- * (BR-DEBT-005) and the port is shaped so that violating it is not expressible.
+ * (BR-ACCOUNT-005) and the port is shaped so that violating it is not expressible.
  */
 export type DebtLedgerRepository = {
   append(entries: readonly LedgerEntryDraft[]): Promise<readonly DebtLedgerEntryDto[]>;

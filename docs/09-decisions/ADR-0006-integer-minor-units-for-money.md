@@ -21,7 +21,7 @@ totals that are off by one đồng in ways nobody can explain to a customer.
    silently performed.
 5. Quantities use the same principle: integer milli-units at scale 1000
    (1,5 kg → `1500`), so the only division in the system is the documented one in
-   BR-ORDER-004.
+   BR-SALE-004.
 6. Rounding is half-up on the minor unit, in one function, applied at exactly one
    place: the line total.
 

@@ -121,7 +121,7 @@ describe("BR-PAYMENT-001 / TC-PAYMENT-003", () => {
   });
 });
 
-describe("BR-DEBT-007 / TC-PAYMENT-011", () => {
+describe("BR-ACCOUNT-007 / TC-PAYMENT-011", () => {
   it("accepts a payment larger than any plausible debt (ASM-001)", () => {
     // CASE-PAYMENT-003. The kernel is not given a balance at all: there is no
     // clamping and no guard, which is precisely the assumption being recorded.

@@ -37,9 +37,9 @@ function adjustCommand(
   };
 }
 
-describe("BR-DEBT-001 / TC-DEBT-001", () => {
+describe("BR-ACCOUNT-001 / TC-ACCOUNT-001", () => {
   it("computes the balance as the sum of the ledger entries", () => {
-    // CASE-DEBT-001 + CASE-DEBT-002: +875 000 then −500 000.
+    // CASE-ACCOUNT-001 + CASE-ACCOUNT-002: +875 000 then −500 000.
     const balance = calculateDebtBalance(ledgerWithOrderAndPayment, "VND");
     expect(balance.amountMinor).toBe(375_000);
   });
@@ -75,7 +75,7 @@ describe("BR-DEBT-001 / TC-DEBT-001", () => {
   });
 
   it("gives the same answer whatever order the entries arrive in", () => {
-    // The rebuild path (BR-DEBT-006) reads rows in index order, which is not the
+    // The rebuild path (BR-ACCOUNT-006) reads rows in index order, which is not the
     // order they were written. A sum that depended on that would drift.
     const forwards = calculateDebtBalance([orderConfirmationEntry, paymentEntry], "VND");
     const backwards = calculateDebtBalance([paymentEntry, orderConfirmationEntry], "VND");
@@ -83,7 +83,7 @@ describe("BR-DEBT-001 / TC-DEBT-001", () => {
   });
 });
 
-describe("BR-DEBT-007 / TC-DEBT-007", () => {
+describe("BR-ACCOUNT-007 / TC-ACCOUNT-007", () => {
   it("allows the balance to go negative — the customer is in credit (ASM-001)", () => {
     // CASE-PAYMENT-003: an overpayment against a 375 000 ₫ balance.
     const overpayment = { ...paymentEntry, amount: vnd(-1_000_000) };
@@ -92,9 +92,9 @@ describe("BR-DEBT-007 / TC-DEBT-007", () => {
   });
 });
 
-describe("BR-DEBT-003 / TC-DEBT-003", () => {
+describe("BR-ACCOUNT-003 / TC-ACCOUNT-003", () => {
   it("refuses an adjustment with a blank reason", () => {
-    // CASE-DEBT-006.
+    // CASE-ACCOUNT-006.
     const result = decideAdjustDebt({
       command: adjustCommand({ reason: "   " }),
       recordedAt: RECORDED_AT,
@@ -128,7 +128,7 @@ describe("BR-DEBT-003 / TC-DEBT-003", () => {
   });
 });
 
-describe("BR-DEBT-008 / TC-DEBT-003", () => {
+describe("BR-ACCOUNT-008 / TC-ACCOUNT-003", () => {
   it("refuses a zero adjustment", () => {
     const result = decideAdjustDebt({
       command: adjustCommand({ amount: vnd(0) }),
@@ -152,9 +152,9 @@ describe("BR-DEBT-008 / TC-DEBT-003", () => {
   });
 });
 
-describe("BR-DEBT-002 / TC-DEBT-006", () => {
+describe("BR-ACCOUNT-002 / TC-ACCOUNT-006", () => {
   it("signs the entry from the direction, not from the amount", () => {
-    // CASE-DEBT-004 and CASE-DEBT-005.
+    // CASE-ACCOUNT-004 and CASE-ACCOUNT-005.
     const increase = decideAdjustDebt({
       command: adjustCommand({ direction: "increase" }),
       recordedAt: RECORDED_AT,
@@ -180,7 +180,7 @@ describe("BR-DEBT-002 / TC-DEBT-006", () => {
   });
 });
 
-describe("BR-DEBT-004 / TC-DEBT-004", () => {
+describe("BR-ACCOUNT-004 / TC-ACCOUNT-004", () => {
   it("attributes every adjustment entry to an actor and a command", () => {
     const result = decideAdjustDebt({ command: adjustCommand(), recordedAt: RECORDED_AT });
 

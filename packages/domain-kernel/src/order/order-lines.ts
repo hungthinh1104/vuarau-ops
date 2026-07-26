@@ -14,7 +14,7 @@ import { sumMoney } from "../shared/money.ts";
 /**
  * The line fields every caller has, whether it came off the wire or out of the
  * database. Validation and totalling are the same in both directions, so they are
- * written once (BR-ORDER-001, BR-ORDER-003, BR-ORDER-009).
+ * written once (BR-SALE-001, BR-SALE-003, BR-SALE-009).
  */
 export type OrderLineLike = {
   readonly lineId: OrderLineId;
@@ -89,7 +89,7 @@ export function validateOrderLines(
   return ok(validated);
 }
 
-/** BR-ORDER-001. The only way an order total is ever produced. */
+/** BR-SALE-001. The only way an order total is ever produced. */
 export function calculateOrderTotal(
   lines: readonly OrderLineState[],
   currency: CurrencyCode,

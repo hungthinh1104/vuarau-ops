@@ -46,21 +46,21 @@ worker's hands. Copy this file into a dated session note.
 
 ```sql
 SELECT amount_minor, source_type, source_id, transaction_time, recorded_at, actor_id
-FROM debt_ledger_entries
+FROM customer_account_entries
 WHERE workspace_id = :ws AND customer_id = :cust
 ORDER BY transaction_time, recorded_at;
 
-SELECT balance_minor FROM customer_debt_summaries
+SELECT balance_minor FROM customer_account_balances
 WHERE workspace_id = :ws AND customer_id = :cust;
 ```
 
-| Check                                                                                             | Pass |
-| ------------------------------------------------------------------------------------------------- | ---- |
-| Summary balance = sum of entry amounts (BR-DEBT-001)                                              | ☐    |
-| Entry count is what the steps should have produced — no duplicates (BR-ORDER-007, BR-PAYMENT-002) | ☐    |
-| Every entry has `actor_id` and `command_id` (BR-DEBT-004)                                         | ☐    |
-| No pre-existing entry was modified (BR-DEBT-005)                                                  | ☐    |
-| `transaction_time` matches when the event _happened_, not when it was entered (BR-COMMAND-003)    | ☐    |
+| Check                                                                                            | Pass |
+| ------------------------------------------------------------------------------------------------ | ---- |
+| Summary balance = sum of entry amounts (BR-ACCOUNT-001)                                          | ☐    |
+| Entry count is what the steps should have produced — no duplicates (BR-SALE-007, BR-PAYMENT-002) | ☐    |
+| Every entry has `actor_id` and `command_id` (BR-ACCOUNT-004)                                     | ☐    |
+| No pre-existing entry was modified (BR-ACCOUNT-005)                                              | ☐    |
+| `transaction_time` matches when the event _happened_, not when it was entered (BR-COMMAND-003)   | ☐    |
 
 ### Result
 
@@ -81,12 +81,12 @@ Automation cannot reproduce these faithfully.
 
 | ID     | Scenario                                                            | Why manual                                                                |
 | ------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| MT-001 | Confirm an order, kill the network mid-request, retry               | Real timing of a real dropped connection (CASE-ORDER-005)                 |
+| MT-001 | Post a sale, kill the network mid-request, retry                    | Real timing of a real dropped connection (CASE-SALE-005)                  |
 | MT-002 | Double-tap submit on a slow device                                  | Real double-submit timing, not two scripted calls (CASE-PAYMENT-006)      |
-| MT-003 | Two phones, same order, both confirm                                | Real user timing against a real database (CASE-ORDER-004)                 |
-| MT-004 | Enter yesterday's sale today, check the aging report                | End-to-end time semantics through a UI (CASE-ORDER-006)                   |
+| MT-003 | Two phones, same sale, both post                                    | Real user timing against a real database (CASE-SALE-004)                  |
+| MT-004 | Enter yesterday's sale today, check the aging report                | End-to-end time semantics through a UI (CASE-SALE-006)                    |
 | MT-005 | 500 000 ₫ payment, then reverse 200 000 ₫, read the customer screen | Whether a human can _understand_ the resulting history (CASE-PAYMENT-010) |
-| MT-006 | Corrupt a summary row by hand, run the rebuild                      | Operational recovery procedure (CASE-DEBT-007)                            |
+| MT-006 | Corrupt a summary row by hand, run the rebuild                      | Operational recovery procedure (CASE-ACCOUNT-007)                         |
 
 MT-005 is the one that catches design problems rather than bugs: a technically
 correct ledger that a depot owner cannot read is still a failure.

@@ -16,7 +16,7 @@ A depot cannot do that at 4 a.m. with a truck waiting.
 
 ## What the product is for
 
-1. **Capture operational transactions quickly.** Orders and payments get entered
+1. **Capture operational transactions quickly.** Sales and payments get entered
    during or shortly after the event, often from memory, often back-dated.
 2. **Preserve trustworthy debt and payment records.** What a customer owes is the
    most contested number in the business. It must be reconstructible, attributable,
@@ -43,7 +43,7 @@ A depot cannot do that at 4 a.m. with a truck waiting.
 ## What "good" looks like
 
 - A worker records a sale in under ten seconds and never thinks about sync.
-- An owner can point at any number in a debt total and see which order or payment
+- An owner can point at any number in a debt total and see which sale or payment
   produced it, who entered it, and when.
 - A mistake is corrected in one action that leaves both the error and the fix
   visible.
@@ -53,7 +53,7 @@ A depot cannot do that at 4 a.m. with a truck waiting.
 One vertical slice, backend only:
 
 ```
-Customer → Draft order → Confirmed order → Debt ledger entry
+Customer → Sale draft → Posted sale → Customer account entry
         → Payment → Payment reversal → Debt summary → Audit history
 ```
 

@@ -4,11 +4,16 @@
 #   use case → business rule → case → test → implementation
 #
 # See docs/08-qa/traceability.md for the rules this file must satisfy.
-# IDs are never reused. A retired artefact is marked deprecated, not deleted.
+# IDs are never reused. A retired artefact is marked deprecated, not deleted;
+# the full old → new mapping lives in docs/02-use-cases/use-case-catalog.md.
+#
+# `status: planned` means specified, agreed, and deliberately not yet built. Such
+# a rule owes a document and a `planned_tests` list, not a passing test, and
+# trace-check reports how many exist so the gap is counted rather than remembered.
 
 use_cases:
   UC-AUTH-001:
-    title: Authenticate and authorize a request
+    title: Authenticate a request, resolve the actor, authorize the action
     risk: P0
     doc: docs/02-use-cases/UC-AUTH-001-authenticate-and-authorize.md
     rules:
@@ -40,6 +45,27 @@ use_cases:
       - apps/api/src/modules/shared/authorization.ts
       - apps/api/src/modules/shared/command-pipeline.ts
 
+  UC-AUTH-002:
+    title: Revoke a workspace membership
+    risk: P0
+    status: planned
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules: [BR-AUTH-003, BR-AUTH-004, BR-AUTH-007]
+    cases: []
+    tests: []
+    planned_tests: [TC-AUTH-013, TC-AUTH-014]
+
+  UC-AUTH-003:
+    title: View my capabilities
+    risk: P1
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules: [BR-AUTH-001, BR-AUTH-003, BR-AUTH-004, BR-AUTH-005, BR-AUTH-006]
+    cases: []
+    tests: [TC-AUTH-006, TC-AUTH-009]
+    implementation:
+      - packages/domain-contracts/src/shared/authorization.ts
+      - apps/api/src/modules/shared/authorization.ts
+
   UC-CUSTOMER-001:
     title: Create customer
     risk: P1
@@ -51,54 +77,149 @@ use_cases:
       - packages/domain-kernel/src/customer/create-customer.ts
       - apps/api/src/modules/customer/create-customer.handler.ts
 
-  UC-ORDER-001:
-    title: Create and confirm an order
-    risk: P0
-    doc: docs/02-use-cases/UC-ORDER-001-create-and-confirm-order.md
+  UC-CUSTOMER-002:
+    title: Search and list customers
+    risk: P2
+    status: planned
+    doc: docs/02-use-cases/customer-use-cases.md
+    rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002, BR-ACCOUNT-009]
+    cases: []
+    tests: []
+    planned_tests: [TC-CUSTOMER-004, TC-CUSTOMER-005]
+
+  UC-CUSTOMER-003:
+    title: View a customer
+    risk: P2
+    status: planned
+    doc: docs/02-use-cases/customer-use-cases.md
+    rules: [BR-AUTH-001, BR-CUSTOMER-002, BR-ACCOUNT-001, BR-ACCOUNT-009]
+    cases: []
+    tests: []
+    planned_tests: [TC-CUSTOMER-006]
+
+  UC-CUSTOMER-004:
+    title: Update a customer
+    risk: P1
+    status: planned
+    doc: docs/02-use-cases/customer-use-cases.md
+    rules: [BR-CUSTOMER-001, BR-CUSTOMER-002, BR-CUSTOMER-004, BR-AUTH-004, BR-COMMAND-001]
+    cases: []
+    tests: []
+    planned_tests: [TC-CUSTOMER-007, TC-CUSTOMER-008]
+
+  UC-CUSTOMER-005:
+    title: Deactivate a customer
+    risk: P1
+    status: planned
+    doc: docs/02-use-cases/customer-use-cases.md
+    rules: [BR-CUSTOMER-002, BR-CUSTOMER-003, BR-AUTH-004, BR-ACCOUNT-002]
+    cases: []
+    tests: []
+    planned_tests: [TC-CUSTOMER-009, TC-CUSTOMER-010]
+
+  UC-SALE-001:
+    title: Create, edit and discard a sale draft
+    risk: P1
+    doc: docs/02-use-cases/sale-use-cases.md
     rules:
-      - BR-ORDER-001
-      - BR-ORDER-002
-      - BR-ORDER-003
-      - BR-ORDER-004
-      - BR-ORDER-005
-      - BR-ORDER-006
-      - BR-ORDER-007
-      - BR-ORDER-008
-      - BR-ORDER-009
+      - BR-SALE-001
+      - BR-SALE-003
+      - BR-SALE-004
+      - BR-SALE-009
+      - BR-SALE-010
+      - BR-SALE-011
+      - BR-SALE-016
+      - BR-SALE-017
+      - BR-SALE-018
+    cases: [CASE-SALE-001, CASE-SALE-009]
+    tests: [TC-SALE-001, TC-SALE-002]
+    implementation:
+      - packages/domain-kernel/src/order/create-order.ts
+      - packages/domain-kernel/src/order/order-lines.ts
+      - apps/api/src/modules/order/create-order.handler.ts
+
+  UC-SALE-002:
+    title: Post a sale
+    risk: P0
+    doc: docs/02-use-cases/UC-SALE-002-post-sale.md
+    rules:
+      - BR-SALE-001
+      - BR-SALE-002
+      - BR-SALE-003
+      - BR-SALE-004
+      - BR-SALE-005
+      - BR-SALE-006
+      - BR-SALE-007
+      - BR-SALE-008
+      - BR-SALE-009
+      - BR-SALE-011
       - BR-COMMAND-001
       - BR-COMMAND-003
       - BR-COMMAND-004
       - BR-COMMAND-005
-      - BR-DEBT-002
-      - BR-DEBT-004
+      - BR-ACCOUNT-002
+      - BR-ACCOUNT-004
     cases:
-      - CASE-ORDER-001
-      - CASE-ORDER-002
-      - CASE-ORDER-003
-      - CASE-ORDER-004
-      - CASE-ORDER-005
-      - CASE-ORDER-006
-      - CASE-ORDER-007
+      - CASE-SALE-001
+      - CASE-SALE-002
+      - CASE-SALE-003
+      - CASE-SALE-004
+      - CASE-SALE-005
+      - CASE-SALE-006
+      - CASE-ACCOUNT-001
     tests:
-      - TC-ORDER-001
-      - TC-ORDER-002
-      - TC-ORDER-003
-      - TC-ORDER-004
-      - TC-ORDER-005
-      - TC-ORDER-006
-      - TC-ORDER-007
-      - TC-ORDER-008
-      - TC-ORDER-009
-      - TC-ORDER-010
-      - TC-ORDER-011
-      - TC-ORDER-012
-      - TC-ORDER-013
+      - TC-SALE-003
+      - TC-SALE-004
+      - TC-SALE-005
+      - TC-SALE-006
+      - TC-SALE-007
+      - TC-SALE-008
+      - TC-SALE-009
+      - TC-SALE-010
+      - TC-SALE-011
+      - TC-SALE-012
+      - TC-SALE-013
     implementation:
-      - packages/domain-kernel/src/order/create-order.ts
       - packages/domain-kernel/src/order/confirm-order.ts
-      - packages/domain-kernel/src/order/order-lines.ts
-      - apps/api/src/modules/order/create-order.handler.ts
       - apps/api/src/modules/order/confirm-order.handler.ts
+
+  UC-SALE-003:
+    title: View and list sales
+    risk: P2
+    status: planned
+    doc: docs/02-use-cases/sale-use-cases.md
+    rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002, BR-SALE-017]
+    cases: []
+    tests: []
+    planned_tests: [TC-SALE-028, TC-SALE-029]
+
+  UC-SALE-004:
+    title: Void a sale, and post a replacement
+    risk: P0
+    status: planned
+    doc: docs/02-use-cases/sale-use-cases.md
+    rules:
+      - BR-SALE-008
+      - BR-SALE-012
+      - BR-SALE-013
+      - BR-SALE-014
+      - BR-SALE-015
+      - BR-SALE-016
+      - BR-ACCOUNT-002
+      - BR-ACCOUNT-005
+      - BR-ACCOUNT-010
+      - BR-COMMAND-001
+      - BR-COMMAND-005
+    cases: [CASE-SALE-007, CASE-SALE-008, CASE-SALE-010, CASE-SALE-011]
+    tests: []
+    planned_tests:
+      - TC-SALE-021
+      - TC-SALE-022
+      - TC-SALE-023
+      - TC-SALE-024
+      - TC-SALE-025
+      - TC-SALE-026
+      - TC-SALE-027
 
   UC-PAYMENT-001:
     title: Record a customer payment
@@ -107,13 +228,13 @@ use_cases:
     rules:
       - BR-PAYMENT-001
       - BR-PAYMENT-002
-      - BR-DEBT-007
+      - BR-ACCOUNT-007
       - BR-COMMAND-001
       - BR-COMMAND-002
       - BR-COMMAND-003
       - BR-COMMAND-005
-      - BR-DEBT-002
-      - BR-DEBT-004
+      - BR-ACCOUNT-002
+      - BR-ACCOUNT-004
     cases:
       - CASE-PAYMENT-001
       - CASE-PAYMENT-002
@@ -134,7 +255,7 @@ use_cases:
       - apps/api/src/modules/payment/record-payment.handler.ts
 
   UC-PAYMENT-002:
-    title: Reverse a customer payment
+    title: Reverse a customer payment, fully or partly
     risk: P0
     doc: docs/02-use-cases/UC-PAYMENT-002-reverse-customer-payment.md
     rules:
@@ -147,7 +268,7 @@ use_cases:
       - BR-PAYMENT-008
       - BR-COMMAND-001
       - BR-COMMAND-005
-      - BR-DEBT-005
+      - BR-ACCOUNT-005
     cases: [CASE-PAYMENT-009, CASE-PAYMENT-010, CASE-PAYMENT-011]
     tests:
       - TC-PAYMENT-004
@@ -162,119 +283,268 @@ use_cases:
       - packages/domain-kernel/src/payment/payment-status.ts
       - apps/api/src/modules/payment/reverse-payment.handler.ts
 
-  UC-DEBT-001:
-    title: Adjust customer debt manually
+  UC-PAYMENT-003:
+    title: View a payment
+    risk: P2
+    status: planned
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules: [BR-AUTH-001, BR-AUTH-004, BR-PAYMENT-008, BR-CUSTOMER-002]
+    cases: []
+    tests: []
+    planned_tests: [TC-PAYMENT-013, TC-PAYMENT-014]
+
+  UC-ACCOUNT-001:
+    title: View the customer account balance and timeline
     risk: P0
-    doc: docs/02-use-cases/UC-DEBT-001-adjust-customer-debt.md
+    doc: docs/02-use-cases/customer-account-use-cases.md
     rules:
-      - BR-DEBT-001
-      - BR-DEBT-002
-      - BR-DEBT-003
-      - BR-DEBT-004
-      - BR-DEBT-005
-      - BR-DEBT-006
-      - BR-DEBT-008
+      - BR-AUTH-001
+      - BR-AUTH-004
+      - BR-AUTH-006
+      - BR-ACCOUNT-001
+      - BR-ACCOUNT-004
+      - BR-ACCOUNT-009
+      - BR-CUSTOMER-002
+    cases: [CASE-ACCOUNT-008]
+    tests: [TC-ACCOUNT-001, TC-AUTH-006]
+    implementation:
+      - apps/api/src/modules/debt/debt.queries.ts
+
+  UC-ACCOUNT-002:
+    title: Adjust a customer account by hand
+    risk: P0
+    doc: docs/02-use-cases/UC-ACCOUNT-002-adjust-customer-account.md
+    rules:
+      - BR-ACCOUNT-001
+      - BR-ACCOUNT-002
+      - BR-ACCOUNT-003
+      - BR-ACCOUNT-004
+      - BR-ACCOUNT-005
+      - BR-ACCOUNT-006
+      - BR-ACCOUNT-008
+      - BR-ACCOUNT-010
       - BR-AUTH-006
       - BR-COMMAND-001
       - BR-COMMAND-005
     cases:
-      [
-        CASE-DEBT-001,
-        CASE-DEBT-002,
-        CASE-DEBT-003,
-        CASE-DEBT-004,
-        CASE-DEBT-005,
-        CASE-DEBT-006,
-        CASE-DEBT-007,
-      ]
+      - CASE-ACCOUNT-001
+      - CASE-ACCOUNT-002
+      - CASE-ACCOUNT-003
+      - CASE-ACCOUNT-004
+      - CASE-ACCOUNT-005
+      - CASE-ACCOUNT-006
+      - CASE-ACCOUNT-007
     tests:
-      [TC-DEBT-001, TC-DEBT-002, TC-DEBT-003, TC-DEBT-004, TC-DEBT-005, TC-DEBT-006, TC-DEBT-008]
+      - TC-ACCOUNT-001
+      - TC-ACCOUNT-002
+      - TC-ACCOUNT-003
+      - TC-ACCOUNT-004
+      - TC-ACCOUNT-005
+      - TC-ACCOUNT-006
+      - TC-ACCOUNT-008
     implementation:
       - packages/domain-kernel/src/debt/adjust-debt.ts
       - packages/domain-kernel/src/debt/debt-summary.ts
       - apps/api/src/modules/debt/adjust-debt.handler.ts
       - apps/api/src/modules/shared/debt-effects.ts
 
-business_rules:
-  # --- order ------------------------------------------------------------------
-  BR-ORDER-001:
-    title: Order total equals the sum of its line totals
+  UC-ACCOUNT-003:
+    title: Rebuild the customer account balance projection
     risk: P0
-    doc: docs/04-business-rules/order-rules.md
-    cases: [CASE-ORDER-001]
-    tests: [TC-ORDER-001]
+    doc: docs/02-use-cases/customer-account-use-cases.md
+    rules: [BR-ACCOUNT-001, BR-ACCOUNT-002, BR-ACCOUNT-005, BR-ACCOUNT-006]
+    cases: [CASE-ACCOUNT-007]
+    tests: [TC-ACCOUNT-002]
+    implementation:
+      - apps/api/src/modules/shared/debt-effects.ts
+
+  UC-COMMAND-001:
+    title: Handle a retry, a duplicate, or a stale version
+    risk: P0
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules:
+      - BR-COMMAND-001
+      - BR-COMMAND-002
+      - BR-COMMAND-003
+      - BR-COMMAND-004
+      - BR-COMMAND-005
+      - BR-COMMAND-006
+      - BR-SALE-006
+      - BR-PAYMENT-007
+    cases: [CASE-SALE-005, CASE-PAYMENT-006, CASE-PAYMENT-007, CASE-PAYMENT-011]
+    tests:
+      - TC-COMMAND-001
+      - TC-COMMAND-002
+      - TC-COMMAND-003
+      - TC-COMMAND-004
+      - TC-COMMAND-005
+      - TC-COMMAND-006
+    implementation:
+      - apps/api/src/modules/shared/command-pipeline.ts
+      - apps/api/src/infrastructure/hash.ts
+
+  UC-AUDIT-001:
+    title: Trace a transaction and its corrections through audit
+    risk: P1
+    status: planned
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules: [BR-ACCOUNT-004, BR-AUTH-001, BR-AUTH-004, BR-COMMAND-005]
+    cases: [CASE-SALE-007]
+    tests: []
+    planned_tests: [TC-AUDIT-001, TC-AUDIT-002]
+
+business_rules:
+  # --- sale ---------------------------------------------------------------------
+  BR-SALE-001:
+    title: Sale total equals the sum of its line totals
+    risk: P0
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-001]
+    tests: [TC-SALE-001]
     implementation: [packages/domain-kernel/src/order/order-lines.ts]
 
-  BR-ORDER-002:
-    title: An order cannot be confirmed without at least one line
+  BR-SALE-002:
+    title: A sale cannot be posted without at least one line
     risk: P1
-    doc: docs/04-business-rules/order-rules.md
-    cases: [CASE-ORDER-002]
-    tests: [TC-ORDER-006]
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-002]
+    tests: [TC-SALE-006]
     implementation: [packages/domain-kernel/src/order/confirm-order.ts]
 
-  BR-ORDER-003:
+  BR-SALE-003:
     title: Every line must have a valid product, quantity, unit and price
     risk: P1
-    doc: docs/04-business-rules/order-rules.md
-    cases: [CASE-ORDER-001]
-    tests: [TC-ORDER-007]
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-001]
+    tests: [TC-SALE-007]
     implementation: [packages/domain-kernel/src/order/order-lines.ts]
 
-  BR-ORDER-004:
+  BR-SALE-004:
     title: Line total rounding is half-up on the minor unit
     risk: P0
-    doc: docs/04-business-rules/order-rules.md
-    cases: [CASE-ORDER-001]
-    tests: [TC-ORDER-002]
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-001]
+    tests: [TC-SALE-002]
     implementation: [packages/domain-kernel/src/shared/quantity.ts]
 
-  BR-ORDER-005:
-    title: A confirmed order cannot be confirmed again
+  BR-SALE-005:
+    title: A posted sale cannot be posted again
     risk: P1
-    doc: docs/04-business-rules/order-rules.md
-    cases: [CASE-ORDER-003]
-    tests: [TC-ORDER-008]
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-003]
+    tests: [TC-SALE-008]
     implementation: [packages/domain-kernel/src/order/confirm-order.ts]
 
-  BR-ORDER-006:
-    title: Confirming with a stale version is refused
+  BR-SALE-006:
+    title: Posting with a stale version is refused
     risk: P0
-    doc: docs/04-business-rules/order-rules.md
-    cases: [CASE-ORDER-004]
-    tests: [TC-ORDER-005]
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-004]
+    tests: [TC-SALE-005]
     implementation:
       - packages/domain-kernel/src/order/confirm-order.ts
       - apps/api/src/modules/order/confirm-order.handler.ts
 
-  BR-ORDER-007:
-    title: Confirmation produces exactly one debt ledger entry
+  BR-SALE-007:
+    title: Posting produces exactly one customer account entry
     risk: P0
-    doc: docs/04-business-rules/order-rules.md
-    cases: [CASE-ORDER-005, CASE-DEBT-001]
-    tests: [TC-ORDER-003, TC-ORDER-012]
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-005, CASE-ACCOUNT-001]
+    tests: [TC-SALE-003, TC-SALE-012]
     implementation:
       - packages/domain-kernel/src/order/confirm-order.ts
       - apps/api/src/modules/shared/debt-effects.ts
       - packages/db/src/schema/debt.ts
 
-  BR-ORDER-008:
-    title: A confirmed order is never deleted
+  BR-SALE-008:
+    title: A posted sale and its lines are immutable
     risk: P0
-    doc: docs/04-business-rules/order-rules.md
-    cases: [CASE-ORDER-007]
-    tests: [TC-ORDER-009]
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-007]
+    tests: [TC-SALE-009]
     implementation: [packages/db/migrations/0001_append_only_guards.sql]
 
-  BR-ORDER-009:
-    title: All line currencies must match the order currency
+  BR-SALE-009:
+    title: All line currencies must match the sale currency
     risk: P1
-    doc: docs/04-business-rules/order-rules.md
-    cases: [CASE-ORDER-001]
-    tests: [TC-ORDER-010]
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-001]
+    tests: [TC-SALE-010]
     implementation: [packages/domain-kernel/src/order/order-lines.ts]
 
-  # --- payment ----------------------------------------------------------------
+  BR-SALE-010:
+    title: A draft sale has no financial effect
+    risk: P0
+    status: planned
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-001, CASE-SALE-009]
+    planned_tests: [TC-SALE-014]
+
+  BR-SALE-011:
+    title: Posting snapshots the final name, quantity, unit and unit price
+    risk: P0
+    status: planned
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-001]
+    planned_tests: [TC-SALE-015]
+
+  BR-SALE-012:
+    title: Voiding creates exactly one full compensating account entry
+    risk: P0
+    status: planned
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-007, CASE-SALE-008, CASE-SALE-011]
+    planned_tests: [TC-SALE-021, TC-SALE-022]
+
+  BR-SALE-013:
+    title: A voided sale cannot be voided again
+    risk: P0
+    status: planned
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-010]
+    planned_tests: [TC-SALE-023, TC-SALE-024]
+
+  BR-SALE-014:
+    title: Voiding requires a structured reason code and an explanation
+    risk: P1
+    status: planned
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-008]
+    planned_tests: [TC-SALE-026]
+
+  BR-SALE-015:
+    title: Only a posted sale can be voided
+    risk: P1
+    status: planned
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-010]
+    planned_tests: [TC-SALE-025]
+
+  BR-SALE-016:
+    title: A replacement sale links to the sale it replaces
+    risk: P2
+    status: planned
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-007, CASE-SALE-008]
+    planned_tests: [TC-SALE-027]
+
+  BR-SALE-017:
+    title: A due date is optional, and without one nothing is overdue
+    risk: P1
+    status: planned
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-012]
+    planned_tests: [TC-SALE-018]
+
+  BR-SALE-018:
+    title: A draft may be edited or discarded; a posted sale may not
+    risk: P1
+    status: planned
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-009]
+    planned_tests: [TC-SALE-019, TC-SALE-020]
+
+  # --- payment ------------------------------------------------------------------
   BR-PAYMENT-001:
     title: Payment amount must be greater than zero
     risk: P0
@@ -286,10 +556,10 @@ business_rules:
       - packages/domain-kernel/src/payment/reverse-payment.ts
 
   BR-PAYMENT-002:
-    title: Recording a payment produces exactly one ledger entry of minus the amount
+    title: Recording a payment produces exactly one account entry of minus the amount
     risk: P0
     doc: docs/04-business-rules/payment-rules.md
-    cases: [CASE-PAYMENT-001, CASE-PAYMENT-002, CASE-DEBT-002]
+    cases: [CASE-PAYMENT-001, CASE-PAYMENT-002, CASE-ACCOUNT-002]
     tests: [TC-PAYMENT-001]
     implementation: [packages/domain-kernel/src/payment/record-payment.ts]
 
@@ -313,7 +583,7 @@ business_rules:
     title: A reversal creates a compensating entry, never a second payment
     risk: P0
     doc: docs/04-business-rules/payment-rules.md
-    cases: [CASE-PAYMENT-009, CASE-PAYMENT-010, CASE-PAYMENT-011, CASE-DEBT-003]
+    cases: [CASE-PAYMENT-009, CASE-PAYMENT-010, CASE-PAYMENT-011, CASE-ACCOUNT-003]
     tests: [TC-PAYMENT-004, TC-PAYMENT-005]
     implementation: [packages/domain-kernel/src/payment/reverse-payment.ts]
 
@@ -343,90 +613,106 @@ business_rules:
     tests: [TC-PAYMENT-010]
     implementation: [packages/domain-kernel/src/payment/payment-status.ts]
 
-  # --- debt -------------------------------------------------------------------
-  BR-DEBT-001:
-    title: The debt summary equals the sum of the customer's ledger entries
+  # --- customer account ---------------------------------------------------------
+  BR-ACCOUNT-001:
+    title: The balance equals the sum of the customer's account entries
     risk: P0
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-DEBT-007]
-    tests: [TC-DEBT-001, TC-DEBT-002]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-007]
+    tests: [TC-ACCOUNT-001, TC-ACCOUNT-002]
     implementation: [packages/domain-kernel/src/debt/debt-summary.ts]
 
-  BR-DEBT-002:
-    title: Debt changes only through ledger-producing commands
+  BR-ACCOUNT-002:
+    title: The balance changes only through entry-producing commands
     risk: P0
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-DEBT-004, CASE-DEBT-005]
-    tests: [TC-DEBT-006]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-004, CASE-ACCOUNT-005]
+    tests: [TC-ACCOUNT-006]
     implementation: [apps/api/src/modules/shared/debt-effects.ts]
 
-  BR-DEBT-003:
-    title: A manual debt adjustment requires a reason
+  BR-ACCOUNT-003:
+    title: A manual adjustment requires a reason
     risk: P1
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-DEBT-006]
-    tests: [TC-DEBT-003]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-006]
+    tests: [TC-ACCOUNT-003]
     implementation: [packages/domain-kernel/src/debt/adjust-debt.ts]
 
-  BR-DEBT-004:
-    title: Every ledger entry is attributable to an actor and a command
+  BR-ACCOUNT-004:
+    title: Every account entry is attributable to an actor and a command
     risk: P0
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-DEBT-004]
-    tests: [TC-DEBT-004]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-004]
+    tests: [TC-ACCOUNT-004]
     implementation:
       - packages/domain-kernel/src/shared/effects.ts
       - packages/db/src/schema/debt.ts
 
-  BR-DEBT-005:
-    title: Ledger entries are append-only; reversals compensate
+  BR-ACCOUNT-005:
+    title: Account entries are append-only; corrections compensate
     risk: P0
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-DEBT-003]
-    tests: [TC-DEBT-005]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-003]
+    tests: [TC-ACCOUNT-005]
     implementation:
       - packages/db/migrations/0001_append_only_guards.sql
       - apps/api/src/infrastructure/persistence/ports.ts
 
-  BR-DEBT-006:
-    title: The summary is rebuildable from the entries
+  BR-ACCOUNT-006:
+    title: The balance is rebuildable from the entries
     risk: P0
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-DEBT-007]
-    tests: [TC-DEBT-002]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-007]
+    tests: [TC-ACCOUNT-002]
     implementation:
       - apps/api/src/modules/shared/debt-effects.ts
       - apps/api/src/modules/debt/debt.queries.ts
 
-  BR-DEBT-007:
-    title: A debt balance may be negative
+  BR-ACCOUNT-007:
+    title: A balance may be negative, and that means customer credit
     risk: P2
-    doc: docs/04-business-rules/debt-rules.md
+    doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-PAYMENT-003]
-    tests: [TC-DEBT-007, TC-PAYMENT-011]
+    tests: [TC-ACCOUNT-007, TC-PAYMENT-011]
     implementation: [packages/domain-kernel/src/payment/record-payment.ts]
 
-  BR-DEBT-008:
+  BR-ACCOUNT-008:
     title: A manual adjustment amount must be positive
     risk: P1
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-DEBT-005]
-    tests: [TC-DEBT-003]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-005]
+    tests: [TC-ACCOUNT-003]
     implementation: [packages/domain-kernel/src/debt/adjust-debt.ts]
 
-  # --- cross-cutting command rules --------------------------------------------
+  BR-ACCOUNT-009:
+    title: The balance carries a typed classification
+    risk: P1
+    status: planned
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-008]
+    planned_tests: [TC-ACCOUNT-010]
+
+  BR-ACCOUNT-010:
+    title: A manual adjustment is not the way to correct a sale
+    risk: P1
+    status: planned
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-SALE-007]
+    planned_tests: [TC-ACCOUNT-011]
+
+  # --- cross-cutting command rules ----------------------------------------------
   BR-COMMAND-001:
     title: Same idempotency key and payload produce exactly one effect
     risk: P0
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-ORDER-005, CASE-PAYMENT-006, CASE-PAYMENT-007, CASE-PAYMENT-011]
-    tests: [TC-COMMAND-001, TC-COMMAND-006, TC-ORDER-004, TC-PAYMENT-002, TC-PAYMENT-005]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-SALE-005, CASE-PAYMENT-006, CASE-PAYMENT-007, CASE-PAYMENT-011]
+    tests: [TC-COMMAND-001, TC-COMMAND-006, TC-SALE-004, TC-PAYMENT-002, TC-PAYMENT-005]
     implementation: [apps/api/src/modules/shared/command-pipeline.ts]
 
   BR-COMMAND-002:
     title: Same idempotency key with a different payload is rejected
     risk: P0
-    doc: docs/04-business-rules/debt-rules.md
+    doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-PAYMENT-006]
     tests: [TC-COMMAND-002]
     implementation:
@@ -436,9 +722,9 @@ business_rules:
   BR-COMMAND-003:
     title: transactionTime comes from the command, recordedAt from the server
     risk: P0
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-ORDER-006, CASE-PAYMENT-008]
-    tests: [TC-COMMAND-003, TC-ORDER-011]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-SALE-006, CASE-PAYMENT-008]
+    tests: [TC-COMMAND-003, TC-SALE-011]
     implementation:
       - apps/api/src/infrastructure/clock.ts
       - apps/api/src/modules/shared/command-pipeline.ts
@@ -446,22 +732,30 @@ business_rules:
   BR-COMMAND-004:
     title: occurredAt may not be in the future
     risk: P1
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-ORDER-006]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-SALE-006]
     tests: [TC-COMMAND-005]
     implementation: [apps/api/src/modules/shared/command-pipeline.ts]
 
   BR-COMMAND-005:
     title: All effects of a command commit atomically
     risk: P0
-    doc: docs/04-business-rules/debt-rules.md
-    cases: [CASE-DEBT-006]
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-006]
     tests: [TC-COMMAND-004]
     implementation:
       - apps/api/src/modules/shared/command-pipeline.ts
       - packages/db/src/transaction/unit-of-work.ts
 
-  # --- authentication and authorization (Milestone 1) --------------------------
+  BR-COMMAND-006:
+    title: A refused command leaves nothing behind, including its idempotency key
+    risk: P0
+    status: planned
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-006]
+    planned_tests: [TC-AUTH-012]
+
+  # --- authentication and authorization -----------------------------------------
   BR-AUTH-001:
     title: Every command and every query requires a verified identity
     risk: P0
@@ -514,13 +808,21 @@ business_rules:
     title: Debt adjustment is restricted to owner and accountant
     risk: P0
     doc: docs/04-business-rules/authorization-rules.md
-    cases: [CASE-DEBT-004, CASE-DEBT-005]
+    cases: [CASE-ACCOUNT-004, CASE-ACCOUNT-005]
     tests: [TC-AUTH-005, TC-AUTH-006]
     implementation:
       - packages/domain-contracts/src/shared/authorization.ts
       - apps/api/src/modules/debt/adjust-debt.handler.ts
 
-  # --- customer ---------------------------------------------------------------
+  BR-AUTH-007:
+    title: A workspace always keeps at least one active owner
+    risk: P1
+    status: planned
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: []
+    planned_tests: [TC-AUTH-013, TC-AUTH-014]
+
+  # --- customer -----------------------------------------------------------------
   BR-CUSTOMER-001:
     title: A customer requires a non-blank display name
     risk: P1
@@ -540,47 +842,95 @@ business_rules:
       - apps/api/src/modules/shared/command-pipeline.ts
       - apps/api/src/infrastructure/trpc/trpc.ts
 
+  BR-CUSTOMER-003:
+    title: Deactivation hides a customer; it never settles their balance
+    risk: P1
+    status: planned
+    doc: docs/04-business-rules/customer-rules.md
+    cases: []
+    planned_tests: [TC-CUSTOMER-009, TC-CUSTOMER-010]
+
+  BR-CUSTOMER-004:
+    title: Customer changes go through named commands with a version
+    risk: P1
+    status: planned
+    doc: docs/04-business-rules/customer-rules.md
+    cases: []
+    planned_tests: [TC-CUSTOMER-007, TC-CUSTOMER-008]
+
 cases:
-  CASE-ORDER-001:
-    title: A valid multi-line order
-    doc: docs/05-casebook/order-cases.md
-    rules: [BR-ORDER-001, BR-ORDER-003, BR-ORDER-004, BR-ORDER-009]
-    tests: [TC-ORDER-001, TC-ORDER-002, TC-ORDER-003]
-  CASE-ORDER-002:
-    title: Confirming an empty order
-    doc: docs/05-casebook/order-cases.md
-    rules: [BR-ORDER-002]
-    tests: [TC-ORDER-006]
-  CASE-ORDER-003:
-    title: Confirming the same order twice, deliberately
-    doc: docs/05-casebook/order-cases.md
-    rules: [BR-ORDER-005]
-    tests: [TC-ORDER-008]
-  CASE-ORDER-004:
-    title: Confirming with a stale version
-    doc: docs/05-casebook/order-cases.md
-    rules: [BR-ORDER-006]
-    tests: [TC-ORDER-005]
-  CASE-ORDER-005:
-    title: Retrying confirmation after a network timeout
-    doc: docs/05-casebook/order-cases.md
-    rules: [BR-COMMAND-001, BR-ORDER-007]
-    tests: [TC-ORDER-004]
-  CASE-ORDER-006:
-    title: An order entered later than it happened
-    doc: docs/05-casebook/order-cases.md
+  CASE-SALE-001:
+    title: A valid multi-line sale
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-001, BR-SALE-003, BR-SALE-004, BR-SALE-009, BR-SALE-010, BR-SALE-011]
+    tests: [TC-SALE-001, TC-SALE-002, TC-SALE-003]
+    planned_tests: [TC-SALE-014, TC-SALE-015]
+  CASE-SALE-002:
+    title: Posting an empty sale
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-002]
+    tests: [TC-SALE-006]
+  CASE-SALE-003:
+    title: Posting the same sale twice, deliberately
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-005]
+    tests: [TC-SALE-008]
+  CASE-SALE-004:
+    title: Posting with a stale version
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-006]
+    tests: [TC-SALE-005]
+  CASE-SALE-005:
+    title: Retrying a posting after a network timeout
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-COMMAND-001, BR-SALE-007]
+    tests: [TC-SALE-004]
+  CASE-SALE-006:
+    title: A sale entered later than it happened
+    doc: docs/05-casebook/sale-cases.md
     rules: [BR-COMMAND-003, BR-COMMAND-004]
-    tests: [TC-ORDER-011, TC-COMMAND-003]
-  CASE-ORDER-007:
-    title: A confirmed order turns out to be wrong
-    doc: docs/05-casebook/order-cases.md
-    rules: [BR-ORDER-008, BR-DEBT-003]
-    tests: [TC-ORDER-009, TC-DEBT-003]
+    tests: [TC-SALE-011, TC-COMMAND-003]
+  CASE-SALE-007:
+    title: A posted sale turns out to be wrong
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-008, BR-SALE-012, BR-SALE-016, BR-ACCOUNT-010]
+    tests: [TC-SALE-009]
+    planned_tests: [TC-SALE-021, TC-SALE-027, TC-ACCOUNT-011]
+  CASE-SALE-008:
+    title: A load comes back on the truck
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-012, BR-SALE-014, BR-SALE-016]
+    tests: []
+    planned_tests: [TC-SALE-021, TC-SALE-026]
+  CASE-SALE-009:
+    title: A draft is abandoned
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-010, BR-SALE-018]
+    tests: []
+    planned_tests: [TC-SALE-014, TC-SALE-020]
+  CASE-SALE-010:
+    title: Two people void the same sale at once
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-013, BR-SALE-015]
+    tests: []
+    planned_tests: [TC-SALE-023, TC-SALE-024, TC-SALE-025]
+  CASE-SALE-011:
+    title: Voiding a sale the customer already paid
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-012, BR-ACCOUNT-007, BR-ACCOUNT-009]
+    tests: []
+    planned_tests: [TC-SALE-022, TC-ACCOUNT-010]
+  CASE-SALE-012:
+    title: A sale with no agreed payment date
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-017]
+    tests: []
+    planned_tests: [TC-SALE-018]
 
   CASE-PAYMENT-001:
-    title: Customer pays the exact debt
+    title: Customer pays the exact balance
     doc: docs/05-casebook/payment-cases.md
-    rules: [BR-PAYMENT-001, BR-PAYMENT-002, BR-DEBT-001]
+    rules: [BR-PAYMENT-001, BR-PAYMENT-002, BR-ACCOUNT-001]
     tests: [TC-PAYMENT-001]
   CASE-PAYMENT-002:
     title: Partial payment
@@ -588,17 +938,17 @@ cases:
     rules: [BR-PAYMENT-002]
     tests: [TC-PAYMENT-001]
   CASE-PAYMENT-003:
-    title: Customer pays more than the current debt
+    title: Customer pays more than the current balance
     doc: docs/05-casebook/payment-cases.md
-    rules: [BR-DEBT-007]
-    tests: [TC-PAYMENT-011, TC-DEBT-007]
+    rules: [BR-ACCOUNT-007]
+    tests: [TC-PAYMENT-011, TC-ACCOUNT-007]
   CASE-PAYMENT-004:
     title: The payer is not the customer
     doc: docs/05-casebook/payment-cases.md
     rules: [BR-PAYMENT-002]
     tests: [TC-PAYMENT-001]
   CASE-PAYMENT-005:
-    title: Payment not allocated to any order
+    title: Payment not allocated to any sale
     doc: docs/05-casebook/payment-cases.md
     rules: [BR-PAYMENT-002]
     tests: [TC-PAYMENT-001]
@@ -633,56 +983,84 @@ cases:
     rules: [BR-COMMAND-001, BR-PAYMENT-005, BR-PAYMENT-007]
     tests: [TC-PAYMENT-005, TC-PAYMENT-006]
 
-  CASE-DEBT-001:
-    title: A confirmed order increases debt
-    doc: docs/05-casebook/debt-cases.md
-    rules: [BR-ORDER-007, BR-DEBT-001]
-    tests: [TC-ORDER-003, TC-DEBT-001]
-  CASE-DEBT-002:
-    title: A payment reduces debt
-    doc: docs/05-casebook/debt-cases.md
-    rules: [BR-PAYMENT-002, BR-DEBT-001]
+  CASE-ACCOUNT-001:
+    title: A posted sale increases the receivable
+    doc: docs/05-casebook/customer-account-cases.md
+    rules: [BR-SALE-007, BR-ACCOUNT-001]
+    tests: [TC-SALE-003, TC-ACCOUNT-001]
+  CASE-ACCOUNT-002:
+    title: A payment reduces the receivable
+    doc: docs/05-casebook/customer-account-cases.md
+    rules: [BR-PAYMENT-002, BR-ACCOUNT-001]
     tests: [TC-PAYMENT-001]
-  CASE-DEBT-003:
-    title: A payment reversal increases debt again
-    doc: docs/05-casebook/debt-cases.md
-    rules: [BR-PAYMENT-005, BR-DEBT-005]
-    tests: [TC-PAYMENT-004, TC-DEBT-005]
-  CASE-DEBT-004:
-    title: A manual adjustment increases debt
-    doc: docs/05-casebook/debt-cases.md
-    rules: [BR-DEBT-002, BR-DEBT-003, BR-DEBT-004]
-    tests: [TC-DEBT-004, TC-DEBT-006]
-  CASE-DEBT-005:
-    title: A manual adjustment decreases debt
-    doc: docs/05-casebook/debt-cases.md
-    rules: [BR-DEBT-002, BR-DEBT-003, BR-DEBT-008]
-    tests: [TC-DEBT-003, TC-DEBT-006]
-  CASE-DEBT-006:
+  CASE-ACCOUNT-003:
+    title: A payment reversal increases the receivable again
+    doc: docs/05-casebook/customer-account-cases.md
+    rules: [BR-PAYMENT-005, BR-ACCOUNT-005]
+    tests: [TC-PAYMENT-004, TC-ACCOUNT-005]
+  CASE-ACCOUNT-004:
+    title: A manual adjustment increases the balance
+    doc: docs/05-casebook/customer-account-cases.md
+    rules: [BR-ACCOUNT-002, BR-ACCOUNT-003, BR-ACCOUNT-004]
+    tests: [TC-ACCOUNT-004, TC-ACCOUNT-006]
+  CASE-ACCOUNT-005:
+    title: A manual adjustment decreases the balance
+    doc: docs/05-casebook/customer-account-cases.md
+    rules: [BR-ACCOUNT-002, BR-ACCOUNT-003, BR-ACCOUNT-008]
+    tests: [TC-ACCOUNT-003, TC-ACCOUNT-006]
+  CASE-ACCOUNT-006:
     title: An adjustment with no reason
-    doc: docs/05-casebook/debt-cases.md
-    rules: [BR-DEBT-003, BR-COMMAND-005]
-    tests: [TC-DEBT-003, TC-COMMAND-004]
-  CASE-DEBT-007:
-    title: The summary projection goes stale and is rebuilt
-    doc: docs/05-casebook/debt-cases.md
-    rules: [BR-DEBT-001, BR-DEBT-006]
-    tests: [TC-DEBT-002]
+    doc: docs/05-casebook/customer-account-cases.md
+    rules: [BR-ACCOUNT-003, BR-COMMAND-005, BR-COMMAND-006]
+    tests: [TC-ACCOUNT-003, TC-COMMAND-004]
+  CASE-ACCOUNT-007:
+    title: The balance projection goes stale and is rebuilt
+    doc: docs/05-casebook/customer-account-cases.md
+    rules: [BR-ACCOUNT-001, BR-ACCOUNT-006]
+    tests: [TC-ACCOUNT-002]
+    planned_tests: [TC-ACCOUNT-009]
+  CASE-ACCOUNT-008:
+    title: The same customer, in all three balance states
+    doc: docs/05-casebook/customer-account-cases.md
+    rules: [BR-ACCOUNT-007, BR-ACCOUNT-009]
+    tests: [TC-PAYMENT-011]
+    planned_tests: [TC-ACCOUNT-010]
 
 # Tests that exercise the API contract rather than a single rule. Declared here so
 # `trace-check` recognises them; they still name their rules in the test titles.
 contract_tests:
-  TC-ORDER-013:
-    title: Order procedures return DTOs matching the published schema
+  TC-SALE-013:
+    title: Sale procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
   TC-PAYMENT-012:
     title: Payment procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
-  TC-DEBT-008:
-    title: Debt procedures return DTOs matching the published schema
+  TC-ACCOUNT-008:
+    title: Customer account procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
   TC-COMMAND-007:
     title: Malformed input returns INVALID_COMMAND_PAYLOAD, not a schema dump
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
 
-deprecated: []
+# Retired identifiers. Never reissued. The old → new mapping is in
+# docs/02-use-cases/use-case-catalog.md.
+deprecated:
+  - UC-ORDER-001
+  - UC-DEBT-001
+  - BR-ORDER-001
+  - BR-ORDER-002
+  - BR-ORDER-003
+  - BR-ORDER-004
+  - BR-ORDER-005
+  - BR-ORDER-006
+  - BR-ORDER-007
+  - BR-ORDER-008
+  - BR-ORDER-009
+  - BR-DEBT-001
+  - BR-DEBT-002
+  - BR-DEBT-003
+  - BR-DEBT-004
+  - BR-DEBT-005
+  - BR-DEBT-006
+  - BR-DEBT-007
+  - BR-DEBT-008

@@ -198,7 +198,7 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
 
       /**
        * Conditional on the version, so a concurrent writer that slipped between
-       * the read and the write loses instead of overwriting (BR-ORDER-006).
+       * the read and the write loses instead of overwriting (BR-SALE-006).
        * Order lines are not rewritten here — confirmation does not change them.
        */
       async update(order: OrderState, expectedVersion: number): Promise<boolean> {

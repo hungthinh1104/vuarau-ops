@@ -26,6 +26,20 @@ type Entry = {
   cases?: string[];
   tests?: string[];
   implementation?: string[];
+  /**
+   * `planned` means: specified, agreed, and deliberately not yet built.
+   *
+   * Such a rule is exempt from "a P0 rule must have an automated test", because
+   * the test would have nothing to run against. It is *not* exempt from having a
+   * document that defines it — a planned rule with no prose is an idea, not a
+   * specification. `planned_tests` names the tests that must exist before the
+   * status may change; nothing verifies them until then, by definition.
+   *
+   * The point of the flag is that the gap is counted and printed on every build
+   * instead of being invisible. See docs/08-qa/traceability.md.
+   */
+  status?: "implemented" | "planned";
+  planned_tests?: string[];
 };
 
 type TraceMap = {
@@ -148,6 +162,17 @@ async function main(): Promise<void> {
     checkRefs("Rule", id, entry);
     if (deprecated.has(id)) continue;
 
+    if (entry.status === "planned") {
+      // A planned rule owes prose and a named future test, not a passing one.
+      if ((entry.planned_tests ?? []).length === 0) {
+        fail(`Planned rule ${id} names no planned test — say what would prove it`);
+      }
+      if ((entry.implementation ?? []).length > 0) {
+        fail(`Rule ${id} is marked planned but names an implementation file`);
+      }
+      continue;
+    }
+
     // ---- 7. a rule must have at least one case or test --------------------
     if ((entry.cases ?? []).length === 0 && (entry.tests ?? []).length === 0) {
       fail(`Rule ${id} has neither a case nor a test`);
@@ -175,6 +200,7 @@ async function main(): Promise<void> {
   }
 
   const p0Count = Object.values(rules).filter((entry) => entry.risk === "P0").length;
+  const plannedCount = Object.values(rules).filter((entry) => entry.status === "planned").length;
 
   if (failures.length > 0) {
     console.error(`✗ trace-check: ${failures.length} problem(s)\n`);
@@ -186,7 +212,8 @@ async function main(): Promise<void> {
 
   console.log(
     `✓ trace-check: ${Object.keys(useCases).length} use cases, ${Object.keys(rules).length} rules ` +
-      `(${p0Count} P0), ${Object.keys(cases).length} cases, ${declaredTests.size} tests — all links resolve.`,
+      `(${p0Count} P0, ${plannedCount} planned), ${Object.keys(cases).length} cases, ` +
+      `${declaredTests.size} tests — all links resolve.`,
   );
 }
 

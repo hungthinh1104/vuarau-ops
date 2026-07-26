@@ -35,7 +35,7 @@ export type DbTestContext = {
   readonly workspaceId: WorkspaceId;
   readonly actorId: ActorId;
   readonly customerId: CustomerId;
-  /** Cà chua, rau muống, ớt — the three products CASE-ORDER-001 sells. */
+  /** Cà chua, rau muống, ớt — the three products CASE-SALE-001 sells. */
   readonly productIds: readonly [ProductId, ProductId, ProductId];
   /** The verified JWT subject that resolves to `actorId` (BR-AUTH-005). */
   readonly subject: string;

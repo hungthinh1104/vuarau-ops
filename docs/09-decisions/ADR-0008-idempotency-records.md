@@ -6,7 +6,7 @@
 
 Depot phones run on 4G that drops mid-request. The failure mode that matters is
 not "the request failed" — the client can retry that. It is "the request
-succeeded and the response was lost", after which a retry would confirm the order
+succeeded and the response was lost", after which a retry would post the sale
 a second time and double the customer's debt.
 
 Buttons also get tapped twice when the UI does not visibly respond.
@@ -38,7 +38,7 @@ Buttons also get tapped twice when the UI does not visibly respond.
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Natural deduplication on business fields            | "Same customer, same amount, same minute" wrongly merges two genuine 50.000 ₫ cash payments taken a minute apart.     |
 | Server-generated ids + client dedupe                | The client cannot dedupe what it never got a response for.                                                            |
-| At-least-once delivery with idempotent effects only | Works for a pure ledger append; fails for `ConfirmOrder`, which must also transition state and return a DTO.          |
+| At-least-once delivery with idempotent effects only | Works for a pure ledger append; fails for `PostSale`, which must also transition state and return a DTO.              |
 | Time-window deduplication                           | Wrong when the retry arrives after the window, wrong when two genuine identical commands arrive inside it.            |
 | Storing only the hash, not the result               | The retry would get "already done" instead of the data it needs. The client asked a question and deserves the answer. |
 

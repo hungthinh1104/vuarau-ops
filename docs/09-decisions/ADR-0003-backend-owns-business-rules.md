@@ -6,7 +6,7 @@
 
 The product will have a web client and a mobile client, both offline-tolerant.
 Both need to know whether a confirm button should be enabled. The tempting answer
-is to implement "an order needs at least one line" on the client for responsiveness
+is to implement "a sale needs at least one line" on the client for responsiveness
 and again on the server for safety.
 
 Two copies of a money rule drift. The client's copy ships on a phone that updates
@@ -20,7 +20,7 @@ when the user feels like it.
 2. Clients never decide whether an operation is legal. They **ask**, via
    [capabilities](../06-api-contracts/capabilities.md) attached to DTOs.
 3. Capabilities are computed by the _same_ functions the command handlers use —
-   `canConfirmOrder` is called by both the query and the command. One
+   `canPostSale` is called by both the query and the command. One
    implementation, no second copy to drift.
 4. `domain-kernel` may not import tRPC, Drizzle, Next.js, React, HTTP, or browser
    APIs. Enforced by `scripts/boundary-check.ts`.

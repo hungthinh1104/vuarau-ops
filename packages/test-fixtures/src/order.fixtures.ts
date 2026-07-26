@@ -17,7 +17,7 @@ import { RECORDED_AT, TRANSACTION_TIME } from "./time.fixtures.ts";
 import { VND, vnd } from "./customer.fixtures.ts";
 
 /**
- * The order from CASE-ORDER-001, with the casebook's exact numbers.
+ * The order from CASE-SALE-001, with the casebook's exact numbers.
  *
  *   12,5 kg cà chua  @ 18 000 ₫/kg     = 225 000 ₫
  *   30 bó rau muống  @  5 000 ₫/bó     = 150 000 ₫
@@ -26,7 +26,7 @@ import { VND, vnd } from "./customer.fixtures.ts";
  *                                        875 000 ₫
  *
  * The cà chua line is the interesting one: 12 500 milli-kg exercises the
- * fractional path of BR-ORDER-004 rather than a whole-number multiplication.
+ * fractional path of BR-SALE-004 rather than a whole-number multiplication.
  */
 export const ORDER_TOTAL = vnd(875_000);
 
@@ -77,7 +77,7 @@ export const validDraftOrder: OrderState = {
   cancelledAt: null,
 };
 
-/** A draft with no lines. Legal as a draft, refused on confirm (BR-ORDER-002). */
+/** A draft with no lines. Legal as a draft, refused on confirm (BR-SALE-002). */
 export const emptyDraftOrder: OrderState = {
   ...validDraftOrder,
   id: EMPTY_ORDER_ID,
@@ -94,7 +94,7 @@ export const confirmedOrder: OrderState = {
   confirmedAt: RECORDED_AT,
 };
 
-/** A line whose quantity is zero — the canonical BR-ORDER-003 violation. */
+/** A line whose quantity is zero — the canonical BR-SALE-003 violation. */
 export const invalidOrderLineInput: OrderLineInput = {
   ...orderLineInputs[0]!,
   quantity: { valueScaled: 0, unit: "kg" },

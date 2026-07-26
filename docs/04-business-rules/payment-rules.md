@@ -14,7 +14,7 @@ one is a debt increase wearing a disguise, and debt increases go through
 
 ### BR-PAYMENT-002 — Recording a payment produces exactly one ledger entry of −amount
 
-**Risk:** P0 · **Code:** — · **Tests:** TC-PAYMENT-001 · **Cases:** CASE-PAYMENT-001, CASE-PAYMENT-002, CASE-DEBT-002
+**Risk:** P0 · **Code:** — · **Tests:** TC-PAYMENT-001 · **Cases:** CASE-PAYMENT-001, CASE-PAYMENT-002, CASE-ACCOUNT-002
 
 `sourceType = payment`, `sourceId = paymentId`,
 `transactionTime = command.occurredAt`. The customer's balance drops by exactly the
@@ -100,7 +100,7 @@ Computed by exactly one function. No command sets `status` directly. See
 | Situation                            | Rule                                        | Reference                                 |
 | ------------------------------------ | ------------------------------------------- | ----------------------------------------- |
 | Payment larger than current debt     | Allowed; balance goes negative              | ASM-001, TC-PAYMENT-011, CASE-PAYMENT-003 |
-| Payment not tied to any order        | Allowed; allocation is not modelled         | ASM-004, CASE-PAYMENT-005                 |
+| Payment not tied to any sale         | Allowed; allocation is not modelled         | ASM-004, CASE-PAYMENT-005                 |
 | Someone other than the customer pays | Allowed; `payerName` records it             | CASE-PAYMENT-004                          |
 | Payment back-dated to yesterday      | Allowed; `transactionTime` is authoritative | BR-COMMAND-003, CASE-PAYMENT-008          |
 

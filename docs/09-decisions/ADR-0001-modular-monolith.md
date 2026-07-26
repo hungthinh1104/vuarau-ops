@@ -5,7 +5,7 @@
 ## Context
 
 vuarau-ops serves individual wholesale depots. A large depot has perhaps a dozen
-concurrent users. The domain boundaries — customer, order, payment, debt — are
+concurrent users. The domain boundaries — customer, sale, payment, customer account — are
 understood in outline but not proven; the payment/debt boundary in particular has
 already shifted once during this bootstrap.
 
@@ -28,14 +28,14 @@ takes `workspaceId` as a required argument.
 
 | Alternative                               | Why not                                                                                                                                                                                                                                                                          |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Microservices per module                  | Distributed transactions across order → ledger, for a dozen users. The atomicity BR-COMMAND-005 requires would become a saga, and the first bug would be a debt entry without its order.                                                                                         |
+| Microservices per module                  | Distributed transactions across sale → ledger, for a dozen users. The atomicity BR-COMMAND-005 requires would become a saga, and the first bug would be an account entry without its sale.                                                                                       |
 | Serverless functions                      | Connection pooling and cold starts against Postgres, for no scaling need that exists.                                                                                                                                                                                            |
-| A single unstructured application         | The boundaries are the point. Without them the ledger becomes writable from anywhere and BR-DEBT-002 is unenforceable.                                                                                                                                                           |
+| A single unstructured application         | The boundaries are the point. Without them the ledger becomes writable from anywhere and BR-ACCOUNT-002 is unenforceable.                                                                                                                                                        |
 | Postgres row-level security for isolation | Genuinely appealing and probably right eventually. Deferred (ASM-009) because it requires the connection to carry an authenticated role, and Supabase auth is not wired up yet. The application-layer check ships now and RLS becomes defence in depth later, not a replacement. |
 
 ## Consequences
 
-**Good.** One transaction spans an order confirmation and its ledger entry. One
+**Good.** One transaction spans an sale posting and its ledger entry. One
 deploy, one log stream, one database to back up. Module boundaries can be moved
 with a refactor rather than a migration plan.
 

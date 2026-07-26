@@ -40,7 +40,7 @@ export const customerWithZeroDebt: CustomerState = {
 };
 
 /**
- * A customer who already owes money. The 875 000 ₫ comes from CASE-ORDER-001, so
+ * A customer who already owes money. The 875 000 ₫ comes from CASE-SALE-001, so
  * the arithmetic in the casebook and in the tests is the same arithmetic.
  */
 export const customerWithExistingDebt: CustomerState = {

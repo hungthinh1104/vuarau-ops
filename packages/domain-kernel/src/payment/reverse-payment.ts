@@ -110,7 +110,7 @@ export function decideReversePayment({
     recordedAt,
   };
 
-  // One compensating entry, linked to what it offsets. Both survive (BR-DEBT-005).
+  // One compensating entry, linked to what it offsets. Both survive (BR-ACCOUNT-005).
   const ledgerEntry: LedgerEntryDraft = {
     workspaceId: command.workspaceId,
     customerId: payment.customerId,

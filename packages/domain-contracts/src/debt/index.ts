@@ -78,12 +78,12 @@ export const adjustCustomerDebtPayloadSchema = z.object({
   direction: debtAdjustmentDirectionSchema,
   /**
    * Always positive; `direction` decides the sign of the ledger entry.
-   * Enforced by the domain (BR-DEBT-008) for a stable rejection code.
+   * Enforced by the domain (BR-ACCOUNT-008) for a stable rejection code.
    */
   amount: moneySchema,
   reasonCode: debtAdjustmentReasonCodeSchema,
   /**
-   * Free text, mandatory (BR-DEBT-003). A debt moved by hand without a stated
+   * Free text, mandatory (BR-ACCOUNT-003). A debt moved by hand without a stated
    * cause is fraud-shaped. Blankness is a domain refusal, not a schema error.
    */
   reason: z.string().max(500),
@@ -106,7 +106,7 @@ export type DebtCapabilities = z.infer<typeof debtCapabilitiesSchema>;
 
 /**
  * A projection, not a fact. Always equal to the sum of the customer's ledger
- * entries, and rebuildable from them at any time (BR-DEBT-001).
+ * entries, and rebuildable from them at any time (BR-ACCOUNT-001).
  */
 export const customerDebtSummaryDtoSchema = z.object({
   workspaceId: workspaceIdSchema,

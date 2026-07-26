@@ -14,7 +14,7 @@ export type CreateOrderInput = {
 /**
  * T-ORDER-001 — creates a draft order.
  *
- * A draft may be empty (BR-ORDER-002 applies at confirmation, not here) and moves
+ * A draft may be empty (BR-SALE-002 applies at confirmation, not here) and moves
  * no money: `ledgerEntries` is always empty. Debt arises at confirmation (ASM-002).
  */
 export function decideCreateOrder({

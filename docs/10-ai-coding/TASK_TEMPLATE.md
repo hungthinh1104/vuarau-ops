@@ -89,13 +89,13 @@ money received or permits a balance the depot has decided is impossible.
 
 ### Related IDs
 
-| Kind           | IDs                                                                       |
-| -------------- | ------------------------------------------------------------------------- |
-| Use case       | UC-PAYMENT-001                                                            |
-| Business rules | BR-DEBT-007 (to be deprecated), BR-DEBT-009 (new)                         |
-| Cases          | CASE-PAYMENT-003                                                          |
-| Tests          | TC-PAYMENT-011 (inverted), TC-DEBT-007 (deprecated), TC-PAYMENT-012 (new) |
-| Decisions      | **ASM-001 must be closed first**                                          |
+| Kind           | IDs                                                                          |
+| -------------- | ---------------------------------------------------------------------------- |
+| Use case       | UC-PAYMENT-001                                                               |
+| Business rules | BR-ACCOUNT-007 (to be deprecated), BR-ACCOUNT-009 (new)                      |
+| Cases          | CASE-PAYMENT-003                                                             |
+| Tests          | TC-PAYMENT-011 (inverted), TC-ACCOUNT-007 (deprecated), TC-PAYMENT-012 (new) |
+| Decisions      | **ASM-001 must be closed first**                                             |
 
 ### Unresolved policy
 
@@ -107,7 +107,7 @@ guess into the ledger.
 
 `packages/domain-kernel/src/payment/record-payment.ts`,
 `packages/domain-contracts/src/shared/rejection-codes.ts`,
-`docs/04-business-rules/debt-rules.md`, `docs/04-business-rules/error-code-catalog.md`,
+`docs/04-business-rules/customer-account-rules.md`, `docs/04-business-rules/error-code-catalog.md`,
 `docs/08-qa/trace-map.yml`, the three tests above.
 
 ### Out of scope

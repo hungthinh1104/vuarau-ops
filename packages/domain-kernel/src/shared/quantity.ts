@@ -2,7 +2,7 @@ import type { Money, Quantity } from "@vuarau/domain-contracts";
 import { QUANTITY_SCALE } from "@vuarau/domain-contracts";
 
 /**
- * BR-ORDER-004 — the only division in the system, and therefore the only place a
+ * BR-SALE-004 — the only division in the system, and therefore the only place a
  * rounding decision is made.
  *
  *     lineTotal = roundHalfUp(quantity.valueScaled × unitPrice.amountMinor / 1000)
@@ -35,7 +35,7 @@ export function calculateLineTotal(quantity: Quantity, unitPrice: Money): Money 
 
 /**
  * Integer half-up division for non-negative numerators. Both order quantities and
- * unit prices are non-negative (BR-ORDER-003), so the negative case cannot arise
+ * unit prices are non-negative (BR-SALE-003), so the negative case cannot arise
  * and is not silently given a rounding direction it was never assigned.
  */
 export function roundHalfUp(numerator: number, denominator: number): number {

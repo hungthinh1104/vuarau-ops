@@ -1,169 +1,148 @@
-# Decision backlog — unresolved business policy
+# Decision backlog — business policy, decided and undecided
 
-Every entry here is a question that **needs a depot owner to answer**, not a
-developer. Each has a current default chosen to be the smallest reversible thing
-that makes the slice coherent, and each default is marked as an assumption in the
-code and docs.
+Every entry is classified. There are exactly three classifications, and **no entry
+is left with an ambiguous default**:
 
-Nothing in this list has been silently decided.
+| Classification            | Meaning                                                                           |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| **decided**               | Answered. The rule, the case and the test exist. Not a default any more.          |
+| **deferred with trigger** | Still open, with a stated default **and a named event that forces the decision**. |
+| **operational action**    | Not a design question. Somebody has to go and do something.                       |
 
-| ID      | Question                                                     | Current default                                                                   | Reversibility                     | Priority |
-| ------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------- | --------------------------------- | -------- |
-| ASM-001 | Can customer debt go negative (prepaid credit)?              | **Yes**, unguarded                                                                | Easy — one guard + one code       | **High** |
-| ASM-002 | Does debt arise at confirmation, delivery, or invoicing?     | **Confirmation**                                                                  | Hard once data exists             | **High** |
-| ASM-003 | Can a payment exceed current debt?                           | **Yes** (follows ASM-001)                                                         | Easy                              | High     |
-| ASM-004 | Can a payment stay unallocated to an order?                  | **Yes** — allocation is not modelled at all                                       | Easy — additive read-side feature | Medium   |
-| ASM-005 | Can a confirmed order be cancelled once a payment exists?    | **No cancel command exists**                                                      | Easy — nothing to undo            | High     |
-| ASM-006 | Are partial payment reversals allowed?                       | **Yes**                                                                           | Medium                            | Medium   |
-| ASM-007 | What permission is required to adjust debt?                  | **DECIDED** — `debt.adjust`, held by owner and accountant (Milestone 1, ADR-0011) | n/a                               | closed   |
-| ASM-008 | How do product price changes affect confirmed orders?        | **Never** — lines snapshot name and price                                         | Hard to change retroactively      | Medium   |
-| ASM-009 | Is workspace isolation enforced by RLS or the application?   | **Application layer**                                                             | Medium — RLS is additive          | Medium   |
-| ASM-010 | How is a confirmed order corrected?                          | **`AdjustCustomerDebt` with a reason**                                            | Medium                            | High     |
-| ASM-011 | Are units convertible (lạng → gram)?                         | **No conversion at all**                                                          | Easy — additive                   | Low      |
-| ASM-012 | Should duplicate customer names be blocked?                  | **Allowed, no warning**                                                           | Easy                              | Low      |
-| ASM-013 | Does the API need a compiled `dist/` build?                  | **No** — Node 24 runs TypeScript directly                                         | Easy                              | Low      |
-| ASM-014 | How long are `command_receipts` retained?                    | **Forever** — no pruning                                                          | Easy                              | Medium   |
-| ASM-015 | Does a customer have a credit limit / debt policy?           | **No such concept**                                                               | Medium — additive                 | **High** |
-| ASM-016 | What makes a debt "overdue"? Payment terms?                  | **Not modelled** — no due date, no terms                                          | Medium — additive                 | **High** |
-| ASM-017 | Is the role→permission mapping correct beyond `debt.adjust`? | **Least-privilege defaults**, unconfirmed                                         | Easy — one table                  | **High** |
-| ASM-018 | Existing memberships were backfilled as `owner`              | **Deliberate**; roles need assigning                                              | Easy                              | **High** |
+A "deferred" entry without a trigger is just a guess with better manners, so every
+deferred row below names the event that ends the deferral.
 
----
+## The register
 
-## The ones that will hurt if left
+| ID      | Question                                                      | Classification            | Answer / default                                                    | Trigger or owner                                     |
+| ------- | ------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------- |
+| ASM-001 | Can a customer balance go negative?                           | **decided**               | Yes — `customer_credit` (BR-ACCOUNT-007, BR-ACCOUNT-009)            | —                                                    |
+| ASM-002 | Does the receivable arise at posting, delivery, or invoicing? | **deferred with trigger** | **Posting**                                                         | Before the first depot records real sales            |
+| ASM-003 | Can a payment exceed the receivable?                          | **decided**               | Yes — follows ASM-001                                               | —                                                    |
+| ASM-004 | Can a payment stay unallocated to a sale?                     | **decided**               | Yes — allocation is not modelled and will not be                    | —                                                    |
+| ASM-005 | Can a posted sale be cancelled?                               | **decided**               | It is **voided**, not cancelled (BR-SALE-012)                       | —                                                    |
+| ASM-006 | Are partial payment reversals allowed?                        | **decided**               | Yes (BR-PAYMENT-003)                                                | —                                                    |
+| ASM-007 | What permission is required to adjust a balance?              | **decided**               | `debt.adjust` — owner, accountant (ADR-0011)                        | —                                                    |
+| ASM-008 | How do product price changes affect posted sales?             | **decided**               | Never — lines snapshot name and price (BR-SALE-011)                 | —                                                    |
+| ASM-009 | Is workspace isolation enforced by RLS or the application?    | **deferred with trigger** | **Application layer**                                               | First multi-tenant production deployment             |
+| ASM-010 | How is a wrong posted sale corrected?                         | **decided**               | `VoidSale` + optional replacement (BR-ACCOUNT-010)                  | —                                                    |
+| ASM-011 | Are units convertible (lạng → gram)?                          | **deferred with trigger** | **No conversion at all**                                            | First depot that quotes one product in two units     |
+| ASM-012 | Should duplicate customer names be blocked?                   | **deferred with trigger** | **Allowed, no warning**                                             | First support report of a misattributed balance      |
+| ASM-013 | Does the API need a compiled `dist/` build?                   | **decided**               | No — Node 24 runs TypeScript directly                               | —                                                    |
+| ASM-014 | How long are `command_receipts` retained?                     | **deferred with trigger** | **Forever** — no pruning                                            | The table passes 10 M rows or query latency degrades |
+| ASM-015 | Does a customer have a credit limit?                          | **deferred with trigger** | **No such concept**                                                 | A depot asks to block a sale on outstanding balance  |
+| ASM-016 | What makes a balance "overdue"? Payment terms?                | **deferred with trigger** | `dueAt` per sale, nullable; **null is never overdue** (BR-SALE-017) | A depot asks for default terms or an aging report    |
+| ASM-017 | Is the role→permission mapping right beyond `debt.adjust`?    | **operational action**    | Least-privilege defaults, unconfirmed                               | Depot owner confirms the table                       |
+| ASM-018 | Existing memberships were backfilled as `owner`               | **operational action**    | Deliberate; roles need assigning                                    | Operator assigns real roles before go-live           |
+| ASM-019 | May a customer with a non-zero balance be deactivated?        | **deferred with trigger** | **Yes** — balance preserved and surfaced (BR-CUSTOMER-003)          | First depot that deactivates a customer in debt      |
+| ASM-020 | Do large adjustments or voids need a second approver?         | **deferred with trigger** | **No** — one actor, fully attributed                                | A depot reports a disputed adjustment or void        |
+| ASM-021 | Do abandoned sale drafts expire?                              | **deferred with trigger** | **No** — drafts live forever, harmlessly                            | The draft list becomes unusable in daily use         |
+| ASM-022 | Are reads audited?                                            | **deferred with trigger** | **No** — only state changes are audited                             | A depot needs to know who looked at a balance        |
 
-### ASM-001 / ASM-003 — negative balances
-
-**Default:** a payment larger than the balance is accepted and the balance goes
-negative, meaning the depot owes the customer credit.
-
-**Why this default:** the brief explicitly forbids assuming debt can never be
-negative. Refusing overpayment would reject a genuine business event — a customer
-paying ahead for tomorrow's load — and that rejection would be _invisible_ in the
-data, since no record of the attempt would exist.
-
-**What changes if the answer is no:** one guard in `recordPayment`, one new
-rejection code, and BR-DEBT-007 gets deprecated. No migration.
-
-**Recorded as:** BR-DEBT-007, CASE-PAYMENT-003, TC-DEBT-007.
+Seven decided, eleven deferred with a named trigger, two operational, two new this
+round (ASM-021, ASM-022) that were previously unstated assumptions rather than
+recorded ones.
 
 ---
 
-### ASM-002 — when debt arises
+## What closed this round, and why it matters
 
-**Default:** at order confirmation.
+### ASM-001 / ASM-003 — negative balances · **decided: yes**
 
-**Why this default:** confirmation is the only event the slice actually models. It
-is also what a depot means by "chốt đơn".
+A payment larger than the receivable is accepted and the balance goes negative,
+meaning the depot owes the customer credit. That is now a named classification
+(`customer_credit`) rather than an unlabelled minus sign, so a client cannot
+render it as a debt by accident (BR-ACCOUNT-009).
 
-**Why this one is dangerous:** it is the least reversible assumption here. If debt
-should really arise at delivery, then every `order_confirmation` entry in
-production was written at the wrong time, and fixing it means back-filling
-`transaction_time` on immutable rows — which the design forbids. The escape hatch
-is that `LedgerSourceType` is an enum: a `delivery_note` source can be added and
-confirmation entries stopped, but historical entries stay wrong.
+Refusing overpayment would reject a genuine business event — a customer paying
+ahead for tomorrow's load — and the rejection would be _invisible_ in the data,
+since no record of the attempt would exist.
 
-**Ask before real data accumulates.**
+### ASM-005 — cancelling a posted sale · **decided: it is voided**
 
----
+`cancelled` was one word doing two jobs: throwing away a half-typed draft, and
+undoing a completed sale. They differ in the only way that matters — the first
+moves no money and the second moves all of it.
 
-### ASM-005 — cancelling a confirmed order
+They are now two operations. `DiscardSaleDraft` (planned) for the first;
+`VoidSale` for the second, with a full compensating entry, a mandatory reason
+code, and a different permission.
 
-**Default:** impossible. There is no `CancelOrder` command; the `cancel` capability
-returns `COMMAND_NOT_AVAILABLE`.
+### ASM-010 — correcting a posted sale · **decided: void plus replacement**
 
-**Why this default:** the interesting question is not "can it be cancelled" but
-"what happens to a payment already recorded against that debt", and that is a
-policy question. Shipping a cancel command with an invented answer would bake the
-guess into data.
+Was: a compensating `AdjustCustomerDebt`. The balance came out right, but the sale
+document still showed the wrong total, and only the ledger explained the difference
+— in free text.
 
-**Documented but unimplemented:** T-ORDER-003 and T-ORDER-004 in the
-[transition catalog](../03-state-machines/transition-catalog.md).
+Now: `VoidSale` compensates the whole posting, and an optional replacement sale
+carries `replacesSaleId`. The document and the balance agree, the correction names
+which sale was wrong and why, and `AdjustCustomerDebt` is explicitly no longer the
+path (BR-ACCOUNT-010).
 
----
+### ASM-008 — price changes · **decided: snapshots, re-affirmed at posting**
 
-### ASM-007 — who may adjust debt · **CLOSED (Milestone 1)**
-
-**Decided:** `AdjustCustomerDebt` requires the `debt.adjust` permission, held by
-`owner` and `accountant` only (BR-AUTH-006, [ADR-0011](ADR-0011-role-permission-mapping.md)).
-`actorId` is no longer self-asserted: it must match a verified Supabase token
-([ADR-0010](ADR-0010-supabase-jwt-verification.md)).
-
-**Was:** any workspace member, with a self-asserted actor id.
-
-**Why this is the most uncomfortable default in the list:** `AdjustCustomerDebt`
-can move any balance by any amount with only a free-text reason. In a real depot,
-that is an owner-only action. The current model has no roles at all, so there is
-nothing to check against.
-
-**Mitigation until then:** every adjustment is attributable — actor, command,
-timestamp, reason code, and reason text, all on the ledger entry itself. The action
-is not prevented, but it is never anonymous.
-
-The UI design reference (`design.md`) independently assumed this: it lists a
-`permission_denied` state on order entry, payment recording, and debt adjustment,
-and defines separate patterns for owner, sales, warehouse, delivery, and
-accountant roles. The backend now has all five roles.
-
-**What replaces it as highest priority: ASM-017 and ASM-018 below.** The mechanism
-exists; the policy it enforces is still a developer's guess.
+Lines snapshot product name, quantity, unit and unit price. Posting re-affirms the
+snapshot, because a draft may have sat overnight and the numbers finally agreed are
+the ones in the row at the moment of posting (BR-SALE-011).
 
 ---
 
-### ASM-015 / ASM-016 — credit limits and overdue debt
+## The ones that will still hurt if left
 
-**Surfaced by `design.md`, not by this backend.** The UI design reference at the
-repository root specifies an `over_credit_limit` state on order entry, a "debt
-policy warning", and an "overdue amount" plus "risk status" on the customer debt
-screen.
+### ASM-002 — when the receivable arises · **deferred, trigger: first real data**
 
-**None of those exist in the backend.** There is no credit limit, no payment
-terms, and no due date. The ledger records `transactionTime`, so _aging_ is
-computable — "how old is this debt" — but "overdue" needs a policy stating when
-payment was due, and that policy has not been decided.
+**Default:** at posting.
 
-**Do not invent it.** A credit limit set at the wrong threshold refuses real
-sales; an overdue rule with the wrong terms puts customers on a chase list who are
-not late. Both need the depot owner.
+**Why this default:** posting is the only event the slice models, and it is what a
+depot means by "chốt đơn".
 
-**What is already in place:** every ledger entry carries business time, so any
-terms model can be applied retrospectively without a migration.
+**Why it is still the most dangerous entry here:** it is the least reversible. If
+the receivable should really arise at delivery, every `sale_posting` entry in
+production carries the wrong `transactionTime`, and fixing it means back-filling an
+immutable row — which the design forbids. The escape hatch is that
+`LedgerSourceType` is an enum: a `delivery_note` source can be added and posting
+entries stopped, but historical entries stay wrong.
 
----
+**Trigger:** ask before the first depot records real sales. After that the cost
+only grows.
 
-### ASM-017 / ASM-018 — the role table is a guess, and everyone is currently an owner
+### ASM-015 / ASM-016 — credit limits and overdue balances · **deferred**
 
-**ASM-017.** Only `debt.adjust` was specified by Milestone 1. Every other
-role→permission pairing is a least-privilege default a developer chose. The two
-that most need a depot owner's answer:
+`design.md` specifies an `over_credit_limit` state on sale entry, a "debt policy
+warning", and an "overdue amount" plus "risk status" on the customer screen.
+
+**None of those exist in the backend**, and only one has moved: `dueAt` is now a
+nullable field per sale, and BR-SALE-017 fixes what a null means — never overdue.
+That bounds the question without answering it. What payment terms a depot wants,
+what the default term is, and whether there is a credit limit at all are still
+unanswered.
+
+**Do not invent them.** A credit limit at the wrong threshold refuses real sales;
+an overdue rule with the wrong terms puts customers on a chase list who are not
+late. Every ledger entry carries business time, so any terms model can be applied
+retrospectively without a migration — which is why deferring is cheap here and
+guessing is not.
+
+### ASM-017 / ASM-018 — the role table is a guess, and everyone is an owner · **operational**
+
+**ASM-017.** Only `debt.adjust` was specified. Every other role→permission pairing
+is a least-privilege default a developer chose. The three that most need a depot
+owner's answer:
 
 - may a **delivery driver record the cash they collect**? Defaulted to _no_, which
   is safe and quite possibly wrong for how these depots actually work;
-- may **sales confirm orders**? Defaulted to _yes_, because that is the job — but
-  confirmation is the moment debt is created, so it deserves a decision rather
-  than an inference.
+- may **sales post sales**? Defaulted to _yes_, because that is the job — but
+  posting is the moment the receivable is created, so it deserves a decision;
+- may **sales void sales**? Defaulted to _no_. Somebody who can both create and
+  erase a sale can make a load disappear with nothing missing from the balance.
 
-**ASM-018.** Migration `0002` backfills `workspace_memberships.role` as `owner`.
-That was the only choice that could not lock an existing depot out of its own
-data — but it means that immediately after migrating, **every existing member
-holds `debt.adjust`**. The mechanism is in place and the policy is not yet
-applied.
+**ASM-018.** Migration `0002` backfilled `workspace_memberships.role` as `owner` —
+the only choice that could not lock an existing depot out of its own data. It means
+that immediately after migrating, **every existing member holds `debt.adjust` and
+`sale.void`**.
 
-Closing ASM-018 is an operational task, not a code change: assign real roles, then
-verify no unintended owners remain.
-
----
-
-### ASM-010 — correcting a confirmed order
-
-**Default:** a compensating `AdjustCustomerDebt`.
-
-**Consequence, stated plainly:** the order document still shows the wrong total.
-Only the ledger explains the difference. That is honest but coarse, and a depot
-owner reading the order will find it confusing. A proper `AmendOrder` that
-supersedes a confirmed order with a new version is needed.
-
-**Recorded as:** CASE-ORDER-007.
+Closing ASM-018 is not a code change: assign real roles, then verify no unintended
+owners remain.
 
 ---
 
@@ -172,5 +151,13 @@ supersedes a confirmed order with a new version is needed.
 1. Get the answer from the depot owner.
 2. Write an ADR if the decision has architectural consequences.
 3. Update the rule, the case, and the test.
-4. Change the row here to **decided**, linking the ADR. Do not delete the row —
-   the history of what was once uncertain is useful.
+4. Change the row above to **decided**, linking the ADR. Do not delete the row —
+   the history of what was once uncertain is useful, and the next person will
+   otherwise assume it was never in question.
+
+## Related
+
+- [ADR-0012-sale-void-and-replacement.md](ADR-0012-sale-void-and-replacement.md)
+- [../04-business-rules/sale-rules.md](../04-business-rules/sale-rules.md)
+- [../04-business-rules/customer-account-rules.md](../04-business-rules/customer-account-rules.md)
+- [../02-use-cases/use-case-catalog.md](../02-use-cases/use-case-catalog.md)

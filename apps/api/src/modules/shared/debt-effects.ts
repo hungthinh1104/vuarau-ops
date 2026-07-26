@@ -11,7 +11,7 @@ import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 
 /**
  * The single place ledger entries are written and the single place the debt
- * summary is touched (BR-DEBT-002).
+ * summary is touched (BR-ACCOUNT-002).
  *
  * Order and Payment handlers *describe* an effect; only this function appends one.
  * That is what makes "debt changes only through ledger-producing commands"
@@ -57,7 +57,7 @@ export async function applyLedgerEffects(
  * re-summing a customer's whole history on every write.
  *
  * `rebuildCustomerDebtSummary` below recomputes from scratch and must produce an
- * identical answer (BR-DEBT-006) — that equality is asserted by TC-DEBT-002, which
+ * identical answer (BR-ACCOUNT-006) — that equality is asserted by TC-ACCOUNT-002, which
  * is what keeps the fast path honest.
  */
 async function advanceSummary(
@@ -95,9 +95,9 @@ async function advanceSummary(
 }
 
 /**
- * BR-DEBT-006 — discard the projection and recompute it from the entries.
+ * BR-ACCOUNT-006 — discard the projection and recompute it from the entries.
  *
- * This is the recovery procedure for a summary that has drifted (CASE-DEBT-007),
+ * This is the recovery procedure for a summary that has drifted (CASE-ACCOUNT-007),
  * and it is safe by construction: the entries are the truth and the summary is
  * disposable.
  */

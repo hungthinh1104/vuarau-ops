@@ -14,7 +14,7 @@ export type ConfirmOrderInput = {
 /**
  * T-ORDER-002 — the moment a customer starts owing money.
  *
- * Check order matters. The version is checked first (BR-ORDER-006): if another
+ * Check order matters. The version is checked first (BR-SALE-006): if another
  * worker has already confirmed this order, the caller's view is stale, and
  * "someone else changed this" is a more truthful answer than "already confirmed".
  *
@@ -56,7 +56,7 @@ export function decideConfirmOrder({
   }
 
   // Re-validated and re-totalled at confirmation: these rows have been sitting in
-  // the database, and this is the step that turns them into a debt (BR-ORDER-001).
+  // the database, and this is the step that turns them into a debt (BR-SALE-001).
   const lines = validateOrderLines(order.lines, order.currency);
   if (!lines.ok) {
     return err(lines.error.code, lines.error.message, lines.error.details);
@@ -73,7 +73,7 @@ export function decideConfirmOrder({
     confirmedAt: command.occurredAt,
   };
 
-  // BR-ORDER-007 — exactly one entry, for exactly the order total.
+  // BR-SALE-007 — exactly one entry, for exactly the order total.
   const ledgerEntry: LedgerEntryDraft = {
     workspaceId: order.workspaceId,
     customerId: order.customerId,

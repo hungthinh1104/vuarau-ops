@@ -52,7 +52,7 @@ function confirmOrderCommand(expectedVersion: number): ConfirmOrderCommand {
   };
 }
 
-describe("BR-ORDER-001 / TC-ORDER-001", () => {
+describe("BR-SALE-001 / TC-SALE-001", () => {
   it("sets the order total to the sum of its line totals", () => {
     const result = decideCreateOrder({ command: createOrderCommand(), recordedAt: RECORDED_AT });
 
@@ -67,14 +67,14 @@ describe("BR-ORDER-001 / TC-ORDER-001", () => {
   });
 
   it("ignores any total the caller might have believed in", () => {
-    // CASE-ORDER-001 — the client sends lines, never a total. There is no field
+    // CASE-SALE-001 — the client sends lines, never a total. There is no field
     // for one, which is the strongest form this rule can take.
     const result = decideCreateOrder({ command: createOrderCommand(), recordedAt: RECORDED_AT });
     expect(result.ok && result.value.aggregate.totalAmount.amountMinor).toBe(875_000);
   });
 });
 
-describe("BR-ORDER-004 / TC-ORDER-002", () => {
+describe("BR-SALE-004 / TC-SALE-002", () => {
   it("rounds a fractional line total half-up on the minor unit", () => {
     // 1,5 kg at 12 345 ₫/kg = 18 517,5 ₫ exactly — the half-way case.
     const total = calculateLineTotal({ valueScaled: 1_500, unit: "kg" }, vnd(12_345));
@@ -109,7 +109,7 @@ describe("BR-ORDER-004 / TC-ORDER-002", () => {
   });
 });
 
-describe("BR-ORDER-007 / TC-ORDER-003", () => {
+describe("BR-SALE-007 / TC-SALE-003", () => {
   it("produces exactly one debt ledger effect when a valid order is confirmed", () => {
     const result = decideConfirmOrder({
       command: confirmOrderCommand(validDraftOrder.version),
@@ -131,7 +131,7 @@ describe("BR-ORDER-007 / TC-ORDER-003", () => {
   });
 
   it("stamps the ledger entry with the business time, not the recording time", () => {
-    // CASE-ORDER-006 — the sale happened at 05:00 and was typed at 11:00.
+    // CASE-SALE-006 — the sale happened at 05:00 and was typed at 11:00.
     const result = decideConfirmOrder({
       command: confirmOrderCommand(validDraftOrder.version),
       order: validDraftOrder,
@@ -178,7 +178,7 @@ describe("BR-ORDER-007 / TC-ORDER-003", () => {
   });
 });
 
-describe("BR-ORDER-002 / TC-ORDER-006", () => {
+describe("BR-SALE-002 / TC-SALE-006", () => {
   it("refuses to confirm an order with no lines", () => {
     const result = decideConfirmOrder({
       command: confirmOrderCommand(emptyDraftOrder.version),
@@ -206,7 +206,7 @@ describe("BR-ORDER-002 / TC-ORDER-006", () => {
   });
 });
 
-describe("BR-ORDER-003 / TC-ORDER-007", () => {
+describe("BR-SALE-003 / TC-SALE-007", () => {
   it("refuses a line with zero quantity and says which line", () => {
     const result = decideCreateOrder({
       command: createOrderCommand({ lines: [invalidOrderLineInput] }),
@@ -262,9 +262,9 @@ describe("BR-ORDER-003 / TC-ORDER-007", () => {
   });
 });
 
-describe("BR-ORDER-005 / TC-ORDER-008", () => {
+describe("BR-SALE-005 / TC-SALE-008", () => {
   it("refuses to confirm an order that is already confirmed", () => {
-    // CASE-ORDER-003 — a deliberate second confirmation, not a retry. A retry
+    // CASE-SALE-003 — a deliberate second confirmation, not a retry. A retry
     // never reaches the domain; the idempotency layer answers it (BR-COMMAND-001).
     const result = decideConfirmOrder({
       command: confirmOrderCommand(confirmedOrder.version),
@@ -288,9 +288,9 @@ describe("BR-ORDER-005 / TC-ORDER-008", () => {
   });
 });
 
-describe("BR-ORDER-006 / TC-ORDER-005", () => {
+describe("BR-SALE-006 / TC-SALE-005", () => {
   it("refuses a confirmation carrying a stale version, reporting both versions", () => {
-    // CASE-ORDER-004 — phone B still believes the order is at version 1.
+    // CASE-SALE-004 — phone B still believes the order is at version 1.
     const result = decideConfirmOrder({
       command: confirmOrderCommand(1),
       order: { ...validDraftOrder, version: 2 },
@@ -306,7 +306,7 @@ describe("BR-ORDER-006 / TC-ORDER-005", () => {
   });
 });
 
-describe("BR-ORDER-009 / TC-ORDER-010", () => {
+describe("BR-SALE-009 / TC-SALE-010", () => {
   it("refuses a line whose currency differs from the order's", () => {
     const result = decideCreateOrder({
       command: createOrderCommand({

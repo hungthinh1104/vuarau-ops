@@ -26,31 +26,53 @@ resolved to, or the command is refused with `ACTOR_IMPERSONATION_DENIED`
 required permission per command is listed in
 [authorization-rules.md](../04-business-rules/authorization-rules.md).
 
-`expectedVersion` is mandatory on `ConfirmOrder` and `ReverseCustomerPayment`
-(they change existing aggregates) and absent from the four creation commands.
+`expectedVersion` is mandatory on `PostSale` and `ReverseCustomerPayment`, which
+change existing aggregates, and absent from the creation commands.
 
-## The six commands
+It is also absent from **`VoidSale`**, which is the interesting case: a posted sale
+is immutable, so its version never moves again, and there is no lost update to
+guard against. Demanding a token the caller cannot affect would be theatre.
+Concurrent voids are serialised by a row lock and refused by `UNIQUE (sale_id)` on
+`sale_voids` (BR-SALE-013).
 
-| Command                  | tRPC procedure    | Payload                                                                     | Versioned | Returns                  | Ledger effect |
-| ------------------------ | ----------------- | --------------------------------------------------------------------------- | --------- | ------------------------ | ------------- |
-| `CreateCustomer`         | `customer.create` | `customerId`, `displayName`, `phone?`, `note?`                              | no        | `CustomerDto`            | none          |
-| `CreateOrder`            | `order.create`    | `orderId`, `customerId`, `currency`, `lines[]`, `note?`                     | no        | `OrderDto`               | none          |
-| `ConfirmOrder`           | `order.confirm`   | `orderId`                                                                   | **yes**   | `OrderDto`               | `+total`      |
-| `RecordCustomerPayment`  | `payment.record`  | `paymentId`, `customerId`, `amount`, `method`, `payerName?`, `note?`        | no        | `PaymentDto`             | `−amount`     |
-| `ReverseCustomerPayment` | `payment.reverse` | `paymentId`, `reversalId`, `amount`, `reason`                               | **yes**   | `PaymentDto`             | `+amount`     |
-| `AdjustCustomerDebt`     | `debt.adjust`     | `adjustmentId`, `customerId`, `direction`, `amount`, `reasonCode`, `reason` | no        | `CustomerDebtSummaryDto` | `±amount`     |
+## The seven commands
 
-Queries: `order.byId`, `payment.byId`, `debt.summary`, `debt.ledger`, `audit.byAggregate`.
+| Command                  | tRPC procedure     | Payload                                                                             | Versioned | Returns                     | Account effect |
+| ------------------------ | ------------------ | ----------------------------------------------------------------------------------- | --------- | --------------------------- | -------------- |
+| `CreateCustomer`         | `customer.create`  | `customerId`, `displayName`, `phone?`, `note?`                                      | no        | `CustomerDto`               | none           |
+| `CreateSaleDraft`        | `sale.createDraft` | `saleId`, `customerId`, `currency`, `lines[]`, `note?`, `dueAt?`, `replacesSaleId?` | no        | `SaleDto`                   | **none**       |
+| `PostSale`               | `sale.post`        | `saleId`                                                                            | **yes**   | `SaleDto`                   | `+total`       |
+| `VoidSale`               | `sale.void`        | `saleVoidId`, `saleId`, `reasonCode`, `reason`                                      | no        | `SaleDto`                   | `−total`       |
+| `RecordCustomerPayment`  | `payment.record`   | `paymentId`, `customerId`, `amount`, `method`, `payerName?`, `note?`                | no        | `PaymentDto`                | `−amount`      |
+| `ReverseCustomerPayment` | `payment.reverse`  | `paymentId`, `reversalId`, `amount`, `reason`                                       | **yes**   | `PaymentDto`                | `+amount`      |
+| `AdjustCustomerDebt`     | `debt.adjust`      | `adjustmentId`, `customerId`, `direction`, `amount`, `reasonCode`, `reason`         | no        | `CustomerAccountBalanceDto` | `±amount`      |
+
+There is no `updateEntity`, no `updateSaleStatus`, no `patchCustomerDebt`, and no
+`setPaymentStatus`. There is also no `CancelSale`: a draft is discarded and a
+posted sale is voided, and those are different events with different money
+([ADR-0012](../09-decisions/ADR-0012-sale-void-and-replacement.md)).
+
+Queries: `sale.byId`, `payment.byId`, `account.balance`, `account.entries`,
+`audit.byAggregate`. Reads are authorized exactly like commands (BR-AUTH-001).
+
+### Notable payload absences
+
+| Command    | What it does **not** take | Why                                                                      |
+| ---------- | ------------------------- | ------------------------------------------------------------------------ |
+| `PostSale` | lines, total              | Posting commits what is stored; a stale screen must not set the total    |
+| `VoidSale` | amount                    | Compensation comes from the stored posted total, so it cannot be steered |
+| `VoidSale` | `expectedVersion`         | A posted sale's version never moves                                      |
 
 ## Client-supplied identifiers
 
 Every command that creates something carries the new id in its payload:
-`customerId`, `orderId`, `lineId`, `paymentId`, `reversalId`, `adjustmentId`.
+`customerId`, `saleId`, `lineId`, `paymentId`, `reversalId`, `saleVoidId`,
+`adjustmentId`.
 
 Three reasons, in order of importance:
 
 1. **Offline capture.** A worker with no signal must be able to create a customer
-   and immediately attach an order to them. That requires an id before the server
+   and immediately attach a sale to them. That requires an id before the server
    has seen either.
 2. **Retry safety.** A replay carries the same ids, so a duplicate is
    structurally impossible rather than merely detected.
@@ -82,7 +104,7 @@ Every state-changing command runs the same eleven steps
 6. load the aggregate (`SELECT … FOR UPDATE`)
 7. check `expectedVersion` → `*_VERSION_CONFLICT`
 8. call the pure domain decision function
-9. persist: aggregate, ledger entries, summary, audit record
+9. persist: aggregate, account entries, balance, audit record
 10. write the command receipt
 11. **commit**, then map to a DTO
 
@@ -93,4 +115,4 @@ leaves no partial effect.
 
 - [error-contract.md](error-contract.md)
 - [capabilities.md](capabilities.md)
-- [../04-business-rules/debt-rules.md](../04-business-rules/debt-rules.md)
+- [../04-business-rules/customer-account-rules.md](../04-business-rules/customer-account-rules.md)

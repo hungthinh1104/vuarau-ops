@@ -62,7 +62,7 @@ function domainErrorOf(error: unknown): DomainError {
   return cause!.domainError!;
 }
 
-describe("UC-ORDER-001 / TC-ORDER-013 — order procedures", () => {
+describe("UC-ORDER-001 / TC-SALE-013 — order procedures", () => {
   it("returns an OrderDto that satisfies the published schema", async () => {
     const created = await caller.order.create({
       ...envelope("contract-order-create"),
@@ -203,7 +203,7 @@ describe("UC-PAYMENT-001 / TC-PAYMENT-012 — payment procedures", () => {
   });
 });
 
-describe("UC-DEBT-001 / TC-DEBT-008 — debt procedures", () => {
+describe("UC-ACCOUNT-002 / TC-ACCOUNT-008 — debt procedures", () => {
   it("returns a summary that satisfies the published schema", async () => {
     const summary = await caller.debt.summary({
       workspaceId: WORKSPACE_ID,

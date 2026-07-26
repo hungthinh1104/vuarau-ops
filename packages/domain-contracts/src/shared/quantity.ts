@@ -9,7 +9,7 @@ import { z } from "zod";
  * `{ valueScaled: 1500, unit: "kg" }`.
  *
  * Line total arithmetic and its rounding rule live in
- * `@vuarau/domain-kernel/shared/quantity` (BR-ORDER-004).
+ * `@vuarau/domain-kernel/shared/quantity` (BR-SALE-004).
  */
 
 export const QUANTITY_SCALE = 1000;
@@ -42,7 +42,7 @@ export const UNIT_LABEL_VI: Readonly<Record<Unit, string>> = {
  */
 export const quantitySchema = z.object({
   /**
-   * Positivity is enforced by the domain (BR-ORDER-003), not here, so that a
+   * Positivity is enforced by the domain (BR-SALE-003), not here, so that a
    * zero-quantity line is refused with `ORDER_LINE_INVALID` and the index of the
    * line that is wrong — not a generic schema error.
    */

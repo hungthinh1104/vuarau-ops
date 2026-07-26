@@ -10,10 +10,10 @@ import type { CustomerDebtSummary } from "../shared/state.ts";
 import { addMoney, zeroMoney } from "../shared/money.ts";
 
 /**
- * BR-DEBT-001 — the balance *is* this sum. Nothing else computes one.
+ * BR-ACCOUNT-001 — the balance *is* this sum. Nothing else computes one.
  *
  * The same function serves the incremental path and the rebuild path
- * (BR-DEBT-006), which is what makes "rebuild produces an identical answer"
+ * (BR-ACCOUNT-006), which is what makes "rebuild produces an identical answer"
  * true by construction rather than by discipline.
  */
 export function calculateDebtBalance(

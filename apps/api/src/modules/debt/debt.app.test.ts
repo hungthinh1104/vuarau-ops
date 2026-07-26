@@ -55,7 +55,7 @@ const adjustInput = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-/** Walks the customer through the whole casebook ledger in docs/05-casebook/debt-cases.md. */
+/** Walks the customer through the whole casebook ledger in docs/05-casebook/customer-account-cases.md. */
 async function runCasebookLedger(): Promise<void> {
   await createOrder(harness.ctx, {
     commandId: COMMAND_ID,
@@ -97,7 +97,7 @@ async function runCasebookLedger(): Promise<void> {
   });
 }
 
-describe("BR-DEBT-001 / TC-DEBT-001", () => {
+describe("BR-ACCOUNT-001 / TC-ACCOUNT-001", () => {
   it("keeps the summary equal to the sum of entries through the whole casebook", async () => {
     await runCasebookLedger();
 
@@ -119,9 +119,9 @@ describe("BR-DEBT-001 / TC-DEBT-001", () => {
   });
 });
 
-describe("BR-DEBT-006 / TC-DEBT-002", () => {
+describe("BR-ACCOUNT-006 / TC-ACCOUNT-002", () => {
   it("rebuilds a stale projection from the entries", async () => {
-    // CASE-DEBT-007 — a summary row that has drifted, for whatever reason.
+    // CASE-ACCOUNT-007 — a summary row that has drifted, for whatever reason.
     await runCasebookLedger();
 
     harness.db.overwriteSummary({
@@ -163,7 +163,7 @@ describe("BR-DEBT-006 / TC-DEBT-002", () => {
   });
 });
 
-describe("BR-DEBT-004 / TC-DEBT-004", () => {
+describe("BR-ACCOUNT-004 / TC-ACCOUNT-004", () => {
   it("attributes every ledger entry to an actor and a command", async () => {
     await runCasebookLedger();
     await adjustCustomerDebt(harness.ctx, adjustInput());
@@ -184,9 +184,9 @@ describe("BR-DEBT-004 / TC-DEBT-004", () => {
   });
 });
 
-describe("BR-DEBT-002 / TC-DEBT-006", () => {
+describe("BR-ACCOUNT-002 / TC-ACCOUNT-006", () => {
   it("moves the balance only through ledger-producing commands", async () => {
-    // CASE-DEBT-004 and CASE-DEBT-005.
+    // CASE-ACCOUNT-004 and CASE-ACCOUNT-005.
     const increased = await adjustCustomerDebt(harness.ctx, adjustInput());
     expect(increased.ok).toBe(true);
     if (!increased.ok) return;
@@ -254,9 +254,9 @@ describe("BR-DEBT-002 / TC-DEBT-006", () => {
   });
 });
 
-describe("BR-DEBT-003 / TC-DEBT-003", () => {
+describe("BR-ACCOUNT-003 / TC-ACCOUNT-003", () => {
   it("refuses an adjustment with a blank reason and writes nothing", async () => {
-    // CASE-DEBT-006.
+    // CASE-ACCOUNT-006.
     const result = await adjustCustomerDebt(
       harness.ctx,
       adjustInput({ payload: { ...adjustInput().payload, reason: "   " } }),
@@ -270,7 +270,7 @@ describe("BR-DEBT-003 / TC-DEBT-003", () => {
   });
 });
 
-describe("BR-DEBT-005 / TC-DEBT-005", () => {
+describe("BR-ACCOUNT-005 / TC-ACCOUNT-005", () => {
   it("never rewrites an existing entry when debt changes again", async () => {
     await runCasebookLedger();
     const entriesAfterPayment = structuredClone([

@@ -6,7 +6,7 @@ import { workspaces } from "./workspace.ts";
 
 /**
  * `status` and `version` are the only mutable columns; a confirmed order is never
- * deleted (BR-ORDER-008), enforced by a trigger as well as by the repository
+ * deleted (BR-SALE-008), enforced by a trigger as well as by the repository
  * having no delete method.
  */
 export const orders = pgTable(
@@ -21,7 +21,7 @@ export const orders = pgTable(
       .references(() => customers.id),
     status: orderStatusEnum("status").notNull(),
     currency: currencyCodeEnum("currency").notNull(),
-    /** Always the sum of the line totals (BR-ORDER-001); never client-supplied. */
+    /** Always the sum of the line totals (BR-SALE-001); never client-supplied. */
     totalAmountMinor: bigint("total_amount_minor", { mode: "number" }).notNull(),
     note: text("note"),
     version: integer("version").notNull(),
@@ -61,7 +61,7 @@ export const orderLines = pgTable(
       .references(() => products.id),
     /** Snapshot: later catalogue edits must not change a confirmed debt (ASM-008). */
     productName: text("product_name").notNull(),
-    /** Integer milli-units, scale 1000: 1,5 kg is 1500 (BR-ORDER-004). */
+    /** Integer milli-units, scale 1000: 1,5 kg is 1500 (BR-SALE-004). */
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
     unitPriceMinor: bigint("unit_price_minor", { mode: "number" }).notNull(),

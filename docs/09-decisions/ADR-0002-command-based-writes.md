@@ -4,16 +4,16 @@
 
 ## Context
 
-The obvious API for an order with a status is `PATCH /orders/:id { status }`. It
-is also how a depot ends up with an order confirmed twice, a payment marked
+The obvious API for a sale with a status is `PATCH /sales/:id { status }`. It
+is also how a depot ends up with a sale posted twice, a payment marked
 reversed with no compensating ledger entry, and a debt balance nobody can explain.
 
 Three properties this system needs are impossible to attach to a generic update:
 
 1. **Idempotency.** A retry token belongs to an _intent_, not to a field.
-2. **Auditability.** "Who confirmed this order and why" cannot be reconstructed
-   from "someone set `status` to `confirmed`".
-3. **Effects.** Confirming an order must append a ledger entry. A field setter has
+2. **Auditability.** "Who posted this sale and why" cannot be reconstructed
+   from "someone set `status` to `posted`".
+3. **Effects.** Posting a sale must append an account entry. A field setter has
    nowhere to put that requirement, so it ends up in a trigger, a hook, or nowhere.
 
 ## Decision
@@ -22,20 +22,20 @@ Every write is a named business command carrying a fixed envelope: `commandId`,
 `idempotencyKey`, `expectedVersion?`, `workspaceId`, `actorId`, `occurredAt`,
 `payload`.
 
-Six commands exist. `updateEntity`, `updateOrderStatus`, `patchCustomerDebt`, and
+Seven commands exist. `updateEntity`, `updateSaleStatus`, `patchCustomerDebt`, and
 `setPaymentStatus` do not exist and are not to be added.
 
-Lifecycle values are never arguments. `ConfirmOrder` takes no status — the
+Lifecycle values are never arguments. `PostSale` takes no status — the
 transition _is_ the command.
 
 ## Alternatives considered
 
-| Alternative                              | Why not                                                                                                                                                                                                   |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| REST CRUD with PATCH                     | See context. The bugs it enables are exactly the P0 ones.                                                                                                                                                 |
-| CRUD plus a service layer that validates | The generic endpoint remains reachable, and the validation is a guard around an operation that should not be expressible.                                                                                 |
-| Full CQRS with an event store            | Real benefits, large cost. The debt ledger already gives an append-only audit trail where it matters; making _everything_ event-sourced buys replay for master data nobody needs to replay. See ADR-0004. |
-| GraphQL mutations                        | A naming convention, not a mechanism. The envelope discipline would still have to be added, and nothing would enforce it.                                                                                 |
+| Alternative                              | Why not                                                                                                                                                                                                               |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| REST CRUD with PATCH                     | See context. The bugs it enables are exactly the P0 ones.                                                                                                                                                             |
+| CRUD plus a service layer that validates | The generic endpoint remains reachable, and the validation is a guard around an operation that should not be expressible.                                                                                             |
+| Full CQRS with an event store            | Real benefits, large cost. The customer account ledger already gives an append-only audit trail where it matters; making _everything_ event-sourced buys replay for master data nobody needs to replay. See ADR-0004. |
+| GraphQL mutations                        | A naming convention, not a mechanism. The envelope discipline would still have to be added, and nothing would enforce it.                                                                                             |
 
 ## Consequences
 

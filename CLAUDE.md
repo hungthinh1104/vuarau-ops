@@ -77,20 +77,41 @@ docker run -d --name vuarau-ops-dev-pg \
 export DATABASE_URL=postgres://postgres:postgres@localhost:55432/vuarau_test
 ```
 
-## The six commands
+## The seven commands
 
-`CreateCustomer` · `CreateOrder` · `ConfirmOrder` · `RecordCustomerPayment` ·
-`ReverseCustomerPayment` · `AdjustCustomerDebt`
+`CreateCustomer` · `CreateSaleDraft` · `PostSale` · `VoidSale` ·
+`RecordCustomerPayment` · `ReverseCustomerPayment` · `AdjustCustomerDebt`
 
-There is no `updateEntity`, `updateOrderStatus`, `patchCustomerDebt`, or
-`setPaymentStatus`, and none is to be added. Every command carries
-`commandId`, `idempotencyKey`, `workspaceId`, `actorId`, `occurredAt`, and
+There is no `updateEntity`, `updateSaleStatus`, `patchCustomerDebt`,
+`setPaymentStatus`, or `CancelSale`, and none is to be added. Every command
+carries `commandId`, `idempotencyKey`, `workspaceId`, `actorId`, `occurredAt`, and
 `expectedVersion` when it changes an existing aggregate.
 
 Each also declares one required permission. `AdjustCustomerDebt` needs
-`debt.adjust`, held by `owner` and `accountant` only. The role table is one
-literal in `packages/domain-contracts/src/shared/authorization.ts` — a table, not
-a policy engine ([ADR-0011](docs/09-decisions/ADR-0011-role-permission-mapping.md)).
+`debt.adjust` and `VoidSale` needs `sale.void`, both held by `owner` and
+`accountant` only. The role table is one literal in
+`packages/domain-contracts/src/shared/authorization.ts` — a table, not a policy
+engine ([ADR-0011](docs/09-decisions/ADR-0011-role-permission-mapping.md)).
+
+## Sale, not order
+
+A **sale** is a completed transaction: goods handed over, price agreed. Not a
+request, not a delivery ([ADR-0013](docs/09-decisions/ADR-0013-sale-not-order.md)).
+
+```
+stored lifecycle    draft → posted            posted is terminal and immutable
+derived state       active | voided           from the presence of a sale_voids row
+correction          VoidSale + optional replacement sale, never an edit
+```
+
+`AdjustCustomerDebt` is **not** how a wrong sale is corrected. It is for movements
+with no underlying document — opening balance, write-off, dispute settlement,
+migration correction (BR-ACCOUNT-010,
+[ADR-0012](docs/09-decisions/ADR-0012-sale-void-and-replacement.md)).
+
+The debt ledger is the **customer account ledger**; the debt summary is the
+**customer account balance**; a negative balance is **customer credit**, never a
+negative debt.
 
 ## Documentation rules
 
@@ -114,18 +135,21 @@ Docs are the specification, not a description written afterwards
 
 ## Where to look
 
-| Question                          | Document                                                                                                       |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| What is this product?             | [docs/00-product/product-brief.md](docs/00-product/product-brief.md)                                           |
-| What is deliberately excluded?    | [docs/00-product/scope.md](docs/00-product/scope.md)                                                           |
-| What does "công nợ" mean in code? | [docs/01-domain/glossary.md](docs/01-domain/glossary.md)                                                       |
-| What are the rules?               | [docs/04-business-rules/](docs/04-business-rules/)                                                             |
-| Which error code do I return?     | [docs/04-business-rules/error-code-catalog.md](docs/04-business-rules/error-code-catalog.md)                   |
-| Why is the ledger append-only?    | [docs/09-decisions/ADR-0004-append-only-debt-ledger.md](docs/09-decisions/ADR-0004-append-only-debt-ledger.md) |
-| Which timestamp do I use?         | [docs/07-data/time-semantics.md](docs/07-data/time-semantics.md)                                               |
-| How do I make a change?           | [docs/10-ai-coding/CHANGE_PROTOCOL.md](docs/10-ai-coding/CHANGE_PROTOCOL.md)                                   |
-| What must a review catch?         | [docs/10-ai-coding/REVIEW_CHECKLIST.md](docs/10-ai-coding/REVIEW_CHECKLIST.md)                                 |
-| What is still undecided?          | [docs/09-decisions/decision-backlog.md](docs/09-decisions/decision-backlog.md)                                 |
+| Question                                             | Document                                                                                                           |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| What is this product?                                | [docs/00-product/product-brief.md](docs/00-product/product-brief.md)                                               |
+| What is deliberately excluded?                       | [docs/00-product/scope.md](docs/00-product/scope.md)                                                               |
+| What does "công nợ" mean in code?                    | [docs/01-domain/glossary.md](docs/01-domain/glossary.md)                                                           |
+| Which use cases exist, and which are only specified? | [docs/02-use-cases/use-case-catalog.md](docs/02-use-cases/use-case-catalog.md)                                     |
+| What are the rules?                                  | [docs/04-business-rules/](docs/04-business-rules/sale-rules.md)                                                    |
+| Which error code do I return?                        | [docs/04-business-rules/error-code-catalog.md](docs/04-business-rules/error-code-catalog.md)                       |
+| Why is the ledger append-only?                       | [docs/09-decisions/ADR-0004-append-only-debt-ledger.md](docs/09-decisions/ADR-0004-append-only-debt-ledger.md)     |
+| How is a wrong sale corrected?                       | [docs/09-decisions/ADR-0012-sale-void-and-replacement.md](docs/09-decisions/ADR-0012-sale-void-and-replacement.md) |
+| Which timestamp do I use?                            | [docs/07-data/time-semantics.md](docs/07-data/time-semantics.md)                                                   |
+| What must the UI be able to render?                  | [docs/06-api-contracts/ui-state-catalog.md](docs/06-api-contracts/ui-state-catalog.md)                             |
+| How do I make a change?                              | [docs/10-ai-coding/CHANGE_PROTOCOL.md](docs/10-ai-coding/CHANGE_PROTOCOL.md)                                       |
+| What must a review catch?                            | [docs/10-ai-coding/REVIEW_CHECKLIST.md](docs/10-ai-coding/REVIEW_CHECKLIST.md)                                     |
+| What is still undecided?                             | [docs/09-decisions/decision-backlog.md](docs/09-decisions/decision-backlog.md)                                     |
 
 ## If you are about to guess a business policy — don't
 

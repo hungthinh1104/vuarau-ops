@@ -71,8 +71,8 @@ export async function listCustomerLedger(
 }
 
 /**
- * BR-DEBT-006 — the operational recovery procedure for a drifted projection
- * (CASE-DEBT-007). Safe by construction: the entries are the truth and the
+ * BR-ACCOUNT-006 — the operational recovery procedure for a drifted projection
+ * (CASE-ACCOUNT-007). Safe by construction: the entries are the truth and the
  * summary is disposable.
  *
  * Deliberately not exposed as a tRPC procedure. It is a maintenance operation an

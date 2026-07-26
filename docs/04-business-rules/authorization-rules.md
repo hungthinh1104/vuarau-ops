@@ -67,19 +67,40 @@ the caller's membership, using the static table in
 `packages/domain-contracts/src/shared/authorization.ts`
 ([ADR-0011](../09-decisions/ADR-0011-role-permission-mapping.md)).
 
-| Command / read                | Permission        | Roles                    |
-| ----------------------------- | ----------------- | ------------------------ |
-| `CreateCustomer`              | `customer.create` | owner, sales             |
-| `CreateOrder`                 | `order.create`    | owner, sales             |
-| `ConfirmOrder`                | `order.confirm`   | owner, sales             |
-| `RecordCustomerPayment`       | `payment.record`  | owner, accountant, sales |
-| `ReverseCustomerPayment`      | `payment.reverse` | owner, accountant        |
-| `AdjustCustomerDebt`          | `debt.adjust`     | **owner, accountant**    |
-| `debt.summary`, `debt.ledger` | `debt.read`       | owner, accountant, sales |
-| order reads                   | `order.read`      | all roles                |
+| Command / read                       | Permission            | Roles                    | Status      |
+| ------------------------------------ | --------------------- | ------------------------ | ----------- |
+| `CreateCustomer`                     | `customer.create`     | owner, sales             | implemented |
+| `UpdateCustomer`                     | `customer.update`     | owner, sales             | planned     |
+| `DeactivateCustomer`                 | `customer.deactivate` | **owner**                | planned     |
+| customer reads                       | `customer.read`       | all roles                | planned     |
+| `CreateSaleDraft`                    | `sale.create`         | owner, sales             | implemented |
+| `EditSaleDraft`, `DiscardSaleDraft`  | `sale.create`         | owner, sales             | planned     |
+| `PostSale`                           | `sale.post`           | owner, sales             | implemented |
+| `VoidSale`                           | `sale.void`           | **owner, accountant**    | implemented |
+| sale reads                           | `sale.read`           | all roles                | implemented |
+| `RecordCustomerPayment`              | `payment.record`      | owner, accountant, sales | implemented |
+| `ReverseCustomerPayment`             | `payment.reverse`     | owner, accountant        | implemented |
+| payment reads                        | `payment.read`        | owner, accountant, sales | implemented |
+| `AdjustCustomerDebt`                 | `debt.adjust`         | **owner, accountant**    | implemented |
+| `account.balance`, `account.entries` | `debt.read`           | owner, accountant, sales | implemented |
+| audit reads                          | `audit.read`          | owner, accountant        | planned     |
+| `RevokeMembership`                   | `workspace.manage`    | **owner**                | planned     |
 
 The refusal names the permission and the role, so the answer to "why can't I do
 this" does not require reading the source.
+
+### Why `sale.void` is not `sale.post`
+
+Posting creates a receivable; voiding removes one. They are opposite directions and
+they get different permissions.
+
+`sales` may post — that is the job. `sales` may **not** void, because a worker who
+can both create and erase a sale can make a load disappear from the record
+entirely, and no reviewer looking at the balance would see anything missing. Void
+sits with `owner` and `accountant`, next to `debt.adjust`, because both are ways of
+moving money without a new trade happening.
+
+This is a default, not a settled policy — see ASM-017.
 
 ---
 
@@ -105,23 +126,41 @@ outcome, not a gap.
 business document. It is the most abusable operation in the system, and it is now
 the most restricted.
 
-`CustomerDebtSummaryDto.capabilities.adjust` reports the same answer, computed by
-the same `roleHasPermission` call the guard uses — so a greyed-out button and a
+`CustomerAccountBalanceDto.capabilities.adjust` reports the same answer, computed
+by the same `roleHasPermission` call the guard uses — so a greyed-out button and a
 server refusal cannot disagree ([ADR-0003](../09-decisions/ADR-0003-backend-owns-business-rules.md)).
+
+Since the sale-void path landed, `AdjustCustomerDebt` is also **no longer the way
+to correct a wrong sale** (BR-ACCOUNT-010). That narrows what it is for, which
+narrows what an abuse of it could plausibly be explained as.
+
+---
+
+### BR-AUTH-007 — A workspace always keeps at least one active owner
+
+**Risk:** P1 · **Code:** `WORKSPACE_LAST_OWNER` · **Planned tests:** TC-AUTH-013, TC-AUTH-014 · **Status: planned**
+
+`RevokeMembership` refuses when the target is the only remaining active `owner`.
+
+A depot that revokes its last owner has locked itself out of its own account book,
+and there is no self-service remedy: every command that could restore access needs
+`workspace.manage`, which only an owner holds. The guard costs one query; the
+failure costs a support intervention against a production database.
 
 ---
 
 ## What is still open
 
-| Question                                        | State                                           | Reference                                               |
-| ----------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------- |
-| Is the role→permission mapping right?           | Least-privilege defaults, unconfirmed           | ASM-017                                                 |
-| Existing memberships were backfilled as `owner` | Deliberate, needs a review pass                 | ASM-018                                                 |
-| Row-level security in Postgres                  | Not implemented; isolation is application-layer | ASM-009                                                 |
-| Do large adjustments need a second approver?    | Undecided                                       | [decision backlog](../09-decisions/decision-backlog.md) |
+| Question                                                      | State                                           | Reference |
+| ------------------------------------------------------------- | ----------------------------------------------- | --------- |
+| Is the role→permission mapping right?                         | Least-privilege defaults, unconfirmed           | ASM-017   |
+| May `sales` post sales, given posting creates the receivable? | Defaulted to yes                                | ASM-017   |
+| Existing memberships were backfilled as `owner`               | Deliberate, needs an operational pass           | ASM-018   |
+| Row-level security in Postgres                                | Not implemented; isolation is application-layer | ASM-009   |
+| Do large adjustments need a second approver?                  | Undecided                                       | ASM-020   |
 
 ## Related
 
 - [error-code-catalog.md](error-code-catalog.md)
-- [../02-use-cases/UC-AUTH-001-authenticate-and-authorize.md](../02-use-cases/UC-AUTH-001-authenticate-and-authorize.md)
+- [../02-use-cases/UC-AUTH-001-authenticate-and-authorize.md](../02-use-cases/UC-AUTH-001-authenticate-and-authorize.md), [../02-use-cases/platform-use-cases.md](../02-use-cases/platform-use-cases.md)
 - [../06-api-contracts/capabilities.md](../06-api-contracts/capabilities.md)

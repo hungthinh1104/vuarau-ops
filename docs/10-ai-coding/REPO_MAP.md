@@ -9,7 +9,7 @@ apps/
     src/
       modules/                  one folder per bounded module
         customer/               handlers + DTO mappers
-        order/
+        sale/
         payment/
         debt/
         shared/                 command pipeline, idempotency, authorization

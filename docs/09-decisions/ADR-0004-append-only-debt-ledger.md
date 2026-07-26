@@ -1,4 +1,4 @@
-# ADR-0004 — Append-only debt ledger with a rebuildable summary
+# ADR-0004 — Append-only customer account ledger with a rebuildable summary
 
 **Status:** accepted · 2026-07-26
 
@@ -14,10 +14,10 @@ eventually is — there is nothing to recompute it from.
 
 ## Decision
 
-1. `debt_ledger_entries` is the source of truth. Append-only: no `UPDATE`, no
+1. `customer_account_entries` is the source of truth. Append-only: no `UPDATE`, no
    `DELETE`, enforced by repository shape _and_ by a Postgres trigger.
 2. Balance = `SUM(amount_minor)` over a customer's entries.
-3. `customer_debt_summaries` caches that sum, maintained **inside the same
+3. `customer_account_balances` caches that sum, maintained **inside the same
    transaction** as the entry that moves it, and rebuildable from the entries at
    any time.
 4. Corrections are compensating entries. Reversing a payment appends `+amount`

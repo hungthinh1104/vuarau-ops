@@ -45,7 +45,7 @@ describe.skipIf(!hasDatabase)("database append-only guarantees", () => {
     return id;
   }
 
-  describe("BR-DEBT-005 / TC-DEBT-005", () => {
+  describe("BR-ACCOUNT-005 / TC-ACCOUNT-005", () => {
     it("refuses an UPDATE against a ledger entry", async () => {
       const id = await insertLedgerEntry(crypto.randomUUID(), 100_000);
 
@@ -86,7 +86,7 @@ describe.skipIf(!hasDatabase)("database append-only guarantees", () => {
     });
   });
 
-  describe("BR-ORDER-007 / TC-ORDER-012", () => {
+  describe("BR-SALE-007 / TC-SALE-012", () => {
     it("makes a second ledger entry for the same source impossible", async () => {
       // The structural backstop behind "confirming twice must not double a debt":
       // even if a code path slipped past idempotency, the constraint refuses.
@@ -98,7 +98,7 @@ describe.skipIf(!hasDatabase)("database append-only guarantees", () => {
     });
   });
 
-  describe("BR-ORDER-008 / TC-ORDER-009", () => {
+  describe("BR-SALE-008 / TC-SALE-009", () => {
     it("refuses a DELETE against an order", async () => {
       const orderId = crypto.randomUUID();
       await ctx.database.db.insert(orders).values({

@@ -10,11 +10,11 @@ term appears in a use case or rule, it means what it means here.
 | vựa                | wholesale depot         | `Workspace`                          | One depot = one workspace = one tenant boundary |
 | chủ vựa            | depot owner             | `Actor` (role)                       | Roles are not modelled yet — see ASM-007        |
 | khách hàng         | customer                | `Customer`                           | The party that owes money                       |
-| đơn hàng           | order                   | `Order`                              | A sale to one customer                          |
-| nháp               | draft                   | `OrderStatus.draft`                  | Being typed; changes nothing financially        |
-| chốt đơn           | confirm the order       | `ConfirmOrder` command               | The moment debt is created                      |
-| công nợ            | debt owed by a customer | debt ledger balance                  | Never a stored editable number                  |
-| sổ nợ              | debt book               | `debt_ledger_entries`                | Append-only, the source of truth                |
+| đơn hàng           | sale                    | `Sale`                               | One completed sale to one customer              |
+| nháp               | draft                   | `SaleStatus.draft`                   | Being typed; changes nothing financially        |
+| chốt đơn           | post the sale           | `PostSale` command                   | The moment the receivable is created            |
+| công nợ            | debt owed by a customer | customer account ledger balance      | Never a stored editable number                  |
+| sổ nợ              | debt book               | `customer_account_entries`           | Append-only, the source of truth                |
 | thanh toán         | payment                 | `Payment`                            | Money received from or for a customer           |
 | trả một phần       | partial payment         | a `Payment` smaller than the balance | Not a distinct type                             |
 | huỷ thanh toán     | reverse a payment       | `ReverseCustomerPayment`             | Compensates; never deletes                      |
@@ -41,7 +41,7 @@ Units are never converted into one another. A depot prices per unit as sold.
 | Term                   | Meaning here                                                                                                                                     |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Command**            | A named business intent that changes state. Carries actor, workspace, idempotency key, and business occurrence time. There is no generic update. |
-| **Aggregate**          | A consistency boundary loaded, decided upon, and saved as a unit: `Order`, `Payment`, `Customer`.                                                |
+| **Aggregate**          | A consistency boundary loaded, decided upon, and saved as a unit: `Sale`, `Payment`, `Customer`.                                                 |
 | **Ledger entry**       | One immutable, signed movement of customer debt. Positive increases what the customer owes.                                                      |
 | **Debt summary**       | A projection equal to the sum of a customer's ledger entries. Rebuildable, never authoritative.                                                  |
 | **Compensating entry** | A new ledger entry that offsets an earlier one. The original stays.                                                                              |

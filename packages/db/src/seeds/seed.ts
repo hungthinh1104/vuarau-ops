@@ -9,7 +9,7 @@ import { actors, customers, products, workspaces, workspaceMemberships } from ".
  * It seeds **master data only** — no orders, no payments, and no ledger entries.
  * Financial history is created by commands, so that seeded data is produced the
  * same way real data is. A hand-written ledger row would be the one entry in the
- * system with no command and no actor behind it (BR-DEBT-004).
+ * system with no command and no actor behind it (BR-ACCOUNT-004).
  */
 const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 

@@ -4,18 +4,18 @@ Ordered by what costs most when missed. Stop at the first section that fails.
 
 ## 1. Money and debt — P0
 
-- [ ] No `UPDATE` or `DELETE` against `debt_ledger_entries`, `payment_reversals`,
+- [ ] No `UPDATE` or `DELETE` against `customer_account_entries`, `payment_reversals`,
       or `audit_logs`.
 - [ ] No amount is stored or computed as a float. All money is integer minor units.
 - [ ] Rounding happens in exactly one place, half-up, on the minor unit
-      (BR-ORDER-004).
+      (BR-SALE-004).
 - [ ] A command that moves money produces **exactly one** ledger entry per effect —
       not zero, not two. Check the retry path specifically.
 - [ ] Every ledger entry has `actorId`, `commandId`, `transactionTime`,
-      `recordedAt` (BR-DEBT-004).
+      `recordedAt` (BR-ACCOUNT-004).
 - [ ] Corrections are compensating entries. Nothing is edited or removed.
-- [ ] The debt summary is still equal to the sum of entries after the change
-      (BR-DEBT-001).
+- [ ] The customer account balance is still equal to the sum of entries after the change
+      (BR-ACCOUNT-001).
 
 ## 2. Workspace isolation — P0
 

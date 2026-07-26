@@ -7,11 +7,11 @@ command and by explicit ledger effect — never by reaching into each other's ta
 
 ```
 ┌──────────────┐        ┌──────────────┐
-│   Customer   │        │    Order     │
+│   Customer   │        │     Sale     │
 │ (master data)│◀───────│ (draft →     │
-└──────┬───────┘  ref   │  confirmed)  │
+└──────┬───────┘  ref   │   posted)    │
        │                └──────┬───────┘
-       │                       │ ConfirmOrder emits
+       │                       │ PostSale emits
        │                       │ +total ledger entry
        │                       ▼
        │                ┌──────────────────────┐
@@ -31,18 +31,18 @@ command and by explicit ledger effect — never by reaching into each other's ta
 
 ## Ownership
 
-| Module                    | Owns                                             | Never touches              |
-| ------------------------- | ------------------------------------------------ | -------------------------- |
-| **Customer**              | `customers`                                      | Any financial table        |
-| **Order**                 | `orders`, `order_lines`                          | `payments`, summary rows   |
-| **Payment**               | `payments`, `payment_reversals`                  | `orders`                   |
-| **Debt**                  | `debt_ledger_entries`, `customer_debt_summaries` | Aggregate tables           |
-| **Audit** (cross-cutting) | `audit_logs`                                     | Everything else, read-only |
+| Module                    | Owns                                                    | Never touches              |
+| ------------------------- | ------------------------------------------------------- | -------------------------- |
+| **Customer**              | `customers`                                             | Any financial table        |
+| **Sale**                  | `sales`, `sale_lines`                                   | `payments`, summary rows   |
+| **Payment**               | `payments`, `payment_reversals`                         | `sales`                    |
+| **Debt**                  | `customer_account_entries`, `customer_account_balances` | Aggregate tables           |
+| **Audit** (cross-cutting) | `audit_logs`                                            | Everything else, read-only |
 
-Order and Payment do not write ledger rows themselves. Their decision functions
+Sale and Payment do not write ledger rows themselves. Their decision functions
 **describe** a ledger effect; the Debt module's writer is the only code that
 appends one. That is what makes "debt changes only through ledger-producing
-commands" (BR-DEBT-002) enforceable rather than aspirational.
+commands" (BR-ACCOUNT-002) enforceable rather than aspirational.
 
 ## Layer dependency direction
 

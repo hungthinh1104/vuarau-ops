@@ -1,14 +1,14 @@
-# UC-DEBT-001 — Adjust customer debt manually
+# UC-ACCOUNT-002 — Adjust customer debt manually
 
 **Risk:** P0 · **Status:** implemented · **Command:** `AdjustCustomerDebt`
 
 ## Intent
 
-Two situations that no order and no payment can express:
+Two situations that no sale and no payment can express:
 
 1. **Opening balance.** A customer already owed 5.000.000 ₫ before the depot
    started using this system.
-2. **Correction or write-off.** A confirmed order was wrong, or the owner forgives
+2. **Correction or write-off.** A posted sale was wrong, or the owner forgives
    part of a balance.
 
 This is the only command that moves money without an underlying business document,
@@ -29,7 +29,7 @@ to an owner role is ASM-007 and is the highest-priority follow-up.
 
 1. Client sends `AdjustCustomerDebt`: `adjustmentId`, `customerId`, `direction`
    (`increase` | `decrease`), positive `amount`, `reasonCode`, free-text `reason`.
-2. Backend validates the schema; a blank reason is refused (BR-DEBT-003).
+2. Backend validates the schema; a blank reason is refused (BR-ACCOUNT-003).
 3. Backend confirms the customer exists in the workspace.
 4. Domain emits **exactly one** ledger effect:
    `+amount` for `increase`, `−amount` for `decrease`,
@@ -37,7 +37,7 @@ to an owner role is ASM-007 and is the highest-priority follow-up.
    carrying both `reasonCode` and `reason` onto the ledger row itself.
 5. Backend commits the entry, the summary update, the audit record, and the command
    receipt in one transaction.
-6. Backend returns the updated `CustomerDebtSummaryDto`.
+6. Backend returns the updated `CustomerAccountBalanceDto`.
 
 The reason travels **on the ledger entry**, not only in the audit log. Someone
 reading the debt book six months later must see why the number moved without
@@ -47,8 +47,8 @@ joining another table.
 
 | Situation                                | Outcome                                              |
 | ---------------------------------------- | ---------------------------------------------------- |
-| Blank or whitespace reason               | `DEBT_ADJUSTMENT_REASON_REQUIRED` (BR-DEBT-003)      |
-| Zero or negative amount                  | `DEBT_ADJUSTMENT_AMOUNT_INVALID` (BR-DEBT-008)       |
+| Blank or whitespace reason               | `DEBT_ADJUSTMENT_REASON_REQUIRED` (BR-ACCOUNT-003)   |
+| Zero or negative amount                  | `DEBT_ADJUSTMENT_AMOUNT_INVALID` (BR-ACCOUNT-008)    |
 | Customer not found in this workspace     | `CUSTOMER_NOT_FOUND`                                 |
 | Adjustment pushes the balance below zero | **Accepted** (ASM-001)                               |
 | Same command replayed                    | Original summary; exactly one entry (BR-COMMAND-001) |
@@ -62,16 +62,16 @@ joining another table.
 
 ## Business rules
 
-BR-DEBT-001, BR-DEBT-002, BR-DEBT-003, BR-DEBT-004, BR-DEBT-005, BR-DEBT-008,
+BR-ACCOUNT-001, BR-ACCOUNT-002, BR-ACCOUNT-003, BR-ACCOUNT-004, BR-ACCOUNT-005, BR-ACCOUNT-008,
 BR-COMMAND-001, BR-COMMAND-005
 
 ## Cases
 
-CASE-DEBT-004, CASE-DEBT-005, CASE-DEBT-006
+CASE-ACCOUNT-004, CASE-ACCOUNT-005, CASE-ACCOUNT-006
 
 ## Tests
 
-TC-DEBT-003, TC-DEBT-004, TC-DEBT-006
+TC-ACCOUNT-003, TC-ACCOUNT-004, TC-ACCOUNT-006
 
 ## Implementation
 

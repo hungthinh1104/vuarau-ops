@@ -68,18 +68,18 @@ This is what makes [traceability](traceability.md) mechanical.
 
 ## The ten required tests
 
-| #   | Behaviour                                                        | Test                         | Project     |
-| --- | ---------------------------------------------------------------- | ---------------------------- | ----------- |
-| 1   | Confirming a valid order produces exactly one debt ledger effect | TC-ORDER-003                 | domain      |
-| 2   | Repeating the same confirm command does not duplicate debt       | TC-ORDER-004                 | application |
-| 3   | Recording a payment reduces debt exactly once                    | TC-PAYMENT-001               | application |
-| 4   | Repeating the same payment command returns the original result   | TC-PAYMENT-002               | application |
-| 5   | Reusing an idempotency key with a different payload is rejected  | TC-COMMAND-002               | application |
-| 6   | Reversing a payment creates a compensating ledger effect         | TC-PAYMENT-004               | domain      |
-| 7   | Repeating the same reversal does not create another effect       | TC-PAYMENT-005               | application |
-| 8   | Debt summary equals the sum of effective ledger entries          | TC-DEBT-001                  | domain      |
-| 9   | Stale aggregate versions are rejected                            | TC-ORDER-005, TC-PAYMENT-006 | application |
-| 10  | Debt adjustment without a reason is rejected                     | TC-DEBT-003                  | domain      |
+| #   | Behaviour                                                                    | Test                        | Project     |
+| --- | ---------------------------------------------------------------------------- | --------------------------- | ----------- |
+| 1   | Confirming a valid order produces exactly one customer account ledger effect | TC-SALE-003                 | domain      |
+| 2   | Repeating the same confirm command does not duplicate debt                   | TC-SALE-004                 | application |
+| 3   | Recording a payment reduces debt exactly once                                | TC-PAYMENT-001              | application |
+| 4   | Repeating the same payment command returns the original result               | TC-PAYMENT-002              | application |
+| 5   | Reusing an idempotency key with a different payload is rejected              | TC-COMMAND-002              | application |
+| 6   | Reversing a payment creates a compensating ledger effect                     | TC-PAYMENT-004              | domain      |
+| 7   | Repeating the same reversal does not create another effect                   | TC-PAYMENT-005              | application |
+| 8   | Debt summary equals the sum of effective ledger entries                      | TC-ACCOUNT-001              | domain      |
+| 9   | Stale aggregate versions are rejected                                        | TC-SALE-005, TC-PAYMENT-006 | application |
+| 10  | Debt adjustment without a reason is rejected                                 | TC-ACCOUNT-003              | domain      |
 
 ### What was actually written test-first
 

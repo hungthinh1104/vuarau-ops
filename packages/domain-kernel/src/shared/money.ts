@@ -3,7 +3,7 @@ import type { CurrencyCode, Money } from "@vuarau/domain-contracts";
 /**
  * Integer money arithmetic. Every operation here is exact — there is no rounding
  * in this file, because addition and subtraction of integers do not need any.
- * The one place rounding happens is `quantity.ts` (BR-ORDER-004).
+ * The one place rounding happens is `quantity.ts` (BR-SALE-004).
  */
 
 export function money(amountMinor: number, currency: CurrencyCode): Money {

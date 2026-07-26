@@ -9,7 +9,7 @@
 **Expected.** One payment, one ledger entry `−875000`, balance exactly `0`. The
 customer row is not touched — there is no "settled" flag to set.
 
-**Rules.** BR-PAYMENT-002, BR-DEBT-001 · **Tests.** TC-PAYMENT-001
+**Rules.** BR-PAYMENT-002, BR-ACCOUNT-001 · **Tests.** TC-PAYMENT-001
 
 ---
 
@@ -20,7 +20,7 @@ rest next week.
 
 **Expected.** One payment of 500.000, balance 375.000. **No** new concept: a
 partial payment is just a payment smaller than the balance. There is no
-`partial_payment` type and no per-order allocation.
+`partial_payment` type and no per-sale allocation.
 
 **Rules.** BR-PAYMENT-002 · **Tests.** TC-PAYMENT-001
 
@@ -36,10 +36,10 @@ meaning the depot owes the customer 125.000 ₫ of credit. No rejection, no
 clamping at zero.
 
 **This is an assumption, not a decided policy.** The alternative — refusing
-overpayment — is defensible and some depots would prefer it. Recorded as BR-DEBT-007
+overpayment — is defensible and some depots would prefer it. Recorded as BR-ACCOUNT-007
 so the missing guard is visible rather than accidental.
 
-**Rules.** BR-DEBT-007 · **Tests.** TC-PAYMENT-011, TC-DEBT-007
+**Rules.** BR-ACCOUNT-007 · **Tests.** TC-PAYMENT-011, TC-ACCOUNT-007
 
 ---
 
@@ -55,16 +55,16 @@ nothing.
 
 ---
 
-### CASE-PAYMENT-005 — Payment not allocated to any order
+### CASE-PAYMENT-005 — Payment not allocated to any sale
 
 **Situation.** The customer pays 1.000.000 ₫ against "whatever I owe", covering
-parts of three orders.
+parts of three sales.
 
-**Expected — assumption ASM-004.** Accepted with no order reference at all.
+**Expected — assumption ASM-004.** Accepted with no sale reference at all.
 Payments reduce the customer's balance as a whole; there is no allocation table and
 no FIFO matching in this phase.
 
-**Consequence, stated plainly.** The system cannot answer "is order #123 paid?".
+**Consequence, stated plainly.** The system cannot answer "is sale #123 paid?".
 It answers "what does this customer owe in total?". Allocation can be added later as
 a pure read-side concern without rewriting a single existing ledger row.
 
@@ -87,7 +87,7 @@ second gets `COMMAND_IN_PROGRESS`, which **is** retryable.
 
 ### CASE-PAYMENT-007 — Client retries after a timeout
 
-**Situation.** As CASE-ORDER-005, but for money received rather than money owed.
+**Situation.** As CASE-SALE-005, but for money received rather than money owed.
 
 **Expected.** Identical: original result returned, exactly one payment, exactly one
 ledger entry.
@@ -122,7 +122,7 @@ ids, back-dated `occurredAt`, idempotent replay.
 entry `+500000`, payment status `reversed` (terminal), balance back up by 500.000.
 The original payment row and its `−500000` entry are still there.
 
-**Rules.** BR-PAYMENT-005, BR-PAYMENT-008, BR-DEBT-005 · **Tests.** TC-PAYMENT-004
+**Rules.** BR-PAYMENT-005, BR-PAYMENT-008, BR-ACCOUNT-005 · **Tests.** TC-PAYMENT-004
 
 ---
 

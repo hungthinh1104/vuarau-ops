@@ -3,12 +3,12 @@
 The class decides how much verification a change owes. It is set by **what breaks
 if the change is wrong**, not by how hard the change was.
 
-| Class  | Definition                                                                                     | Examples in this system                                                                                                                             |
-| ------ | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **P0** | Corruption of money, debt, ledger, or workspace isolation; irreversible data loss              | Duplicate ledger entry on retry; balance ≠ sum of entries; one depot reading another's customers; a deleted payment; wrong rounding in a line total |
-| **P1** | A critical workflow is unavailable or materially incorrect, but no financial data is corrupted | Cannot confirm any order; version conflict never detected; a payment reversal accepted without a reason                                             |
-| **P2** | Recoverable behaviour or usability problem, no incorrect financial data                        | Unhelpful error message; a capability shown as allowed when the command will refuse it; a slow query                                                |
-| **P3** | Cosmetic, documentation, or low-impact reporting                                               | Typo; a stale doc link; a mis-sorted list                                                                                                           |
+| Class  | Definition                                                                                     | Examples in this system                                                                                                                                |
+| ------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **P0** | Corruption of money, the account ledger, or workspace isolation; irreversible data loss        | Duplicate account entry on retry; a sale voided twice; balance ≠ sum of entries; one depot reading another's customers; wrong rounding in a line total |
+| **P1** | A critical workflow is unavailable or materially incorrect, but no financial data is corrupted | Cannot post any sale; version conflict never detected; a payment reversal or sale void accepted without a reason                                       |
+| **P2** | Recoverable behaviour or usability problem, no incorrect financial data                        | Unhelpful error message; a capability shown as allowed when the command will refuse it; a slow query                                                   |
+| **P3** | Cosmetic, documentation, or low-impact reporting                                               | Typo; a stale doc link; a mis-sorted list                                                                                                              |
 
 ## Requirements per class
 
@@ -28,24 +28,50 @@ reference fails the build.
 The test is whether a wrong outcome could leave the depot **unable to determine
 the truth**:
 
-- A duplicated debt entry is P0 — the customer disputes it and the books cannot
+- A duplicated account entry is P0 — the customer disputes it and the books cannot
   say who is right.
-- A confirm button that fails outright is P1 — annoying, obvious, nothing corrupted.
+- A post button that fails outright is P1 — annoying, obvious, nothing corrupted.
 
 Loudly broken is better than quietly wrong. That is why a failed command is P1 and
-a silently doubled debt is P0.
+a silently doubled receivable is P0.
+
+## Why the correction path is P0 throughout
+
+Voiding is the one operation that **removes** money from a customer's balance
+without a payment arriving. Every rule that bounds it is therefore P0, even where
+the individual failure looks small:
+
+| Rule        | If it were wrong                                                       |
+| ----------- | ---------------------------------------------------------------------- |
+| BR-SALE-012 | A void that compensates the wrong amount silently changes what is owed |
+| BR-SALE-013 | A double void credits a customer twice for one mistake                 |
+| BR-SALE-008 | An editable posted sale makes every earlier balance unexplainable      |
+| BR-SALE-010 | A draft with a financial effect moves money before anyone agreed       |
+
+BR-SALE-010 is the least obvious of the four and the reason it is written down: a
+draft that quietly created an entry would fail silently, and no existing test would
+have noticed.
 
 ## Current P0 rules
 
-BR-ORDER-001, BR-ORDER-004, BR-ORDER-006, BR-ORDER-007, BR-ORDER-008,
+BR-SALE-001, BR-SALE-004, BR-SALE-006, BR-SALE-007, BR-SALE-008, BR-SALE-010,
+BR-SALE-011, BR-SALE-012, BR-SALE-013,
 BR-PAYMENT-001, BR-PAYMENT-002, BR-PAYMENT-003, BR-PAYMENT-005, BR-PAYMENT-007,
-BR-DEBT-001, BR-DEBT-002, BR-DEBT-004, BR-DEBT-005, BR-DEBT-006,
+BR-ACCOUNT-001, BR-ACCOUNT-002, BR-ACCOUNT-004, BR-ACCOUNT-005, BR-ACCOUNT-006,
 BR-CUSTOMER-002,
-BR-COMMAND-001, BR-COMMAND-002, BR-COMMAND-003, BR-COMMAND-005,
+BR-COMMAND-001, BR-COMMAND-002, BR-COMMAND-003, BR-COMMAND-005, BR-COMMAND-006,
 BR-AUTH-001, BR-AUTH-002, BR-AUTH-003, BR-AUTH-004, BR-AUTH-006.
 
-Twenty-five rules, each with at least one automated test — see
-[trace-map.yml](trace-map.yml).
+Thirty rules. **Twenty-five are implemented and carry at least one automated
+test.** Five — BR-SALE-010, BR-SALE-011, BR-SALE-012, BR-SALE-013 and
+BR-COMMAND-006 — are marked `status: planned` in
+[trace-map.yml](trace-map.yml): specified and agreed, not yet built.
+
+A planned P0 rule is **exempt from the test requirement only while it is planned**,
+because there is nothing yet for a test to run against. `pnpm trace:check` prints
+the planned count on every run and fails the build the moment such a rule gains an
+implementation without gaining a test. The exemption is a countdown, not a
+loophole.
 
 ## Related
 

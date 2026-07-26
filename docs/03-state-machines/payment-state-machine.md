@@ -54,7 +54,7 @@ every report downstream would have to know it too.
 The original payment row and its original ledger entry are never updated or
 deleted. `reversedAmount` and `status` on the payment are the only mutable fields,
 and they only ever move in one direction. Database triggers block `DELETE` on
-`payments`, `payment_reversals`, and `debt_ledger_entries` outright.
+`payments`, `payment_reversals`, and `customer_account_entries` outright.
 
 ## Related
 

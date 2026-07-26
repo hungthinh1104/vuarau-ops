@@ -121,7 +121,7 @@ export class InMemoryDatabase {
     return this.store.summaries.get(key(workspaceId, customerId)) ?? null;
   }
 
-  /** Lets a test corrupt a projection, to prove the rebuild repairs it (CASE-DEBT-007). */
+  /** Lets a test corrupt a projection, to prove the rebuild repairs it (CASE-ACCOUNT-007). */
   overwriteSummary(summary: CustomerDebtSummary): void {
     this.store.summaries.set(key(summary.workspaceId, summary.customerId), summary);
   }

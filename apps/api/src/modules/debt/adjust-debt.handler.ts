@@ -9,7 +9,7 @@ import { debtCapabilities } from "../shared/authorization.ts";
 import { toDebtSummaryDto } from "../shared/mappers.ts";
 
 /**
- * UC-DEBT-001 — the only command that moves money with no underlying document.
+ * UC-ACCOUNT-002 — the only command that moves money with no underlying document.
  *
  * Requires the `debt.adjust` permission, which only `owner` and `accountant`
  * carry (BR-AUTH-006). Before Milestone 1 any workspace member could call this —

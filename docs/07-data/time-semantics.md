@@ -37,9 +37,9 @@ Both facts matter, and neither can be derived from the other. So both are stored
 ## `updatedAt` — where it is and is not
 
 Present on mutable rows only: `customers`, `products`, `workspaces`,
-`customer_debt_summaries` (a projection).
+`customer_account_balances` (a projection).
 
-**Absent from `debt_ledger_entries`, `payment_reversals`, and `audit_logs`** — a
+**Absent from `customer_account_entries`, `payment_reversals`, and `audit_logs`** — a
 column that can never change should not exist, because its presence invites an
 `UPDATE`. Their `recordedAt` is the whole story.
 
@@ -70,4 +70,4 @@ which is where it goes wrong.
 ## Related
 
 - [data-model.md](data-model.md), [ledger-model.md](ledger-model.md)
-- BR-COMMAND-003, BR-COMMAND-004 in [../04-business-rules/debt-rules.md](../04-business-rules/debt-rules.md)
+- BR-COMMAND-003, BR-COMMAND-004 in [../04-business-rules/customer-account-rules.md](../04-business-rules/customer-account-rules.md)

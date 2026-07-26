@@ -15,7 +15,7 @@ import { customers } from "./customer.ts";
 
 /**
  * The source of truth for customer debt. **Append-only** — a trigger raises on
- * UPDATE and DELETE (BR-DEBT-005).
+ * UPDATE and DELETE (BR-ACCOUNT-005).
  *
  * `amount_minor` is signed: positive means the customer owes more.
  */
@@ -39,7 +39,7 @@ export const debtLedgerEntries = pgTable(
     reason: text("reason"),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    /** Never null: every đồng of movement traces to a person (BR-DEBT-004). */
+    /** Never null: every đồng of movement traces to a person (BR-ACCOUNT-004). */
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
@@ -47,7 +47,7 @@ export const debtLedgerEntries = pgTable(
   },
   (table) => [
     /**
-     * The structural guarantee behind BR-ORDER-007: one confirmation of an order
+     * The structural guarantee behind BR-SALE-007: one confirmation of an order
      * can produce at most one entry for it. A retry that slipped past the
      * idempotency layer hits this constraint and rolls back, rather than doubling
      * a customer's debt.
@@ -64,7 +64,7 @@ export const debtLedgerEntries = pgTable(
 
 /**
  * A projection of the table above, maintained in the same transaction as the
- * entry that moves it, and rebuildable from scratch at any time (BR-DEBT-006).
+ * entry that moves it, and rebuildable from scratch at any time (BR-ACCOUNT-006).
  * Deleting a row here loses nothing.
  */
 export const customerDebtSummaries = pgTable(

@@ -51,7 +51,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
 
   const ledgerRows = () => ctx.ledgerRows();
 
-  it("BR-ORDER-007 / TC-ORDER-003 — confirming creates exactly one ledger entry", async () => {
+  it("BR-SALE-007 / TC-SALE-003 — confirming creates exactly one ledger entry", async () => {
     const created = await createOrder(owner, {
       ...envelope("db-order-create"),
       payload: {
@@ -104,7 +104,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(entries[0]?.sourceType).toBe("order_confirmation");
   });
 
-  it("BR-COMMAND-001 / TC-ORDER-004 — a retried confirmation does not duplicate debt", async () => {
+  it("BR-COMMAND-001 / TC-SALE-004 — a retried confirmation does not duplicate debt", async () => {
     const replay = await confirmOrder(owner, {
       ...envelope("db-order-confirm"),
       expectedVersion: 1,
@@ -118,7 +118,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(summary.ok && summary.value.balance.amountMinor).toBe(875_000);
   });
 
-  it("BR-ORDER-006 / TC-ORDER-005 — a stale version is rejected by the real update", async () => {
+  it("BR-SALE-006 / TC-SALE-005 — a stale version is rejected by the real update", async () => {
     const stale = await confirmOrder(owner, {
       ...envelope("db-order-confirm-stale"),
       expectedVersion: 1,
@@ -180,7 +180,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(summary.ok && summary.value.balance.amountMinor).toBe(875_000);
   });
 
-  it("BR-DEBT-003 / TC-DEBT-003 — an adjustment carries its reason onto the entry", async () => {
+  it("BR-ACCOUNT-003 / TC-ACCOUNT-003 — an adjustment carries its reason onto the entry", async () => {
     const adjusted = await adjustCustomerDebt(owner, {
       ...envelope("db-debt-adjust"),
       payload: {
@@ -203,7 +203,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(adjustment?.reasonCode).toBe("data_entry_correction");
   });
 
-  it("BR-DEBT-001 / TC-DEBT-001 — the summary equals the sum of the stored entries", async () => {
+  it("BR-ACCOUNT-001 / TC-ACCOUNT-001 — the summary equals the sum of the stored entries", async () => {
     const entries = await ledgerRows();
     const sum = entries.reduce((total, entry) => total + entry.amount.amountMinor, 0);
 
@@ -214,7 +214,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(summary.value.entryCount).toBe(entries.length);
   });
 
-  it("BR-DEBT-006 / TC-DEBT-002 — a rebuild reproduces the maintained summary exactly", async () => {
+  it("BR-ACCOUNT-006 / TC-ACCOUNT-002 — a rebuild reproduces the maintained summary exactly", async () => {
     const incremental = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
     const rebuilt = await rebuildDebtSummary(deps, ctx.workspaceId, ctx.customerId);
 

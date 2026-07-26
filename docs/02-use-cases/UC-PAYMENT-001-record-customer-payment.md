@@ -29,7 +29,7 @@ Any authenticated member of the workspace.
    `version = 1`, and emits **exactly one** ledger effect of `−amount`,
    `sourceType = payment`, `sourceId = paymentId` (BR-PAYMENT-002).
 6. Backend, in one transaction: inserts the payment, appends the ledger entry,
-   updates the debt summary, writes the audit record, stores the command receipt.
+   updates the customer account balance, writes the audit record, stores the command receipt.
 7. Backend returns `PaymentDto`.
 
 ## Alternate flows
@@ -62,7 +62,7 @@ later without changing any existing ledger row.
 ## Business rules
 
 BR-PAYMENT-001, BR-PAYMENT-002, BR-COMMAND-001, BR-COMMAND-002, BR-COMMAND-003,
-BR-COMMAND-005, BR-DEBT-002, BR-DEBT-004
+BR-COMMAND-005, BR-ACCOUNT-002, BR-ACCOUNT-004
 
 ## Cases
 

@@ -18,7 +18,7 @@ import {
 import { vnd } from "./customer.fixtures.ts";
 
 /**
- * The ledger from docs/05-casebook/debt-cases.md, entry by entry.
+ * The ledger from docs/05-casebook/customer-account-cases.md, entry by entry.
  * Balances in tests are asserted against the sum of these — never against a
  * separately-maintained number.
  */

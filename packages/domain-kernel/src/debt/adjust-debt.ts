@@ -12,7 +12,7 @@ export type AdjustDebtInput = {
 /**
  * The only command that moves money with no underlying business document — an
  * opening balance from the paper book, a write-off, a correction to a confirmed
- * order (CASE-ORDER-007).
+ * order (CASE-SALE-007).
  *
  * It changes no aggregate, so the decision's `aggregate` is `null`: the ledger
  * entry *is* the record. That is why the reason is mandatory and why it is written

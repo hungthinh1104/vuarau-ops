@@ -8,21 +8,21 @@ The one design decision the rest of the system is built around.
 number that anything updates.**
 
 ```
-balance(customer) = Σ debt_ledger_entries.amount_minor
+balance(customer) = Σ customer_account_entries.amount_minor
                     WHERE workspace_id = ? AND customer_id = ?
 ```
 
-`customer_debt_summaries` holds that sum for fast reads. It is a cache with a
+`customer_account_balances` holds that sum for fast reads. It is a cache with a
 rebuild function, not a source of truth ([ADR-0004](../09-decisions/ADR-0004-append-only-debt-ledger.md)).
 
 ## Sign convention
 
 Applied everywhere, without exception:
 
-| Sign         | Meaning                | Produced by                                                              |
-| ------------ | ---------------------- | ------------------------------------------------------------------------ |
-| **positive** | customer owes **more** | `order_confirmation`, `payment_reversal`, `manual_adjustment` (increase) |
-| **negative** | customer owes **less** | `payment`, `manual_adjustment` (decrease)                                |
+| Sign         | Meaning                | Produced by                                                        |
+| ------------ | ---------------------- | ------------------------------------------------------------------ |
+| **positive** | customer owes **more** | `sale_posting`, `payment_reversal`, `manual_adjustment` (increase) |
+| **negative** | customer owes **less** | `payment`, `manual_adjustment` (decrease)                          |
 
 A single signed integer, not a `direction` column plus a magnitude. Two fields
 that must agree eventually disagree; summing one column cannot go wrong. Callers
@@ -34,8 +34,8 @@ that want a direction derive it (`amountMinor >= 0`).
 {
   id, workspaceId, customerId,
   amount: { amountMinor, currency },   // signed
-  sourceType,                          // order_confirmation | payment | payment_reversal | manual_adjustment
-  sourceId,                            // the order / payment / reversal / adjustment
+  sourceType,                          // sale_posting | payment | payment_reversal | manual_adjustment
+  sourceId,                            // the sale / payment / reversal / void / adjustment
   reversalOfEntryId,                   // set when compensating a specific entry
   reasonCode, reason,                  // required for manual_adjustment
   transactionTime,                     // when it happened
@@ -44,7 +44,7 @@ that want a direction derive it (`amountMinor >= 0`).
 }
 ```
 
-`actorId` and `commandId` are `NOT NULL` (BR-DEBT-004). Every đồng of movement
+`actorId` and `commandId` are `NOT NULL` (BR-ACCOUNT-004). Every đồng of movement
 traces to a person and a request.
 
 ## Append-only, enforced three ways
@@ -63,7 +63,7 @@ To undo a `−500 000` payment entry, append a `+500 000` entry with
 Both remain. The customer's history reads:
 
 ```
-2026-07-20  order confirmed        +875 000    875 000
+2026-07-20  sale posted           +875 000    875 000
 2026-07-22  payment received       −500 000    375 000
 2026-07-23  payment reversed       +500 000    875 000   ← reverses entry 2
 ```
@@ -71,7 +71,7 @@ Both remain. The customer's history reads:
 Not:
 
 ```
-2026-07-20  order confirmed        +875 000    875 000
+2026-07-20  sale posted           +875 000    875 000
 ```
 
 ...which is what deleting the payment would leave — a book that cannot explain
@@ -83,7 +83,7 @@ itself, and a customer conversation nobody can win.
 UNIQUE (source_type, source_id)
 ```
 
-One confirmation of order X can produce at most one `order_confirmation` entry for
+One posting of sale X can produce at most one `sale_posting` entry for
 X. A bug that tries to append twice hits a constraint violation and rolls the
 transaction back. The idempotency layer prevents this case; the constraint means a
 future code path that forgets to cannot corrupt a balance.
@@ -98,7 +98,7 @@ future code path that forgets to cannot corrupt a balance.
 
 - Updated **inside the same transaction** as the entry that moved it. It is never
   stale in the way an asynchronous projection can be.
-- Rebuildable at any time via `rebuildCustomerDebtSummary` (BR-DEBT-006).
+- Rebuildable at any time via `rebuildCustomerDebtSummary` (BR-ACCOUNT-006).
 - Safe to delete. Recreating it costs one `SUM` over an indexed range.
 
 That last property is the point. When a projection can be discarded and
@@ -122,5 +122,5 @@ of it.
 ## Related
 
 - [data-model.md](data-model.md), [time-semantics.md](time-semantics.md)
-- [../04-business-rules/debt-rules.md](../04-business-rules/debt-rules.md)
-- [../05-casebook/debt-cases.md](../05-casebook/debt-cases.md)
+- [../04-business-rules/customer-account-rules.md](../04-business-rules/customer-account-rules.md)
+- [../05-casebook/customer-account-cases.md](../05-casebook/customer-account-cases.md)

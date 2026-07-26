@@ -69,18 +69,18 @@ A change is done when **all** of these hold:
 
 ## 5. Forbidden without an explicit decision
 
-| Never                                                                            | Instead                                                   |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `UPDATE` or `DELETE` on `debt_ledger_entries`, `payment_reversals`, `audit_logs` | Append a compensating entry                               |
-| Hard-delete an order or payment                                                  | There is no such operation                                |
-| A generic `update*` / `patch*` / `set*Status` endpoint                           | A named business command                                  |
-| Storing a debt balance as authoritative                                          | The ledger is the truth                                   |
-| Floating-point money                                                             | Integer minor units                                       |
-| A business rule in the frontend                                                  | Kernel + a capability                                     |
-| Duplicating a rule across layers                                                 | One implementation, called from both places               |
-| Weakening or deleting a test to make CI green                                    | Fix the code, or change the rule _with_ its documentation |
-| A new dependency for a trivial utility                                           | Write the function                                        |
-| Implementing an excluded module                                                  | `docs/00-product/scope.md`                                |
+| Never                                                                                 | Instead                                                   |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `UPDATE` or `DELETE` on `customer_account_entries`, `payment_reversals`, `audit_logs` | Append a compensating entry                               |
+| Hard-delete a posted sale or payment                                                  | There is no such operation                                |
+| A generic `update*` / `patch*` / `set*Status` endpoint                                | A named business command                                  |
+| Storing a debt balance as authoritative                                               | The ledger is the truth                                   |
+| Floating-point money                                                                  | Integer minor units                                       |
+| A business rule in the frontend                                                       | Kernel + a capability                                     |
+| Duplicating a rule across layers                                                      | One implementation, called from both places               |
+| Weakening or deleting a test to make CI green                                         | Fix the code, or change the rule _with_ its documentation |
+| A new dependency for a trivial utility                                                | Write the function                                        |
+| Implementing an excluded module                                                       | `docs/00-product/scope.md`                                |
 
 ## 6. Changing an existing rule
 

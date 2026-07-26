@@ -50,9 +50,9 @@ const confirmInput = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-describe("BR-COMMAND-001 / TC-ORDER-004", () => {
+describe("BR-COMMAND-001 / TC-SALE-004", () => {
   it("does not duplicate debt when the same confirm command is retried", async () => {
-    // CASE-ORDER-005: the response was lost, the client retried with the same key.
+    // CASE-SALE-005: the response was lost, the client retried with the same key.
     await createOrder(harness.ctx, createInput());
 
     const first = await confirmOrder(harness.ctx, confirmInput());
@@ -90,9 +90,9 @@ describe("BR-COMMAND-001 / TC-ORDER-004", () => {
   });
 });
 
-describe("BR-ORDER-006 / TC-ORDER-005", () => {
+describe("BR-SALE-006 / TC-SALE-005", () => {
   it("rejects a confirmation carrying a stale aggregate version", async () => {
-    // CASE-ORDER-004: the order is at version 2, the phone still believes 1.
+    // CASE-SALE-004: the order is at version 2, the phone still believes 1.
     harness.db.seedOrder({ ...validDraftOrder, version: 2 });
 
     const result = await confirmOrder(harness.ctx, confirmInput({ expectedVersion: 1 }));
@@ -124,9 +124,9 @@ describe("BR-ORDER-006 / TC-ORDER-005", () => {
   });
 });
 
-describe("BR-COMMAND-003 / TC-ORDER-011", () => {
+describe("BR-COMMAND-003 / TC-SALE-011", () => {
   it("keeps the business time and the recording time apart", async () => {
-    // CASE-ORDER-006: sold at 05:00, entered days later.
+    // CASE-SALE-006: sold at 05:00, entered days later.
     await createOrder(harness.ctx, createInput());
     harness.clock.set(RECORDED_AT);
     await confirmOrder(harness.ctx, confirmInput());
@@ -145,7 +145,7 @@ describe("BR-COMMAND-003 / TC-ORDER-011", () => {
   });
 });
 
-describe("BR-ORDER-007 / TC-ORDER-003", () => {
+describe("BR-SALE-007 / TC-SALE-003", () => {
   it("moves the customer's balance by exactly the order total, once", async () => {
     await createOrder(harness.ctx, createInput());
     await confirmOrder(harness.ctx, confirmInput());
