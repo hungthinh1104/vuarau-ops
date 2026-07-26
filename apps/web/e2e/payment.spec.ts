@@ -1,6 +1,6 @@
 import { expect, test, signIn } from "./harness/signed-in.ts";
 import { api } from "./harness/api.ts";
-import { uniqueCustomerName } from "./harness/environment.ts";
+import { E2E_WORKSPACE_NAME, uniqueCustomerName } from "./harness/environment.ts";
 
 /**
  * M5A — the payment workflow, against a real API and a real database.
@@ -276,7 +276,9 @@ test.describe("TC-E2E-009 — the timeline shows the committed transaction", () 
 });
 
 test.describe("TC-E2E-010 — the workspace is chosen explicitly", () => {
-  test("no depot is selected silently, even when only one is configured", async ({ page }) => {
+  test("no depot is selected silently, even when the server returns exactly one", async ({
+    page,
+  }) => {
     // Signed in, but with no workspace stored.
     await signIn(page);
     await page.addInitScript(() => window.sessionStorage.removeItem("vuarau.workspace_id"));
@@ -285,7 +287,7 @@ test.describe("TC-E2E-010 — the workspace is chosen explicitly", () => {
     await expect(page.getByRole("heading", { name: "Chọn vựa" })).toBeVisible();
     await expect(page.getByText(/sẽ được ghi vào vựa bạn chọn/)).toBeVisible();
 
-    await page.getByRole("button", { name: "Vựa kiểm thử" }).click();
+    await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
   });
 });

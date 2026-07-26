@@ -1,4 +1,10 @@
-import { E2E_API_PORT, E2E_WORKSPACE_ID, mintAccessToken, type E2ERole } from "./environment.ts";
+import {
+  E2E_ACTORS,
+  E2E_API_PORT,
+  E2E_WORKSPACE_ID,
+  mintAccessToken,
+  type E2ERole,
+} from "./environment.ts";
 
 /**
  * A thin, deliberately untyped tRPC caller for **arranging** test data.
@@ -199,13 +205,8 @@ export const api = {
   },
 };
 
-const ACTOR_IDS: Record<E2ERole, string> = {
-  owner: "22222222-2222-4222-8222-222222222201",
-  accountant: "22222222-2222-4222-8222-222222222202",
-  sales: "22222222-2222-4222-8222-222222222203",
-  warehouse: "22222222-2222-4222-8222-222222222204",
-};
-
 function actorFor(role: E2ERole): string {
-  return ACTOR_IDS[role];
+  // One list, in `environment.ts`. A second copy here drifted the moment an actor
+  // was added to the seed, which is exactly how it was found.
+  return E2E_ACTORS[role];
 }

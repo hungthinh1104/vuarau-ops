@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { DomainError, WorkspaceId } from "@vuarau/domain-contracts";
 import { hasPermission, parseSession, selectWorkspace } from "./session.ts";
 import { createQueryClient } from "./providers.tsx";
-import { ownerSession, salesSession, warehouseSession } from "../fixtures/session.fixtures.ts";
+import {
+  ownerSession,
+  salesSession,
+  warehouseSession,
+  workspaceChoices,
+} from "../fixtures/session.fixtures.ts";
 import {
   rejectionCommandInProgress,
   rejectionStaleVersion,
 } from "../fixtures/rejection.fixtures.ts";
-import { OTHER_WORKSPACE_ID, WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
+import { OTHER_WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
 
 describe("TC-WEB-014 — the session bootstrap", () => {
   it("parses what came back rather than trusting it", () => {
@@ -35,10 +40,9 @@ describe("TC-WEB-014 — the session bootstrap", () => {
  * silently chosen workspace is a silently chosen set of books.
  */
 describe("TC-WEB-015 — workspace selection", () => {
-  const available = [
-    { workspaceId: WORKSPACE_ID, displayName: "Vựa Ba Hưng" },
-    { workspaceId: OTHER_WORKSPACE_ID, displayName: "Vựa Sáu Tâm" },
-  ];
+  // The server's own answer, not a hand-written shape: a picker built from
+  // anything else would be a second claim about who may enter which depot.
+  const available = workspaceChoices;
 
   it("asks when nothing has been chosen, even with a single workspace", () => {
     expect(selectWorkspace([available[0]!], null)).toEqual({

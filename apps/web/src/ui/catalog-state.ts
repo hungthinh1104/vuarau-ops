@@ -12,6 +12,8 @@
  * at a spinner that never resolves.
  */
 export const UI_STATE_CATALOG = [
+  "signed_out",
+  "no_workspace_membership",
   "loading",
   "empty",
   "validation_error",

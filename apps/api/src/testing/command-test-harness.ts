@@ -6,10 +6,12 @@ import {
   FOREIGN_ACTOR_ID,
   LATEST_RECORDED_AT,
   OTHER_WORKSPACE_ID,
+  OTHER_WORKSPACE_NAME,
   REVOKED_ACTOR_ID,
   SALES_ACTOR_ID,
   WAREHOUSE_ACTOR_ID,
   WORKSPACE_ID,
+  WORKSPACE_NAME,
   activeCustomer,
   subjectFor,
 } from "@vuarau/test-fixtures";
@@ -66,6 +68,9 @@ export type Harness = {
 
 export function createHarness(): Harness {
   const db = new InMemoryDatabase(sequentialIdGenerator());
+
+  db.registerWorkspace(WORKSPACE_ID, WORKSPACE_NAME);
+  db.registerWorkspace(OTHER_WORKSPACE_ID, OTHER_WORKSPACE_NAME);
 
   for (const member of SEEDED_MEMBERS) {
     db.grantMembership(WORKSPACE_ID, member.actorId, member.role, member.isActive);

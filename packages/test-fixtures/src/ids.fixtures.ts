@@ -30,6 +30,15 @@ export const WORKSPACE_ID = uuid("a", 1) as WorkspaceId;
 /** A second workspace, used only to prove isolation (BR-CUSTOMER-002). */
 export const OTHER_WORKSPACE_ID = uuid("a", 2) as WorkspaceId;
 
+/**
+ * What each depot calls itself. Only workspace discovery needs these — it is the
+ * one read that returns a workspace's own name rather than something inside it
+ * (BR-AUTH-008). Deliberately not in alphabetical order of id, so a test that
+ * asserts ordering asserts something.
+ */
+export const WORKSPACE_NAME = "Vựa rau Thủ Đức";
+export const OTHER_WORKSPACE_NAME = "Vựa rau Bình Điền";
+
 /** The default actor in most tests. Holds the `owner` role. */
 export const ACTOR_ID = uuid("b", 1) as ActorId;
 export const OTHER_ACTOR_ID = uuid("b", 2) as ActorId;

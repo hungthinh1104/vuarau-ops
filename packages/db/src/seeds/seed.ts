@@ -3,8 +3,8 @@ import { runMigrations } from "../migrate.ts";
 import { actors, customers, products, workspaces, workspaceMemberships } from "../schema/index.ts";
 
 /**
- * Minimal development seed: one depot, one worker, three customers, three
- * products.
+ * Minimal development seed: one depot, one actor per role, three customers,
+ * three products — plus one account that belongs to no depot at all.
  *
  * It seeds **master data only** — no sales, no payments, and no ledger entries.
  * Financial history is created by commands, so that seeded data is produced the
@@ -55,6 +55,22 @@ const SEED_ACTORS = [
   },
 ];
 
+/**
+ * A real account that belongs to no depot.
+ *
+ * Signing in and being a member of nothing is a state the product has to render
+ * (`no_workspace_membership`, BR-AUTH-008) — it is the first minute of a new
+ * person's account, and it is also what a revoked worker sees. Without a seeded
+ * example it is a screen nobody ever looks at until a pilot participant hits it.
+ */
+const SEED_UNASSIGNED_ACTORS = [
+  {
+    id: "22222222-2222-4222-8222-222222222206",
+    supabaseUserId: "22222222-2222-4222-8222-222222222206",
+    displayName: "Người chưa được thêm vào vựa",
+  },
+];
+
 const CUSTOMERS = [
   {
     id: "33333333-3333-4333-8333-333333333301",
@@ -84,7 +100,7 @@ export async function seed(connectionString: string): Promise<void> {
     await db
       .insert(actors)
       .values(
-        SEED_ACTORS.map((actor) => ({
+        [...SEED_ACTORS, ...SEED_UNASSIGNED_ACTORS].map((actor) => ({
           id: actor.id,
           supabaseUserId: actor.supabaseUserId,
           displayName: actor.displayName,
@@ -93,6 +109,8 @@ export async function seed(connectionString: string): Promise<void> {
       .onConflictDoNothing();
     await db
       .insert(workspaceMemberships)
+      // Deliberately `SEED_ACTORS` only: the unassigned actor gets no membership,
+      // which is the whole point of it.
       .values(
         SEED_ACTORS.map((actor) => ({
           workspaceId: WORKSPACE_ID,

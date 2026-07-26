@@ -13,6 +13,12 @@ import { SignJWT } from "jose";
  * which nobody doubted.
  */
 export const E2E_WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
+/**
+ * What the seeded depot calls itself. The picker shows this, and it comes from
+ * `session.workspaces` — not from anything configured in the browser
+ * (BR-AUTH-008), which is why a spec can assert on it at all.
+ */
+export const E2E_WORKSPACE_NAME = "Vựa rau Bình Điền";
 
 /** From the development seed: one actor per role, fixed uuids. */
 export const E2E_ACTORS = {
@@ -20,6 +26,8 @@ export const E2E_ACTORS = {
   accountant: "22222222-2222-4222-8222-222222222202",
   sales: "22222222-2222-4222-8222-222222222203",
   warehouse: "22222222-2222-4222-8222-222222222204",
+  /** A real, seeded account that belongs to no depot (`no_workspace_membership`). */
+  unassigned: "22222222-2222-4222-8222-222222222206",
 } as const;
 
 export type E2ERole = keyof typeof E2E_ACTORS;

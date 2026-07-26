@@ -62,6 +62,45 @@ export type RevokeWorkspaceMembershipCommand = z.infer<
   typeof revokeWorkspaceMembershipCommandSchema
 >;
 
+/**
+ * UC-AUTH-004 — the depots this caller may act in.
+ *
+ * The question that comes *before* `session.me`: a client cannot ask "what may I
+ * do here" until it knows what "here" can be. Until this existed, the answer came
+ * from a configured list in the browser, which meant the browser held a claim
+ * about access that only the server can make.
+ *
+ * There is **no actor in the input**, and that is the whole design. The list is
+ * derived from the verified token's actor and filtered to active memberships, so
+ * there is no field through which one person can ask for another's depots
+ * (BR-AUTH-008).
+ *
+ * `permissions` is expanded here for the same reason it is expanded on
+ * `SessionDto`: a picker that greys out a depot the caller cannot post in needs
+ * the answer, and a client that derived it from the role name would hold a second
+ * copy of the role table (ADR-0011).
+ */
+export const workspaceSummaryDtoSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  /** What the depot calls itself. The only string a picker can show. */
+  name: z.string().min(1),
+  role: workspaceRoleSchema,
+  permissions: z.array(permissionSchema),
+});
+export type WorkspaceSummaryDto = z.infer<typeof workspaceSummaryDtoSchema>;
+
+export const actorWorkspacesDtoSchema = z.object({
+  actorId: actorIdSchema,
+  /**
+   * Active memberships only, ordered by name. **May be empty**, and empty is a
+   * real answer, not an error: somebody with a valid Supabase account and no
+   * membership is exactly what a stranger with a token looks like, and telling
+   * them apart from a revoked worker is not the client's business.
+   */
+  workspaces: z.array(workspaceSummaryDtoSchema),
+});
+export type ActorWorkspacesDto = z.infer<typeof actorWorkspacesDtoSchema>;
+
 export const workspaceMembershipDtoSchema = z.object({
   workspaceId: workspaceIdSchema,
   actorId: actorIdSchema,

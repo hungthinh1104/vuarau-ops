@@ -4,25 +4,32 @@ import { useQuery } from "@tanstack/react-query";
 import type { SessionDto, WorkspaceId } from "@vuarau/domain-contracts";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useTRPC } from "./providers.tsx";
-import { browserAccessToken } from "./access-token.ts";
+import { useAuth } from "./auth.tsx";
 import { domainErrorOf } from "./domain-error.ts";
 import type { WorkspaceChoice } from "./session.ts";
-import { configuredWorkspaces, storeWorkspaceId, storedWorkspaceId } from "./workspace.ts";
+import { storeWorkspaceId, storedWorkspaceId } from "./workspace.ts";
 import { Button } from "../ui/primitives/button.tsx";
 import { EmptyState } from "../ui/primitives/empty-state.tsx";
 import { Skeleton } from "../ui/primitives/skeleton.tsx";
 import { BusinessRejection } from "../ui/patterns/business-rejection.tsx";
+import { SignIn, SignInUnconfigured } from "../ui/patterns/sign-in.tsx";
 import { WorkspaceShell } from "../ui/patterns/workspace-shell.tsx";
 
 /**
  * What every production route sits behind: a verified identity, an explicitly
  * chosen depot, and the caller's permission set.
  *
- * The order is not arbitrary. Without a token there is nothing to ask; without a
- * workspace there is no question to ask; and `session.me` is the answer to both
- * "are you still a member" and "what may you do", which is why it is re-read
- * rather than cached across a workspace change. A membership revoked mid-shift
- * surfaces here on the next navigation.
+ * The order is not arbitrary and each step needs the one before it:
+ *
+ *   1. Supabase says whether somebody is signed in.
+ *   2. `session.workspaces` says which depots that person may act in.
+ *   3. They choose one — always, never automatically.
+ *   4. `session.me` says what they may do there, and re-checks membership.
+ *
+ * Step 2 used to be a build-time environment variable, which made the browser the
+ * author of a claim only the server can make (BR-AUTH-008). Step 4 is re-read on a
+ * workspace change rather than cached across it, so a membership revoked mid-shift
+ * surfaces on the next navigation.
  */
 export type ActiveSession = {
   readonly session: SessionDto;
@@ -41,90 +48,135 @@ export function useSession(): ActiveSession {
   return session;
 }
 
+function Waiting({ label }: { label: string }) {
+  return (
+    <main className="mx-auto max-w-2xl px-4 py-10">
+      <Skeleton width="w-64" height="h-6" label={label} />
+    </main>
+  );
+}
+
 export function SessionGate({ children }: { children: ReactNode }) {
-  const choices = configuredWorkspaces(process.env["NEXT_PUBLIC_WORKSPACES"]);
+  const auth = useAuth();
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
 
   /*
-   * The token and the chosen depot live in `sessionStorage`, which does not
-   * exist on the server. Reading them during render makes the server's HTML and
-   * the client's first render disagree, and React throws away the tree — visibly,
-   * as a hydration error, and invisibly as a double render on every page load.
-   *
-   * So the first paint is deliberately "checking", for one frame, and everything
-   * that depends on storage happens after mount.
+   * The chosen depot lives in `sessionStorage`, which does not exist on the
+   * server. Reading it during render makes the server's HTML and the client's
+   * first render disagree, and React throws away the tree — visibly, as a
+   * hydration error, and invisibly as a double render on every page load.
    */
   const [mounted, setMounted] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
-
   useEffect(() => {
-    setToken(browserAccessToken());
     setWorkspaceId(storedWorkspaceId());
     setMounted(true);
   }, []);
 
-  if (!mounted) {
+  if (!mounted || auth.status === "checking") {
+    return <Waiting label="Đang mở phiên làm việc" />;
+  }
+
+  if (auth.status === "unconfigured") {
+    return <SignInUnconfigured />;
+  }
+
+  if (auth.status === "signed_out") {
+    return <SignIn requestCode={auth.requestCode} submitCode={auth.submitCode} />;
+  }
+
+  return (
+    <ChooseWorkspace
+      workspaceId={workspaceId}
+      onChoose={(chosen) => {
+        storeWorkspaceId(chosen);
+        setWorkspaceId(chosen);
+      }}
+    >
+      {children}
+    </ChooseWorkspace>
+  );
+}
+
+/**
+ * Asks the server which depots this caller may work in, then makes them pick one.
+ *
+ * The list is a query like any other, so the ordinary failure paths apply: a
+ * dropped connection offers a retry, and a refusal is shown as a refusal. What it
+ * must never do is guess — including the tempting case of a single depot, which is
+ * exactly the case where somebody with two would not notice the difference.
+ */
+function ChooseWorkspace({
+  workspaceId,
+  onChoose,
+  children,
+}: {
+  workspaceId: WorkspaceId | null;
+  onChoose: (workspaceId: WorkspaceId | null) => void;
+  children: ReactNode;
+}) {
+  const auth = useAuth();
+  const trpc = useTRPC();
+  const workspaces = useQuery(trpc.session.workspaces.queryOptions({}));
+
+  if (workspaces.isPending) {
+    return <Waiting label="Đang tải danh sách vựa" />;
+  }
+
+  if (workspaces.isError) {
+    const domainError = domainErrorOf(workspaces.error);
     return (
-      <main className="mx-auto max-w-2xl px-4 py-10">
-        <Skeleton width="w-48" height="h-6" label="Đang mở phiên làm việc" />
+      <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-10">
+        {domainError === null ? (
+          <EmptyState
+            title="Không kết nối được máy chủ"
+            description="Kiểm tra mạng rồi thử lại. Chưa có gì được ghi."
+            action={<Button onClick={() => void workspaces.refetch()}>Thử lại</Button>}
+          />
+        ) : (
+          <BusinessRejection
+            error={domainError}
+            action={
+              <Button tone="secondary" onClick={() => void auth.signOut()}>
+                Đăng xuất
+              </Button>
+            }
+          />
+        )}
       </main>
     );
   }
 
-  if (token === null) {
-    return <NotSignedIn />;
-  }
+  const choices = workspaces.data.workspaces;
+  const chosen = choices.find((choice) => choice.workspaceId === workspaceId) ?? null;
 
-  if (workspaceId === null || !choices.some((choice) => choice.workspaceId === workspaceId)) {
-    // A stored id that is no longer configured — a changed deployment, a stale
-    // tab — falls back to asking, never to picking a different depot.
-    return (
-      <WorkspacePicker
-        choices={choices}
-        onChoose={(chosen) => {
-          storeWorkspaceId(chosen);
-          setWorkspaceId(chosen);
-        }}
-      />
-    );
+  if (chosen === null) {
+    // A stored id that is no longer in the list — access revoked, a stale tab —
+    // falls back to asking, never to picking a different depot.
+    return <WorkspacePicker choices={choices} onChoose={onChoose} onSignOut={auth.signOut} />;
   }
 
   return (
-    <ResolveSession
-      workspaceId={workspaceId}
-      choices={choices}
-      onChangeWorkspace={() => {
-        storeWorkspaceId(null);
-        setWorkspaceId(null);
-      }}
-    >
+    <ResolveSession choice={chosen} onChangeWorkspace={() => onChoose(null)}>
       {children}
     </ResolveSession>
   );
 }
 
 function ResolveSession({
-  workspaceId,
-  choices,
+  choice,
   onChangeWorkspace,
   children,
 }: {
-  workspaceId: WorkspaceId;
-  choices: readonly WorkspaceChoice[];
+  choice: WorkspaceChoice;
   onChangeWorkspace: () => void;
   children: ReactNode;
 }) {
   const trpc = useTRPC();
+  const workspaceId = choice.workspaceId;
   const me = useQuery(trpc.session.me.queryOptions({ workspaceId }));
-  const workspaceName =
-    choices.find((choice) => choice.workspaceId === workspaceId)?.displayName ?? "Vựa";
 
   if (me.isPending) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-10">
-        <Skeleton width="w-64" height="h-6" label="Đang kiểm tra quyền truy cập" />
-      </main>
-    );
+    return <Waiting label="Đang kiểm tra quyền truy cập" />;
   }
 
   if (me.isError) {
@@ -155,38 +207,41 @@ function ResolveSession({
   }
 
   return (
-    <SessionContext.Provider value={{ session: me.data, workspaceId, workspaceName }}>
-      <WorkspaceShell workspaceName={workspaceName} session={me.data}>
+    <SessionContext.Provider value={{ session: me.data, workspaceId, workspaceName: choice.name }}>
+      <WorkspaceShell workspaceName={choice.name} session={me.data}>
         {children}
       </WorkspaceShell>
     </SessionContext.Provider>
   );
 }
 
-function NotSignedIn() {
-  return (
-    <main className="mx-auto max-w-2xl px-4 py-10">
-      <EmptyState
-        title="Chưa đăng nhập"
-        description="Ứng dụng chưa có màn hình đăng nhập. Phiên đăng nhập do Supabase quản lý; xem apps/web/README.md để biết cách nạp phiên cho lần chạy thử."
-      />
-    </main>
-  );
-}
-
-function WorkspacePicker({
+export function WorkspacePicker({
   choices,
   onChoose,
+  onSignOut,
 }: {
   choices: readonly WorkspaceChoice[];
   onChoose: (workspaceId: WorkspaceId) => void;
+  onSignOut?: () => void | Promise<void>;
 }) {
   if (choices.length === 0) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-10">
+      <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-10">
+        {/* Signed in and a member of nothing. A real state — the first minute of a
+            new person's account — and the one most likely to be rendered as a
+            spinner that never resolves. It names what to do about it. */}
         <EmptyState
-          title="Chưa cấu hình vựa nào"
-          description="Đặt biến môi trường NEXT_PUBLIC_WORKSPACES theo dạng id:Tên vựa, cách nhau bằng dấu |."
+          title="Tài khoản chưa được thêm vào vựa nào"
+          description="Bạn đã đăng nhập, nhưng chưa được cấp quyền vào vựa nào. Báo chủ vựa để được thêm vào."
+          {...(onSignOut !== undefined
+            ? {
+                action: (
+                  <Button tone="secondary" onClick={() => void onSignOut()}>
+                    Đăng xuất
+                  </Button>
+                ),
+              }
+            : {})}
         />
       </main>
     );
@@ -207,7 +262,7 @@ function WorkspacePicker({
         {choices.map((choice) => (
           <li key={choice.workspaceId}>
             <Button fullWidth tone="secondary" onClick={() => onChoose(choice.workspaceId)}>
-              {choice.displayName}
+              {choice.name}
             </Button>
           </li>
         ))}

@@ -1,4 +1,4 @@
-import type { SessionDto, WorkspaceId } from "@vuarau/domain-contracts";
+import type { ActorWorkspacesDto, SessionDto, WorkspaceId } from "@vuarau/domain-contracts";
 import { permissionsForRole } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
@@ -42,6 +42,44 @@ export function getSession(
       workspaceId,
       role: membership.role,
       permissions: [...permissionsForRole(membership.role)],
+    });
+  });
+}
+
+/**
+ * UC-AUTH-004 — which depots this caller may act in (BR-AUTH-008).
+ *
+ * Like `getSession`, it does not go through `runQuery`, and for a sharper reason:
+ * `runQuery` takes a workspace id and a permission held *within* that workspace.
+ * This is the query asked when no workspace is known yet, so there is nothing to
+ * scope it to and nothing to check a permission against. Requiring one would be
+ * circular in the same way `session.me` would be.
+ *
+ * What replaces the permission check is that **the query has no input**. The actor
+ * comes from `ctx.principal`, which the transport resolved from a verified token
+ * and which no request body can influence (BR-AUTH-002). There is no field to
+ * tamper with, so there is no cross-actor read to prevent — a stronger property
+ * than a check, because it cannot be forgotten by the next procedure.
+ *
+ * Inactive memberships are excluded in the repository, not filtered here. A
+ * revoked worker sees an empty list, which is the same thing a stranger with a
+ * valid Supabase account sees, and telling those two apart is not a client's
+ * business (BR-AUTH-003).
+ */
+export function listActorWorkspaces(
+  ctx: CommandContext,
+): Promise<DomainResult<ActorWorkspacesDto>> {
+  return ctx.deps.uow.transaction(async (repos) => {
+    const memberships = await repos.actors.listActiveWorkspaces(ctx.principal.actorId);
+
+    return ok({
+      actorId: ctx.principal.actorId,
+      workspaces: memberships.map((membership) => ({
+        workspaceId: membership.workspaceId,
+        name: membership.workspaceName,
+        role: membership.role,
+        permissions: [...permissionsForRole(membership.role)],
+      })),
     });
   });
 }

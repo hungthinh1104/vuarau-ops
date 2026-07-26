@@ -23,6 +23,27 @@ the rule it encodes.
 
 ---
 
+## 0. Signing in and choosing a depot
+
+| State                     | When                                                       | Must show                                                            |
+| ------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| `signed_out`              | No Supabase session                                        | A way in. An email field and a code, never a password                |
+| `no_workspace_membership` | Signed in; `session.workspaces` returned an **empty list** | That the account is real and belongs to no depot yet, and who to ask |
+
+`no_workspace_membership` is the state most likely to be rendered as a spinner
+that never resolves, because it looks like "the list has not arrived". It is a
+successful answer (BR-AUTH-008): a valid account with no membership — the first
+minute of a new person's account, and also what a revoked worker sees. The screen
+says so and offers signing out, because nothing else the person does will change
+it.
+
+There is deliberately **no** `single_workspace_auto_selected`. Selection is always
+explicit: a silently chosen depot is a silently chosen set of books, and the case
+where it would be convenient is exactly the case where somebody with two depots
+would not notice (BR-CUSTOMER-002).
+
+---
+
 ## 1. Loading and empty
 
 | State     | When                                    | Must show                                                                    |
@@ -251,6 +272,7 @@ This list is parsed by TC-WEB-012, so its formatting is load-bearing: one state 
 build, which is the only reason the machine-readable copy in
 `apps/web/src/ui/catalog-state.ts` exists.
 
+- [x] signed_out · no_workspace_membership
 - [x] loading · empty
 - [x] validation_error · business_rejection
 - [x] permission_denied

@@ -14,6 +14,7 @@ import type {
   SaleId,
   PaymentId,
   WorkspaceId,
+  WorkspaceRole,
 } from "@vuarau/domain-contracts";
 import type {
   CustomerAccountBalance,
@@ -37,6 +38,7 @@ import {
   paymentReversals,
   payments,
   workspaceMemberships,
+  workspaces,
 } from "../schema/index.ts";
 import {
   fromIso,
@@ -57,8 +59,10 @@ import {
  * inwards (docs/01-domain/context-map.md). If a port and an implementation drift,
  * the wiring in `apps/api` stops compiling.
  *
- * Every method takes `workspaceId` as a required argument. There is no method
- * that can read across workspaces (BR-CUSTOMER-002).
+ * Every method takes `workspaceId` as a required argument, with one exception:
+ * `actors`, which resolves identity *before* a workspace is known and therefore
+ * cannot take one. Nothing else may read across workspaces (BR-CUSTOMER-002), and
+ * that exception is argued where the port is declared.
  */
 
 // The concrete transaction type Drizzle hands a callback. Kept loose here so the
@@ -136,6 +140,41 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           .limit(1);
         const row = rows[0];
         return row === undefined ? null : { actorId: row.id as ActorId };
+      },
+
+      /**
+       * The one query that spans workspaces, and the only one that may
+       * (BR-AUTH-008). It is filtered by `actor_id` — never by anything from a
+       * request — and by `is_active`, so a revoked membership disappears from the
+       * picker on the next load rather than offering a door onto a refusal.
+       *
+       * Ordered by `(name, id)` so two calls agree and a picker does not reshuffle
+       * under somebody's thumb. The join is inner: a membership whose workspace row
+       * is gone is not a depot anybody can be shown.
+       */
+      async listActiveWorkspaces(
+        actorId: ActorId,
+      ): Promise<
+        readonly { workspaceId: WorkspaceId; workspaceName: string; role: WorkspaceRole }[]
+      > {
+        const rows = await tx
+          .select({
+            workspaceId: workspaces.id,
+            workspaceName: workspaces.name,
+            role: workspaceMemberships.role,
+          })
+          .from(workspaceMemberships)
+          .innerJoin(workspaces, eq(workspaces.id, workspaceMemberships.workspaceId))
+          .where(
+            and(eq(workspaceMemberships.actorId, actorId), eq(workspaceMemberships.isActive, true)),
+          )
+          .orderBy(asc(workspaces.name), asc(workspaces.id));
+
+        return rows.map((row) => ({
+          workspaceId: row.workspaceId as WorkspaceId,
+          workspaceName: row.workspaceName,
+          role: row.role,
+        }));
       },
     },
 

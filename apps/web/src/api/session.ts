@@ -1,4 +1,9 @@
-import type { Permission, SessionDto, WorkspaceId } from "@vuarau/domain-contracts";
+import type {
+  Permission,
+  SessionDto,
+  WorkspaceId,
+  WorkspaceSummaryDto,
+} from "@vuarau/domain-contracts";
 import { sessionDtoSchema } from "@vuarau/domain-contracts";
 
 /**
@@ -46,10 +51,13 @@ export type WorkspaceSelection =
   | { readonly kind: "none_selected"; readonly available: readonly WorkspaceChoice[] }
   | { readonly kind: "selected"; readonly workspaceId: WorkspaceId };
 
-export type WorkspaceChoice = {
-  readonly workspaceId: WorkspaceId;
-  readonly displayName: string;
-};
+/**
+ * A depot the server says this caller may act in — `session.workspaces`, verbatim
+ * (BR-AUTH-008). Not a client-side shape: the id, the name, the role and the
+ * permissions all come from the same answer, so a picker cannot show a depot the
+ * server would refuse or a role it did not grant.
+ */
+export type WorkspaceChoice = WorkspaceSummaryDto;
 
 export function selectWorkspace(
   available: readonly WorkspaceChoice[],

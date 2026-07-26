@@ -1,6 +1,5 @@
 import type { WorkspaceId } from "@vuarau/domain-contracts";
 import { workspaceIdSchema } from "@vuarau/domain-contracts";
-import type { WorkspaceChoice } from "./session.ts";
 
 /**
  * Which depot the app is writing into, chosen explicitly and stored per tab.
@@ -10,35 +9,18 @@ import type { WorkspaceChoice } from "./session.ts";
  * deliberately no "if there is only one, use it": somebody who keeps two depots
  * must see which one they are recording against, every time.
  *
- * The list of choices is **configured**, not discovered. The API has no
- * `workspace.list` procedure, and inventing one to make this screen easier would
- * be redesigning the backend for the frontend's convenience. Recorded as a gap in
- * docs/00-product/validation-plan.md instead.
+ * The list of choices is **discovered**, from `session.workspaces` (BR-AUTH-008).
+ * It used to be configured, as `NEXT_PUBLIC_WORKSPACES` — a build-time variable
+ * naming ids and labels. That made the browser the author of a claim only the
+ * server can make: whoever deployed the frontend decided which depots appeared,
+ * and adding one to a pilot meant a rebuild. The variable is gone rather than kept
+ * as a fallback, because a second source for "which depots exist" is a second
+ * answer to it.
+ *
+ * What is kept here is the **selection**: which of the discovered depots this tab
+ * is working in.
  */
 const SELECTION_KEY = "vuarau.workspace_id";
-
-/**
- * `NEXT_PUBLIC_WORKSPACES` is `id:Tên vựa` pairs separated by `|`.
- *
- * Read through a schema rather than trusted: a malformed environment variable
- * should produce no choices and an honest "chưa cấu hình", not a uuid-shaped
- * string sent to the server as a tenant boundary.
- */
-export function configuredWorkspaces(raw: string | undefined): readonly WorkspaceChoice[] {
-  if (raw === undefined || raw.trim().length === 0) return [];
-
-  return raw
-    .split("|")
-    .map((entry) => {
-      const separator = entry.indexOf(":");
-      if (separator < 0) return null;
-      const parsed = workspaceIdSchema.safeParse(entry.slice(0, separator).trim());
-      const displayName = entry.slice(separator + 1).trim();
-      if (!parsed.success || displayName.length === 0) return null;
-      return { workspaceId: parsed.data, displayName };
-    })
-    .filter((choice): choice is WorkspaceChoice => choice !== null);
-}
 
 export function storedWorkspaceId(): WorkspaceId | null {
   if (typeof window === "undefined") return null;

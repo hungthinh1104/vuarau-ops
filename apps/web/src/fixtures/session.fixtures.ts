@@ -1,7 +1,14 @@
-import type { Money, SessionDto, WorkspaceRole } from "@vuarau/domain-contracts";
+import type {
+  ActorWorkspacesDto,
+  Money,
+  SessionDto,
+  WorkspaceRole,
+  WorkspaceSummaryDto,
+} from "@vuarau/domain-contracts";
 import { permissionsForRole } from "@vuarau/domain-contracts";
 import {
   ACCOUNTANT_ACTOR_ID,
+  OTHER_WORKSPACE_ID,
   OWNER_ACTOR_ID,
   SALES_ACTOR_ID,
   WAREHOUSE_ACTOR_ID,
@@ -38,3 +45,32 @@ export const salesSession = sessionFor(SALES_ACTOR_ID, "sales");
 export const warehouseSession = sessionFor(WAREHOUSE_ACTOR_ID, "warehouse");
 
 export const WORKSPACE_NAME = "Vựa Ba Hưng — chợ đầu mối Bình Điền";
+
+/**
+ * What `session.workspaces` answers (BR-AUTH-008), built from the same role table
+ * as the sessions above.
+ *
+ * Two depots with **different roles** on purpose: an owner in one and a sales
+ * worker in the other. A picker that carried one permission set for both would
+ * enable a void control in the depot where the person may not void, and a fixture
+ * with one entry could never catch it.
+ */
+export const workspaceChoices: readonly WorkspaceSummaryDto[] = [
+  {
+    workspaceId: WORKSPACE_ID,
+    name: WORKSPACE_NAME,
+    role: "owner",
+    permissions: [...permissionsForRole("owner")],
+  },
+  {
+    workspaceId: OTHER_WORKSPACE_ID,
+    name: "Vựa Sáu Tâm — chợ Thủ Đức",
+    role: "sales",
+    permissions: [...permissionsForRole("sales")],
+  },
+];
+
+export const ownerWorkspaces: ActorWorkspacesDto = {
+  actorId: OWNER_ACTOR_ID,
+  workspaces: [...workspaceChoices],
+};

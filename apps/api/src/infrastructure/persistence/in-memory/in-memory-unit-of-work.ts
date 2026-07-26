@@ -29,6 +29,8 @@ import type {
  */
 type Store = {
   memberships: Map<string, WorkspaceMembership>;
+  /** Workspace id → display name, which is all a picker needs (BR-AUTH-008). */
+  workspaceNames: Map<string, string>;
   /** Supabase subject → local actor id (BR-AUTH-005). */
   actorsBySubject: Map<string, ActorId>;
   /** Actor display names, for the audit timeline's `actorDisplayName`. */
@@ -47,6 +49,7 @@ type Store = {
 function emptyStore(): Store {
   return {
     memberships: new Map(),
+    workspaceNames: new Map(),
     actorsBySubject: new Map(),
     actorNames: new Map(),
     customers: new Map(),
@@ -165,6 +168,17 @@ export class InMemoryDatabase {
     });
   }
 
+  /**
+   * Names a workspace, so it can appear in a picker.
+   *
+   * Mirrors the inner join in the SQL: a membership whose workspace was never
+   * named is invisible to `listActiveWorkspaces`, exactly as a membership with no
+   * `workspaces` row would be.
+   */
+  registerWorkspace(workspaceId: WorkspaceId, name: string): void {
+    this.store.workspaceNames.set(workspaceId, name);
+  }
+
   /** Links a verified JWT subject to a local actor. */
   registerActor(supabaseUserId: string, actorId: ActorId, displayName = "Test actor"): void {
     this.store.actorsBySubject.set(supabaseUserId, actorId);
@@ -276,6 +290,28 @@ export class InMemoryDatabase {
           const actorId = store.actorsBySubject.get(supabaseUserId);
           return actorId === undefined ? null : { actorId };
         },
+
+        listActiveWorkspaces: async (actorId) =>
+          [...store.memberships.values()]
+            .filter((membership) => membership.actorId === actorId && membership.isActive)
+            .flatMap((membership) => {
+              const workspaceName = store.workspaceNames.get(membership.workspaceId);
+              // Inner join, as in the SQL: an unnamed workspace is not a door.
+              return workspaceName === undefined
+                ? []
+                : [
+                    {
+                      workspaceId: membership.workspaceId,
+                      workspaceName,
+                      role: membership.role,
+                    },
+                  ];
+            })
+            .sort((a, b) =>
+              a.workspaceName === b.workspaceName
+                ? a.workspaceId.localeCompare(b.workspaceId)
+                : a.workspaceName.localeCompare(b.workspaceName),
+            ),
       },
 
       customers: {

@@ -188,5 +188,6 @@ If anything other than chốt đơn: stop before any further real sale is record
 ## Related
 
 - [validation-plan.md](validation-plan.md) — how the session is run, and why
+- [pilot-mode.md](pilot-mode.md) — what this pilot is, and what it must not be used for
 - [product-brief.md](product-brief.md) — the hypotheses this settles
 - [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — the owner's four questions

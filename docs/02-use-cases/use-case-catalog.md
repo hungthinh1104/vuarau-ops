@@ -24,6 +24,7 @@ Reaching it needs shell access, which is its own authorization boundary.
 | UC-AUTH-001     | Authenticate, resolve actor, authorize  | —                     | implemented                | [UC-AUTH-001](UC-AUTH-001-authenticate-and-authorize.md)     |
 | UC-AUTH-002     | Revoke a workspace membership           | `workspace.manage`    | implemented                | [platform](platform-use-cases.md)                            |
 | UC-AUTH-003     | View my capabilities                    | —                     | implemented                | [platform](platform-use-cases.md)                            |
+| UC-AUTH-004     | List the depots I may work in           | —                     | implemented                | [platform](platform-use-cases.md)                            |
 | UC-CUSTOMER-001 | Create a customer                       | `customer.create`     | implemented                | [UC-CUSTOMER-001](UC-CUSTOMER-001-create-customer.md)        |
 | UC-CUSTOMER-002 | Search and list customers               | `customer.read`       | implemented                | [customer](customer-use-cases.md)                            |
 | UC-CUSTOMER-003 | View a customer                         | `customer.read`       | implemented                | [customer](customer-use-cases.md)                            |

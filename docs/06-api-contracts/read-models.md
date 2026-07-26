@@ -9,21 +9,30 @@ Source of truth in code: `packages/domain-contracts/src/*/index.ts` for the DTOs
 
 ## The surface
 
-| Procedure          | Permission      | Returns                           | Use case        |
-| ------------------ | --------------- | --------------------------------- | --------------- |
-| `session.me`       | — (identity)    | `SessionDto`                      | UC-AUTH-003     |
-| `customer.search`  | `customer.read` | page of `CustomerSummaryDto`      | UC-CUSTOMER-002 |
-| `customer.get`     | `customer.read` | `CustomerDetailDto`               | UC-CUSTOMER-003 |
-| `sale.get`         | `sale.read`     | `SaleDto` + `replacedBySaleId`    | UC-SALE-003     |
-| `sale.list`        | `sale.read`     | page of `SaleSummaryDto`          | UC-SALE-003     |
-| `payment.get`      | `payment.read`  | `PaymentSummaryDto`               | UC-PAYMENT-003  |
-| `payment.list`     | `payment.read`  | page of `PaymentSummaryDto`       | UC-PAYMENT-003  |
-| `account.timeline` | `debt.read`     | page of `AccountTimelineEntryDto` | UC-ACCOUNT-001  |
-| `audit.timeline`   | `audit.read`    | page of `AuditTimelineEntryDto`   | UC-AUDIT-001    |
+| Procedure            | Permission      | Returns                           | Use case        |
+| -------------------- | --------------- | --------------------------------- | --------------- |
+| `session.me`         | — (identity)    | `SessionDto`                      | UC-AUTH-003     |
+| `session.workspaces` | — (identity)    | `ActorWorkspacesDto`              | UC-AUTH-004     |
+| `customer.search`    | `customer.read` | page of `CustomerSummaryDto`      | UC-CUSTOMER-002 |
+| `customer.get`       | `customer.read` | `CustomerDetailDto`               | UC-CUSTOMER-003 |
+| `sale.get`           | `sale.read`     | `SaleDto` + `replacedBySaleId`    | UC-SALE-003     |
+| `sale.list`          | `sale.read`     | page of `SaleSummaryDto`          | UC-SALE-003     |
+| `payment.get`        | `payment.read`  | `PaymentSummaryDto`               | UC-PAYMENT-003  |
+| `payment.list`       | `payment.read`  | page of `PaymentSummaryDto`       | UC-PAYMENT-003  |
+| `account.timeline`   | `debt.read`     | page of `AccountTimelineEntryDto` | UC-ACCOUNT-001  |
+| `audit.timeline`     | `audit.read`    | page of `AuditTimelineEntryDto`   | UC-AUDIT-001    |
 
-`session.me` is the only one that requires no permission: the answer _is_ the
-permission list, and demanding one to read it would be circular. It still needs a
-verified identity and an active membership.
+The two `session.*` reads are the only ones that require no permission, and
+neither could. `session.me`'s answer _is_ the permission list, so demanding one to
+read it would be circular. `session.workspaces` is asked before a workspace is
+known, so there is nothing to hold a permission in.
+
+They are also the only two that skip `runQuery`, for the same reason: it takes a
+workspace id and a permission held within it, and neither read has one to give.
+What stands in for the check on `session.workspaces` is that **it has no input at
+all** — the actor comes from the verified token, and there is no field a request
+can influence (BR-AUTH-008). `session.me` still requires an active membership in
+the workspace it is asked about.
 
 ## Authorization
 

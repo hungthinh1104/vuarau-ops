@@ -96,6 +96,7 @@ first crack in that.
 | New query               | `db/src/repositories/` + a port in `apps/api/src/infrastructure/persistence/ports.ts`                        |
 | A new UI state          | `docs/06-api-contracts/ui-state-catalog.md` **first**, then `apps/web/src/ui/catalog-state.ts`, then a story |
 | A new component         | `apps/web/src/ui/primitives/` or `patterns/` + a story + a test of the rule it encodes                       |
+| An operator tool        | `apps/api/src/operations/` + a `ops:*` script. Never a tRPC procedure — shell access is the authorization    |
 | Anything touching money | kernel + docs + a P0 test. No exceptions.                                                                    |
 
 ## Forbidden shapes
@@ -111,6 +112,11 @@ pnpm install
 pnpm verify           # format, lint, typecheck, boundaries, docs, trace, tests
 pnpm test:domain      # fastest useful signal
 pnpm db:migrate       # needs DATABASE_URL
+
+# Operator tools. Shell access is the authorization boundary; neither is a
+# procedure, and neither should become one.
+pnpm --filter @vuarau/api ops:rebuild-balance <workspaceId> <customerId>
+pnpm --filter @vuarau/api ops:pilot help        # depot, member, customer import
 ```
 
 ## Related

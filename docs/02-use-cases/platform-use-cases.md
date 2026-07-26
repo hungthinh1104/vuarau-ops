@@ -71,7 +71,7 @@ active owner cannot be revoked (`WORKSPACE_LAST_OWNER`).
 
 ### Rules · Planned tests
 
-BR-AUTH-003, BR-AUTH-004 · TC-AUTH-013, TC-AUTH-014
+BR-AUTH-003, BR-AUTH-004 · TC-AUTH-013
 
 ---
 
@@ -128,6 +128,69 @@ since (see UC-AUTH-002).
 
 BR-AUTH-001, BR-AUTH-003, BR-AUTH-004, BR-AUTH-005, BR-AUTH-006 ·
 TC-AUTH-006, TC-AUTH-009
+
+---
+
+## UC-AUTH-004 — List the depots I may work in
+
+**Risk:** P0 · **Status:** implemented · **Read:** `session.workspaces`
+
+| Field          | Value                                                                  |
+| -------------- | ---------------------------------------------------------------------- |
+| **Actor**      | Any authenticated actor                                                |
+| **Trigger**    | Somebody signs in, and the client must ask which depot before anything |
+| **Permission** | None beyond a verified identity — see below                            |
+| **Result DTO** | `ActorWorkspacesDto`: the actor, and a list of named depots with roles |
+
+### Why it exists
+
+Because the alternative was in the browser. Until this read existed, the depot
+list came from `NEXT_PUBLIC_WORKSPACES` — a build-time environment variable naming
+ids and labels. That is a claim about who may enter which depot, made by a client,
+in a place a client cannot possibly know it: whoever deploys the frontend decides
+what appears in the picker, and the server finds out only when the first request
+arrives.
+
+It also made a pilot awkward for no good reason. Adding a depot meant a rebuild.
+
+### The question this is asked before
+
+`session.me` answers "what may I do **here**". It cannot be called until "here"
+has a value, so something has to answer "where can here be". That is this read,
+and it is why it takes a workspace id as input in neither form.
+
+### Paths and effects
+
+| Situation                             | Outcome                                                    |
+| ------------------------------------- | ---------------------------------------------------------- |
+| No credential                         | `AUTHENTICATION_REQUIRED`                                  |
+| Token invalid                         | `AUTHENTICATION_INVALID`                                   |
+| Subject maps to no actor              | `ACTOR_NOT_FOUND`                                          |
+| Valid identity, no membership at all  | **Empty list, successfully.** Not an error                 |
+| Every membership revoked              | Empty list — the same answer, deliberately (BR-AUTH-003)   |
+| Member of two depots with two roles   | Two entries, each carrying the role held **in that depot** |
+| Client sends an `actorId` in the body | Refused: the input schema is strict and has no such field  |
+
+No state transition, no account effect, no audit record. Reads are not audited
+(ASM-022), and this one is the least interesting read there is — it names no
+customer and no amount.
+
+### Idempotency · Concurrency · Offline policy
+
+Not applicable. Cacheable for the life of a sign-in, with the same caveat as
+`session.me`: a membership may be revoked between the picker and the first
+command, and the command is where that is discovered.
+
+### Capabilities · UI states
+
+`loading`, `empty` (signed in, no depot — the state that most needs real copy
+rather than a spinner that never resolves), `permission_denied`,
+`unknown_network_outcome`.
+
+### Rules · Tests
+
+BR-AUTH-001, BR-AUTH-002, BR-AUTH-003, BR-AUTH-005, BR-AUTH-008, BR-CUSTOMER-002 ·
+TC-AUTH-014, TC-AUTH-015, TC-AUTH-016
 
 ---
 

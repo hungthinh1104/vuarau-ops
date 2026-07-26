@@ -9,38 +9,60 @@
  * A token captured once at mount is a token that expires mid-shift, and the
  * failure looks like "the app randomly signs me out".
  *
- * There is no sign-in screen yet. Until there is, whatever holds the Supabase
- * session writes the access token to `sessionStorage` under `TOKEN_KEY`, and the
- * pilot harness does the same with a token minted against the API's configured
- * secret. Both paths produce a **real** token that the real verifier checks; what
- * is missing is the screen, not the verification.
+ * The live answer is held in a module variable that `AuthProvider` keeps current
+ * from `onAuthStateChange`. That is not a second session store: Supabase's client
+ * is still the only thing that knows whether there *is* a session, and this is a
+ * synchronous read of what it last said, because a tRPC header callback cannot
+ * await.
  */
 export const TOKEN_KEY = "vuarau.access_token";
 
 export type AccessTokenSource = () => string | null;
 
+let liveAccessToken: string | null = null;
+
+/** Called by `AuthProvider` on every Supabase auth event, and nowhere else. */
+export function setAccessToken(token: string | null): void {
+  liveAccessToken = token;
+}
+
 /**
- * Reads the current token on every call. `sessionStorage`, not `localStorage`: a
- * depot phone is handed around, and a token that outlives the tab is a token the
- * next person inherits.
+ * The end-to-end suite's way in, and the reason it is a named door rather than a
+ * hole.
+ *
+ * Playwright runs against a real API and a real database but **no Supabase
+ * project** — CI has none, and standing one up would make the suite depend on a
+ * third party to answer questions about Postgres rows. So the harness mints a
+ * token against the API's configured secret and writes it where this reads.
+ *
+ * Two locks, and both must be open:
+ *
+ *   1. `NEXT_PUBLIC_E2E_AUTH_BRIDGE=1` — set by the Playwright web server only.
+ *   2. `NODE_ENV !== "production"` — so a production build cannot open it at all.
+ *      Next replaces this comparison with a literal at build time and removes the
+ *      branch, which means the bridge is not merely disabled in a production
+ *      bundle; it is not in it.
+ *
+ * TC-WEB-024 asserts that an injected token is ignored with the flag unset,
+ * because "off by default" is the property that matters and it is one line to
+ * break by accident.
  */
-export const browserAccessToken: AccessTokenSource = () => {
+export function e2eBridgeToken(): string | null {
+  if (process.env.NODE_ENV === "production") return null;
+  if (process.env["NEXT_PUBLIC_E2E_AUTH_BRIDGE"] !== "1") return null;
   if (typeof window === "undefined") return null;
   try {
     return window.sessionStorage.getItem(TOKEN_KEY);
   } catch {
-    // Private browsing and some embedded webviews throw on storage access.
-    // No token is a state the app already renders; a crash is not.
     return null;
   }
-};
-
-export function setAccessToken(token: string | null): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (token === null) window.sessionStorage.removeItem(TOKEN_KEY);
-    else window.sessionStorage.setItem(TOKEN_KEY, token);
-  } catch {
-    // Same as above: unavailable storage is not worth a crash.
-  }
 }
+
+/**
+ * The current access token, or null when nobody is signed in.
+ *
+ * No `sessionStorage` read on the normal path. The token a request carries is the
+ * one Supabase currently holds, so signing out or letting a session expire takes
+ * effect immediately rather than leaving a copy behind that still authenticates.
+ */
+export const browserAccessToken: AccessTokenSource = () => liveAccessToken ?? e2eBridgeToken();

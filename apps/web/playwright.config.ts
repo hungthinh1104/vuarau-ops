@@ -5,7 +5,6 @@ import {
   E2E_JWT_ISSUER,
   E2E_JWT_SECRET,
   E2E_WEB_PORT,
-  E2E_WORKSPACE_ID,
 } from "./e2e/harness/environment.ts";
 
 /**
@@ -33,7 +32,21 @@ const apiEnvironment = {
 
 const webEnvironment = {
   NEXT_PUBLIC_API_ORIGIN: `http://127.0.0.1:${E2E_API_PORT}`,
-  NEXT_PUBLIC_WORKSPACES: `${E2E_WORKSPACE_ID}:Vựa kiểm thử`,
+  /*
+   * The one build that opens the token bridge.
+   *
+   * There is no Supabase project here — CI has none, and standing one up would
+   * make questions about Postgres rows depend on a third party. So the harness
+   * mints a token against the API's configured secret and injects it, and this
+   * flag is what lets the app read it (TC-WEB-024). A production build cannot
+   * open the same door: the bridge is also guarded on `NODE_ENV`, which Next
+   * resolves at build time and removes the branch behind.
+   *
+   * The depot list is **not** configured here any more. It comes from
+   * `session.workspaces`, against the seeded workspace, which means the picker
+   * these specs click through is the real one (BR-AUTH-008).
+   */
+  NEXT_PUBLIC_E2E_AUTH_BRIDGE: "1",
 };
 
 export default defineConfig({

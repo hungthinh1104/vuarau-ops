@@ -60,14 +60,34 @@ export type WorkspaceRepository = {
   revokeMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean>;
 };
 
+/** One row of "which depots may this person act in", for the workspace picker. */
+export type ActorWorkspace = {
+  readonly workspaceId: WorkspaceId;
+  readonly workspaceName: string;
+  readonly role: WorkspaceRole;
+};
+
 /**
  * Identity resolution — the one repository that is **not** workspace-scoped, and
- * the only justified exception to the rule above. It runs before any workspace is
- * known: a verified JWT names a subject, and this turns that subject into the
- * local actor whose memberships are then checked (BR-AUTH-005).
+ * the only justified exception to the rule above. Both methods run *before* any
+ * workspace is known, which is precisely why they cannot take one: a verified JWT
+ * names a subject, this turns that subject into a local actor (BR-AUTH-005), and
+ * then into the set of depots that actor may enter (BR-AUTH-008).
+ *
+ * The exception is safe for one reason, and it is worth stating rather than
+ * assuming: **neither method takes anything a caller supplies.** The subject comes
+ * from a verified token and the actor id from the subject. There is no argument
+ * here that a request can influence, so there is nothing to scope.
  */
 export type ActorRepository = {
   findBySupabaseUserId(supabaseUserId: string): Promise<{ actorId: ActorId } | null>;
+  /**
+   * **Active memberships only.** Unlike `findMembership`, a revoked row must not
+   * appear: the caller of that method is answering "why were you refused", and
+   * the caller of this one is drawing a list of doors. A revoked depot in a picker
+   * is a door that opens onto a refusal.
+   */
+  listActiveWorkspaces(actorId: ActorId): Promise<readonly ActorWorkspace[]>;
 };
 
 export type CustomerRepository = {

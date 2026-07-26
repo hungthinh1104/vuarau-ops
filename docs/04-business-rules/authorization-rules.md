@@ -86,6 +86,7 @@ the caller's membership, using the static table in
 | `audit.timeline`                      | `audit.read`          | **owner, accountant**    | implemented |
 | `RevokeWorkspaceMembership`           | `workspace.manage`    | **owner**                | implemented |
 | `session.me`                          | — (identity only)     | all roles                | implemented |
+| `session.workspaces`                  | — (identity only)     | all roles                | implemented |
 
 The refusal names the permission and the role, so the answer to "why can't I do
 this" does not require reading the source.
@@ -153,6 +154,50 @@ owners revoking each other at the same moment would otherwise both read two and
 both proceed. A version column on the membership row would not have caught that —
 they are updating different rows — which is why revocation carries no
 `expectedVersion` and this lock instead.
+
+---
+
+### BR-AUTH-008 — Workspace discovery answers from the token and takes no input
+
+**Risk:** P0 · **Code:** — · **Tests:** TC-AUTH-014, TC-AUTH-015, TC-AUTH-016
+
+`session.workspaces` returns the depots the **authenticated actor** may act in:
+workspace id, display name, role, and the permissions that role carries there. It
+is the only read in the system that is not scoped to one workspace, and it is
+allowed to be for a reason that also makes it safe.
+
+**Its input is empty.** Not "an actor id that is checked against the token" — no
+actor id at all. The list is derived from `ctx.principal.actorId`, which the
+transport resolved from a verified subject (BR-AUTH-005) and which no request body
+can reach. There is nothing to tamper with, which is a stronger property than a
+check: a check can be forgotten by the next procedure, and an absent field cannot.
+
+The input schema is **strict**, so a client that sends `{ actorId }` is refused
+rather than quietly given its own list. A silently dropped field is a field
+somebody eventually believes in.
+
+**Only active memberships appear.** A revoked worker gets an empty list — exactly
+what a stranger with a valid Supabase account gets — rather than a depot they can
+select and then be refused at (BR-AUTH-003). This is the opposite of
+`findMembership`, which deliberately returns inactive rows so a refusal can say
+_which_ refusal it is; the two callers need different answers and the repository
+gives each the one it needs.
+
+**No permission is required, and none could be.** `runQuery` demands a workspace
+and a permission held within it; this is the question asked before a workspace is
+known. Requiring a permission to learn which workspaces exist for you would be
+circular in the same way requiring one to read your own permissions would
+(UC-AUTH-003).
+
+An empty list is a **successful** answer, not a rejection. "You are signed in and
+belong to no depot" is a real state — the first minute of a new person's account —
+and turning it into an error would make the client branch on an exception for
+something ordinary.
+
+Why this rule is P0 despite refusing nothing: the query spans workspaces. A
+missing `actor_id` predicate returns every depot in the database, and every
+in-memory test would still pass because the in-memory filter is different code.
+TC-AUTH-016 asserts it against real SQL for that reason.
 
 ---
 

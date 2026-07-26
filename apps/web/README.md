@@ -23,35 +23,75 @@ DATABASE_URL=… pnpm web:e2e                # end to end, against a real API + 
 | `/sales/[id]`                  | The posted sale and the account entry it produced      |
 | `/demo`                        | **Fixtures.** Design review only, and labelled as such |
 
-Everything except `/` and `/demo` sits behind `SessionGate`, which requires a
-token, an explicitly chosen depot, and a `session.me` that still answers.
+Everything except `/` and `/demo` sits behind `SessionGate`: a Supabase session,
+a depot discovered from `session.workspaces` and chosen by a person, and a
+`session.me` that still answers.
 
-## Signing in, for now
+## Signing in
 
-There is no sign-in screen. Supabase owns the session and this app deliberately
-reimplements none of it, so the token is read fresh on every request from
-`sessionStorage["vuarau.access_token"]` — whatever holds the Supabase session
-writes it there.
+An email and a six-digit code, through the official Supabase browser client. No
+password: a depot phone is shared, a password on a shared phone gets written on
+the wall next to it, and the recovery flow for a forgotten one is a support
+conversation nobody is staffed for. A code rather than a magic link, because a
+link means leaving the app for an email client and coming back through a browser
+that may not hold the session.
 
-For a pilot or a local run, mint one against the API's configured secret and
-inject it before the first navigation. `apps/web/e2e/harness/` does exactly that,
-and is the working reference.
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=…            # publishable; authorises nothing alone
+```
 
-The depot is chosen from `NEXT_PUBLIC_WORKSPACES`, formatted `id:Tên vựa`,
-separated by `|`. There is no `workspace.list` procedure, and inventing one to
-make this screen easier would be redesigning the backend for the frontend — see
-the gap list in `docs/00-product/validation-plan.md`.
+Both are public by design. The JWT **signing** material verifies tokens and lives
+in the API process — never in a `NEXT_PUBLIC_*` variable, which is a bundle a
+phone downloads.
+
+Sign-up is off (`shouldCreateUser: false`). A pilot participant is provisioned by
+the facilitator beforehand; left on, a typo would create an account that can sign
+in and see nothing at all, which is the most confusing possible outcome.
+
+Without both variables the app shows "chưa cấu hình đăng nhập" and names them,
+rather than a client that throws on first use.
+
+### The depot list
+
+`session.workspaces`, from the server (BR-AUTH-008). It used to be
+`NEXT_PUBLIC_WORKSPACES`, a build-time variable naming ids and labels — which made
+the browser the author of a claim only the server can make, and meant adding a
+depot to a pilot needed a rebuild. That variable is **gone**, not kept as a
+fallback: a second source for "which depots exist" is a second answer to it.
+
+Selection is still explicit, including when the server returns exactly one. That
+is the case where somebody who keeps two depots would not notice which set of
+books they were writing into.
+
+### The one door for the end-to-end suite
+
+Playwright runs against a real API and a real database but **no Supabase project**
+— CI has none, and standing one up would make questions about Postgres rows depend
+on a third party. So `apps/web/e2e/harness/` mints a token against the API's
+configured secret and writes it to `sessionStorage`, and the app reads it only
+when two locks are open:
+
+```text
+NEXT_PUBLIC_E2E_AUTH_BRIDGE=1     set by playwright.config.ts, and nowhere else
+NODE_ENV !== "production"          Next resolves this at build time and removes
+                                   the branch, so the bridge is not in a
+                                   production bundle at all
+```
+
+TC-WEB-024 asserts an injected token is ignored with the flag unset. "Off by
+default" is one line to break by accident, so it is tested rather than commented.
 
 ## What is here
 
-| Directory      | Responsibility                                                    |
-| -------------- | ----------------------------------------------------------------- |
-| `src/app`      | Next App Router: `(app)` holds every production route             |
-| `src/api`      | tRPC client, session gate, command identity, workflow metrics     |
-| `src/ui`       | The design system — primitives, product patterns, format and copy |
-| `src/fixtures` | Typed sample data for stories and tests. **Never a route**        |
-| `src/testing`  | Vitest setup and the axe helper                                   |
-| `e2e`          | Playwright, against a real API process and a real database        |
+| Directory      | Responsibility                                                      |
+| -------------- | ------------------------------------------------------------------- |
+| `src/app`      | Next App Router: `(app)` holds every production route               |
+| `src/api`      | Supabase auth, tRPC client, session gate, command identity, metrics |
+| `src/ui`       | The design system — primitives, product patterns, format and copy   |
+| `src/fixtures` | Typed sample data for stories and tests. **Never a route**          |
+| `src/testing`  | Vitest setup and the axe helper                                     |
+| `e2e`          | Playwright, against a real API process and a real database          |
 
 ## The one import that crosses to the server
 
@@ -182,14 +222,15 @@ it passes handlers, and a function prop does not cross the server boundary.
 
 ## What is deliberately absent
 
-- **The workflows.** Customer, sale, payment and void screens are the next
-  milestone. The demonstration route proves composition and reflow; it does not
-  pretend to be a finished screen, and says so at the top.
+- **Void and replacement screens.** `VoidSale` exists, is tested, and has no UI, so
+  correcting a posted sale is an operator's job at a shell. That is the single
+  sharpest reason the pilot is a shadow one
+  ([pilot-mode.md](../../docs/00-product/pilot-mode.md)).
+- **A customer-create screen, and any import screen.** Customers arrive through
+  the onboarding CLI before a session (BR-CUSTOMER-005); an import UI would be a
+  second way to create them with its own validation and its own bugs.
 - **An offline queue.** Client-supplied ids and idempotency keys are already in
   every command, which is the part that had to be decided at the backend
   ([ADR-0008](../../docs/09-decisions/ADR-0008-idempotency-records.md)). The sync
   engine is future work.
-- **A real end-to-end suite.** `e2e/` has the configuration and two smoke specs.
-  Writing more now would mean asserting against fixtures through a browser — a
-  slower version of the component tests that proves less.
 - **A dashboard.** design.md: don't build one before the core workflows.

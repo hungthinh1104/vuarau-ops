@@ -70,6 +70,42 @@ merging two versions of a phone number silently is worse than asking.
 
 ---
 
+### BR-CUSTOMER-005 — A bulk import creates customers by command, or creates none
+
+**Risk:** P1 · **Code:** — · **Tests:** TC-CUSTOMER-010, TC-CUSTOMER-011
+
+A pilot needs the worker's **own** customers loaded before the session — typing
+forty names in front of them measures typing. The operator tool that does it
+(`pnpm --filter @vuarau/api ops:pilot customers`) is bound by three rules.
+
+**It creates customers through `CreateCustomer`, not through SQL.** Every row gets
+the same validation, the same audit record and the same idempotency claim a
+customer created in the browser gets. A hand-inserted row would be the one customer
+in the system with no command and no actor behind it (BR-ACCOUNT-004), and it would
+be discovered months later, by a balance nobody can explain.
+
+**The whole file is judged before anything is written.** One unreadable row refuses
+the import and names the line and the column. A file half-imported is worse than
+one refused: the facilitator cannot tell where it stopped, and re-running it
+without stable ids would create the good rows twice.
+
+**Ids and idempotency keys are derived from the file, not minted.** A re-run after
+a crash is therefore a replay (BR-COMMAND-001) rather than a second customer list.
+The id has to be derived as well as the key, because a replay requires a matching
+payload — a fresh uuid under the same key is a rejection, not a replay.
+
+The tool is a **dry run unless `--commit` is given**, and prints exactly what it
+would create. There is deliberately no import screen: it is a job done once per
+depot by somebody with shell access, and a second way to create customers is a
+second set of validation rules to keep in agreement
+([scope](../00-product/scope.md)).
+
+What it does **not** do is import balances. An opening balance is money, it needs
+`debt.adjust`, and it is `AdjustCustomerDebt` with `reasonCode: opening_balance`
+(BR-ACCOUNT-010) — one deliberate command per customer, not a spreadsheet column.
+
+---
+
 ## Deprecated rules
 
 None yet.

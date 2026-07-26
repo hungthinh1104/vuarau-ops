@@ -170,7 +170,8 @@ set against it, and no comparison is drawn from it.
 The worksheet is [pilot-worksheet.md](pilot-worksheet.md), one row per
 transaction. It is empty on purpose. **Do not fill it in with expected values.**
 
-1. Set up a workspace with the worker's own customers. Do not seed demo data.
+1. Set up a workspace with the worker's own customers, following
+   [pilot-onboarding.md](pilot-onboarding.md). Do not seed demo data.
 2. Ask them to record a sale they have actually just made, in their own way. Do
    not demonstrate the screen first; a demonstrated screen measures how well they
    copy, not whether they can use it.
@@ -212,6 +213,8 @@ session.
 
 - [product-brief.md](product-brief.md) — what the hypotheses are for
 - [pilot-worksheet.md](pilot-worksheet.md) — the empty sheet, one row per observed transaction
+- [pilot-mode.md](pilot-mode.md) — what kind of pilot this is, and what it may not be used for
+- [pilot-onboarding.md](pilot-onboarding.md) — setting the depot up beforehand
 - [../08-qa/test-strategy.md](../08-qa/test-strategy.md) — what the automated suites do and do not cover
 - [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md) — the ASM entries a pilot could settle
 - [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — the four questions for the owner

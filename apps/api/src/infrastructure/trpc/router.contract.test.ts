@@ -12,12 +12,14 @@ import {
   paymentSummaryDtoSchema,
   saleSummaryDtoSchema,
   sessionDtoSchema,
+  actorWorkspacesDtoSchema,
 } from "@vuarau/domain-contracts";
 import {
   ACCOUNTANT_ACTOR_ID,
   ACTOR_ID,
   CUSTOMER_ID,
   LATER_TRANSACTION_TIME,
+  OTHER_WORKSPACE_ID,
   SALE_ID,
   PAYMENT_ID,
   SALES_ACTOR_ID,
@@ -343,6 +345,52 @@ describe("BR-AUTH-001 / TC-AUTH-001 — unauthenticated access", () => {
     } catch (error) {
       expect(domainErrorOf(error).code).toBe("AUTHENTICATION_INVALID");
     }
+  });
+});
+
+describe("BR-AUTH-008 / TC-AUTH-015 — session.workspaces over the wire", () => {
+  it("answers from the token, with a shape the client can parse", async () => {
+    const listed = await caller.session.workspaces({});
+
+    expect(actorWorkspacesDtoSchema.parse(listed)).toEqual(listed);
+    expect(listed.actorId).toBe(ACTOR_ID);
+    expect(listed.workspaces.map((workspace) => workspace.workspaceId)).toEqual([WORKSPACE_ID]);
+  });
+
+  it("has no field through which one person can ask for another's depots", async () => {
+    // The procedure's input schema is `{}`. Sending an actor id is a schema
+    // violation, not a parameter that is ignored — a silently ignored field is a
+    // field somebody will eventually believe in (BR-AUTH-002).
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      caller.session.workspaces({ actorId: SALES_ACTOR_ID } as any),
+    ).rejects.toBeInstanceOf(TRPCError);
+  });
+
+  it("refuses to answer without a token at all", async () => {
+    const anonymous = appRouter.createCaller({
+      deps: harness.deps,
+      principal: null,
+      authError: {
+        code: "AUTHENTICATION_REQUIRED",
+        message: "This operation requires an access token.",
+        retryable: false,
+      },
+    });
+
+    await expect(anonymous.session.workspaces({})).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("gives a caller in a second depot the role they hold there", async () => {
+    harness.db.grantMembership(OTHER_WORKSPACE_ID, ACTOR_ID, "sales", true);
+
+    const listed = await caller.session.workspaces({});
+    const other = listed.workspaces.find(
+      (workspace) => workspace.workspaceId === OTHER_WORKSPACE_ID,
+    );
+
+    expect(other?.role).toBe("sales");
+    expect(other?.permissions).not.toContain("sale.void");
   });
 });
 

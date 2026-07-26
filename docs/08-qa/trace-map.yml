@@ -68,6 +68,27 @@ use_cases:
       - apps/api/src/modules/shared/authorization.ts
       - apps/api/src/modules/session/session.queries.ts
 
+  UC-AUTH-004:
+    title: List the depots I may work in
+    risk: P0
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules:
+      - BR-AUTH-001
+      - BR-AUTH-002
+      - BR-AUTH-003
+      - BR-AUTH-005
+      - BR-AUTH-008
+      - BR-CUSTOMER-002
+    cases: []
+    tests: [TC-AUTH-014, TC-AUTH-015, TC-AUTH-016, TC-WEB-024, TC-WEB-025, TC-E2E-021]
+    implementation:
+      - apps/api/src/modules/session/session.queries.ts
+      - apps/api/src/infrastructure/trpc/router.ts
+      - packages/db/src/repositories/index.ts
+      - apps/web/src/api/session-gate.tsx
+      - apps/web/src/api/auth.tsx
+      - apps/web/src/ui/patterns/sign-in.tsx
+
   UC-CUSTOMER-001:
     title: Create customer
     risk: P1
@@ -903,6 +924,17 @@ business_rules:
       - packages/domain-kernel/src/session/revoke-membership.ts
       - packages/db/src/repositories/index.ts
 
+  BR-AUTH-008:
+    title: Workspace discovery answers from the token and takes no input
+    risk: P0
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: []
+    tests: [TC-AUTH-014, TC-AUTH-015, TC-AUTH-016]
+    implementation:
+      - apps/api/src/modules/session/session.queries.ts
+      - apps/api/src/infrastructure/persistence/ports.ts
+      - packages/db/src/repositories/index.ts
+
   # --- reads --------------------------------------------------------------------
   BR-READ-001:
     title: A page boundary never repeats or skips a row
@@ -974,6 +1006,17 @@ business_rules:
     implementation:
       - packages/domain-kernel/src/customer/update-customer.ts
       - apps/api/src/modules/customer/update-customer.handler.ts
+
+  BR-CUSTOMER-005:
+    title: A bulk import creates customers by command, or creates none
+    risk: P1
+    doc: docs/04-business-rules/customer-rules.md
+    cases: []
+    tests: [TC-CUSTOMER-010, TC-CUSTOMER-011]
+    implementation:
+      - apps/api/src/operations/pilot-csv.ts
+      - apps/api/src/operations/pilot-onboarding.ts
+      - packages/db/src/provisioning.ts
 
 cases:
   CASE-SALE-001:
@@ -1325,6 +1368,17 @@ contract_tests:
   TC-E2E-020:
     title: Workflow analytics carry a metric and a number, and no business data
     file: apps/web/e2e/quick-sale.spec.ts
+
+  # --- signing in and finding a depot ----------------------------------------
+  TC-WEB-024:
+    title: The end-to-end token bridge is off unless a build explicitly enables it
+    file: apps/web/src/api/workspace.test.ts
+  TC-WEB-025:
+    title: Signing in asks for an email and a code, never a password, and keeps what was typed
+    file: apps/web/src/ui/sign-in.test.tsx
+  TC-E2E-021:
+    title: The depot list comes from session.workspaces against a real database
+    file: apps/web/e2e/sign-in.spec.ts
 
 # Retired identifiers. Never reissued. The old → new mapping is in
 # docs/02-use-cases/use-case-catalog.md.
