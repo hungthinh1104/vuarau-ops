@@ -1,17 +1,21 @@
 import type {
+  AccountTimelineEntryDto,
+  AccountTimelineInput,
   CurrencyCode,
   CustomerAccountBalanceDto,
   CustomerId,
   CustomerAccountEntryDto,
+  Page,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
 import { DEFAULT_CURRENCY } from "@vuarau/domain-contracts";
 import type { CustomerAccountBalance, DomainResult } from "@vuarau/domain-kernel";
-import { ok } from "@vuarau/domain-kernel";
+import { classifyBalance, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { authorizeWorkspaceAccess, accountCapabilities } from "../shared/authorization.ts";
 import { emptyAccountBalance, rebuildCustomerAccountBalance } from "../shared/account-effects.ts";
 import { toAccountBalanceDto } from "../shared/mappers.ts";
+import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 
 /**
  * Reads. Plain queries, not commands — only the write side is command-shaped
@@ -89,4 +93,40 @@ export async function rebuildAccountBalance(
   return deps.uow.transaction((repos) =>
     rebuildCustomerAccountBalance(repos, workspaceId, customerId, currency, deps.clock.now()),
   );
+}
+
+/**
+ * UC-ACCOUNT-001, the timeline half.
+ *
+ * The recovery surface: when a customer disputes a total, this list is the
+ * answer. Every line names what moved the money, who did it, and what the balance
+ * was afterwards — and every line stands, including the compensating pairs. A
+ * voided sale appears as `+total` then `−total`, never as an absence, because
+ * hiding either would make the arithmetic unfollowable (BR-ACCOUNT-005).
+ */
+export function getCustomerAccountTimeline(
+  ctx: CommandContext,
+  input: AccountTimelineInput,
+): Promise<DomainResult<Page<AccountTimelineEntryDto>>> {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "debt.read",
+    execute: async ({ repos }) => {
+      const result = await repos.accountReads.timeline({
+        workspaceId: input.workspaceId,
+        customerId: input.customerId,
+        from: input.from,
+        to: input.to,
+        page: toPageQuery(input),
+      });
+
+      return toPage(result, (row) => ({
+        ...row,
+        // Named per line, not only for the final balance: a timeline that shows a
+        // running total crossing zero has to say which side of zero each line is.
+        classification: classifyBalance(row.runningBalance),
+      }));
+    },
+  });
 }

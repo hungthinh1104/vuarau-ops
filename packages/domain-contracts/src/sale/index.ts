@@ -12,6 +12,7 @@ import { quantitySchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand, defineVersionedCommand } from "../shared/command.ts";
 import { capabilitySchema } from "../shared/capability.ts";
+import { pageRequestSchema } from "../shared/pagination.ts";
 
 /**
  * A **sale** is a completed transaction: goods handed over, price agreed
@@ -240,3 +241,57 @@ export const saleEventSchema = z.discriminatedUnion("type", [
   saleVoidedEventSchema,
 ]);
 export type SaleEvent = z.infer<typeof saleEventSchema>;
+
+// --- reads -------------------------------------------------------------------
+
+/**
+ * UC-SALE-003 — a row in the day's list.
+ *
+ * Deliberately without `lines`. A list of fifty sales does not need three hundred
+ * line rows to render, and loading them would be the classic N+1 that turns a
+ * cheap screen into a slow one. `sale.get` returns the lines.
+ */
+export const saleSummaryDtoSchema = z.object({
+  id: saleIdSchema,
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+  /** Denormalised for the list only. `sale.get` does not repeat it. */
+  customerDisplayName: z.string(),
+  status: saleStatusSchema,
+  financialState: saleFinancialStateSchema.nullable(),
+  dueState: saleDueStateSchema,
+  totalAmount: moneySchema,
+  lineCount: z.int().nonnegative(),
+  version: z.int().nonnegative(),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  postedAt: isoInstantSchema.nullable(),
+  dueAt: isoInstantSchema.nullable(),
+  /** Both directions of the correction chain, so a list can show it (BR-SALE-016). */
+  replacesSaleId: saleIdSchema.nullable(),
+  replacedBySaleId: saleIdSchema.nullable(),
+  capabilities: saleCapabilitiesSchema,
+});
+export type SaleSummaryDto = z.infer<typeof saleSummaryDtoSchema>;
+
+export const getSaleInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  saleId: saleIdSchema,
+});
+export type GetSaleInput = z.infer<typeof getSaleInputSchema>;
+
+export const listSalesInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema.nullable().default(null),
+  status: saleStatusSchema.nullable().default(null),
+  /**
+   * Filters on the **derived** state (BR-SALE-013), so a screen showing "what
+   * still stands" does not have to fetch voided sales and drop them client-side.
+   */
+  financialState: saleFinancialStateSchema.nullable().default(null),
+  /** Business time, not recording time: a depot asks "today's sales", meaning
+   *  sales that happened today (docs/07-data/time-semantics.md). */
+  from: isoInstantSchema.nullable().default(null),
+  to: isoInstantSchema.nullable().default(null),
+});
+export type ListSalesInput = z.infer<typeof listSalesInputSchema>;

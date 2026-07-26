@@ -5,6 +5,13 @@ import {
   saleDtoSchema,
   paymentDtoSchema,
   type DomainError,
+  accountTimelineEntryDtoSchema,
+  auditTimelineEntryDtoSchema,
+  customerSummaryDtoSchema,
+  pageOf,
+  paymentSummaryDtoSchema,
+  saleSummaryDtoSchema,
+  sessionDtoSchema,
 } from "@vuarau/domain-contracts";
 import {
   ACCOUNTANT_ACTOR_ID,
@@ -380,5 +387,114 @@ describe("TC-COMMAND-007 — malformed input", () => {
     } catch (error) {
       expect((error as TRPCError).code).toBe("BAD_REQUEST");
     }
+  });
+});
+
+describe("UC-SALE-003 / TC-READ-009 — the published read surface", () => {
+  it("returns pages that satisfy the published schemas", async () => {
+    // Parsed with the same schema a browser client would use. A DTO that drifted
+    // from its contract fails here rather than in the first UI to render it.
+    const customers = await caller.customer.search({
+      workspaceId: WORKSPACE_ID,
+      query: "",
+      isActive: null,
+      cursor: null,
+      limit: 10,
+    });
+    expect(pageOf(customerSummaryDtoSchema).safeParse(customers).success).toBe(true);
+
+    const session = await caller.session.me({ workspaceId: WORKSPACE_ID });
+    expect(sessionDtoSchema.safeParse(session).success).toBe(true);
+
+    const sales = await caller.sale.list({
+      workspaceId: WORKSPACE_ID,
+      customerId: null,
+      status: null,
+      financialState: null,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 10,
+    });
+    expect(pageOf(saleSummaryDtoSchema).safeParse(sales).success).toBe(true);
+
+    const payments = await caller.payment.list({
+      workspaceId: WORKSPACE_ID,
+      customerId: null,
+      status: null,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 10,
+    });
+    expect(pageOf(paymentSummaryDtoSchema).safeParse(payments).success).toBe(true);
+
+    const timeline = await caller.account.timeline({
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 10,
+    });
+    expect(pageOf(accountTimelineEntryDtoSchema).safeParse(timeline).success).toBe(true);
+
+    const audit = await caller.audit.timeline({
+      workspaceId: WORKSPACE_ID,
+      aggregateType: null,
+      aggregateId: null,
+      actorId: null,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 10,
+    });
+    expect(pageOf(auditTimelineEntryDtoSchema).safeParse(audit).success).toBe(true);
+  });
+
+  it("clamps an oversized limit instead of refusing the read", async () => {
+    // A client asking for too much has made a judgement error, not a business
+    // one, and failing the whole read over it helps nobody.
+    await expect(
+      caller.customer.search({
+        workspaceId: WORKSPACE_ID,
+        query: "",
+        isActive: null,
+        cursor: null,
+        limit: 10_000,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("refuses every read without a token", async () => {
+    const anonymous = appRouter.createCaller({
+      deps: harness.deps,
+      principal: null,
+      authError: {
+        code: "AUTHENTICATION_REQUIRED",
+        message: "This operation requires an access token.",
+        retryable: false,
+      },
+    });
+
+    // A depot's books have no public surface — reads included (BR-AUTH-001).
+    await expect(anonymous.session.me({ workspaceId: WORKSPACE_ID })).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(
+      anonymous.sale.get({ workspaceId: WORKSPACE_ID, saleId: SALE_ID }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(
+      anonymous.audit.timeline({
+        workspaceId: WORKSPACE_ID,
+        aggregateType: null,
+        aggregateId: null,
+        actorId: null,
+        from: null,
+        to: null,
+        cursor: null,
+        limit: 10,
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

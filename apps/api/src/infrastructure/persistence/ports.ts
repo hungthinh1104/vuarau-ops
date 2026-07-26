@@ -21,6 +21,7 @@ import type {
   PaymentReversalState,
   PaymentState,
 } from "@vuarau/domain-kernel";
+import type { ReadRepositories } from "./read-ports.ts";
 
 /**
  * Ports are declared by the application layer, which is the layer that needs
@@ -166,7 +167,7 @@ export type CommandReceiptRepository = {
   ): Promise<void>;
 };
 
-export type Repositories = {
+export type Repositories = ReadRepositories & {
   readonly workspaces: WorkspaceRepository;
   readonly actors: ActorRepository;
   readonly customers: CustomerRepository;

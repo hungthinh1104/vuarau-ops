@@ -24,6 +24,9 @@ export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
  */
 export const PERMISSIONS = [
   "customer.create",
+  "customer.read",
+  "customer.update",
+  "customer.deactivate",
   "sale.create",
   "sale.post",
   /** Removes a receivable without a payment arriving. Sits with `debt.adjust`. */
@@ -35,6 +38,10 @@ export const PERMISSIONS = [
   /** The one that matters most: moving a balance with no underlying document. */
   "debt.adjust",
   "debt.read",
+  /** Reading who did what. Held by the roles that answer for the books. */
+  "audit.read",
+  /** Managing who is a member of the workspace. Owner only. */
+  "workspace.manage",
 ] as const;
 export const permissionSchema = z.enum(PERMISSIONS);
 export type Permission = z.infer<typeof permissionSchema>;
@@ -51,6 +58,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
   owner: [...PERMISSIONS],
 
   accountant: [
+    "customer.read",
+    "audit.read",
     "sale.void",
     "sale.read",
     "payment.record",
@@ -67,6 +76,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
    */
   sales: [
     "customer.create",
+    "customer.read",
+    "customer.update",
     "sale.create",
     "sale.post",
     "sale.read",
@@ -75,15 +86,16 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "debt.read",
   ],
 
-  // Warehouse staff pick and pack against a sale; they move no money.
-  warehouse: ["sale.read"],
+  // Warehouse staff pick and pack against a sale; they move no money. They can
+  // read customers because a load has to be handed to somebody by name.
+  warehouse: ["sale.read", "customer.read"],
 
   /**
    * Read-only. Whether a driver may record the cash they collect is a real
    * business question and is unanswered (ASM-017) — so the safe default applies
    * and the depot owner decides, rather than a developer.
    */
-  delivery: ["sale.read"],
+  delivery: ["sale.read", "customer.read"],
 };
 
 /** Built once; lookup is the hot path on every command. */

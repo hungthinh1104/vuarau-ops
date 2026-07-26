@@ -8,6 +8,7 @@ import {
 } from "../shared/ids.ts";
 import { moneySchema } from "../shared/money.ts";
 import { capabilitySchema } from "../shared/capability.ts";
+import { pageRequestSchema } from "../shared/pagination.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand } from "../shared/command.ts";
 
@@ -159,3 +160,67 @@ export const debtAdjustedEventSchema = z.object({
   transactionTime: isoInstantSchema,
 });
 export type DebtAdjustedEvent = z.infer<typeof debtAdjustedEventSchema>;
+
+// --- reads -------------------------------------------------------------------
+
+/**
+ * What produced an account entry, resolved rather than left as a bare uuid.
+ *
+ * The timeline is the recovery surface: when a customer disputes a total, this
+ * list is the answer, and "sourceId: 3f2a…" is not an answer. Each entry names
+ * what it came from and carries enough to link to it (UC-ACCOUNT-001).
+ */
+export const accountEntrySourceSchema = z.object({
+  type: accountEntrySourceTypeSchema,
+  id: z.uuid(),
+  /**
+   * A short human label: the sale's total and date, the payment method, the
+   * adjustment's reason code. Resolved server-side in the same query, so a
+   * timeline of fifty entries is one round trip and not fifty-one.
+   */
+  label: z.string(),
+});
+export type AccountEntrySource = z.infer<typeof accountEntrySourceSchema>;
+
+/**
+ * One line of the customer account timeline, with the balance **after** it.
+ *
+ * The running balance is server-computed for the same reason the classification
+ * is: a client that adds these up itself will one day add them up differently,
+ * and then the screen and the book disagree about money.
+ */
+export const accountTimelineEntryDtoSchema = z.object({
+  id: customerAccountEntryIdSchema,
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+  /** Signed. Positive increases what the customer owes. */
+  amount: moneySchema,
+  runningBalance: moneySchema,
+  classification: balanceClassificationSchema,
+  source: accountEntrySourceSchema,
+  /** Set when this entry compensates a specific earlier one. */
+  reversalOfEntryId: customerAccountEntryIdSchema.nullable(),
+  reasonCode: debtAdjustmentReasonCodeSchema.nullable(),
+  reason: z.string().nullable(),
+  /** When the money moved. Aging reads this. */
+  transactionTime: isoInstantSchema,
+  /** When it was written down. Audit reads this. */
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+});
+export type AccountTimelineEntryDto = z.infer<typeof accountTimelineEntryDtoSchema>;
+
+export const accountTimelineInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+  from: isoInstantSchema.nullable().default(null),
+  to: isoInstantSchema.nullable().default(null),
+});
+export type AccountTimelineInput = z.infer<typeof accountTimelineInputSchema>;
+
+export const getAccountBalanceInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+});
+export type GetAccountBalanceInput = z.infer<typeof getAccountBalanceInputSchema>;

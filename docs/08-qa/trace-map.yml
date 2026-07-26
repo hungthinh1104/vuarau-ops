@@ -61,10 +61,11 @@ use_cases:
     doc: docs/02-use-cases/platform-use-cases.md
     rules: [BR-AUTH-001, BR-AUTH-003, BR-AUTH-004, BR-AUTH-005, BR-AUTH-006]
     cases: []
-    tests: [TC-AUTH-006, TC-AUTH-009]
+    tests: [TC-AUTH-006, TC-AUTH-009, TC-READ-001]
     implementation:
       - packages/domain-contracts/src/shared/authorization.ts
       - apps/api/src/modules/shared/authorization.ts
+      - apps/api/src/modules/session/session.queries.ts
 
   UC-CUSTOMER-001:
     title: Create customer
@@ -80,22 +81,23 @@ use_cases:
   UC-CUSTOMER-002:
     title: Search and list customers
     risk: P2
-    status: planned
     doc: docs/02-use-cases/customer-use-cases.md
-    rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002, BR-ACCOUNT-009]
-    cases: []
-    tests: []
-    planned_tests: [TC-CUSTOMER-004, TC-CUSTOMER-005]
+    rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002, BR-ACCOUNT-009, BR-READ-001, BR-READ-003]
+    cases: [CASE-READ-001, CASE-READ-002]
+    tests: [TC-READ-002, TC-READ-008]
+    implementation:
+      - apps/api/src/modules/customer/customer.queries.ts
+      - packages/db/src/repositories/read-queries.ts
 
   UC-CUSTOMER-003:
     title: View a customer
     risk: P2
-    status: planned
     doc: docs/02-use-cases/customer-use-cases.md
-    rules: [BR-AUTH-001, BR-CUSTOMER-002, BR-ACCOUNT-001, BR-ACCOUNT-009]
+    rules: [BR-AUTH-001, BR-CUSTOMER-002, BR-ACCOUNT-001, BR-ACCOUNT-009, BR-READ-002]
     cases: []
-    tests: []
-    planned_tests: [TC-CUSTOMER-006]
+    tests: [TC-READ-003]
+    implementation:
+      - apps/api/src/modules/customer/customer.queries.ts
 
   UC-CUSTOMER-004:
     title: Update a customer
@@ -189,12 +191,22 @@ use_cases:
   UC-SALE-003:
     title: View and list sales
     risk: P2
-    status: planned
     doc: docs/02-use-cases/sale-use-cases.md
-    rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002, BR-SALE-017]
-    cases: []
-    tests: []
-    planned_tests: [TC-SALE-028, TC-SALE-029]
+    rules:
+      - BR-AUTH-001
+      - BR-AUTH-004
+      - BR-CUSTOMER-002
+      - BR-SALE-016
+      - BR-SALE-017
+      - BR-READ-001
+      - BR-READ-002
+      - BR-READ-003
+    cases: [CASE-READ-001]
+    tests: [TC-READ-004, TC-READ-009]
+    implementation:
+      - apps/api/src/modules/sale/sale.queries.ts
+      - packages/domain-kernel/src/sale/capabilities.ts
+      - packages/db/src/repositories/read-queries.ts
 
   UC-SALE-004:
     title: Void a sale, and post a replacement
@@ -290,12 +302,13 @@ use_cases:
   UC-PAYMENT-003:
     title: View a payment
     risk: P2
-    status: planned
     doc: docs/02-use-cases/platform-use-cases.md
-    rules: [BR-AUTH-001, BR-AUTH-004, BR-PAYMENT-008, BR-CUSTOMER-002]
+    rules: [BR-AUTH-001, BR-AUTH-004, BR-PAYMENT-008, BR-CUSTOMER-002, BR-READ-003]
     cases: []
-    tests: []
-    planned_tests: [TC-PAYMENT-013, TC-PAYMENT-014]
+    tests: [TC-READ-005]
+    implementation:
+      - apps/api/src/modules/payment/payment.queries.ts
+      - packages/domain-kernel/src/payment/capabilities.ts
 
   UC-ACCOUNT-001:
     title: View the customer account balance and timeline
@@ -309,10 +322,11 @@ use_cases:
       - BR-ACCOUNT-004
       - BR-ACCOUNT-009
       - BR-CUSTOMER-002
-    cases: [CASE-ACCOUNT-008]
-    tests: [TC-ACCOUNT-001, TC-AUTH-006, TC-ACCOUNT-010]
+    cases: [CASE-ACCOUNT-008, CASE-READ-003]
+    tests: [TC-ACCOUNT-001, TC-AUTH-006, TC-ACCOUNT-010, TC-READ-006]
     implementation:
       - apps/api/src/modules/account/account.queries.ts
+      - packages/db/src/repositories/read-queries.ts
 
   UC-ACCOUNT-002:
     title: Adjust a customer account by hand
@@ -391,12 +405,13 @@ use_cases:
   UC-AUDIT-001:
     title: Trace a transaction and its corrections through audit
     risk: P1
-    status: planned
     doc: docs/02-use-cases/platform-use-cases.md
-    rules: [BR-ACCOUNT-004, BR-AUTH-001, BR-AUTH-004, BR-COMMAND-005]
+    rules: [BR-ACCOUNT-004, BR-AUTH-001, BR-AUTH-004, BR-COMMAND-005, BR-READ-001, BR-READ-002]
     cases: [CASE-SALE-007]
-    tests: []
-    planned_tests: [TC-AUDIT-001, TC-AUDIT-002]
+    tests: [TC-READ-007]
+    implementation:
+      - apps/api/src/modules/audit/audit.queries.ts
+      - packages/db/src/repositories/read-queries.ts
 
 business_rules:
   # --- sale ---------------------------------------------------------------------
@@ -847,6 +862,39 @@ business_rules:
     cases: []
     planned_tests: [TC-AUTH-013, TC-AUTH-014]
 
+  # --- reads --------------------------------------------------------------------
+  BR-READ-001:
+    title: A page boundary never repeats or skips a row
+    risk: P1
+    doc: docs/04-business-rules/read-rules.md
+    cases: [CASE-READ-001, CASE-READ-002]
+    tests: [TC-READ-004, TC-READ-008]
+    implementation:
+      - packages/domain-contracts/src/shared/pagination.ts
+      - packages/db/src/repositories/read-queries.ts
+      - packages/db/migrations/0005_read_models.sql
+
+  BR-READ-002:
+    title: A read returns a published DTO, never a database row
+    risk: P1
+    doc: docs/04-business-rules/read-rules.md
+    cases: []
+    tests: [TC-READ-009]
+    implementation:
+      - apps/api/src/modules/shared/read-pipeline.ts
+      - apps/api/src/infrastructure/persistence/read-ports.ts
+
+  BR-READ-003:
+    title: Derived state is computed by the server, once
+    risk: P1
+    doc: docs/04-business-rules/read-rules.md
+    cases: [CASE-READ-003]
+    tests: [TC-READ-004, TC-READ-006]
+    implementation:
+      - packages/domain-kernel/src/sale/capabilities.ts
+      - packages/domain-kernel/src/payment/capabilities.ts
+      - packages/domain-kernel/src/account/account-balance.ts
+
   # --- customer -----------------------------------------------------------------
   BR-CUSTOMER-001:
     title: A customer requires a non-blank display name
@@ -945,6 +993,22 @@ cases:
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-017]
     tests: [TC-SALE-018]
+
+  CASE-READ-001:
+    title: Paging the day's sales while a worker posts another
+    doc: docs/05-casebook/read-cases.md
+    rules: [BR-READ-001]
+    tests: [TC-READ-004]
+  CASE-READ-002:
+    title: Finding a Vietnamese name typed without diacritics
+    doc: docs/05-casebook/read-cases.md
+    rules: [BR-READ-001]
+    tests: [TC-READ-002]
+  CASE-READ-003:
+    title: Reading a customer's account after a sale was voided
+    doc: docs/05-casebook/read-cases.md
+    rules: [BR-READ-003, BR-ACCOUNT-005]
+    tests: [TC-READ-006]
 
   CASE-PAYMENT-001:
     title: Customer pays the exact balance

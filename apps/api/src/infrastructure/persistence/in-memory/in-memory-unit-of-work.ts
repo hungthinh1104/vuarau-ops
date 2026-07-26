@@ -1,11 +1,14 @@
 import type {
   ActorId,
   AuditRecordDto,
+  SaleId,
   CustomerAccountEntryDto,
   WorkspaceId,
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
+import { classifyBalance, money, zeroMoney } from "@vuarau/domain-kernel";
+import { DEFAULT_CURRENCY } from "@vuarau/domain-contracts";
 import type { IdGenerator } from "../../clock.ts";
 import type { CommandReceipt, Repositories, UnitOfWork, WorkspaceMembership } from "../ports.ts";
 import type {
@@ -28,6 +31,8 @@ type Store = {
   memberships: Map<string, WorkspaceMembership>;
   /** Supabase subject → local actor id (BR-AUTH-005). */
   actorsBySubject: Map<string, ActorId>;
+  /** Actor display names, for the audit timeline's `actorDisplayName`. */
+  actorNames: Map<string, string>;
   customers: Map<string, CustomerState>;
   sales: Map<string, SaleState>;
   payments: Map<string, PaymentState>;
@@ -43,6 +48,7 @@ function emptyStore(): Store {
   return {
     memberships: new Map(),
     actorsBySubject: new Map(),
+    actorNames: new Map(),
     customers: new Map(),
     sales: new Map(),
     payments: new Map(),
@@ -56,6 +62,81 @@ function emptyStore(): Store {
 }
 
 const key = (workspaceId: string, id: string) => `${workspaceId}:${id}`;
+
+/**
+ * The read-side helpers. They mirror what the SQL does rather than what is
+ * convenient in JavaScript: the same keyset comparison, the same deterministic
+ * `(sortValue, id)` order, the same "read one extra row to learn whether there is
+ * another page". A page-boundary bug that only one of the two exhibits is a bug
+ * no test would catch.
+ */
+const ascendingBy =
+  <T>(sortValue: (row: T) => string, id: (row: T) => string) =>
+  (a: T, b: T): number =>
+    sortValue(a) === sortValue(b)
+      ? id(a).localeCompare(id(b))
+      : sortValue(a).localeCompare(sortValue(b));
+
+const descendingBy =
+  <T>(sortValue: (row: T) => string, id: (row: T) => string) =>
+  (a: T, b: T): number =>
+    -ascendingBy(sortValue, id)(a, b);
+
+/** `(sort, id) > (cursorSort, cursorId)` — the ascending keyset predicate. */
+const after = (row: [string, string], cursor: [string, string]): boolean =>
+  row[0] === cursor[0] ? row[1] > cursor[1] : row[0] > cursor[0];
+
+/** `(sort, id) < (cursorSort, cursorId)` — the descending one. */
+const before = (row: [string, string], cursor: [string, string]): boolean =>
+  row[0] === cursor[0] ? row[1] < cursor[1] : row[0] < cursor[0];
+
+function takePage<TRow>(
+  rows: readonly TRow[],
+  page: { limit: number },
+  cursorOf: (row: TRow) => { sortValue: string; id: string },
+): { rows: readonly TRow[]; next: { sortValue: string; id: string } | null } {
+  if (rows.length <= page.limit) {
+    return { rows, next: null };
+  }
+  const visible = rows.slice(0, page.limit);
+  return { rows: visible, next: cursorOf(visible[visible.length - 1]!) };
+}
+
+/** Matches `vuarau_fold` in migration 0005, so search behaves the same in both. */
+const FOLD_FROM =
+  "ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪỬỮỰỲỴÝỶỸ" +
+  "àáâãèéêìíòóôõùúăđĩũơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵýỷỹ";
+const FOLD_TO =
+  "AAAAEEEIIOOOOUUADIUOUAAAAAAAAAAAAEEEEEEEEIIOOOOOOOOOOOOUUUUUUUYYYYY" +
+  "aaaaeeeiioooouuadiuouaaaaaaaaaaaaeeeeeeeeiioooooooooooouuuuuuuyyyyy";
+
+export function fold(text: string): string {
+  let folded = "";
+  for (const character of text) {
+    const index = FOLD_FROM.indexOf(character);
+    folded += index === -1 ? character : FOLD_TO[index];
+  }
+  return folded.toLowerCase();
+}
+
+function toPaymentSummaryRow(store: Store, payment: PaymentState) {
+  return {
+    id: payment.id,
+    workspaceId: payment.workspaceId,
+    customerId: payment.customerId,
+    customerDisplayName:
+      store.customers.get(key(payment.workspaceId, payment.customerId))?.displayName ?? "",
+    amount: payment.amount,
+    method: payment.method,
+    status: payment.status,
+    reversedAmount: payment.reversedAmount,
+    payerName: payment.payerName,
+    note: payment.note,
+    version: payment.version,
+    transactionTime: payment.transactionTime,
+    recordedAt: payment.recordedAt,
+  };
+}
 
 export class InMemoryDatabase {
   private store: Store = emptyStore();
@@ -81,8 +162,9 @@ export class InMemoryDatabase {
   }
 
   /** Links a verified JWT subject to a local actor. */
-  registerActor(supabaseUserId: string, actorId: ActorId): void {
+  registerActor(supabaseUserId: string, actorId: ActorId, displayName = "Test actor"): void {
     this.store.actorsBySubject.set(supabaseUserId, actorId);
+    this.store.actorNames.set(actorId, displayName);
   }
 
   seedCustomer(customer: CustomerState): void {
@@ -310,6 +392,277 @@ export class InMemoryDatabase {
             reason: record.reason,
             rejectionCode: null,
           });
+        },
+      },
+
+      // --- reads ----------------------------------------------------------
+      // Deliberately the same shape the SQL produces, including the keyset
+      // paging: a page boundary bug that only the database exhibits would never
+      // be caught by an application test, so the two agree by construction.
+      customerReads: {
+        search: async ({ workspaceId, query, isActive, page }) => {
+          const needle = fold(query);
+          const matched = [...store.customers.values()]
+            .filter((customer) => customer.workspaceId === workspaceId)
+            .filter((customer) => isActive === null || customer.isActive === isActive)
+            .filter(
+              (customer) =>
+                needle.length === 0 ||
+                fold(customer.displayName).includes(needle) ||
+                (customer.phone ?? "").includes(query),
+            )
+            .sort(
+              ascendingBy(
+                (customer) => customer.displayName,
+                (customer) => customer.id,
+              ),
+            )
+            .filter((customer) =>
+              page.after === null
+                ? true
+                : after([customer.displayName, customer.id], [page.after.sortValue, page.after.id]),
+            )
+            .map((customer) => {
+              const stored = store.balances.get(key(workspaceId, customer.id));
+              const balance = stored?.balance ?? zeroMoney(DEFAULT_CURRENCY);
+              return {
+                id: customer.id,
+                workspaceId: customer.workspaceId,
+                displayName: customer.displayName,
+                phone: customer.phone,
+                isActive: customer.isActive,
+                version: customer.version,
+                balance,
+                classification: classifyBalance(balance),
+                lastEntryTransactionTime: stored?.lastEntryTransactionTime ?? null,
+              };
+            });
+
+          return takePage(matched, page, (row) => ({
+            sortValue: row.displayName,
+            id: row.id,
+          }));
+        },
+
+        get: async (workspaceId, customerId) => {
+          const customer = store.customers.get(key(workspaceId, customerId));
+          if (customer === undefined) {
+            return null;
+          }
+          const stored = store.balances.get(key(workspaceId, customerId));
+          const balance = stored?.balance ?? zeroMoney(DEFAULT_CURRENCY);
+          return { customer, balance, classification: classifyBalance(balance) };
+        },
+      },
+
+      saleReads: {
+        get: async (workspaceId, saleId) => store.sales.get(key(workspaceId, saleId)) ?? null,
+
+        replacedBy: async (workspaceId, saleId) =>
+          [...store.sales.values()].find(
+            (sale) => sale.workspaceId === workspaceId && sale.replacesSaleId === saleId,
+          )?.id ?? null,
+
+        list: async ({ workspaceId, customerId, status, voided, from, to, page }) => {
+          const matched = [...store.sales.values()]
+            .filter((sale) => sale.workspaceId === workspaceId)
+            .filter((sale) => customerId === null || sale.customerId === customerId)
+            .filter((sale) => status === null || sale.status === status)
+            .filter((sale) => voided === null || (sale.voidRecord !== null) === voided)
+            .filter((sale) => from === null || sale.transactionTime >= from)
+            .filter((sale) => to === null || sale.transactionTime <= to)
+            .sort(
+              descendingBy(
+                (sale) => sale.transactionTime,
+                (sale) => sale.id,
+              ),
+            )
+            .filter((sale) =>
+              page.after === null
+                ? true
+                : before([sale.transactionTime, sale.id], [page.after.sortValue, page.after.id]),
+            )
+            .map((sale) => ({
+              id: sale.id,
+              workspaceId: sale.workspaceId,
+              customerId: sale.customerId,
+              customerDisplayName:
+                store.customers.get(key(workspaceId, sale.customerId))?.displayName ?? "",
+              status: sale.status,
+              isVoided: sale.voidRecord !== null,
+              totalAmount: sale.totalAmount,
+              lineCount: sale.lines.length,
+              version: sale.version,
+              transactionTime: sale.transactionTime,
+              recordedAt: sale.recordedAt,
+              postedAt: sale.postedAt,
+              dueAt: sale.dueAt,
+              replacesSaleId: sale.replacesSaleId,
+              replacedBySaleId:
+                [...store.sales.values()].find(
+                  (other) => other.workspaceId === workspaceId && other.replacesSaleId === sale.id,
+                )?.id ?? null,
+            }));
+
+          return takePage(matched, page, (row) => ({
+            sortValue: row.transactionTime,
+            id: row.id,
+          }));
+        },
+      },
+
+      paymentReads: {
+        get: async (workspaceId, paymentId) => {
+          const payment = store.payments.get(key(workspaceId, paymentId));
+          return payment === undefined ? null : toPaymentSummaryRow(store, payment);
+        },
+
+        list: async ({ workspaceId, customerId, status, from, to, page }) => {
+          const matched = [...store.payments.values()]
+            .filter((payment) => payment.workspaceId === workspaceId)
+            .filter((payment) => customerId === null || payment.customerId === customerId)
+            .filter((payment) => status === null || payment.status === status)
+            .filter((payment) => from === null || payment.transactionTime >= from)
+            .filter((payment) => to === null || payment.transactionTime <= to)
+            .sort(
+              descendingBy(
+                (payment) => payment.transactionTime,
+                (payment) => payment.id,
+              ),
+            )
+            .filter((payment) =>
+              page.after === null
+                ? true
+                : before(
+                    [payment.transactionTime, payment.id],
+                    [page.after.sortValue, page.after.id],
+                  ),
+            )
+            .map((payment) => toPaymentSummaryRow(store, payment));
+
+          return takePage(matched, page, (row) => ({
+            sortValue: row.transactionTime,
+            id: row.id,
+          }));
+        },
+      },
+
+      accountReads: {
+        timeline: async ({ workspaceId, customerId, from, to, page }) => {
+          // The running balance is computed over the customer's whole history in
+          // business-time order, then the page is cut out of it — the same thing
+          // the SQL window function does, and for the same reason: a page is a
+          // slice, and a slice cannot know what came before it.
+          const ascending = store.accountEntries
+            .filter((entry) => entry.workspaceId === workspaceId && entry.customerId === customerId)
+            .sort(
+              ascendingBy(
+                (entry) => entry.transactionTime,
+                (entry) => entry.id,
+              ),
+            );
+
+          let running = 0;
+          const withBalance = ascending.map((entry) => {
+            running += entry.amount.amountMinor;
+            return { entry, runningBalance: money(running, entry.amount.currency) };
+          });
+
+          const matched = withBalance
+            .filter(({ entry }) => from === null || entry.transactionTime >= from)
+            .filter(({ entry }) => to === null || entry.transactionTime <= to)
+            .reverse()
+            .filter(({ entry }) =>
+              page.after === null
+                ? true
+                : before([entry.transactionTime, entry.id], [page.after.sortValue, page.after.id]),
+            )
+            .map(({ entry, runningBalance }) => ({
+              id: entry.id,
+              workspaceId: entry.workspaceId,
+              customerId: entry.customerId,
+              amount: entry.amount,
+              runningBalance,
+              source: {
+                type: entry.sourceType,
+                id: entry.sourceId,
+                label: entry.sourceType,
+              },
+              reversalOfEntryId: entry.reversalOfEntryId,
+              reasonCode: entry.reasonCode,
+              reason: entry.reason,
+              transactionTime: entry.transactionTime,
+              recordedAt: entry.recordedAt,
+              actorId: entry.actorId,
+              commandId: entry.commandId,
+            }));
+
+          return takePage(matched, page, (row) => ({
+            sortValue: row.transactionTime,
+            id: row.id,
+          }));
+        },
+      },
+
+      auditReads: {
+        timeline: async ({ workspaceId, aggregateType, aggregateId, actorId, from, to, page }) => {
+          const matched = store.audit
+            .filter((record) => record.workspaceId === workspaceId)
+            .filter((record) => aggregateType === null || record.aggregateType === aggregateType)
+            .filter((record) => aggregateId === null || record.aggregateId === aggregateId)
+            .filter((record) => actorId === null || record.actorId === actorId)
+            .filter((record) => from === null || record.recordedAt >= from)
+            .filter((record) => to === null || record.recordedAt <= to)
+            .sort(
+              descendingBy(
+                (record) => record.recordedAt,
+                (record) => record.id,
+              ),
+            )
+            .filter((record) =>
+              page.after === null
+                ? true
+                : before([record.recordedAt, record.id], [page.after.sortValue, page.after.id]),
+            )
+            .map((record) => {
+              const sale =
+                record.aggregateType === "sale"
+                  ? store.sales.get(key(workspaceId, record.aggregateId))
+                  : undefined;
+              return {
+                id: record.id,
+                workspaceId: record.workspaceId,
+                actorId: record.actorId,
+                actorDisplayName: store.actorNames.get(record.actorId) ?? "",
+                commandId: record.commandId,
+                action: record.action,
+                aggregateType: record.aggregateType,
+                aggregateId: record.aggregateId,
+                transactionTime: record.transactionTime,
+                recordedAt: record.recordedAt,
+                before: record.before,
+                after: record.after,
+                reason: record.reason,
+                rejectionCode: record.rejectionCode,
+                correction:
+                  record.action === "sale.voided"
+                    ? {
+                        relation: "voids_sale" as const,
+                        targetSaleId: record.aggregateId as SaleId,
+                      }
+                    : sale?.replacesSaleId != null
+                      ? {
+                          relation: "replaces_sale" as const,
+                          targetSaleId: sale.replacesSaleId,
+                        }
+                      : null,
+              };
+            });
+
+          return takePage(matched, page, (row) => ({
+            sortValue: row.recordedAt,
+            id: row.id,
+          }));
         },
       },
 

@@ -2,6 +2,10 @@ import { z } from "zod";
 import { customerIdSchema, workspaceIdSchema } from "../shared/ids.ts";
 import { defineCommand } from "../shared/command.ts";
 import { isoInstantSchema } from "../shared/time.ts";
+import { moneySchema } from "../shared/money.ts";
+import { capabilitySchema } from "../shared/capability.ts";
+import { pageRequestSchema } from "../shared/pagination.ts";
+import { balanceClassificationSchema } from "../account/index.ts";
 
 /**
  * Customers are master data, not financial records: they may be edited and
@@ -48,3 +52,63 @@ export const customerCreatedEventSchema = z.object({
   transactionTime: isoInstantSchema,
 });
 export type CustomerCreatedEvent = z.infer<typeof customerCreatedEventSchema>;
+
+// --- reads -------------------------------------------------------------------
+
+export const customerCapabilitiesSchema = z.object({
+  update: capabilitySchema,
+  deactivate: capabilitySchema,
+  adjustAccount: capabilitySchema,
+});
+export type CustomerCapabilities = z.infer<typeof customerCapabilitiesSchema>;
+
+/**
+ * UC-CUSTOMER-002 — the list a worker picks from before starting a sale.
+ *
+ * It carries the balance, because the question "who is this and what do they
+ * owe" is one question in a depot and answering it in two round trips means the
+ * list and the balance can disagree on screen.
+ */
+export const customerSummaryDtoSchema = z.object({
+  id: customerIdSchema,
+  workspaceId: workspaceIdSchema,
+  displayName: z.string(),
+  phone: z.string().nullable(),
+  isActive: z.boolean(),
+  version: z.int().nonnegative(),
+  /** Signed, with its meaning named — a client never inspects the sign itself. */
+  balance: moneySchema,
+  classification: balanceClassificationSchema,
+  lastEntryTransactionTime: isoInstantSchema.nullable(),
+  capabilities: customerCapabilitiesSchema,
+});
+export type CustomerSummaryDto = z.infer<typeof customerSummaryDtoSchema>;
+
+/** `CustomerDto` plus the caller's capabilities and the account balance. */
+export const customerDetailDtoSchema = z.object({
+  customer: customerDtoSchema,
+  balance: moneySchema,
+  classification: balanceClassificationSchema,
+  capabilities: customerCapabilitiesSchema,
+});
+export type CustomerDetailDto = z.infer<typeof customerDetailDtoSchema>;
+
+export const searchCustomersInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  /**
+   * Matches display name and phone. Diacritic-insensitive: a worker on a phone
+   * keyboard at a loading bay types "co hoa" and has to find "Cô Hoà"
+   * (UC-CUSTOMER-002). Blank means "everything".
+   */
+  query: z.string().trim().max(200).default(""),
+  /** `null` means both. Not defaulted to active-only: a deactivated customer who
+   *  still owes money must remain findable (BR-CUSTOMER-003). */
+  isActive: z.boolean().nullable().default(null),
+});
+export type SearchCustomersInput = z.infer<typeof searchCustomersInputSchema>;
+
+export const getCustomerInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+});
+export type GetCustomerInput = z.infer<typeof getCustomerInputSchema>;

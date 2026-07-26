@@ -9,6 +9,7 @@ import { currencyCodeSchema, moneySchema } from "../shared/money.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand, defineVersionedCommand } from "../shared/command.ts";
 import { capabilitySchema } from "../shared/capability.ts";
+import { pageRequestSchema } from "../shared/pagination.ts";
 
 /**
  * Payment lifecycle: recorded → partially_reversed → reversed.
@@ -125,3 +126,44 @@ export const paymentEventSchema = z.discriminatedUnion("type", [
   paymentReversedEventSchema,
 ]);
 export type PaymentEvent = z.infer<typeof paymentEventSchema>;
+
+// --- reads -------------------------------------------------------------------
+
+/** UC-PAYMENT-003 — a row in the day's takings. */
+export const paymentSummaryDtoSchema = z.object({
+  id: paymentIdSchema,
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+  customerDisplayName: z.string(),
+  amount: moneySchema,
+  method: paymentMethodSchema,
+  status: paymentStatusSchema,
+  reversedAmount: moneySchema,
+  /**
+   * Computed here rather than left as `amount − reversedAmount` for the client.
+   * A client that gets that subtraction wrong offers to reverse money that is not
+   * there (BR-PAYMENT-003).
+   */
+  remainingReversibleAmount: moneySchema,
+  payerName: z.string().nullable(),
+  version: z.int().nonnegative(),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  capabilities: paymentCapabilitiesSchema,
+});
+export type PaymentSummaryDto = z.infer<typeof paymentSummaryDtoSchema>;
+
+export const getPaymentInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  paymentId: paymentIdSchema,
+});
+export type GetPaymentInput = z.infer<typeof getPaymentInputSchema>;
+
+export const listPaymentsInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema.nullable().default(null),
+  status: paymentStatusSchema.nullable().default(null),
+  from: isoInstantSchema.nullable().default(null),
+  to: isoInstantSchema.nullable().default(null),
+});
+export type ListPaymentsInput = z.infer<typeof listPaymentsInputSchema>;

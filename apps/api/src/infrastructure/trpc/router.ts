@@ -1,12 +1,20 @@
 import { z } from "zod";
 import {
+  accountTimelineInputSchema,
   adjustCustomerDebtCommandSchema,
+  auditTimelineInputSchema,
   createCustomerCommandSchema,
   createSaleDraftCommandSchema,
   customerIdSchema,
+  getCustomerInputSchema,
+  getPaymentInputSchema,
+  getSaleInputSchema,
+  listPaymentsInputSchema,
+  listSalesInputSchema,
   postSaleCommandSchema,
   recordCustomerPaymentCommandSchema,
   reverseCustomerPaymentCommandSchema,
+  searchCustomersInputSchema,
   voidSaleCommandSchema,
   workspaceIdSchema,
 } from "@vuarau/domain-contracts";
@@ -20,8 +28,14 @@ import { reverseCustomerPayment } from "../../modules/payment/reverse-payment.ha
 import { adjustCustomerDebt } from "../../modules/account/adjust-debt.handler.ts";
 import {
   getCustomerAccountBalance,
+  getCustomerAccountTimeline,
   listCustomerAccountEntries,
 } from "../../modules/account/account.queries.ts";
+import { getCustomer, searchCustomers } from "../../modules/customer/customer.queries.ts";
+import { getSale, listSales } from "../../modules/sale/sale.queries.ts";
+import { getPayment, listPayments } from "../../modules/payment/payment.queries.ts";
+import { getAuditTimeline } from "../../modules/audit/audit.queries.ts";
+import { getSession } from "../../modules/session/session.queries.ts";
 
 /**
  * Seven mutations, one per business command. No `update`, no `patch`, and no
@@ -34,10 +48,34 @@ import {
  * `rebuildCustomerAccountBalance` is deliberately absent: it is an operator's
  * maintenance tool, not something a UI should be able to trigger.
  */
+/**
+ * The read surface a first UI needs, added alongside the commands rather than in
+ * a separate namespace: a screen that lists sales and posts one is talking about
+ * the same thing, and splitting `sale.list` from `sale.post` across two routers
+ * would only make the client assemble what the model already joins.
+ *
+ * Every read is authorized exactly like a command, through the same
+ * `authorizeWorkspaceAccess` (BR-AUTH-001). Reads were the hole before
+ * Milestone 1 and the shape of that mistake is one query at a time.
+ */
+const sessionRouter = router({
+  me: authenticatedProcedure
+    .input(z.object({ workspaceId: workspaceIdSchema }))
+    .query(async ({ ctx, input }) => unwrap(await getSession(ctx, input.workspaceId))),
+});
+
 const customerRouter = router({
   create: commandProcedure
     .input(createCustomerCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await createCustomer(ctx, input))),
+
+  search: authenticatedProcedure
+    .input(searchCustomersInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await searchCustomers(ctx, input))),
+
+  get: authenticatedProcedure
+    .input(getCustomerInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getCustomer(ctx, input))),
 });
 
 const saleRouter = router({
@@ -52,6 +90,14 @@ const saleRouter = router({
   void: commandProcedure
     .input(voidSaleCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await voidSale(ctx, input))),
+
+  get: authenticatedProcedure
+    .input(getSaleInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSale(ctx, input))),
+
+  list: authenticatedProcedure
+    .input(listSalesInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await listSales(ctx, input))),
 });
 
 const paymentRouter = router({
@@ -62,6 +108,14 @@ const paymentRouter = router({
   reverse: commandProcedure
     .input(reverseCustomerPaymentCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await reverseCustomerPayment(ctx, input))),
+
+  get: authenticatedProcedure
+    .input(getPaymentInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getPayment(ctx, input))),
+
+  list: authenticatedProcedure
+    .input(listPaymentsInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await listPayments(ctx, input))),
 });
 
 /**
@@ -82,6 +136,21 @@ const accountRouter = router({
     .query(async ({ ctx, input }) =>
       unwrap(await listCustomerAccountEntries(ctx, input.workspaceId, input.customerId)),
     ),
+
+  /**
+   * The paged, source-resolved, running-balance version of `entries`. Both exist:
+   * `entries` is the raw ledger a rebuild or an export reads, `timeline` is what
+   * a person reads.
+   */
+  timeline: authenticatedProcedure
+    .input(accountTimelineInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getCustomerAccountTimeline(ctx, input))),
+});
+
+const auditRouter = router({
+  timeline: authenticatedProcedure
+    .input(auditTimelineInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getAuditTimeline(ctx, input))),
 });
 
 const debtRouter = router({
@@ -91,10 +160,12 @@ const debtRouter = router({
 });
 
 export const appRouter = router({
+  session: sessionRouter,
   customer: customerRouter,
   sale: saleRouter,
   payment: paymentRouter,
   account: accountRouter,
+  audit: auditRouter,
   debt: debtRouter,
 });
 

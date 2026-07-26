@@ -36,6 +36,13 @@
       "when": 1785165907958,
       "tag": "0004_sale_and_customer_account",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785252307958,
+      "tag": "0005_read_models",
+      "breakpoints": true
     }
   ]
 }

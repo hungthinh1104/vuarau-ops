@@ -3,8 +3,10 @@ import {
   actorIdSchema,
   auditRecordIdSchema,
   commandIdSchema,
+  saleIdSchema,
   workspaceIdSchema,
 } from "../shared/ids.ts";
+import { pageRequestSchema } from "../shared/pagination.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { domainRejectionCodeSchema } from "../shared/rejection-codes.ts";
 
@@ -56,3 +58,63 @@ export const auditRecordDtoSchema = z.object({
   rejectionCode: domainRejectionCodeSchema.nullable(),
 });
 export type AuditRecordDto = z.infer<typeof auditRecordDtoSchema>;
+
+// --- reads -------------------------------------------------------------------
+
+/**
+ * How one audited action relates to another (UC-AUDIT-001).
+ *
+ * The worked example is a sale posted for the wrong amount, voided, and replaced.
+ * Without this the reader sees four unrelated actions and has to infer the story;
+ * with it, the void names the sale it undid and the replacement names the sale it
+ * supersedes, so the correction reads as one sequence.
+ */
+export const AUDIT_CORRECTION_RELATIONS = ["voids_sale", "replaces_sale"] as const;
+export const auditCorrectionRelationSchema = z.enum(AUDIT_CORRECTION_RELATIONS);
+export type AuditCorrectionRelation = z.infer<typeof auditCorrectionRelationSchema>;
+
+export const auditCorrectionSchema = z.object({
+  relation: auditCorrectionRelationSchema,
+  /** The sale being undone or superseded — never the one this record is about. */
+  targetSaleId: saleIdSchema,
+});
+export type AuditCorrection = z.infer<typeof auditCorrectionSchema>;
+
+/**
+ * One row of the audit timeline.
+ *
+ * Note what this is not: row-level change capture. `before` and `after` are short
+ * semantic summaries — "status draft → posted, total 1.200.000" — never a dump of
+ * the aggregate, which would copy customer data into a table with a different
+ * retention policy and bury the business action under diff noise.
+ */
+export const auditTimelineEntryDtoSchema = z.object({
+  id: auditRecordIdSchema,
+  workspaceId: workspaceIdSchema,
+  actorId: actorIdSchema,
+  /** Resolved so the reader sees a person, not a uuid. */
+  actorDisplayName: z.string(),
+  commandId: commandIdSchema,
+  action: auditActionSchema,
+  /** What the action was performed on: the source of this record. */
+  aggregateType: auditAggregateTypeSchema,
+  aggregateId: z.uuid(),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  before: auditSummarySchema.nullable(),
+  after: auditSummarySchema.nullable(),
+  reason: z.string().nullable(),
+  rejectionCode: domainRejectionCodeSchema.nullable(),
+  correction: auditCorrectionSchema.nullable(),
+});
+export type AuditTimelineEntryDto = z.infer<typeof auditTimelineEntryDtoSchema>;
+
+export const auditTimelineInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  aggregateType: auditAggregateTypeSchema.nullable().default(null),
+  aggregateId: z.uuid().nullable().default(null),
+  actorId: actorIdSchema.nullable().default(null),
+  from: isoInstantSchema.nullable().default(null),
+  to: isoInstantSchema.nullable().default(null),
+});
+export type AuditTimelineInput = z.infer<typeof auditTimelineInputSchema>;

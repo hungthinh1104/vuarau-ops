@@ -2,6 +2,7 @@ export * from "./client.ts";
 export * from "./schema/index.ts";
 export * from "./repositories/index.ts";
 export * from "./repositories/row-mappers.ts";
+export * from "./repositories/read-queries.ts";
 export * from "./transaction/unit-of-work.ts";
 export { runMigrations } from "./migrate.ts";
 // Test-only helpers; exported so `apps/api` can run its integration suite against
