@@ -17,6 +17,15 @@ const apiOrigin = process.env["NEXT_PUBLIC_API_ORIGIN"] ?? "http://localhost:300
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@vuarau/domain-contracts"],
+  /*
+   * The dev badge sits bottom-left, which on a phone viewport is exactly where
+   * the sticky action bar puts "Bỏ đơn" — so in development it covers a real
+   * control, and an end-to-end test cannot click through it.
+   *
+   * This hides the badge only. The dev error overlay still appears, so a runtime
+   * error is as loud as it was.
+   */
+  devIndicators: false,
   async rewrites() {
     return [{ source: "/trpc/:path*", destination: `${apiOrigin}/:path*` }];
   },

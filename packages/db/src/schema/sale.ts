@@ -76,9 +76,12 @@ export const saleLines = pgTable(
     saleId: uuid("sale_id")
       .notNull()
       .references(() => sales.id),
-    productId: uuid("product_id")
-      .notNull()
-      .references(() => products.id),
+    /**
+     * Nullable: a line typed at a market has no catalogue row, and the product
+     * master has no creation command. The snapshot below is the identity of what
+     * was sold (BR-SALE-011); this is only a link to a suggestion.
+     */
+    productId: uuid("product_id").references(() => products.id),
     /** Snapshot: later catalogue edits must not change a posted sale (BR-SALE-011). */
     productName: text("product_name").notNull(),
     /** Integer milli-units, scale 1000: 1,5 kg is 1500 (BR-SALE-004). */

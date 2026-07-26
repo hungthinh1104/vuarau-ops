@@ -69,7 +69,20 @@ export type SaleDueState = z.infer<typeof saleDueStateSchema>;
  */
 export const saleLineInputSchema = z.object({
   lineId: saleLineIdSchema,
-  productId: productIdSchema,
+  /**
+   * Optional link to the product catalogue, **not** the identity of what was
+   * sold. `productName` is (BR-SALE-011).
+   *
+   * It was required until a client tried to post a sale: a worker types "cà
+   * chua" at a market, there is no product master command to create a row in, and
+   * the foreign key refused every line. Making it nullable is the smaller change
+   * — the catalogue is a source of suggestions, and its own schema comment says
+   * the snapshot is what a customer owes.
+   *
+   * A line that names a catalogue product still carries the id, so a future
+   * price-recall feature has the link it needs.
+   */
+  productId: productIdSchema.nullable().default(null),
   productName: z.string().trim().min(1).max(200),
   quantity: quantitySchema,
   /**

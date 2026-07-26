@@ -89,7 +89,7 @@ export type SaleRow = {
 
 export type SaleLineRow = {
   id: string;
-  productId: string;
+  productId: string | null;
   productName: string;
   quantityScaled: number;
   unit: SaleLineState["quantity"]["unit"];

@@ -18,7 +18,7 @@ import { sumMoney } from "../shared/money.ts";
  */
 export type SaleLineLike = {
   readonly lineId: SaleLineId;
-  readonly productId: ProductId;
+  readonly productId: ProductId | null;
   readonly productName: string;
   readonly quantity: Quantity;
   readonly unitPrice: Money;

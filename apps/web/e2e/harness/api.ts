@@ -133,10 +133,42 @@ export const api = {
     )) as { items: { amount: { amountMinor: number } }[] };
   },
 
+  /**
+   * Moves a draft's version out from under the browser, so a spec can produce a
+   * genuine `SALE_VERSION_CONFLICT` rather than simulating one.
+   */
+  async updateDraftElsewhere(saleId: string, expectedVersion: number): Promise<void> {
+    await call(
+      "sale.updateDraft",
+      "mutation",
+      {
+        ...envelope({ actorId: actorFor("owner"), expectedVersion }),
+        payload: {
+          saleId,
+          lines: [
+            {
+              lineId: crypto.randomUUID(),
+              // Null, like a line a worker types: there is no product master
+              // (BR-SALE-019).
+              productId: null,
+              productName: "Sửa từ máy khác",
+              quantity: { valueScaled: 1_000, unit: "kg" },
+              unitPrice: { amountMinor: 1_000, currency: "VND" },
+            },
+          ],
+          note: null,
+          dueAt: null,
+        },
+      },
+      "owner",
+    );
+  },
+
   async sales(customerId: string): Promise<{
     items: {
       id: string;
       status: string;
+      version: number;
       totalAmount: { amountMinor: number };
       lineCount: number;
     }[];
@@ -159,6 +191,7 @@ export const api = {
       items: {
         id: string;
         status: string;
+        version: number;
         totalAmount: { amountMinor: number };
         lineCount: number;
       }[];

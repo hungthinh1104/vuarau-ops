@@ -1,0 +1,22 @@
+-- `sale_lines.product_id` becomes nullable.
+--
+-- Found by the first client that tried to post a sale end to end (TC-E2E-011).
+-- The column was NOT NULL and foreign-keyed to `products`, but no command
+-- creates a product — there are no product procedures in the router at all — so
+-- a worker typing "cà chua" at a market could not post a line. Every backend test
+-- had seeded the catalogue first, which is why it went unseen through four
+-- milestones.
+--
+-- Making it nullable is the smaller of the two available changes. The other is a
+-- product master with its own commands and lifecycle, which the scope excludes
+-- and which nothing yet needs: `products.default_unit_price_minor` is documented
+-- as "Suggested price only; the sale line's snapshot is what a customer owes",
+-- and BR-SALE-011 already makes `product_name` the identity of what was sold.
+--
+-- The foreign key stays for lines that *do* name a catalogue product, so a later
+-- price-recall feature has the link it needs.
+--
+-- Widening only: every existing row satisfies the new constraint, and no posted
+-- sale changes. Rules: BR-SALE-011, BR-SALE-019.
+
+ALTER TABLE "sale_lines" ALTER COLUMN "product_id" DROP NOT NULL;

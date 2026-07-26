@@ -318,6 +318,40 @@ immutable row rewritten is not.
 
 ---
 
+### BR-SALE-019 — A sale line's product link is optional; its name is not
+
+**Risk:** P1 · **Code:** — · **Tests:** TC-WEB-021, TC-E2E-011
+
+`saleLine.productName` is required and is the identity of what was sold
+(BR-SALE-011). `saleLine.productId` is a **nullable** link to the product
+catalogue, present only when the line was picked from it.
+
+This was the other way round until a client tried to post a sale.
+`sale_lines.product_id` was `NOT NULL REFERENCES products(id)`, and there is no
+command anywhere in the system that creates a product — the router has no product
+procedures at all. A worker typing "cà chua" at a market therefore could not post
+a line, and every backend test had missed it by seeding the catalogue first
+(TC-E2E-011).
+
+Two ways to fix it, and this is the smaller. The other is a product master with
+its own commands, lifecycle and permissions, which the scope excludes and which
+nothing yet needs: the catalogue's own schema comment already says
+"Suggested price only; the sale line's snapshot is what a customer owes."
+
+What the nullable column buys, and what it does not:
+
+- A line typed by hand carries `productId: null` and is complete without it.
+- A line that _does_ name a catalogue product still carries the id, so a future
+  price-recall feature has the link it needs without a migration.
+- Nothing about what a customer owes changes. The snapshot was already the truth
+  (ASM-008); this only stops the database insisting on a link to a row that
+  cannot exist.
+
+Migration `0007` widens the column. Every existing row satisfies the new
+constraint and no posted sale changed.
+
+---
+
 ## Deprecated rules
 
 | Retired      | Superseded by | Change                                        |

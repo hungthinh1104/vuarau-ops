@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { SessionDto, WorkspaceId } from "@vuarau/domain-contracts";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useTRPC } from "./providers.tsx";
 import { browserAccessToken } from "./access-token.ts";
 import { domainErrorOf } from "./domain-error.ts";
@@ -43,8 +43,33 @@ export function useSession(): ActiveSession {
 
 export function SessionGate({ children }: { children: ReactNode }) {
   const choices = configuredWorkspaces(process.env["NEXT_PUBLIC_WORKSPACES"]);
-  const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(() => storedWorkspaceId());
-  const token = browserAccessToken();
+  const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
+
+  /*
+   * The token and the chosen depot live in `sessionStorage`, which does not
+   * exist on the server. Reading them during render makes the server's HTML and
+   * the client's first render disagree, and React throws away the tree — visibly,
+   * as a hydration error, and invisibly as a double render on every page load.
+   *
+   * So the first paint is deliberately "checking", for one frame, and everything
+   * that depends on storage happens after mount.
+   */
+  const [mounted, setMounted] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setToken(browserAccessToken());
+    setWorkspaceId(storedWorkspaceId());
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-10">
+        <Skeleton width="w-48" height="h-6" label="Đang mở phiên làm việc" />
+      </main>
+    );
+  }
 
   if (token === null) {
     return <NotSignedIn />;

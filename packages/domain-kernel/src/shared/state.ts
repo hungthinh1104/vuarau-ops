@@ -54,7 +54,7 @@ export type CustomerState = {
 
 export type SaleLineState = {
   readonly lineId: SaleLineId;
-  readonly productId: ProductId;
+  readonly productId: ProductId | null;
   /** Snapshot taken at entry time; later catalogue edits must not change it (ASM-008). */
   readonly productName: string;
   readonly quantity: Quantity;

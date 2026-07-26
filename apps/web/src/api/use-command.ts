@@ -61,10 +61,17 @@ export type CommandState<TPayload, TResult> = {
 };
 
 export type CommandRunner<TPayload, TResult> = CommandState<TPayload, TResult> & {
-  /** Starts a new intention: mints a fresh identity and sends it. */
-  readonly submit: (payload: TPayload, options?: SubmitOptions) => Promise<void>;
+  /**
+   * Starts a new intention: mints a fresh identity and sends it.
+   *
+   * Resolves with the server's result, or `null` if the command was refused,
+   * dropped, or ignored because this runner has already settled. Returning the
+   * value rather than only setting state is what lets a caller sequence two
+   * commands — save the draft, then post it — without a render in between.
+   */
+  readonly submit: (payload: TPayload, options?: SubmitOptions) => Promise<TResult | null>;
   /** Resends the identical command. The identity does not change. */
-  readonly resend: () => Promise<void>;
+  readonly resend: () => Promise<TResult | null>;
   readonly reset: () => void;
 };
 
@@ -107,11 +114,11 @@ export function useCommand<TPayload, TResult>(
    * TypeScript would reject and React would re-create on every render.
    */
   const dispatchRef = useRef<
-    (command: PendingCommand<TPayload>, isReplay: boolean) => Promise<void>
-  >(async () => undefined);
+    (command: PendingCommand<TPayload>, isReplay: boolean) => Promise<TResult | null>
+  >(async () => null);
 
   const dispatch = useCallback(
-    async (command: PendingCommand<TPayload>, isReplay: boolean) => {
+    async (command: PendingCommand<TPayload>, isReplay: boolean): Promise<TResult | null> => {
       inFlight.current = command;
       setState((current) => ({ ...current, phase: command.phase, pending: command, error: null }));
 
@@ -139,6 +146,7 @@ export function useCommand<TPayload, TResult>(
           // A replay that succeeded returned the original result, not a new one.
           wasDuplicateSafeRetry: isReplay,
         });
+        return result;
       } catch (error) {
         const domainError = domainErrorOf(error);
 
@@ -149,7 +157,7 @@ export function useCommand<TPayload, TResult>(
           const unknown = markUnknown(command);
           inFlight.current = unknown;
           setState((current) => ({ ...current, phase: unknown.phase, pending: unknown }));
-          return;
+          return null;
         }
 
         /*
@@ -171,8 +179,7 @@ export function useCommand<TPayload, TResult>(
          */
         if (domainError !== null && domainError.retryable && command.attempts < 4) {
           await new Promise((resolve) => setTimeout(resolve, 250 * command.attempts));
-          await dispatchRef.current(retryUnknown(command), true);
-          return;
+          return dispatchRef.current(retryUnknown(command), true);
         }
 
         // A definite refusal: nothing committed, and a refused command does not
@@ -187,6 +194,7 @@ export function useCommand<TPayload, TResult>(
           result: null,
           error: domainError,
         }));
+        return null;
       }
     },
     [send],
@@ -211,15 +219,14 @@ export function useCommand<TPayload, TResult>(
        *
        * A genuinely new payment starts with `reset()`, or with a new screen.
        */
-      if (settled.current) return;
+      if (settled.current) return null;
 
       const current = inFlight.current;
 
       // A second tap while the first is still out, or before an unknown outcome
       // has been resolved, is the *same* intention. It reuses the identity.
       if (current !== null) {
-        await dispatch(retryUnknown(current), true);
-        return;
+        return dispatch(retryUnknown(current), true);
       }
 
       attemptOptions.current = options;
@@ -228,17 +235,17 @@ export function useCommand<TPayload, TResult>(
         actorId: session.actorId,
         ...(options.occurredAt !== undefined ? { occurredAt: options.occurredAt } : {}),
       });
-      await dispatch(beginCommand(identity, payload), false);
+      return dispatch(beginCommand(identity, payload), false);
     },
     [dispatch, session.actorId, workspaceId],
   );
 
   const resend = useCallback(async () => {
     const current = inFlight.current;
-    if (current === null) return;
+    if (current === null) return null;
     // `retryUnknown` returns the same identity object. There is no parameter here
     // by which a caller could vary it.
-    await dispatch(retryUnknown(current), true);
+    return dispatch(retryUnknown(current), true);
   }, [dispatch]);
 
   const reset = useCallback(() => {
@@ -273,5 +280,5 @@ export type CommandOutcomeView = {
   } | null;
   readonly error: DomainError | null;
   readonly wasDuplicateSafeRetry: boolean;
-  readonly resend: () => Promise<void>;
+  readonly resend: () => Promise<unknown>;
 };

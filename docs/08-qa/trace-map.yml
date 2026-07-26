@@ -1256,6 +1256,47 @@ contract_tests:
   TC-E2E-010:
     title: No workspace is chosen silently, even when only one is configured
     file: apps/web/e2e/payment.spec.ts
+  TC-WEB-021:
+    title: A sale line resolves through the server's own line-total arithmetic, or names the wrong field
+    file: apps/web/src/ui/sale-line-editor.test.tsx
+  TC-WEB-022:
+    title: The line editor keeps typed values, flags its own row, and cannot submit a form
+    file: apps/web/src/ui/sale-line-editor.test.tsx
+  TC-WEB-023:
+    title: The workflow metric vocabulary is closed and carries no business data
+    file: apps/web/src/ui/sale-line-editor.test.tsx
+
+  # --- the quick-sale workflow, end to end -----------------------------------
+  TC-E2E-011:
+    title: A one-line sale posts and creates exactly one account entry
+    file: apps/web/e2e/quick-sale.spec.ts
+  TC-E2E-012:
+    title: A three-line sale totals correctly and shows each unit exactly as entered
+    file: apps/web/e2e/quick-sale.spec.ts
+  TC-E2E-013:
+    title: An empty sale is refused before anything reaches the server
+    file: apps/web/e2e/quick-sale.spec.ts
+  TC-E2E-014:
+    title: An invalid line is flagged on its own row, and the other rows keep their values
+    file: apps/web/e2e/quick-sale.spec.ts
+  TC-E2E-015:
+    title: A draft can be edited and discarded, and creates no debt either way
+    file: apps/web/e2e/quick-sale.spec.ts
+  TC-E2E-016:
+    title: A duplicate post does not duplicate the receivable
+    file: apps/web/e2e/quick-sale.spec.ts
+  TC-E2E-017:
+    title: A dropped response on posting recovers with the same command identity
+    file: apps/web/e2e/quick-sale.spec.ts
+  TC-E2E-018:
+    title: A role without `sale.create` cannot post; a stale draft asks for a reload
+    file: apps/web/e2e/quick-sale.spec.ts
+  TC-E2E-019:
+    title: The posted sale shows the one account entry it produced
+    file: apps/web/e2e/quick-sale.spec.ts
+  TC-E2E-020:
+    title: Workflow analytics carry a metric and a number, and no business data
+    file: apps/web/e2e/quick-sale.spec.ts
 
 # Retired identifiers. Never reissued. The old → new mapping is in
 # docs/02-use-cases/use-case-catalog.md.

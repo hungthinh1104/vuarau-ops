@@ -102,8 +102,8 @@ other number in the book.
 
 ### How to run it
 
-The worksheet is `pilot-worksheet.md` in this folder, one row per transaction. It
-is empty on purpose. **Do not fill it in with expected values.**
+The worksheet is [pilot-worksheet.md](pilot-worksheet.md), one row per
+transaction. It is empty on purpose. **Do not fill it in with expected values.**
 
 1. Set up a workspace with the worker's own customers. Do not seed demo data.
 2. Ask them to record a sale they have actually just made, in their own way. Do
@@ -137,6 +137,6 @@ session.
 ## Related
 
 - [product-brief.md](product-brief.md) — what the hypotheses are for
-- `pilot-worksheet.md` — the empty sheet, one row per observed transaction
+- [pilot-worksheet.md](pilot-worksheet.md) — the empty sheet, one row per observed transaction
 - [../08-qa/test-strategy.md](../08-qa/test-strategy.md) — what the automated suites do and do not cover
 - [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md) — the ASM entries a pilot could settle
