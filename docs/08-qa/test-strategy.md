@@ -41,6 +41,17 @@ without failing.
 failing, so a laptop without Postgres still gets a green `pnpm verify`. Skipped is
 reported as skipped — the summary says so.
 
+**Except under CI, where it fails instead.** `skipWithoutDatabase()` throws when
+`DATABASE_URL` is absent and `CI` is set, and `endToEndDisabled()` does the same
+for Playwright — early enough that it throws while the config loads, before a spec
+is collected.
+
+The distinction is not fussiness. On a laptop a skip is a convenience. In CI it is
+a lie: the build goes green having asserted nothing about Postgres, and the way
+that is discovered is a production incident whose test "passed" every day since the
+workflow variable was renamed. Both guards are one line of workflow away from
+mattering, and nothing else would notice.
+
 To run them locally:
 
 ```bash
@@ -53,8 +64,8 @@ pnpm db:migrate
 pnpm test:db
 ```
 
-CI runs a `postgres:17` service container, so the suites execute there on every
-push.
+CI runs a `postgres:17` service container against an empty database, so migrations
+apply from scratch on every push and the suites execute there.
 
 Each database test creates its **own workspace UUID** and asserts only within it.
 No truncation between files, no shared fixture state, and files can run in

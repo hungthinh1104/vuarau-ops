@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { customerAccountEntries, saleLines, saleVoids, sales, payments } from "../schema/index.ts";
 import {
   createDbTestContext,
-  hasDatabase,
+  skipWithoutDatabase,
   type DbTestContext,
 } from "../testing/db-test-context.ts";
 import { captureDatabaseError } from "../testing/expect-database-error.ts";
@@ -13,7 +13,7 @@ import { captureDatabaseError } from "../testing/expect-database-error.ts";
  * application code: triggers and constraints that hold even when the caller is a
  * migration, a psql session, or a future ORM upgrade.
  */
-describe.skipIf(!hasDatabase)("database append-only guarantees", () => {
+describe.skipIf(skipWithoutDatabase())("database append-only guarantees", () => {
   let ctx: DbTestContext;
 
   beforeAll(async () => {

@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDbTestContext, createUnitOfWork, hasDatabase, type DbTestContext } from "@vuarau/db";
+import {
+  createDbTestContext,
+  createUnitOfWork,
+  skipWithoutDatabase,
+  type DbTestContext,
+} from "@vuarau/db";
 import type { Cursor } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
@@ -21,7 +26,7 @@ import { getAuditTimeline } from "../../../modules/audit/audit.queries.ts";
  * that paging is stable, which the in-memory adapter cannot demonstrate because
  * it sorts an array rather than walking an index.
  */
-describe.skipIf(!hasDatabase)("read models against Postgres", () => {
+describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
   let owner: CommandContext;

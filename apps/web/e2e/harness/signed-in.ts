@@ -1,5 +1,10 @@
 import { test as base, type Page } from "@playwright/test";
-import { E2E_WORKSPACE_ID, mintAccessToken, type E2ERole } from "./environment.ts";
+import {
+  E2E_WORKSPACE_ID,
+  endToEndDisabled,
+  mintAccessToken,
+  type E2ERole,
+} from "./environment.ts";
 
 /**
  * A page that is already signed in, with a depot already chosen.
@@ -36,16 +41,18 @@ export async function injectToken(page: Page, role: E2ERole = "sales"): Promise<
 }
 
 /**
- * Skips the whole file when there is no database, rather than failing.
+ * Skips the whole file when there is no database — **outside CI**.
  *
  * The same rule the `db` Vitest project follows: a laptop without Postgres still
- * gets a green `pnpm verify`, and the skip is reported as a skip.
+ * gets a green `pnpm verify`, and the skip is reported as a skip. Under CI,
+ * `endToEndDisabled` throws instead, and it throws while the config loads, so this
+ * never gets the chance to skip anything there.
  */
 export const test = base.extend({});
 
 test.beforeEach(() => {
   test.skip(
-    (process.env["DATABASE_URL"] ?? "").length === 0,
+    endToEndDisabled(),
     "DATABASE_URL is not set — the end-to-end suite runs against a real database.",
   );
 });

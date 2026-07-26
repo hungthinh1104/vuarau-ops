@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDbTestContext, createUnitOfWork, hasDatabase, type DbTestContext } from "@vuarau/db";
+import {
+  createDbTestContext,
+  createUnitOfWork,
+  skipWithoutDatabase,
+  type DbTestContext,
+} from "@vuarau/db";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
 import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
@@ -21,7 +26,7 @@ import {
  * actually satisfy the ports and that the transaction boundary is real rather
  * than an artefact of the in-memory implementation.
  */
-describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
+describe.skipIf(skipWithoutDatabase())("full slice against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
   /** The command context an authenticated owner would have. */

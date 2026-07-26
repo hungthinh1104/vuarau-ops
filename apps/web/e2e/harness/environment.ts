@@ -56,6 +56,32 @@ export async function mintAccessToken(role: E2ERole): Promise<string> {
     .sign(new TextEncoder().encode(E2E_JWT_SECRET));
 }
 
+/**
+ * Whether the end-to-end suite may skip, and the place it refuses to.
+ *
+ * On a laptop without Postgres, skipping is a convenience: `pnpm verify` stays
+ * green and the skip is reported as a skip. In CI it is a **lie** — the suite goes
+ * green having exercised no browser, no API process and no database, and the way
+ * that is discovered is a production incident whose test "passed" every day.
+ *
+ * `DATABASE_URL` is one renamed workflow line away from vanishing, and nothing
+ * else would notice. So under CI this throws while Playwright is loading its
+ * config, before a single spec is collected.
+ */
+const inCi = (process.env["CI"] ?? "").length > 0 && process.env["CI"] !== "false";
+
+export function endToEndDisabled(): boolean {
+  if ((process.env["DATABASE_URL"] ?? "").length > 0) return false;
+  if (inCi) {
+    throw new Error(
+      "DATABASE_URL is not set, and CI is. The end-to-end suite must run here, " +
+        "not skip: it is the only thing in this repository that exercises a real " +
+        "browser against a real API and a real database.",
+    );
+  }
+  return true;
+}
+
 /** Where the specs run. Both servers are started by `playwright.config.ts`. */
 export const E2E_WEB_PORT = 3101;
 export const E2E_API_PORT = 3102;

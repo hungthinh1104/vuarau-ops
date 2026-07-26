@@ -30,6 +30,35 @@ import {
 export const DATABASE_URL = process.env["DATABASE_URL"];
 export const hasDatabase = DATABASE_URL !== undefined && DATABASE_URL.length > 0;
 
+/** GitHub Actions sets `CI=true`; so does every other runner worth naming. */
+const inCi = (process.env["CI"] ?? "").length > 0 && process.env["CI"] !== "false";
+
+/**
+ * Whether the database suites should skip — and, in CI, the place they refuse to.
+ *
+ * On a laptop a skip is a convenience. In CI it is a **lie**: the whole suite goes
+ * green having asserted nothing about Postgres, and the way that is discovered is
+ * a production incident whose test "passed" every day. The variable is exactly one
+ * line of workflow away from being renamed or dropped, and nothing else would
+ * notice.
+ *
+ * So this throws instead. Called from `describe.skipIf(...)`, which runs at
+ * collection time in the test file, so the failure names the file that should have
+ * run — not at import time, where it would also crash the server process that
+ * imports this package's barrel.
+ */
+export function skipWithoutDatabase(): boolean {
+  if (hasDatabase) return false;
+  if (inCi) {
+    throw new Error(
+      "DATABASE_URL is not set, and CI is. The database suites must run here, " +
+        "not skip: a green build that asserted nothing about Postgres is worse " +
+        "than a red one. Provide the service, or take this suite out deliberately.",
+    );
+  }
+  return true;
+}
+
 export type DbTestContext = {
   readonly database: Database;
   readonly workspaceId: WorkspaceId;

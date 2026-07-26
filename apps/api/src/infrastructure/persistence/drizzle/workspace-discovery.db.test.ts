@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDbTestContext, createUnitOfWork, hasDatabase, type DbTestContext } from "@vuarau/db";
+import {
+  createDbTestContext,
+  createUnitOfWork,
+  skipWithoutDatabase,
+  type DbTestContext,
+} from "@vuarau/db";
 import { permissionsForRole } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
@@ -16,7 +21,7 @@ import { revokeWorkspaceMembership } from "../../../modules/session/revoke-membe
  * that every in-memory test would still pass, because the in-memory filter is a
  * different piece of code.
  */
-describe.skipIf(!hasDatabase)("workspace discovery against Postgres", () => {
+describe.skipIf(skipWithoutDatabase())("workspace discovery against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
 

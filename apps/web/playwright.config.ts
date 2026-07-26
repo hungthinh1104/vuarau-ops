@@ -5,6 +5,7 @@ import {
   E2E_JWT_ISSUER,
   E2E_JWT_SECRET,
   E2E_WEB_PORT,
+  endToEndDisabled,
 } from "./e2e/harness/environment.ts";
 
 /**
@@ -20,7 +21,12 @@ import {
  * checkout either runs the whole thing or skips it loudly.
  */
 const databaseUrl = process.env["DATABASE_URL"] ?? "";
-const hasDatabase = databaseUrl.length > 0;
+/*
+ * Throws rather than returning `true` when CI is set and the database is not.
+ * A skipped end-to-end suite in CI is a green build that exercised no browser,
+ * no API process and no database — see `endToEndDisabled`.
+ */
+const hasDatabase = !endToEndDisabled();
 
 const apiEnvironment = {
   DATABASE_URL: databaseUrl,

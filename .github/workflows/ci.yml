@@ -16,6 +16,9 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # The end-to-end suite starts two servers, runs a browser against them and
+    # waits on real HTTP. The default 360 is generous; this bounds a hang.
+    timeout-minutes: 30
 
     services:
       postgres:
@@ -33,8 +36,9 @@ jobs:
           --health-retries 5
 
     env:
-      # Provided so the `db` project actually runs here. Locally it is optional
-      # and those suites skip — see docs/08-qa/test-strategy.md.
+      # An empty database, created fresh for this job. Migrations therefore run
+      # from scratch on every build, which is the only way "the migrations apply
+      # to an empty database" stays true.
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/vuarau_test
 
     steps:
@@ -50,13 +54,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # --- static checks -------------------------------------------------------
       - name: Format
         run: pnpm format
 
       - name: Lint
         run: pnpm lint
 
-      - name: Typecheck
+      # Two invocations: the workspace, then `apps/web` with its own tsconfig.
+      # The browser project has different lib and JSX settings, so a type error
+      # there is invisible to the first one.
+      - name: Typecheck (workspace and web)
         run: pnpm typecheck
 
       - name: Architectural boundaries
@@ -68,9 +76,31 @@ jobs:
       - name: Traceability
         run: pnpm trace:check
 
-      - name: Apply migrations
+      # --- schema --------------------------------------------------------------
+      - name: Apply migrations from scratch
         run: pnpm db:migrate
 
+      # A schema change committed without its migration applies cleanly here and
+      # diverges in production, silently, until something reads the missing
+      # column. `db:generate` is deterministic, so any output means somebody
+      # edited `src/schema/` and did not generate.
+      - name: Migrations match the schema
+        run: |
+          pnpm db:generate
+          # `git status --porcelain`, not `git diff`: a new migration is an
+          # **untracked** file, and `git diff` does not see those — a drift check
+          # that missed the exact case it exists for.
+          drift="$(git status --porcelain -- packages/db/migrations)"
+          if [ -n "$drift" ]; then
+            echo "::error::packages/db/src/schema changed without a migration."
+            echo "Run 'pnpm db:generate' and commit what it produces."
+            echo "$drift"
+            exit 1
+          fi
+
+      # --- every Vitest project ------------------------------------------------
+      # Run separately rather than as `pnpm test`, so a red build names which
+      # layer broke before anybody opens the log.
       - name: Domain tests
         run: pnpm test:domain
 
@@ -80,5 +110,44 @@ jobs:
       - name: Contract tests
         run: pnpm test:contract
 
+      # Fails rather than skips without DATABASE_URL — `CI` is set here, and
+      # `skipWithoutDatabase()` throws when both are true. A green build that
+      # asserted nothing about Postgres is worse than a red one.
       - name: Database tests
         run: pnpm test:db
+
+      - name: Web component tests
+        run: pnpm test:web
+
+      # --- the artefacts a browser actually loads -------------------------------
+      - name: Next production build
+        run: pnpm web:build
+
+      - name: Storybook build
+        run: pnpm web:storybook
+
+      # --- the whole stack, through a browser ----------------------------------
+      - name: Install Playwright browsers
+        run: pnpm --filter @vuarau/web exec playwright install --with-deps chromium
+
+      # Starts a real API process and a real Next server against the Postgres
+      # service, and drives them with a real browser. This is the only thing in
+      # the repository that would have caught the three defects Milestone 5
+      # found — a duplicate payment, a mis-rendered retry, and a foreign key that
+      # made posting impossible — every one of which passed 400 unit tests.
+      #
+      # It also fails rather than skips without DATABASE_URL: `endToEndDisabled()`
+      # throws while Playwright loads its config, before a spec is collected.
+      - name: End-to-end tests
+        run: pnpm web:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 7
+          if-no-files-found: ignore
