@@ -69,8 +69,8 @@ function domainErrorOf(error: unknown): DomainError {
   return cause!.domainError!;
 }
 
-describe("UC-ORDER-001 / TC-SALE-013 — sale procedures", () => {
-  it("returns an SaleDto that satisfies the published schema", async () => {
+describe("UC-SALE-001 / TC-SALE-013 — sale procedures", () => {
+  it("returns a SaleDto that satisfies the published schema", async () => {
     const created = await caller.sale.createDraft({
       ...envelope("contract-sale-create"),
       payload: salePayload,
@@ -90,10 +90,9 @@ describe("UC-ORDER-001 / TC-SALE-013 — sale procedures", () => {
     });
 
     expect(created.capabilities.post.allowed).toBe(true);
-    // Documented in the state machine, not implemented in this phase (ASM-005).
-    // A live draft may be edited and discarded. Both were COMMAND_NOT_AVAILABLE
-    // until the commands shipped; the capability changed with them, which is the
-    // point of computing it from the same functions the guards use (ADR-0003).
+    // A live draft may be edited and discarded, and the capability says so
+    // because it is computed by the same functions the command guards call
+    // (ADR-0003) — not by a second table that has to be remembered.
     expect(created.capabilities.edit).toEqual({ allowed: true });
     expect(created.capabilities.discard).toEqual({ allowed: true });
   });
@@ -238,14 +237,21 @@ describe("UC-ACCOUNT-002 / TC-ACCOUNT-008 — debt procedures", () => {
       },
     });
 
-    const ledger = await caller.account.entries({
+    // Through `timeline`, which is the only published way in. The raw entry list
+    // was removed from the router: it took no cursor, so one request could ask a
+    // depot's whole account history of a customer out of the database.
+    const ledger = await caller.account.timeline({
       workspaceId: WORKSPACE_ID,
       customerId: CUSTOMER_ID,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 10,
     });
 
-    expect(ledger).toHaveLength(1);
-    expect(ledger[0]?.reason).toBe("Nợ cũ từ sổ giấy");
-    expect(ledger[0]?.actorId).toBe(ACTOR_ID);
+    expect(ledger.items).toHaveLength(1);
+    expect(ledger.items[0]?.reason).toBe("Nợ cũ từ sổ giấy");
+    expect(ledger.items[0]?.actorId).toBe(ACTOR_ID);
   });
 
   it("refuses an adjustment with no reason, with the specific code", async () => {
@@ -325,7 +331,14 @@ describe("BR-AUTH-001 / TC-AUTH-001 — unauthenticated access", () => {
     });
 
     try {
-      await anonymous.account.entries({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID });
+      await anonymous.account.timeline({
+        workspaceId: WORKSPACE_ID,
+        customerId: CUSTOMER_ID,
+        from: null,
+        to: null,
+        cursor: null,
+        limit: 10,
+      });
       expect.unreachable("an unauthenticated account read must be refused");
     } catch (error) {
       expect(domainErrorOf(error).code).toBe("AUTHENTICATION_INVALID");

@@ -3,14 +3,15 @@
 Creating a customer has its own document,
 [UC-CUSTOMER-001](UC-CUSTOMER-001-create-customer.md). This file covers the rest.
 
-All four are **planned**: specified and agreed, not yet built. Their capabilities
-return `COMMAND_NOT_AVAILABLE` so a UI can be written against them today.
+All four are implemented. Their capabilities are computed from the same role
+table and the same rules the commands enforce, so a greyed-out control and a server
+refusal carry the same code.
 
 ---
 
 ## UC-CUSTOMER-002 — Search and list customers
 
-**Risk:** P2 · **Status:** **planned** · **Read:** `customer.list`
+**Risk:** P2 · **Status:** implemented · **Read:** `customer.search`
 
 | Field          | Value                                                 |
 | -------------- | ----------------------------------------------------- |
@@ -76,7 +77,7 @@ TC-CUSTOMER-004, TC-CUSTOMER-005
 
 ## UC-CUSTOMER-003 — View a customer
 
-**Risk:** P2 · **Status:** **planned** · **Read:** `customer.get`
+**Risk:** P2 · **Status:** implemented · **Read:** `customer.get`
 
 | Field          | Value                                                    |
 | -------------- | -------------------------------------------------------- |
@@ -116,7 +117,7 @@ BR-AUTH-001, BR-CUSTOMER-002, BR-ACCOUNT-001, BR-ACCOUNT-009 · TC-CUSTOMER-006
 
 ## UC-CUSTOMER-004 — Update a customer
 
-**Risk:** P1 · **Status:** **planned** · **Command:** `UpdateCustomer`
+**Risk:** P1 · **Status:** implemented · **Command:** `UpdateCustomer`
 
 | Field          | Value                                         |
 | -------------- | --------------------------------------------- |
@@ -166,7 +167,7 @@ number silently is worse than asking.
 
 ### Capabilities · UI states
 
-`update` returns `COMMAND_NOT_AVAILABLE` until implemented.
+`update` is allowed when the caller's role carries `customer.update`.
 `loading`, `validation_error`, `permission_denied`, `stale_version`,
 `duplicate_safe_retry`, `unknown_network_outcome`.
 
@@ -179,7 +180,7 @@ TC-CUSTOMER-007, TC-CUSTOMER-008
 
 ## UC-CUSTOMER-005 — Deactivate a customer
 
-**Risk:** P1 · **Status:** **planned** · **Command:** `DeactivateCustomer`
+**Risk:** P1 · **Status:** implemented · **Command:** `DeactivateCustomer`
 
 | Field          | Value                                               |
 | -------------- | --------------------------------------------------- |
@@ -222,8 +223,8 @@ carrying the reason.
 ### Idempotency · Concurrency · Offline policy · Capabilities · UI states
 
 Standard; `expectedVersion` required. Offline supported but rare — this is a
-back-office action taken at a desk. `deactivate` returns `COMMAND_NOT_AVAILABLE`
-until implemented. States: `loading`, `business_rejection`, `permission_denied`,
+back-office action taken at a desk. `deactivate` carries
+`CUSTOMER_ALREADY_INACTIVE` once the customer is inactive. States: `loading`, `business_rejection`, `permission_denied`,
 `stale_version`, `unknown_network_outcome`.
 
 ### Rules · Planned tests

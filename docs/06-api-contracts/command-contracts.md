@@ -26,8 +26,16 @@ resolved to, or the command is refused with `ACTOR_IMPERSONATION_DENIED`
 required permission per command is listed in
 [authorization-rules.md](../04-business-rules/authorization-rules.md).
 
-`expectedVersion` is mandatory on `PostSale` and `ReverseCustomerPayment`, which
-change existing aggregates, and absent from the creation commands.
+`expectedVersion` is mandatory on every command that changes an aggregate somebody
+else may be looking at — `PostSale`, `UpdateSaleDraft`, `DiscardSaleDraft`,
+`ReverseCustomerPayment`, `UpdateCustomer`, `DeactivateCustomer` — and absent from
+the creation commands.
+
+It is absent from **`RevokeWorkspaceMembership`** too. A membership has no
+user-editable content to lose an update of, and two concurrent revocations of the
+same person want the same end state. The race that does matter — two owners
+revoking each other at once — touches different rows, so a version would not catch
+it; the active-owner count is read under a row lock instead (BR-AUTH-007).
 
 It is also absent from **`VoidSale`**, which is the interesting case: a posted sale
 is immutable, so its version never moves again, and there is no lost update to
@@ -35,7 +43,10 @@ guard against. Demanding a token the caller cannot affect would be theatre.
 Concurrent voids are serialised by a row lock and refused by `UNIQUE (sale_id)` on
 `sale_voids` (BR-SALE-013).
 
-## The seven commands
+## The seven money commands
+
+These are the ones that move a balance, or could be mistaken for a command that
+does. Everything about the system's caution is aimed here.
 
 | Command                  | tRPC procedure     | Payload                                                                             | Versioned | Returns                     | Account effect |
 | ------------------------ | ------------------ | ----------------------------------------------------------------------------------- | --------- | --------------------------- | -------------- |
@@ -47,13 +58,31 @@ Concurrent voids are serialised by a row lock and refused by `UNIQUE (sale_id)` 
 | `ReverseCustomerPayment` | `payment.reverse`  | `paymentId`, `reversalId`, `amount`, `reason`                                       | **yes**   | `PaymentDto`                | `+amount`      |
 | `AdjustCustomerDebt`     | `debt.adjust`      | `adjustmentId`, `customerId`, `direction`, `amount`, `reasonCode`, `reason`         | no        | `CustomerAccountBalanceDto` | `±amount`      |
 
+## The five lifecycle commands
+
+Same envelope, same idempotency, same audit record — and **no account effect at
+all**, which is the property each of their tests asserts directly rather than
+assuming. A draft that is edited five times and then thrown away must leave the
+customer's balance exactly where it found it (BR-SALE-010).
+
+| Command                     | tRPC procedure             | Payload                                        | Versioned | Returns                  |
+| --------------------------- | -------------------------- | ---------------------------------------------- | --------- | ------------------------ |
+| `UpdateCustomer`            | `customer.update`          | `customerId`, `displayName`, `phone?`, `note?` | **yes**   | `CustomerDto`            |
+| `DeactivateCustomer`        | `customer.deactivate`      | `customerId`, `reason?`                        | **yes**   | `CustomerDto`            |
+| `UpdateSaleDraft`           | `sale.updateDraft`         | `saleId`, `lines[]`, `note?`, `dueAt?`         | **yes**   | `SaleDto`                |
+| `DiscardSaleDraft`          | `sale.discardDraft`        | `saleId`, `reason?`                            | **yes**   | `SaleDto`                |
+| `RevokeWorkspaceMembership` | `session.revokeMembership` | `actorId`, `reason?`                           | no        | `WorkspaceMembershipDto` |
+
 There is no `updateEntity`, no `updateSaleStatus`, no `patchCustomerDebt`, and no
 `setPaymentStatus`. There is also no `CancelSale`: a draft is discarded and a
 posted sale is voided, and those are different events with different money
 ([ADR-0012](../09-decisions/ADR-0012-sale-void-and-replacement.md)).
 
-Queries: `sale.byId`, `payment.byId`, `account.balance`, `account.entries`,
-`audit.byAggregate`. Reads are authorized exactly like commands (BR-AUTH-001).
+Queries: `session.me`, `customer.search`, `customer.get`, `sale.get`, `sale.list`,
+`payment.get`, `payment.list`, `account.balance`, `account.timeline`,
+`audit.timeline`. Reads are authorized exactly like commands (BR-AUTH-001), and
+every list is cursor-paged — there is no unbounded read
+([read models](read-models.md)).
 
 ### Notable payload absences
 

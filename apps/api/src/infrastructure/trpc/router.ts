@@ -40,7 +40,6 @@ import { adjustCustomerDebt } from "../../modules/account/adjust-debt.handler.ts
 import {
   getCustomerAccountBalance,
   getCustomerAccountTimeline,
-  listCustomerAccountEntries,
 } from "../../modules/account/account.queries.ts";
 import { getCustomer, searchCustomers } from "../../modules/customer/customer.queries.ts";
 import { getSale, listSales } from "../../modules/sale/sale.queries.ts";
@@ -166,16 +165,19 @@ const accountRouter = router({
       unwrap(await getCustomerAccountBalance(ctx, input.workspaceId, input.customerId)),
     ),
 
-  entries: authenticatedProcedure
-    .input(z.object({ workspaceId: workspaceIdSchema, customerId: customerIdSchema }))
-    .query(async ({ ctx, input }) =>
-      unwrap(await listCustomerAccountEntries(ctx, input.workspaceId, input.customerId)),
-    ),
-
   /**
-   * The paged, source-resolved, running-balance version of `entries`. Both exist:
-   * `entries` is the raw ledger a rebuild or an export reads, `timeline` is what
-   * a person reads.
+   * The only published way to read the ledger.
+   *
+   * There was a second one, `account.entries`, which returned every entry a
+   * customer had with no cursor and no upper bound. It was convenient for a test
+   * and wrong as an API: a customer three years into a relationship with the
+   * depot is an unbounded response, and the surface most worth bounding is the
+   * one that answers "what does this person owe".
+   *
+   * Raw entries are still reachable where a bound would be wrong — the balance
+   * rebuild and a future export need every entry by definition — but through the
+   * repository port inside the server, not through a procedure a browser can call
+   * (BR-READ-002).
    */
   timeline: authenticatedProcedure
     .input(accountTimelineInputSchema)

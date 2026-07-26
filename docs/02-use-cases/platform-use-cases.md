@@ -7,7 +7,7 @@ is [UC-AUTH-001](UC-AUTH-001-authenticate-and-authorize.md).
 
 ## UC-AUTH-002 — Revoke a workspace membership
 
-**Risk:** P0 · **Status:** **planned** · **Command:** `RevokeMembership`
+**Risk:** P0 · **Status:** implemented · **Command:** `RevokeWorkspaceMembership`
 
 | Field          | Value                                           |
 | -------------- | ----------------------------------------------- |
@@ -65,7 +65,8 @@ revoking access is urgent, and a command that sits in a queue is not a revocatio
 
 ### Capabilities · UI states
 
-`revoke` returns `COMMAND_NOT_AVAILABLE` until implemented.
+`revoke` is a session-level command guarded by `workspace.manage`; the last
+active owner cannot be revoked (`WORKSPACE_LAST_OWNER`).
 `loading`, `business_rejection`, `permission_denied`, `unknown_network_outcome`.
 
 ### Rules · Planned tests
@@ -211,7 +212,7 @@ TC-COMMAND-001 … TC-COMMAND-006
 
 ## UC-AUDIT-001 — Trace a transaction and its corrections
 
-**Risk:** P1 · **Status:** records written; the read is **planned** ·
+**Risk:** P1 · **Status:** implemented ·
 **Read:** `audit.list`
 
 | Field          | Value                                                     |
@@ -274,7 +275,7 @@ TC-AUDIT-001, TC-AUDIT-002
 
 ## UC-PAYMENT-003 — View a payment
 
-**Risk:** P2 · **Status:** **planned** · **Read:** `payment.get`, `payment.list`
+**Risk:** P2 · **Status:** implemented · **Read:** `payment.get`, `payment.list`
 
 | Field          | Value                                                   |
 | -------------- | ------------------------------------------------------- |

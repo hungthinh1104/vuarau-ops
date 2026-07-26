@@ -9,21 +9,21 @@ its projection.
 
 ## UC-ACCOUNT-001 — View the account balance and timeline
 
-**Risk:** P0 · **Status:** balance implemented; timeline **planned** ·
-**Reads:** `account.balance`, `account.entries`
+**Risk:** P0 · **Status:** implemented ·
+**Reads:** `account.balance`, `account.timeline`
 
 | Field          | Value                                                                |
 | -------------- | -------------------------------------------------------------------- |
 | **Actor**      | Any active member holding `debt.read`                                |
 | **Trigger**    | "Anh Tuấn nợ bao nhiêu?" — the question the product exists to answer |
 | **Permission** | `debt.read` — held by `owner`, `accountant`, `sales`                 |
-| **Result DTO** | `CustomerAccountBalanceDto`; a page of `CustomerAccountEntryDto`     |
+| **Result DTO** | `CustomerAccountBalanceDto`; a page of `AccountTimelineEntryDto`     |
 
 ### Preconditions and inputs
 
 ```
 account.balance  { workspaceId, customerId }
-account.entries  { workspaceId, customerId, from?, to?, cursor?, limit? }
+account.timeline { workspaceId, customerId, from?, to?, cursor?, limit? }
 ```
 
 Both are authorized exactly like commands (BR-AUTH-001). Reads were the gap in the
@@ -102,7 +102,7 @@ guard uses.
 
 BR-AUTH-001, BR-AUTH-004, BR-AUTH-006, BR-ACCOUNT-001, BR-ACCOUNT-004,
 BR-ACCOUNT-009, BR-CUSTOMER-002 · CASE-ACCOUNT-008 ·
-TC-ACCOUNT-001, TC-AUTH-006, TC-ACCOUNT-010; **planned** TC-ACCOUNT-012
+TC-ACCOUNT-001, TC-AUTH-006, TC-ACCOUNT-010, TC-READ-005
 
 ### Implementation
 
@@ -112,8 +112,8 @@ TC-ACCOUNT-001, TC-AUTH-006, TC-ACCOUNT-010; **planned** TC-ACCOUNT-012
 
 ## UC-ACCOUNT-003 — Rebuild the account balance
 
-**Risk:** P0 · **Status:** function implemented; operator procedure **planned** ·
-**Procedure:** `rebuildCustomerAccountBalance`
+**Risk:** P0 · **Status:** implemented as an operator CLI ·
+**Procedure:** `pnpm --filter @vuarau/api ops:rebuild-balance`
 
 | Field          | Value                                                    |
 | -------------- | -------------------------------------------------------- |

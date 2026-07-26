@@ -28,18 +28,49 @@ Where a capability needs both, authority is evaluated first, because
 `PERMISSION_DENIED` sends the user to a person and a state refusal sends them to a
 different action.
 
+## Which DTO carries which
+
+Not every capability carries both halves, and a client that assumes otherwise
+shows a button it should not.
+
+| Capability field                      | Carries                    |
+| ------------------------------------- | -------------------------- |
+| `SaleDto.capabilities.*`              | **state only**             |
+| `PaymentDto.capabilities.reverse`     | **state only**             |
+| `CustomerDto.capabilities.*`          | authority, plus `isActive` |
+| `CustomerAccountBalanceDto.…​.adjust` | authority only             |
+
+The split is deliberate rather than accidental: sale and payment capabilities are
+computed in the domain kernel, which by construction does not know who is asking,
+while the customer and account ones are computed in the application layer, which
+does.
+
+The consequence for a client is one rule, and it holds for every control:
+
+> **A control is enabled when the session permission is held _and_ the aggregate
+> capability allows it.** `session.me.permissions` answers the first
+> (UC-AUTH-003); the DTO answers the second.
+
+A UI that reads only `SaleDto.capabilities.void.allowed` will offer a void button
+to a `sales` worker, who will then be refused. That is a rendering bug, not a
+security hole — the command re-checks both — but it is the kind that teaches people
+the buttons lie.
+
 ## Current shapes
 
 `SaleDto.capabilities`:
 
 ```ts
 {
-  post: Capability;      // draft, ≥1 valid line, caller holds sale.post
-  void: Capability;      // posted, not yet voided, caller holds sale.void
-  edit: Capability;      // COMMAND_NOT_AVAILABLE — planned (BR-SALE-018)
-  discard: Capability;   // COMMAND_NOT_AVAILABLE — planned (BR-SALE-018)
+  post: Capability;      // draft, and ≥1 valid line
+  void: Capability;      // posted, and not yet voided
+  edit: Capability;      // still a live draft (BR-SALE-018)
+  discard: Capability;   // still a live draft (BR-SALE-018)
 }
 ```
+
+`edit` and `discard` always carry the same answer, because they ask the same
+question. They are two fields because they are two buttons.
 
 `PaymentDto.capabilities`:
 
@@ -57,12 +88,13 @@ different action.
 }
 ```
 
-`CustomerDto.capabilities` (planned):
+`CustomerDto.capabilities`:
 
 ```ts
 {
-  update: Capability; // COMMAND_NOT_AVAILABLE — UC-CUSTOMER-004
-  deactivate: Capability; // COMMAND_NOT_AVAILABLE — UC-CUSTOMER-005
+  update: Capability; // caller holds customer.update (UC-CUSTOMER-004)
+  deactivate: Capability; // still active, and caller holds customer.deactivate (UC-CUSTOMER-005)
+  adjustAccount: Capability; // caller holds debt.adjust
 }
 ```
 
@@ -94,20 +126,22 @@ capability calls it.
 
 ## Current values
 
-| Capability            | `allowed` when                                                   | Otherwise                                                        |
-| --------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `sale.post`           | status is `draft` **and** ≥ 1 valid line **and** caller may post | `SALE_ALREADY_POSTED`, `SALE_EMPTY`, or `PERMISSION_DENIED`      |
-| `sale.void`           | status is `posted`, no void record, **and** caller may void      | `SALE_NOT_POSTED`, `SALE_ALREADY_VOIDED`, or `PERMISSION_DENIED` |
-| `sale.edit`           | never in this phase                                              | `COMMAND_NOT_AVAILABLE` (BR-SALE-018)                            |
-| `sale.discard`        | never in this phase                                              | `COMMAND_NOT_AVAILABLE` (BR-SALE-018)                            |
-| `payment.reverse`     | `reversedAmount < amount`                                        | `PAYMENT_ALREADY_REVERSED`                                       |
-| `account.adjust`      | the caller's role carries `debt.adjust` — owner or accountant    | `PERMISSION_DENIED`, naming the permission and the role          |
-| `customer.update`     | never in this phase                                              | `COMMAND_NOT_AVAILABLE` (UC-CUSTOMER-004)                        |
-| `customer.deactivate` | never in this phase                                              | `COMMAND_NOT_AVAILABLE` (UC-CUSTOMER-005)                        |
+| Capability            | `allowed` when                                                | Otherwise                                                        |
+| --------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `sale.post`           | status is `draft` **and** ≥ 1 valid line                      | `SALE_ALREADY_POSTED`, `SALE_ALREADY_DISCARDED`, or `SALE_EMPTY` |
+| `sale.void`           | status is `posted` and no void record exists                  | `SALE_NOT_POSTED` or `SALE_ALREADY_VOIDED`                       |
+| `sale.edit`           | status is `draft`                                             | `SALE_ALREADY_POSTED` or `SALE_ALREADY_DISCARDED`                |
+| `sale.discard`        | status is `draft`                                             | `SALE_ALREADY_POSTED` or `SALE_ALREADY_DISCARDED`                |
+| `payment.reverse`     | `reversedAmount < amount`                                     | `PAYMENT_ALREADY_REVERSED`                                       |
+| `account.adjust`      | the caller's role carries `debt.adjust` — owner or accountant | `PERMISSION_DENIED`, naming the permission and the role          |
+| `customer.update`     | the caller's role carries `customer.update`                   | `PERMISSION_DENIED`                                              |
+| `customer.deactivate` | the customer is active **and** the caller may deactivate      | `CUSTOMER_ALREADY_INACTIVE` or `PERMISSION_DENIED`               |
 
-`COMMAND_NOT_AVAILABLE` lets the UI grey out a control it can see in the model
-without hard-coding a roadmap. When `EditSaleDraft` ships, the capability starts
-returning a real answer and no client changes.
+`COMMAND_NOT_AVAILABLE` remains in the code catalogue for a capability that exists
+in the model before its command does. Nothing returns it today: every capability
+above answers from a real rule. It is kept rather than deleted because the next
+command to be specified ahead of its implementation will need it, and a client that
+already handles it needs no change when that happens.
 
 ## What a capability must never be used for
 

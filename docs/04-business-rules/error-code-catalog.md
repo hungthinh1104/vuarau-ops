@@ -55,21 +55,22 @@ two handlers cannot disagree about whether the same failure is worth retrying.
 | `COMMAND_IN_PROGRESS`                           | An identical command is still executing                                                                                | `idempotencyKey`                         | **yes**   | BR-COMMAND-001           | `CONFLICT`            |
 | `INVALID_COMMAND_PAYLOAD`                       | Zod schema rejected the payload                                                                                        | `issues`                                 | no        | —                        | `BAD_REQUEST`         |
 | `TRANSACTION_TIME_IN_FUTURE`                    | `occurredAt` beyond the 5-minute skew tolerance                                                                        | `occurredAt`, `serverTime`               | no        | BR-COMMAND-004           | `BAD_REQUEST`         |
-| `COMMAND_NOT_AVAILABLE`                         | Capability exists in the model but not in this phase                                                                   | `command`                                | no        | —                        | n/a — capability only |
+| `COMMAND_NOT_AVAILABLE`                         | Capability exists in the model but its command does not. **Nothing returns it today**                                  | `command`                                | no        | —                        | n/a — capability only |
 
 ¹ A version conflict is _not_ retryable with the same payload: the client must
 re-read the aggregate and let the user decide. Blind retry would reintroduce the
 lost update the check exists to prevent.
 
-## Planned codes
+## Lifecycle codes
 
-Specified by a planned use case, not yet in the enum. Listed so the vocabulary is
-agreed before the command that produces it is written.
+Added with the customer, draft and membership lifecycle commands. In the enum, in
+Postgres, and returned by a command that a test exercises.
 
 | Code                        | Meaning                                           | Rule            | Use case        |
 | --------------------------- | ------------------------------------------------- | --------------- | --------------- |
 | `CUSTOMER_VERSION_CONFLICT` | `expectedVersion` ≠ stored version on a customer  | BR-CUSTOMER-004 | UC-CUSTOMER-004 |
 | `CUSTOMER_ALREADY_INACTIVE` | Deactivating a customer who already is            | BR-CUSTOMER-003 | UC-CUSTOMER-005 |
+| `SALE_ALREADY_DISCARDED`    | Editing, discarding or posting a discarded draft  | BR-SALE-018     | UC-SALE-001     |
 | `WORKSPACE_LAST_OWNER`      | Revoking the only remaining active owner. Refused | BR-AUTH-007     | UC-AUTH-002     |
 
 ## Rules for changing this catalog

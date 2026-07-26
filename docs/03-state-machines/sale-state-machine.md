@@ -4,12 +4,12 @@
                     CreateSaleDraft
                           │
                           ▼
-                     ┌─────────┐   EditSaleDraft (planned)
+                     ┌─────────┐   UpdateSaleDraft
                      │  draft  │◀──────────┐
                      └────┬────┘───────────┘
                           │
           DiscardSaleDraft│  PostSale
-            (planned)     │  ├── version must match      (BR-SALE-006)
+                          │  ├── version must match      (BR-SALE-006)
                 ┌─────────┴──┤  ├── ≥ 1 valid line       (BR-SALE-002)
                 ▼            ▼  └── +total, one entry    (BR-SALE-007)
          ┌───────────┐   ┌──────────┐

@@ -12,10 +12,39 @@ import { parse } from "yaml";
  * It answers one question — *are these links real?* — and deliberately does not
  * become a requirements-management platform (ADR-0005). It cannot check whether
  * documentation is **true**; that is what the review checklist is for.
+ *
+ * It also enforces the other direction: an identifier that has been **retired**
+ * must not reappear in source. IDs are never reused (CLAUDE.md), so a retired one
+ * in live code is always a stale reference, and the rename that produced them left
+ * exactly this residue behind.
  */
 
 const ROOT = process.cwd();
 const TRACE_MAP = "docs/08-qa/trace-map.yml";
+
+/**
+ * Identifiers retired when `Order` became `Sale` and the debt ledger became the
+ * customer account ledger (ADR-0013). The authoritative mapping — what each one
+ * became — is the retired-identifier section of
+ * docs/02-use-cases/use-case-catalog.md; this pattern only has to recognise them.
+ */
+const RETIRED_ID = /\b(?:UC|BR|TC|CASE|T)-(?:ORDER|DEBT)-\d{3}/g;
+
+/**
+ * Where a retired identifier is legitimate, and nowhere else.
+ *
+ * A migration is a record of what was run, not a description of what is true. It
+ * names the rules that motivated it **at the time**, and rewriting one to use
+ * today's vocabulary would falsify history and change a file whose hash other
+ * environments have already applied.
+ *
+ * Documentation is not scanned: the retired-identifier tables, the ADR that
+ * retired them, and the per-rule change notes all have to name them to do their
+ * job. Active code and tests have no such reason.
+ */
+const RETIRED_ID_ALLOWED = ["packages/db/migrations/"];
+
+const SOURCE_EXTENSIONS = [".ts", ".tsx", ".sql"];
 
 type Entry = {
   title?: string;
@@ -53,14 +82,15 @@ type TraceMap = {
 const failures: string[] = [];
 const fail = (message: string) => failures.push(message);
 
-async function* walkTests(directory: string): AsyncGenerator<string> {
+async function* walkSource(directory: string): AsyncGenerator<string> {
   const entries = await readdir(directory, { withFileTypes: true });
   for (const entry of entries) {
     const full = join(directory, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === "node_modules" || entry.name === "dist") continue;
-      yield* walkTests(full);
-    } else if (entry.name.endsWith(".test.ts")) {
+      if (entry.name === ".next" || entry.name === "storybook-static") continue;
+      yield* walkSource(full);
+    } else if (SOURCE_EXTENSIONS.some((extension) => entry.name.endsWith(extension))) {
       yield full;
     }
   }
@@ -98,11 +128,26 @@ async function main(): Promise<void> {
   // ---- collect the TC ids that actually exist in test files ----------------
   const declaredTests = new Set<string>(Object.keys(contractTests));
   const testFileIds = new Map<string, string[]>();
+  let sourceFileCount = 0;
 
   for (const directory of ["apps", "packages"]) {
-    for await (const file of walkTests(join(ROOT, directory))) {
+    for await (const file of walkSource(join(ROOT, directory))) {
       const source = readFileSync(file, "utf8");
       const relativePath = relative(ROOT, file);
+      sourceFileCount += 1;
+
+      // ---- 9. a retired identifier may not appear in live source ----------
+      if (!RETIRED_ID_ALLOWED.some((prefix) => relativePath.startsWith(prefix))) {
+        for (const retired of new Set(source.match(RETIRED_ID) ?? [])) {
+          fail(
+            `${relativePath} names the retired identifier ${retired} — ` +
+              `see the retired-identifier tables in docs/02-use-cases/use-case-catalog.md`,
+          );
+        }
+      }
+
+      if (!relativePath.endsWith(".test.ts")) continue;
+
       for (const id of idsIn(source, "TC")) {
         declaredTests.add(id);
         testFileIds.set(id, [...(testFileIds.get(id) ?? []), relativePath]);
@@ -213,7 +258,8 @@ async function main(): Promise<void> {
   console.log(
     `✓ trace-check: ${Object.keys(useCases).length} use cases, ${Object.keys(rules).length} rules ` +
       `(${p0Count} P0, ${plannedCount} planned), ${Object.keys(cases).length} cases, ` +
-      `${declaredTests.size} tests — all links resolve.`,
+      `${declaredTests.size} tests — all links resolve. ` +
+      `${sourceFileCount} source files carry no retired identifier.`,
   );
 }
 

@@ -67,25 +67,25 @@ the caller's membership, using the static table in
 `packages/domain-contracts/src/shared/authorization.ts`
 ([ADR-0011](../09-decisions/ADR-0011-role-permission-mapping.md)).
 
-| Command / read                                           | Permission            | Roles                    | Status      |
-| -------------------------------------------------------- | --------------------- | ------------------------ | ----------- |
-| `CreateCustomer`                                         | `customer.create`     | owner, sales             | implemented |
-| `UpdateCustomer`                                         | `customer.update`     | owner, sales             | implemented |
-| `DeactivateCustomer`                                     | `customer.deactivate` | **owner**                | implemented |
-| `customer.search`, `customer.get`                        | `customer.read`       | all roles                | implemented |
-| `CreateSaleDraft`                                        | `sale.create`         | owner, sales             | implemented |
-| `UpdateSaleDraft`, `DiscardSaleDraft`                    | `sale.create`         | owner, sales             | implemented |
-| `PostSale`                                               | `sale.post`           | owner, sales             | implemented |
-| `VoidSale`                                               | `sale.void`           | **owner, accountant**    | implemented |
-| `sale.get`, `sale.list`                                  | `sale.read`           | all roles                | implemented |
-| `RecordCustomerPayment`                                  | `payment.record`      | owner, accountant, sales | implemented |
-| `ReverseCustomerPayment`                                 | `payment.reverse`     | owner, accountant        | implemented |
-| `payment.get`, `payment.list`                            | `payment.read`        | owner, accountant, sales | implemented |
-| `AdjustCustomerDebt`                                     | `debt.adjust`         | **owner, accountant**    | implemented |
-| `account.balance`, `account.entries`, `account.timeline` | `debt.read`           | owner, accountant, sales | implemented |
-| `audit.timeline`                                         | `audit.read`          | **owner, accountant**    | implemented |
-| `RevokeWorkspaceMembership`                              | `workspace.manage`    | **owner**                | implemented |
-| `session.me`                                             | — (identity only)     | all roles                | implemented |
+| Command / read                        | Permission            | Roles                    | Status      |
+| ------------------------------------- | --------------------- | ------------------------ | ----------- |
+| `CreateCustomer`                      | `customer.create`     | owner, sales             | implemented |
+| `UpdateCustomer`                      | `customer.update`     | owner, sales             | implemented |
+| `DeactivateCustomer`                  | `customer.deactivate` | **owner**                | implemented |
+| `customer.search`, `customer.get`     | `customer.read`       | all roles                | implemented |
+| `CreateSaleDraft`                     | `sale.create`         | owner, sales             | implemented |
+| `UpdateSaleDraft`, `DiscardSaleDraft` | `sale.create`         | owner, sales             | implemented |
+| `PostSale`                            | `sale.post`           | owner, sales             | implemented |
+| `VoidSale`                            | `sale.void`           | **owner, accountant**    | implemented |
+| `sale.get`, `sale.list`               | `sale.read`           | all roles                | implemented |
+| `RecordCustomerPayment`               | `payment.record`      | owner, accountant, sales | implemented |
+| `ReverseCustomerPayment`              | `payment.reverse`     | owner, accountant        | implemented |
+| `payment.get`, `payment.list`         | `payment.read`        | owner, accountant, sales | implemented |
+| `AdjustCustomerDebt`                  | `debt.adjust`         | **owner, accountant**    | implemented |
+| `account.balance`, `account.timeline` | `debt.read`           | owner, accountant, sales | implemented |
+| `audit.timeline`                      | `audit.read`          | **owner, accountant**    | implemented |
+| `RevokeWorkspaceMembership`           | `workspace.manage`    | **owner**                | implemented |
+| `session.me`                          | — (identity only)     | all roles                | implemented |
 
 The refusal names the permission and the role, so the answer to "why can't I do
 this" does not require reading the source.

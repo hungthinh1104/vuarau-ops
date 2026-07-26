@@ -4,7 +4,6 @@ import type {
   CurrencyCode,
   CustomerAccountBalanceDto,
   CustomerId,
-  CustomerAccountEntryDto,
   Page,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
@@ -51,26 +50,6 @@ export async function getCustomerAccountBalance(
       stored ?? emptyAccountBalance(workspaceId, customerId, currency, ctx.deps.clock.now());
 
     return ok(toAccountBalanceDto(balance, accountCapabilities(authorized.value.role)));
-  });
-}
-
-export async function listCustomerAccountEntries(
-  ctx: CommandContext,
-  workspaceId: WorkspaceId,
-  customerId: CustomerId,
-): Promise<DomainResult<readonly CustomerAccountEntryDto[]>> {
-  return ctx.deps.uow.transaction(async (repos) => {
-    const authorized = await authorizeWorkspaceAccess({
-      repos,
-      principal: ctx.principal,
-      workspaceId,
-      permission: "debt.read",
-    });
-    if (!authorized.ok) {
-      return authorized;
-    }
-
-    return ok(await repos.accountEntries.listByCustomer(workspaceId, customerId));
   });
 }
 

@@ -4,16 +4,16 @@ Posting has its own document, [UC-SALE-002](UC-SALE-002-post-sale.md), because i
 is the P0 money event. This file holds the rest of the sale lifecycle.
 
 Every use case here uses the same template. **Status** says whether the backend
-implements it today; a planned use case is agreed and specified, and its capability
-already returns `COMMAND_NOT_AVAILABLE` so a UI can be built against it now
+implements it today, and every use case in this file is implemented; each carries a
+real capability computed from the same rule the command enforces
 ([capabilities](../06-api-contracts/capabilities.md)).
 
 ---
 
 ## UC-SALE-001 — Create, edit and discard a sale draft
 
-**Risk:** P1 · **Status:** create implemented; edit and discard **planned** ·
-**Commands:** `CreateSaleDraft`, `EditSaleDraft`, `DiscardSaleDraft`
+**Risk:** P1 · **Status:** implemented ·
+**Commands:** `CreateSaleDraft`, `UpdateSaleDraft`, `DiscardSaleDraft`
 
 | Field          | Value                                                            |
 | -------------- | ---------------------------------------------------------------- |
@@ -63,8 +63,8 @@ is set only when this draft corrects a voided sale (BR-SALE-016).
 
 ### State transition
 
-T-SALE-001 (`∅ → draft`), T-SALE-003 (`draft → draft`, planned), T-SALE-004
-(`draft → discarded`, planned).
+T-SALE-001 (`∅ → draft`), T-SALE-003 (`draft → draft`), T-SALE-004
+(`draft → discarded`).
 
 ### Account effect
 
@@ -102,8 +102,8 @@ combining two workers' line edits would produce a total neither of them typed.
 
 ### Capabilities
 
-`edit` and `discard` return `COMMAND_NOT_AVAILABLE` until implemented; `post`
-returns a real answer today.
+`edit`, `discard` and `post` all return real answers. `edit` and `discard` always
+agree, because both ask whether this is still a live draft.
 
 ### UI states
 
@@ -115,13 +115,13 @@ returns a real answer today.
 
 BR-SALE-001, BR-SALE-003, BR-SALE-004, BR-SALE-009, BR-SALE-010, BR-SALE-011,
 BR-SALE-016, BR-SALE-017, BR-SALE-018 · CASE-SALE-001, CASE-SALE-009 ·
-TC-SALE-001, TC-SALE-002, TC-SALE-014; **planned** TC-SALE-019, TC-SALE-020
+TC-SALE-001, TC-SALE-002, TC-SALE-014, TC-SALE-019, TC-SALE-020
 
 ---
 
 ## UC-SALE-003 — View and list sales
 
-**Risk:** P2 · **Status:** **planned** · **Reads:** `sale.get`, `sale.list`
+**Risk:** P2 · **Status:** implemented · **Reads:** `sale.get`, `sale.list`
 
 | Field          | Value                                          |
 | -------------- | ---------------------------------------------- |
@@ -181,8 +181,8 @@ Each returned sale carries `post` and `void`.
 
 ### Rules · Cases · Tests
 
-BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002, BR-SALE-017 · — ·
-**planned** TC-SALE-028, TC-SALE-029
+BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002, BR-SALE-017, BR-READ-001,
+BR-READ-002, BR-READ-003 · CASE-READ-001 · TC-READ-001, TC-READ-004, TC-READ-009
 
 ---
 
