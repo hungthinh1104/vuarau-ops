@@ -1,0 +1,595 @@
+# Machine-readable traceability index.
+#
+# Verified by `scripts/trace-check.ts` on every `pnpm verify`:
+#   use case → business rule → case → test → implementation
+#
+# See docs/08-qa/traceability.md for the rules this file must satisfy.
+# IDs are never reused. A retired artefact is marked deprecated, not deleted.
+
+use_cases:
+  UC-CUSTOMER-001:
+    title: Create customer
+    risk: P1
+    doc: docs/02-use-cases/UC-CUSTOMER-001-create-customer.md
+    rules: [BR-CUSTOMER-001, BR-CUSTOMER-002, BR-COMMAND-001, BR-COMMAND-002, BR-COMMAND-003]
+    cases: []
+    tests: [TC-CUSTOMER-001, TC-CUSTOMER-002, TC-CUSTOMER-003]
+    implementation:
+      - packages/domain-kernel/src/customer/create-customer.ts
+      - apps/api/src/modules/customer/create-customer.handler.ts
+
+  UC-ORDER-001:
+    title: Create and confirm an order
+    risk: P0
+    doc: docs/02-use-cases/UC-ORDER-001-create-and-confirm-order.md
+    rules:
+      - BR-ORDER-001
+      - BR-ORDER-002
+      - BR-ORDER-003
+      - BR-ORDER-004
+      - BR-ORDER-005
+      - BR-ORDER-006
+      - BR-ORDER-007
+      - BR-ORDER-008
+      - BR-ORDER-009
+      - BR-COMMAND-001
+      - BR-COMMAND-003
+      - BR-COMMAND-004
+      - BR-COMMAND-005
+      - BR-DEBT-002
+      - BR-DEBT-004
+    cases:
+      - CASE-ORDER-001
+      - CASE-ORDER-002
+      - CASE-ORDER-003
+      - CASE-ORDER-004
+      - CASE-ORDER-005
+      - CASE-ORDER-006
+      - CASE-ORDER-007
+    tests:
+      - TC-ORDER-001
+      - TC-ORDER-002
+      - TC-ORDER-003
+      - TC-ORDER-004
+      - TC-ORDER-005
+      - TC-ORDER-006
+      - TC-ORDER-007
+      - TC-ORDER-008
+      - TC-ORDER-009
+      - TC-ORDER-010
+      - TC-ORDER-011
+      - TC-ORDER-012
+      - TC-ORDER-013
+    implementation:
+      - packages/domain-kernel/src/order/create-order.ts
+      - packages/domain-kernel/src/order/confirm-order.ts
+      - packages/domain-kernel/src/order/order-lines.ts
+      - apps/api/src/modules/order/create-order.handler.ts
+      - apps/api/src/modules/order/confirm-order.handler.ts
+
+  UC-PAYMENT-001:
+    title: Record a customer payment
+    risk: P0
+    doc: docs/02-use-cases/UC-PAYMENT-001-record-customer-payment.md
+    rules:
+      - BR-PAYMENT-001
+      - BR-PAYMENT-002
+      - BR-DEBT-007
+      - BR-COMMAND-001
+      - BR-COMMAND-002
+      - BR-COMMAND-003
+      - BR-COMMAND-005
+      - BR-DEBT-002
+      - BR-DEBT-004
+    cases:
+      - CASE-PAYMENT-001
+      - CASE-PAYMENT-002
+      - CASE-PAYMENT-003
+      - CASE-PAYMENT-004
+      - CASE-PAYMENT-005
+      - CASE-PAYMENT-006
+      - CASE-PAYMENT-007
+      - CASE-PAYMENT-008
+    tests:
+      - TC-PAYMENT-001
+      - TC-PAYMENT-002
+      - TC-PAYMENT-003
+      - TC-PAYMENT-011
+      - TC-PAYMENT-012
+    implementation:
+      - packages/domain-kernel/src/payment/record-payment.ts
+      - apps/api/src/modules/payment/record-payment.handler.ts
+
+  UC-PAYMENT-002:
+    title: Reverse a customer payment
+    risk: P0
+    doc: docs/02-use-cases/UC-PAYMENT-002-reverse-customer-payment.md
+    rules:
+      - BR-PAYMENT-001
+      - BR-PAYMENT-003
+      - BR-PAYMENT-004
+      - BR-PAYMENT-005
+      - BR-PAYMENT-006
+      - BR-PAYMENT-007
+      - BR-PAYMENT-008
+      - BR-COMMAND-001
+      - BR-COMMAND-005
+      - BR-DEBT-005
+    cases: [CASE-PAYMENT-009, CASE-PAYMENT-010, CASE-PAYMENT-011]
+    tests:
+      - TC-PAYMENT-004
+      - TC-PAYMENT-005
+      - TC-PAYMENT-006
+      - TC-PAYMENT-007
+      - TC-PAYMENT-008
+      - TC-PAYMENT-009
+      - TC-PAYMENT-010
+    implementation:
+      - packages/domain-kernel/src/payment/reverse-payment.ts
+      - packages/domain-kernel/src/payment/payment-status.ts
+      - apps/api/src/modules/payment/reverse-payment.handler.ts
+
+  UC-DEBT-001:
+    title: Adjust customer debt manually
+    risk: P0
+    doc: docs/02-use-cases/UC-DEBT-001-adjust-customer-debt.md
+    rules:
+      - BR-DEBT-001
+      - BR-DEBT-002
+      - BR-DEBT-003
+      - BR-DEBT-004
+      - BR-DEBT-005
+      - BR-DEBT-006
+      - BR-DEBT-008
+      - BR-COMMAND-001
+      - BR-COMMAND-005
+    cases:
+      [
+        CASE-DEBT-001,
+        CASE-DEBT-002,
+        CASE-DEBT-003,
+        CASE-DEBT-004,
+        CASE-DEBT-005,
+        CASE-DEBT-006,
+        CASE-DEBT-007,
+      ]
+    tests:
+      [TC-DEBT-001, TC-DEBT-002, TC-DEBT-003, TC-DEBT-004, TC-DEBT-005, TC-DEBT-006, TC-DEBT-008]
+    implementation:
+      - packages/domain-kernel/src/debt/adjust-debt.ts
+      - packages/domain-kernel/src/debt/debt-summary.ts
+      - apps/api/src/modules/debt/adjust-debt.handler.ts
+      - apps/api/src/modules/shared/debt-effects.ts
+
+business_rules:
+  # --- order ------------------------------------------------------------------
+  BR-ORDER-001:
+    title: Order total equals the sum of its line totals
+    risk: P0
+    doc: docs/04-business-rules/order-rules.md
+    cases: [CASE-ORDER-001]
+    tests: [TC-ORDER-001]
+    implementation: [packages/domain-kernel/src/order/order-lines.ts]
+
+  BR-ORDER-002:
+    title: An order cannot be confirmed without at least one line
+    risk: P1
+    doc: docs/04-business-rules/order-rules.md
+    cases: [CASE-ORDER-002]
+    tests: [TC-ORDER-006]
+    implementation: [packages/domain-kernel/src/order/confirm-order.ts]
+
+  BR-ORDER-003:
+    title: Every line must have a valid product, quantity, unit and price
+    risk: P1
+    doc: docs/04-business-rules/order-rules.md
+    cases: [CASE-ORDER-001]
+    tests: [TC-ORDER-007]
+    implementation: [packages/domain-kernel/src/order/order-lines.ts]
+
+  BR-ORDER-004:
+    title: Line total rounding is half-up on the minor unit
+    risk: P0
+    doc: docs/04-business-rules/order-rules.md
+    cases: [CASE-ORDER-001]
+    tests: [TC-ORDER-002]
+    implementation: [packages/domain-kernel/src/shared/quantity.ts]
+
+  BR-ORDER-005:
+    title: A confirmed order cannot be confirmed again
+    risk: P1
+    doc: docs/04-business-rules/order-rules.md
+    cases: [CASE-ORDER-003]
+    tests: [TC-ORDER-008]
+    implementation: [packages/domain-kernel/src/order/confirm-order.ts]
+
+  BR-ORDER-006:
+    title: Confirming with a stale version is refused
+    risk: P0
+    doc: docs/04-business-rules/order-rules.md
+    cases: [CASE-ORDER-004]
+    tests: [TC-ORDER-005]
+    implementation:
+      - packages/domain-kernel/src/order/confirm-order.ts
+      - apps/api/src/modules/order/confirm-order.handler.ts
+
+  BR-ORDER-007:
+    title: Confirmation produces exactly one debt ledger entry
+    risk: P0
+    doc: docs/04-business-rules/order-rules.md
+    cases: [CASE-ORDER-005, CASE-DEBT-001]
+    tests: [TC-ORDER-003, TC-ORDER-012]
+    implementation:
+      - packages/domain-kernel/src/order/confirm-order.ts
+      - apps/api/src/modules/shared/debt-effects.ts
+      - packages/db/src/schema/debt.ts
+
+  BR-ORDER-008:
+    title: A confirmed order is never deleted
+    risk: P0
+    doc: docs/04-business-rules/order-rules.md
+    cases: [CASE-ORDER-007]
+    tests: [TC-ORDER-009]
+    implementation: [packages/db/migrations/0001_append_only_guards.sql]
+
+  BR-ORDER-009:
+    title: All line currencies must match the order currency
+    risk: P1
+    doc: docs/04-business-rules/order-rules.md
+    cases: [CASE-ORDER-001]
+    tests: [TC-ORDER-010]
+    implementation: [packages/domain-kernel/src/order/order-lines.ts]
+
+  # --- payment ----------------------------------------------------------------
+  BR-PAYMENT-001:
+    title: Payment amount must be greater than zero
+    risk: P0
+    doc: docs/04-business-rules/payment-rules.md
+    cases: [CASE-PAYMENT-001]
+    tests: [TC-PAYMENT-003]
+    implementation:
+      - packages/domain-kernel/src/payment/record-payment.ts
+      - packages/domain-kernel/src/payment/reverse-payment.ts
+
+  BR-PAYMENT-002:
+    title: Recording a payment produces exactly one ledger entry of minus the amount
+    risk: P0
+    doc: docs/04-business-rules/payment-rules.md
+    cases: [CASE-PAYMENT-001, CASE-PAYMENT-002, CASE-DEBT-002]
+    tests: [TC-PAYMENT-001]
+    implementation: [packages/domain-kernel/src/payment/record-payment.ts]
+
+  BR-PAYMENT-003:
+    title: A reversal cannot exceed the remaining reversible amount
+    risk: P0
+    doc: docs/04-business-rules/payment-rules.md
+    cases: [CASE-PAYMENT-010]
+    tests: [TC-PAYMENT-007]
+    implementation: [packages/domain-kernel/src/payment/reverse-payment.ts]
+
+  BR-PAYMENT-004:
+    title: A reversal requires a reason
+    risk: P1
+    doc: docs/04-business-rules/payment-rules.md
+    cases: [CASE-PAYMENT-009]
+    tests: [TC-PAYMENT-009]
+    implementation: [packages/domain-kernel/src/payment/reverse-payment.ts]
+
+  BR-PAYMENT-005:
+    title: A reversal creates a compensating entry, never a second payment
+    risk: P0
+    doc: docs/04-business-rules/payment-rules.md
+    cases: [CASE-PAYMENT-009, CASE-PAYMENT-010, CASE-PAYMENT-011, CASE-DEBT-003]
+    tests: [TC-PAYMENT-004, TC-PAYMENT-005]
+    implementation: [packages/domain-kernel/src/payment/reverse-payment.ts]
+
+  BR-PAYMENT-006:
+    title: A fully reversed payment cannot be reversed again
+    risk: P1
+    doc: docs/04-business-rules/payment-rules.md
+    cases: [CASE-PAYMENT-009]
+    tests: [TC-PAYMENT-008]
+    implementation: [packages/domain-kernel/src/payment/reverse-payment.ts]
+
+  BR-PAYMENT-007:
+    title: Reversing with a stale version is refused
+    risk: P0
+    doc: docs/04-business-rules/payment-rules.md
+    cases: [CASE-PAYMENT-011]
+    tests: [TC-PAYMENT-006]
+    implementation:
+      - packages/domain-kernel/src/payment/reverse-payment.ts
+      - apps/api/src/modules/payment/reverse-payment.handler.ts
+
+  BR-PAYMENT-008:
+    title: Payment status is derived from reversedAmount
+    risk: P1
+    doc: docs/04-business-rules/payment-rules.md
+    cases: [CASE-PAYMENT-010]
+    tests: [TC-PAYMENT-010]
+    implementation: [packages/domain-kernel/src/payment/payment-status.ts]
+
+  # --- debt -------------------------------------------------------------------
+  BR-DEBT-001:
+    title: The debt summary equals the sum of the customer's ledger entries
+    risk: P0
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-DEBT-007]
+    tests: [TC-DEBT-001, TC-DEBT-002]
+    implementation: [packages/domain-kernel/src/debt/debt-summary.ts]
+
+  BR-DEBT-002:
+    title: Debt changes only through ledger-producing commands
+    risk: P0
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-DEBT-004, CASE-DEBT-005]
+    tests: [TC-DEBT-006]
+    implementation: [apps/api/src/modules/shared/debt-effects.ts]
+
+  BR-DEBT-003:
+    title: A manual debt adjustment requires a reason
+    risk: P1
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-DEBT-006]
+    tests: [TC-DEBT-003]
+    implementation: [packages/domain-kernel/src/debt/adjust-debt.ts]
+
+  BR-DEBT-004:
+    title: Every ledger entry is attributable to an actor and a command
+    risk: P0
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-DEBT-004]
+    tests: [TC-DEBT-004]
+    implementation:
+      - packages/domain-kernel/src/shared/effects.ts
+      - packages/db/src/schema/debt.ts
+
+  BR-DEBT-005:
+    title: Ledger entries are append-only; reversals compensate
+    risk: P0
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-DEBT-003]
+    tests: [TC-DEBT-005]
+    implementation:
+      - packages/db/migrations/0001_append_only_guards.sql
+      - apps/api/src/infrastructure/persistence/ports.ts
+
+  BR-DEBT-006:
+    title: The summary is rebuildable from the entries
+    risk: P0
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-DEBT-007]
+    tests: [TC-DEBT-002]
+    implementation:
+      - apps/api/src/modules/shared/debt-effects.ts
+      - apps/api/src/modules/debt/debt.queries.ts
+
+  BR-DEBT-007:
+    title: A debt balance may be negative
+    risk: P2
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-PAYMENT-003]
+    tests: [TC-DEBT-007, TC-PAYMENT-011]
+    implementation: [packages/domain-kernel/src/payment/record-payment.ts]
+
+  BR-DEBT-008:
+    title: A manual adjustment amount must be positive
+    risk: P1
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-DEBT-005]
+    tests: [TC-DEBT-003]
+    implementation: [packages/domain-kernel/src/debt/adjust-debt.ts]
+
+  # --- cross-cutting command rules --------------------------------------------
+  BR-COMMAND-001:
+    title: Same idempotency key and payload produce exactly one effect
+    risk: P0
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-ORDER-005, CASE-PAYMENT-006, CASE-PAYMENT-007, CASE-PAYMENT-011]
+    tests: [TC-COMMAND-001, TC-COMMAND-006, TC-ORDER-004, TC-PAYMENT-002, TC-PAYMENT-005]
+    implementation: [apps/api/src/modules/shared/command-pipeline.ts]
+
+  BR-COMMAND-002:
+    title: Same idempotency key with a different payload is rejected
+    risk: P0
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-PAYMENT-006]
+    tests: [TC-COMMAND-002]
+    implementation:
+      - apps/api/src/modules/shared/command-pipeline.ts
+      - apps/api/src/infrastructure/hash.ts
+
+  BR-COMMAND-003:
+    title: transactionTime comes from the command, recordedAt from the server
+    risk: P0
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-ORDER-006, CASE-PAYMENT-008]
+    tests: [TC-COMMAND-003, TC-ORDER-011]
+    implementation:
+      - apps/api/src/infrastructure/clock.ts
+      - apps/api/src/modules/shared/command-pipeline.ts
+
+  BR-COMMAND-004:
+    title: occurredAt may not be in the future
+    risk: P1
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-ORDER-006]
+    tests: [TC-COMMAND-005]
+    implementation: [apps/api/src/modules/shared/command-pipeline.ts]
+
+  BR-COMMAND-005:
+    title: All effects of a command commit atomically
+    risk: P0
+    doc: docs/04-business-rules/debt-rules.md
+    cases: [CASE-DEBT-006]
+    tests: [TC-COMMAND-004]
+    implementation:
+      - apps/api/src/modules/shared/command-pipeline.ts
+      - packages/db/src/transaction/unit-of-work.ts
+
+  # --- customer ---------------------------------------------------------------
+  BR-CUSTOMER-001:
+    title: A customer requires a non-blank display name
+    risk: P1
+    doc: docs/04-business-rules/customer-rules.md
+    cases: []
+    tests: [TC-CUSTOMER-001]
+    implementation: [packages/domain-kernel/src/customer/create-customer.ts]
+
+  BR-CUSTOMER-002:
+    title: Every read and write is scoped to the actor's workspace
+    risk: P0
+    doc: docs/04-business-rules/customer-rules.md
+    cases: []
+    tests: [TC-CUSTOMER-002, TC-CUSTOMER-003]
+    implementation:
+      - apps/api/src/infrastructure/persistence/ports.ts
+      - apps/api/src/modules/shared/command-pipeline.ts
+      - apps/api/src/infrastructure/trpc/trpc.ts
+
+cases:
+  CASE-ORDER-001:
+    title: A valid multi-line order
+    doc: docs/05-casebook/order-cases.md
+    rules: [BR-ORDER-001, BR-ORDER-003, BR-ORDER-004, BR-ORDER-009]
+    tests: [TC-ORDER-001, TC-ORDER-002, TC-ORDER-003]
+  CASE-ORDER-002:
+    title: Confirming an empty order
+    doc: docs/05-casebook/order-cases.md
+    rules: [BR-ORDER-002]
+    tests: [TC-ORDER-006]
+  CASE-ORDER-003:
+    title: Confirming the same order twice, deliberately
+    doc: docs/05-casebook/order-cases.md
+    rules: [BR-ORDER-005]
+    tests: [TC-ORDER-008]
+  CASE-ORDER-004:
+    title: Confirming with a stale version
+    doc: docs/05-casebook/order-cases.md
+    rules: [BR-ORDER-006]
+    tests: [TC-ORDER-005]
+  CASE-ORDER-005:
+    title: Retrying confirmation after a network timeout
+    doc: docs/05-casebook/order-cases.md
+    rules: [BR-COMMAND-001, BR-ORDER-007]
+    tests: [TC-ORDER-004]
+  CASE-ORDER-006:
+    title: An order entered later than it happened
+    doc: docs/05-casebook/order-cases.md
+    rules: [BR-COMMAND-003, BR-COMMAND-004]
+    tests: [TC-ORDER-011, TC-COMMAND-003]
+  CASE-ORDER-007:
+    title: A confirmed order turns out to be wrong
+    doc: docs/05-casebook/order-cases.md
+    rules: [BR-ORDER-008, BR-DEBT-003]
+    tests: [TC-ORDER-009, TC-DEBT-003]
+
+  CASE-PAYMENT-001:
+    title: Customer pays the exact debt
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-PAYMENT-001, BR-PAYMENT-002, BR-DEBT-001]
+    tests: [TC-PAYMENT-001]
+  CASE-PAYMENT-002:
+    title: Partial payment
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-PAYMENT-002]
+    tests: [TC-PAYMENT-001]
+  CASE-PAYMENT-003:
+    title: Customer pays more than the current debt
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-DEBT-007]
+    tests: [TC-PAYMENT-011, TC-DEBT-007]
+  CASE-PAYMENT-004:
+    title: The payer is not the customer
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-PAYMENT-002]
+    tests: [TC-PAYMENT-001]
+  CASE-PAYMENT-005:
+    title: Payment not allocated to any order
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-PAYMENT-002]
+    tests: [TC-PAYMENT-001]
+  CASE-PAYMENT-006:
+    title: The user taps submit twice
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-COMMAND-001, BR-COMMAND-002]
+    tests: [TC-PAYMENT-002, TC-COMMAND-001, TC-COMMAND-002]
+  CASE-PAYMENT-007:
+    title: Client retries after a timeout
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-COMMAND-001]
+    tests: [TC-PAYMENT-002]
+  CASE-PAYMENT-008:
+    title: Payment captured offline, submitted later
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-COMMAND-001, BR-COMMAND-003]
+    tests: [TC-COMMAND-003]
+  CASE-PAYMENT-009:
+    title: A payment needs full reversal
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-PAYMENT-004, BR-PAYMENT-005, BR-PAYMENT-006, BR-PAYMENT-008]
+    tests: [TC-PAYMENT-004, TC-PAYMENT-008, TC-PAYMENT-009]
+  CASE-PAYMENT-010:
+    title: A payment needs partial reversal
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-PAYMENT-003, BR-PAYMENT-008]
+    tests: [TC-PAYMENT-007, TC-PAYMENT-010]
+  CASE-PAYMENT-011:
+    title: The reversal command is submitted twice
+    doc: docs/05-casebook/payment-cases.md
+    rules: [BR-COMMAND-001, BR-PAYMENT-005, BR-PAYMENT-007]
+    tests: [TC-PAYMENT-005, TC-PAYMENT-006]
+
+  CASE-DEBT-001:
+    title: A confirmed order increases debt
+    doc: docs/05-casebook/debt-cases.md
+    rules: [BR-ORDER-007, BR-DEBT-001]
+    tests: [TC-ORDER-003, TC-DEBT-001]
+  CASE-DEBT-002:
+    title: A payment reduces debt
+    doc: docs/05-casebook/debt-cases.md
+    rules: [BR-PAYMENT-002, BR-DEBT-001]
+    tests: [TC-PAYMENT-001]
+  CASE-DEBT-003:
+    title: A payment reversal increases debt again
+    doc: docs/05-casebook/debt-cases.md
+    rules: [BR-PAYMENT-005, BR-DEBT-005]
+    tests: [TC-PAYMENT-004, TC-DEBT-005]
+  CASE-DEBT-004:
+    title: A manual adjustment increases debt
+    doc: docs/05-casebook/debt-cases.md
+    rules: [BR-DEBT-002, BR-DEBT-003, BR-DEBT-004]
+    tests: [TC-DEBT-004, TC-DEBT-006]
+  CASE-DEBT-005:
+    title: A manual adjustment decreases debt
+    doc: docs/05-casebook/debt-cases.md
+    rules: [BR-DEBT-002, BR-DEBT-003, BR-DEBT-008]
+    tests: [TC-DEBT-003, TC-DEBT-006]
+  CASE-DEBT-006:
+    title: An adjustment with no reason
+    doc: docs/05-casebook/debt-cases.md
+    rules: [BR-DEBT-003, BR-COMMAND-005]
+    tests: [TC-DEBT-003, TC-COMMAND-004]
+  CASE-DEBT-007:
+    title: The summary projection goes stale and is rebuilt
+    doc: docs/05-casebook/debt-cases.md
+    rules: [BR-DEBT-001, BR-DEBT-006]
+    tests: [TC-DEBT-002]
+
+# Tests that exercise the API contract rather than a single rule. Declared here so
+# `trace-check` recognises them; they still name their rules in the test titles.
+contract_tests:
+  TC-ORDER-013:
+    title: Order procedures return DTOs matching the published schema
+    file: apps/api/src/infrastructure/trpc/router.contract.test.ts
+  TC-PAYMENT-012:
+    title: Payment procedures return DTOs matching the published schema
+    file: apps/api/src/infrastructure/trpc/router.contract.test.ts
+  TC-DEBT-008:
+    title: Debt procedures return DTOs matching the published schema
+    file: apps/api/src/infrastructure/trpc/router.contract.test.ts
+  TC-COMMAND-007:
+    title: Malformed input returns INVALID_COMMAND_PAYLOAD, not a schema dump
+    file: apps/api/src/infrastructure/trpc/router.contract.test.ts
+
+deprecated: []

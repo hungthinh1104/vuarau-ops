@@ -1,0 +1,22 @@
+{
+  "name": "@vuanha/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.ts"
+  },
+  "dependencies": {
+    "@trpc/server": "^11.7.1",
+    "@vuanha/db": "workspace:*",
+    "@vuanha/domain-contracts": "workspace:*",
+    "@vuanha/domain-kernel": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@vuanha/test-fixtures": "workspace:*"
+  }
+}

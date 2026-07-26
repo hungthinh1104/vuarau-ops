@@ -1,0 +1,20 @@
+{
+  "name": "@vuanha/domain-kernel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./shared": "./src/shared/index.ts",
+    "./customer": "./src/customer/index.ts",
+    "./order": "./src/order/index.ts",
+    "./payment": "./src/payment/index.ts",
+    "./debt": "./src/debt/index.ts"
+  },
+  "dependencies": {
+    "@vuanha/domain-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@vuanha/test-fixtures": "workspace:*"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@vuanha/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node src/migrate.ts",
+    "db:seed": "node src/seeds/seed.ts"
+  },
+  "dependencies": {
+    "@vuanha/domain-contracts": "workspace:*",
+    "@vuanha/domain-kernel": "workspace:*",
+    "drizzle-orm": "^0.44.7",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.6"
+  }
+}

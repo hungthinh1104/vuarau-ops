@@ -1,0 +1,39 @@
+{
+  "name": "vuanha",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:domain": "vitest run --project domain",
+    "test:application": "vitest run --project application",
+    "test:contract": "vitest run --project contract",
+    "test:db": "vitest run --project db",
+    "test:watch": "vitest",
+    "boundary:check": "node scripts/boundary-check.ts",
+    "trace:check": "node scripts/trace-check.ts",
+    "docs:check": "node scripts/docs-check.ts",
+    "db:generate": "pnpm --filter @vuanha/db db:generate",
+    "db:migrate": "pnpm --filter @vuanha/db db:migrate",
+    "db:seed": "pnpm --filter @vuanha/db db:seed",
+    "verify": "pnpm format && pnpm lint && pnpm typecheck && pnpm boundary:check && pnpm docs:check && pnpm trace:check && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vitest": "^3.2.4",
+    "yaml": "^2.8.1"
+  }
+}

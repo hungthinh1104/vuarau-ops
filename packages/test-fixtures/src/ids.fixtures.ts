@@ -1,0 +1,73 @@
+import type {
+  ActorId,
+  CommandId,
+  CustomerId,
+  DebtLedgerEntryId,
+  IdempotencyKey,
+  OrderId,
+  OrderLineId,
+  PaymentId,
+  PaymentReversalId,
+  ProductId,
+  WorkspaceId,
+} from "@vuanha/domain-contracts";
+
+/**
+ * Fixed, readable, valid v4-shaped UUIDs.
+ *
+ * Nothing here is random. A failing test must fail the same way on every run and
+ * on every machine, and a debug session must not require reading a new UUID each
+ * time. The last group encodes what the id is, so `…-0000000000a1` is always the
+ * same customer.
+ */
+function uuid(kind: string, n: number): string {
+  const suffix = `${kind}${String(n).padStart(2, "0")}`.padStart(12, "0");
+  return `00000000-0000-4000-8000-${suffix}`;
+}
+
+export const WORKSPACE_ID = uuid("a", 1) as WorkspaceId;
+/** A second workspace, used only to prove isolation (BR-CUSTOMER-002). */
+export const OTHER_WORKSPACE_ID = uuid("a", 2) as WorkspaceId;
+
+export const ACTOR_ID = uuid("b", 1) as ActorId;
+export const OTHER_ACTOR_ID = uuid("b", 2) as ActorId;
+
+export const CUSTOMER_ID = uuid("c", 1) as CustomerId;
+export const CUSTOMER_WITH_DEBT_ID = uuid("c", 2) as CustomerId;
+export const CUSTOMER_ZERO_DEBT_ID = uuid("c", 3) as CustomerId;
+
+export const PRODUCT_CA_CHUA_ID = uuid("d", 1) as ProductId;
+export const PRODUCT_RAU_MUONG_ID = uuid("d", 2) as ProductId;
+export const PRODUCT_OT_ID = uuid("d", 3) as ProductId;
+
+export const ORDER_ID = uuid("e", 1) as OrderId;
+export const EMPTY_ORDER_ID = uuid("e", 2) as OrderId;
+export const CONFIRMED_ORDER_ID = uuid("e", 3) as OrderId;
+
+export const ORDER_LINE_1_ID = uuid("f", 1) as OrderLineId;
+export const ORDER_LINE_2_ID = uuid("f", 2) as OrderLineId;
+export const ORDER_LINE_3_ID = uuid("f", 3) as OrderLineId;
+
+export const PAYMENT_ID = uuid("1", 1) as PaymentId;
+export const PARTIALLY_REVERSED_PAYMENT_ID = uuid("1", 2) as PaymentId;
+export const FULLY_REVERSED_PAYMENT_ID = uuid("1", 3) as PaymentId;
+
+export const REVERSAL_ID = uuid("2", 1) as PaymentReversalId;
+export const SECOND_REVERSAL_ID = uuid("2", 2) as PaymentReversalId;
+
+export const LEDGER_ENTRY_1_ID = uuid("3", 1) as DebtLedgerEntryId;
+export const LEDGER_ENTRY_2_ID = uuid("3", 2) as DebtLedgerEntryId;
+
+export const COMMAND_ID = uuid("4", 1) as CommandId;
+export const SECOND_COMMAND_ID = uuid("4", 2) as CommandId;
+export const THIRD_COMMAND_ID = uuid("4", 3) as CommandId;
+
+export const ADJUSTMENT_ID = uuid("5", 1);
+
+export const IDEMPOTENCY_KEY = "fixture-idempotency-key-0001" as IdempotencyKey;
+export const OTHER_IDEMPOTENCY_KEY = "fixture-idempotency-key-0002" as IdempotencyKey;
+
+/** Mints extra ids when a test needs more than the named ones above. */
+export function testUuid(kind: string, n: number): string {
+  return uuid(kind, n);
+}

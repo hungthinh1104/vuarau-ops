@@ -1,0 +1,10 @@
+export * from "./client.ts";
+export * from "./schema/index.ts";
+export * from "./repositories/index.ts";
+export * from "./repositories/row-mappers.ts";
+export * from "./transaction/unit-of-work.ts";
+export { runMigrations } from "./migrate.ts";
+// Test-only helpers; exported so `apps/api` can run its integration suite against
+// a real database without duplicating the setup.
+export * from "./testing/db-test-context.ts";
+export * from "./testing/expect-database-error.ts";
