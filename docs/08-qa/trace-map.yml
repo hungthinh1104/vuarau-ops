@@ -1202,6 +1202,60 @@ contract_tests:
   TC-WEB-016:
     title: The retry policy reads `retryable` from the server and never retries a mutation
     file: apps/web/src/api/session.test.ts
+  TC-WEB-017:
+    title: The configured workspace list is parsed, never trusted; a bad id yields no choice
+    file: apps/web/src/api/workspace.test.ts
+  TC-WEB-018:
+    title: The access token is read fresh on every request, from session storage
+    file: apps/web/src/api/workspace.test.ts
+  TC-WEB-019:
+    title: The payment preview words a credit as money the depot owes, never a negative debt
+    file: apps/web/src/ui/balance-preview.test.tsx
+  TC-WEB-020:
+    title: No production route imports fixture data
+    file: apps/web/src/app/production-routes.test.ts
+
+  # --- end to end, against a real API and a real database ---------------------
+  # These are the ones that settle H1 (docs/00-product/validation-plan.md). They
+  # are listed here as tests without a rule for the same reason the TC-WEB-*
+  # entries are: they assert that a *screen* renders a rule the server already
+  # owns. TC-E2E-006 is the exception worth naming — it found a real duplicate
+  # payment, which is a defect in the client, not a mis-rendering of one.
+  #
+  # `trace-check` does not scan `.spec.ts`, so these are declared rather than
+  # discovered. Playwright specs are not Vitest tests and do not run in the same
+  # command; conflating them would let a skipped E2E suite look like a passing
+  # unit suite.
+  TC-E2E-001:
+    title: Search finds a customer by name and shows what they owe
+    file: apps/web/e2e/payment.spec.ts
+  TC-E2E-002:
+    title: An exact payment settles the account, in the UI and in the database
+    file: apps/web/e2e/payment.spec.ts
+  TC-E2E-003:
+    title: A partial payment leaves the remainder owing
+    file: apps/web/e2e/payment.spec.ts
+  TC-E2E-004:
+    title: An overpayment becomes customer credit and is never shown as negative debt
+    file: apps/web/e2e/payment.spec.ts
+  TC-E2E-005:
+    title: A role without `payment.record` cannot record one, and is told which permission
+    file: apps/web/e2e/payment.spec.ts
+  TC-E2E-006:
+    title: A duplicate tap records exactly one payment, in-flight and after success
+    file: apps/web/e2e/payment.spec.ts
+  TC-E2E-007:
+    title: A dropped response then a resend records exactly one payment
+    file: apps/web/e2e/payment.spec.ts
+  TC-E2E-008:
+    title: A refused command leaves every entered field exactly as typed
+    file: apps/web/e2e/payment.spec.ts
+  TC-E2E-009:
+    title: The account timeline shows the committed payment with the same amount
+    file: apps/web/e2e/payment.spec.ts
+  TC-E2E-010:
+    title: No workspace is chosen silently, even when only one is configured
+    file: apps/web/e2e/payment.spec.ts
 
 # Retired identifiers. Never reissued. The old → new mapping is in
 # docs/02-use-cases/use-case-catalog.md.

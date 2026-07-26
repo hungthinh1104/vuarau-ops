@@ -10,8 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build -o storybook-static",
-    "e2e": "playwright test",
-    "e2e:check": "playwright test --list"
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
@@ -28,6 +27,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@playwright/test": "^1.56.0",
     "@storybook/react-vite": "^9.1.10",
+    "@tailwindcss/postcss": "^4.1.14",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -35,11 +35,12 @@
     "@types/react-dom": "^19.2.1",
     "@vitejs/plugin-react": "^5.1.0",
     "@vuarau/api": "workspace:*",
+    "@vuarau/db": "workspace:*",
     "@vuarau/test-fixtures": "workspace:*",
     "axe-core": "^4.11.0",
+    "jose": "^6.2.4",
     "jsdom": "^28.0.0",
     "storybook": "^9.1.10",
-    "tailwindcss": "^4.1.14",
-    "@tailwindcss/postcss": "^4.1.14"
+    "tailwindcss": "^4.1.14"
   }
 }

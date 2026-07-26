@@ -6,6 +6,7 @@ import {
   customerAccountEntryIdSchema,
   workspaceIdSchema,
 } from "../shared/ids.ts";
+import type { Money } from "../shared/money.ts";
 import { moneySchema } from "../shared/money.ts";
 import { capabilitySchema } from "../shared/capability.ts";
 import { pageRequestSchema } from "../shared/pagination.ts";
@@ -132,6 +133,26 @@ export type AccountCapabilities = z.infer<typeof accountCapabilitiesSchema>;
 export const BALANCE_CLASSIFICATIONS = ["receivable", "settled", "customer_credit"] as const;
 export const balanceClassificationSchema = z.enum(BALANCE_CLASSIFICATIONS);
 export type BalanceClassification = z.infer<typeof balanceClassificationSchema>;
+
+/**
+ * BR-ACCOUNT-009 — what the sign means, named. One function, one copy.
+ *
+ * It lives here rather than in the kernel for the same reason the role table does
+ * (ADR-0011): it involves no aggregate state, and it is a rule the API **and** a
+ * browser must agree on exactly. The kernel re-exports it, so every read still
+ * classifies through this one implementation.
+ *
+ * The browser needs it for one thing only — previewing the balance a payment or a
+ * sale would produce, before the command is sent. That preview is advisory and
+ * the server's answer replaces it, but a preview that classified a credit as a
+ * debt would tell somebody the wrong thing at exactly the moment they are deciding
+ * whether to send. A second `<` in the browser is how that happens.
+ */
+export function classifyBalance(balance: Money): BalanceClassification {
+  if (balance.amountMinor > 0) return "receivable";
+  if (balance.amountMinor < 0) return "customer_credit";
+  return "settled";
+}
 
 /**
  * A projection, not a fact. Always equal to the sum of the customer's account

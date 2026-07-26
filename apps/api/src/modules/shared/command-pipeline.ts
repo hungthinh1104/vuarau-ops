@@ -54,9 +54,21 @@ const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
  * idempotency claim, so the user can fix the payload and reuse the same key.
  */
 class RollbackForRejection extends Error {
-  constructor(readonly rejection: Extract<DomainResult<never>, { ok: false }>) {
+  /**
+   * An explicit field, not a `constructor(readonly …)` parameter property.
+   *
+   * Node executes this repository's TypeScript by **stripping types**, not by
+   * compiling it, and a parameter property is one of the few constructs that
+   * emits code rather than only removing it. Vitest's esbuild transform accepted
+   * it, so the whole test suite passed while `node src/server.ts` — the documented
+   * way to run the API — crashed on import.
+   */
+  readonly rejection: Extract<DomainResult<never>, { ok: false }>;
+
+  constructor(rejection: Extract<DomainResult<never>, { ok: false }>) {
     super("Command rejected; rolling back.");
     this.name = "RollbackForRejection";
+    this.rejection = rejection;
   }
 }
 

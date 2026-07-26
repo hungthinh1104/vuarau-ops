@@ -5,6 +5,7 @@ import { createTRPCContext } from "@trpc/tanstack-react-query";
 import { useState, type ReactNode } from "react";
 import type { AppRouter, BearerTokenSource } from "./trpc.ts";
 import { createApiClient } from "./trpc.ts";
+import { browserAccessToken } from "./access-token.ts";
 import { domainErrorOf, isAutoRetryable } from "./domain-error.ts";
 
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
@@ -43,10 +44,11 @@ export function createQueryClient(): QueryClient {
 
 export function ApiProvider({
   children,
-  getToken,
+  getToken = browserAccessToken,
 }: {
   children: ReactNode;
-  getToken: BearerTokenSource;
+  /** Defaults to the browser's Supabase session. Overridden only by tests. */
+  getToken?: BearerTokenSource;
 }) {
   const [queryClient] = useState(createQueryClient);
   const [client] = useState(() => createApiClient(getToken));

@@ -99,9 +99,13 @@ const BOUNDARIES: readonly Boundary[] = [
     allowedSpecifiers: ["@vuarau/test-fixtures/ids", "@vuarau/test-fixtures/time"],
     why: "The browser gets contracts and nothing else: no persistence, no kernel, no Node.",
     exceptions: [
-      // Reads the UI state catalog and the story files off disk to prove the two
-      // agree. It is a build-time check that happens to live beside the UI.
+      /*
+       * Both read source off disk to check a property of the repository, and
+       * both run in Node. They live beside the UI because that is what they are
+       * about, not because they ship with it.
+       */
       "apps/web/src/ui/catalog-coverage.test.ts",
+      "apps/web/src/app/production-routes.test.ts",
     ],
   },
   {

@@ -140,8 +140,12 @@ function toPaymentSummaryRow(store: Store, payment: PaymentState) {
 
 export class InMemoryDatabase {
   private store: Store = emptyStore();
+  /** An explicit field: Node strips types, and a parameter property emits code. */
+  private readonly ids: IdGenerator;
 
-  constructor(private readonly ids: IdGenerator) {}
+  constructor(ids: IdGenerator) {
+    this.ids = ids;
+  }
 
   /**
    * `role` defaults to `owner` to match the migration's backfill, so a test that

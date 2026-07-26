@@ -14,34 +14,32 @@ export default function HomePage() {
       <header>
         <h1 className="text-heading font-bold">Vựa Rau — sổ vựa</h1>
         <p className="mt-2 text-body text-ink-muted">
-          Nền tảng giao diện đang được dựng. Chưa có màn hình nghiệp vụ nào hoàn chỉnh.
+          Ghi đơn hàng và thanh toán, xem công nợ từng khách.
         </p>
       </header>
 
-      <section className="rounded-card border border-border bg-surface p-4">
-        <h2 className="text-subheading font-semibold">Đang có</h2>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-body-sm text-ink">
-          <li>Bộ giao diện nền (primitives và patterns) theo design.md</li>
-          <li>Storybook: mỗi trạng thái trong UI state catalog là một story</li>
-          <li>Kết nối tRPC có kiểu, dùng chung hợp đồng với máy chủ</li>
-        </ul>
-      </section>
+      <Link
+        href="/customers"
+        className="touch-target inline-flex items-center justify-center rounded-button bg-leaf px-4 text-label font-semibold text-white hover:bg-leaf-hover"
+      >
+        Khách hàng
+      </Link>
 
       <section className="rounded-card border border-border bg-surface p-4">
         <h2 className="text-subheading font-semibold">Chưa có</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-body-sm text-ink-muted">
-          <li>Tìm khách hàng, tạo đơn, chốt đơn</li>
-          <li>Ghi nhận và hoàn tác thanh toán</li>
-          <li>Hoàn tác đơn hàng</li>
-          <li>Làm việc offline</li>
+          <li>Hoàn tác thanh toán và hoàn tác đơn hàng</li>
+          <li>Điều chỉnh công nợ bằng tay</li>
+          <li>Làm việc khi mất mạng</li>
+          <li>Gợi ý mặt hàng và giá lần trước</li>
         </ul>
       </section>
 
-      <Link
-        href="/demo"
-        className="touch-target inline-flex items-center justify-center rounded-button bg-leaf px-4 text-label font-semibold text-white hover:bg-leaf-hover"
-      >
-        Xem bản dựng thử
+      {/* Fixture data, not a depot's books. Kept for design review and marked
+          plainly, because the one thing that must not happen is somebody reading
+          a sample balance as a real one. */}
+      <Link href="/demo" className="text-body-sm text-ink-muted underline underline-offset-2">
+        Bản dựng thử giao diện (dữ liệu mẫu)
       </Link>
     </main>
   );

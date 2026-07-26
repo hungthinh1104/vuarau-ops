@@ -1,5 +1,4 @@
 import type {
-  BalanceClassification,
   CurrencyCode,
   CustomerAccountEntryDto,
   CustomerId,
@@ -32,17 +31,11 @@ export function calculateAccountBalance(
  *
  * One function, called by every read. A client that decided this for itself would
  * be one `<` away from telling a worker to collect money from somebody the depot
- * owes.
+ * owes — which is why the implementation moved to `domain-contracts` when the
+ * browser needed it for a balance preview. It is re-exported here so every kernel
+ * and application caller keeps reaching the same copy.
  */
-export function classifyBalance(balance: Money): BalanceClassification {
-  if (balance.amountMinor > 0) {
-    return "receivable";
-  }
-  if (balance.amountMinor < 0) {
-    return "customer_credit";
-  }
-  return "settled";
-}
+export { classifyBalance } from "@vuarau/domain-contracts";
 
 export type BuildAccountBalanceInput = {
   readonly workspaceId: WorkspaceId;
