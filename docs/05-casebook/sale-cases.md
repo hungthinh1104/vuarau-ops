@@ -247,6 +247,40 @@ as decoration within a week.
 
 ---
 
+### CASE-SALE-013 — The load went at 5 a.m. and was typed at 11
+
+**Situation.** Anh Tuấn hands a customer 40 kg of cà chua at 05:00, agrees
+18.000 ₫/kg at the counter, and they both call that chốt đơn. The load leaves with
+the buyer. At 11:00, between deliveries, he opens the app, types the sale and
+posts it with `occurredAt = 05:00`.
+
+**Expected.** One `sale_posting` entry of +720.000 ₫, `transactionTime = 05:00`,
+`recordedAt = 11:00`. The customer's balance rises by 720.000 ₫, and it rises **as
+of 05:00** — so the balance is six hours old the moment it appears, and an aging
+report agrees with the depot's own account of the morning.
+
+Between 05:00 and the moment post is pressed, the customer owes **nothing in this
+system**. There is no draft in this story to make that visible; if there were one,
+it would move no money either (BR-SALE-010). What the depot's own memory says
+during those six hours is not something the software claims to know.
+
+**Why this is a case and not an example.** It is the ordinary shape of a depot
+morning, and it is the shape that makes the recognition point observable. If the
+receivable arose at recording rather than at posting-with-a-business-time, every
+depot's ledger would say the trade happened at 11 — which is when somebody had a
+free hand, not when anybody sold anything.
+
+**What would make it wrong.** If chốt đơn at 05:00 had been an _agreement_ and the
+40 kg went out on the next day's run, the entry would be a day early. Nothing in
+the software can tell those two mornings apart — the command looks identical — so
+the distinction is settled by asking the owner before the first real sale
+(ASM-023, [worksheet](../09-decisions/ASM-002-debt-recognition-worksheet.md)), and
+never by inference from data.
+
+**Rules.** BR-SALE-020, BR-SALE-007, BR-SALE-010 · **Tests.** TC-SALE-028
+
+---
+
 ## Related
 
 - [../04-business-rules/sale-rules.md](../04-business-rules/sale-rules.md)

@@ -17,7 +17,7 @@ deferred row below names the event that ends the deferral.
 | ID      | Question                                                      | Classification            | Answer / default                                                    | Trigger or owner                                     |
 | ------- | ------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------- |
 | ASM-001 | Can a customer balance go negative?                           | **decided**               | Yes — `customer_credit` (BR-ACCOUNT-007, BR-ACCOUNT-009)            | —                                                    |
-| ASM-002 | Does the receivable arise at posting, delivery, or invoicing? | **deferred with trigger** | **Posting**                                                         | Before the first depot records real sales            |
+| ASM-002 | Does the receivable arise at posting, delivery, or invoicing? | **decided**               | **Posting** (ADR-0014, BR-SALE-020)                                 | —                                                    |
 | ASM-003 | Can a payment exceed the receivable?                          | **decided**               | Yes — follows ASM-001                                               | —                                                    |
 | ASM-004 | Can a payment stay unallocated to a sale?                     | **decided**               | Yes — allocation is not modelled and will not be                    | —                                                    |
 | ASM-005 | Can a posted sale be cancelled?                               | **decided**               | It is **voided**, not cancelled (BR-SALE-012)                       | —                                                    |
@@ -38,10 +38,10 @@ deferred row below names the event that ends the deferral.
 | ASM-020 | Do large adjustments or voids need a second approver?         | **deferred with trigger** | **No** — one actor, fully attributed                                | A depot reports a disputed adjustment or void        |
 | ASM-021 | Do abandoned sale drafts expire?                              | **deferred with trigger** | **No** — drafts live forever, harmlessly                            | The draft list becomes unusable in daily use         |
 | ASM-022 | Are reads audited?                                            | **deferred with trigger** | **No** — only state changes are audited                             | A depot needs to know who looked at a balance        |
+| ASM-023 | Has a depot owner confirmed that debt arises at chốt đơn?     | **operational action**    | Not yet asked                                                       | Facilitator, before the first real sale is recorded  |
 
-Seven decided, eleven deferred with a named trigger, two operational, two new this
-round (ASM-021, ASM-022) that were previously unstated assumptions rather than
-recorded ones.
+Twenty-three entries: ten decided, ten deferred with a named trigger, three
+operational. ASM-002 closed this round; ASM-023 is the signature it still owes.
 
 ---
 
@@ -85,26 +85,32 @@ Lines snapshot product name, quantity, unit and unit price. Posting re-affirms t
 snapshot, because a draft may have sat overnight and the numbers finally agreed are
 the ones in the row at the moment of posting (BR-SALE-011).
 
+### ASM-002 — when the receivable arises · **decided: at posting**
+
+The trigger was "before the first depot records real sales", and the pilot is that.
+A deferred entry sitting at its own trigger is not a deferral any more; it is a
+guess with a calendar.
+
+**Decided:** the receivable arises when a sale is posted, and at no other event.
+Argued in [ADR-0014](ADR-0014-debt-recognition-at-posting.md), stated as
+BR-SALE-020 (P0), illustrated by CASE-SALE-013, held by TC-SALE-028.
+
+**Nothing about the software changed**, which is the point worth being clear about:
+the decision ratifies what was already happening. What changed is that it is now a
+claim somebody can be wrong about, rather than a default nobody had revisited.
+
+**What it still owes — ASM-023.** No depot owner has said it is right. That is an
+operational action, not an open design question, and it has an instrument: the four
+questions in
+[ASM-002-debt-recognition-worksheet.md](ASM-002-debt-recognition-worksheet.md).
+Ask them before the first real sale, because this remains the least reversible
+entry in the register — the ledger is append-only, so a contrary answer leaves
+every `sale_posting` entry carrying a `transactionTime` that is too early, and no
+repair is available that the design permits.
+
 ---
 
 ## The ones that will still hurt if left
-
-### ASM-002 — when the receivable arises · **deferred, trigger: first real data**
-
-**Default:** at posting.
-
-**Why this default:** posting is the only event the slice models, and it is what a
-depot means by "chốt đơn".
-
-**Why it is still the most dangerous entry here:** it is the least reversible. If
-the receivable should really arise at delivery, every `sale_posting` entry in
-production carries the wrong `transactionTime`, and fixing it means back-filling an
-immutable row — which the design forbids. The escape hatch is that
-`LedgerSourceType` is an enum: a `delivery_note` source can be added and posting
-entries stopped, but historical entries stay wrong.
-
-**Trigger:** ask before the first depot records real sales. After that the cost
-only grows.
 
 ### ASM-015 / ASM-016 — credit limits and overdue balances · **deferred**
 
@@ -157,6 +163,8 @@ owners remain.
 
 ## Related
 
+- [ADR-0014-debt-recognition-at-posting.md](ADR-0014-debt-recognition-at-posting.md)
+- [ASM-002-debt-recognition-worksheet.md](ASM-002-debt-recognition-worksheet.md)
 - [ADR-0012-sale-void-and-replacement.md](ADR-0012-sale-void-and-replacement.md)
 - [../04-business-rules/sale-rules.md](../04-business-rules/sale-rules.md)
 - [../04-business-rules/customer-account-rules.md](../04-business-rules/customer-account-rules.md)

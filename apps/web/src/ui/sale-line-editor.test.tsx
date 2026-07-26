@@ -175,5 +175,18 @@ describe("TC-WEB-023 — workflow metrics", () => {
     expect(ACCEPTANCE_TARGETS.threeLineSaleSeconds).toBe(25);
     expect(ACCEPTANCE_TARGETS.duplicateFinancialEffects).toBe(0);
     expect(ACCEPTANCE_TARGETS.lostEntriesAfterRecoverableFailure).toBe(0);
+    // Speed alone was never the hypothesis: a sale entered in six seconds with the
+    // wrong quantity is worse than no sale.
+    expect(ACCEPTANCE_TARGETS.saleMatchesWorkersOwnRecord).toBe(1);
+    expect(ACCEPTANCE_TARGETS.tasksRequiringTakeover).toBe(0);
+  });
+
+  it("sets no target for beating paper, because the pilot cannot measure it", () => {
+    // H2 was reworded on 2026-07-27: "faster than the current paper/memory
+    // process" is a comparison, and nothing in the session measures the process it
+    // compares against. A target here would put the claim back, quietly, in code.
+    for (const name of Object.keys(ACCEPTANCE_TARGETS)) {
+      expect(name).not.toMatch(/faster|paper|notebook|baseline|versusPaper/i);
+    }
   });
 });

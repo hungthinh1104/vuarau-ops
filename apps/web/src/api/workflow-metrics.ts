@@ -101,12 +101,28 @@ export function useWorkflowMetrics(sink: MetricsSink = developmentSink): Workflo
  * a person on a phone at a loading bay. They are here so the pilot has a number
  * to compare against, and so this file cannot be mistaken for evidence.
  *
- * See docs/00-product/validation-plan.md.
+ * There is deliberately no target for "faster than paper". The pilot never
+ * measures the process it would be compared against, and a stopwatch on one side
+ * of a comparison is not a comparison — see "What H2 deliberately does not claim"
+ * in docs/00-product/validation-plan.md.
  */
 export const ACCEPTANCE_TARGETS = {
   /** Median wall clock, first tap to posted sale visible. */
   oneLineSaleSeconds: 10,
   threeLineSaleSeconds: 25,
+  /**
+   * Share of pilot tasks where the posted sale matches the worker's own record of
+   * the same transaction. A sale entered in six seconds with the wrong quantity is
+   * worse than no sale: it is a wrong number that looks confident.
+   */
+  saleMatchesWorkersOwnRecord: 1,
+  /**
+   * Tasks where the facilitator touched the phone or said which control to press.
+   * Absolute, because past that point the facilitator recorded the sale and the
+   * session measured the facilitator. Prompts — questions answered — are counted
+   * and reported, with no threshold anybody could honestly set in advance.
+   */
+  tasksRequiringTakeover: 0,
   /** Absolute. One duplicated receivable in twenty is a failure, not 95%. */
   duplicateFinancialEffects: 0,
   lostEntriesAfterRecoverableFailure: 0,

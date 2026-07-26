@@ -48,10 +48,11 @@ A depot cannot do that at 4 a.m. with a truck waiting.
 - A mistake is corrected in one action that leaves both the error and the fix
   visible.
 
-## Current phase — workflow validation
+## Current phase — pilot gate
 
-The vertical slice is **implemented end to end**, backend and frontend
-foundation. What has not been tested is whether it helps anybody.
+The vertical slice is **implemented end to end**, backend and browser. What has
+not been tested is whether it helps anybody, and the current phase is about
+getting a real worker in front of it without overstating what that will prove.
 
 ### What exists
 
@@ -77,15 +78,20 @@ implemented; no P0 rule is planned. The full surface is in
 
 ### What is complete, and what that does not mean
 
-**The frontend foundation is complete.** `apps/web` is a working Next application
-with a design system built from `design.md`, a typed tRPC client, and a Storybook
-covering every state in the
-[UI state catalog](../06-api-contracts/ui-state-catalog.md).
+**Two workflows are complete.** `apps/web` records a payment and posts a
+multi-line sale, end to end against a real server and a real database, on the
+design system and typed client from the previous milestone. Every state in the
+[UI state catalog](../06-api-contracts/ui-state-catalog.md) has a story.
 
-**The production workflows are not.** A design system is not a product. Nobody has
-recorded a real sale in this software, and every claim in "What good looks like"
-above — ten seconds, no lost writes, a correction anybody can follow — is an
-intention rather than a measurement.
+**Three are not.** Voiding and replacing a sale, adjusting a balance, and creating
+a customer have commands, rules and tests but no screen. A correction is therefore
+something an operator does, not something a worker does — which is the constraint
+that decides what kind of pilot this can be.
+
+**Nobody has recorded a real sale in this software.** Every claim in "What good
+looks like" above — ten seconds, no lost writes, a correction anybody can follow —
+is an intention rather than a measurement, and a passing test suite is not
+evidence for any of them.
 
 That gap is the whole of the current phase.
 
@@ -93,8 +99,8 @@ That gap is the whole of the current phase.
 
 ```text
 H1 — frontend commands integrate safely with the real backend
-H2 — a worker can record a real multi-line sale faster than the current
-     paper/memory process
+H2 — a worker records a real multi-line sale accurately, unaided, within the
+     target time
 ```
 
 **H1 is testable by us.** It asks whether idempotency, capabilities, version
@@ -103,10 +109,17 @@ database, rather than against fixtures. Automated tests can settle it, and
 [validation-plan.md](validation-plan.md) says which ones.
 
 **H2 is not.** It asks whether a depot worker, on their own phone, at their own
-pace, beats the notebook they already trust. No test in this repository can answer
-that, and no green suite should be reported as if it had. It is settled by watching
-15–20 real transactions, which is what the pilot worksheet in
-[validation-plan.md](validation-plan.md) is for.
+pace, gets the right sale into the system without help and inside the time it
+should take. No test in this repository can answer that, and no green suite should
+be reported as if it had. It is settled by watching 15–20 real transactions, which
+is what [pilot-worksheet.md](pilot-worksheet.md) is for.
+
+H2 previously read _"faster than the current paper/memory process"_. That is a
+comparison, and the pilot never measured the process it compared against — so the
+claim was a size larger than any evidence it could produce. The worker's own
+recording is still observed, and it now does the job it is actually good for:
+it is the **reference copy of what was sold**, against which the recorded sale is
+checked for accuracy. [Why in full](validation-plan.md).
 
 The order matters. Putting an unsafe workflow in front of a depot would produce
 feedback about the wrong thing — and if it duplicated a receivable, it would cost

@@ -71,6 +71,8 @@ const REQUIRED = [
   "09-decisions/ADR-0011-role-permission-mapping.md",
   "09-decisions/ADR-0012-sale-void-and-replacement.md",
   "09-decisions/ADR-0013-sale-not-order.md",
+  "09-decisions/ADR-0014-debt-recognition-at-posting.md",
+  "09-decisions/ASM-002-debt-recognition-worksheet.md",
   "09-decisions/decision-backlog.md",
   "10-ai-coding/REPO_MAP.md",
   "10-ai-coding/TASK_TEMPLATE.md",

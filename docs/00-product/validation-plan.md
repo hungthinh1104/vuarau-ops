@@ -4,13 +4,19 @@ How H1 and H2 get settled, and what would count as settling them.
 
 ```text
 H1 — frontend commands integrate safely with the real backend
-H2 — a worker can record a real multi-line sale faster than the current
-     paper/memory process
+H2 — a worker records a real multi-line sale accurately, unaided, within the
+     target time
 ```
 
 The two need different evidence, and conflating them is the failure this document
 exists to prevent. **A green test suite is evidence for H1 and evidence for
 nothing else.** No count of passing tests may be reported as product validation.
+
+> **H2 was reworded on 2026-07-27.** It previously read _"a worker can record a
+> real multi-line sale **faster than the current paper/memory process**"_. That
+> is a causal comparison, and the session that was designed to settle it could
+> not have — nothing measured the current process. The claim and the evidence are
+> now the same size. [Why, in full](#what-h2-deliberately-does-not-claim).
 
 ---
 
@@ -59,11 +65,21 @@ that 875.000 ₫ arrived; only a person can say whether that was the load they s
 
 ---
 
-## H2 — is it faster than the notebook
+## H2 — accurate, unaided, in the time it should take
 
 Settled by watching **15–20 real transactions** with a real worker, on their own
 phone. Nothing in this repository can settle it, and this plan does not pretend
 otherwise.
+
+Four things have to be true at once, and each is recorded separately because each
+fails on its own:
+
+```text
+accurate    the sale in the system is the sale they made
+unaided     they got there without the facilitator taking over
+in time     median inside the target for that shape of sale
+understood  they can say what state it is in and what the customer now owes
+```
 
 | Field                   | Value                                                                                                                                                                          |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -74,6 +90,8 @@ otherwise.
 | **Observed errors**     | Every mistake, correction and re-entry, with what caused it. A mistake the worker fixed without comment still counts                                                           |
 | **User wording**        | Their words for what they are doing, verbatim and in Vietnamese. If they say "ghi sổ" where the screen says "chốt đơn", the screen is wrong                                    |
 | **Missing information** | Anything they looked for and did not find, including things they asked out loud and things they scrolled hunting for                                                           |
+| **Accuracy reference**  | Their own record of the same sale — the notebook page, the message, whatever they normally write. The system's version is checked against theirs, never against itself         |
+| **Assistance**          | Three levels: **none**, **prompted** (a question answered), **taken over** (the facilitator touched the phone or said which control to press)                                  |
 | **Pass/fail criterion** | See the targets below                                                                                                                                                          |
 
 ### H2 targets
@@ -82,23 +100,70 @@ Pilot targets, not claims. They are written down before the pilot so that a
 disappointing result cannot be reinterpreted afterwards.
 
 ```text
-one-line sale:                         median under 10 seconds
-three-line sale:                       median under 25 seconds
-duplicate financial effects:           zero
+one-line sale:                                  median under 10 seconds
+three-line sale:                                median under 25 seconds
+recorded sale matches the worker's own record:  every task
+tasks where the facilitator had to take over:   zero
+duplicate financial effects:                    zero
 lost entered data after a recoverable failure:  zero
-users correctly distinguish draft from posted:  100% of pilot tasks
-users correctly understand the resulting balance: 100% of pilot tasks
+draft correctly distinguished from posted:      every task
+resulting balance correctly read:               every task
 ```
 
-The first two come from the product brief's "a worker records a sale in under ten
-seconds". The last two are the ones that would stop the product: somebody who
-cannot tell a draft from a posted sale will eventually think they charged a
-customer and did not, and somebody who misreads the resulting balance will collect
-the wrong amount.
+The two timings come from the product brief's "a worker records a sale in under
+ten seconds". The two comprehension targets are the ones that would stop the
+product: somebody who cannot tell a draft from a posted sale will eventually think
+they charged a customer and did not, and somebody who misreads the resulting
+balance will collect the wrong amount.
+
+**Accuracy is the target that was missing.** A sale entered in six seconds with the
+wrong quantity is worse than no sale at all — it is a wrong number that looks
+confident, and that nobody has any reason to re-check. It is checked against the
+worker's own record of the same transaction, because that is the only independent
+statement of what was actually sold.
+
+**"Prompted" is counted, not scored.** How many questions a first-time user may ask
+is not a threshold anybody can honestly set in advance, so the count is reported
+and read rather than passed or failed. Only _taken over_ fails a task: at that
+point the facilitator recorded the sale, and the session measured the facilitator.
 
 The zero targets are absolute. One duplicated receivable in twenty transactions is
 a failure, not a 95% pass — a depot that finds a phantom debt stops trusting every
 other number in the book.
+
+### What H2 deliberately does not claim
+
+H2 used to say **faster than the current paper/memory process**. It no longer does,
+and the reason is not caution: the session was never capable of supporting the word
+"faster". Nothing measured the current process. A stopwatch on the app and no
+stopwatch on the notebook produces one number, and one number is not a comparison.
+
+The obvious repair — time the notebook too — is worth understanding, because it is
+weaker than it looks:
+
+- **Order confounds it.** The worker writes the sale down first, the way they
+  always have. By the time they open the app, the quantities are settled and the
+  price is recalled. The app is timed on a task the notebook has already done half
+  of.
+- **Practice confounds it the other way.** They have used the notebook for twenty
+  years and the app for twenty minutes.
+- **The transactions are not matched.** Fifteen to twenty transactions inside one
+  person, each a different shape, is not a sample any comparison survives.
+
+Those confounds do not cancel. They have unknown signs and unknown sizes, and a
+median that came out favourable would be repeated as "faster than paper" by
+everybody who read only the headline.
+
+So the comparison is not drawn. **A design that could support it** would need
+matched transaction pairs, counterbalanced order across sessions, a practice block
+before timing starts, and more than one worker — a study, not a pilot session. If
+the question ever becomes load-bearing for a decision, that is what it costs, and
+nothing in this plan approximates it.
+
+The worker's own record is still taken on every row, for the better reason above:
+it is the accuracy reference. Its **time** is written down as context — what a
+normal recording costs today, in their hands — and read as context. No target is
+set against it, and no comparison is drawn from it.
 
 ### How to run it
 
@@ -109,13 +174,22 @@ transaction. It is empty on purpose. **Do not fill it in with expected values.**
 2. Ask them to record a sale they have actually just made, in their own way. Do
    not demonstrate the screen first; a demonstrated screen measures how well they
    copy, not whether they can use it.
-3. Time from first tap to the posted sale being visible. Say nothing during it.
-4. Write their wording down as they say it, not a tidied version.
-5. When a task is done, ask two questions and nothing else:
+3. Let them record it their normal way first, and time that too. Do not present it
+   as a race — it is the reference copy of what was sold, and they were going to
+   write it down anyway.
+4. Time from first tap to the posted sale being visible. Say nothing during it.
+5. Write their wording down as they say it, not a tidied version.
+6. When the task is done, compare the posted sale against their own record field by
+   field, then ask two questions and nothing else:
    - _"Khách này giờ nợ bao nhiêu?"_ — do they read the balance correctly?
    - _"Đơn này đã ghi vào sổ chưa?"_ — do they know draft from posted?
-6. Record what happened, including the transactions that went badly. Especially
+7. Record what happened, including the transactions that went badly. Especially
    those.
+
+**Once per pilot, not once per transaction:** put the four questions in the
+[ASM-002 worksheet](../09-decisions/ASM-002-debt-recognition-worksheet.md) to the
+depot **owner**, before the first sale is recorded. They decide when a customer
+starts owing money, and that answer cannot be recovered from the data afterwards.
 
 ---
 
@@ -140,3 +214,5 @@ session.
 - [pilot-worksheet.md](pilot-worksheet.md) — the empty sheet, one row per observed transaction
 - [../08-qa/test-strategy.md](../08-qa/test-strategy.md) — what the automated suites do and do not cover
 - [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md) — the ASM entries a pilot could settle
+- [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — the four questions for the owner
+- [../09-decisions/ADR-0014-debt-recognition-at-posting.md](../09-decisions/ADR-0014-debt-recognition-at-posting.md) — when a customer starts owing

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PostSaleCommand, CreateSaleDraftCommand } from "@vuarau/domain-contracts";
+import { ACCOUNT_ENTRY_SOURCE_TYPES } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   COMMAND_ID,
@@ -17,7 +18,12 @@ import {
   validDraftSale,
   vnd,
 } from "@vuarau/test-fixtures";
-import { decidePostSale, decideCreateSaleDraft } from "./index.ts";
+import {
+  decidePostSale,
+  decideCreateSaleDraft,
+  decideDiscardSaleDraft,
+  decideUpdateSaleDraft,
+} from "./index.ts";
 import { calculateLineTotal } from "../shared/quantity.ts";
 
 function createSaleDraftCommand(
@@ -183,6 +189,111 @@ describe("BR-SALE-007 / TC-SALE-003", () => {
     expect(result.value.aggregate.status).toBe("posted");
     expect(result.value.aggregate.version).toBe(validDraftSale.version + 1);
     expect(result.value.aggregate.postedAt).toBe(TRANSACTION_TIME);
+  });
+});
+
+/**
+ * BR-SALE-020 / TC-SALE-028 — where in time the receivable is recognised.
+ *
+ * BR-SALE-007 counts the entries a posting produces; this places them. They fail
+ * differently: a counting bug means a customer owes twice or nothing, which any
+ * total reveals; a recognition bug means the right amount is owed from the wrong
+ * day, which no total reveals and which the append-only ledger cannot repair
+ * (ADR-0014).
+ *
+ * These assertions hold behaviour that already existed. They are written now
+ * because ASM-002 reached its trigger, and an assumption at its trigger with no
+ * test is a default nobody can be wrong about.
+ */
+describe("BR-SALE-020 / TC-SALE-028 / CASE-SALE-013", () => {
+  it("recognises the receivable at posting and at no earlier step", () => {
+    const draft = decideCreateSaleDraft({
+      command: createSaleDraftCommand(),
+      recordedAt: RECORDED_AT,
+    });
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+
+    // Entering a sale moves no money, however complete the draft looks.
+    expect(draft.value.accountEntries).toEqual([]);
+
+    const edited = decideUpdateSaleDraft({
+      command: {
+        commandId: COMMAND_ID,
+        idempotencyKey: IDEMPOTENCY_KEY,
+        workspaceId: WORKSPACE_ID,
+        actorId: ACTOR_ID,
+        occurredAt: TRANSACTION_TIME,
+        expectedVersion: draft.value.aggregate.version,
+        payload: {
+          saleId: SALE_ID,
+          lines: [...saleLineInputs],
+          note: null,
+          dueAt: null,
+        },
+      },
+      sale: draft.value.aggregate,
+      recordedAt: RECORDED_AT,
+    });
+    expect(edited.ok && edited.value.accountEntries).toEqual([]);
+
+    const discarded = decideDiscardSaleDraft({
+      command: {
+        commandId: COMMAND_ID,
+        idempotencyKey: IDEMPOTENCY_KEY,
+        workspaceId: WORKSPACE_ID,
+        actorId: ACTOR_ID,
+        occurredAt: TRANSACTION_TIME,
+        expectedVersion: draft.value.aggregate.version,
+        payload: { saleId: SALE_ID, reason: null },
+      },
+      sale: draft.value.aggregate,
+      recordedAt: RECORDED_AT,
+    });
+    expect(discarded.ok && discarded.value.accountEntries).toEqual([]);
+
+    // Posting is the step that creates the debt, and the only one.
+    const posted = decidePostSale({
+      command: postSaleCommand(validDraftSale.version),
+      sale: validDraftSale,
+      recordedAt: RECORDED_AT,
+    });
+    expect(posted.ok && posted.value.accountEntries).toHaveLength(1);
+  });
+
+  it("dates the receivable from when the sale happened, not from when it was typed", () => {
+    // CASE-SALE-013 — the load went at 05:00 and was typed at 11:00. The balance
+    // rises by the sale total *as of 05:00*, so it is already six hours old when
+    // it first appears and an aging report agrees with the depot's own morning.
+    const posted = decidePostSale({
+      command: postSaleCommand(validDraftSale.version),
+      sale: validDraftSale,
+      recordedAt: RECORDED_AT,
+    });
+
+    expect(posted.ok).toBe(true);
+    if (!posted.ok) return;
+
+    const entry = posted.value.accountEntries[0]!;
+    expect(entry.sourceType).toBe("sale_posting");
+    expect(entry.transactionTime).toBe(TRANSACTION_TIME);
+    expect(entry.transactionTime).not.toBe(entry.recordedAt);
+    expect(entry.amount).toEqual(SALE_TOTAL);
+  });
+
+  it("has no source type that could recognise a receivable at delivery or invoicing", () => {
+    // The structural half of BR-SALE-020, and the assertion that survives a future
+    // misunderstanding: a receivable cannot be recognised at an event this system
+    // does not model, because there is no value to record it under. Adding one
+    // fails here, which is the moment ADR-0014 has to be reopened rather than the
+    // moment a depot's ledger quietly acquires a second meaning.
+    expect([...ACCOUNT_ENTRY_SOURCE_TYPES]).toEqual([
+      "sale_posting",
+      "sale_void",
+      "payment",
+      "payment_reversal",
+      "manual_adjustment",
+    ]);
   });
 });
 

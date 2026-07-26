@@ -167,6 +167,7 @@ use_cases:
       - BR-SALE-008
       - BR-SALE-009
       - BR-SALE-011
+      - BR-SALE-020
       - BR-COMMAND-001
       - BR-COMMAND-003
       - BR-COMMAND-004
@@ -180,6 +181,7 @@ use_cases:
       - CASE-SALE-004
       - CASE-SALE-005
       - CASE-SALE-006
+      - CASE-SALE-013
       - CASE-ACCOUNT-001
     tests:
       - TC-SALE-003
@@ -196,6 +198,7 @@ use_cases:
       - TC-SALE-015
       - TC-SALE-016
       - TC-SALE-017
+      - TC-SALE-028
     implementation:
       - packages/domain-kernel/src/sale/post-sale.ts
       - apps/api/src/modules/sale/post-sale.handler.ts
@@ -595,6 +598,26 @@ business_rules:
       - packages/domain-kernel/src/sale/edit-sale-draft.ts
       - apps/api/src/modules/sale/edit-sale-draft.handler.ts
       - packages/db/migrations/0006_customer_and_draft_lifecycle.sql
+
+  BR-SALE-019:
+    title: A sale line's product link is optional; its name is not
+    risk: P1
+    doc: docs/04-business-rules/sale-rules.md
+    cases: []
+    tests: [TC-WEB-021, TC-E2E-011]
+    implementation:
+      - packages/domain-contracts/src/sale/index.ts
+      - packages/db/migrations/0007_sale_line_product_optional.sql
+
+  BR-SALE-020:
+    title: The receivable arises at posting, and at no other event
+    risk: P0
+    doc: docs/04-business-rules/sale-rules.md
+    cases: [CASE-SALE-013]
+    tests: [TC-SALE-028]
+    implementation:
+      - packages/domain-kernel/src/sale/post-sale.ts
+      - packages/domain-contracts/src/account/index.ts
 
   # --- payment ------------------------------------------------------------------
   BR-PAYMENT-001:
@@ -1013,6 +1036,11 @@ cases:
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-017]
     tests: [TC-SALE-018]
+  CASE-SALE-013:
+    title: The load went at 5 a.m. and was typed at 11
+    doc: docs/05-casebook/sale-cases.md
+    rules: [BR-SALE-020, BR-SALE-007, BR-SALE-010]
+    tests: [TC-SALE-028]
 
   CASE-READ-001:
     title: Paging the day's sales while a worker posts another

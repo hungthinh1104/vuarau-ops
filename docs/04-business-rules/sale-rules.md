@@ -151,6 +151,47 @@ row at the moment of posting — not necessarily the ones typed first.
 
 ---
 
+### BR-SALE-020 — The receivable arises at posting, and at no other event
+
+**Risk:** P0 · **Code:** — · **Tests:** TC-SALE-028 · **Cases:** CASE-SALE-013
+
+A customer starts owing for a sale at the moment it is **posted**. Not when the
+draft was typed, not when the goods moved, not when anything was written up. The
+entry carries `transactionTime = command.occurredAt` — when the depot says the
+sale happened — which may be hours before it was recorded (ADR-0007).
+
+Three things enforce it, and the third is the one that survives a future
+misunderstanding:
+
+1. `PostSale` is the only command that produces a `sale_posting` entry
+   (BR-SALE-007). Draft creation, edit and discard produce none (BR-SALE-010).
+2. Nothing in the system can raise a balance for a sale by any other route: void
+   and payment reversal are compensations, adjustment needs `debt.adjust` and a
+   reason code with no sale behind it (BR-ACCOUNT-010).
+3. `ACCOUNT_ENTRY_SOURCE_TYPES` is a **closed enum** with no delivery and no
+   invoice value. A receivable cannot be recognised at an event this system does
+   not model, because there is no value to record it under.
+
+This states in time what BR-SALE-007 states in count. They are separated because
+they fail differently: BR-SALE-007 breaking means a customer owes twice or nothing;
+BR-SALE-020 breaking means the right amount is owed from the wrong day, which no
+total reveals and which ages every report by a day.
+
+The rule rests on what a sale **is** — goods handed over, price agreed
+(ADR-0013). If a depot's "chốt đơn" turns out to be an agreement about a load that
+moves tomorrow, this rule is wrong for that depot, and it is wrong in the one
+direction that cannot be repaired: the ledger is append-only, so the too-early
+`transactionTime` on every posted entry stays.
+
+That is why the decision is argued in
+[ADR-0014](../09-decisions/ADR-0014-debt-recognition-at-posting.md) and confirmed
+by four questions put to the depot owner **before** the first real sale
+([worksheet](../09-decisions/ASM-002-debt-recognition-worksheet.md), ASM-023). The
+rule is in force meanwhile; what is outstanding is somebody's signature, not the
+behaviour.
+
+---
+
 ### BR-SALE-007 — Posting produces exactly one customer account entry
 
 **Risk:** P0 · **Code:** — · **Tests:** TC-SALE-003, TC-SALE-012 · **Cases:** CASE-SALE-005, CASE-ACCOUNT-001
