@@ -5,13 +5,13 @@ import { createRepositories, type IdMinter } from "../repositories/index.ts";
  * One database transaction per command (BR-COMMAND-005).
  *
  * Everything a command writes — aggregate, ledger entries, summary, audit record,
- * command receipt — commits together or not at all. A confirmed order without its
+ * command receipt — commits together or not at all. A confirmed sale without its
  * ledger entry is corrupt data, and a partial failure is exactly when it would
  * happen.
  *
  * Isolation is Postgres's default READ COMMITTED. Lost updates are prevented by
  * `SELECT … FOR UPDATE` plus a version check (ADR-0009) rather than by
- * SERIALIZABLE, so a conflict surfaces as a precise `ORDER_VERSION_CONFLICT` the
+ * SERIALIZABLE, so a conflict surfaces as a precise `SALE_VERSION_CONFLICT` the
  * UI can explain instead of a generic serialisation failure it cannot.
  *
  * The returned object satisfies `UnitOfWork` in `apps/api` structurally; this

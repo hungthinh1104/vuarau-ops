@@ -78,8 +78,8 @@ describe("BR-PAYMENT-002 / TC-PAYMENT-003", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.ledgerEntries).toHaveLength(1);
-    const entry = result.value.ledgerEntries[0]!;
+    expect(result.value.accountEntries).toHaveLength(1);
+    const entry = result.value.accountEntries[0]!;
     expect(entry.amount.amountMinor).toBe(-PAYMENT_AMOUNT.amountMinor);
     expect(entry.sourceType).toBe("payment");
     expect(entry.sourceId).toBe(PAYMENT_ID);
@@ -132,7 +132,7 @@ describe("BR-ACCOUNT-007 / TC-PAYMENT-011", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.ledgerEntries[0]!.amount.amountMinor).toBe(-999_999_999);
+    expect(result.value.accountEntries[0]!.amount.amountMinor).toBe(-999_999_999);
   });
 });
 
@@ -148,8 +148,8 @@ describe("BR-PAYMENT-005 / TC-PAYMENT-004", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.ledgerEntries).toHaveLength(1);
-    const entry = result.value.ledgerEntries[0]!;
+    expect(result.value.accountEntries).toHaveLength(1);
+    const entry = result.value.accountEntries[0]!;
     expect(entry.amount.amountMinor).toBe(PAYMENT_AMOUNT.amountMinor);
     expect(entry.sourceType).toBe("payment_reversal");
     expect(entry.sourceId).toBe(REVERSAL_ID);
@@ -186,8 +186,8 @@ describe("BR-PAYMENT-005 / TC-PAYMENT-004", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.ledgerEntries[0]!.transactionTime).toBe(LATEST_TRANSACTION_TIME);
-    expect(result.value.ledgerEntries[0]!.recordedAt).toBe(LATEST_RECORDED_AT);
+    expect(result.value.accountEntries[0]!.transactionTime).toBe(LATEST_TRANSACTION_TIME);
+    expect(result.value.accountEntries[0]!.recordedAt).toBe(LATEST_RECORDED_AT);
   });
 });
 

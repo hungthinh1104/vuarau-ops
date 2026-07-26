@@ -63,9 +63,9 @@ describe("BR-PAYMENT-002 / TC-PAYMENT-001", () => {
     const result = await recordCustomerPayment(harness.ctx, recordInput());
 
     expect(result.ok).toBe(true);
-    expect(harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(-500_000);
-    expect(harness.db.summaryFor(WORKSPACE_ID, CUSTOMER_ID)?.balance.amountMinor).toBe(-500_000);
+    expect(harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID)?.balance.amountMinor).toBe(-500_000);
   });
 
   it("records who physically paid when it was not the customer", async () => {
@@ -98,7 +98,7 @@ describe("BR-PAYMENT-002 / TC-PAYMENT-001", () => {
       }),
     );
 
-    const summary = harness.db.summaryFor(WORKSPACE_ID, CUSTOMER_ID);
+    const summary = harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID);
     expect(summary?.balance.amountMinor).toBe(ledgerBalance(harness, CUSTOMER_ID));
     expect(summary?.entryCount).toBe(2);
   });
@@ -120,7 +120,7 @@ describe("BR-COMMAND-001 / TC-PAYMENT-002", () => {
     await recordCustomerPayment(harness.ctx, recordInput());
 
     expect(harness.db.payments()).toHaveLength(1);
-    expect(harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(-500_000);
   });
 });
@@ -135,14 +135,14 @@ describe("BR-PAYMENT-005 / TC-PAYMENT-004", () => {
 
     expect(reversed.ok).toBe(true);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(0);
-    expect(harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(2);
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(2);
   });
 
   it("preserves the original payment and its entry rather than removing them", async () => {
     await recordCustomerPayment(harness.ctx, recordInput());
     await reverseCustomerPayment(harness.ctx, reverseInput());
 
-    const entries = harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID);
+    const entries = harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID);
     const original = entries.find((entry) => entry.sourceType === "payment");
     const compensating = entries.find((entry) => entry.sourceType === "payment_reversal");
 
@@ -182,7 +182,7 @@ describe("BR-COMMAND-001 / TC-PAYMENT-005", () => {
 
     expect(retry.value).toEqual(first.value);
     expect(harness.db.reversals()).toHaveLength(1);
-    expect(harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(2);
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(2);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(0);
   });
 });

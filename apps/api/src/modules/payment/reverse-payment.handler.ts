@@ -4,7 +4,7 @@ import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideReversePayment, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
-import { applyLedgerEffects } from "../shared/debt-effects.ts";
+import { applyAccountEffects } from "../shared/account-effects.ts";
 import { toPaymentDto } from "../shared/mappers.ts";
 
 /**
@@ -33,7 +33,7 @@ export function reverseCustomerPayment(
         });
       }
 
-      const originalEntry = await repos.ledger.findBySource(
+      const originalEntry = await repos.accountEntries.findBySource(
         command.workspaceId,
         "payment",
         payment.id,
@@ -70,7 +70,7 @@ export function reverseCustomerPayment(
       }
 
       await repos.payments.insertReversal(reversal);
-      await applyLedgerEffects(repos, decision.value.ledgerEntries, payment.amount.currency);
+      await applyAccountEffects(repos, decision.value.accountEntries, payment.amount.currency);
       await repos.audit.append({
         ...decision.value.audit,
         workspaceId: command.workspaceId,

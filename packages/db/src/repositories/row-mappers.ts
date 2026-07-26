@@ -3,19 +3,21 @@ import type {
   CommandId,
   CurrencyCode,
   CustomerId,
-  DebtLedgerEntryDto,
-  DebtLedgerEntryId,
+  CustomerAccountEntryDto,
+  CustomerAccountEntryId,
   IsoInstant,
   Money,
-  OrderId,
+  SaleId,
+  SaleVoidId,
   PaymentId,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
 import type {
-  CustomerDebtSummary,
+  CustomerAccountBalance,
   CustomerState,
-  OrderLineState,
-  OrderState,
+  SaleLineState,
+  SaleState,
+  SaleVoidState,
   PaymentState,
 } from "@vuarau/domain-kernel";
 import { derivePaymentStatus } from "@vuarau/domain-kernel";
@@ -68,42 +70,77 @@ export function toCustomerState(row: CustomerRow): CustomerState {
   };
 }
 
-export type OrderRow = {
+export type SaleRow = {
   id: string;
   workspaceId: string;
   customerId: string;
-  status: OrderState["status"];
+  status: SaleState["status"];
   currency: CurrencyCode;
   totalAmountMinor: number;
   note: string | null;
   version: number;
   transactionTime: Date;
   recordedAt: Date;
-  confirmedAt: Date | null;
-  cancelledAt: Date | null;
+  postedAt: Date | null;
+  dueAt: Date | null;
+  replacesSaleId: string | null;
 };
 
-export type OrderLineRow = {
+export type SaleLineRow = {
   id: string;
   productId: string;
   productName: string;
   quantityScaled: number;
-  unit: OrderLineState["quantity"]["unit"];
+  unit: SaleLineState["quantity"]["unit"];
   unitPriceMinor: number;
   lineTotalMinor: number;
   currency: CurrencyCode;
 };
 
-export function toOrderState(row: OrderRow, lineRows: readonly OrderLineRow[]): OrderState {
+export type SaleVoidRow = {
+  id: string;
+  workspaceId: string;
+  saleId: string;
+  reasonCode: SaleVoidState["reasonCode"];
+  reason: string;
+  amountMinor: number;
+  currency: CurrencyCode;
+  transactionTime: Date;
+  recordedAt: Date;
+};
+
+export function toSaleVoidState(row: SaleVoidRow): SaleVoidState {
   return {
-    id: row.id as OrderId,
+    id: row.id as SaleVoidId,
+    workspaceId: row.workspaceId as WorkspaceId,
+    saleId: row.saleId as SaleId,
+    reasonCode: row.reasonCode,
+    reason: row.reason,
+    amount: money(row.amountMinor, row.currency),
+    transactionTime: toIso(row.transactionTime),
+    recordedAt: toIso(row.recordedAt),
+  };
+}
+
+/**
+ * The void is passed in rather than looked up here, because whether a sale is
+ * voided is a fact about a *different* table — which is the whole point of not
+ * storing it on the sale (BR-SALE-008).
+ */
+export function toSaleState(
+  row: SaleRow,
+  lineRows: readonly SaleLineRow[],
+  voidRow: SaleVoidRow | null,
+): SaleState {
+  return {
+    id: row.id as SaleId,
     workspaceId: row.workspaceId as WorkspaceId,
     customerId: row.customerId as CustomerId,
     status: row.status,
     currency: row.currency,
     lines: lineRows.map((line) => ({
-      lineId: line.id as OrderLineState["lineId"],
-      productId: line.productId as OrderLineState["productId"],
+      lineId: line.id as SaleLineState["lineId"],
+      productId: line.productId as SaleLineState["productId"],
       productName: line.productName,
       quantity: { valueScaled: line.quantityScaled, unit: line.unit },
       unitPrice: money(line.unitPriceMinor, line.currency),
@@ -114,8 +151,10 @@ export function toOrderState(row: OrderRow, lineRows: readonly OrderLineRow[]): 
     version: row.version,
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
-    confirmedAt: toIsoOrNull(row.confirmedAt),
-    cancelledAt: toIsoOrNull(row.cancelledAt),
+    postedAt: toIsoOrNull(row.postedAt),
+    dueAt: toIsoOrNull(row.dueAt),
+    replacesSaleId: row.replacesSaleId as SaleId | null,
+    voidRecord: voidRow === null ? null : toSaleVoidState(voidRow),
   };
 }
 
@@ -157,16 +196,16 @@ export function toPaymentState(row: PaymentRow): PaymentState {
   };
 }
 
-export type LedgerEntryRow = {
+export type AccountEntryRow = {
   id: string;
   workspaceId: string;
   customerId: string;
   amountMinor: number;
   currency: CurrencyCode;
-  sourceType: DebtLedgerEntryDto["sourceType"];
+  sourceType: CustomerAccountEntryDto["sourceType"];
   sourceId: string;
   reversalOfEntryId: string | null;
-  reasonCode: DebtLedgerEntryDto["reasonCode"];
+  reasonCode: CustomerAccountEntryDto["reasonCode"];
   reason: string | null;
   transactionTime: Date;
   recordedAt: Date;
@@ -174,15 +213,15 @@ export type LedgerEntryRow = {
   commandId: string;
 };
 
-export function toLedgerEntryDto(row: LedgerEntryRow): DebtLedgerEntryDto {
+export function toAccountEntryDto(row: AccountEntryRow): CustomerAccountEntryDto {
   return {
-    id: row.id as DebtLedgerEntryId,
+    id: row.id as CustomerAccountEntryId,
     workspaceId: row.workspaceId as WorkspaceId,
     customerId: row.customerId as CustomerId,
     amount: money(row.amountMinor, row.currency),
     sourceType: row.sourceType,
     sourceId: row.sourceId,
-    reversalOfEntryId: row.reversalOfEntryId as DebtLedgerEntryId | null,
+    reversalOfEntryId: row.reversalOfEntryId as CustomerAccountEntryId | null,
     reasonCode: row.reasonCode,
     reason: row.reason,
     transactionTime: toIso(row.transactionTime),
@@ -192,7 +231,7 @@ export function toLedgerEntryDto(row: LedgerEntryRow): DebtLedgerEntryDto {
   };
 }
 
-export type DebtSummaryRow = {
+export type AccountBalanceRow = {
   workspaceId: string;
   customerId: string;
   balanceMinor: number;
@@ -203,7 +242,7 @@ export type DebtSummaryRow = {
 };
 
 /** Returns the domain value; `capabilities` are added by the application layer. */
-export function toCustomerDebtSummary(row: DebtSummaryRow): CustomerDebtSummary {
+export function toCustomerAccountBalance(row: AccountBalanceRow): CustomerAccountBalance {
   return {
     workspaceId: row.workspaceId as WorkspaceId,
     customerId: row.customerId as CustomerId,

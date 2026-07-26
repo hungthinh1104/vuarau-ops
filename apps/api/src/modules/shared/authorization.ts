@@ -1,6 +1,6 @@
 import type {
   ActorId,
-  DebtCapabilities,
+  AccountCapabilities,
   Permission,
   WorkspaceId,
   WorkspaceRole,
@@ -16,7 +16,7 @@ import type { AuthenticatedPrincipal } from "../../infrastructure/auth/principal
  * so that a read cannot accidentally be laxer than the write beside it
  * (BR-AUTH-001 … BR-AUTH-004).
  *
- * Order matters, and each step answers a different operator question:
+ * Sale matters, and each step answers a different operator question:
  *
  *   1. is the caller claiming to be somebody else?   → ACTOR_IMPERSONATION_DENIED
  *   2. are they a member of this workspace at all?   → WORKSPACE_ACCESS_DENIED
@@ -74,14 +74,14 @@ export async function authorizeWorkspaceAccess(args: {
 }
 
 /**
- * Unlike order and payment capabilities — which come from aggregate state and are
+ * Unlike sale and payment capabilities — which come from aggregate state and are
  * computed in the kernel — this one depends on *who is asking*, so it lives here.
  *
  * It calls `roleHasPermission`, the same function the authorization check uses.
  * One implementation, so a greyed-out button and a refusal cannot disagree
  * (ADR-0003).
  */
-export function debtCapabilities(role: WorkspaceRole): DebtCapabilities {
+export function accountCapabilities(role: WorkspaceRole): AccountCapabilities {
   return {
     adjust: roleHasPermission(role, "debt.adjust")
       ? ALLOWED

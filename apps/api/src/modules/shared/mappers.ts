@@ -1,20 +1,24 @@
 import type {
-  CustomerDebtSummaryDto,
+  CustomerAccountBalanceDto,
   CustomerDto,
-  DebtCapabilities,
-  OrderDto,
+  AccountCapabilities,
+  IsoInstant,
+  SaleDto,
   PaymentDto,
 } from "@vuarau/domain-contracts";
 import type {
-  CustomerDebtSummary,
+  CustomerAccountBalance,
   CustomerState,
-  OrderState,
+  SaleState,
   PaymentState,
 } from "@vuarau/domain-kernel";
 import {
-  orderCapabilities,
+  classifyBalance,
   paymentCapabilities,
   remainingReversibleAmount,
+  saleCapabilities,
+  saleDueState,
+  saleFinancialState,
 } from "@vuarau/domain-kernel";
 
 /**
@@ -40,14 +44,19 @@ export function toCustomerDto(customer: CustomerState): CustomerDto {
   };
 }
 
-export function toOrderDto(order: OrderState): OrderDto {
+/**
+ * `asOf` is the reading clock, needed only for `dueState` (BR-SALE-017). Passed
+ * in rather than read here so that a DTO is a pure function of state plus time —
+ * two calls with the same arguments produce the same document.
+ */
+export function toSaleDto(sale: SaleState, asOf: IsoInstant): SaleDto {
   return {
-    id: order.id,
-    workspaceId: order.workspaceId,
-    customerId: order.customerId,
-    status: order.status,
-    currency: order.currency,
-    lines: order.lines.map((line) => ({
+    id: sale.id,
+    workspaceId: sale.workspaceId,
+    customerId: sale.customerId,
+    status: sale.status,
+    currency: sale.currency,
+    lines: sale.lines.map((line) => ({
       lineId: line.lineId,
       productId: line.productId,
       productName: line.productName,
@@ -55,16 +64,34 @@ export function toOrderDto(order: OrderState): OrderDto {
       unitPrice: line.unitPrice,
       lineTotal: line.lineTotal,
     })),
-    totalAmount: order.totalAmount,
-    note: order.note,
-    version: order.version,
-    transactionTime: order.transactionTime,
-    recordedAt: order.recordedAt,
-    confirmedAt: order.confirmedAt,
-    cancelledAt: order.cancelledAt,
+    totalAmount: sale.totalAmount,
+    note: sale.note,
+    version: sale.version,
+    transactionTime: sale.transactionTime,
+    recordedAt: sale.recordedAt,
+    postedAt: sale.postedAt,
+    dueAt: sale.dueAt,
+    replacesSaleId: sale.replacesSaleId,
+    // Both derived, never stored (state catalog): a `voided` column would have to
+    // be kept true by updating a row that is promised to be immutable, and an
+    // `overdue` column would have to be kept true by a cron job.
+    financialState: saleFinancialState(sale),
+    dueState: saleDueState(sale, asOf),
+    voidRecord:
+      sale.voidRecord === null
+        ? null
+        : {
+            id: sale.voidRecord.id,
+            saleId: sale.voidRecord.saleId,
+            reasonCode: sale.voidRecord.reasonCode,
+            reason: sale.voidRecord.reason,
+            amount: sale.voidRecord.amount,
+            transactionTime: sale.voidRecord.transactionTime,
+            recordedAt: sale.voidRecord.recordedAt,
+          },
     // Computed by the same functions the command handlers use, so a greyed-out
     // button and a server refusal always agree (ADR-0003).
-    capabilities: orderCapabilities(order),
+    capabilities: saleCapabilities(sale),
   };
 }
 
@@ -89,21 +116,24 @@ export function toPaymentDto(payment: PaymentState): PaymentDto {
 }
 
 /**
- * The debt summary DTO is the domain value plus the caller's capabilities, which
- * is why the capabilities are a parameter rather than something this function
- * could work out: they depend on *who is asking* (BR-AUTH-004).
+ * The account balance DTO is the domain value plus the caller's capabilities,
+ * which is why the capabilities are a parameter rather than something this
+ * function could work out: they depend on *who is asking* (BR-AUTH-004).
  */
-export function toDebtSummaryDto(
-  summary: CustomerDebtSummary,
-  capabilities: DebtCapabilities,
-): CustomerDebtSummaryDto {
+export function toAccountBalanceDto(
+  balance: CustomerAccountBalance,
+  capabilities: AccountCapabilities,
+): CustomerAccountBalanceDto {
   return {
-    workspaceId: summary.workspaceId,
-    customerId: summary.customerId,
-    balance: summary.balance,
-    entryCount: summary.entryCount,
-    lastEntryTransactionTime: summary.lastEntryTransactionTime,
-    updatedAt: summary.updatedAt,
+    workspaceId: balance.workspaceId,
+    customerId: balance.customerId,
+    balance: balance.balance,
+    // Named here, once, rather than left for each client to work out from the
+    // sign (BR-ACCOUNT-009).
+    classification: classifyBalance(balance.balance),
+    entryCount: balance.entryCount,
+    lastEntryTransactionTime: balance.lastEntryTransactionTime,
+    updatedAt: balance.updatedAt,
     capabilities,
   };
 }

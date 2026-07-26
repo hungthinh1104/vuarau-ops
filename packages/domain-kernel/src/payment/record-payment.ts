@@ -1,5 +1,5 @@
 import type { IsoInstant, RecordCustomerPaymentCommand } from "@vuarau/domain-contracts";
-import type { Decision, LedgerEntryDraft } from "../shared/effects.ts";
+import type { Decision, AccountEntryDraft } from "../shared/effects.ts";
 import type { PaymentState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
@@ -45,7 +45,7 @@ export function decideRecordPayment({
   };
 
   // BR-PAYMENT-002 — exactly one entry, reducing what the customer owes.
-  const ledgerEntry: LedgerEntryDraft = {
+  const ledgerEntry: AccountEntryDraft = {
     workspaceId: command.workspaceId,
     customerId: payload.customerId,
     amount: negateMoney(payload.amount),
@@ -62,7 +62,7 @@ export function decideRecordPayment({
 
   return ok({
     aggregate: payment,
-    ledgerEntries: [ledgerEntry],
+    accountEntries: [ledgerEntry],
     audit: {
       aggregateType: "payment",
       aggregateId: payment.id,

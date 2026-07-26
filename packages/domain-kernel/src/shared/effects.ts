@@ -5,9 +5,9 @@ import type {
   CommandId,
   CustomerId,
   DebtAdjustmentReasonCode,
-  DebtLedgerEntryId,
+  CustomerAccountEntryId,
   IsoInstant,
-  LedgerSourceType,
+  AccountEntrySourceType,
   Money,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
@@ -21,14 +21,14 @@ import type {
  * including both timestamps, is decided here so that the same input always
  * produces the same effect.
  */
-export type LedgerEntryDraft = {
+export type AccountEntryDraft = {
   readonly workspaceId: WorkspaceId;
   readonly customerId: CustomerId;
   /** Signed: positive increases what the customer owes. */
   readonly amount: Money;
-  readonly sourceType: LedgerSourceType;
+  readonly sourceType: AccountEntrySourceType;
   readonly sourceId: string;
-  readonly reversalOfEntryId: DebtLedgerEntryId | null;
+  readonly reversalOfEntryId: CustomerAccountEntryId | null;
   readonly reasonCode: DebtAdjustmentReasonCode | null;
   readonly reason: string | null;
   readonly transactionTime: IsoInstant;
@@ -57,12 +57,12 @@ export type AuditDraft = {
 /**
  * The uniform shape every decision function returns on success.
  *
- * `ledgerEntries` is a list, but for every command in this slice it holds exactly
+ * `accountEntries` is a list, but for every command in this slice it holds exactly
  * zero or one entry. It is a list because the shape should not have to change when
- * a future command (order cancellation, invoice posting) needs two.
+ * a future command (sale cancellation, invoice posting) needs two.
  */
 export type Decision<TAggregate> = {
   readonly aggregate: TAggregate;
-  readonly ledgerEntries: readonly LedgerEntryDraft[];
+  readonly accountEntries: readonly AccountEntryDraft[];
   readonly audit: AuditDraft;
 };

@@ -34,7 +34,7 @@ export const customers = pgTable(
   (table) => [index("customers_workspace_name_idx").on(table.workspaceId, table.displayName)],
 );
 
-/** Catalogue for order lines. Order lines snapshot name and price (ASM-008). */
+/** Catalogue for sale lines. Sale lines snapshot name and price (ASM-008). */
 export const products = pgTable(
   "products",
   {
@@ -43,7 +43,7 @@ export const products = pgTable(
       .notNull()
       .references(() => workspaces.id),
     name: text("name").notNull(),
-    /** Suggested price only; the order line's snapshot is what a customer owes. */
+    /** Suggested price only; the sale line's snapshot is what a customer owes. */
     defaultUnitPriceMinor: bigint("default_unit_price_minor", { mode: "number" }),
     currency: currencyCodeEnum("currency").notNull().default("VND"),
     isActive: boolean("is_active").notNull().default(true),

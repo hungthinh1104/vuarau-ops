@@ -24,9 +24,11 @@ export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
  */
 export const PERMISSIONS = [
   "customer.create",
-  "order.create",
-  "order.confirm",
-  "order.read",
+  "sale.create",
+  "sale.post",
+  /** Removes a receivable without a payment arriving. Sits with `debt.adjust`. */
+  "sale.void",
+  "sale.read",
   "payment.record",
   "payment.reverse",
   "payment.read",
@@ -40,7 +42,8 @@ export type Permission = z.infer<typeof permissionSchema>;
 /**
  * Least privilege by default: a role gets what its job needs and nothing more.
  *
- * `debt.adjust` is held by `owner` and `accountant` only. Everything else is a
+ * `debt.adjust` and `sale.void` are held by `owner` and `accountant` only — the
+ * two ways to move money without a new trade happening. Everything else is a
  * starting point that the depot owner must confirm — recorded as ASM-017, not
  * presented as settled policy.
  */
@@ -48,7 +51,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
   owner: [...PERMISSIONS],
 
   accountant: [
-    "order.read",
+    "sale.void",
+    "sale.read",
     "payment.record",
     "payment.reverse",
     "payment.read",
@@ -56,25 +60,30 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "debt.read",
   ],
 
+  /**
+   * Notably **without** `sale.void`. Somebody who can both create and erase a
+   * sale can make a load disappear from the record entirely, and no reviewer
+   * looking at the balance would see anything missing.
+   */
   sales: [
     "customer.create",
-    "order.create",
-    "order.confirm",
-    "order.read",
+    "sale.create",
+    "sale.post",
+    "sale.read",
     "payment.record",
     "payment.read",
     "debt.read",
   ],
 
-  // Warehouse staff pick and pack against an order; they move no money.
-  warehouse: ["order.read"],
+  // Warehouse staff pick and pack against a sale; they move no money.
+  warehouse: ["sale.read"],
 
   /**
    * Read-only. Whether a driver may record the cash they collect is a real
    * business question and is unanswered (ASM-017) — so the safe default applies
    * and the depot owner decides, rather than a developer.
    */
-  delivery: ["order.read"],
+  delivery: ["sale.read"],
 };
 
 /** Built once; lookup is the hot path on every command. */

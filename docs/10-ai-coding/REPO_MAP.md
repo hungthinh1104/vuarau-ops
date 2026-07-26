@@ -9,9 +9,9 @@ apps/
     src/
       modules/                  one folder per bounded module
         customer/               handlers + DTO mappers
-        sale/
+        sale/                   draft, post, void
         payment/
-        debt/
+        account/                balance and timeline reads
         shared/                 command pipeline, idempotency, authorization
       infrastructure/
         auth/                   JWT verification, principal resolution

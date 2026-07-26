@@ -7,8 +7,9 @@ a separate concept (`CustomerOrder`) that this phase does not model
 
 Each rule has a stable ID, a risk class, the rejection code it produces, and the
 test that proves it. IDs are never reused; a superseded rule is marked deprecated,
-not deleted. Rules marked **planned** are agreed and specified but not yet built —
-`pnpm trace:check` counts them on every run so the gap stays visible.
+not deleted. One rule here is still marked **planned** — BR-SALE-018, the draft edit and
+discard commands. `pnpm trace:check` counts planned rules on every run so the gap
+stays visible rather than remembered.
 
 Historical note: BR-SALE-001…009 were called BR-ORDER-001…009 until the
 terminology was closed. Same rules, same numbers, new vocabulary

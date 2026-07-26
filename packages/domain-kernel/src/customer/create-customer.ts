@@ -47,7 +47,7 @@ export function decideCreateCustomer({
 
   return ok({
     aggregate: customer,
-    ledgerEntries: [],
+    accountEntries: [],
     audit: {
       aggregateType: "customer",
       aggregateId: customer.id,

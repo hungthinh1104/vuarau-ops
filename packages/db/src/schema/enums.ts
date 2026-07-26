@@ -3,8 +3,9 @@ import {
   CURRENCY_CODES,
   WORKSPACE_ROLES,
   DEBT_ADJUSTMENT_REASON_CODES,
-  LEDGER_SOURCE_TYPES,
-  ORDER_STATUSES,
+  ACCOUNT_ENTRY_SOURCE_TYPES,
+  SALE_STATUSES,
+  SALE_VOID_REASON_CODES,
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
   UNITS,
@@ -16,15 +17,19 @@ import {
  */
 export const currencyCodeEnum = pgEnum("currency_code", CURRENCY_CODES);
 export const unitEnum = pgEnum("unit", UNITS);
-export const orderStatusEnum = pgEnum("order_status", ORDER_STATUSES);
+export const saleStatusEnum = pgEnum("sale_status", SALE_STATUSES);
 export const paymentStatusEnum = pgEnum("payment_status", PAYMENT_STATUSES);
 export const paymentMethodEnum = pgEnum("payment_method", PAYMENT_METHODS);
-export const ledgerSourceTypeEnum = pgEnum("ledger_source_type", LEDGER_SOURCE_TYPES);
+export const accountEntrySourceTypeEnum = pgEnum(
+  "account_entry_source_type",
+  ACCOUNT_ENTRY_SOURCE_TYPES,
+);
 export const debtAdjustmentReasonCodeEnum = pgEnum(
   "debt_adjustment_reason_code",
   DEBT_ADJUSTMENT_REASON_CODES,
 );
 export const workspaceRoleEnum = pgEnum("workspace_role", WORKSPACE_ROLES);
+export const saleVoidReasonCodeEnum = pgEnum("sale_void_reason_code", SALE_VOID_REASON_CODES);
 export const commandReceiptStatusEnum = pgEnum("command_receipt_status", [
   "in_progress",
   "completed",

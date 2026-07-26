@@ -14,14 +14,15 @@ import { domainRejectionCodeSchema } from "../shared/rejection-codes.ts";
  * intent. See docs/07-data/data-model.md.
  */
 
-export const AUDIT_AGGREGATE_TYPES = ["customer", "order", "payment", "debt"] as const;
+export const AUDIT_AGGREGATE_TYPES = ["customer", "sale", "payment", "debt"] as const;
 export const auditAggregateTypeSchema = z.enum(AUDIT_AGGREGATE_TYPES);
 export type AuditAggregateType = z.infer<typeof auditAggregateTypeSchema>;
 
 export const AUDIT_ACTIONS = [
   "customer.created",
-  "order.created",
-  "order.confirmed",
+  "sale.draft_created",
+  "sale.posted",
+  "sale.voided",
   "payment.recorded",
   "payment.reversed",
   "debt.adjusted",

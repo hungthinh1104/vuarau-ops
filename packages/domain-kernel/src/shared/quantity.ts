@@ -34,7 +34,7 @@ export function calculateLineTotal(quantity: Quantity, unitPrice: Money): Money 
 }
 
 /**
- * Integer half-up division for non-negative numerators. Both order quantities and
+ * Integer half-up division for non-negative numerators. Both sale quantities and
  * unit prices are non-negative (BR-SALE-003), so the negative case cannot arise
  * and is not silently given a rounding direction it was never assigned.
  */
@@ -50,7 +50,7 @@ export function roundHalfUp(numerator: number, denominator: number): number {
 
 /**
  * Guards the calculation against magnitudes where JavaScript integers stop being
- * exact. Realistic depot amounts sit six orders of magnitude below this; a value
+ * exact. Realistic depot amounts sit six sales of magnitude below this; a value
  * that trips it is a data-entry error or an attack, and either way must not be
  * turned into an approximate debt.
  */

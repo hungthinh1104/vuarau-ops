@@ -1,9 +1,9 @@
 import type {
-  DebtLedgerEntryId,
+  CustomerAccountEntryId,
   IsoInstant,
   ReverseCustomerPaymentCommand,
 } from "@vuarau/domain-contracts";
-import type { Decision, LedgerEntryDraft } from "../shared/effects.ts";
+import type { Decision, AccountEntryDraft } from "../shared/effects.ts";
 import type { PaymentState, PaymentWithReversal } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
@@ -18,7 +18,7 @@ export type ReversePaymentInput = {
    * produced. Looked up by the application layer and passed in, because the
    * kernel does no I/O.
    */
-  readonly originalLedgerEntryId: DebtLedgerEntryId;
+  readonly originalLedgerEntryId: CustomerAccountEntryId;
   readonly recordedAt: IsoInstant;
 };
 
@@ -111,7 +111,7 @@ export function decideReversePayment({
   };
 
   // One compensating entry, linked to what it offsets. Both survive (BR-ACCOUNT-005).
-  const ledgerEntry: LedgerEntryDraft = {
+  const ledgerEntry: AccountEntryDraft = {
     workspaceId: command.workspaceId,
     customerId: payment.customerId,
     amount: payload.amount,
@@ -128,7 +128,7 @@ export function decideReversePayment({
 
   return ok({
     aggregate: { payment: updatedPayment, reversal },
-    ledgerEntries: [ledgerEntry],
+    accountEntries: [ledgerEntry],
     audit: {
       aggregateType: "payment",
       aggregateId: payment.id,

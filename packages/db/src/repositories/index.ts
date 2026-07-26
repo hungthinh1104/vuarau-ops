@@ -7,31 +7,33 @@ import type {
   CommandId,
   CurrencyCode,
   CustomerId,
-  DebtLedgerEntryDto,
+  CustomerAccountEntryDto,
   IdempotencyKey,
   IsoInstant,
-  LedgerSourceType,
-  OrderId,
+  AccountEntrySourceType,
+  SaleId,
   PaymentId,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
 import type {
-  CustomerDebtSummary,
+  CustomerAccountBalance,
   CustomerState,
-  LedgerEntryDraft,
-  OrderState,
+  AccountEntryDraft,
+  SaleState,
   PaymentReversalState,
   PaymentState,
+  SaleVoidState,
 } from "@vuarau/domain-kernel";
 import {
   actors,
   auditLogs,
   commandReceipts,
-  customerDebtSummaries,
+  customerAccountBalances,
   customers,
-  debtLedgerEntries,
-  orderLines,
-  orders,
+  customerAccountEntries,
+  saleLines,
+  saleVoids,
+  sales,
   paymentReversals,
   payments,
   workspaceMemberships,
@@ -39,11 +41,11 @@ import {
 import {
   fromIso,
   fromIsoOrNull,
-  toCustomerDebtSummary,
+  toCustomerAccountBalance,
   toCustomerState,
   toIso,
-  toLedgerEntryDto,
-  toOrderState,
+  toAccountEntryDto,
+  toSaleState,
   toPaymentState,
 } from "./row-mappers.ts";
 
@@ -134,17 +136,17 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
       },
     },
 
-    orders: {
-      async findByIdForUpdate(
-        workspaceId: WorkspaceId,
-        orderId: OrderId,
-      ): Promise<OrderState | null> {
+    sales: {
+      async findByIdForUpdate(workspaceId: WorkspaceId, saleId: SaleId): Promise<SaleState | null> {
         // Row lock held for the rest of the transaction (ADR-0009). Lines are not
-        // locked separately: they are only ever written with their order.
+        // locked separately: they are only ever written with their sale.
+        //
+        // The lock on the *sale* is also what serialises two concurrent voids,
+        // even though a void writes to a different table (BR-SALE-013).
         const rows = await tx
           .select()
-          .from(orders)
-          .where(and(eq(orders.workspaceId, workspaceId), eq(orders.id, orderId)))
+          .from(sales)
+          .where(and(eq(sales.workspaceId, workspaceId), eq(sales.id, saleId)))
           .limit(1)
           .for("update");
         const row = rows[0];
@@ -154,42 +156,49 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
 
         const lineRows = await tx
           .select()
-          .from(orderLines)
-          .where(and(eq(orderLines.workspaceId, workspaceId), eq(orderLines.orderId, orderId)))
-          .orderBy(asc(orderLines.position));
+          .from(saleLines)
+          .where(and(eq(saleLines.workspaceId, workspaceId), eq(saleLines.saleId, saleId)))
+          .orderBy(asc(saleLines.position));
 
-        return toOrderState(row, lineRows);
+        const voidRows = await tx
+          .select()
+          .from(saleVoids)
+          .where(and(eq(saleVoids.workspaceId, workspaceId), eq(saleVoids.saleId, saleId)))
+          .limit(1);
+
+        return toSaleState(row, lineRows, voidRows[0] ?? null);
       },
 
-      async insert(order: OrderState): Promise<void> {
-        await tx.insert(orders).values({
-          id: order.id,
-          workspaceId: order.workspaceId,
-          customerId: order.customerId,
-          status: order.status,
-          currency: order.currency,
-          totalAmountMinor: order.totalAmount.amountMinor,
-          note: order.note,
-          version: order.version,
-          transactionTime: fromIso(order.transactionTime),
-          recordedAt: fromIso(order.recordedAt),
-          confirmedAt: fromIsoOrNull(order.confirmedAt),
-          cancelledAt: fromIsoOrNull(order.cancelledAt),
+      async insert(sale: SaleState): Promise<void> {
+        await tx.insert(sales).values({
+          id: sale.id,
+          workspaceId: sale.workspaceId,
+          customerId: sale.customerId,
+          status: sale.status,
+          currency: sale.currency,
+          totalAmountMinor: sale.totalAmount.amountMinor,
+          note: sale.note,
+          version: sale.version,
+          transactionTime: fromIso(sale.transactionTime),
+          recordedAt: fromIso(sale.recordedAt),
+          postedAt: fromIsoOrNull(sale.postedAt),
+          dueAt: fromIsoOrNull(sale.dueAt),
+          replacesSaleId: sale.replacesSaleId,
         });
 
-        if (order.lines.length > 0) {
-          await tx.insert(orderLines).values(
-            order.lines.map((line, position) => ({
+        if (sale.lines.length > 0) {
+          await tx.insert(saleLines).values(
+            sale.lines.map((line, position) => ({
               id: line.lineId,
-              workspaceId: order.workspaceId,
-              orderId: order.id,
+              workspaceId: sale.workspaceId,
+              saleId: sale.id,
               productId: line.productId,
               productName: line.productName,
               quantityScaled: line.quantity.valueScaled,
               unit: line.quantity.unit,
               unitPriceMinor: line.unitPrice.amountMinor,
               lineTotalMinor: line.lineTotal.amountMinor,
-              currency: order.currency,
+              currency: sale.currency,
               position,
             })),
           );
@@ -197,30 +206,66 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
       },
 
       /**
+       * The one and only mutation of a sale: draft → posted (BR-SALE-008).
+       *
        * Conditional on the version, so a concurrent writer that slipped between
-       * the read and the write loses instead of overwriting (BR-SALE-006).
-       * Order lines are not rewritten here — confirmation does not change them.
+       * the read and the write loses instead of overwriting (BR-SALE-006), and
+       * conditional on `status = 'draft'`, so this cannot touch a posted row even
+       * if a caller passed a stale version that happened to match. Sale lines are
+       * not rewritten — posting does not change them.
        */
-      async update(order: OrderState, expectedVersion: number): Promise<boolean> {
+      async post(sale: SaleState, expectedVersion: number): Promise<boolean> {
         const updated = await tx
-          .update(orders)
+          .update(sales)
           .set({
-            status: order.status,
-            totalAmountMinor: order.totalAmount.amountMinor,
-            note: order.note,
-            version: order.version,
-            confirmedAt: fromIsoOrNull(order.confirmedAt),
-            cancelledAt: fromIsoOrNull(order.cancelledAt),
+            status: "posted",
+            totalAmountMinor: sale.totalAmount.amountMinor,
+            version: sale.version,
+            postedAt: fromIsoOrNull(sale.postedAt),
           })
           .where(
             and(
-              eq(orders.workspaceId, order.workspaceId),
-              eq(orders.id, order.id),
-              eq(orders.version, expectedVersion),
+              eq(sales.workspaceId, sale.workspaceId),
+              eq(sales.id, sale.id),
+              eq(sales.version, expectedVersion),
+              eq(sales.status, "draft"),
             ),
           )
-          .returning({ id: orders.id });
+          .returning({ id: sales.id });
         return updated.length === 1;
+      },
+
+      /**
+       * Appends the void record. Nothing here updates the sale — the sale's
+       * financial state is read from this table's existence (BR-SALE-013), and
+       * `UNIQUE (sale_id)` makes a second void impossible at the storage layer.
+       */
+      async insertVoid(
+        record: SaleVoidState,
+        actorId: ActorId,
+        commandId: CommandId,
+      ): Promise<boolean> {
+        // `onConflictDoNothing` plus a row count, exactly as the receipt claim
+        // works: the unique index decides the winner and the loser is told, not
+        // crashed (BR-SALE-013).
+        const inserted = await tx
+          .insert(saleVoids)
+          .values({
+            id: record.id,
+            workspaceId: record.workspaceId,
+            saleId: record.saleId,
+            reasonCode: record.reasonCode,
+            reason: record.reason,
+            amountMinor: record.amount.amountMinor,
+            currency: record.amount.currency,
+            transactionTime: fromIso(record.transactionTime),
+            recordedAt: fromIso(record.recordedAt),
+            actorId,
+            commandId,
+          })
+          .onConflictDoNothing()
+          .returning({ id: saleVoids.id });
+        return inserted.length === 1;
       },
     },
 
@@ -292,13 +337,15 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     },
 
     /** No update, no delete. The port has no such method and neither does this. */
-    ledger: {
-      async append(drafts: readonly LedgerEntryDraft[]): Promise<readonly DebtLedgerEntryDto[]> {
+    accountEntries: {
+      async append(
+        drafts: readonly AccountEntryDraft[],
+      ): Promise<readonly CustomerAccountEntryDto[]> {
         if (drafts.length === 0) {
           return [];
         }
         const inserted = await tx
-          .insert(debtLedgerEntries)
+          .insert(customerAccountEntries)
           .values(
             drafts.map((draft) => ({
               id: ids.newId(),
@@ -318,70 +365,73 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
             })),
           )
           .returning();
-        return inserted.map(toLedgerEntryDto);
+        return inserted.map(toAccountEntryDto);
       },
 
       async listByCustomer(
         workspaceId: WorkspaceId,
         customerId: CustomerId,
-      ): Promise<readonly DebtLedgerEntryDto[]> {
+      ): Promise<readonly CustomerAccountEntryDto[]> {
         const rows = await tx
           .select()
-          .from(debtLedgerEntries)
+          .from(customerAccountEntries)
           .where(
             and(
-              eq(debtLedgerEntries.workspaceId, workspaceId),
-              eq(debtLedgerEntries.customerId, customerId),
+              eq(customerAccountEntries.workspaceId, workspaceId),
+              eq(customerAccountEntries.customerId, customerId),
             ),
           )
-          .orderBy(asc(debtLedgerEntries.transactionTime), asc(debtLedgerEntries.recordedAt));
-        return rows.map(toLedgerEntryDto);
+          .orderBy(
+            asc(customerAccountEntries.transactionTime),
+            asc(customerAccountEntries.recordedAt),
+          );
+        return rows.map(toAccountEntryDto);
       },
 
       async findBySource(
         workspaceId: WorkspaceId,
-        sourceType: LedgerSourceType,
+        sourceType: AccountEntrySourceType,
         sourceId: string,
-      ): Promise<DebtLedgerEntryDto | null> {
+      ): Promise<CustomerAccountEntryDto | null> {
         const rows = await tx
           .select()
-          .from(debtLedgerEntries)
+          .from(customerAccountEntries)
           .where(
             and(
-              eq(debtLedgerEntries.workspaceId, workspaceId),
-              eq(debtLedgerEntries.sourceType, sourceType),
-              eq(debtLedgerEntries.sourceId, sourceId),
+              eq(customerAccountEntries.workspaceId, workspaceId),
+              eq(customerAccountEntries.sourceType, sourceType),
+              eq(customerAccountEntries.sourceId, sourceId),
             ),
           )
           .limit(1);
         const row = rows[0];
-        return row === undefined ? null : toLedgerEntryDto(row);
+        return row === undefined ? null : toAccountEntryDto(row);
       },
     },
 
-    debtSummaries: {
+    accountBalances: {
       async get(
         workspaceId: WorkspaceId,
         customerId: CustomerId,
-      ): Promise<CustomerDebtSummary | null> {
+      ): Promise<CustomerAccountBalance | null> {
         const rows = await tx
           .select()
-          .from(customerDebtSummaries)
+          .from(customerAccountBalances)
           .where(
             and(
-              eq(customerDebtSummaries.workspaceId, workspaceId),
-              eq(customerDebtSummaries.customerId, customerId),
+              eq(customerAccountBalances.workspaceId, workspaceId),
+              eq(customerAccountBalances.customerId, customerId),
             ),
           )
           .limit(1);
         const row = rows[0];
-        return row === undefined ? null : toCustomerDebtSummary(row);
+        return row === undefined ? null : toCustomerAccountBalance(row);
       },
 
       /** Upsert: the projection is disposable and always safe to overwrite. */
-      async save(summary: CustomerDebtSummary): Promise<void> {
+      async save(summary: CustomerAccountBalance): Promise<void> {
         await tx
-          .insert(customerDebtSummaries)
+          .insert(customerAccountBalances)
           .values({
             workspaceId: summary.workspaceId,
             customerId: summary.customerId,
@@ -392,7 +442,7 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
             updatedAt: fromIso(summary.updatedAt),
           })
           .onConflictDoUpdate({
-            target: [customerDebtSummaries.workspaceId, customerDebtSummaries.customerId],
+            target: [customerAccountBalances.workspaceId, customerAccountBalances.customerId],
             set: {
               balanceMinor: summary.balance.amountMinor,
               entryCount: summary.entryCount,

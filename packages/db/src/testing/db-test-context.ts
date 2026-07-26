@@ -2,19 +2,19 @@ import { and, asc, eq } from "drizzle-orm";
 import type {
   ActorId,
   CustomerId,
-  DebtLedgerEntryDto,
+  CustomerAccountEntryDto,
   ProductId,
   WorkspaceId,
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
 import { createDatabase, type Database } from "../client.ts";
 import { runMigrations } from "../migrate.ts";
-import { toLedgerEntryDto } from "../repositories/row-mappers.ts";
+import { toAccountEntryDto } from "../repositories/row-mappers.ts";
 import {
   actors,
   auditLogs,
   customers,
-  debtLedgerEntries,
+  customerAccountEntries,
   products,
   workspaces,
   workspaceMemberships,
@@ -49,14 +49,14 @@ export type DbTestContext = {
   readonly foreignActorId: ActorId;
   subjectOf(actorId: ActorId): string;
   /**
-   * The seeded customer's ledger, in business-time order.
+   * The seeded customer's ledger, in business-time sale.
    *
    * Provided here so that `apps/api` integration tests can assert on stored rows
    * without importing `drizzle-orm` — the API layer talks to persistence through
    * ports, and a test that reached for the query builder would be the first
    * crack in that (docs/10-ai-coding/REPO_MAP.md).
    */
-  ledgerRows(): Promise<readonly DebtLedgerEntryDto[]>;
+  accountEntryRows(): Promise<readonly CustomerAccountEntryDto[]>;
   auditActions(): Promise<readonly string[]>;
   close(): Promise<void>;
 };
@@ -170,18 +170,21 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
     foreignActorId,
     subjectOf,
 
-    async ledgerRows() {
+    async accountEntryRows() {
       const rows = await database.db
         .select()
-        .from(debtLedgerEntries)
+        .from(customerAccountEntries)
         .where(
           and(
-            eq(debtLedgerEntries.workspaceId, workspaceId),
-            eq(debtLedgerEntries.customerId, customerId),
+            eq(customerAccountEntries.workspaceId, workspaceId),
+            eq(customerAccountEntries.customerId, customerId),
           ),
         )
-        .orderBy(asc(debtLedgerEntries.transactionTime), asc(debtLedgerEntries.recordedAt));
-      return rows.map(toLedgerEntryDto);
+        .orderBy(
+          asc(customerAccountEntries.transactionTime),
+          asc(customerAccountEntries.recordedAt),
+        );
+      return rows.map(toAccountEntryDto);
     },
 
     async auditActions() {

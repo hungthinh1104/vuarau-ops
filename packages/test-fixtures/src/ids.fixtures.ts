@@ -2,10 +2,11 @@ import type {
   ActorId,
   CommandId,
   CustomerId,
-  DebtLedgerEntryId,
+  CustomerAccountEntryId,
   IdempotencyKey,
-  OrderId,
-  OrderLineId,
+  SaleId,
+  SaleVoidId,
+  SaleLineId,
   PaymentId,
   PaymentReversalId,
   ProductId,
@@ -61,13 +62,18 @@ export const PRODUCT_CA_CHUA_ID = uuid("d", 1) as ProductId;
 export const PRODUCT_RAU_MUONG_ID = uuid("d", 2) as ProductId;
 export const PRODUCT_OT_ID = uuid("d", 3) as ProductId;
 
-export const ORDER_ID = uuid("e", 1) as OrderId;
-export const EMPTY_ORDER_ID = uuid("e", 2) as OrderId;
-export const CONFIRMED_ORDER_ID = uuid("e", 3) as OrderId;
+export const SALE_ID = uuid("e", 1) as SaleId;
+export const EMPTY_SALE_ID = uuid("e", 2) as SaleId;
+export const POSTED_SALE_ID = uuid("e", 3) as SaleId;
+export const VOIDED_SALE_ID = uuid("e", 4) as SaleId;
+export const DUE_SALE_ID = uuid("e", 5) as SaleId;
+export const REPLACEMENT_SALE_ID = uuid("e", 6) as SaleId;
+export const SALE_VOID_ID = uuid("e", 7) as SaleVoidId;
+export const SECOND_SALE_VOID_ID = uuid("e", 8) as SaleVoidId;
 
-export const ORDER_LINE_1_ID = uuid("f", 1) as OrderLineId;
-export const ORDER_LINE_2_ID = uuid("f", 2) as OrderLineId;
-export const ORDER_LINE_3_ID = uuid("f", 3) as OrderLineId;
+export const SALE_LINE_1_ID = uuid("f", 1) as SaleLineId;
+export const SALE_LINE_2_ID = uuid("f", 2) as SaleLineId;
+export const SALE_LINE_3_ID = uuid("f", 3) as SaleLineId;
 
 export const PAYMENT_ID = uuid("1", 1) as PaymentId;
 export const PARTIALLY_REVERSED_PAYMENT_ID = uuid("1", 2) as PaymentId;
@@ -76,8 +82,8 @@ export const FULLY_REVERSED_PAYMENT_ID = uuid("1", 3) as PaymentId;
 export const REVERSAL_ID = uuid("2", 1) as PaymentReversalId;
 export const SECOND_REVERSAL_ID = uuid("2", 2) as PaymentReversalId;
 
-export const LEDGER_ENTRY_1_ID = uuid("3", 1) as DebtLedgerEntryId;
-export const LEDGER_ENTRY_2_ID = uuid("3", 2) as DebtLedgerEntryId;
+export const LEDGER_ENTRY_1_ID = uuid("3", 1) as CustomerAccountEntryId;
+export const LEDGER_ENTRY_2_ID = uuid("3", 2) as CustomerAccountEntryId;
 
 export const COMMAND_ID = uuid("4", 1) as CommandId;
 export const SECOND_COMMAND_ID = uuid("4", 2) as CommandId;

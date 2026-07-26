@@ -62,16 +62,15 @@ BR-CUSTOMER-002,
 BR-COMMAND-001, BR-COMMAND-002, BR-COMMAND-003, BR-COMMAND-005, BR-COMMAND-006,
 BR-AUTH-001, BR-AUTH-002, BR-AUTH-003, BR-AUTH-004, BR-AUTH-006.
 
-Thirty rules. **Twenty-five are implemented and carry at least one automated
-test.** Five — BR-SALE-010, BR-SALE-011, BR-SALE-012, BR-SALE-013 and
-BR-COMMAND-006 — are marked `status: planned` in
-[trace-map.yml](trace-map.yml): specified and agreed, not yet built.
+Thirty rules, **every one of them implemented and carrying at least one automated
+test**. No P0 rule is currently `status: planned`.
 
-A planned P0 rule is **exempt from the test requirement only while it is planned**,
-because there is nothing yet for a test to run against. `pnpm trace:check` prints
-the planned count on every run and fails the build the moment such a rule gains an
-implementation without gaining a test. The exemption is a countdown, not a
-loophole.
+Four rules remain planned — BR-SALE-018, BR-CUSTOMER-003, BR-CUSTOMER-004 and
+BR-AUTH-007 — and all four are P1. A planned rule is exempt from the test
+requirement only while it is planned, because there is nothing yet for a test to
+run against; `pnpm trace:check` prints the count on every run and fails the moment
+such a rule gains an implementation without gaining a test. The exemption is a
+countdown, not a loophole.
 
 ## Related
 

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { TRPCError } from "@trpc/server";
 import {
-  customerDebtSummaryDtoSchema,
-  orderDtoSchema,
+  customerAccountBalanceDtoSchema,
+  saleDtoSchema,
   paymentDtoSchema,
   type DomainError,
 } from "@vuarau/domain-contracts";
@@ -11,13 +11,13 @@ import {
   ACTOR_ID,
   CUSTOMER_ID,
   LATER_TRANSACTION_TIME,
-  ORDER_ID,
+  SALE_ID,
   PAYMENT_ID,
   SALES_ACTOR_ID,
   TRANSACTION_TIME,
   WAREHOUSE_ACTOR_ID,
   WORKSPACE_ID,
-  orderLineInputs,
+  saleLineInputs,
 } from "@vuarau/test-fixtures";
 import { createHarness, principalFor, type Harness } from "../../testing/command-test-harness.ts";
 import { appRouter } from "./router.ts";
@@ -46,11 +46,11 @@ const envelope = (key: string, occurredAt: string = TRANSACTION_TIME) => ({
   occurredAt,
 });
 
-const orderPayload = {
-  orderId: ORDER_ID,
+const salePayload = {
+  saleId: SALE_ID,
   customerId: CUSTOMER_ID,
   currency: "VND" as const,
-  lines: [...orderLineInputs],
+  lines: [...saleLineInputs],
   note: null,
 };
 
@@ -62,89 +62,92 @@ function domainErrorOf(error: unknown): DomainError {
   return cause!.domainError!;
 }
 
-describe("UC-ORDER-001 / TC-SALE-013 — order procedures", () => {
-  it("returns an OrderDto that satisfies the published schema", async () => {
-    const created = await caller.order.create({
-      ...envelope("contract-order-create"),
-      payload: orderPayload,
+describe("UC-ORDER-001 / TC-SALE-013 — sale procedures", () => {
+  it("returns an SaleDto that satisfies the published schema", async () => {
+    const created = await caller.sale.createDraft({
+      ...envelope("contract-sale-create"),
+      payload: salePayload,
     });
 
     // Parsing against the contract schema is the assertion: a DTO that drifts
     // from what clients were promised fails here, not in production.
-    const parsed = orderDtoSchema.safeParse(created);
+    const parsed = saleDtoSchema.safeParse(created);
     expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
     expect(created.totalAmount.amountMinor).toBe(875_000);
   });
 
   it("exposes server-computed capabilities on the draft", async () => {
-    const created = await caller.order.create({
-      ...envelope("contract-order-caps"),
-      payload: orderPayload,
+    const created = await caller.sale.createDraft({
+      ...envelope("contract-sale-caps"),
+      payload: salePayload,
     });
 
-    expect(created.capabilities.confirm.allowed).toBe(true);
+    expect(created.capabilities.post.allowed).toBe(true);
     // Documented in the state machine, not implemented in this phase (ASM-005).
-    expect(created.capabilities.cancel).toEqual({
+    expect(created.capabilities.edit).toEqual({
       allowed: false,
       reasonCode: "COMMAND_NOT_AVAILABLE",
-      details: { command: "CancelOrder" },
+      details: { command: "EditSaleDraft" },
     });
   });
 
-  it("flips the confirm capability once the order is confirmed", async () => {
-    await caller.order.create({ ...envelope("contract-order-c1"), payload: orderPayload });
-    const confirmed = await caller.order.confirm({
-      ...envelope("contract-order-c2"),
+  it("flips the post capability once the sale is posted", async () => {
+    await caller.sale.createDraft({ ...envelope("contract-sale-c1"), payload: salePayload });
+    const posted = await caller.sale.post({
+      ...envelope("contract-sale-c2"),
       expectedVersion: 1,
-      payload: { orderId: ORDER_ID },
+      payload: { saleId: SALE_ID },
     });
 
-    expect(confirmed.status).toBe("confirmed");
-    expect(confirmed.capabilities.confirm).toEqual({
+    expect(posted.status).toBe("posted");
+    expect(posted.capabilities.post).toEqual({
       allowed: false,
-      reasonCode: "ORDER_ALREADY_CONFIRMED",
-      details: { orderId: ORDER_ID },
+      reasonCode: "SALE_ALREADY_POSTED",
+      details: { saleId: SALE_ID },
     });
   });
 
-  it("returns a stable domain code when confirming an empty order", async () => {
-    await caller.order.create({
+  it("returns a stable domain code when posting an empty sale", async () => {
+    await caller.sale.createDraft({
       ...envelope("contract-empty-create"),
-      payload: { ...orderPayload, lines: [] },
+      payload: { ...salePayload, lines: [] },
     });
 
     try {
-      await caller.order.confirm({
-        ...envelope("contract-empty-confirm"),
+      await caller.sale.post({
+        ...envelope("contract-empty-post"),
         expectedVersion: 1,
-        payload: { orderId: ORDER_ID },
+        payload: { saleId: SALE_ID },
       });
-      expect.unreachable("confirming an empty order must be refused");
+      expect.unreachable("posting an empty sale must be refused");
     } catch (error) {
       const domainError = domainErrorOf(error);
-      expect(domainError.code).toBe("ORDER_EMPTY");
+      expect(domainError.code).toBe("SALE_EMPTY");
       expect(domainError.retryable).toBe(false);
     }
   });
 
   it("maps a version conflict to CONFLICT while keeping the domain code", async () => {
-    await caller.order.create({ ...envelope("contract-conflict-create"), payload: orderPayload });
-    await caller.order.confirm({
+    await caller.sale.createDraft({
+      ...envelope("contract-conflict-create"),
+      payload: salePayload,
+    });
+    await caller.sale.post({
       ...envelope("contract-conflict-c1"),
       expectedVersion: 1,
-      payload: { orderId: ORDER_ID },
+      payload: { saleId: SALE_ID },
     });
 
     try {
-      await caller.order.confirm({
+      await caller.sale.post({
         ...envelope("contract-conflict-c2"),
         expectedVersion: 1,
-        payload: { orderId: ORDER_ID },
+        payload: { saleId: SALE_ID },
       });
       expect.unreachable("a stale version must be refused");
     } catch (error) {
       expect((error as TRPCError).code).toBe("CONFLICT");
-      expect(domainErrorOf(error).code).toBe("ORDER_VERSION_CONFLICT");
+      expect(domainErrorOf(error).code).toBe("SALE_VERSION_CONFLICT");
     }
   });
 });
@@ -205,12 +208,12 @@ describe("UC-PAYMENT-001 / TC-PAYMENT-012 — payment procedures", () => {
 
 describe("UC-ACCOUNT-002 / TC-ACCOUNT-008 — debt procedures", () => {
   it("returns a summary that satisfies the published schema", async () => {
-    const summary = await caller.debt.summary({
+    const summary = await caller.account.balance({
       workspaceId: WORKSPACE_ID,
       customerId: CUSTOMER_ID,
     });
 
-    const parsed = customerDebtSummaryDtoSchema.safeParse(summary);
+    const parsed = customerAccountBalanceDtoSchema.safeParse(summary);
     expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
     expect(summary.balance.amountMinor).toBe(0);
   });
@@ -228,7 +231,7 @@ describe("UC-ACCOUNT-002 / TC-ACCOUNT-008 — debt procedures", () => {
       },
     });
 
-    const ledger = await caller.debt.ledger({
+    const ledger = await caller.account.entries({
       workspaceId: WORKSPACE_ID,
       customerId: CUSTOMER_ID,
     });
@@ -261,10 +264,10 @@ describe("UC-ACCOUNT-002 / TC-ACCOUNT-008 — debt procedures", () => {
 describe("BR-AUTH-002 / TC-CUSTOMER-003 — actor impersonation", () => {
   it("refuses a command whose actorId is not the authenticated actor", async () => {
     try {
-      await caller.order.create({
+      await caller.sale.createDraft({
         ...envelope("contract-impersonate"),
         actorId: SALES_ACTOR_ID,
-        payload: orderPayload,
+        payload: salePayload,
       });
       expect.unreachable("acting as another actor must be refused");
     } catch (error) {
@@ -274,9 +277,9 @@ describe("BR-AUTH-002 / TC-CUSTOMER-003 — actor impersonation", () => {
   });
 
   it("allows a command whose actorId matches the authenticated actor", async () => {
-    const created = await caller.order.create({
+    const created = await caller.sale.createDraft({
       ...envelope("contract-authenticated"),
-      payload: orderPayload,
+      payload: salePayload,
     });
     expect(created.status).toBe("draft");
   });
@@ -295,15 +298,15 @@ describe("BR-AUTH-001 / TC-AUTH-001 — unauthenticated access", () => {
     });
 
     await expect(
-      anonymous.debt.summary({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID }),
+      anonymous.account.balance({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
     await expect(
-      anonymous.order.create({ ...envelope("contract-anon"), payload: orderPayload }),
+      anonymous.sale.createDraft({ ...envelope("contract-anon"), payload: salePayload }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
-  it("refuses a read of a debt ledger without a token — this was open before Milestone 1", async () => {
+  it("refuses a read of a customer account without a token — this was open before Milestone 1", async () => {
     const anonymous = appRouter.createCaller({
       deps: harness.deps,
       principal: null,
@@ -315,17 +318,17 @@ describe("BR-AUTH-001 / TC-AUTH-001 — unauthenticated access", () => {
     });
 
     try {
-      await anonymous.debt.ledger({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID });
-      expect.unreachable("an unauthenticated ledger read must be refused");
+      await anonymous.account.entries({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID });
+      expect.unreachable("an unauthenticated account read must be refused");
     } catch (error) {
       expect(domainErrorOf(error).code).toBe("AUTHENTICATION_INVALID");
     }
   });
 });
 
-describe("BR-AUTH-006 / TC-AUTH-006 — debt capabilities on the summary", () => {
+describe("BR-AUTH-006 / TC-AUTH-006 — account capabilities on the balance", () => {
   it("tells an owner they may adjust debt", async () => {
-    const summary = await caller.debt.summary({
+    const summary = await caller.account.balance({
       workspaceId: WORKSPACE_ID,
       customerId: CUSTOMER_ID,
     });
@@ -338,7 +341,7 @@ describe("BR-AUTH-006 / TC-AUTH-006 — debt capabilities on the summary", () =>
     );
 
     try {
-      await warehouse.debt.summary({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID });
+      await warehouse.account.balance({ workspaceId: WORKSPACE_ID, customerId: CUSTOMER_ID });
       expect.unreachable("warehouse has no debt.read permission");
     } catch (error) {
       expect(domainErrorOf(error).code).toBe("PERMISSION_DENIED");
@@ -350,7 +353,7 @@ describe("BR-AUTH-006 / TC-AUTH-006 — debt capabilities on the summary", () =>
       createTrustedContext(harness.deps, principalFor(ACCOUNTANT_ACTOR_ID)),
     );
 
-    const summary = await accountant.debt.summary({
+    const summary = await accountant.account.balance({
       workspaceId: WORKSPACE_ID,
       customerId: CUSTOMER_ID,
     });

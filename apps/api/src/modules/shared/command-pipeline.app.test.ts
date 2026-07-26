@@ -54,7 +54,7 @@ describe("BR-COMMAND-001 / TC-COMMAND-001", () => {
 
     expect(replay.value).toEqual(first.value);
     expect(harness.db.payments()).toHaveLength(1);
-    expect(harness.db.ledgerEntries()).toHaveLength(1);
+    expect(harness.db.accountEntries()).toHaveLength(1);
     expect(harness.db.auditRecords()).toHaveLength(1);
   });
 
@@ -99,7 +99,7 @@ describe("BR-COMMAND-002 / TC-COMMAND-002", () => {
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(-500_000);
   });
 
-  it("accepts a replay whose JSON field order differs", async () => {
+  it("accepts a replay whose JSON field sale differs", async () => {
     const first = await recordCustomerPayment(harness.ctx, paymentInput());
 
     const reordered = await recordCustomerPayment(
@@ -132,7 +132,7 @@ describe("BR-COMMAND-003 / TC-COMMAND-003", () => {
     expect(result.value.transactionTime).toBe(LATER_TRANSACTION_TIME);
     expect(result.value.recordedAt).toBe(LATEST_RECORDED_AT);
 
-    const entry = harness.db.ledgerEntries()[0]!;
+    const entry = harness.db.accountEntries()[0]!;
     expect(entry.transactionTime).toBe(LATER_TRANSACTION_TIME);
     expect(entry.recordedAt).toBe(LATEST_RECORDED_AT);
   });
@@ -140,7 +140,7 @@ describe("BR-COMMAND-003 / TC-COMMAND-003", () => {
   it("gives every row a command writes the same recorded instant", async () => {
     await recordCustomerPayment(harness.ctx, paymentInput());
 
-    const entry = harness.db.ledgerEntries()[0]!;
+    const entry = harness.db.accountEntries()[0]!;
     const audit = harness.db.auditRecords()[0]!;
     expect(audit.recordedAt).toBe(entry.recordedAt);
   });
@@ -156,7 +156,7 @@ describe("BR-COMMAND-004 / TC-COMMAND-005", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("TRANSACTION_TIME_IN_FUTURE");
-    expect(harness.db.ledgerEntries()).toHaveLength(0);
+    expect(harness.db.accountEntries()).toHaveLength(0);
   });
 
   it("accepts a back-dated transaction time — that is normal, not an error", async () => {
@@ -188,9 +188,9 @@ describe("BR-COMMAND-005 / TC-COMMAND-004", () => {
 
     expect(result.ok).toBe(false);
     expect(harness.db.payments()).toHaveLength(0);
-    expect(harness.db.ledgerEntries()).toHaveLength(0);
+    expect(harness.db.accountEntries()).toHaveLength(0);
     expect(harness.db.auditRecords()).toHaveLength(0);
-    expect(harness.db.summaryFor(WORKSPACE_ID, CUSTOMER_ID)).toBeNull();
+    expect(harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID)).toBeNull();
   });
 
   it("does not consume the idempotency key of a refused command", async () => {
@@ -216,13 +216,13 @@ describe("BR-COMMAND-005 / TC-COMMAND-004", () => {
         harness.ctx,
         paymentInput({ commandId: SECOND_COMMAND_ID, idempotencyKey: OTHER_IDEMPOTENCY_KEY }),
       ),
-    ).rejects.toThrow(/Duplicate ledger entry/);
+    ).rejects.toThrow(/Duplicate account entry/);
 
     // Exactly the state after the first payment — nothing half-applied.
     expect(harness.db.payments()).toHaveLength(1);
-    expect(harness.db.ledgerEntries()).toHaveLength(1);
+    expect(harness.db.accountEntries()).toHaveLength(1);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(-500_000);
-    expect(harness.db.summaryFor(WORKSPACE_ID, CUSTOMER_ID)?.entryCount).toBe(1);
+    expect(harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID)?.entryCount).toBe(1);
   });
 });
 

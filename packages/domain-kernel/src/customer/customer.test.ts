@@ -79,7 +79,7 @@ describe("BR-CUSTOMER-001 / TC-CUSTOMER-001", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.ledgerEntries).toHaveLength(0);
+    expect(result.value.accountEntries).toHaveLength(0);
   });
 
   it("trims the stored name", () => {

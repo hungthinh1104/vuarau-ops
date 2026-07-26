@@ -2,21 +2,22 @@ import type {
   ActorId,
   CommandId,
   CustomerId,
-  DebtLedgerEntryDto,
+  CustomerAccountEntryDto,
   IdempotencyKey,
   IsoInstant,
-  LedgerSourceType,
-  OrderId,
+  AccountEntrySourceType,
+  SaleId,
   PaymentId,
   WorkspaceId,
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
 import type {
   AuditDraft,
-  CustomerDebtSummary,
+  CustomerAccountBalance,
   CustomerState,
-  LedgerEntryDraft,
-  OrderState,
+  AccountEntryDraft,
+  SaleState,
+  SaleVoidState,
   PaymentReversalState,
   PaymentState,
 } from "@vuarau/domain-kernel";
@@ -65,16 +66,37 @@ export type CustomerRepository = {
   insert(customer: CustomerState): Promise<void>;
 };
 
-export type OrderRepository = {
-  /** Takes a row lock for the duration of the transaction (ADR-0009). */
-  findByIdForUpdate(workspaceId: WorkspaceId, orderId: OrderId): Promise<OrderState | null>;
-  insert(order: OrderState): Promise<void>;
+export type SaleRepository = {
   /**
-   * Updates only if the stored version still matches `expectedVersion`.
-   * Returns false when it does not — the caller turns that into a version
-   * conflict rather than overwriting someone else's change.
+   * Takes a row lock for the duration of the transaction (ADR-0009), and loads
+   * the void record alongside — whether a sale is voided is a fact about a
+   * different table, deliberately (BR-SALE-008).
    */
-  update(order: OrderState, expectedVersion: number): Promise<boolean>;
+  findByIdForUpdate(workspaceId: WorkspaceId, saleId: SaleId): Promise<SaleState | null>;
+  insert(sale: SaleState): Promise<void>;
+  /**
+   * The only mutation a sale ever receives: `draft` → `posted`. Named `post`
+   * rather than `update` because that is the only thing it may do — a generic
+   * update is how a posted sale eventually gets edited by something that had no
+   * business editing it.
+   *
+   * Applies only if the stored version still matches `expectedVersion` **and**
+   * the row is still a draft. Returns false when it does not; the caller turns
+   * that into a version conflict rather than overwriting someone else's change.
+   */
+  post(sale: SaleState, expectedVersion: number): Promise<boolean>;
+  /**
+   * Appends the void record. Note that nothing here touches the sale: the void is
+   * written beside it, and the sale's financial state is derived from the pair
+   * (BR-SALE-012, ADR-0012).
+   *
+   * Returns **false** when `UNIQUE (sale_id)` already holds a void for this sale
+   * — the structural half of BR-SALE-013 firing. Reported rather than thrown so
+   * the caller can answer `SALE_ALREADY_VOIDED`: a race between two people who
+   * both spotted the same wrong sale is an ordinary Tuesday in a depot, and it
+   * deserves a business answer rather than a 500.
+   */
+  insertVoid(record: SaleVoidState, actorId: ActorId, commandId: CommandId): Promise<boolean>;
 };
 
 export type PaymentRepository = {
@@ -88,23 +110,23 @@ export type PaymentRepository = {
  * Note the absence of `update` and `delete`. The ledger is append-only
  * (BR-ACCOUNT-005) and the port is shaped so that violating it is not expressible.
  */
-export type DebtLedgerRepository = {
-  append(entries: readonly LedgerEntryDraft[]): Promise<readonly DebtLedgerEntryDto[]>;
+export type CustomerAccountEntryRepository = {
+  append(entries: readonly AccountEntryDraft[]): Promise<readonly CustomerAccountEntryDto[]>;
   listByCustomer(
     workspaceId: WorkspaceId,
     customerId: CustomerId,
-  ): Promise<readonly DebtLedgerEntryDto[]>;
-  /** Finds the entry a given order confirmation or payment produced. */
+  ): Promise<readonly CustomerAccountEntryDto[]>;
+  /** Finds the entry a given sale posting, void, or payment produced. */
   findBySource(
     workspaceId: WorkspaceId,
-    sourceType: LedgerSourceType,
+    sourceType: AccountEntrySourceType,
     sourceId: string,
-  ): Promise<DebtLedgerEntryDto | null>;
+  ): Promise<CustomerAccountEntryDto | null>;
 };
 
-export type DebtSummaryRepository = {
-  get(workspaceId: WorkspaceId, customerId: CustomerId): Promise<CustomerDebtSummary | null>;
-  save(summary: CustomerDebtSummary): Promise<void>;
+export type CustomerAccountBalanceRepository = {
+  get(workspaceId: WorkspaceId, customerId: CustomerId): Promise<CustomerAccountBalance | null>;
+  save(summary: CustomerAccountBalance): Promise<void>;
 };
 
 export type AuditRepository = {
@@ -148,17 +170,17 @@ export type Repositories = {
   readonly workspaces: WorkspaceRepository;
   readonly actors: ActorRepository;
   readonly customers: CustomerRepository;
-  readonly orders: OrderRepository;
+  readonly sales: SaleRepository;
   readonly payments: PaymentRepository;
-  readonly ledger: DebtLedgerRepository;
-  readonly debtSummaries: DebtSummaryRepository;
+  readonly accountEntries: CustomerAccountEntryRepository;
+  readonly accountBalances: CustomerAccountBalanceRepository;
   readonly audit: AuditRepository;
   readonly receipts: CommandReceiptRepository;
 };
 
 /**
  * One transaction per command (BR-COMMAND-005). Everything a command writes —
- * aggregate, ledger entries, summary, audit record, receipt — commits together or
+ * aggregate, account entries, balance, audit record, receipt — commits together or
  * not at all.
  */
 export type UnitOfWork = {

@@ -43,7 +43,7 @@ export const UNIT_LABEL_VI: Readonly<Record<Unit, string>> = {
 export const quantitySchema = z.object({
   /**
    * Positivity is enforced by the domain (BR-SALE-003), not here, so that a
-   * zero-quantity line is refused with `ORDER_LINE_INVALID` and the index of the
+   * zero-quantity line is refused with `SALE_LINE_INVALID` and the index of the
    * line that is wrong — not a generic schema error.
    */
   valueScaled: z.int(),

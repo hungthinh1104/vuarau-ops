@@ -7,9 +7,9 @@
     ".": "./src/index.ts",
     "./shared": "./src/shared/index.ts",
     "./customer": "./src/customer/index.ts",
-    "./order": "./src/order/index.ts",
+    "./sale": "./src/sale/index.ts",
     "./payment": "./src/payment/index.ts",
-    "./debt": "./src/debt/index.ts"
+    "./account": "./src/account/index.ts"
   },
   "dependencies": {
     "@vuarau/domain-contracts": "workspace:*"

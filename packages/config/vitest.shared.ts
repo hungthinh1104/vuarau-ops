@@ -3,7 +3,7 @@ import type { ViteUserConfig } from "vitest/config";
 /**
  * Settings shared by every Vitest project in the workspace.
  *
- * Determinism is the point: no watch mode in CI, no random test order, and a
+ * Determinism is the point: no watch mode in CI, no random test sale, and a
  * timeout short enough that a hung database connection fails loudly instead of
  * stalling the pipeline.
  */

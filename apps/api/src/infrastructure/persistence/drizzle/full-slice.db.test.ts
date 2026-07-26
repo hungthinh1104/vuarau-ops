@@ -2,12 +2,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDbTestContext, createUnitOfWork, hasDatabase, type DbTestContext } from "@vuarau/db";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
-import { createOrder } from "../../../modules/order/create-order.handler.ts";
-import { confirmOrder } from "../../../modules/order/confirm-order.handler.ts";
+import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
+import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
 import { reverseCustomerPayment } from "../../../modules/payment/reverse-payment.handler.ts";
-import { adjustCustomerDebt } from "../../../modules/debt/adjust-debt.handler.ts";
-import { getCustomerDebtSummary, rebuildDebtSummary } from "../../../modules/debt/debt.queries.ts";
+import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
+import { adjustCustomerDebt } from "../../../modules/account/adjust-debt.handler.ts";
+import {
+  getCustomerAccountBalance,
+  rebuildAccountBalance,
+} from "../../../modules/account/account.queries.ts";
 
 /**
  * The whole slice, end to end, against real Postgres: real transactions, real
@@ -36,7 +40,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     await ctx?.close();
   });
 
-  const orderId = crypto.randomUUID();
+  const saleId = crypto.randomUUID();
   const paymentId = crypto.randomUUID();
   const reversalId = crypto.randomUUID();
   const transactionTime = "2026-07-20T05:00:00.000+07:00";
@@ -49,13 +53,13 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     occurredAt: transactionTime,
   });
 
-  const ledgerRows = () => ctx.ledgerRows();
+  const accountEntryRows = () => ctx.accountEntryRows();
 
   it("BR-SALE-007 / TC-SALE-003 — confirming creates exactly one ledger entry", async () => {
-    const created = await createOrder(owner, {
-      ...envelope("db-order-create"),
+    const created = await createSaleDraft(owner, {
+      ...envelope("db-sale-create"),
       payload: {
-        orderId,
+        saleId,
         customerId: ctx.customerId,
         currency: "VND",
         lines: [
@@ -89,45 +93,45 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     if (!created.ok) return;
     expect(created.value.totalAmount.amountMinor).toBe(875_000);
     // A draft moves no money.
-    expect(await ledgerRows()).toHaveLength(0);
+    expect(await accountEntryRows()).toHaveLength(0);
 
-    const confirmed = await confirmOrder(owner, {
-      ...envelope("db-order-confirm"),
+    const confirmed = await postSale(owner, {
+      ...envelope("db-sale-confirm"),
       expectedVersion: 1,
-      payload: { orderId },
+      payload: { saleId },
     });
 
     expect(confirmed.ok).toBe(true);
-    const entries = await ledgerRows();
+    const entries = await accountEntryRows();
     expect(entries).toHaveLength(1);
     expect(entries[0]?.amount.amountMinor).toBe(875_000);
-    expect(entries[0]?.sourceType).toBe("order_confirmation");
+    expect(entries[0]?.sourceType).toBe("sale_posting");
   });
 
   it("BR-COMMAND-001 / TC-SALE-004 — a retried confirmation does not duplicate debt", async () => {
-    const replay = await confirmOrder(owner, {
-      ...envelope("db-order-confirm"),
+    const replay = await postSale(owner, {
+      ...envelope("db-sale-confirm"),
       expectedVersion: 1,
-      payload: { orderId },
+      payload: { saleId },
     });
 
     expect(replay.ok).toBe(true);
-    expect(await ledgerRows()).toHaveLength(1);
+    expect(await accountEntryRows()).toHaveLength(1);
 
-    const summary = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
+    const summary = await getCustomerAccountBalance(owner, ctx.workspaceId, ctx.customerId);
     expect(summary.ok && summary.value.balance.amountMinor).toBe(875_000);
   });
 
   it("BR-SALE-006 / TC-SALE-005 — a stale version is rejected by the real update", async () => {
-    const stale = await confirmOrder(owner, {
-      ...envelope("db-order-confirm-stale"),
+    const stale = await postSale(owner, {
+      ...envelope("db-sale-confirm-stale"),
       expectedVersion: 1,
-      payload: { orderId },
+      payload: { saleId },
     });
 
     expect(stale.ok).toBe(false);
     if (stale.ok) return;
-    expect(stale.error.code).toBe("ORDER_VERSION_CONFLICT");
+    expect(stale.error.code).toBe("SALE_VERSION_CONFLICT");
   });
 
   it("BR-PAYMENT-002 / TC-PAYMENT-001 — a payment reduces the balance once", async () => {
@@ -144,7 +148,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     });
 
     expect(paid.ok).toBe(true);
-    const summary = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
+    const summary = await getCustomerAccountBalance(owner, ctx.workspaceId, ctx.customerId);
     expect(summary.ok).toBe(true);
     if (!summary.ok) return;
     expect(summary.value.balance.amountMinor).toBe(375_000);
@@ -167,7 +171,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     if (!reversed.ok) return;
     expect(reversed.value.status).toBe("reversed");
 
-    const entries = await ledgerRows();
+    const entries = await accountEntryRows();
     expect(entries).toHaveLength(3);
 
     const original = entries.find((entry) => entry.sourceType === "payment");
@@ -176,7 +180,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(compensating?.amount.amountMinor).toBe(500_000);
     expect(compensating?.reversalOfEntryId).toBe(original?.id);
 
-    const summary = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
+    const summary = await getCustomerAccountBalance(owner, ctx.workspaceId, ctx.customerId);
     expect(summary.ok && summary.value.balance.amountMinor).toBe(875_000);
   });
 
@@ -197,17 +201,17 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     if (!adjusted.ok) return;
     expect(adjusted.value.balance.amountMinor).toBe(625_000);
 
-    const entries = await ledgerRows();
+    const entries = await accountEntryRows();
     const adjustment = entries.find((entry) => entry.sourceType === "manual_adjustment");
     expect(adjustment?.reason).toBe("Đơn 875k ghi nhầm 2 thùng ớt, thực tế 1 thùng");
     expect(adjustment?.reasonCode).toBe("data_entry_correction");
   });
 
   it("BR-ACCOUNT-001 / TC-ACCOUNT-001 — the summary equals the sum of the stored entries", async () => {
-    const entries = await ledgerRows();
+    const entries = await accountEntryRows();
     const sum = entries.reduce((total, entry) => total + entry.amount.amountMinor, 0);
 
-    const summary = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
+    const summary = await getCustomerAccountBalance(owner, ctx.workspaceId, ctx.customerId);
     expect(summary.ok).toBe(true);
     if (!summary.ok) return;
     expect(summary.value.balance.amountMinor).toBe(sum);
@@ -215,8 +219,8 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
   });
 
   it("BR-ACCOUNT-006 / TC-ACCOUNT-002 — a rebuild reproduces the maintained summary exactly", async () => {
-    const incremental = await getCustomerDebtSummary(owner, ctx.workspaceId, ctx.customerId);
-    const rebuilt = await rebuildDebtSummary(deps, ctx.workspaceId, ctx.customerId);
+    const incremental = await getCustomerAccountBalance(owner, ctx.workspaceId, ctx.customerId);
+    const rebuilt = await rebuildAccountBalance(deps, ctx.workspaceId, ctx.customerId);
 
     expect(incremental.ok).toBe(true);
     if (!incremental.ok) return;
@@ -226,7 +230,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
   });
 
   it("BR-COMMAND-005 / TC-COMMAND-004 — a refused command leaves no row behind", async () => {
-    const before = await ledgerRows();
+    const before = await accountEntryRows();
 
     const refused = await recordCustomerPayment(owner, {
       ...envelope("db-payment-invalid"),
@@ -243,7 +247,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(refused.ok).toBe(false);
     if (refused.ok) return;
     expect(refused.error.code).toBe("PAYMENT_AMOUNT_INVALID");
-    expect(await ledgerRows()).toHaveLength(before.length);
+    expect(await accountEntryRows()).toHaveLength(before.length);
   });
 
   it("BR-CUSTOMER-002 / TC-CUSTOMER-002 — an actor cannot act in a workspace they do not belong to", async () => {
@@ -292,7 +296,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
       principal: { actorId: salesActorId, subject: ctx.subjectOf(salesActorId) },
     };
 
-    const before = await ledgerRows();
+    const before = await accountEntryRows();
     const result = await adjustCustomerDebt(sales, {
       ...envelope("db-debt-adjust-sales"),
       actorId: salesActorId,
@@ -311,7 +315,7 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(result.error.code).toBe("PERMISSION_DENIED");
     expect(result.error.details).toMatchObject({ permission: "debt.adjust", role: "sales" });
     // The refusal wrote nothing at all.
-    expect(await ledgerRows()).toHaveLength(before.length);
+    expect(await accountEntryRows()).toHaveLength(before.length);
   });
 
   it("BR-AUTH-003 / TC-AUTH-003 — a revoked membership is refused, distinctly", async () => {
@@ -339,5 +343,158 @@ describe.skipIf(!hasDatabase)("full slice against Postgres", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("WORKSPACE_MEMBERSHIP_INACTIVE");
+  });
+
+  // -------------------------------------------------------------------------
+  // Sale correction, against the real constraints (ADR-0012)
+  // -------------------------------------------------------------------------
+
+  /** A fresh posted sale of 100 000 ₫, so a void test starts from a known state. */
+  async function postASale(): Promise<{ id: string; total: number }> {
+    const id = crypto.randomUUID();
+    const created = await createSaleDraft(owner, {
+      ...envelope(`db-void-draft-${id}`),
+      payload: {
+        saleId: id,
+        customerId: ctx.customerId,
+        currency: "VND",
+        lines: [
+          {
+            lineId: crypto.randomUUID(),
+            productId: ctx.productIds[0],
+            productName: "Cà chua",
+            quantity: { valueScaled: 10_000, unit: "kg" },
+            unitPrice: { amountMinor: 10_000, currency: "VND" },
+          },
+        ],
+        note: null,
+        dueAt: null,
+        replacesSaleId: null,
+      },
+    });
+    expect(created.ok).toBe(true);
+
+    const posted = await postSale(owner, {
+      ...envelope(`db-void-post-${id}`),
+      expectedVersion: 1,
+      payload: { saleId: id },
+    });
+    expect(posted.ok).toBe(true);
+    return { id, total: 100_000 };
+  }
+
+  it("BR-SALE-012 / TC-SALE-021 — a void offsets the posting exactly, through real SQL", async () => {
+    const before = await accountEntryRows();
+    const sale = await postASale();
+
+    const result = await voidSale(owner, {
+      ...envelope(`db-void-${sale.id}`),
+      payload: {
+        saleVoidId: crypto.randomUUID(),
+        saleId: sale.id,
+        reasonCode: "wrong_amount",
+        reason: "Ghi nhầm số lượng",
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.financialState).toBe("voided");
+
+    const added = (await accountEntryRows()).slice(before.length);
+    expect(added.map((entry) => entry.amount.amountMinor)).toEqual([sale.total, -sale.total]);
+    expect(added[1]!.sourceType).toBe("sale_void");
+
+    // The projection moved with them, in the same transactions.
+    const balance = await getCustomerAccountBalance(owner, ctx.workspaceId, ctx.customerId);
+    expect(balance.ok).toBe(true);
+    if (!balance.ok) return;
+    const entries = await accountEntryRows();
+    expect(balance.value.balance.amountMinor).toBe(
+      entries.reduce((sum, entry) => sum + entry.amount.amountMinor, 0),
+    );
+  });
+
+  it("BR-SALE-013 / TC-SALE-024 — two concurrent voids produce exactly one effect", async () => {
+    const sale = await postASale();
+    const before = await accountEntryRows();
+
+    // Genuinely concurrent, against real transactions: two different commands,
+    // two different void ids, started together. Postgres decides the winner
+    // through the row lock and `UNIQUE (sale_id)` — the in-memory adapter cannot
+    // prove this, because it models atomicity without isolation.
+    const attempt = (key: string) =>
+      voidSale(owner, {
+        ...envelope(key),
+        payload: {
+          saleVoidId: crypto.randomUUID(),
+          saleId: sale.id,
+          reasonCode: "duplicate_entry",
+          reason: "Cả hai người cùng phát hiện",
+        },
+      });
+
+    const results = await Promise.all([
+      attempt(`db-void-race-a-${sale.id}`),
+      attempt(`db-void-race-b-${sale.id}`),
+    ]);
+
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    const refused = results.find((result) => !result.ok)!;
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    // A business answer, not a constraint-violation stack trace.
+    expect(refused.error.code).toBe("SALE_ALREADY_VOIDED");
+
+    // The customer is credited once. This is the assertion that matters.
+    const added = (await accountEntryRows()).slice(before.length);
+    expect(added).toHaveLength(1);
+    expect(added[0]!.amount.amountMinor).toBe(-sale.total);
+  });
+
+  // TC-SALE-016 — the trigger that refuses an UPDATE against a posted sale —
+  // lives in `packages/db/src/repositories/append-only.db.test.ts`, with the other
+  // database guarantees. Proving it needs raw SQL, and `apps/api` may not import
+  // drizzle-orm: it reaches persistence only through ports (REPO_MAP).
+
+  it("BR-ACCOUNT-006 / TC-ACCOUNT-009 — a rebuild equals the entry sum after sale, payment and void", async () => {
+    const sale = await postASale();
+
+    await recordCustomerPayment(owner, {
+      ...envelope(`db-rebuild-payment-${sale.id}`),
+      payload: {
+        paymentId: crypto.randomUUID(),
+        customerId: ctx.customerId,
+        amount: { amountMinor: 40_000, currency: "VND" },
+        method: "cash",
+        payerName: null,
+        note: null,
+      },
+    });
+
+    await voidSale(owner, {
+      ...envelope(`db-rebuild-void-${sale.id}`),
+      payload: {
+        saleVoidId: crypto.randomUUID(),
+        saleId: sale.id,
+        reasonCode: "goods_returned",
+        reason: "Khách trả hàng",
+      },
+    });
+
+    const entries = await accountEntryRows();
+    const sum = entries.reduce((total, entry) => total + entry.amount.amountMinor, 0);
+
+    const rebuilt = await rebuildAccountBalance(deps, ctx.workspaceId, ctx.customerId);
+    expect(rebuilt.balance.amountMinor).toBe(sum);
+    expect(rebuilt.entryCount).toBe(entries.length);
+
+    // And the incrementally-maintained projection agrees with the rebuild — which
+    // is the whole claim of BR-ACCOUNT-006, and the reason the balance is safe to
+    // treat as a disposable cache (ADR-0004).
+    const stored = await getCustomerAccountBalance(owner, ctx.workspaceId, ctx.customerId);
+    expect(stored.ok).toBe(true);
+    if (!stored.ok) return;
+    expect(stored.value.balance.amountMinor).toBe(sum);
   });
 });

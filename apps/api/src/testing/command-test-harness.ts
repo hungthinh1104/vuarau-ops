@@ -101,6 +101,6 @@ export function principalFor(actorId: ActorId): AuthenticatedPrincipal {
 /** Sums a customer's ledger entries — the only definition of a balance there is. */
 export function ledgerBalance(harness: Harness, customerId: string): number {
   return harness.db
-    .ledgerFor(WORKSPACE_ID, customerId)
+    .entriesFor(WORKSPACE_ID, customerId)
     .reduce((total, entry) => total + entry.amount.amountMinor, 0);
 }

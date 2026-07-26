@@ -6,7 +6,7 @@ import { actors, customers, products, workspaces, workspaceMemberships } from ".
  * Minimal development seed: one depot, one worker, three customers, three
  * products.
  *
- * It seeds **master data only** — no orders, no payments, and no ledger entries.
+ * It seeds **master data only** — no sales, no payments, and no ledger entries.
  * Financial history is created by commands, so that seeded data is produced the
  * same way real data is. A hand-written ledger row would be the one entry in the
  * system with no command and no actor behind it (BR-ACCOUNT-004).

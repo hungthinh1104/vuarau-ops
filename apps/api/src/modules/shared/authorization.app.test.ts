@@ -17,9 +17,9 @@ import {
   vnd,
 } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
-import { adjustCustomerDebt } from "../debt/adjust-debt.handler.ts";
-import { getCustomerDebtSummary } from "../debt/debt.queries.ts";
-import { debtCapabilities } from "./authorization.ts";
+import { adjustCustomerDebt } from "../account/adjust-debt.handler.ts";
+import { getCustomerAccountBalance } from "../account/account.queries.ts";
+import { accountCapabilities } from "./authorization.ts";
 
 let harness: Harness;
 
@@ -47,9 +47,9 @@ const adjustInput = (actorId: string, overrides: Record<string, unknown> = {}) =
 });
 
 function expectNothingWritten(): void {
-  expect(harness.db.ledgerEntries()).toHaveLength(0);
+  expect(harness.db.accountEntries()).toHaveLength(0);
   expect(harness.db.auditRecords()).toHaveLength(0);
-  expect(harness.db.summaryFor(WORKSPACE_ID, CUSTOMER_ID)).toBeNull();
+  expect(harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID)).toBeNull();
 }
 
 describe("BR-AUTH-002 / TC-AUTH-002", () => {
@@ -185,7 +185,7 @@ describe("BR-AUTH-006 / TC-AUTH-005", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.balance.amountMinor).toBe(50_000);
-    expect(harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
   });
 
   it("lets an accountant adjust debt", async () => {
@@ -205,14 +205,14 @@ describe("BR-AUTH-006 / TC-AUTH-005", () => {
       adjustInput(ACCOUNTANT_ACTOR_ID),
     );
 
-    const entry = harness.db.ledgerFor(WORKSPACE_ID, CUSTOMER_ID)[0]!;
+    const entry = harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)[0]!;
     expect(entry.actorId).toBe(ACCOUNTANT_ACTOR_ID);
   });
 });
 
 describe("BR-AUTH-006 / TC-AUTH-006", () => {
   it("reports the adjust capability that matches what the command would do", async () => {
-    const ownerSummary = await getCustomerDebtSummary(
+    const ownerSummary = await getCustomerAccountBalance(
       harness.contextFor(ACTOR_ID),
       WORKSPACE_ID,
       CUSTOMER_ID,
@@ -221,7 +221,7 @@ describe("BR-AUTH-006 / TC-AUTH-006", () => {
     if (!ownerSummary.ok) return;
     expect(ownerSummary.value.capabilities.adjust.allowed).toBe(true);
 
-    const salesSummary = await getCustomerDebtSummary(
+    const salesSummary = await getCustomerAccountBalance(
       harness.contextFor(SALES_ACTOR_ID),
       WORKSPACE_ID,
       CUSTOMER_ID,
@@ -239,7 +239,7 @@ describe("BR-AUTH-006 / TC-AUTH-006", () => {
     // The capability and the guard both call `roleHasPermission`. This asserts
     // they cannot diverge, which is the whole point of ADR-0003.
     for (const role of ["owner", "accountant", "sales", "warehouse", "delivery"] as const) {
-      expect(debtCapabilities(role).adjust.allowed).toBe(roleHasPermission(role, "debt.adjust"));
+      expect(accountCapabilities(role).adjust.allowed).toBe(roleHasPermission(role, "debt.adjust"));
     }
   });
 });
@@ -267,12 +267,84 @@ describe("BR-AUTH-004 / TC-AUTH-009 — the role table itself", () => {
         "debt.adjust",
         "payment.record",
         "payment.reverse",
-        "order.confirm",
+        "sale.post",
       ] as const) {
         expect(roleHasPermission(role, permission), `${role} must not hold ${permission}`).toBe(
           false,
         );
       }
     }
+  });
+});
+
+describe("BR-COMMAND-006 / TC-AUTH-012", () => {
+  /**
+   * The thirteenth guarantee: a refusal costs nothing.
+   *
+   * Checked across all four kinds of refusal, because they take different exits
+   * from the pipeline — impersonation and permission are refused before the
+   * idempotency claim, a domain refusal after it — and only one of those paths
+   * needs to get it wrong for a worker to be told their corrected retry is a
+   * duplicate.
+   */
+  const refusals: ReadonlyArray<[string, () => Promise<unknown>]> = [
+    [
+      "impersonation",
+      () => adjustCustomerDebt(harness.contextFor(SALES_ACTOR_ID), adjustInput(ACTOR_ID)),
+    ],
+    [
+      "insufficient permission",
+      () => adjustCustomerDebt(harness.contextFor(SALES_ACTOR_ID), adjustInput(SALES_ACTOR_ID)),
+    ],
+    [
+      "revoked membership",
+      () => adjustCustomerDebt(harness.contextFor(REVOKED_ACTOR_ID), adjustInput(REVOKED_ACTOR_ID)),
+    ],
+    [
+      "another workspace",
+      () => adjustCustomerDebt(harness.contextFor(FOREIGN_ACTOR_ID), adjustInput(FOREIGN_ACTOR_ID)),
+    ],
+  ];
+
+  it.each(refusals)(
+    "leaves no financial effect and no audit record after %s",
+    async (_kind, run) => {
+      await run();
+      expectNothingWritten();
+    },
+  );
+
+  it.each(refusals)("leaves the idempotency key free to reuse after %s", async (_kind, run) => {
+    await run();
+
+    // The rightful actor now sends the *same* key. If the refusal had burned it,
+    // this would come back DUPLICATE_COMMAND or COMMAND_IN_PROGRESS and the
+    // correct command would be silently swallowed.
+    const allowed = await adjustCustomerDebt(harness.contextFor(ACTOR_ID), adjustInput(ACTOR_ID));
+
+    expect(allowed.ok).toBe(true);
+    if (!allowed.ok) return;
+    expect(allowed.value.balance.amountMinor).toBe(50_000);
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
+  });
+
+  it("writes no command receipt for a refused command", async () => {
+    await adjustCustomerDebt(harness.contextFor(SALES_ACTOR_ID), adjustInput(SALES_ACTOR_ID));
+
+    // Observed through behaviour rather than by reaching into the receipt store:
+    // a stored receipt would replay its result, so a *different* payload under
+    // the same key succeeding proves no receipt was left behind.
+    const different = await adjustCustomerDebt(harness.contextFor(ACTOR_ID), {
+      ...adjustInput(ACTOR_ID),
+      payload: {
+        ...adjustInput(ACTOR_ID).payload,
+        amount: vnd(70_000),
+        reason: "Số khác hẳn",
+      },
+    });
+
+    expect(different.ok).toBe(true);
+    if (!different.ok) return;
+    expect(different.value.balance.amountMinor).toBe(70_000);
   });
 });

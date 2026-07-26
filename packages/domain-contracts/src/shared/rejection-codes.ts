@@ -32,14 +32,22 @@ export const DOMAIN_REJECTION_CODES = [
   "CUSTOMER_NOT_FOUND",
   "CUSTOMER_NAME_REQUIRED",
 
-  // --- order ----------------------------------------------------------------
-  "ORDER_NOT_FOUND",
-  "ORDER_EMPTY",
-  "ORDER_LINE_INVALID",
-  "ORDER_ALREADY_CONFIRMED",
-  "ORDER_CANCELLED",
-  "ORDER_VERSION_CONFLICT",
-  "ORDER_CURRENCY_MISMATCH",
+  // --- sale ------------------------------------------------------------------
+  "SALE_NOT_FOUND",
+  "SALE_EMPTY",
+  "SALE_LINE_INVALID",
+  /** Also covers editing or discarding a sale that has already been posted. */
+  "SALE_ALREADY_POSTED",
+  "SALE_VERSION_CONFLICT",
+  "SALE_CURRENCY_MISMATCH",
+  /** An update or delete was attempted against a posted sale (BR-SALE-008). */
+  "SALE_IMMUTABLE",
+
+  // --- sale correction --------------------------------------------------------
+  /** Voiding a draft. A draft is discarded; there is no effect to compensate. */
+  "SALE_NOT_POSTED",
+  "SALE_ALREADY_VOIDED",
+  "SALE_VOID_REASON_REQUIRED",
 
   // --- payment --------------------------------------------------------------
   "PAYMENT_AMOUNT_INVALID",
@@ -62,7 +70,7 @@ export const DOMAIN_REJECTION_CODES = [
   "TRANSACTION_TIME_IN_FUTURE",
 
   /**
-   * A capability that this phase does not implement (for example order
+   * A capability that this phase does not implement (for example sale
    * cancellation). Returned by capability probes so the UI can grey out a
    * control without inventing its own knowledge of the roadmap.
    */

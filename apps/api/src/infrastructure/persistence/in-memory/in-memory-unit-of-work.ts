@@ -1,17 +1,17 @@
 import type {
   ActorId,
   AuditRecordDto,
-  DebtLedgerEntryDto,
+  CustomerAccountEntryDto,
   WorkspaceId,
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
-import type { PaymentReversalState } from "@vuarau/domain-kernel";
+import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import type { IdGenerator } from "../../clock.ts";
 import type { CommandReceipt, Repositories, UnitOfWork, WorkspaceMembership } from "../ports.ts";
 import type {
-  CustomerDebtSummary,
+  CustomerAccountBalance,
   CustomerState,
-  OrderState,
+  SaleState,
   PaymentState,
 } from "@vuarau/domain-kernel";
 
@@ -29,11 +29,12 @@ type Store = {
   /** Supabase subject → local actor id (BR-AUTH-005). */
   actorsBySubject: Map<string, ActorId>;
   customers: Map<string, CustomerState>;
-  orders: Map<string, OrderState>;
+  sales: Map<string, SaleState>;
   payments: Map<string, PaymentState>;
   reversals: PaymentReversalState[];
-  ledger: DebtLedgerEntryDto[];
-  summaries: Map<string, CustomerDebtSummary>;
+  saleVoids: SaleVoidState[];
+  accountEntries: CustomerAccountEntryDto[];
+  balances: Map<string, CustomerAccountBalance>;
   audit: AuditRecordDto[];
   receipts: Map<string, CommandReceipt>;
 };
@@ -43,11 +44,12 @@ function emptyStore(): Store {
     memberships: new Map(),
     actorsBySubject: new Map(),
     customers: new Map(),
-    orders: new Map(),
+    sales: new Map(),
     payments: new Map(),
     reversals: [],
-    ledger: [],
-    summaries: new Map(),
+    saleVoids: [],
+    accountEntries: [],
+    balances: new Map(),
     audit: [],
     receipts: new Map(),
   };
@@ -87,22 +89,26 @@ export class InMemoryDatabase {
     this.store.customers.set(key(customer.workspaceId, customer.id), customer);
   }
 
-  seedOrder(order: OrderState): void {
-    this.store.orders.set(key(order.workspaceId, order.id), order);
+  seedSale(sale: SaleState): void {
+    this.store.sales.set(key(sale.workspaceId, sale.id), sale);
   }
 
   seedPayment(payment: PaymentState): void {
     this.store.payments.set(key(payment.workspaceId, payment.id), payment);
   }
 
-  ledgerEntries(): readonly DebtLedgerEntryDto[] {
-    return this.store.ledger;
+  accountEntries(): readonly CustomerAccountEntryDto[] {
+    return this.store.accountEntries;
   }
 
-  ledgerFor(workspaceId: WorkspaceId, customerId: string): readonly DebtLedgerEntryDto[] {
-    return this.store.ledger.filter(
+  entriesFor(workspaceId: WorkspaceId, customerId: string): readonly CustomerAccountEntryDto[] {
+    return this.store.accountEntries.filter(
       (entry) => entry.workspaceId === workspaceId && entry.customerId === customerId,
     );
+  }
+
+  saleVoids(): readonly SaleVoidState[] {
+    return this.store.saleVoids;
   }
 
   auditRecords(): readonly AuditRecordDto[] {
@@ -117,13 +123,13 @@ export class InMemoryDatabase {
     return [...this.store.payments.values()];
   }
 
-  summaryFor(workspaceId: WorkspaceId, customerId: string): CustomerDebtSummary | null {
-    return this.store.summaries.get(key(workspaceId, customerId)) ?? null;
+  balanceFor(workspaceId: WorkspaceId, customerId: string): CustomerAccountBalance | null {
+    return this.store.balances.get(key(workspaceId, customerId)) ?? null;
   }
 
   /** Lets a test corrupt a projection, to prove the rebuild repairs it (CASE-ACCOUNT-007). */
-  overwriteSummary(summary: CustomerDebtSummary): void {
-    this.store.summaries.set(key(summary.workspaceId, summary.customerId), summary);
+  overwriteBalance(balance: CustomerAccountBalance): void {
+    this.store.balances.set(key(balance.workspaceId, balance.customerId), balance);
   }
 
   unitOfWork(): UnitOfWork {
@@ -132,6 +138,11 @@ export class InMemoryDatabase {
         // Snapshot-and-restore stands in for a database transaction. A command
         // that throws must leave nothing behind (BR-COMMAND-005), and a test that
         // cannot observe a rollback cannot prove that.
+        //
+        // It models atomicity, **not isolation**: two overlapping transactions
+        // here can wipe each other's writes, which no database does. Concurrency
+        // claims — the void race in BR-SALE-013, the idempotency claim in
+        // ADR-0008 — belong in the db test project, against real Postgres.
         const snapshot = structuredClone(this.store);
         try {
           return await work(this.repositories());
@@ -172,18 +183,44 @@ export class InMemoryDatabase {
         },
       },
 
-      orders: {
-        findByIdForUpdate: async (workspaceId, orderId) =>
-          store.orders.get(key(workspaceId, orderId)) ?? null,
-        insert: async (order) => {
-          store.orders.set(key(order.workspaceId, order.id), order);
+      sales: {
+        findByIdForUpdate: async (workspaceId, saleId) =>
+          store.sales.get(key(workspaceId, saleId)) ?? null,
+        insert: async (sale) => {
+          store.sales.set(key(sale.workspaceId, sale.id), sale);
         },
-        update: async (order, expectedVersion) => {
-          const current = store.orders.get(key(order.workspaceId, order.id));
-          if (current === undefined || current.version !== expectedVersion) {
+        // Conditional on the version *and* on the row still being a draft — the
+        // same two conditions the Drizzle UPDATE carries, so an application test
+        // cannot pass against semantics the database would refuse.
+        post: async (sale, expectedVersion) => {
+          const current = store.sales.get(key(sale.workspaceId, sale.id));
+          if (
+            current === undefined ||
+            current.version !== expectedVersion ||
+            current.status !== "draft"
+          ) {
             return false;
           }
-          store.orders.set(key(order.workspaceId, order.id), order);
+          store.sales.set(key(sale.workspaceId, sale.id), sale);
+          return true;
+        },
+        insertVoid: async (record) => {
+          // Mirrors UNIQUE (sale_id) in Postgres (BR-SALE-013). Without this the
+          // in-memory adapter would accept a double void that the real database
+          // refuses, and the concurrency test would prove nothing.
+          if (store.saleVoids.some((existing) => existing.saleId === record.saleId)) {
+            return false;
+          }
+          store.saleVoids.push(record);
+          const sale = store.sales.get(key(record.workspaceId, record.saleId));
+          if (sale !== undefined) {
+            // The sale row itself is untouched; only the void it now has is
+            // recorded, mirroring the join the Drizzle repository performs.
+            store.sales.set(key(record.workspaceId, record.saleId), {
+              ...sale,
+              voidRecord: record,
+            });
+          }
           return true;
         },
       },
@@ -207,14 +244,14 @@ export class InMemoryDatabase {
         },
       },
 
-      ledger: {
+      accountEntries: {
         append: async (drafts) => {
-          const appended: DebtLedgerEntryDto[] = [];
+          const appended: CustomerAccountEntryDto[] = [];
           for (const draft of drafts) {
             // Mirrors UNIQUE (source_type, source_id) in Postgres: a second entry
-            // for the same confirmation or payment is unrepresentable, not merely
+            // for the same posting, void, or payment is unrepresentable, not merely
             // unlikely (docs/07-data/ledger-model.md).
-            const duplicate = store.ledger.some(
+            const duplicate = store.accountEntries.some(
               (entry) =>
                 entry.workspaceId === draft.workspaceId &&
                 entry.sourceType === draft.sourceType &&
@@ -222,25 +259,25 @@ export class InMemoryDatabase {
             );
             if (duplicate) {
               throw new Error(
-                `Duplicate ledger entry for ${draft.sourceType}:${draft.sourceId} — ` +
+                `Duplicate account entry for ${draft.sourceType}:${draft.sourceId} — ` +
                   "unique (source_type, source_id) violated.",
               );
             }
-            const entry: DebtLedgerEntryDto = {
+            const entry: CustomerAccountEntryDto = {
               ...draft,
-              id: ids.newId() as DebtLedgerEntryDto["id"],
+              id: ids.newId() as CustomerAccountEntryDto["id"],
             };
-            store.ledger.push(entry);
+            store.accountEntries.push(entry);
             appended.push(entry);
           }
           return appended;
         },
         listByCustomer: async (workspaceId, customerId) =>
-          store.ledger.filter(
+          store.accountEntries.filter(
             (entry) => entry.workspaceId === workspaceId && entry.customerId === customerId,
           ),
         findBySource: async (workspaceId, sourceType, sourceId) =>
-          store.ledger.find(
+          store.accountEntries.find(
             (entry) =>
               entry.workspaceId === workspaceId &&
               entry.sourceType === sourceType &&
@@ -248,11 +285,11 @@ export class InMemoryDatabase {
           ) ?? null,
       },
 
-      debtSummaries: {
+      accountBalances: {
         get: async (workspaceId, customerId) =>
-          store.summaries.get(key(workspaceId, customerId)) ?? null,
+          store.balances.get(key(workspaceId, customerId)) ?? null,
         save: async (summary) => {
-          store.summaries.set(key(summary.workspaceId, summary.customerId), summary);
+          store.balances.set(key(summary.workspaceId, summary.customerId), summary);
         },
       },
 

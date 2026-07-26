@@ -132,11 +132,11 @@ use_cases:
       - BR-SALE-017
       - BR-SALE-018
     cases: [CASE-SALE-001, CASE-SALE-009]
-    tests: [TC-SALE-001, TC-SALE-002]
+    tests: [TC-SALE-001, TC-SALE-002, TC-SALE-014]
     implementation:
-      - packages/domain-kernel/src/order/create-order.ts
-      - packages/domain-kernel/src/order/order-lines.ts
-      - apps/api/src/modules/order/create-order.handler.ts
+      - packages/domain-kernel/src/sale/create-sale-draft.ts
+      - packages/domain-kernel/src/sale/sale-lines.ts
+      - apps/api/src/modules/sale/create-sale-draft.handler.ts
 
   UC-SALE-002:
     title: Post a sale
@@ -179,9 +179,12 @@ use_cases:
       - TC-SALE-011
       - TC-SALE-012
       - TC-SALE-013
+      - TC-SALE-015
+      - TC-SALE-016
+      - TC-SALE-017
     implementation:
-      - packages/domain-kernel/src/order/confirm-order.ts
-      - apps/api/src/modules/order/confirm-order.handler.ts
+      - packages/domain-kernel/src/sale/post-sale.ts
+      - apps/api/src/modules/sale/post-sale.handler.ts
 
   UC-SALE-003:
     title: View and list sales
@@ -196,7 +199,6 @@ use_cases:
   UC-SALE-004:
     title: Void a sale, and post a replacement
     risk: P0
-    status: planned
     doc: docs/02-use-cases/sale-use-cases.md
     rules:
       - BR-SALE-008
@@ -211,8 +213,7 @@ use_cases:
       - BR-COMMAND-001
       - BR-COMMAND-005
     cases: [CASE-SALE-007, CASE-SALE-008, CASE-SALE-010, CASE-SALE-011]
-    tests: []
-    planned_tests:
+    tests:
       - TC-SALE-021
       - TC-SALE-022
       - TC-SALE-023
@@ -220,6 +221,9 @@ use_cases:
       - TC-SALE-025
       - TC-SALE-026
       - TC-SALE-027
+    implementation:
+      - packages/domain-kernel/src/sale/void-sale.ts
+      - apps/api/src/modules/sale/void-sale.handler.ts
 
   UC-PAYMENT-001:
     title: Record a customer payment
@@ -306,9 +310,9 @@ use_cases:
       - BR-ACCOUNT-009
       - BR-CUSTOMER-002
     cases: [CASE-ACCOUNT-008]
-    tests: [TC-ACCOUNT-001, TC-AUTH-006]
+    tests: [TC-ACCOUNT-001, TC-AUTH-006, TC-ACCOUNT-010]
     implementation:
-      - apps/api/src/modules/debt/debt.queries.ts
+      - apps/api/src/modules/account/account.queries.ts
 
   UC-ACCOUNT-002:
     title: Adjust a customer account by hand
@@ -343,10 +347,10 @@ use_cases:
       - TC-ACCOUNT-006
       - TC-ACCOUNT-008
     implementation:
-      - packages/domain-kernel/src/debt/adjust-debt.ts
-      - packages/domain-kernel/src/debt/debt-summary.ts
-      - apps/api/src/modules/debt/adjust-debt.handler.ts
-      - apps/api/src/modules/shared/debt-effects.ts
+      - packages/domain-kernel/src/account/adjust-debt.ts
+      - packages/domain-kernel/src/account/account-balance.ts
+      - apps/api/src/modules/account/adjust-debt.handler.ts
+      - apps/api/src/modules/shared/account-effects.ts
 
   UC-ACCOUNT-003:
     title: Rebuild the customer account balance projection
@@ -354,9 +358,9 @@ use_cases:
     doc: docs/02-use-cases/customer-account-use-cases.md
     rules: [BR-ACCOUNT-001, BR-ACCOUNT-002, BR-ACCOUNT-005, BR-ACCOUNT-006]
     cases: [CASE-ACCOUNT-007]
-    tests: [TC-ACCOUNT-002]
+    tests: [TC-ACCOUNT-002, TC-ACCOUNT-009]
     implementation:
-      - apps/api/src/modules/shared/debt-effects.ts
+      - apps/api/src/modules/shared/account-effects.ts
 
   UC-COMMAND-001:
     title: Handle a retry, a duplicate, or a stale version
@@ -379,6 +383,7 @@ use_cases:
       - TC-COMMAND-004
       - TC-COMMAND-005
       - TC-COMMAND-006
+      - TC-AUTH-012
     implementation:
       - apps/api/src/modules/shared/command-pipeline.ts
       - apps/api/src/infrastructure/hash.ts
@@ -401,7 +406,7 @@ business_rules:
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-001]
     tests: [TC-SALE-001]
-    implementation: [packages/domain-kernel/src/order/order-lines.ts]
+    implementation: [packages/domain-kernel/src/sale/sale-lines.ts]
 
   BR-SALE-002:
     title: A sale cannot be posted without at least one line
@@ -409,7 +414,7 @@ business_rules:
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-002]
     tests: [TC-SALE-006]
-    implementation: [packages/domain-kernel/src/order/confirm-order.ts]
+    implementation: [packages/domain-kernel/src/sale/post-sale.ts]
 
   BR-SALE-003:
     title: Every line must have a valid product, quantity, unit and price
@@ -417,7 +422,7 @@ business_rules:
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-001]
     tests: [TC-SALE-007]
-    implementation: [packages/domain-kernel/src/order/order-lines.ts]
+    implementation: [packages/domain-kernel/src/sale/sale-lines.ts]
 
   BR-SALE-004:
     title: Line total rounding is half-up on the minor unit
@@ -433,7 +438,7 @@ business_rules:
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-003]
     tests: [TC-SALE-008]
-    implementation: [packages/domain-kernel/src/order/confirm-order.ts]
+    implementation: [packages/domain-kernel/src/sale/post-sale.ts]
 
   BR-SALE-006:
     title: Posting with a stale version is refused
@@ -442,8 +447,8 @@ business_rules:
     cases: [CASE-SALE-004]
     tests: [TC-SALE-005]
     implementation:
-      - packages/domain-kernel/src/order/confirm-order.ts
-      - apps/api/src/modules/order/confirm-order.handler.ts
+      - packages/domain-kernel/src/sale/post-sale.ts
+      - apps/api/src/modules/sale/post-sale.handler.ts
 
   BR-SALE-007:
     title: Posting produces exactly one customer account entry
@@ -452,17 +457,19 @@ business_rules:
     cases: [CASE-SALE-005, CASE-ACCOUNT-001]
     tests: [TC-SALE-003, TC-SALE-012]
     implementation:
-      - packages/domain-kernel/src/order/confirm-order.ts
-      - apps/api/src/modules/shared/debt-effects.ts
-      - packages/db/src/schema/debt.ts
+      - packages/domain-kernel/src/sale/post-sale.ts
+      - apps/api/src/modules/shared/account-effects.ts
+      - packages/db/src/schema/account.ts
 
   BR-SALE-008:
     title: A posted sale and its lines are immutable
     risk: P0
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-007]
-    tests: [TC-SALE-009]
-    implementation: [packages/db/migrations/0001_append_only_guards.sql]
+    tests: [TC-SALE-009, TC-SALE-016]
+    implementation:
+      - packages/db/migrations/0004_sale_and_customer_account.sql
+      - apps/api/src/infrastructure/persistence/ports.ts
 
   BR-SALE-009:
     title: All line currencies must match the sale currency
@@ -470,71 +477,85 @@ business_rules:
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-001]
     tests: [TC-SALE-010]
-    implementation: [packages/domain-kernel/src/order/order-lines.ts]
+    implementation: [packages/domain-kernel/src/sale/sale-lines.ts]
 
   BR-SALE-010:
     title: A draft sale has no financial effect
     risk: P0
-    status: planned
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-001, CASE-SALE-009]
-    planned_tests: [TC-SALE-014]
+    tests: [TC-SALE-014]
+    implementation:
+      - packages/domain-kernel/src/sale/create-sale-draft.ts
+      - apps/api/src/modules/sale/create-sale-draft.handler.ts
 
   BR-SALE-011:
     title: Posting snapshots the final name, quantity, unit and unit price
     risk: P0
-    status: planned
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-001]
-    planned_tests: [TC-SALE-015]
+    tests: [TC-SALE-015]
+    implementation:
+      - packages/domain-kernel/src/sale/post-sale.ts
+      - packages/db/src/schema/sale.ts
 
   BR-SALE-012:
     title: Voiding creates exactly one full compensating account entry
     risk: P0
-    status: planned
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-007, CASE-SALE-008, CASE-SALE-011]
-    planned_tests: [TC-SALE-021, TC-SALE-022]
+    tests: [TC-SALE-021, TC-SALE-022]
+    implementation:
+      - packages/domain-kernel/src/sale/void-sale.ts
+      - apps/api/src/modules/sale/void-sale.handler.ts
 
   BR-SALE-013:
     title: A voided sale cannot be voided again
     risk: P0
-    status: planned
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-010]
-    planned_tests: [TC-SALE-023, TC-SALE-024]
+    tests: [TC-SALE-023, TC-SALE-024]
+    implementation:
+      - packages/domain-kernel/src/sale/void-sale.ts
+      - apps/api/src/modules/sale/void-sale.handler.ts
+      - packages/db/src/schema/sale.ts
 
   BR-SALE-014:
     title: Voiding requires a structured reason code and an explanation
     risk: P1
-    status: planned
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-008]
-    planned_tests: [TC-SALE-026]
+    tests: [TC-SALE-026]
+    implementation:
+      - packages/domain-kernel/src/sale/void-sale.ts
 
   BR-SALE-015:
     title: Only a posted sale can be voided
     risk: P1
-    status: planned
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-010]
-    planned_tests: [TC-SALE-025]
+    tests: [TC-SALE-025]
+    implementation:
+      - packages/domain-kernel/src/sale/void-sale.ts
 
   BR-SALE-016:
     title: A replacement sale links to the sale it replaces
     risk: P2
-    status: planned
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-007, CASE-SALE-008]
-    planned_tests: [TC-SALE-027]
+    tests: [TC-SALE-027]
+    implementation:
+      - apps/api/src/modules/sale/create-sale-draft.handler.ts
+      - packages/db/src/schema/sale.ts
 
   BR-SALE-017:
     title: A due date is optional, and without one nothing is overdue
     risk: P1
-    status: planned
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-012]
-    planned_tests: [TC-SALE-018]
+    tests: [TC-SALE-018]
+    implementation:
+      - packages/domain-kernel/src/sale/sale-state.ts
 
   BR-SALE-018:
     title: A draft may be edited or discarded; a posted sale may not
@@ -620,7 +641,7 @@ business_rules:
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-ACCOUNT-007]
     tests: [TC-ACCOUNT-001, TC-ACCOUNT-002]
-    implementation: [packages/domain-kernel/src/debt/debt-summary.ts]
+    implementation: [packages/domain-kernel/src/account/account-balance.ts]
 
   BR-ACCOUNT-002:
     title: The balance changes only through entry-producing commands
@@ -628,7 +649,7 @@ business_rules:
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-ACCOUNT-004, CASE-ACCOUNT-005]
     tests: [TC-ACCOUNT-006]
-    implementation: [apps/api/src/modules/shared/debt-effects.ts]
+    implementation: [apps/api/src/modules/shared/account-effects.ts]
 
   BR-ACCOUNT-003:
     title: A manual adjustment requires a reason
@@ -636,7 +657,7 @@ business_rules:
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-ACCOUNT-006]
     tests: [TC-ACCOUNT-003]
-    implementation: [packages/domain-kernel/src/debt/adjust-debt.ts]
+    implementation: [packages/domain-kernel/src/account/adjust-debt.ts]
 
   BR-ACCOUNT-004:
     title: Every account entry is attributable to an actor and a command
@@ -646,7 +667,7 @@ business_rules:
     tests: [TC-ACCOUNT-004]
     implementation:
       - packages/domain-kernel/src/shared/effects.ts
-      - packages/db/src/schema/debt.ts
+      - packages/db/src/schema/account.ts
 
   BR-ACCOUNT-005:
     title: Account entries are append-only; corrections compensate
@@ -663,10 +684,10 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-ACCOUNT-007]
-    tests: [TC-ACCOUNT-002]
+    tests: [TC-ACCOUNT-002, TC-ACCOUNT-009]
     implementation:
-      - apps/api/src/modules/shared/debt-effects.ts
-      - apps/api/src/modules/debt/debt.queries.ts
+      - apps/api/src/modules/shared/account-effects.ts
+      - apps/api/src/modules/account/account.queries.ts
 
   BR-ACCOUNT-007:
     title: A balance may be negative, and that means customer credit
@@ -682,23 +703,26 @@ business_rules:
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-ACCOUNT-005]
     tests: [TC-ACCOUNT-003]
-    implementation: [packages/domain-kernel/src/debt/adjust-debt.ts]
+    implementation: [packages/domain-kernel/src/account/adjust-debt.ts]
 
   BR-ACCOUNT-009:
     title: The balance carries a typed classification
     risk: P1
-    status: planned
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-ACCOUNT-008]
-    planned_tests: [TC-ACCOUNT-010]
+    tests: [TC-ACCOUNT-010]
+    implementation:
+      - packages/domain-kernel/src/account/account-balance.ts
+      - apps/api/src/modules/shared/mappers.ts
 
   BR-ACCOUNT-010:
     title: A manual adjustment is not the way to correct a sale
     risk: P1
-    status: planned
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-SALE-007]
-    planned_tests: [TC-ACCOUNT-011]
+    tests: [TC-ACCOUNT-011]
+    implementation:
+      - packages/domain-contracts/src/account/index.ts
 
   # --- cross-cutting command rules ----------------------------------------------
   BR-COMMAND-001:
@@ -750,10 +774,11 @@ business_rules:
   BR-COMMAND-006:
     title: A refused command leaves nothing behind, including its idempotency key
     risk: P0
-    status: planned
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-ACCOUNT-006]
-    planned_tests: [TC-AUTH-012]
+    tests: [TC-AUTH-012]
+    implementation:
+      - apps/api/src/modules/shared/command-pipeline.ts
 
   # --- authentication and authorization -----------------------------------------
   BR-AUTH-001:
@@ -789,7 +814,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/authorization-rules.md
     cases: []
-    tests: [TC-AUTH-004, TC-AUTH-009]
+    tests: [TC-AUTH-004, TC-AUTH-009, TC-SALE-017]
     implementation:
       - packages/domain-contracts/src/shared/authorization.ts
       - apps/api/src/modules/shared/command-pipeline.ts
@@ -812,7 +837,7 @@ business_rules:
     tests: [TC-AUTH-005, TC-AUTH-006]
     implementation:
       - packages/domain-contracts/src/shared/authorization.ts
-      - apps/api/src/modules/debt/adjust-debt.handler.ts
+      - apps/api/src/modules/account/adjust-debt.handler.ts
 
   BR-AUTH-007:
     title: A workspace always keeps at least one active owner
@@ -863,8 +888,7 @@ cases:
     title: A valid multi-line sale
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-001, BR-SALE-003, BR-SALE-004, BR-SALE-009, BR-SALE-010, BR-SALE-011]
-    tests: [TC-SALE-001, TC-SALE-002, TC-SALE-003]
-    planned_tests: [TC-SALE-014, TC-SALE-015]
+    tests: [TC-SALE-001, TC-SALE-002, TC-SALE-003, TC-SALE-014, TC-SALE-015]
   CASE-SALE-002:
     title: Posting an empty sale
     doc: docs/05-casebook/sale-cases.md
@@ -894,38 +918,33 @@ cases:
     title: A posted sale turns out to be wrong
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-008, BR-SALE-012, BR-SALE-016, BR-ACCOUNT-010]
-    tests: [TC-SALE-009]
-    planned_tests: [TC-SALE-021, TC-SALE-027, TC-ACCOUNT-011]
+    tests: [TC-SALE-009, TC-SALE-016, TC-SALE-021, TC-SALE-027, TC-ACCOUNT-011]
   CASE-SALE-008:
     title: A load comes back on the truck
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-012, BR-SALE-014, BR-SALE-016]
-    tests: []
-    planned_tests: [TC-SALE-021, TC-SALE-026]
+    tests: [TC-SALE-021, TC-SALE-026]
   CASE-SALE-009:
     title: A draft is abandoned
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-010, BR-SALE-018]
-    tests: []
-    planned_tests: [TC-SALE-014, TC-SALE-020]
+    tests: [TC-SALE-014]
+    planned_tests: [TC-SALE-020]
   CASE-SALE-010:
     title: Two people void the same sale at once
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-013, BR-SALE-015]
-    tests: []
-    planned_tests: [TC-SALE-023, TC-SALE-024, TC-SALE-025]
+    tests: [TC-SALE-023, TC-SALE-024, TC-SALE-025]
   CASE-SALE-011:
     title: Voiding a sale the customer already paid
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-012, BR-ACCOUNT-007, BR-ACCOUNT-009]
-    tests: []
-    planned_tests: [TC-SALE-022, TC-ACCOUNT-010]
+    tests: [TC-SALE-022, TC-ACCOUNT-010]
   CASE-SALE-012:
     title: A sale with no agreed payment date
     doc: docs/05-casebook/sale-cases.md
     rules: [BR-SALE-017]
-    tests: []
-    planned_tests: [TC-SALE-018]
+    tests: [TC-SALE-018]
 
   CASE-PAYMENT-001:
     title: Customer pays the exact balance
@@ -1017,14 +1036,12 @@ cases:
     title: The balance projection goes stale and is rebuilt
     doc: docs/05-casebook/customer-account-cases.md
     rules: [BR-ACCOUNT-001, BR-ACCOUNT-006]
-    tests: [TC-ACCOUNT-002]
-    planned_tests: [TC-ACCOUNT-009]
+    tests: [TC-ACCOUNT-002, TC-ACCOUNT-009]
   CASE-ACCOUNT-008:
     title: The same customer, in all three balance states
     doc: docs/05-casebook/customer-account-cases.md
     rules: [BR-ACCOUNT-007, BR-ACCOUNT-009]
-    tests: [TC-PAYMENT-011]
-    planned_tests: [TC-ACCOUNT-010]
+    tests: [TC-PAYMENT-011, TC-ACCOUNT-010]
 
 # Tests that exercise the API contract rather than a single rule. Declared here so
 # `trace-check` recognises them; they still name their rules in the test titles.
