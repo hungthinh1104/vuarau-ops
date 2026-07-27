@@ -547,22 +547,25 @@ export function createReadRepositories(tx: Tx) {
             ),
           )
           .limit(1);
-        if (row === undefined) return null;
+        if (row === undefined) return { kind: "not_found" as const };
         if (row.reasonCode === null || row.reason === null || row.amountMinor === 0)
-          return "integrity_error" as const;
+          return { kind: "integrity_error" as const, reason: "missing adjustment fields" };
         return {
-          adjustmentId: row.adjustmentId,
-          entryId: row.entryId,
-          commandId: row.commandId,
-          workspace: { id: row.workspaceId, name: row.workspaceName },
-          customer: { id: row.customerId, displayName: row.customerName },
-          actor: { id: row.actorId, displayName: row.actorName },
-          amount: money(row.amountMinor, row.currency),
-          reasonCode: row.reasonCode,
-          reason: row.reason,
-          transactionTime: toIso(row.transactionTime),
-          recordedAt: toIso(row.recordedAt),
-          runningBalance: money(Number(row.runningBalanceMinor), row.currency),
+          kind: "found" as const,
+          row: {
+            adjustmentId: row.adjustmentId,
+            entryId: row.entryId,
+            commandId: row.commandId,
+            workspace: { id: row.workspaceId, name: row.workspaceName },
+            customer: { id: row.customerId, displayName: row.customerName },
+            actor: { id: row.actorId, displayName: row.actorName },
+            amount: money(row.amountMinor, row.currency),
+            reasonCode: row.reasonCode,
+            reason: row.reason,
+            transactionTime: toIso(row.transactionTime),
+            recordedAt: toIso(row.recordedAt),
+            runningBalance: money(Number(row.runningBalanceMinor), row.currency),
+          },
         };
       },
       async timeline(args: {

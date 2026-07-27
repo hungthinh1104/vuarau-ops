@@ -730,9 +730,9 @@ export class InMemoryDatabase {
               item.sourceType === "manual_adjustment" &&
               item.sourceId === adjustmentId,
           );
-          if (entry === undefined) return null;
+          if (entry === undefined) return { kind: "not_found" as const };
           if (entry.amount.amountMinor === 0 || entry.reasonCode === null || entry.reason === null)
-            return "integrity_error" as const;
+            return { kind: "integrity_error" as const, reason: "missing adjustment fields" };
           const history = store.accountEntries
             .filter(
               (item) => item.workspaceId === workspaceId && item.customerId === entry.customerId,
@@ -752,20 +752,23 @@ export class InMemoryDatabase {
           const workspace = store.workspaceNames.get(workspaceId);
           const actor = store.actorNames.get(entry.actorId);
           if (customer === undefined || workspace === undefined || actor === undefined)
-            return "integrity_error" as const;
+            return { kind: "integrity_error" as const, reason: "missing joined record" };
           return {
-            adjustmentId,
-            entryId: entry.id,
-            commandId: entry.commandId,
-            workspace: { id: workspaceId, name: workspace },
-            customer: { id: entry.customerId, displayName: customer.displayName },
-            actor: { id: entry.actorId, displayName: actor },
-            amount: entry.amount,
-            reasonCode: entry.reasonCode,
-            reason: entry.reason,
-            transactionTime: entry.transactionTime,
-            recordedAt: entry.recordedAt,
-            runningBalance: money(running, entry.amount.currency),
+            kind: "found" as const,
+            row: {
+              adjustmentId,
+              entryId: entry.id,
+              commandId: entry.commandId,
+              workspace: { id: workspaceId, name: workspace },
+              customer: { id: entry.customerId, displayName: customer.displayName },
+              actor: { id: entry.actorId, displayName: actor },
+              amount: entry.amount,
+              reasonCode: entry.reasonCode,
+              reason: entry.reason,
+              transactionTime: entry.transactionTime,
+              recordedAt: entry.recordedAt,
+              runningBalance: money(running, entry.amount.currency),
+            },
           };
         },
         timeline: async ({ workspaceId, customerId, from, to, page }) => {

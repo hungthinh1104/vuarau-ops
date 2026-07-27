@@ -122,45 +122,47 @@ export async function getAccountAdjustmentDetail(
     permission: "debt.read",
     execute: async ({ repos }) => {
       const row = await repos.accountReads.adjustmentDetail(input);
-      if (row === "integrity_error") return { integrityFailure: true };
-      if (row === null) return null;
-      const change = row.amount;
+      if (row.kind !== "found") return row;
+      const change = row.row.amount;
       const balanceBefore = {
-        amountMinor: row.runningBalance.amountMinor - change.amountMinor,
+        amountMinor: row.row.runningBalance.amountMinor - change.amountMinor,
         currency: change.currency,
       };
       return {
-        adjustmentId: row.adjustmentId,
-        entryId: row.entryId,
-        commandId: row.commandId,
-        workspace: row.workspace,
-        customer: row.customer,
-        actor: row.actor,
-        direction: change.amountMinor > 0 ? ("increase" as const) : ("decrease" as const),
-        reasonCode: row.reasonCode,
-        reason: row.reason,
-        transactionTime: row.transactionTime,
-        recordedAt: row.recordedAt,
-        accountEffect: {
-          balanceBefore,
-          change,
-          balanceAfter: row.runningBalance,
-          classificationAfter: classifyBalance(row.runningBalance),
+        kind: "found" as const,
+        detail: {
+          adjustmentId: row.row.adjustmentId,
+          entryId: row.row.entryId,
+          commandId: row.row.commandId,
+          workspace: row.row.workspace,
+          customer: row.row.customer,
+          actor: row.row.actor,
+          direction: change.amountMinor > 0 ? ("increase" as const) : ("decrease" as const),
+          reasonCode: row.row.reasonCode,
+          reason: row.row.reason,
+          transactionTime: row.row.transactionTime,
+          recordedAt: row.row.recordedAt,
+          accountEffect: {
+            balanceBefore,
+            change,
+            balanceAfter: row.row.runningBalance,
+            classificationAfter: classifyBalance(row.row.runningBalance),
+          },
+          displayReference: `ADJ-${row.row.adjustmentId.slice(0, 8)}`,
         },
-        displayReference: `ADJ-${row.adjustmentId.slice(0, 8)}`,
       };
     },
   });
   if (!result.ok) return result;
-  if (result.value !== null && "integrityFailure" in result.value)
+  if (result.value.kind === "integrity_error")
     return err(
       "ACCOUNT_ADJUSTMENT_INTEGRITY_ERROR",
       "Account adjustment ledger entry is incomplete.",
       { adjustmentId: input.adjustmentId },
     );
-  if (result.value === null)
+  if (result.value.kind === "not_found")
     return err("ACCOUNT_ADJUSTMENT_NOT_FOUND", "No such account adjustment in this workspace.", {
       adjustmentId: input.adjustmentId,
     });
-  return ok(result.value);
+  return ok(result.value.detail);
 }

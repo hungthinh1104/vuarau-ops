@@ -177,6 +177,11 @@ export type AccountAdjustmentDetailRow = {
   readonly runningBalance: Money;
 };
 
+export type AccountAdjustmentDetailRead =
+  | { readonly kind: "found"; readonly row: AccountAdjustmentDetailRow }
+  | { readonly kind: "not_found" }
+  | { readonly kind: "integrity_error"; readonly reason: string };
+
 export type AuditTimelineRow = {
   readonly id: AuditRecordId;
   readonly workspaceId: WorkspaceId;
@@ -257,7 +262,7 @@ export type AccountReadRepository = {
   adjustmentDetail(args: {
     workspaceId: WorkspaceId;
     adjustmentId: string;
-  }): Promise<AccountAdjustmentDetailRow | "integrity_error" | null>;
+  }): Promise<AccountAdjustmentDetailRead>;
   timeline(args: {
     workspaceId: WorkspaceId;
     customerId: CustomerId;
