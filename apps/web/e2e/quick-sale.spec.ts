@@ -344,6 +344,13 @@ test.describe("TC-E2E-021 — an owner corrects a posted sale", () => {
     await expect(page.getByTestId("sale-line-0").getByLabel("Mặt hàng")).toHaveValue("Ớt hiểm");
     await expect(page.getByTestId("sale-line-0").getByLabel("Đơn giá")).toHaveValue("12000");
 
+    // Replacement data comes from the voided Sale, not transient route state.
+    // Reloading must recover the same editable draft intent.
+    await page.reload();
+    await expect(page.getByText(/Đang tạo đơn thay thế/)).toBeVisible();
+    await expect(page.getByTestId("sale-line-0").getByLabel("Mặt hàng")).toHaveValue("Ớt hiểm");
+    await expect(page.getByTestId("sale-line-0").getByLabel("Đơn giá")).toHaveValue("12000");
+
     await page.getByTestId("sale-line-0").getByLabel("Đơn giá").fill("13.000");
     await page.getByRole("button", { name: "Chốt đơn" }).click();
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
