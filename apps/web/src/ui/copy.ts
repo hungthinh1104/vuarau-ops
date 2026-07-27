@@ -42,6 +42,8 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   SALE_CURRENCY_MISMATCH: "Đơn vị tiền tệ không khớp.",
   SALE_IMMUTABLE: "Đơn đã chốt là bản ghi cố định, không sửa trực tiếp được.",
   SALE_ALREADY_DISCARDED: "Đơn nháp này đã bị bỏ.",
+  SALE_POSTING_ENTRY_MISSING:
+    "Đơn đã chốt nhưng thiếu bút toán công nợ. Hãy báo người quản trị để kiểm tra dữ liệu.",
 
   SALE_NOT_POSTED: "Đơn chưa chốt thì không hoàn tác được — hãy bỏ đơn nháp.",
   SALE_ALREADY_VOIDED: "Đơn này đã được hoàn tác rồi.",

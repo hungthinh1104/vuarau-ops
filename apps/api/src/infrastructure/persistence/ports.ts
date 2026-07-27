@@ -44,6 +44,8 @@ export type WorkspaceMembership = {
 };
 
 export type WorkspaceRepository = {
+  /** Presentation name for an already workspace-scoped read model. */
+  findName(workspaceId: WorkspaceId): Promise<string | null>;
   /**
    * Returns the membership including an **inactive** one, so the caller can tell
    * "never had access" from "access was revoked" and answer with the right code.

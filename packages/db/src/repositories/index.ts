@@ -74,6 +74,14 @@ export type IdMinter = { newId(): string };
 export function createRepositories(tx: Tx, ids: IdMinter) {
   return {
     workspaces: {
+      async findName(workspaceId: WorkspaceId): Promise<string | null> {
+        const rows = await tx
+          .select({ name: workspaces.name })
+          .from(workspaces)
+          .where(eq(workspaces.id, workspaceId))
+          .limit(1);
+        return rows[0]?.name ?? null;
+      },
       // Note the absence of an `is_active` filter: the caller needs to see a
       // revoked membership to answer WORKSPACE_MEMBERSHIP_INACTIVE rather than
       // the misleading WORKSPACE_ACCESS_DENIED.

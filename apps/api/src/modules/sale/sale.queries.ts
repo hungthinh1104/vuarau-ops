@@ -8,8 +8,8 @@ import type {
   SaleSummaryDto,
   SaleCaptureContextDto,
   SaleCaptureContextInput,
-  SaleReceiptDto,
-  SaleReceiptInput,
+  SaleDetailDto,
+  SaleDetailInput,
 } from "@vuarau/domain-contracts";
 import type { DomainResult, SaleState } from "@vuarau/domain-kernel";
 import { err, saleDueState, saleSummaryCapabilities } from "@vuarau/domain-kernel";
@@ -130,11 +130,11 @@ export function captureContext(
   });
 }
 
-/** A posted sale view is derived from the sale and ledger, never a new aggregate. */
-export async function getSaleReceipt(
+/** A Sale detail view is derived from the Sale and its ledger effect. */
+export async function getSaleDetail(
   ctx: CommandContext,
-  input: SaleReceiptInput,
-): Promise<DomainResult<SaleReceiptDto>> {
+  input: SaleDetailInput,
+): Promise<DomainResult<SaleDetailDto>> {
   const result = await runQuery({
     ctx,
     workspaceId: input.workspaceId,
@@ -145,49 +145,70 @@ export async function getSaleReceipt(
       const customer = await repos.customerReads.get(input.workspaceId, sale.customerId);
       if (customer === null) return null;
       const replacedBySaleId = await repos.saleReads.replacedBy(input.workspaceId, sale.id);
-      const entries = await repos.accountReads.timeline({
-        workspaceId: input.workspaceId,
-        customerId: sale.customerId,
-        from: null,
-        to: null,
-        page: { after: null, limit: 200 },
-      });
-      const entry = entries.rows.find(
-        (row) => row.source.type === "sale_posting" && row.source.id === sale.id,
+      // This is an indexed source lookup, not a page of the customer's timeline.
+      // An old sale must remain readable after a customer has hundreds of entries.
+      const entry = await repos.accountEntries.findBySource(
+        input.workspaceId,
+        "sale_posting",
+        sale.id,
       );
+      if (sale.status === "posted" && entry === null) return { integrityFailure: true };
+      const workspaceName = await repos.workspaces.findName(input.workspaceId);
+      if (workspaceName === null) return null;
+      const allEntries =
+        entry === null
+          ? []
+          : [
+              ...(await repos.accountEntries.listByCustomer(input.workspaceId, sale.customerId)),
+            ].sort(
+              (left, right) =>
+                left.transactionTime.localeCompare(right.transactionTime) ||
+                left.id.localeCompare(right.id),
+            );
+      const balanceAfter =
+        entry === null
+          ? null
+          : allEntries
+              .slice(0, allEntries.findIndex((row) => row.id === entry.id) + 1)
+              .reduce((sum, row) => sum + row.amount.amountMinor, 0);
       const accountEffect =
-        entry === undefined
+        entry === null || balanceAfter === null
           ? null
           : {
               balanceBefore: {
-                ...entry.runningBalance,
-                amountMinor: entry.runningBalance.amountMinor - entry.amount.amountMinor,
+                ...entry.amount,
+                amountMinor: balanceAfter - entry.amount.amountMinor,
               },
               change: entry.amount,
-              balanceAfter: entry.runningBalance,
+              balanceAfter: { ...entry.amount, amountMinor: balanceAfter },
               classificationAfter:
-                entry.runningBalance.amountMinor > 0
+                balanceAfter > 0
                   ? ("receivable" as const)
-                  : entry.runningBalance.amountMinor < 0
+                  : balanceAfter < 0
                     ? ("customer_credit" as const)
                     : ("settled" as const),
               accountEntryId: entry.id,
             };
       return {
         sale: toSaleDto(sale, asOf),
-        displayReference: `Bông ${sale.id.slice(0, 8).toUpperCase()}`,
+        displayReference: `Mã đơn ${sale.id.slice(0, 8).toUpperCase()}`,
         customer: {
           id: customer.customer.id,
           displayName: customer.customer.displayName,
           phone: customer.customer.phone,
         },
-        workspace: { id: input.workspaceId, name: "" },
+        workspace: { id: input.workspaceId, name: workspaceName },
         accountEffect,
         correction: { voidRecord: toSaleDto(sale, asOf).voidRecord, replacedBySaleId },
       };
     },
   });
   if (!result.ok) return result;
+  if (result.value !== null && "integrityFailure" in result.value) {
+    return err("SALE_POSTING_ENTRY_MISSING", "Posted sale has no sale_posting account entry.", {
+      saleId: input.saleId,
+    });
+  }
   if (result.value === null)
     return err("SALE_NOT_FOUND", "No such sale in this workspace.", { saleId: input.saleId });
   return { ok: true, value: result.value };

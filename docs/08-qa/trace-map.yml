@@ -651,7 +651,7 @@ business_rules:
       - packages/db/src/repositories/read-queries.ts
 
   BR-SALE-022:
-    title: A posted sale view is derived from Sale and its ledger effect
+    title: A Sale detail view is derived from the Sale and its ledger effect
     risk: P1
     doc: docs/04-business-rules/sale-rules.md
     cases: []

@@ -13,7 +13,7 @@ import {
   getPaymentInputSchema,
   getSaleInputSchema,
   saleCaptureContextInputSchema,
-  saleReceiptInputSchema,
+  saleDetailInputSchema,
   listPaymentsInputSchema,
   listSalesInputSchema,
   postSaleCommandSchema,
@@ -52,7 +52,7 @@ import {
 import {
   captureContext,
   getSale,
-  getSaleReceipt,
+  getSaleDetail,
   listSales,
 } from "../../modules/sale/sale.queries.ts";
 import { getPayment, listPayments } from "../../modules/payment/payment.queries.ts";
@@ -169,9 +169,9 @@ const saleRouter = router({
     .input(saleCaptureContextInputSchema)
     .query(async ({ ctx, input }) => unwrap(await captureContext(ctx, input))),
 
-  receipt: authenticatedProcedure
-    .input(saleReceiptInputSchema)
-    .query(async ({ ctx, input }) => unwrap(await getSaleReceipt(ctx, input))),
+  detail: authenticatedProcedure
+    .input(saleDetailInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSaleDetail(ctx, input))),
 });
 
 const paymentRouter = router({

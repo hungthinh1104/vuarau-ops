@@ -10,6 +10,7 @@ import { useTRPC } from "../../../../../../api/providers.tsx";
 import { useCommand } from "../../../../../../api/use-command.ts";
 import { hasPermission } from "../../../../../../api/session.ts";
 import { useWorkflowMetrics } from "../../../../../../api/workflow-metrics.ts";
+import { useDebounced } from "../../../../../../api/use-debounced.ts";
 import { QueryStates } from "../../../../../../ui/patterns/query-states.tsx";
 import { BalancePreview } from "../../../../../../ui/patterns/balance-preview.tsx";
 import { CommandOutcome } from "../../../../../../ui/patterns/command-outcome.tsx";
@@ -61,11 +62,14 @@ export default function NewSalePage() {
   const [draft, setDraft] = useState<SaleDto | null>(null);
   const [dirty, setDirty] = useState(true);
   const [unitNotice, setUnitNotice] = useState<string | null>(null);
+  const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  const activeLine = lines.find((line) => line.lineId === activeLineId) ?? lines[0]!;
+  const activeProductQuery = useDebounced(activeLine.productName, 200);
   const capture = useQuery(
     trpc.sale.captureContext.queryOptions({
       workspaceId,
       customerId,
-      query: lines[0]?.productName ?? "",
+      query: activeProductQuery,
       limit: 10,
     }),
   );
@@ -126,7 +130,9 @@ export default function NewSalePage() {
   }
 
   function addLine(): void {
-    editLines([...lines, emptyLine(crypto.randomUUID())]);
+    const line = emptyLine(crypto.randomUUID());
+    editLines([...lines, line]);
+    setActiveLineId(line.lineId);
   }
 
   function toPayload() {
@@ -278,13 +284,29 @@ export default function NewSalePage() {
                     ? { serverIssue: "Máy chủ từ chối dòng này. Kiểm tra số lượng và đơn giá." }
                     : {})}
                   canRemove={lines.length > 1}
+                  onFocus={() => setActiveLineId(line.lineId)}
                   onChange={(next) =>
                     editLines(
                       lines.map((existing, at) => {
                         if (at !== index) return existing;
-                        if (existing.unit !== next.unit && existing.unitPriceText.length > 0) {
+                        const recalled = existing.priceOrigin?.kind === "recalled";
+                        const productChanged = existing.productName !== next.productName;
+                        const unitChanged = existing.unit !== next.unit;
+                        if (recalled && (productChanged || unitChanged)) {
                           setUnitNotice("Giá đã được xoá vì đơn vị thay đổi");
-                          return { ...next, unitPriceText: "" };
+                          metrics.count("price_cleared_after_unit_change");
+                          return { ...next, unitPriceText: "", priceOrigin: null };
+                        }
+                        // Any edit to a recalled visible price is an intentional manual override.
+                        if (existing.unitPriceText !== next.unitPriceText && recalled) {
+                          metrics.count("historical_price_changed_after_apply");
+                          return { ...next, priceOrigin: { kind: "manual" } };
+                        }
+                        if (
+                          existing.unitPriceText !== next.unitPriceText &&
+                          next.unitPriceText.length > 0
+                        ) {
+                          return { ...next, priceOrigin: { kind: "manual" } };
                         }
                         return next;
                       }),
@@ -306,9 +328,32 @@ export default function NewSalePage() {
               attemptedAction="Xem giá gần đây"
             >
               {(context) =>
-                context.customerHistory.length === 0 ? null : (
+                context.customerHistory.length === 0 &&
+                context.workspaceHistory.length === 0 ? null : (
                   <section className="rounded-card border border-border bg-surface p-3">
                     <h2 className="text-label font-semibold">Gần đây với khách này</h2>
+                    {context.workspaceHistory.map((history) => (
+                      <Button
+                        key={`workspace-${history.productName}-${history.unit}`}
+                        tone="secondary"
+                        onClick={() => {
+                          editLines(
+                            lines.map((line) =>
+                              line.lineId === activeLine.lineId
+                                ? {
+                                    ...line,
+                                    productName: history.productName,
+                                    unit: history.unit as SaleLineDraft["unit"],
+                                  }
+                                : line,
+                            ),
+                          );
+                          metrics.count("historical_product_selected");
+                        }}
+                      >
+                        {history.productName} · {history.unit}
+                      </Button>
+                    ))}
                     {context.customerHistory.map((history) => (
                       <div
                         key={`${history.productName}-${history.unit}`}
@@ -325,22 +370,28 @@ export default function NewSalePage() {
                         <Button
                           tone="secondary"
                           onClick={() => {
-                            const target = lines.findIndex(
-                              (line) =>
-                                line.productName.trim() === history.productName &&
-                                line.unit === history.unit,
-                            );
-                            if (target < 0) return;
+                            if (
+                              activeLine.productName.trim() !== history.productName ||
+                              activeLine.unit !== history.unit
+                            )
+                              return;
                             editLines(
-                              lines.map((line, at) =>
-                                at === target
+                              lines.map((line) =>
+                                line.lineId === activeLine.lineId
                                   ? {
                                       ...line,
                                       unitPriceText: String(history.lastUnitPrice.amountMinor),
+                                      priceOrigin: {
+                                        kind: "recalled",
+                                        sourceSaleId: history.sourceSaleId,
+                                        productName: history.productName,
+                                        unit: history.unit as SaleLineDraft["unit"],
+                                      },
                                     }
                                   : line,
                               ),
                             );
+                            metrics.count("historical_price_applied");
                           }}
                         >
                           Dùng giá này

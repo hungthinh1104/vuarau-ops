@@ -289,14 +289,14 @@ export const saleCaptureContextDtoSchema = z.object({
 });
 export type SaleCaptureContextDto = z.infer<typeof saleCaptureContextDtoSchema>;
 
-export const saleReceiptInputSchema = z.object({
+export const saleDetailInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   saleId: saleIdSchema,
 });
-export type SaleReceiptInput = z.infer<typeof saleReceiptInputSchema>;
+export type SaleDetailInput = z.infer<typeof saleDetailInputSchema>;
 
 /** Presentation model for one posted sale; it is not an accounting invoice. */
-export const saleReceiptDtoSchema = z.object({
+export const saleDetailDtoSchema = z.object({
   sale: saleDtoSchema,
   displayReference: z.string(),
   customer: z.object({
@@ -319,7 +319,7 @@ export const saleReceiptDtoSchema = z.object({
     replacedBySaleId: saleIdSchema.nullable(),
   }),
 });
-export type SaleReceiptDto = z.infer<typeof saleReceiptDtoSchema>;
+export type SaleDetailDto = z.infer<typeof saleDetailDtoSchema>;
 
 export const saleDraftCreatedEventSchema = z.object({
   type: z.literal("sale.draft_created"),

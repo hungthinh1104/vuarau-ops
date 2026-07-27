@@ -14,7 +14,7 @@ import {
 import { createHarness } from "../../testing/command-test-harness.ts";
 import { createSaleDraft } from "./create-sale-draft.handler.ts";
 import { postSale } from "./post-sale.handler.ts";
-import { captureContext, getSaleReceipt } from "./sale.queries.ts";
+import { captureContext, getSaleDetail } from "./sale.queries.ts";
 
 async function postedHarness() {
   const harness = createHarness();
@@ -64,10 +64,10 @@ describe("BR-SALE-021 / TC-SALE-029 — customer-local historical recall", () =>
   });
 });
 
-describe("BR-SALE-022 / TC-SALE-030 — bông receipt is derived from the ledger", () => {
+describe("BR-SALE-022 / TC-SALE-030 — sale detail is derived from the ledger", () => {
   it("returns the posted snapshot and its one server-calculated account effect", async () => {
     const harness = await postedHarness();
-    const result = await getSaleReceipt(harness.ctx, {
+    const result = await getSaleDetail(harness.ctx, {
       workspaceId: WORKSPACE_ID,
       saleId: SALE_ID,
     });

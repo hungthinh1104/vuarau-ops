@@ -30,13 +30,14 @@ export const WORKFLOW_METRICS = [
   "unknown_outcome_count",
   "workflow_abandoned",
   "recent_customer_selected",
+  "customer_selected_from_search",
   "customer_created_inline",
+  "historical_product_selected",
   "historical_price_offered",
   "historical_price_applied",
-  "historical_price_dismissed",
+  "historical_price_changed_after_apply",
   "price_cleared_after_unit_change",
-  "sale_context_capture_completed",
-  "receipt_viewed",
+  "sale_detail_viewed",
 ] as const;
 
 export type WorkflowMetric = (typeof WORKFLOW_METRICS)[number];

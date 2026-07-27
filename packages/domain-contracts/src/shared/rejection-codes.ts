@@ -52,6 +52,8 @@ export const DOMAIN_REJECTION_CODES = [
   "SALE_IMMUTABLE",
   /** Editing or discarding a draft that was already discarded. */
   "SALE_ALREADY_DISCARDED",
+  /** A posted sale must have exactly one ledger entry from its posting command. */
+  "SALE_POSTING_ENTRY_MISSING",
 
   // --- sale correction --------------------------------------------------------
   /** Voiding a draft. A draft is discarded; there is no effect to compensate. */

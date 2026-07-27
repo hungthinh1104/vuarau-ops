@@ -406,11 +406,11 @@ a recalled price enters the draft, and may freely edit it afterwards.
 
 ---
 
-### BR-SALE-022 — A posted sale view is derived from Sale and its ledger effect
+### BR-SALE-022 — A Sale detail view is derived from the Sale and its ledger effect
 
 **Risk:** P1 · **Code:** — · **Tests:** TC-SALE-030
 
-A posted sale view is not an invoice, receipt aggregate, or public document. Its
+A Sale detail view is not an invoice, receipt aggregate, or public document. Its
 display reference is stable presentation only. Its before/change/after account
 values are calculated server-side from the sale-posting ledger entry and its
 running balance; the browser never adds them. The posted line snapshot remains the

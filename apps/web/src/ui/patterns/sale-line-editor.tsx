@@ -24,10 +24,27 @@ export type SaleLineDraft = {
   readonly quantityText: string;
   readonly unit: Unit;
   readonly unitPriceText: string;
+  /** UI-only provenance; the posted Sale always snapshots the visible price. */
+  readonly priceOrigin:
+    | { readonly kind: "manual" }
+    | {
+        readonly kind: "recalled";
+        readonly sourceSaleId: string;
+        readonly productName: string;
+        readonly unit: Unit;
+      }
+    | null;
 };
 
 export function emptyLine(lineId: string): SaleLineDraft {
-  return { lineId, productName: "", quantityText: "", unit: "kg", unitPriceText: "" };
+  return {
+    lineId,
+    productName: "",
+    quantityText: "",
+    unit: "kg",
+    unitPriceText: "",
+    priceOrigin: null,
+  };
 }
 
 export type SaleLineIssue = {
@@ -105,6 +122,7 @@ export type SaleLineEditorProps = {
   readonly onChange: (line: SaleLineDraft) => void;
   readonly onRemove: () => void;
   readonly canRemove: boolean;
+  readonly onFocus?: () => void;
 };
 
 /**
@@ -126,6 +144,7 @@ export function SaleLineEditor({
   onChange,
   onRemove,
   canRemove,
+  onFocus,
 }: SaleLineEditorProps) {
   const { total } = resolveLine(line);
 
@@ -133,6 +152,7 @@ export function SaleLineEditor({
     <li
       data-testid={`sale-line-${index}`}
       className="flex flex-col gap-3 rounded-card border border-border bg-surface p-3"
+      onFocus={onFocus}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-caption font-semibold text-ink-muted">Dòng {index + 1}</span>

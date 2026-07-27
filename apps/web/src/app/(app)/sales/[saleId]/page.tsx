@@ -4,12 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { SaleId } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect } from "react";
 import { useSession } from "../../../../api/session-gate.tsx";
 import { useTRPC } from "../../../../api/providers.tsx";
+import { useWorkflowMetrics } from "../../../../api/workflow-metrics.ts";
 import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
 import { SaleStatus } from "../../../../ui/patterns/sale-status.tsx";
-import { BalanceCard } from "../../../../ui/patterns/balance-card.tsx";
-import { TimelineItem } from "../../../../ui/patterns/timeline-item.tsx";
 import {
   formatInstant,
   formatMoney,
@@ -34,8 +34,13 @@ export default function SaleDetailPage() {
   const trpc = useTRPC();
   const params = useParams<{ saleId: string }>();
   const saleId = params.saleId as SaleId;
+  const metrics = useWorkflowMetrics();
 
-  const sale = useQuery(trpc.sale.receipt.queryOptions({ workspaceId, saleId }));
+  const sale = useQuery(trpc.sale.detail.queryOptions({ workspaceId, saleId }));
+
+  useEffect(() => {
+    if (sale.isSuccess) metrics.mark("sale_detail_viewed");
+  }, [metrics, sale.isSuccess]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -45,23 +50,21 @@ export default function SaleDetailPage() {
         attemptedAction="Xem đơn hàng"
         onRetry={() => void sale.refetch()}
       >
-        {(receipt) => (
+        {(detail) => (
           <>
             <div className="flex flex-col gap-2">
-              <h1 className="text-heading font-bold">
-                {receipt.sale.status === "posted" ? "Chi tiết đơn bán" : "Đơn hàng"}
-              </h1>
+              <h1 className="text-heading font-bold">CHI TIẾT ĐƠN · {detail.displayReference}</h1>
               <SaleStatus
-                status={receipt.sale.status}
-                financialState={receipt.sale.financialState}
-                dueState={receipt.sale.dueState}
-                replacesSaleId={receipt.sale.replacesSaleId}
+                status={detail.sale.status}
+                financialState={detail.sale.financialState}
+                dueState={detail.sale.dueState}
+                replacesSaleId={detail.sale.replacesSaleId}
               />
             </div>
 
             <section className="rounded-card border border-border bg-surface p-4">
               <ul className="flex flex-col gap-2">
-                {receipt.sale.lines.map((line) => (
+                {detail.sale.lines.map((line) => (
                   <li key={line.lineId} className="flex items-baseline justify-between gap-3">
                     <span className="text-body text-ink">
                       {line.productName}
@@ -81,46 +84,82 @@ export default function SaleDetailPage() {
               <div className="mt-3 flex items-baseline justify-between border-t border-border pt-3">
                 <span className="text-subheading font-semibold">Tổng đơn</span>
                 <span className="tabular text-heading font-bold" data-testid="posted-total">
-                  {formatMoney(receipt.sale.totalAmount)}
+                  {formatMoney(detail.sale.totalAmount)}
                 </span>
               </div>
             </section>
 
-            {receipt.sale.note !== null ? (
+            {detail.sale.note !== null ? (
               <p className="rounded-card bg-surface-muted px-4 py-3 text-body-sm text-ink">
-                {receipt.sale.note}
+                {detail.sale.note}
               </p>
             ) : null}
 
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body-sm">
               <dt className="text-ink-muted">Thời điểm bán</dt>
-              <dd className="text-right text-ink">{formatInstant(receipt.sale.transactionTime)}</dd>
-              {formatRecordedGap(receipt.sale.transactionTime, receipt.sale.recordedAt) !== null ? (
+              <dd className="text-right text-ink">{formatInstant(detail.sale.transactionTime)}</dd>
+              {formatRecordedGap(detail.sale.transactionTime, detail.sale.recordedAt) !== null ? (
                 <>
                   <dt className="text-ink-muted">Ghi vào sổ</dt>
-                  <dd className="text-right text-ink">{formatInstant(receipt.sale.recordedAt)}</dd>
+                  <dd className="text-right text-ink">{formatInstant(detail.sale.recordedAt)}</dd>
                 </>
               ) : null}
             </dl>
 
-            {receipt.accountEffect !== null ? (
+            <section className="rounded-card border border-border bg-surface p-4 text-body-sm">
+              <p>
+                Khách hàng: <strong>{detail.customer.displayName}</strong>
+              </p>
+              <p>
+                Tên vựa: <strong>{detail.workspace.name}</strong>
+              </p>
+            </section>
+            {detail.accountEffect !== null ? (
               <section className="rounded-card border border-border bg-surface p-4">
                 <h2 className="text-subheading font-semibold">Ảnh hưởng công nợ</h2>
                 <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-2 text-body-sm">
                   <dt>Công nợ trước</dt>
-                  <dd className="tabular">{formatMoney(receipt.accountEffect.balanceBefore)}</dd>
+                  <dd className="tabular">{formatMoney(detail.accountEffect.balanceBefore)}</dd>
                   <dt>Đơn này</dt>
-                  <dd className="tabular">{formatMoney(receipt.accountEffect.change)}</dd>
+                  <dd className="tabular">{formatMoney(detail.accountEffect.change)}</dd>
                   <dt className="font-semibold">Công nợ mới</dt>
                   <dd className="tabular font-semibold">
-                    {formatMoney(receipt.accountEffect.balanceAfter)}
+                    {formatMoney(detail.accountEffect.balanceAfter)}
                   </dd>
+                  <dt>Phân loại sau giao dịch</dt>
+                  <dd>{detail.accountEffect.classificationAfter}</dd>
                 </dl>
               </section>
             ) : null}
 
+            {detail.correction.voidRecord !== null ||
+            detail.correction.replacedBySaleId !== null ? (
+              <section className="rounded-card border border-border bg-surface p-4 text-body-sm">
+                <h2 className="text-subheading font-semibold">Liên kết điều chỉnh</h2>
+                {detail.sale.replacesSaleId !== null ? (
+                  <Link
+                    href={`/sales/${detail.sale.replacesSaleId}`}
+                    className="block text-info underline"
+                  >
+                    Đơn này thay thế đơn {detail.sale.replacesSaleId.slice(0, 8).toUpperCase()}
+                  </Link>
+                ) : null}
+                {detail.correction.replacedBySaleId !== null ? (
+                  <Link
+                    href={`/sales/${detail.correction.replacedBySaleId}`}
+                    className="block text-info underline"
+                  >
+                    Đơn này đã được thay thế
+                  </Link>
+                ) : null}
+                {detail.correction.voidRecord !== null ? (
+                  <p>Đã void: {detail.correction.voidRecord.reason}</p>
+                ) : null}
+              </section>
+            ) : null}
+
             <Link
-              href={`/customers/${receipt.sale.customerId}`}
+              href={`/customers/${detail.sale.customerId}`}
               className="touch-target inline-flex items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
             >
               Xem sổ công nợ khách hàng
@@ -129,79 +168,5 @@ export default function SaleDetailPage() {
         )}
       </QueryStates>
     </div>
-  );
-}
-
-/**
- * The ledger line this sale produced, and the balance after it.
- *
- * Filtered to entries whose source **is** this sale, so the screen shows the one
- * financial event rather than the customer's whole history. If posting had
- * created two entries — the failure BR-SALE-007 exists to prevent — two would
- * appear here.
- */
-function AccountEffect({
-  workspaceId,
-  customerId,
-  saleId,
-}: {
-  workspaceId: string;
-  customerId: string;
-  saleId: string;
-}) {
-  const trpc = useTRPC();
-  const balance = useQuery(
-    trpc.account.balance.queryOptions({
-      workspaceId: workspaceId as never,
-      customerId: customerId as never,
-    }),
-  );
-  const timeline = useQuery(
-    trpc.account.timeline.queryOptions({
-      workspaceId: workspaceId as never,
-      customerId: customerId as never,
-      from: null,
-      to: null,
-      cursor: null,
-      limit: 20,
-    }),
-  );
-
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-subheading font-semibold">Ảnh hưởng công nợ</h2>
-
-      <QueryStates query={balance} loadingLabel="Đang tải công nợ" attemptedAction="Xem công nợ">
-        {(current) => (
-          <BalanceCard
-            customerName="Sau đơn này"
-            balance={current.balance}
-            classification={current.classification}
-            lastEntryTransactionTime={current.lastEntryTransactionTime}
-          />
-        )}
-      </QueryStates>
-
-      <QueryStates
-        query={timeline}
-        loadingLabel="Đang tải sổ công nợ"
-        attemptedAction="Xem sổ công nợ"
-      >
-        {(page) => {
-          const fromThisSale = page.items.filter((entry) => entry.source.id === saleId);
-          if (fromThisSale.length === 0) return null;
-          return (
-            <ul
-              data-testid="sale-account-entries"
-              className="rounded-card border border-border bg-surface px-4"
-            >
-              {fromThisSale.map((entry) => (
-                <TimelineItem key={entry.id} entry={entry} />
-              ))}
-            </ul>
-          );
-        }}
-      </QueryStates>
-    </section>
   );
 }

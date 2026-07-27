@@ -261,6 +261,7 @@ export class InMemoryDatabase {
 
     return {
       workspaces: {
+        findName: async (workspaceId) => store.workspaceNames.get(workspaceId) ?? null,
         // Returns inactive memberships too — the same semantics as the Drizzle
         // implementation, which this deliberately mirrors. Before Milestone 1 the
         // two disagreed about `is_active` and no application test could have
