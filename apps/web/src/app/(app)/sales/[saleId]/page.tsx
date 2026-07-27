@@ -35,7 +35,7 @@ export default function SaleDetailPage() {
   const params = useParams<{ saleId: string }>();
   const saleId = params.saleId as SaleId;
 
-  const sale = useQuery(trpc.sale.get.queryOptions({ workspaceId, saleId }));
+  const sale = useQuery(trpc.sale.receipt.queryOptions({ workspaceId, saleId }));
 
   return (
     <div className="flex flex-col gap-5">
@@ -45,23 +45,23 @@ export default function SaleDetailPage() {
         attemptedAction="Xem đơn hàng"
         onRetry={() => void sale.refetch()}
       >
-        {(posted) => (
+        {(receipt) => (
           <>
             <div className="flex flex-col gap-2">
               <h1 className="text-heading font-bold">
-                {posted.status === "posted" ? "Đã chốt đơn" : "Đơn hàng"}
+                {receipt.sale.status === "posted" ? "Bông hàng" : "Đơn hàng"}
               </h1>
               <SaleStatus
-                status={posted.status}
-                financialState={posted.financialState}
-                dueState={posted.dueState}
-                replacesSaleId={posted.replacesSaleId}
+                status={receipt.sale.status}
+                financialState={receipt.sale.financialState}
+                dueState={receipt.sale.dueState}
+                replacesSaleId={receipt.sale.replacesSaleId}
               />
             </div>
 
             <section className="rounded-card border border-border bg-surface p-4">
               <ul className="flex flex-col gap-2">
-                {posted.lines.map((line) => (
+                {receipt.sale.lines.map((line) => (
                   <li key={line.lineId} className="flex items-baseline justify-between gap-3">
                     <span className="text-body text-ink">
                       {line.productName}
@@ -81,36 +81,46 @@ export default function SaleDetailPage() {
               <div className="mt-3 flex items-baseline justify-between border-t border-border pt-3">
                 <span className="text-subheading font-semibold">Tổng đơn</span>
                 <span className="tabular text-heading font-bold" data-testid="posted-total">
-                  {formatMoney(posted.totalAmount)}
+                  {formatMoney(receipt.sale.totalAmount)}
                 </span>
               </div>
             </section>
 
-            {posted.note !== null ? (
+            {receipt.sale.note !== null ? (
               <p className="rounded-card bg-surface-muted px-4 py-3 text-body-sm text-ink">
-                {posted.note}
+                {receipt.sale.note}
               </p>
             ) : null}
 
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body-sm">
               <dt className="text-ink-muted">Thời điểm bán</dt>
-              <dd className="text-right text-ink">{formatInstant(posted.transactionTime)}</dd>
-              {formatRecordedGap(posted.transactionTime, posted.recordedAt) !== null ? (
+              <dd className="text-right text-ink">{formatInstant(receipt.sale.transactionTime)}</dd>
+              {formatRecordedGap(receipt.sale.transactionTime, receipt.sale.recordedAt) !== null ? (
                 <>
                   <dt className="text-ink-muted">Ghi vào sổ</dt>
-                  <dd className="text-right text-ink">{formatInstant(posted.recordedAt)}</dd>
+                  <dd className="text-right text-ink">{formatInstant(receipt.sale.recordedAt)}</dd>
                 </>
               ) : null}
             </dl>
 
-            <AccountEffect
-              workspaceId={workspaceId}
-              customerId={posted.customerId}
-              saleId={posted.id}
-            />
+            {receipt.accountEffect !== null ? (
+              <section className="rounded-card border border-border bg-surface p-4">
+                <h2 className="text-subheading font-semibold">Ảnh hưởng công nợ</h2>
+                <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-2 text-body-sm">
+                  <dt>Công nợ trước</dt>
+                  <dd className="tabular">{formatMoney(receipt.accountEffect.balanceBefore)}</dd>
+                  <dt>Bông này</dt>
+                  <dd className="tabular">{formatMoney(receipt.accountEffect.change)}</dd>
+                  <dt className="font-semibold">Công nợ mới</dt>
+                  <dd className="tabular font-semibold">
+                    {formatMoney(receipt.accountEffect.balanceAfter)}
+                  </dd>
+                </dl>
+              </section>
+            ) : null}
 
             <Link
-              href={`/customers/${posted.customerId}`}
+              href={`/customers/${receipt.sale.customerId}`}
               className="touch-target inline-flex items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
             >
               Xem sổ công nợ khách hàng

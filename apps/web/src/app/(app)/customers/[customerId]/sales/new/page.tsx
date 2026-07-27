@@ -23,7 +23,7 @@ import {
 import { Badge } from "../../../../../../ui/primitives/badge.tsx";
 import { Button } from "../../../../../../ui/primitives/button.tsx";
 import { Textarea } from "../../../../../../ui/primitives/textarea.tsx";
-import { formatMoney } from "../../../../../../ui/format.ts";
+import { formatDate, formatMoney } from "../../../../../../ui/format.ts";
 
 /**
  * The quick sale — the workflow this milestone exists to put in front of a
@@ -53,7 +53,6 @@ export default function NewSalePage() {
   const metrics = useWorkflowMetrics();
 
   const customer = useQuery(trpc.customer.get.queryOptions({ workspaceId, customerId }));
-
   const [lines, setLines] = useState<readonly SaleLineDraft[]>(() => [
     emptyLine(crypto.randomUUID()),
   ]);
@@ -61,6 +60,15 @@ export default function NewSalePage() {
   const [submitted, setSubmitted] = useState(false);
   const [draft, setDraft] = useState<SaleDto | null>(null);
   const [dirty, setDirty] = useState(true);
+  const [unitNotice, setUnitNotice] = useState<string | null>(null);
+  const capture = useQuery(
+    trpc.sale.captureContext.queryOptions({
+      workspaceId,
+      customerId,
+      query: lines[0]?.productName ?? "",
+      limit: 10,
+    }),
+  );
 
   // The sale's identity is minted once, when the screen opens. A draft saved,
   // edited and saved again is the same sale throughout.
@@ -271,12 +279,78 @@ export default function NewSalePage() {
                     : {})}
                   canRemove={lines.length > 1}
                   onChange={(next) =>
-                    editLines(lines.map((existing, at) => (at === index ? next : existing)))
+                    editLines(
+                      lines.map((existing, at) => {
+                        if (at !== index) return existing;
+                        if (existing.unit !== next.unit && existing.unitPriceText.length > 0) {
+                          setUnitNotice("Giá đã được xoá vì đơn vị thay đổi");
+                          return { ...next, unitPriceText: "" };
+                        }
+                        return next;
+                      }),
+                    )
                   }
                   onRemove={() => editLines(lines.filter((_, at) => at !== index))}
                 />
               ))}
             </ul>
+
+            {unitNotice !== null ? (
+              <p role="status" className="text-caption text-warning">
+                {unitNotice}
+              </p>
+            ) : null}
+            <QueryStates
+              query={capture}
+              loadingLabel="Đang tải giá gần đây"
+              attemptedAction="Xem giá gần đây"
+            >
+              {(context) =>
+                context.customerHistory.length === 0 ? null : (
+                  <section className="rounded-card border border-border bg-surface p-3">
+                    <h2 className="text-label font-semibold">Gần đây với khách này</h2>
+                    {context.customerHistory.map((history) => (
+                      <div
+                        key={`${history.productName}-${history.unit}`}
+                        className="mt-2 flex items-center justify-between gap-2 text-body-sm"
+                      >
+                        <span>
+                          {history.productName} · {history.unit}
+                          <br />
+                          <span className="text-caption text-ink-muted">
+                            Giá lần trước: {formatMoney(history.lastUnitPrice)} ·{" "}
+                            {formatDate(history.lastTransactionTime)}
+                          </span>
+                        </span>
+                        <Button
+                          tone="secondary"
+                          onClick={() => {
+                            const target = lines.findIndex(
+                              (line) =>
+                                line.productName.trim() === history.productName &&
+                                line.unit === history.unit,
+                            );
+                            if (target < 0) return;
+                            editLines(
+                              lines.map((line, at) =>
+                                at === target
+                                  ? {
+                                      ...line,
+                                      unitPriceText: String(history.lastUnitPrice.amountMinor),
+                                    }
+                                  : line,
+                              ),
+                            );
+                          }}
+                        >
+                          Dùng giá này
+                        </Button>
+                      </div>
+                    ))}
+                  </section>
+                )
+              }
+            </QueryStates>
 
             {/* `type="button"`, like every control here: adding a line must never
                 be one mis-tap away from posting a sale. */}
