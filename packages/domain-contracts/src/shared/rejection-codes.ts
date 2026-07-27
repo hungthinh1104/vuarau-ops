@@ -60,6 +60,15 @@ export const DOMAIN_REJECTION_CODES = [
   "SALE_NOT_POSTED",
   "SALE_ALREADY_VOIDED",
   "SALE_VOID_REASON_REQUIRED",
+  /** A correction replacement must follow a committed void, never an active sale. */
+  "SALE_REPLACEMENT_NOT_VOIDED",
+  /** One voided sale has one correction successor at most. */
+  "SALE_REPLACEMENT_ALREADY_EXISTS",
+  /** The actor who voided the sale owns the continuation of that correction. */
+  "SALE_REPLACEMENT_ACTOR_MISMATCH",
+  /** A wrong-customer correction must actually move to a different customer. */
+  "SALE_REPLACEMENT_CUSTOMER_UNCHANGED",
+  "SALE_REPLACEMENT_CURRENCY_MISMATCH",
 
   // --- payment --------------------------------------------------------------
   "PAYMENT_AMOUNT_INVALID",

@@ -1,4 +1,5 @@
 import type {
+  ActorId,
   CurrencyCode,
   CustomerId,
   IsoInstant,
@@ -76,6 +77,8 @@ export type SaleVoidState = {
   readonly amount: Money;
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
+  /** The accountable actor; only they may continue this correction with a replacement. */
+  readonly actorId: ActorId;
 };
 
 export type SaleState = {

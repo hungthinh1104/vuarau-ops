@@ -62,7 +62,8 @@ export const sales = pgTable(
       table.transactionTime,
     ),
     /** Following a correction chain forwards, from the voided sale (BR-SALE-016). */
-    index("sales_replaces_idx").on(table.replacesSaleId),
+    /** A voided sale has at most one correction successor, even under a race. */
+    unique("sales_replaces_unique").on(table.replacesSaleId),
   ],
 );
 

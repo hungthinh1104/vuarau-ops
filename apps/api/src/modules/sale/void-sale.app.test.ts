@@ -5,6 +5,7 @@ import {
   ACTOR_ID,
   DELIVERY_ACTOR_ID,
   CUSTOMER_ID,
+  CUSTOMER_ZERO_DEBT_ID,
   IDEMPOTENCY_KEY,
   LATEST_TRANSACTION_TIME,
   PAYMENT_ID,
@@ -21,6 +22,7 @@ import {
   validDraftSale,
   vnd,
 } from "@vuarau/test-fixtures";
+import { customerWithZeroDebt } from "@vuarau/test-fixtures";
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { createSaleDraft } from "./create-sale-draft.handler.ts";
 import { postSale } from "./post-sale.handler.ts";
@@ -352,6 +354,187 @@ describe("BR-SALE-016 / TC-SALE-027", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("SALE_NOT_FOUND");
+  });
+
+  it("refuses a crafted replacement for an active sale before it can create a second financial effect", async () => {
+    await postASale();
+
+    const result = await createSaleDraft(harness.ctx, {
+      ...envelope("active-sale-replacement"),
+      payload: {
+        saleId: REPLACEMENT_SALE_ID,
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [...saleLineInputs],
+        note: null,
+        dueAt: null,
+        replacesSaleId: SALE_ID,
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "SALE_REPLACEMENT_NOT_VOIDED" } });
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
+  });
+
+  it("requires the same void-authorized actor who performed the correction workflow", async () => {
+    await postASale();
+    const voided = await voidSale(
+      harness.contextFor(ACCOUNTANT_ACTOR_ID),
+      voidInput("accountant-void", {}, ACCOUNTANT_ACTOR_ID),
+    );
+    expect(voided.ok).toBe(true);
+
+    const result = await createSaleDraft(harness.ctx, {
+      ...envelope("owner-cannot-hijack-accountant-correction"),
+      payload: {
+        saleId: REPLACEMENT_SALE_ID,
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [...saleLineInputs],
+        note: null,
+        dueAt: null,
+        replacesSaleId: SALE_ID,
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "SALE_REPLACEMENT_ACTOR_MISMATCH" } });
+  });
+
+  it("lets an accountant replace a voided sale for the correct customer", async () => {
+    harness.db.seedCustomer(customerWithZeroDebt);
+    await postASale();
+    const voided = await voidSale(
+      harness.contextFor(ACCOUNTANT_ACTOR_ID),
+      voidInput("wrong-customer-void", { reasonCode: "wrong_customer" }, ACCOUNTANT_ACTOR_ID),
+    );
+    expect(voided.ok).toBe(true);
+
+    const result = await createSaleDraft(harness.contextFor(ACCOUNTANT_ACTOR_ID), {
+      ...envelope("accountant-wrong-customer-replacement", ACCOUNTANT_ACTOR_ID),
+      payload: {
+        saleId: REPLACEMENT_SALE_ID,
+        customerId: CUSTOMER_ZERO_DEBT_ID,
+        currency: "VND",
+        lines: [...saleLineInputs],
+        note: null,
+        dueAt: null,
+        replacesSaleId: SALE_ID,
+      },
+    });
+
+    expect(result).toMatchObject({ ok: true, value: { customerId: CUSTOMER_ZERO_DEBT_ID } });
+    const posted = await postSale(harness.contextFor(ACCOUNTANT_ACTOR_ID), {
+      ...envelope("accountant-post-replacement", ACCOUNTANT_ACTOR_ID),
+      expectedVersion: 1,
+      payload: { saleId: REPLACEMENT_SALE_ID },
+    });
+    expect(posted.ok).toBe(true);
+    expect(ledgerBalance(harness, CUSTOMER_ZERO_DEBT_ID)).toBe(SALE_TOTAL.amountMinor);
+  });
+
+  it("refuses a wrong-customer replacement that still names the original customer", async () => {
+    await postASale();
+    await voidSale(harness.ctx, voidInput("wrong-customer-void", { reasonCode: "wrong_customer" }));
+
+    const result = await createSaleDraft(harness.ctx, {
+      ...envelope("wrong-customer-unchanged"),
+      payload: {
+        saleId: REPLACEMENT_SALE_ID,
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [...saleLineInputs],
+        note: null,
+        dueAt: null,
+        replacesSaleId: SALE_ID,
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "SALE_REPLACEMENT_CUSTOMER_UNCHANGED" },
+    });
+  });
+
+  it("rejects an unsupported replacement currency before it creates a draft", async () => {
+    await postASale();
+    await voidSale(harness.ctx, voidInput("void"));
+
+    const result = await createSaleDraft(harness.ctx, {
+      ...envelope("replacement-currency-mismatch"),
+      payload: {
+        saleId: REPLACEMENT_SALE_ID,
+        customerId: CUSTOMER_ID,
+        currency: "USD",
+        lines: [...saleLineInputs],
+        note: null,
+        dueAt: null,
+        replacesSaleId: SALE_ID,
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_COMMAND_PAYLOAD" },
+    });
+  });
+
+  it("refuses a second replacement for the same voided sale", async () => {
+    await postASale();
+    await voidSale(harness.ctx, voidInput("void"));
+    const first = await createSaleDraft(harness.ctx, {
+      ...envelope("first-replacement"),
+      payload: {
+        saleId: REPLACEMENT_SALE_ID,
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [...saleLineInputs],
+        note: null,
+        dueAt: null,
+        replacesSaleId: SALE_ID,
+      },
+    });
+    expect(first.ok).toBe(true);
+
+    const duplicate = await createSaleDraft(harness.ctx, {
+      ...envelope("second-replacement"),
+      payload: {
+        saleId: "00000000-0000-4000-8000-000000000099",
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [...saleLineInputs],
+        note: null,
+        dueAt: null,
+        replacesSaleId: SALE_ID,
+      },
+    });
+
+    expect(duplicate).toMatchObject({
+      ok: false,
+      error: { code: "SALE_REPLACEMENT_ALREADY_EXISTS" },
+    });
+  });
+
+  it("does not let a sales worker craft a replacement after an accountant void", async () => {
+    await postASale();
+    await voidSale(
+      harness.contextFor(ACCOUNTANT_ACTOR_ID),
+      voidInput("accountant-void", {}, ACCOUNTANT_ACTOR_ID),
+    );
+
+    const result = await createSaleDraft(harness.contextFor(SALES_ACTOR_ID), {
+      ...envelope("sales-crafted-replacement", SALES_ACTOR_ID),
+      payload: {
+        saleId: REPLACEMENT_SALE_ID,
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [...saleLineInputs],
+        note: null,
+        dueAt: null,
+        replacesSaleId: SALE_ID,
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "PERMISSION_DENIED" } });
   });
 });
 

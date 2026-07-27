@@ -1,6 +1,7 @@
 import type { SaleLineInput } from "@vuarau/domain-contracts";
 import type { SaleLineState, SaleState } from "@vuarau/domain-kernel";
 import {
+  ACTOR_ID,
   POSTED_SALE_ID,
   CUSTOMER_ID,
   DUE_SALE_ID,
@@ -113,6 +114,7 @@ export const voidedSale: SaleState = {
     amount: SALE_TOTAL,
     transactionTime: TRANSACTION_TIME,
     recordedAt: RECORDED_AT,
+    actorId: ACTOR_ID,
   },
 };
 

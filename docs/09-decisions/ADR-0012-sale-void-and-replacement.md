@@ -30,7 +30,8 @@ link — and it was recorded as ASM-010 rather than solved.
 4. A void requires a `reasonCode` from a fixed list **and** free-text explanation
    (BR-SALE-014).
 5. A **replacement** is an ordinary new sale carrying `replacesSaleId`. It is
-   optional, and the link is set once at draft creation.
+   optional, set once at draft creation, and follows a committed void by the
+   same `sale.void`-authorized actor; a unique source link prevents branching.
 6. The original sale and its posting entry are never touched. The sale's
    `financialState` (`active` / `voided`) is **derived** from whether a void record
    exists — not stored.

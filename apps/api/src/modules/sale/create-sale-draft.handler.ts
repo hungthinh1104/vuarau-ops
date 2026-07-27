@@ -1,5 +1,5 @@
 import type { CreateSaleDraftCommand, SaleDto } from "@vuarau/domain-contracts";
-import { createSaleDraftCommandSchema } from "@vuarau/domain-contracts";
+import { createSaleDraftCommandSchema, roleHasPermission } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideCreateSaleDraft, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -23,8 +23,11 @@ export function createSaleDraft(
     schema: createSaleDraftCommandSchema,
     input,
     ctx,
-    requiredPermission: "sale.create",
-    execute: async ({ command, repos, recordedAt }) => {
+    // Both ordinary sale entry and a correction continuation need read access to
+    // identify their customer. Their mutation permissions diverge below:
+    // `sale.create` for a new sale, `sale.void` for a replacement.
+    requiredPermission: "sale.read",
+    execute: async ({ command, repos, recordedAt, membership }) => {
       // The customer must exist *in this workspace*. Knowing the id is not enough.
       const customer = await repos.customers.findById(
         command.workspaceId,
@@ -36,9 +39,22 @@ export function createSaleDraft(
         });
       }
 
-      // A replacement must name a sale that exists here (BR-SALE-016). A dangling
-      // link would leave a correction chain nobody can follow, which is the one
-      // thing the link exists to prevent.
+      if (
+        command.payload.replacesSaleId === null &&
+        !roleHasPermission(membership.role, "sale.create")
+      ) {
+        return err("PERMISSION_DENIED", "Your role cannot create a sale draft.", {
+          workspaceId: command.workspaceId,
+          permission: "sale.create",
+          role: membership.role,
+        });
+      }
+
+      // A replacement is not a user-controlled cross-link. It is the second
+      // half of a correction already committed by VoidSale (BR-SALE-016): the
+      // original must be posted and voided, by this same void-authorized actor.
+      // This keeps a crafted /sales/new?replacesSaleId=... URL from creating a
+      // second financial sale beside an active original.
       if (command.payload.replacesSaleId !== null) {
         const replaced = await repos.sales.findByIdForUpdate(
           command.workspaceId,
@@ -48,6 +64,56 @@ export function createSaleDraft(
           return err("SALE_NOT_FOUND", "The sale this one replaces does not exist here.", {
             saleId: command.payload.replacesSaleId,
           });
+        }
+
+        if (replaced.status !== "posted") {
+          return err("SALE_NOT_POSTED", "Only a posted sale can be replaced.", {
+            saleId: replaced.id,
+          });
+        }
+        if (replaced.voidRecord === null) {
+          return err("SALE_REPLACEMENT_NOT_VOIDED", "A replacement must follow a committed void.", {
+            saleId: replaced.id,
+          });
+        }
+        if (!roleHasPermission(membership.role, "sale.void")) {
+          return err("PERMISSION_DENIED", "Your role cannot continue a sale correction.", {
+            workspaceId: command.workspaceId,
+            permission: "sale.void",
+            role: membership.role,
+          });
+        }
+        if (replaced.voidRecord.actorId !== command.actorId) {
+          return err(
+            "SALE_REPLACEMENT_ACTOR_MISMATCH",
+            "Only the actor who voided this sale can create its replacement.",
+            { saleId: replaced.id, voidActorId: replaced.voidRecord.actorId },
+          );
+        }
+        if (replaced.currency !== command.payload.currency) {
+          return err(
+            "SALE_REPLACEMENT_CURRENCY_MISMATCH",
+            "A replacement must use the original sale currency.",
+            { saleId: replaced.id, currency: replaced.currency },
+          );
+        }
+        if (
+          replaced.voidRecord.reasonCode === "wrong_customer" &&
+          replaced.customerId === command.payload.customerId
+        ) {
+          return err(
+            "SALE_REPLACEMENT_CUSTOMER_UNCHANGED",
+            "A wrong-customer correction must select a different customer.",
+            { saleId: replaced.id, customerId: replaced.customerId },
+          );
+        }
+        const replacedBySaleId = await repos.saleReads.replacedBy(command.workspaceId, replaced.id);
+        if (replacedBySaleId !== null) {
+          return err(
+            "SALE_REPLACEMENT_ALREADY_EXISTS",
+            "This voided sale already has a replacement.",
+            { saleId: replaced.id, replacedBySaleId },
+          );
         }
       }
 

@@ -108,6 +108,7 @@ export type SaleVoidRow = {
   currency: CurrencyCode;
   transactionTime: Date;
   recordedAt: Date;
+  actorId: string;
 };
 
 export function toSaleVoidState(row: SaleVoidRow): SaleVoidState {
@@ -120,6 +121,7 @@ export function toSaleVoidState(row: SaleVoidRow): SaleVoidState {
     amount: money(row.amountMinor, row.currency),
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
+    actorId: row.actorId as ActorId,
   };
 }
 

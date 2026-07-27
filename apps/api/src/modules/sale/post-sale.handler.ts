@@ -1,5 +1,5 @@
 import type { PostSaleCommand, SaleDto } from "@vuarau/domain-contracts";
-import { postSaleCommandSchema } from "@vuarau/domain-contracts";
+import { postSaleCommandSchema, roleHasPermission } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decidePostSale, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -19,13 +19,49 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
     schema: postSaleCommandSchema,
     input,
     ctx,
-    requiredPermission: "sale.post",
-    execute: async ({ command, repos, recordedAt }) => {
+    // A correction replacement is posted by its void-authorized correcting
+    // actor. An ordinary sale still requires the normal sales-post permission.
+    requiredPermission: "sale.read",
+    execute: async ({ command, repos, recordedAt, membership }) => {
       const sale = await repos.sales.findByIdForUpdate(command.workspaceId, command.payload.saleId);
       if (sale === null) {
         return err("SALE_NOT_FOUND", "No such sale in this workspace.", {
           saleId: command.payload.saleId,
         });
+      }
+
+      if (sale.replacesSaleId === null) {
+        if (!roleHasPermission(membership.role, "sale.post")) {
+          return err("PERMISSION_DENIED", "Your role cannot post a sale.", {
+            workspaceId: command.workspaceId,
+            permission: "sale.post",
+            role: membership.role,
+          });
+        }
+      } else {
+        if (!roleHasPermission(membership.role, "sale.void")) {
+          return err("PERMISSION_DENIED", "Your role cannot post a correction replacement.", {
+            workspaceId: command.workspaceId,
+            permission: "sale.void",
+            role: membership.role,
+          });
+        }
+        const source = await repos.sales.findByIdForUpdate(
+          command.workspaceId,
+          sale.replacesSaleId,
+        );
+        if (source === null || source.voidRecord === null) {
+          return err("SALE_REPLACEMENT_NOT_VOIDED", "A replacement must follow a committed void.", {
+            saleId: sale.replacesSaleId,
+          });
+        }
+        if (source.voidRecord.actorId !== command.actorId) {
+          return err(
+            "SALE_REPLACEMENT_ACTOR_MISMATCH",
+            "Only the actor who voided this sale can post its replacement.",
+            { saleId: source.id, voidActorId: source.voidRecord.actorId },
+          );
+        }
       }
 
       const decision = decidePostSale({ command, sale, recordedAt });

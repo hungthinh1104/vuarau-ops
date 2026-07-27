@@ -395,4 +395,58 @@ test.describe("TC-E2E-021 — an owner corrects a posted sale", () => {
     const balance = await api.balance(customerId);
     expect(balance.balance.amountMinor).toBe(0);
   });
+
+  test("moves a wrong-customer replacement to the newly selected customer", async ({ page }) => {
+    const wrongCustomerId = await api.createCustomer(uniqueCustomerName("S15-old"));
+    const correctCustomerName = uniqueCustomerName("S15-new");
+    const correctCustomerId = await api.createCustomer(correctCustomerName);
+    await signIn(page, "owner");
+    await page.goto(`/customers/${wrongCustomerId}/sales/new`);
+
+    await fillLine(page, 0, { product: "Cà chua", quantity: "4", price: "20.000" });
+    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+
+    await page.getByRole("combobox", { name: "Loại điều chỉnh" }).selectOption("wrong_customer");
+    await page.getByRole("checkbox", { name: /Tạo đơn thay thế sau khi void/ }).check();
+    await page.getByRole("textbox", { name: "Khách hàng đúng" }).fill(correctCustomerName);
+    await page.getByRole("button", { name: correctCustomerName }).click();
+    await page.getByRole("textbox", { name: /Lý do điều chỉnh/ }).fill("Chọn nhầm khách");
+    await page.getByRole("button", { name: "Void và tạo đơn thay thế" }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/customers/${correctCustomerId}/sales/new\\?`));
+    await expect(page.getByText(correctCustomerName)).toBeVisible();
+    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+
+    expect((await api.balance(wrongCustomerId)).balance.amountMinor).toBe(0);
+    expect((await api.balance(correctCustomerId)).balance.amountMinor).toBe(80_000);
+  });
+
+  test("recovers replacement navigation after reload between a committed void and its response", async ({
+    page,
+  }) => {
+    const customerId = await api.createCustomer(uniqueCustomerName("S16"));
+    await signIn(page, "owner");
+    await page.goto(`/customers/${customerId}/sales/new`);
+    await fillLine(page, 0, { product: "Rau muống", quantity: "2", price: "8.000" });
+    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+
+    await page.route("**/trpc/sale.void**", async (route) => {
+      await route.fetch();
+      await route.abort("connectionaborted");
+    });
+    await page.getByRole("checkbox", { name: /Tạo đơn thay thế sau khi void/ }).check();
+    await page.getByRole("textbox", { name: /Lý do điều chỉnh/ }).fill("Nhập sai số lượng");
+    await page.getByRole("button", { name: "Void và tạo đơn thay thế" }).click();
+    await expect(page.getByText("Chưa rõ kết quả")).toBeVisible();
+
+    await page.unroute("**/trpc/sale.void**");
+    await page.reload();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+    await expect(page.getByText("Tiếp tục đơn thay thế")).toBeVisible();
+    await page.getByRole("button", { name: "Tạo đơn thay thế" }).click();
+    await expect(page.getByText(/Đang tạo đơn thay thế/)).toBeVisible();
+  });
 });

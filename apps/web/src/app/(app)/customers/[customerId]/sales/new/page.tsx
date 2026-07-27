@@ -100,8 +100,6 @@ export default function NewSalePage() {
       replacementSeededRef.current
     )
       return;
-    if (replacementSource.data.customerId !== customerId) return;
-
     replacementSeededRef.current = true;
     const replacement = replacementDraftFrom(replacementSource.data, () => crypto.randomUUID());
     setLines(replacement.lines);
@@ -154,8 +152,13 @@ export default function NewSalePage() {
     currency: "VND",
   };
 
-  const mayCreate = hasPermission(session, "sale.create");
-  const mayPost = hasPermission(session, "sale.post");
+  // A correction replacement is authorized by sale.void; ordinary quick sales
+  // keep their narrower create/post permissions.
+  const isReplacement = replacesSaleId !== null;
+  const mayCreate =
+    hasPermission(session, "sale.create") || (isReplacement && hasPermission(session, "sale.void"));
+  const mayPost =
+    hasPermission(session, "sale.post") || (isReplacement && hasPermission(session, "sale.void"));
 
   /** The row the server refused, if it named one. */
   const serverLineIndex = readLineIndex(

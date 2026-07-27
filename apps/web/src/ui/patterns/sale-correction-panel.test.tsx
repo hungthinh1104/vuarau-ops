@@ -28,6 +28,7 @@ describe("SaleCorrectionPanel", () => {
       reasonCode: "wrong_amount",
       reason: "Nhập sai giá bán",
       replacement: false,
+      replacementCustomerId: null,
     });
   });
 
@@ -44,6 +45,37 @@ describe("SaleCorrectionPanel", () => {
       reasonCode: "wrong_amount",
       reason: "Sai số lượng",
       replacement: true,
+      replacementCustomerId: null,
+    });
+  });
+
+  it("requires and sends a different customer for a wrong-customer replacement", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const onCustomerSearchChange = vi.fn();
+    render(
+      <SaleCorrectionPanel
+        onSubmit={onSubmit}
+        originalCustomerId="customer-old"
+        customerSearchQuery="Tuấn"
+        customerMatches={[{ id: "customer-new", displayName: "Anh Tuấn" }]}
+        onCustomerSearchChange={onCustomerSearchChange}
+      />,
+    );
+
+    await user.selectOptions(screen.getByLabelText("Loại điều chỉnh"), "wrong_customer");
+    await user.click(screen.getByRole("checkbox", { name: /Tạo đơn thay thế sau khi void/ }));
+    await user.type(screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }), "Chọn nhầm khách");
+    await user.click(screen.getByRole("button", { name: "Void và tạo đơn thay thế" }));
+    expect(screen.getByText("Hãy chọn khách hàng đúng cho đơn thay thế.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Anh Tuấn" }));
+    await user.click(screen.getByRole("button", { name: "Void và tạo đơn thay thế" }));
+    expect(onSubmit).toHaveBeenCalledWith({
+      reasonCode: "wrong_customer",
+      reason: "Chọn nhầm khách",
+      replacement: true,
+      replacementCustomerId: "customer-new",
     });
   });
 });

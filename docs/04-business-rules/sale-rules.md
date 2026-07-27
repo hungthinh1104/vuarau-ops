@@ -343,7 +343,7 @@ Free text is stored verbatim and never parsed.
 
 ### BR-SALE-016 — A replacement sale links to the sale it replaces
 
-**Risk:** P2 · **Code:** `SALE_NOT_FOUND` · **Tests:** TC-SALE-027 · **Cases:** CASE-SALE-011
+**Risk:** P0 · **Code:** `SALE_REPLACEMENT_NOT_VOIDED`, `SALE_REPLACEMENT_ALREADY_EXISTS` · **Tests:** TC-SALE-027 · **Cases:** CASE-SALE-011
 
 A corrected sale is a **new** sale carrying `replacesSaleId`. The link is set once
 at draft creation and never rewritten; the voided sale is not modified to point
@@ -352,6 +352,11 @@ forward, because that would be an update to a posted row (BR-SALE-008).
 The link is optional, and a void is valid without one. A load that was returned is
 voided and never replaced; a load priced wrongly is voided and replaced. Requiring
 a replacement would invent a sale that never happened.
+
+`replacesSaleId` is not a general cross-link. The source must be posted and
+already voided; the same `sale.void`-authorized actor must create and post the
+successor; currency must match; and a source has at most one replacement. For
+`wrong_customer`, the successor must name a different customer.
 
 Consequence, stated plainly: following the chain backwards is one lookup, forwards
 is a scan of `replaces_sale_id`. Reads are the cheap direction to improve later; an

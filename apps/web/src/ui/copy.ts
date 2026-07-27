@@ -48,6 +48,13 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   SALE_NOT_POSTED: "Đơn chưa chốt thì không hoàn tác được — hãy bỏ đơn nháp.",
   SALE_ALREADY_VOIDED: "Đơn này đã được hoàn tác rồi.",
   SALE_VOID_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tác đơn.",
+  SALE_REPLACEMENT_NOT_VOIDED: "Chỉ tạo đơn thay thế sau khi đơn gốc đã được hoàn tác.",
+  SALE_REPLACEMENT_ALREADY_EXISTS: "Đơn này đã có một đơn thay thế trong chuỗi điều chỉnh.",
+  SALE_REPLACEMENT_ACTOR_MISMATCH:
+    "Chỉ người đã hoàn tác đơn mới có thể tiếp tục tạo đơn thay thế.",
+  SALE_REPLACEMENT_CUSTOMER_UNCHANGED:
+    "Với lý do sai khách hàng, hãy chọn một khách hàng khác cho đơn thay thế.",
+  SALE_REPLACEMENT_CURRENCY_MISMATCH: "Đơn thay thế phải dùng cùng loại tiền với đơn gốc.",
 
   PAYMENT_AMOUNT_INVALID: "Số tiền thanh toán phải lớn hơn 0.",
   PAYMENT_NOT_FOUND: "Không tìm thấy phiếu thu này.",

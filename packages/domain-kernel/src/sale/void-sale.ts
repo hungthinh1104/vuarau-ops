@@ -73,6 +73,7 @@ export function decideVoidSale({
     amount: sale.totalAmount,
     transactionTime: command.occurredAt,
     recordedAt,
+    actorId: command.actorId,
   };
 
   // BR-SALE-012 — one entry, the exact negative of the posting, so the two sum to

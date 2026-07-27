@@ -10,10 +10,17 @@ export type SaleCorrectionSubmission = {
   readonly reasonCode: SaleVoidReasonCode;
   readonly reason: string;
   readonly replacement: boolean;
+  readonly replacementCustomerId: string | null;
 };
+
+export type CorrectionCustomerOption = { readonly id: string; readonly displayName: string };
 
 export type SaleCorrectionPanelProps = {
   readonly onSubmit: (submission: SaleCorrectionSubmission) => void;
+  readonly originalCustomerId?: string;
+  readonly customerSearchQuery?: string;
+  readonly customerMatches?: readonly CorrectionCustomerOption[];
+  readonly onCustomerSearchChange?: (value: string) => void;
   readonly disabled?: boolean;
 };
 
@@ -31,11 +38,19 @@ const REASON_OPTIONS = [
  * how money moves. The parent sends the existing VoidSale command; a requested
  * replacement is an ordinary, prefilled new-sale draft after that void succeeds.
  */
-export function SaleCorrectionPanel({ onSubmit, disabled = false }: SaleCorrectionPanelProps) {
+export function SaleCorrectionPanel({
+  onSubmit,
+  originalCustomerId = "",
+  customerSearchQuery = "",
+  customerMatches = [],
+  onCustomerSearchChange = () => undefined,
+  disabled = false,
+}: SaleCorrectionPanelProps) {
   const [reasonCode, setReasonCode] = useState<SaleVoidReasonCode>("wrong_amount");
   const [reason, setReason] = useState("");
   const [replacement, setReplacement] = useState(false);
   const [reasonError, setReasonError] = useState<string | undefined>();
+  const [replacementCustomerId, setReplacementCustomerId] = useState<string | null>(null);
 
   function submit(): void {
     const trimmed = reason.trim();
@@ -43,8 +58,12 @@ export function SaleCorrectionPanel({ onSubmit, disabled = false }: SaleCorrecti
       setReasonError("Hãy ghi lý do điều chỉnh.");
       return;
     }
+    if (reasonCode === "wrong_customer" && replacement && replacementCustomerId === null) {
+      setReasonError("Hãy chọn khách hàng đúng cho đơn thay thế.");
+      return;
+    }
     setReasonError(undefined);
-    onSubmit({ reasonCode, reason: trimmed, replacement });
+    onSubmit({ reasonCode, reason: trimmed, replacement, replacementCustomerId });
   }
 
   return (
@@ -62,6 +81,43 @@ export function SaleCorrectionPanel({ onSubmit, disabled = false }: SaleCorrecti
           options={REASON_OPTIONS}
           disabled={disabled}
         />
+        {reasonCode === "wrong_customer" && replacement ? (
+          <div className="flex flex-col gap-2 rounded-card border border-border bg-surface-muted p-3">
+            <label className="text-label font-semibold" htmlFor="replacement-customer-search">
+              Khách hàng đúng
+            </label>
+            <input
+              id="replacement-customer-search"
+              value={customerSearchQuery}
+              onChange={(event) => onCustomerSearchChange(event.target.value)}
+              placeholder="Tìm tên hoặc số điện thoại"
+              disabled={disabled}
+              className="min-h-11 rounded-button border border-border bg-surface px-3 text-body"
+            />
+            {customerMatches.length > 0 ? (
+              <ul className="flex flex-col gap-1" aria-label="Kết quả tìm kiếm khách hàng">
+                {customerMatches
+                  .filter((customer) => customer.id !== originalCustomerId)
+                  .map((customer) => (
+                    <li key={customer.id}>
+                      <button
+                        type="button"
+                        onClick={() => setReplacementCustomerId(customer.id)}
+                        disabled={disabled}
+                        className="w-full rounded-button px-2 py-2 text-left text-body hover:bg-surface"
+                        aria-pressed={replacementCustomerId === customer.id}
+                      >
+                        {customer.displayName}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            ) : null}
+            {replacementCustomerId !== null ? (
+              <p className="text-caption text-ink-muted">Đã chọn khách hàng đúng.</p>
+            ) : null}
+          </div>
+        ) : null}
         <Textarea
           label="Lý do điều chỉnh"
           value={reason}
