@@ -1,5 +1,4 @@
 import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
-import type { PgTransaction } from "drizzle-orm/pg-core";
 import { alias } from "drizzle-orm/pg-core";
 import {
   actors,
@@ -14,6 +13,7 @@ import {
   sales,
   workspaces,
 } from "../schema/index.ts";
+import type { Database } from "../client.ts";
 import { classifyBalance } from "@vuarau/domain-kernel";
 import { fromIso, money, toIso, toIsoOrNull, toSaleState } from "./row-mappers.ts";
 
@@ -35,7 +35,10 @@ import { fromIso, money, toIso, toIsoOrNull, toSaleState } from "./row-mappers.t
  * exactly as a depot gets busy.
  */
 
-type Tx = PgTransaction<never, never, never>;
+// Keep this aligned with the concrete transaction produced by our database
+// factory. This also lets database regression tests exercise a read repository
+// inside their own transaction.
+type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
 
 type Page = { after: { sortValue: string; id: string } | null; limit: number };
 
@@ -511,7 +514,10 @@ export function createReadRepositories(tx: Tx) {
               commandId: customerAccountEntries.commandId,
               sourceType: customerAccountEntries.sourceType,
               sourceId: customerAccountEntries.sourceId,
-              runningBalanceMinor: sql<number>`sum(${customerAccountEntries.amountMinor}) over (partition by ${customerAccountEntries.workspaceId}, ${customerAccountEntries.customerId} order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})::bigint`,
+              runningBalanceMinor:
+                sql<number>`sum(${customerAccountEntries.amountMinor}) over (partition by ${customerAccountEntries.workspaceId}, ${customerAccountEntries.customerId} order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})::bigint`.as(
+                  "running_balance_minor",
+                ),
             })
             .from(customerAccountEntries),
         );
@@ -536,9 +542,12 @@ export function createReadRepositories(tx: Tx) {
             runningBalanceMinor: ranked.runningBalanceMinor,
           })
           .from(ranked)
-          .innerJoin(customers, eq(customers.id, ranked.customerId))
-          .innerJoin(workspaces, eq(workspaces.id, ranked.workspaceId))
-          .innerJoin(actors, eq(actors.id, ranked.actorId))
+          // The ledger entry is the record we are looking up. Keep it visible
+          // when a referenced row has been damaged or removed, so this read can
+          // report an integrity failure instead of incorrectly calling it absent.
+          .leftJoin(customers, eq(customers.id, ranked.customerId))
+          .leftJoin(workspaces, eq(workspaces.id, ranked.workspaceId))
+          .leftJoin(actors, eq(actors.id, ranked.actorId))
           .where(
             and(
               eq(ranked.workspaceId, workspaceId),
@@ -548,8 +557,22 @@ export function createReadRepositories(tx: Tx) {
           )
           .limit(1);
         if (row === undefined) return { kind: "not_found" as const };
-        if (row.reasonCode === null || row.reason === null || row.amountMinor === 0)
+        if (
+          row.reasonCode === null ||
+          row.reason === null ||
+          row.reason.trim().length === 0 ||
+          row.amountMinor === 0
+        )
           return { kind: "integrity_error" as const, reason: "missing adjustment fields" };
+        if (
+          row.workspaceId === null ||
+          row.workspaceName === null ||
+          row.customerId === null ||
+          row.customerName === null ||
+          row.actorId === null ||
+          row.actorName === null
+        )
+          return { kind: "integrity_error" as const, reason: "missing joined record" };
         return {
           kind: "found" as const,
           row: {
@@ -594,7 +617,10 @@ export function createReadRepositories(tx: Tx) {
               recordedAt: customerAccountEntries.recordedAt,
               actorId: customerAccountEntries.actorId,
               commandId: customerAccountEntries.commandId,
-              runningBalanceMinor: sql<number>`sum(${customerAccountEntries.amountMinor}) over (order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})::bigint`,
+              runningBalanceMinor:
+                sql<number>`sum(${customerAccountEntries.amountMinor}) over (order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})::bigint`.as(
+                  "running_balance_minor",
+                ),
             })
             .from(customerAccountEntries)
             .where(

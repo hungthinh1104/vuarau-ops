@@ -731,7 +731,12 @@ export class InMemoryDatabase {
               item.sourceId === adjustmentId,
           );
           if (entry === undefined) return { kind: "not_found" as const };
-          if (entry.amount.amountMinor === 0 || entry.reasonCode === null || entry.reason === null)
+          if (
+            entry.amount.amountMinor === 0 ||
+            entry.reasonCode === null ||
+            entry.reason === null ||
+            entry.reason.trim().length === 0
+          )
             return { kind: "integrity_error" as const, reason: "missing adjustment fields" };
           const history = store.accountEntries
             .filter(

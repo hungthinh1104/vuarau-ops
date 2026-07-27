@@ -209,6 +209,36 @@ describe("BR-ACCOUNT-004 / TC-ACCOUNT-004", () => {
     expect(detail.value.commandId).toBe(ADJUST_COMMAND_ID);
   });
 
+  it("keeps the complete money truth when an adjustment follows the casebook ledger", async () => {
+    await runCasebookLedger();
+    await adjustCustomerDebt(
+      harness.ctx,
+      adjustInput({
+        payload: {
+          ...adjustInput().payload,
+          direction: "decrease",
+          amount: vnd(45_000),
+          reasonCode: "goodwill_discount",
+          reason: "Giảm giá đã duyệt",
+        },
+      }),
+    );
+
+    const detail = await getAccountAdjustmentDetail(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      adjustmentId: ADJUSTMENT_ID,
+    });
+
+    expect(detail.ok).toBe(true);
+    if (!detail.ok) return;
+    // The detail is historical: the later casebook payment must not be folded
+    // back into the adjustment's own effect.
+    expect(detail.value.accountEffect.balanceBefore.amountMinor).toBe(875_000);
+    expect(detail.value.accountEffect.change.amountMinor).toBe(-45_000);
+    expect(detail.value.accountEffect.balanceAfter.amountMinor).toBe(830_000);
+    expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(330_000);
+  });
+
   it("attributes every ledger entry to an actor and a command", async () => {
     await runCasebookLedger();
     await adjustCustomerDebt(harness.ctx, adjustInput());

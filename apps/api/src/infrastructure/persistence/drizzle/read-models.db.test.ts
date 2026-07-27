@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createDbTestContext,
+  createReadRepositories,
   createUnitOfWork,
   skipWithoutDatabase,
+  sql,
   type DbTestContext,
 } from "@vuarau/db";
 import type { Cursor } from "@vuarau/domain-contracts";
@@ -15,7 +17,11 @@ import { recordCustomerPayment } from "../../../modules/payment/record-payment.h
 import { searchCustomers } from "../../../modules/customer/customer.queries.ts";
 import { listSales } from "../../../modules/sale/sale.queries.ts";
 import { listPayments } from "../../../modules/payment/payment.queries.ts";
-import { getCustomerAccountTimeline } from "../../../modules/account/account.queries.ts";
+import {
+  getAccountAdjustmentDetail,
+  getCustomerAccountTimeline,
+} from "../../../modules/account/account.queries.ts";
+import { adjustCustomerDebt } from "../../../modules/account/adjust-debt.handler.ts";
 import { getAuditTimeline } from "../../../modules/audit/audit.queries.ts";
 
 /**
@@ -275,6 +281,91 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
       expect(item.source.label).not.toBe(item.source.id);
       expect(item.source.label.length).toBeGreaterThan(0);
     }
+  });
+
+  it("UC-ACCOUNT-002 / TC-READ-008 — preserves an adjustment row to report broken joins and blank reasons", async () => {
+    const adjustmentId = crypto.randomUUID();
+    const created = await adjustCustomerDebt(owner, {
+      ...envelope("read-adjustment-integrity"),
+      payload: {
+        adjustmentId,
+        customerId: ctx.customerId,
+        direction: "increase",
+        amount: { amountMinor: 50_000, currency: "VND" },
+        reasonCode: "opening_balance",
+        reason: "Số dư đầu kỳ",
+      },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    // Foreign keys normally prevent this state. `replica` mode models a damaged
+    // legacy row inside one transaction; the original values are restored before
+    // commit, so the regression test leaves the shared test database valid.
+    await ctx.database.db.transaction(async (tx) => {
+      await tx.execute(sql`set local session_replication_role = replica`);
+      try {
+        await tx.execute(sql`
+          update customer_account_entries
+          set customer_id = ${crypto.randomUUID()}::uuid
+          where source_type = 'manual_adjustment' and source_id = ${adjustmentId}::uuid
+        `);
+
+        const missingJoin = await createReadRepositories(tx).accountReads.adjustmentDetail({
+          workspaceId: ctx.workspaceId,
+          adjustmentId,
+        });
+        expect(missingJoin).toEqual({ kind: "integrity_error", reason: "missing joined record" });
+
+        // Run the use case through a nested transaction on this same connection,
+        // so its error mapping is proven against the damaged SQL row as well.
+        const integrityOwner: CommandContext = {
+          ...owner,
+          deps: {
+            ...deps,
+            uow: createUnitOfWork(
+              tx as unknown as typeof ctx.database.db,
+              randomIdGenerator,
+            ) as CommandDeps["uow"],
+          },
+        };
+        const missingJoinAtBoundary = await getAccountAdjustmentDetail(integrityOwner, {
+          workspaceId: ctx.workspaceId,
+          adjustmentId,
+        });
+        expect(missingJoinAtBoundary).toMatchObject({
+          ok: false,
+          error: { code: "ACCOUNT_ADJUSTMENT_INTEGRITY_ERROR" },
+        });
+
+        await tx.execute(sql`
+          update customer_account_entries
+          set customer_id = ${ctx.customerId}::uuid, reason = '   '
+          where source_type = 'manual_adjustment' and source_id = ${adjustmentId}::uuid
+        `);
+        const blankReason = await createReadRepositories(tx).accountReads.adjustmentDetail({
+          workspaceId: ctx.workspaceId,
+          adjustmentId,
+        });
+        expect(blankReason).toEqual({
+          kind: "integrity_error",
+          reason: "missing adjustment fields",
+        });
+      } finally {
+        await tx.execute(sql`
+          update customer_account_entries
+          set customer_id = ${ctx.customerId}::uuid, reason = 'Số dư đầu kỳ'
+          where source_type = 'manual_adjustment' and source_id = ${adjustmentId}::uuid
+        `);
+      }
+    });
+
+    // The normal row remains readable after the corruption simulation is restored.
+    const detail = await getAccountAdjustmentDetail(owner, {
+      workspaceId: ctx.workspaceId,
+      adjustmentId,
+    });
+    expect(detail.ok).toBe(true);
   });
 
   it("UC-AUDIT-001 / TC-READ-007 — resolves the actor and the correction in one query", async () => {
