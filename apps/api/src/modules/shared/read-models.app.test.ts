@@ -495,8 +495,13 @@ describe("UC-ACCOUNT-001 / TC-READ-006 — account.timeline", () => {
     ]);
   });
 
-  it("resolves each entry's source rather than returning a bare uuid", async () => {
+  it("resolves each entry's source document rather than leaving the browser to infer it", async () => {
     const { saleId, paymentId } = await seedActivity();
+
+    await voidSale(harness.ctx, {
+      ...envelope(),
+      payload: { saleVoidId: uuid(914), saleId, reasonCode: "wrong_amount", reason: "Ghi nhầm" },
+    });
 
     const timeline = await getCustomerAccountTimeline(harness.ctx, {
       ...page,
@@ -510,8 +515,15 @@ describe("UC-ACCOUNT-001 / TC-READ-006 — account.timeline", () => {
     if (!timeline.ok) return;
     const posting = timeline.value.items.find((item) => item.source.type === "sale_posting")!;
     const payment = timeline.value.items.find((item) => item.source.type === "payment")!;
+    const voided = timeline.value.items.find((item) => item.source.type === "sale_void")!;
     expect(posting.source.id).toBe(saleId);
     expect(payment.source.id).toBe(paymentId);
+    expect(posting.source.document).toEqual({ type: "sale", id: saleId });
+    expect(payment.source.document).toEqual({ type: "payment", id: paymentId });
+    // The void record has its own immutable source id, but its detail belongs to
+    // the sale it compensates. The server, not a URL convention in the browser,
+    // resolves that relationship.
+    expect(voided.source.document).toEqual({ type: "sale", id: saleId });
     // Every entry names an actor and a command (BR-ACCOUNT-004).
     expect(posting.actorId).toBe(ACTOR_ID);
     expect(posting.commandId).toBeTruthy();

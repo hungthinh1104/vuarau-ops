@@ -546,8 +546,10 @@ export function createReadRepositories(tx: Tx) {
             )::bigint`,
             saleTotalMinor: sales.totalAmountMinor,
             saleTransactionTime: sales.transactionTime,
+            voidSaleId: saleVoids.saleId,
             voidReasonCode: saleVoids.reasonCode,
             paymentMethod: payments.method,
+            reversalPaymentId: paymentReversals.paymentId,
             reversalAmountMinor: paymentReversals.amountMinor,
           })
           .from(customerAccountEntries)
@@ -571,6 +573,7 @@ export function createReadRepositories(tx: Tx) {
             source: {
               type: row.sourceType,
               id: row.sourceId,
+              document: sourceDocument(row),
               label: sourceLabel(row),
             },
             reversalOfEntryId: row.reversalOfEntryId,
@@ -750,6 +753,33 @@ function sourceLabel(row: {
       return row.reasonCode === null ? "Adjustment" : `Adjustment · ${row.reasonCode}`;
     default:
       return row.sourceType;
+  }
+}
+
+/**
+ * Navigation identity is resolved beside the source label. In particular a
+ * void/reversal source id is the immutable compensation record, not the Sale or
+ * Payment detail the worker needs to inspect.
+ */
+function sourceDocument(row: {
+  sourceType: string;
+  sourceId: string;
+  voidSaleId: string | null;
+  reversalPaymentId: string | null;
+}): { type: "sale" | "payment" | "adjustment"; id: string } {
+  switch (row.sourceType) {
+    case "sale_posting":
+      return { type: "sale", id: row.sourceId };
+    case "sale_void":
+      return { type: "sale", id: row.voidSaleId ?? row.sourceId };
+    case "payment":
+      return { type: "payment", id: row.sourceId };
+    case "payment_reversal":
+      return { type: "payment", id: row.reversalPaymentId ?? row.sourceId };
+    case "manual_adjustment":
+      return { type: "adjustment", id: row.sourceId };
+    default:
+      return { type: "adjustment", id: row.sourceId };
   }
 }
 

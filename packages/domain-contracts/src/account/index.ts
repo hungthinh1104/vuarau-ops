@@ -195,6 +195,15 @@ export const accountEntrySourceSchema = z.object({
   type: accountEntrySourceTypeSchema,
   id: z.uuid(),
   /**
+   * The business document that explains this ledger movement. A compensating
+   * record (void or reversal) keeps its own `id` above for audit, while this
+   * resolves the detail screen a worker should open.
+   */
+  document: z.object({
+    type: z.enum(["sale", "payment", "adjustment"]),
+    id: z.uuid(),
+  }),
+  /**
    * A short human label: the sale's total and date, the payment method, the
    * adjustment's reason code. Resolved server-side in the same query, so a
    * timeline of fifty entries is one round trip and not fifty-one.

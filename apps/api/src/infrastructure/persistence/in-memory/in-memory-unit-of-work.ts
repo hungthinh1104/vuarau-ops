@@ -761,6 +761,7 @@ export class InMemoryDatabase {
               source: {
                 type: entry.sourceType,
                 id: entry.sourceId,
+                document: sourceDocument(store, entry.sourceType, entry.sourceId),
                 label: entry.sourceType,
               },
               reversalOfEntryId: entry.reversalOfEntryId,
@@ -866,6 +867,28 @@ export class InMemoryDatabase {
       },
     };
   }
+}
+
+function sourceDocument(
+  store: Store,
+  sourceType: CustomerAccountEntryDto["sourceType"],
+  sourceId: string,
+): { type: "sale" | "payment" | "adjustment"; id: string } {
+  if (sourceType === "sale_posting") return { type: "sale", id: sourceId };
+  if (sourceType === "sale_void") {
+    return {
+      type: "sale",
+      id: store.saleVoids.find((record) => record.id === sourceId)?.saleId ?? sourceId,
+    };
+  }
+  if (sourceType === "payment") return { type: "payment", id: sourceId };
+  if (sourceType === "payment_reversal") {
+    return {
+      type: "payment",
+      id: store.reversals.find((record) => record.id === sourceId)?.paymentId ?? sourceId,
+    };
+  }
+  return { type: "adjustment", id: sourceId };
 }
 
 /** Deterministic ids so a failing test fails the same way every run. */

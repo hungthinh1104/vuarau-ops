@@ -156,11 +156,9 @@ export default function CustomerDetailPage() {
 }
 
 function sourceHref(entry: {
-  readonly source: { readonly type: string; readonly id: string };
+  readonly source: { readonly document: { readonly type: string; readonly id: string } };
 }): string | undefined {
-  if (entry.source.type === "sale_posting") {
-    return `/sales/${entry.source.id}`;
-  }
-  if (entry.source.type === "payment") return `/payments/${entry.source.id}`;
+  if (entry.source.document.type === "sale") return `/sales/${entry.source.document.id}`;
+  if (entry.source.document.type === "payment") return `/payments/${entry.source.document.id}`;
   return undefined;
 }

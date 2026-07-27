@@ -10,7 +10,12 @@ const entry = {
   amount: { amountMinor: -200_000, currency: "VND" },
   runningBalance: { amountMinor: 300_000, currency: "VND" },
   classification: "receivable",
-  source: { type: "payment", id: "00000000-0000-4000-8000-000000000004", label: "Tiền mặt" },
+  source: {
+    type: "payment",
+    id: "00000000-0000-4000-8000-000000000004",
+    document: { type: "payment", id: "00000000-0000-4000-8000-000000000004" },
+    label: "Tiền mặt",
+  },
   reversalOfEntryId: null,
   reasonCode: null,
   reason: null,
