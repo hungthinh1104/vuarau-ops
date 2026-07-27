@@ -590,7 +590,7 @@ export function createReadRepositories(tx: Tx) {
         }
         if (page.after !== null) {
           filters.push(
-            sql`(${customerAccountEntries.transactionTime}, ${customerAccountEntries.id}) < (${page.after.sortValue}::timestamptz, ${page.after.id}::uuid)`,
+            sql`(${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id}) < (split_part(${page.after.sortValue}, '|', 1)::timestamptz, split_part(${page.after.sortValue}, '|', 2)::timestamptz, ${page.after.id}::uuid)`,
           );
         }
 
@@ -624,7 +624,7 @@ export function createReadRepositories(tx: Tx) {
             actorId: customerAccountEntries.actorId,
             commandId: customerAccountEntries.commandId,
             runningBalanceMinor: sql<number>`sum(${customerAccountEntries.amountMinor}) OVER (
-              ORDER BY ${customerAccountEntries.transactionTime}, ${customerAccountEntries.id}
+              ORDER BY ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id}
             )::bigint`,
             saleTotalMinor: sales.totalAmountMinor,
             saleTransactionTime: sales.transactionTime,
@@ -642,7 +642,11 @@ export function createReadRepositories(tx: Tx) {
           .leftJoin(payments, eq(payments.id, customerAccountEntries.sourceId))
           .leftJoin(paymentReversals, eq(paymentReversals.id, customerAccountEntries.sourceId))
           .where(and(...filters))
-          .orderBy(desc(customerAccountEntries.transactionTime), desc(customerAccountEntries.id))
+          .orderBy(
+            desc(customerAccountEntries.transactionTime),
+            desc(customerAccountEntries.recordedAt),
+            desc(customerAccountEntries.id),
+          )
           .limit(fetchLimit(page));
 
         return paged(
@@ -667,7 +671,7 @@ export function createReadRepositories(tx: Tx) {
             commandId: row.commandId,
           })),
           page,
-          (row) => ({ sortValue: row.transactionTime, id: row.id }),
+          (row) => ({ sortValue: `${row.transactionTime}|${row.recordedAt}`, id: row.id }),
         );
       },
     },

@@ -775,7 +775,7 @@ export class InMemoryDatabase {
             .filter((entry) => entry.workspaceId === workspaceId && entry.customerId === customerId)
             .sort(
               ascendingBy(
-                (entry) => entry.transactionTime,
+                (entry) => `${entry.transactionTime}|${entry.recordedAt}`,
                 (entry) => entry.id,
               ),
             );
@@ -793,7 +793,10 @@ export class InMemoryDatabase {
             .filter(({ entry }) =>
               page.after === null
                 ? true
-                : before([entry.transactionTime, entry.id], [page.after.sortValue, page.after.id]),
+                : before(
+                    [`${entry.transactionTime}|${entry.recordedAt}`, entry.id],
+                    [page.after.sortValue, page.after.id],
+                  ),
             )
             .map(({ entry, runningBalance }) => ({
               id: entry.id,
@@ -817,7 +820,7 @@ export class InMemoryDatabase {
             }));
 
           return takePage(matched, page, (row) => ({
-            sortValue: row.transactionTime,
+            sortValue: `${row.transactionTime}|${row.recordedAt}`,
             id: row.id,
           }));
         },
