@@ -122,6 +122,7 @@ export async function getAccountAdjustmentDetail(
     permission: "debt.read",
     execute: async ({ repos }) => {
       const row = await repos.accountReads.adjustmentDetail(input);
+      if (row === "integrity_error") return { integrityFailure: true };
       if (row === null) return null;
       const change = row.amount;
       const balanceBefore = {
@@ -151,6 +152,12 @@ export async function getAccountAdjustmentDetail(
     },
   });
   if (!result.ok) return result;
+  if (result.value !== null && "integrityFailure" in result.value)
+    return err(
+      "ACCOUNT_ADJUSTMENT_INTEGRITY_ERROR",
+      "Account adjustment ledger entry is incomplete.",
+      { adjustmentId: input.adjustmentId },
+    );
   if (result.value === null)
     return err("ACCOUNT_ADJUSTMENT_NOT_FOUND", "No such account adjustment in this workspace.", {
       adjustmentId: input.adjustmentId,

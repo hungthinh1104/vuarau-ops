@@ -547,13 +547,9 @@ export function createReadRepositories(tx: Tx) {
             ),
           )
           .limit(1);
-        if (
-          row === undefined ||
-          row.reasonCode === null ||
-          row.reason === null ||
-          row.amountMinor === 0
-        )
-          return null;
+        if (row === undefined) return null;
+        if (row.reasonCode === null || row.reason === null || row.amountMinor === 0)
+          return "integrity_error" as const;
         return {
           adjustmentId: row.adjustmentId,
           entryId: row.entryId,

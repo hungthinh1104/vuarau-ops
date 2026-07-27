@@ -730,8 +730,9 @@ export class InMemoryDatabase {
               item.sourceType === "manual_adjustment" &&
               item.sourceId === adjustmentId,
           );
-          if (entry === undefined || entry.reasonCode === null || entry.reason === null)
-            return null;
+          if (entry === undefined) return null;
+          if (entry.amount.amountMinor === 0 || entry.reasonCode === null || entry.reason === null)
+            return "integrity_error" as const;
           const history = store.accountEntries
             .filter(
               (item) => item.workspaceId === workspaceId && item.customerId === entry.customerId,
@@ -750,7 +751,8 @@ export class InMemoryDatabase {
           const customer = store.customers.get(key(workspaceId, entry.customerId));
           const workspace = store.workspaceNames.get(workspaceId);
           const actor = store.actorNames.get(entry.actorId);
-          if (customer === undefined || workspace === undefined || actor === undefined) return null;
+          if (customer === undefined || workspace === undefined || actor === undefined)
+            return "integrity_error" as const;
           return {
             adjustmentId,
             entryId: entry.id,

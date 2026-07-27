@@ -257,7 +257,7 @@ export type AccountReadRepository = {
   adjustmentDetail(args: {
     workspaceId: WorkspaceId;
     adjustmentId: string;
-  }): Promise<AccountAdjustmentDetailRow | null>;
+  }): Promise<AccountAdjustmentDetailRow | "integrity_error" | null>;
   timeline(args: {
     workspaceId: WorkspaceId;
     customerId: CustomerId;
