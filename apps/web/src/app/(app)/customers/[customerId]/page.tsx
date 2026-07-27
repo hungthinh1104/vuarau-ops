@@ -126,9 +126,16 @@ export default function CustomerDetailPage() {
             ) : (
               <>
                 <ul className="rounded-card border border-border bg-surface px-4">
-                  {page.items.map((entry) => (
-                    <TimelineItem key={entry.id} entry={entry} />
-                  ))}
+                  {page.items.map((entry) => {
+                    const href = sourceHref(entry);
+                    return (
+                      <TimelineItem
+                        key={entry.id}
+                        entry={entry}
+                        {...(href === undefined ? {} : { sourceHref: href })}
+                      />
+                    );
+                  })}
                 </ul>
                 {page.nextCursor !== null ? (
                   <p className="text-caption text-ink-muted">
@@ -146,4 +153,14 @@ export default function CustomerDetailPage() {
       </Link>
     </div>
   );
+}
+
+function sourceHref(entry: {
+  readonly source: { readonly type: string; readonly id: string };
+}): string | undefined {
+  if (entry.source.type === "sale_posting") {
+    return `/sales/${entry.source.id}`;
+  }
+  if (entry.source.type === "payment") return `/payments/${entry.source.id}`;
+  return undefined;
 }

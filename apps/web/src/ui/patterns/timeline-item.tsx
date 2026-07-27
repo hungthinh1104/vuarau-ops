@@ -1,10 +1,12 @@
 import type { AccountTimelineEntryDto } from "@vuarau/domain-contracts";
+import Link from "next/link";
 import { describeBalance, formatInstant, formatRecordedGap, formatSignedMoney } from "../format.ts";
 
 export type TimelineItemProps = {
   readonly entry: AccountTimelineEntryDto;
   /** Display name for `entry.actorId`, resolved by the caller. */
   readonly actorName?: string;
+  readonly sourceHref?: string;
 };
 
 const SOURCE_COPY = {
@@ -30,7 +32,7 @@ const SOURCE_COPY = {
  * never as an absence — removing either would make the arithmetic unfollowable
  * (BR-ACCOUNT-005).
  */
-export function TimelineItem({ entry, actorName }: TimelineItemProps) {
+export function TimelineItem({ entry, actorName, sourceHref }: TimelineItemProps) {
   const recordedGap = formatRecordedGap(entry.transactionTime, entry.recordedAt);
   const balance = describeBalance(entry.runningBalance, entry.classification);
   const increases = entry.amount.amountMinor > 0;
@@ -48,7 +50,13 @@ export function TimelineItem({ entry, actorName }: TimelineItemProps) {
         </span>
       </div>
 
-      <p className="text-body-sm text-ink-muted">{entry.source.label}</p>
+      {sourceHref === undefined ? (
+        <p className="text-body-sm text-ink-muted">{entry.source.label}</p>
+      ) : (
+        <Link href={sourceHref} className="text-body-sm text-info underline underline-offset-2">
+          {entry.source.label}
+        </Link>
+      )}
 
       {entry.reason !== null ? (
         // The text somebody disputing this balance six months later actually
