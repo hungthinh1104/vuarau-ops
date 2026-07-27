@@ -578,19 +578,43 @@ export function createReadRepositories(tx: Tx) {
       }) {
         const { workspaceId, customerId, from, to, page } = args;
 
-        const filters: SQL[] = [
-          eq(customerAccountEntries.workspaceId, workspaceId),
-          eq(customerAccountEntries.customerId, customerId),
-        ];
+        const ranked = tx.$with("ranked_account_entries").as(
+          tx
+            .select({
+              id: customerAccountEntries.id,
+              workspaceId: customerAccountEntries.workspaceId,
+              customerId: customerAccountEntries.customerId,
+              amountMinor: customerAccountEntries.amountMinor,
+              currency: customerAccountEntries.currency,
+              sourceType: customerAccountEntries.sourceType,
+              sourceId: customerAccountEntries.sourceId,
+              reversalOfEntryId: customerAccountEntries.reversalOfEntryId,
+              reasonCode: customerAccountEntries.reasonCode,
+              reason: customerAccountEntries.reason,
+              transactionTime: customerAccountEntries.transactionTime,
+              recordedAt: customerAccountEntries.recordedAt,
+              actorId: customerAccountEntries.actorId,
+              commandId: customerAccountEntries.commandId,
+              runningBalanceMinor: sql<number>`sum(${customerAccountEntries.amountMinor}) over (order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})::bigint`,
+            })
+            .from(customerAccountEntries)
+            .where(
+              and(
+                eq(customerAccountEntries.workspaceId, workspaceId),
+                eq(customerAccountEntries.customerId, customerId),
+              ),
+            ),
+        );
+        const filters: SQL[] = [];
         if (from !== null) {
-          filters.push(gte(customerAccountEntries.transactionTime, fromIso(from as never)));
+          filters.push(gte(ranked.transactionTime, fromIso(from as never)));
         }
         if (to !== null) {
-          filters.push(lte(customerAccountEntries.transactionTime, fromIso(to as never)));
+          filters.push(lte(ranked.transactionTime, fromIso(to as never)));
         }
         if (page.after !== null) {
           filters.push(
-            sql`(${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id}) < (split_part(${page.after.sortValue}, '|', 1)::timestamptz, split_part(${page.after.sortValue}, '|', 2)::timestamptz, ${page.after.id}::uuid)`,
+            sql`(${ranked.transactionTime}, ${ranked.recordedAt}, ${ranked.id}) < (split_part(${page.after.sortValue}, '|', 1)::timestamptz, split_part(${page.after.sortValue}, '|', 2)::timestamptz, ${page.after.id}::uuid)`,
           );
         }
 
@@ -608,24 +632,23 @@ export function createReadRepositories(tx: Tx) {
          * sum.
          */
         const rows = await tx
+          .with(ranked)
           .select({
-            id: customerAccountEntries.id,
-            workspaceId: customerAccountEntries.workspaceId,
-            customerId: customerAccountEntries.customerId,
-            amountMinor: customerAccountEntries.amountMinor,
-            currency: customerAccountEntries.currency,
-            sourceType: customerAccountEntries.sourceType,
-            sourceId: customerAccountEntries.sourceId,
-            reversalOfEntryId: customerAccountEntries.reversalOfEntryId,
-            reasonCode: customerAccountEntries.reasonCode,
-            reason: customerAccountEntries.reason,
-            transactionTime: customerAccountEntries.transactionTime,
-            recordedAt: customerAccountEntries.recordedAt,
-            actorId: customerAccountEntries.actorId,
-            commandId: customerAccountEntries.commandId,
-            runningBalanceMinor: sql<number>`sum(${customerAccountEntries.amountMinor}) OVER (
-              ORDER BY ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id}
-            )::bigint`,
+            id: ranked.id,
+            workspaceId: ranked.workspaceId,
+            customerId: ranked.customerId,
+            amountMinor: ranked.amountMinor,
+            currency: ranked.currency,
+            sourceType: ranked.sourceType,
+            sourceId: ranked.sourceId,
+            reversalOfEntryId: ranked.reversalOfEntryId,
+            reasonCode: ranked.reasonCode,
+            reason: ranked.reason,
+            transactionTime: ranked.transactionTime,
+            recordedAt: ranked.recordedAt,
+            actorId: ranked.actorId,
+            commandId: ranked.commandId,
+            runningBalanceMinor: ranked.runningBalanceMinor,
             saleTotalMinor: sales.totalAmountMinor,
             saleTransactionTime: sales.transactionTime,
             voidSaleId: saleVoids.saleId,
@@ -634,19 +657,15 @@ export function createReadRepositories(tx: Tx) {
             reversalPaymentId: paymentReversals.paymentId,
             reversalAmountMinor: paymentReversals.amountMinor,
           })
-          .from(customerAccountEntries)
+          .from(ranked)
           // One LEFT JOIN per source kind, resolved in the page query. The
           // alternative is a lookup per entry, which is the N+1 this port forbids.
-          .leftJoin(sales, eq(sales.id, customerAccountEntries.sourceId))
-          .leftJoin(saleVoids, eq(saleVoids.id, customerAccountEntries.sourceId))
-          .leftJoin(payments, eq(payments.id, customerAccountEntries.sourceId))
-          .leftJoin(paymentReversals, eq(paymentReversals.id, customerAccountEntries.sourceId))
+          .leftJoin(sales, eq(sales.id, ranked.sourceId))
+          .leftJoin(saleVoids, eq(saleVoids.id, ranked.sourceId))
+          .leftJoin(payments, eq(payments.id, ranked.sourceId))
+          .leftJoin(paymentReversals, eq(paymentReversals.id, ranked.sourceId))
           .where(and(...filters))
-          .orderBy(
-            desc(customerAccountEntries.transactionTime),
-            desc(customerAccountEntries.recordedAt),
-            desc(customerAccountEntries.id),
-          )
+          .orderBy(desc(ranked.transactionTime), desc(ranked.recordedAt), desc(ranked.id))
           .limit(fetchLimit(page));
 
         return paged(
