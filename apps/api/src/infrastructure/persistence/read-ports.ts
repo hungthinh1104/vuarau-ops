@@ -88,6 +88,28 @@ export type CustomerDetailRow = {
   readonly classification: BalanceClassification;
 };
 
+export type RecentCustomerRow = {
+  readonly customerId: CustomerId;
+  readonly displayName: string;
+  readonly phone: string | null;
+  readonly balance: Money;
+  readonly classification: BalanceClassification;
+  readonly lastSaleTransactionTime: IsoInstant | null;
+};
+
+export type CaptureHistoryRow = {
+  readonly productName: string;
+  readonly unit: string;
+  readonly lastUnitPrice: Money;
+  readonly lastTransactionTime: IsoInstant;
+  readonly sourceSaleId: SaleId;
+};
+
+export type WorkspaceProductHistoryRow = {
+  readonly productName: string;
+  readonly unit: string;
+};
+
 export type SaleSummaryRow = {
   readonly id: SaleId;
   readonly workspaceId: WorkspaceId;
@@ -171,6 +193,7 @@ export type CustomerReadRepository = {
   }): Promise<PageResult<CustomerSummaryRow>>;
 
   get(workspaceId: WorkspaceId, customerId: CustomerId): Promise<CustomerDetailRow | null>;
+  recent(workspaceId: WorkspaceId, limit: number): Promise<readonly RecentCustomerRow[]>;
 };
 
 export type SaleReadRepository = {
@@ -192,6 +215,15 @@ export type SaleReadRepository = {
     to: IsoInstant | null;
     page: PageQuery;
   }): Promise<PageResult<SaleSummaryRow>>;
+  captureContext(args: {
+    workspaceId: WorkspaceId;
+    customerId: CustomerId;
+    query: string;
+    limit: number;
+  }): Promise<{
+    readonly customerHistory: readonly CaptureHistoryRow[];
+    readonly workspaceHistory: readonly WorkspaceProductHistoryRow[];
+  }>;
 };
 
 export type PaymentReadRepository = {

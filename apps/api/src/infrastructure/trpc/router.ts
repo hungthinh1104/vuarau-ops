@@ -9,8 +9,11 @@ import {
   discardSaleDraftCommandSchema,
   customerIdSchema,
   getCustomerInputSchema,
+  recentCustomersInputSchema,
   getPaymentInputSchema,
   getSaleInputSchema,
+  saleCaptureContextInputSchema,
+  saleReceiptInputSchema,
   listPaymentsInputSchema,
   listSalesInputSchema,
   postSaleCommandSchema,
@@ -41,8 +44,17 @@ import {
   getCustomerAccountBalance,
   getCustomerAccountTimeline,
 } from "../../modules/account/account.queries.ts";
-import { getCustomer, searchCustomers } from "../../modules/customer/customer.queries.ts";
-import { getSale, listSales } from "../../modules/sale/sale.queries.ts";
+import {
+  getCustomer,
+  recentCustomers,
+  searchCustomers,
+} from "../../modules/customer/customer.queries.ts";
+import {
+  captureContext,
+  getSale,
+  getSaleReceipt,
+  listSales,
+} from "../../modules/sale/sale.queries.ts";
 import { getPayment, listPayments } from "../../modules/payment/payment.queries.ts";
 import { getAuditTimeline } from "../../modules/audit/audit.queries.ts";
 import { getSession, listActorWorkspaces } from "../../modules/session/session.queries.ts";
@@ -118,6 +130,10 @@ const customerRouter = router({
   get: authenticatedProcedure
     .input(getCustomerInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getCustomer(ctx, input))),
+
+  recent: authenticatedProcedure
+    .input(recentCustomersInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await recentCustomers(ctx, input))),
 });
 
 const saleRouter = router({
@@ -148,6 +164,14 @@ const saleRouter = router({
   list: authenticatedProcedure
     .input(listSalesInputSchema)
     .query(async ({ ctx, input }) => unwrap(await listSales(ctx, input))),
+
+  captureContext: authenticatedProcedure
+    .input(saleCaptureContextInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await captureContext(ctx, input))),
+
+  receipt: authenticatedProcedure
+    .input(saleReceiptInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSaleReceipt(ctx, input))),
 });
 
 const paymentRouter = router({

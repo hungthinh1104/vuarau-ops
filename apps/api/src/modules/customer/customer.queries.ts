@@ -7,6 +7,8 @@ import type {
   Page,
   Permission,
   SearchCustomersInput,
+  RecentCustomersInput,
+  RecentCustomerDto,
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
 import { denied, roleHasPermission } from "@vuarau/domain-contracts";
@@ -49,6 +51,19 @@ export function customerCapabilities(
         : deactivate,
     adjustAccount: permitted("debt.adjust"),
   };
+}
+
+/** Active customers ordered by their own latest active posted sale, never payment. */
+export function recentCustomers(
+  ctx: CommandContext,
+  input: RecentCustomersInput,
+): Promise<DomainResult<readonly RecentCustomerDto[]>> {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "customer.read",
+    execute: ({ repos }) => repos.customerReads.recent(input.workspaceId, input.limit),
+  });
 }
 
 export function searchCustomers(

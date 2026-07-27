@@ -5,6 +5,7 @@ import type {
   CustomerAccountEntryDto,
   WorkspaceId,
   WorkspaceRole,
+  Money,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import { classifyBalance, money, zeroMoney } from "@vuarau/domain-kernel";
@@ -535,6 +536,45 @@ export class InMemoryDatabase {
           const balance = stored?.balance ?? zeroMoney(DEFAULT_CURRENCY);
           return { customer, balance, classification: classifyBalance(balance) };
         },
+
+        recent: async (workspaceId, limit) => {
+          const activeSales = [...store.sales.values()].filter(
+            (sale) =>
+              sale.workspaceId === workspaceId &&
+              sale.status === "posted" &&
+              sale.voidRecord === null,
+          );
+          return [...store.customers.values()]
+            .filter((customer) => customer.workspaceId === workspaceId && customer.isActive)
+            .map((customer) => {
+              const lastSale = activeSales
+                .filter((sale) => sale.customerId === customer.id)
+                .sort(
+                  descendingBy(
+                    (sale) => sale.transactionTime,
+                    (sale) => sale.id,
+                  ),
+                )[0];
+              const stored = store.balances.get(key(workspaceId, customer.id));
+              const balance = stored?.balance ?? zeroMoney(DEFAULT_CURRENCY);
+              return {
+                customerId: customer.id,
+                displayName: customer.displayName,
+                phone: customer.phone,
+                balance,
+                classification: classifyBalance(balance),
+                lastSaleTransactionTime: lastSale?.transactionTime ?? null,
+              };
+            })
+            .filter((customer) => customer.lastSaleTransactionTime !== null)
+            .sort(
+              descendingBy(
+                (customer) => customer.lastSaleTransactionTime!,
+                (customer) => customer.customerId,
+              ),
+            )
+            .slice(0, limit);
+        },
       },
 
       saleReads: {
@@ -591,6 +631,57 @@ export class InMemoryDatabase {
             sortValue: row.transactionTime,
             id: row.id,
           }));
+        },
+
+        captureContext: async ({ workspaceId, customerId, query, limit }) => {
+          const needle = fold(query);
+          const eligible = [...store.sales.values()]
+            .filter(
+              (sale) =>
+                sale.workspaceId === workspaceId &&
+                sale.status === "posted" &&
+                sale.voidRecord === null,
+            )
+            .sort(
+              descendingBy(
+                (sale) => sale.transactionTime,
+                (sale) => sale.id,
+              ),
+            );
+          const customerHistory = [] as Array<{
+            productName: string;
+            unit: string;
+            lastUnitPrice: Money;
+            lastTransactionTime: string;
+            sourceSaleId: SaleId;
+          }>;
+          const workspaceHistory = [] as Array<{ productName: string; unit: string }>;
+          const customerSeen = new Set<string>();
+          const workspaceSeen = new Set<string>();
+          for (const sale of eligible)
+            for (const line of sale.lines) {
+              if (needle.length > 0 && !fold(line.productName).includes(needle)) continue;
+              const identity = `${line.productName}\u0000${line.quantity.unit}`;
+              if (!workspaceSeen.has(identity) && workspaceHistory.length < limit) {
+                workspaceSeen.add(identity);
+                workspaceHistory.push({ productName: line.productName, unit: line.quantity.unit });
+              }
+              if (
+                sale.customerId === customerId &&
+                !customerSeen.has(identity) &&
+                customerHistory.length < limit
+              ) {
+                customerSeen.add(identity);
+                customerHistory.push({
+                  productName: line.productName,
+                  unit: line.quantity.unit,
+                  lastUnitPrice: line.unitPrice,
+                  lastTransactionTime: sale.transactionTime,
+                  sourceSaleId: sale.id,
+                });
+              }
+            }
+          return { customerHistory, workspaceHistory };
         },
       },
 

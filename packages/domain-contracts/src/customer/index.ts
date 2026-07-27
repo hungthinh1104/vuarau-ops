@@ -149,3 +149,20 @@ export const getCustomerInputSchema = z.object({
   customerId: customerIdSchema,
 });
 export type GetCustomerInput = z.infer<typeof getCustomerInputSchema>;
+
+/** A short, active-only list ordered by the customer's last active posted sale. */
+export const recentCustomersInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  limit: z.int().min(1).max(12).default(10),
+});
+export type RecentCustomersInput = z.infer<typeof recentCustomersInputSchema>;
+
+export const recentCustomerDtoSchema = z.object({
+  customerId: customerIdSchema,
+  displayName: z.string(),
+  phone: z.string().nullable(),
+  balance: moneySchema,
+  classification: balanceClassificationSchema,
+  lastSaleTransactionTime: isoInstantSchema.nullable(),
+});
+export type RecentCustomerDto = z.infer<typeof recentCustomerDtoSchema>;

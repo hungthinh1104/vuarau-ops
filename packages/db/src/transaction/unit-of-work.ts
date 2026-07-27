@@ -38,5 +38,5 @@ export function createUnitOfWork(database: Database["db"], ids: IdMinter) {
         });
       });
     },
-  };
+  } as unknown;
 }

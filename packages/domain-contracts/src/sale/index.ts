@@ -13,6 +13,7 @@ import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand, defineVersionedCommand } from "../shared/command.ts";
 import { capabilitySchema } from "../shared/capability.ts";
 import { pageRequestSchema } from "../shared/pagination.ts";
+import { balanceClassificationSchema } from "../account/index.ts";
 
 /**
  * A **sale** is a completed transaction: goods handed over, price agreed
@@ -256,6 +257,69 @@ export const saleDtoSchema = z.object({
   capabilities: saleCapabilitiesSchema,
 });
 export type SaleDto = z.infer<typeof saleDtoSchema>;
+
+/** Historical names are optional typing help only; price remains customer-local. */
+export const saleCaptureContextInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+  query: z.string().trim().max(200).default(""),
+  limit: z.int().min(1).max(12).default(10),
+});
+export type SaleCaptureContextInput = z.infer<typeof saleCaptureContextInputSchema>;
+
+export const customerPriceHistoryDtoSchema = z.object({
+  productName: z.string(),
+  unit: z.string(),
+  lastUnitPrice: moneySchema,
+  lastTransactionTime: isoInstantSchema,
+  sourceSaleId: saleIdSchema,
+});
+export type CustomerPriceHistoryDto = z.infer<typeof customerPriceHistoryDtoSchema>;
+
+export const workspaceProductHistoryDtoSchema = z.object({
+  productName: z.string(),
+  unit: z.string(),
+  lastUnitPrice: z.null(),
+});
+export type WorkspaceProductHistoryDto = z.infer<typeof workspaceProductHistoryDtoSchema>;
+
+export const saleCaptureContextDtoSchema = z.object({
+  customerHistory: z.array(customerPriceHistoryDtoSchema),
+  workspaceHistory: z.array(workspaceProductHistoryDtoSchema),
+});
+export type SaleCaptureContextDto = z.infer<typeof saleCaptureContextDtoSchema>;
+
+export const saleReceiptInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  saleId: saleIdSchema,
+});
+export type SaleReceiptInput = z.infer<typeof saleReceiptInputSchema>;
+
+/** Presentation model for a bông hàng; it is not an accounting invoice. */
+export const saleReceiptDtoSchema = z.object({
+  sale: saleDtoSchema,
+  displayReference: z.string(),
+  customer: z.object({
+    id: customerIdSchema,
+    displayName: z.string(),
+    phone: z.string().nullable(),
+  }),
+  workspace: z.object({ id: workspaceIdSchema, name: z.string() }),
+  accountEffect: z
+    .object({
+      balanceBefore: moneySchema,
+      change: moneySchema,
+      balanceAfter: moneySchema,
+      classificationAfter: balanceClassificationSchema,
+      accountEntryId: z.string(),
+    })
+    .nullable(),
+  correction: z.object({
+    voidRecord: saleVoidDtoSchema.nullable(),
+    replacedBySaleId: saleIdSchema.nullable(),
+  }),
+});
+export type SaleReceiptDto = z.infer<typeof saleReceiptDtoSchema>;
 
 export const saleDraftCreatedEventSchema = z.object({
   type: z.literal("sale.draft_created"),

@@ -182,6 +182,62 @@ export function createReadRepositories(tx: Tx) {
           classification: classifyBalance(balance),
         };
       },
+
+      async recent(workspaceId: string, limit: number) {
+        const rows = await tx
+          .select({
+            customerId: customers.id,
+            displayName: customers.displayName,
+            phone: customers.phone,
+            balanceMinor: customerAccountBalances.balanceMinor,
+            currency: customerAccountBalances.currency,
+            lastSale: sql<Date | null>`max(${sales.transactionTime})`,
+          })
+          .from(customers)
+          .leftJoin(
+            customerAccountBalances,
+            and(
+              eq(customerAccountBalances.workspaceId, customers.workspaceId),
+              eq(customerAccountBalances.customerId, customers.id),
+            ),
+          )
+          .leftJoin(
+            sales,
+            and(
+              eq(sales.workspaceId, customers.workspaceId),
+              eq(sales.customerId, customers.id),
+              eq(sales.status, "posted"),
+            ),
+          )
+          .leftJoin(saleVoids, eq(saleVoids.saleId, sales.id))
+          .where(
+            and(
+              eq(customers.workspaceId, workspaceId),
+              eq(customers.isActive, true),
+              sql`${saleVoids.id} IS NULL`,
+            ),
+          )
+          .groupBy(
+            customers.id,
+            customers.displayName,
+            customers.phone,
+            customerAccountBalances.balanceMinor,
+            customerAccountBalances.currency,
+          )
+          .orderBy(desc(sql`max(${sales.transactionTime})`), asc(customers.id))
+          .limit(limit);
+        return rows.map((row) => {
+          const balance = money(row.balanceMinor ?? 0, row.currency ?? "VND");
+          return {
+            customerId: row.customerId,
+            displayName: row.displayName,
+            phone: row.phone,
+            balance,
+            classification: classifyBalance(balance),
+            lastSaleTransactionTime: row.lastSale === null ? null : toIso(row.lastSale),
+          };
+        });
+      },
     },
 
     saleReads: {
@@ -313,6 +369,79 @@ export function createReadRepositories(tx: Tx) {
           page,
           (row) => ({ sortValue: row.transactionTime, id: row.id }),
         );
+      },
+
+      async captureContext({
+        workspaceId,
+        customerId,
+        query,
+        limit,
+      }: {
+        workspaceId: string;
+        customerId: string;
+        query: string;
+        limit: number;
+      }) {
+        const filters: SQL[] = [
+          eq(sales.workspaceId, workspaceId),
+          eq(sales.status, "posted"),
+          sql`${saleVoids.id} IS NULL`,
+        ];
+        if (query.length > 0) {
+          filters.push(
+            sql`vuarau_fold(${saleLines.productName}) ILIKE vuarau_fold(${`%${query}%`})`,
+          );
+        }
+        const rows = await tx
+          .select({
+            customerId: sales.customerId,
+            saleId: sales.id,
+            transactionTime: sales.transactionTime,
+            productName: saleLines.productName,
+            unit: saleLines.unit,
+            unitPriceMinor: saleLines.unitPriceMinor,
+            currency: saleLines.currency,
+            position: saleLines.position,
+          })
+          .from(saleLines)
+          .innerJoin(sales, eq(sales.id, saleLines.saleId))
+          .leftJoin(saleVoids, eq(saleVoids.saleId, sales.id))
+          .where(and(...filters))
+          .orderBy(desc(sales.transactionTime), desc(sales.id), asc(saleLines.position));
+
+        const customerHistory = [] as Array<{
+          productName: string;
+          unit: string;
+          lastUnitPrice: ReturnType<typeof money>;
+          lastTransactionTime: string;
+          sourceSaleId: string;
+        }>;
+        const workspaceHistory = [] as Array<{ productName: string; unit: string }>;
+        const customerSeen = new Set<string>();
+        const workspaceSeen = new Set<string>();
+        for (const row of rows) {
+          const identity = `${row.productName}\u0000${row.unit}`;
+          if (!workspaceSeen.has(identity) && workspaceHistory.length < limit) {
+            workspaceSeen.add(identity);
+            workspaceHistory.push({ productName: row.productName, unit: row.unit });
+          }
+          if (
+            row.customerId === customerId &&
+            !customerSeen.has(identity) &&
+            customerHistory.length < limit
+          ) {
+            customerSeen.add(identity);
+            customerHistory.push({
+              productName: row.productName,
+              unit: row.unit,
+              lastUnitPrice: money(row.unitPriceMinor, row.currency),
+              lastTransactionTime: toIso(row.transactionTime),
+              sourceSaleId: row.saleId,
+            });
+          }
+          if (customerHistory.length >= limit && workspaceHistory.length >= limit) break;
+        }
+        return { customerHistory, workspaceHistory };
       },
     },
 

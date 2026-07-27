@@ -6,6 +6,10 @@ import type {
   Page,
   SaleDto,
   SaleSummaryDto,
+  SaleCaptureContextDto,
+  SaleCaptureContextInput,
+  SaleReceiptDto,
+  SaleReceiptInput,
 } from "@vuarau/domain-contracts";
 import type { DomainResult, SaleState } from "@vuarau/domain-kernel";
 import { err, saleDueState, saleSummaryCapabilities } from "@vuarau/domain-kernel";
@@ -105,4 +109,86 @@ export function listSales(
       }));
     },
   });
+}
+
+/** Names may be suggested workspace-wide; prices are returned only for this customer. */
+export function captureContext(
+  ctx: CommandContext,
+  input: SaleCaptureContextInput,
+): Promise<DomainResult<SaleCaptureContextDto>> {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "sale.read",
+    execute: async ({ repos }) => {
+      const found = await repos.saleReads.captureContext(input);
+      return {
+        customerHistory: [...found.customerHistory],
+        workspaceHistory: found.workspaceHistory.map((row) => ({ ...row, lastUnitPrice: null })),
+      };
+    },
+  });
+}
+
+/** A bông presentation is derived from the sale and ledger, never a new aggregate. */
+export async function getSaleReceipt(
+  ctx: CommandContext,
+  input: SaleReceiptInput,
+): Promise<DomainResult<SaleReceiptDto>> {
+  const result = await runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "sale.read",
+    execute: async ({ repos, asOf }) => {
+      const sale = await repos.saleReads.get(input.workspaceId, input.saleId);
+      if (sale === null) return null;
+      const customer = await repos.customerReads.get(input.workspaceId, sale.customerId);
+      if (customer === null) return null;
+      const replacedBySaleId = await repos.saleReads.replacedBy(input.workspaceId, sale.id);
+      const entries = await repos.accountReads.timeline({
+        workspaceId: input.workspaceId,
+        customerId: sale.customerId,
+        from: null,
+        to: null,
+        page: { after: null, limit: 200 },
+      });
+      const entry = entries.rows.find(
+        (row) => row.source.type === "sale_posting" && row.source.id === sale.id,
+      );
+      const accountEffect =
+        entry === undefined
+          ? null
+          : {
+              balanceBefore: {
+                ...entry.runningBalance,
+                amountMinor: entry.runningBalance.amountMinor - entry.amount.amountMinor,
+              },
+              change: entry.amount,
+              balanceAfter: entry.runningBalance,
+              classificationAfter:
+                entry.runningBalance.amountMinor > 0
+                  ? ("receivable" as const)
+                  : entry.runningBalance.amountMinor < 0
+                    ? ("customer_credit" as const)
+                    : ("settled" as const),
+              accountEntryId: entry.id,
+            };
+      return {
+        sale: toSaleDto(sale, asOf),
+        displayReference: `Bông ${sale.id.slice(0, 8).toUpperCase()}`,
+        customer: {
+          id: customer.customer.id,
+          displayName: customer.customer.displayName,
+          phone: customer.customer.phone,
+        },
+        workspace: { id: input.workspaceId, name: "" },
+        accountEffect,
+        correction: { voidRecord: toSaleDto(sale, asOf).voidRecord, replacedBySaleId },
+      };
+    },
+  });
+  if (!result.ok) return result;
+  if (result.value === null)
+    return err("SALE_NOT_FOUND", "No such sale in this workspace.", { saleId: input.saleId });
+  return { ok: true, value: result.value };
 }
