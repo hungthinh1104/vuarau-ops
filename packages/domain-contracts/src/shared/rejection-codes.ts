@@ -82,6 +82,8 @@ export const DOMAIN_REJECTION_CODES = [
   // --- debt -----------------------------------------------------------------
   "DEBT_ADJUSTMENT_REASON_REQUIRED",
   "DEBT_ADJUSTMENT_AMOUNT_INVALID",
+  "ACCOUNT_ADJUSTMENT_NOT_FOUND",
+  "ACCOUNT_ADJUSTMENT_INTEGRITY_ERROR",
 
   // --- command plumbing -----------------------------------------------------
   "DUPLICATE_COMMAND",

@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { CustomerId } from "@vuarau/domain-contracts";
+import { useEffect, useState } from "react";
+import type { AccountTimelineEntryDto, Cursor, CustomerId, Page } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "../../../../api/session-gate.tsx";
@@ -30,6 +31,8 @@ export default function CustomerDetailPage() {
   const trpc = useTRPC();
   const params = useParams<{ customerId: string }>();
   const customerId = params.customerId as CustomerId;
+  const [cursor, setCursor] = useState<Cursor | null>(null);
+  const [pages, setPages] = useState<readonly Page<AccountTimelineEntryDto>[]>([]);
 
   const customer = useQuery(trpc.customer.get.queryOptions({ workspaceId, customerId }));
   const timeline = useQuery(
@@ -38,10 +41,21 @@ export default function CustomerDetailPage() {
       customerId,
       from: null,
       to: null,
-      cursor: null,
+      cursor,
       limit: 20,
     }),
   );
+
+  useEffect(() => {
+    setCursor(null);
+    setPages([]);
+  }, [workspaceId, customerId]);
+  useEffect(() => {
+    if (!timeline.data) return;
+    setPages((current) => (cursor === null ? [timeline.data] : [...current, timeline.data]));
+  }, [cursor, timeline.data]);
+  const entries = pages.flatMap((page) => page.items);
+  const nextCursor = pages.at(-1)?.nextCursor ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -116,8 +130,8 @@ export default function CustomerDetailPage() {
           attemptedAction="Xem sổ công nợ"
           onRetry={() => void timeline.refetch()}
         >
-          {(page) =>
-            page.items.length === 0 ? (
+          {() =>
+            entries.length === 0 ? (
               // A fact, not a failure: nothing has moved this account.
               <EmptyState
                 title="Chưa có giao dịch nào"
@@ -126,7 +140,7 @@ export default function CustomerDetailPage() {
             ) : (
               <>
                 <ul className="rounded-card border border-border bg-surface px-4">
-                  {page.items.map((entry) => {
+                  {entries.map((entry) => {
                     const href = sourceHref(entry);
                     return (
                       <TimelineItem
@@ -137,10 +151,29 @@ export default function CustomerDetailPage() {
                     );
                   })}
                 </ul>
-                {page.nextCursor !== null ? (
-                  <p className="text-caption text-ink-muted">
-                    Đang hiện {page.items.length} dòng gần nhất.
-                  </p>
+                {nextCursor !== null ? (
+                  <div className="flex items-center gap-3">
+                    <p className="text-caption text-ink-muted">
+                      Đang hiện {entries.length} dòng gần nhất.
+                    </p>
+                    <button
+                      type="button"
+                      className="touch-target rounded-button border border-border px-3 text-label"
+                      disabled={timeline.isFetching}
+                      onClick={() => setCursor(nextCursor)}
+                    >
+                      {timeline.isFetching ? "Đang tải" : "Tải thêm"}
+                    </button>
+                    {timeline.isError ? (
+                      <button
+                        type="button"
+                        onClick={() => void timeline.refetch()}
+                        className="text-info underline"
+                      >
+                        Thử lại
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
               </>
             )

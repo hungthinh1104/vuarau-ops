@@ -66,6 +66,9 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
 
   DEBT_ADJUSTMENT_REASON_REQUIRED: "Điều chỉnh công nợ phải có lý do.",
   DEBT_ADJUSTMENT_AMOUNT_INVALID: "Số tiền điều chỉnh phải lớn hơn 0.",
+  ACCOUNT_ADJUSTMENT_NOT_FOUND: "Không tìm thấy điều chỉnh công nợ này.",
+  ACCOUNT_ADJUSTMENT_INTEGRITY_ERROR:
+    "Điều chỉnh công nợ thiếu dữ liệu sổ cái. Hãy báo người quản trị để kiểm tra.",
 
   DUPLICATE_COMMAND: "Lệnh này đã được gửi với mã khác. Hãy tải lại rồi thử lại.",
   IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD:
