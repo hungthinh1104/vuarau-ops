@@ -130,7 +130,7 @@ export function captureContext(
   });
 }
 
-/** A bông presentation is derived from the sale and ledger, never a new aggregate. */
+/** A posted sale view is derived from the sale and ledger, never a new aggregate. */
 export async function getSaleReceipt(
   ctx: CommandContext,
   input: SaleReceiptInput,

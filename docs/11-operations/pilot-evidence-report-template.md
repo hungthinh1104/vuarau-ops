@@ -40,7 +40,7 @@ Transactions observed: ____ / target 15–20
 | Corrected a price                 |       |                              |
 | Entered an incorrect price        |       |                              |
 
-## C. Bông hàng observations
+## C. Candidate terminology observations — “bông hàng”
 
 Record observed need and context, not a feature commitment: readable bông code,
 customer name, depot name, recorder/closer, paper print, Zalo, image/PDF, previous

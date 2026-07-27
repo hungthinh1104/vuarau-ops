@@ -49,7 +49,7 @@ export default function SaleDetailPage() {
           <>
             <div className="flex flex-col gap-2">
               <h1 className="text-heading font-bold">
-                {receipt.sale.status === "posted" ? "Bông hàng" : "Đơn hàng"}
+                {receipt.sale.status === "posted" ? "Chi tiết đơn bán" : "Đơn hàng"}
               </h1>
               <SaleStatus
                 status={receipt.sale.status}
@@ -109,7 +109,7 @@ export default function SaleDetailPage() {
                 <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-2 text-body-sm">
                   <dt>Công nợ trước</dt>
                   <dd className="tabular">{formatMoney(receipt.accountEffect.balanceBefore)}</dd>
-                  <dt>Bông này</dt>
+                  <dt>Đơn này</dt>
                   <dd className="tabular">{formatMoney(receipt.accountEffect.change)}</dd>
                   <dt className="font-semibold">Công nợ mới</dt>
                   <dd className="tabular font-semibold">

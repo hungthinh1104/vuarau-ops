@@ -32,7 +32,7 @@ export default function FastSaleStartPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-heading font-bold">Ghi bông mới</h1>
+        <h1 className="text-heading font-bold">Ghi đơn nhanh</h1>
         <p className="text-body-sm text-ink-muted">Chọn khách để bắt đầu ghi hàng.</p>
       </div>
       <SearchInput
@@ -54,7 +54,7 @@ export default function FastSaleStartPage() {
             customers.length === 0 ? (
               <EmptyState
                 title="Chưa có khách gần đây"
-                description="Tìm khách bằng tên hoặc số điện thoại để ghi bông."
+                description="Tìm khách bằng tên hoặc số điện thoại để tạo đơn bán."
               />
             ) : (
               <ul className="flex flex-col gap-2">

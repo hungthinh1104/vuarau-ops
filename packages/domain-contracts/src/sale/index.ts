@@ -295,7 +295,7 @@ export const saleReceiptInputSchema = z.object({
 });
 export type SaleReceiptInput = z.infer<typeof saleReceiptInputSchema>;
 
-/** Presentation model for a bông hàng; it is not an accounting invoice. */
+/** Presentation model for one posted sale; it is not an accounting invoice. */
 export const saleReceiptDtoSchema = z.object({
   sale: saleDtoSchema,
   displayReference: z.string(),
