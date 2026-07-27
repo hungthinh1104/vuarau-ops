@@ -130,7 +130,7 @@ export function SignInUnconfigured() {
     <main className="mx-auto max-w-md px-4 py-10">
       <EmptyState
         title="Chưa cấu hình đăng nhập"
-        description="Bản triển khai này thiếu NEXT_PUBLIC_SUPABASE_URL và NEXT_PUBLIC_SUPABASE_ANON_KEY. Báo người cài đặt hệ thống."
+        description="Bản triển khai này thiếu NEXT_PUBLIC_SUPABASE_URL và NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. Báo người cài đặt hệ thống."
       />
     </main>
   );

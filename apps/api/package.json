@@ -12,7 +12,8 @@
     "ops:pilot": "node src/operations/pilot-onboarding.ts",
     "ops:check-env": "node src/operations/check-env.ts",
     "ops:pilot-readiness": "node src/operations/pilot-readiness.ts",
-    "ops:correct-sale": "node src/operations/correct-sale.ts"
+    "ops:correct-sale": "node src/operations/correct-sale.ts",
+    "ops:check-supabase": "node src/operations/check-supabase.ts"
   },
   "dependencies": {
     "@trpc/server": "^11.7.1",

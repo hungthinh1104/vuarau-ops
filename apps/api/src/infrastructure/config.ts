@@ -63,12 +63,22 @@ const present = (env: Env, name: string): string | null => {
  * A `NEXT_PUBLIC_*` variable is compiled into the bundle a phone downloads. Next
  * inlines it at build time, so it is not merely readable — it is published.
  *
- * The two that belong there are the project URL and the publishable anon key.
- * Anything else whose name reads like a credential is almost certainly somebody
- * prefixing a secret to make it reach the browser, which is exactly the mistake
- * this catches while it is still a config file rather than a deployed bundle.
+ * The ones that belong there are the project URL and the publishable key — under
+ * either spelling, since Supabase renamed anon → publishable in 2025. Anything
+ * else whose name reads like a credential is almost certainly somebody prefixing a
+ * secret to make it reach the browser, which is exactly the mistake this catches
+ * while it is still a config file rather than a deployed bundle.
+ *
+ * `SUPABASE_SECRET_KEY` (formerly the service-role key) is the one to be most
+ * afraid of: it bypasses row-level security entirely. This application never uses
+ * it — tokens are verified against JWKS, so nothing calls Supabase with privilege —
+ * and prefixed `NEXT_PUBLIC_` it would be compiled into a bundle a CDN caches.
  */
-const PUBLISHABLE = new Set(["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]);
+const PUBLISHABLE = new Set([
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+]);
 const SECRET_SHAPED = /SECRET|PASSWORD|SERVICE_ROLE|PRIVATE|CREDENTIAL|JWT_SECRET/i;
 
 export function publishedSecrets(env: Env): readonly ConfigProblem[] {
@@ -94,6 +104,16 @@ export function readServerConfig(env: Env): ConfigResult {
   }
   const appEnv = rawEnv as AppEnvironment;
   const isPilot = appEnv === "pilot";
+
+  // The Playwright bridge can manufacture an authenticated browser session. It is
+  // useful only for the local end-to-end process and must never be present in a
+  // deployment where a real person can reach the sign-in screen.
+  if (isPilot && present(env, "NEXT_PUBLIC_E2E_AUTH_BRIDGE") !== null) {
+    fail(
+      "NEXT_PUBLIC_E2E_AUTH_BRIDGE",
+      "must be absent in a pilot environment — it is a Playwright-only authentication bridge",
+    );
+  }
 
   const databaseUrl = present(env, "DATABASE_URL");
   if (databaseUrl === null) {

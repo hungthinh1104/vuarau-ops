@@ -10,14 +10,20 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * This app verifies tokens on the server and reimplements none of the rest — a
  * second implementation of "is this person signed in" is a second answer to it.
  *
- * **Only the anon key belongs here.** It is a public, publishable key: it
- * identifies the project and nothing else. The JWT *signing* secret verifies
- * tokens and lives in the API process, never in a bundle a phone downloads. The
- * two are easy to confuse because both are called "a Supabase key", so this file
- * reads exactly two environment variables and would fail loudly on a third.
+ * **Only the publishable key belongs here.** It identifies the project and
+ * authorises nothing on its own. Supabase's *secret* key — `sb_secret_…`, formerly
+ * the service-role key — bypasses row-level security entirely, and this
+ * application never uses it: tokens are verified against JWKS, so nothing here
+ * calls Supabase with privilege. It must not appear in any environment this app
+ * reads, let alone one prefixed `NEXT_PUBLIC_`.
+ *
+ * Both spellings are accepted. Supabase renamed anon → publishable in 2025, and a
+ * deployment mid-rename should not be a deployment that cannot sign anybody in.
  */
 const SUPABASE_URL = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-const SUPABASE_ANON_KEY = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
+const SUPABASE_ANON_KEY =
+  process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] ??
+  process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
 /** Configured means both values are present. Neither is useful alone. */
 export const supabaseConfigured =
