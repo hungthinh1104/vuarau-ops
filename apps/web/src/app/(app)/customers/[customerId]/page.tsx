@@ -26,7 +26,7 @@ import { EmptyState } from "../../../../ui/primitives/empty-state.tsx";
  * that greyed out for a reason the next screen would re-derive anyway.
  */
 export default function CustomerDetailPage() {
-  const { workspaceId } = useSession();
+  const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const params = useParams<{ customerId: string }>();
   const customerId = params.customerId as CustomerId;
@@ -94,6 +94,14 @@ export default function CustomerDetailPage() {
               >
                 Ghi nhận thanh toán
               </Link>
+              {session.permissions.includes("debt.adjust") ? (
+                <Link
+                  href={`/customers/${customerId}/account/adjust`}
+                  className="touch-target inline-flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
+                >
+                  Điều chỉnh công nợ
+                </Link>
+              ) : null}
             </div>
           </div>
         )}
