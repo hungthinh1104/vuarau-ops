@@ -1,12 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import type { PaymentId } from "@vuarau/domain-contracts";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import type { PaymentDto, PaymentId } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "../../../../api/session-gate.tsx";
 import { useTRPC } from "../../../../api/providers.tsx";
+import { useCommand } from "../../../../api/use-command.ts";
+import { hasPermission } from "../../../../api/session.ts";
 import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
+import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
+import { PaymentReversalPanel } from "../../../../ui/patterns/payment-reversal-panel.tsx";
 import { PaymentStatus } from "../../../../ui/patterns/payment-status.tsx";
 import { BalanceCard } from "../../../../ui/patterns/balance-card.tsx";
 import { formatInstant, formatRecordedGap } from "../../../../ui/format.ts";
@@ -30,12 +34,22 @@ const METHOD_COPY = {
  * really a question about the account, not about the receipt.
  */
 export default function PaymentDetailPage() {
-  const { workspaceId } = useSession();
+  const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const params = useParams<{ paymentId: string }>();
   const paymentId = params.paymentId as PaymentId;
 
   const payment = useQuery(trpc.payment.get.queryOptions({ workspaceId, paymentId }));
+  const reverse = useMutation(trpc.payment.reverse.mutationOptions());
+  const reverseCommand = useCommand<
+    {
+      paymentId: PaymentId;
+      reversalId: string;
+      amount: { amountMinor: number; currency: "VND" };
+      reason: string;
+    },
+    PaymentDto
+  >((envelope) => reverse.mutateAsync(envelope as never) as Promise<PaymentDto>);
 
   return (
     <div className="flex flex-col gap-5">
@@ -96,6 +110,34 @@ export default function PaymentDetailPage() {
               customerId={recorded.customerId}
               customerName={recorded.customerDisplayName}
             />
+
+            {hasPermission(session, "payment.reverse") && recorded.capabilities.reverse.allowed ? (
+              <>
+                <PaymentReversalPanel
+                  remainingAmountMinor={recorded.remainingReversibleAmount.amountMinor}
+                  onSubmit={({ amountMinor, reason }) => {
+                    void reverseCommand.submit(
+                      {
+                        paymentId: recorded.id,
+                        reversalId: crypto.randomUUID(),
+                        amount: { amountMinor, currency: recorded.amount.currency },
+                        reason,
+                      },
+                      { expectedVersion: recorded.version },
+                    );
+                  }}
+                  disabled={
+                    reverseCommand.phase.kind === "sending" ||
+                    reverseCommand.phase.kind === "succeeded"
+                  }
+                />
+                <CommandOutcome
+                  command={reverseCommand}
+                  attemptedAction="Hoàn tác thanh toán"
+                  onReload={() => void payment.refetch()}
+                />
+              </>
+            ) : null}
 
             <Link
               href={`/customers/${recorded.customerId}`}
