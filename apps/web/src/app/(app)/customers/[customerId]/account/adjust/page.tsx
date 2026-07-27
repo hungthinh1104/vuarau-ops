@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CustomerId, CustomerAccountBalanceDto } from "@vuarau/domain-contracts";
 import { useParams, useRouter } from "next/navigation";
@@ -23,7 +24,16 @@ export default function AdjustCustomerAccountPage() {
     (envelope) => adjust.mutateAsync(envelope as never) as Promise<CustomerAccountBalanceDto>,
   );
   const mayAdjust = hasPermission(session, "debt.adjust");
-  if (command.phase.kind === "succeeded") router.replace(`/customers/${customerId}`);
+  // This identifies one intended adjustment for the lifetime of this screen.
+  // `useCommand` preserves its command/idempotency identity for a resend; this
+  // id preserves the domain source identity too, including an unknown outcome.
+  const adjustmentId = useRef(crypto.randomUUID()).current;
+
+  useEffect(() => {
+    if (command.phase.kind === "succeeded") {
+      router.replace(`/account-adjustments/${adjustmentId}`);
+    }
+  }, [adjustmentId, command.phase.kind, router]);
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-heading font-bold">Điều chỉnh công nợ</h1>
@@ -50,7 +60,7 @@ export default function AdjustCustomerAccountPage() {
                 disabled={command.phase.kind === "sending" || command.phase.kind === "succeeded"}
                 onSubmit={({ direction, reasonCode, amountMinor, reason }) => {
                   void command.submit({
-                    adjustmentId: crypto.randomUUID(),
+                    adjustmentId,
                     customerId,
                     direction,
                     reasonCode,
