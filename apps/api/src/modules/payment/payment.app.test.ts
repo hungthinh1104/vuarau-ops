@@ -18,6 +18,7 @@ import {
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { recordCustomerPayment } from "./record-payment.handler.ts";
 import { reverseCustomerPayment } from "./reverse-payment.handler.ts";
+import { getPayment } from "./payment.queries.ts";
 
 let harness: Harness;
 
@@ -101,6 +102,22 @@ describe("BR-PAYMENT-002 / TC-PAYMENT-001", () => {
     const summary = harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID);
     expect(summary?.balance.amountMinor).toBe(ledgerBalance(harness, CUSTOMER_ID));
     expect(summary?.entryCount).toBe(2);
+  });
+});
+
+describe("UC-PAYMENT-003 — payment detail read model", () => {
+  it("returns the server-stored note rather than requiring the receipt UI to retain form state", async () => {
+    await recordCustomerPayment(
+      harness.ctx,
+      recordInput({ payload: { ...recordInput().payload, note: "Khách chuyển khoản buổi sáng" } }),
+    );
+
+    const result = await getPayment(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      paymentId: PAYMENT_ID,
+    });
+
+    expect(result).toMatchObject({ ok: true, value: { note: "Khách chuyển khoản buổi sáng" } });
   });
 });
 

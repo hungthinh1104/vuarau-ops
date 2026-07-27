@@ -71,6 +71,13 @@ export default function PaymentDetailPage() {
                   </>
                 ) : null}
 
+                {recorded.note !== null ? (
+                  <>
+                    <dt className="text-ink-muted">Ghi chú</dt>
+                    <dd className="text-right text-ink">{recorded.note}</dd>
+                  </>
+                ) : null}
+
                 <dt className="text-ink-muted">Thời điểm</dt>
                 <dd className="text-right text-ink">{formatInstant(recorded.transactionTime)}</dd>
               </dl>

@@ -76,6 +76,7 @@ function summaryOf(payment: PaymentDto): PaymentSummaryDto {
     remainingReversibleAmount: payment.remainingReversibleAmount,
     method: payment.method,
     payerName: payment.payerName,
+    note: payment.note,
     status: payment.status,
     version: payment.version,
     transactionTime: payment.transactionTime,

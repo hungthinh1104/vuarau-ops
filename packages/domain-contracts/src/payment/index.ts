@@ -146,6 +146,8 @@ export const paymentSummaryDtoSchema = z.object({
    */
   remainingReversibleAmount: moneySchema,
   payerName: z.string().nullable(),
+  /** Server-stored capture note; receipt UI never relies on local form state. */
+  note: z.string().nullable(),
   version: z.int().nonnegative(),
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,
