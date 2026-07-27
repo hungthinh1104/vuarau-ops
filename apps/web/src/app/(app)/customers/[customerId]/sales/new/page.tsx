@@ -306,8 +306,10 @@ export default function NewSalePage() {
                         const productChanged = existing.productName !== next.productName;
                         const unitChanged = existing.unit !== next.unit;
                         if (recalled && (productChanged || unitChanged)) {
-                          setUnitNotice("Giá đã được xoá vì đơn vị thay đổi");
-                          metrics.count("price_cleared_after_unit_change");
+                          setUnitNotice(
+                            "Giá lần trước đã được xoá vì mặt hàng hoặc đơn vị thay đổi.",
+                          );
+                          metrics.count("recalled_price_cleared_after_context_change");
                           return { ...next, unitPriceText: "", priceOrigin: null };
                         }
                         // Any edit to a recalled visible price is an intentional manual override.
@@ -380,35 +382,53 @@ export default function NewSalePage() {
                             {formatDate(history.lastTransactionTime)}
                           </span>
                         </span>
-                        <Button
-                          tone="secondary"
-                          onClick={() => {
-                            if (
-                              activeLine.productName.trim() !== history.productName ||
-                              activeLine.unit !== history.unit
-                            )
-                              return;
-                            editLines(
-                              lines.map((line) =>
-                                line.lineId === activeLine.lineId
-                                  ? {
-                                      ...line,
-                                      unitPriceText: String(history.lastUnitPrice.amountMinor),
-                                      priceOrigin: {
-                                        kind: "recalled",
-                                        sourceSaleId: history.sourceSaleId,
+                        {activeLine.productName.trim() === history.productName &&
+                        activeLine.unit === history.unit ? (
+                          <Button
+                            tone="secondary"
+                            onClick={() => {
+                              editLines(
+                                lines.map((line) =>
+                                  line.lineId === activeLine.lineId
+                                    ? {
+                                        ...line,
+                                        unitPriceText: String(history.lastUnitPrice.amountMinor),
+                                        priceOrigin: {
+                                          kind: "recalled",
+                                          sourceSaleId: history.sourceSaleId,
+                                          productName: history.productName,
+                                          unit: history.unit as SaleLineDraft["unit"],
+                                        },
+                                      }
+                                    : line,
+                                ),
+                              );
+                              metrics.count("historical_price_applied");
+                            }}
+                          >
+                            Dùng giá này
+                          </Button>
+                        ) : (
+                          <Button
+                            tone="secondary"
+                            onClick={() => {
+                              editLines(
+                                lines.map((line) =>
+                                  line.lineId === activeLine.lineId
+                                    ? {
+                                        ...line,
                                         productName: history.productName,
                                         unit: history.unit as SaleLineDraft["unit"],
-                                      },
-                                    }
-                                  : line,
-                              ),
-                            );
-                            metrics.count("historical_price_applied");
-                          }}
-                        >
-                          Dùng giá này
-                        </Button>
+                                      }
+                                    : line,
+                                ),
+                              );
+                              metrics.count("historical_product_selected");
+                            }}
+                          >
+                            Chọn mặt hàng
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </section>

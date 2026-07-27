@@ -132,7 +132,8 @@ export default function SaleDetailPage() {
               </section>
             ) : null}
 
-            {detail.correction.voidRecord !== null ||
+            {detail.sale.replacesSaleId !== null ||
+            detail.correction.voidRecord !== null ||
             detail.correction.replacedBySaleId !== null ? (
               <section className="rounded-card border border-border bg-surface p-4 text-body-sm">
                 <h2 className="text-subheading font-semibold">Liên kết điều chỉnh</h2>

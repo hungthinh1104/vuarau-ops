@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "../../../../api/session-gate.tsx";
 import { useTRPC } from "../../../../api/providers.tsx";
 import { useDebounced } from "../../../../api/use-debounced.ts";
@@ -16,9 +16,10 @@ import { Textarea } from "../../../../ui/primitives/textarea.tsx";
 import { useCommand } from "../../../../api/use-command.ts";
 import { useWorkflowMetrics } from "../../../../api/workflow-metrics.ts";
 import { hasPermission } from "../../../../api/session.ts";
+import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
 
 /** The direct entry door: select a person, then reuse the one sale command workflow. */
-export default function FastSaleStartPage() {
+export default function QuickSaleStartPage() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
@@ -45,6 +46,12 @@ export default function FastSaleStartPage() {
     async (envelope) => (await createCustomer.mutateAsync(envelope as never)) as { id: string },
   );
 
+  useEffect(() => {
+    if (createCommand.result === null) return;
+    metrics.count("customer_created_inline");
+    window.location.assign(`/customers/${createCommand.result.id}/sales/new`);
+  }, [createCommand.result, metrics]);
+
   async function createInline(): Promise<void> {
     if (name.trim().length === 0) return;
     const created = await createCommand.submit({
@@ -53,10 +60,7 @@ export default function FastSaleStartPage() {
       phone: phone.trim() || null,
       note: note.trim() || null,
     });
-    if (created !== null) {
-      metrics.count("customer_created_inline");
-      window.location.assign(`/customers/${created.id}/sales/new`);
-    }
+    void created;
   }
 
   return (
@@ -193,6 +197,11 @@ export default function FastSaleStartPage() {
               >
                 Tạo khách và ghi đơn
               </Button>
+              <CommandOutcome
+                command={createCommand}
+                attemptedAction="Tạo khách hàng"
+                onReload={() => window.location.reload()}
+              />
             </div>
           )}
         </section>
