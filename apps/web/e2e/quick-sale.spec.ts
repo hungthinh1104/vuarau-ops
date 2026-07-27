@@ -40,7 +40,7 @@ test.describe("TC-E2E-011 — a one-line sale", () => {
 
     await page.getByRole("button", { name: "Chốt đơn" }).click();
 
-    await expect(page.getByRole("heading", { name: "Đã chốt đơn" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
     await expect(page.getByTestId("posted-total")).toHaveText("225.000 ₫");
 
     const sales = await api.sales(customerId);
@@ -73,7 +73,7 @@ test.describe("TC-E2E-012 — a three-line sale", () => {
     await expect(page.getByTestId("sale-total")).toHaveText("875.000 ₫");
 
     await page.getByRole("button", { name: "Chốt đơn" }).click();
-    await expect(page.getByRole("heading", { name: "Đã chốt đơn" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     // Units are displayed exactly as entered; nothing is converted (ASM-011).
     await expect(page.getByText("12,5 kg × 18.000 ₫")).toBeVisible();
@@ -187,7 +187,7 @@ test.describe("TC-E2E-016 — a duplicate post does not duplicate the receivable
       button.click();
     });
 
-    await expect(page.getByRole("heading", { name: "Đã chốt đơn" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     const sales = await api.sales(customerId);
     expect(sales.items).toHaveLength(1);
@@ -229,7 +229,7 @@ test.describe("TC-E2E-017 — an unknown outcome on posting", () => {
     await expect(page.getByTestId("sale-line-0").getByLabel("Mặt hàng")).toHaveValue("Cà chua");
 
     await page.getByRole("button", { name: "Gửi lại" }).click();
-    await expect(page.getByRole("heading", { name: "Đã chốt đơn" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     const timeline = await api.timeline(customerId);
     expect(timeline.items.filter((entry) => entry.source.type === "sale_posting")).toHaveLength(1);
@@ -272,19 +272,21 @@ test.describe("TC-E2E-018 — permission and staleness", () => {
   });
 });
 
-test.describe("TC-E2E-019 — the posted sale and the timeline agree", () => {
-  test("the sale screen shows the account entry it produced", async ({ page }) => {
+test.describe("TC-E2E-019 — the posted sale and ledger agree", () => {
+  test("the sale screen renders the server-projected account effect", async ({ page }) => {
     const customerId = await startSale(page, "S11");
     await fillLine(page, 0, { product: "Cà chua", quantity: "12,5", price: "18.000" });
     await page.getByRole("button", { name: "Chốt đơn" }).click();
 
-    await expect(page.getByRole("heading", { name: "Đã chốt đơn" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
-    // One financial event, shown beside the sale that caused it.
-    const entries = page.getByTestId("sale-account-entries").getByRole("listitem");
-    await expect(entries).toHaveCount(1);
-    await expect(entries.first()).toContainText("Chốt đơn");
-    await expect(entries.first()).toContainText("+225.000 ₫");
+    // The screen renders the detail projection; it does not page or calculate a
+    // timeline in the browser.
+    await expect(page.getByText("Công nợ trước")).toBeVisible();
+    await expect(page.getByText("Đơn này")).toBeVisible();
+    await expect(page.getByText("Công nợ mới")).toBeVisible();
+    const accountEffect = page.getByRole("heading", { name: "Ảnh hưởng công nợ" }).locator("..");
+    await expect(accountEffect.getByText("225.000 ₫")).toHaveCount(2);
 
     const timeline = await api.timeline(customerId);
     const postings = timeline.items.filter((entry) => entry.source.type === "sale_posting");
@@ -304,7 +306,7 @@ test.describe("TC-E2E-020 — analytics carry no business data", () => {
 
     await fillLine(page, 0, { product: "Ớt hiểm rất đắt", quantity: "12,5", price: "18.000" });
     await page.getByRole("button", { name: "Chốt đơn" }).click();
-    await expect(page.getByRole("heading", { name: "Đã chốt đơn" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     expect(events.length).toBeGreaterThan(0);
     const joined = events.join("\n");

@@ -34,6 +34,10 @@ const apiEnvironment = {
   SUPABASE_JWT_ISSUER: E2E_JWT_ISSUER,
   SUPABASE_JWT_AUDIENCE: E2E_JWT_AUDIENCE,
   SUPABASE_JWT_SECRET: E2E_JWT_SECRET,
+  // A developer's `.env` may use production-style JWKS verification. The E2E
+  // harness deliberately mints HS256 tokens, so it must clear that inherited
+  // setting rather than leave two mutually-exclusive verifier modes configured.
+  SUPABASE_JWKS_URL: "",
 };
 
 const webEnvironment = {
