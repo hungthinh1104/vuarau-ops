@@ -82,7 +82,7 @@ The workflow is covered through the real browser/API/Postgres stack, including a
 dropped void response replay. This is technical evidence only; it is not evidence
 that a depot has adopted the workflow.
 
-### M9 — Payment & account operations (next)
+### M9 — Payment & account operations (completed)
 
 Bring existing Money Truth workflows out of shell-only operation:
 
@@ -92,6 +92,10 @@ Bring existing Money Truth workflows out of shell-only operation:
 
 Every adjustment requires operation type, reason, actor, and audit. It must not
 be a hidden way to correct a Sale.
+
+Technical evidence: payment reversal and debt-adjustment recovery, server-projected
+detail reads, and cursor-paged customer account timeline are covered by automated
+tests. This is not evidence of real-depot adoption.
 
 ### M10 — Financial reconciliation (then)
 

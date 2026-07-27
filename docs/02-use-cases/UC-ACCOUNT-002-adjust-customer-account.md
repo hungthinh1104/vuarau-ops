@@ -17,8 +17,9 @@ which is exactly why the reason is mandatory and the audit trail is not optional
 ## Actor
 
 Any authenticated member of the workspace. **This is knowingly too permissive** —
-manual debt adjustment is the most abusable command in the system. Restricting it
-to an owner role is ASM-007 and is the highest-priority follow-up.
+manual debt adjustment is the most abusable command in the system. It is restricted
+to owner and accountant; it never corrects a posted Sale, which must use void plus
+replacement instead.
 
 ## Preconditions
 
@@ -42,6 +43,9 @@ to an owner role is ASM-007 and is the highest-priority follow-up.
 The reason travels **on the ledger entry**, not only in the audit log. Someone
 reading the debt book six months later must see why the number moved without
 joining another table.
+
+That `manual_adjustment` ledger entry is the canonical adjustment record. Detail
+screens project it with customer, workspace and actor; audit remains an audit trail.
 
 ## Alternate flows
 
