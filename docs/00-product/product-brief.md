@@ -83,10 +83,11 @@ multi-line sale, end to end against a real server and a real database, on the
 design system and typed client from the previous milestone. Every state in the
 [UI state catalog](../06-api-contracts/ui-state-catalog.md) has a story.
 
-**Three are not.** Voiding and replacing a sale, adjusting a balance, and creating
-a customer have commands, rules and tests but no screen. A correction is therefore
-something an operator does, not something a worker does — which is the constraint
-that decides what kind of pilot this can be.
+**Correction remains incomplete.** Quick Sale now supports inline customer
+creation and Sale detail, but workers still cannot complete void-only or
+void-and-replace correction in the product UI. M8 closes that workflow by using
+the existing immutable Sale, void, replacement, and recovery contracts. Account
+operations and reconciliation follow as M9 and M10; see [roadmap.md](roadmap.md).
 
 **Nobody has recorded a real sale in this software.** Every claim in "What good
 looks like" above — ten seconds, no lost writes, a correction anybody can follow —
@@ -125,11 +126,13 @@ The order matters. Putting an unsafe workflow in front of a depot would produce
 feedback about the wrong thing — and if it duplicated a receivable, it would cost
 somebody real money to find out.
 
-See [scope.md](scope.md) for what remains deliberately excluded.
+See [scope.md](scope.md) for the current delivered boundary and
+[roadmap.md](roadmap.md) for the product direction.
 
 ## Related
 
 - Scope: [scope.md](scope.md)
+- Roadmap: [roadmap.md](roadmap.md)
 - Glossary: [../01-domain/glossary.md](../01-domain/glossary.md)
 - Ledger design: [../07-data/ledger-model.md](../07-data/ledger-model.md)
 - Open policy questions: [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md)

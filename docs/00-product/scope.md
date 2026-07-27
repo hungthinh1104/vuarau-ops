@@ -1,4 +1,9 @@
-# Scope — shadow pilot phase
+# Current scope — trusted sales ledger
+
+This document records the currently delivered boundary. The product direction
+and the only authorized near-term sequence are in [roadmap.md](roadmap.md):
+**M8 Sale Correction UI → M9 Payment & Account Operations → M10 Financial
+Reconciliation**. Later modules are direction, not approved implementation work.
 
 ## In scope
 
@@ -38,7 +43,7 @@ Building any of these now would commit the product to a shape it has not earned.
 | Excluded                                                         | Why now is too early                                                                                                                                                 |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Product master search, pricing intelligence                      | A typed sale-line snapshot remains the truth; no product lifecycle or pricing engine is justified                                                                    |
-| Customer-local history recall                                    | In scope for Milestone 7 only as an explicit, historical recall; it never auto-applies a price                                                                       |
+| Customer-local history recall                                    | Delivered as explicit historical recall; it never auto-applies a price                                                                                               |
 | Dashboards, reporting                                            | No accumulated ledger data to report on, and design.md says workflows come first                                                                                     |
 | AI / LLM parsing of free-text entry                              | The deterministic write path must be trustworthy before anything writes to it automatically                                                                          |
 | Demand forecasting, supplier scoring, customer health scoring    | Require months of ledger history                                                                                                                                     |
@@ -51,8 +56,8 @@ Building any of these now would commit the product to a shape it has not earned.
 | Full event sourcing                                              | The customer account ledger is append-only; the rest of the system is not, and does not need to be ([ADR-0004](../09-decisions/ADR-0004-append-only-debt-ledger.md)) |
 | Full double-entry accounting                                     | The depot needs customer debt, not a general ledger and trial balance                                                                                                |
 | Deployment pipelines and hosting choices                         | CI is a quality gate; hosting is not chosen here and no vendor is named                                                                                              |
-| Void or replacement **screen**                                   | The command exists and is tested; correcting a posted sale is an operator's job at a shell this phase, which is why the pilot is a shadow one                        |
-| Role-management and customer-import screens                      | Both are once-per-depot jobs done by a facilitator with shell access                                                                                                 |
+| Sale correction **screen**                                       | M8 closes this existing command workflow; it must reuse the immutable-sale/void/replacement model rather than inventing a correction engine                          |
+| Role-management and customer-import screens                      | M11/M12 work; not authorized before Money Truth is closed                                                                                                            |
 
 ## Extension points left open, not built
 
@@ -71,4 +76,5 @@ rewrite. Nothing behind them is implemented.
 ## Related
 
 - [product-brief.md](product-brief.md)
+- [roadmap.md](roadmap.md)
 - [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md)

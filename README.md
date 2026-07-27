@@ -122,6 +122,7 @@ Preparing a depot for an observed session:
 [pilot-mode.md](docs/00-product/pilot-mode.md) says what the pilot is and is not,
 [pilot-onboarding.md](docs/00-product/pilot-onboarding.md) sets it up.
 
-Unresolved business policy is tracked openly in
+Product direction and the locked near-term sequence are in
+[docs/00-product/roadmap.md](docs/00-product/roadmap.md). Unresolved business policy is tracked openly in
 [docs/09-decisions/decision-backlog.md](docs/09-decisions/decision-backlog.md).
 Nothing there has been silently decided.
