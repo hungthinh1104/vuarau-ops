@@ -78,12 +78,25 @@ export default function NewSalePage() {
   // edited and saved again is the same sale throughout.
   const saleIdRef = useRef(crypto.randomUUID());
   const startedRef = useRef(false);
+  const offeredForRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
     metrics.mark("draft_started_at");
   }, [metrics]);
+
+  useEffect(() => {
+    const key = `${activeLine.lineId}\u0000${activeLine.productName}\u0000${activeLine.unit}`;
+    if (
+      capture.data === undefined ||
+      capture.data.customerHistory.length === 0 ||
+      offeredForRef.current === key
+    )
+      return;
+    offeredForRef.current = key;
+    metrics.count("historical_price_offered");
+  }, [activeLine.lineId, activeLine.productName, activeLine.unit, capture.data, metrics]);
 
   const createDraft = useMutation(trpc.sale.createDraft.mutationOptions());
   const updateDraft = useMutation(trpc.sale.updateDraft.mutationOptions());

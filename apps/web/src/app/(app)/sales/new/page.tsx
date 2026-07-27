@@ -15,10 +15,11 @@ import { TextInput } from "../../../../ui/primitives/text-input.tsx";
 import { Textarea } from "../../../../ui/primitives/textarea.tsx";
 import { useCommand } from "../../../../api/use-command.ts";
 import { useWorkflowMetrics } from "../../../../api/workflow-metrics.ts";
+import { hasPermission } from "../../../../api/session.ts";
 
 /** The direct entry door: select a person, then reuse the one sale command workflow. */
 export default function FastSaleStartPage() {
-  const { workspaceId } = useSession();
+  const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
@@ -149,7 +150,9 @@ export default function FastSaleStartPage() {
           }
         </QueryStates>
       )}
-      {!showingRecent ? (
+      {!showingRecent &&
+      search.data?.items.length === 0 &&
+      hasPermission(session, "customer.create") ? (
         <section className="rounded-card border border-border bg-surface p-4">
           {!creating ? (
             <Button

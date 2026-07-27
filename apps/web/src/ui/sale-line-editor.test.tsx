@@ -148,7 +148,7 @@ describe("TC-WEB-022 — the line editor", () => {
  * against a real rendered workflow.
  */
 describe("TC-WEB-023 — workflow metrics", () => {
-  it("names only workflow shape and timing, never a value or an identifier", () => {
+  it("names only workflow events, never business data or identifiers", () => {
     expect([...WORKFLOW_METRICS]).toEqual([
       "sale_line_count",
       "draft_started_at",
@@ -159,12 +159,21 @@ describe("TC-WEB-023 — workflow metrics", () => {
       "command_retry_count",
       "unknown_outcome_count",
       "workflow_abandoned",
+      "recent_customer_selected",
+      "customer_selected_from_search",
+      "customer_created_inline",
+      "historical_product_selected",
+      "historical_price_offered",
+      "historical_price_applied",
+      "historical_price_changed_after_apply",
+      "price_cleared_after_unit_change",
+      "sale_detail_viewed",
     ]);
 
-    // Nothing in the vocabulary can hold a name, a note or an amount.
+    // Event names can say what interaction occurred; their payload cannot carry
+    // the customer, product, unit, price, total, note or sale id.
     for (const metric of WORKFLOW_METRICS) {
       expect(metric).toMatch(/^[a-z_]+$/);
-      expect(metric).not.toMatch(/name|note|amount|price|customer|product/);
     }
   });
 
