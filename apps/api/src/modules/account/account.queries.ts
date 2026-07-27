@@ -152,7 +152,7 @@ export async function getAccountAdjustmentDetail(
   });
   if (!result.ok) return result;
   if (result.value === null)
-    return err("CUSTOMER_NOT_FOUND", "No such account adjustment in this workspace.", {
+    return err("ACCOUNT_ADJUSTMENT_NOT_FOUND", "No such account adjustment in this workspace.", {
       adjustmentId: input.adjustmentId,
     });
   return ok(result.value);
