@@ -34,7 +34,8 @@ Stop the session at once for a duplicate or missing financial effect, a balance
 that cannot be reconciled, a posted sale that appears altered, a failed
 dropped-response recovery, an unauthorised workspace/role, or a security/auth
 failure. Preserve request IDs and screenshots; do not directly edit a ledger or
-posted sale. Escalate corrections through `ops:correct-sale` after the session.
+posted sale. Use the Sale detail correction workflow after the session; escalate
+to `ops:correct-sale` only when support investigation is needed.
 
 ## After the session
 

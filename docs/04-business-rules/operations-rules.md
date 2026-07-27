@@ -102,9 +102,9 @@ input would put a password in all three (TC-OPS-003).
 
 **Risk:** P0 · **Codes:** `SALE_ALREADY_VOIDED`, `SALE_NOT_POSTED`, `PERMISSION_DENIED` · **Tests:** TC-OPS-005
 
-There is no void screen this phase. When a worker enters a wrong sale during an
-observed session, the correction is `ops:correct-sale`, and it runs the same
-`VoidSale` → optional `CreateSaleDraft` → `PostSale` a browser would
+A permitted owner/accountant corrects a posted Sale from its detail screen: void
+only, or void then create and post a distinct replacement. The UI runs the same
+`VoidSale` → optional `CreateSaleDraft` → `PostSale` commands
 ([ADR-0012](../09-decisions/ADR-0012-sale-void-and-replacement.md)).
 
 **Not a shortcut around the rules.** Same permission (`sale.void`, so an operator

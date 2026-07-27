@@ -141,22 +141,15 @@ append-only ledger, with no repair the design allows.
 
 ## 6. If a sale goes in wrong during the session
 
-There is no void screen this phase, and that is the reason the pilot is a shadow
-one. What there is, is an operator at a shell:
+Open the posted Sale detail. An owner or accountant with `sale.void` records a
+reason, then chooses **void only** or **void and create replacement**. The latter
+opens a prefilled new Sale that must be checked and posted as a distinct document.
+Everything goes through the real `VoidSale` → optional `CreateSaleDraft` →
+`PostSale` commands — same permission, same audit trail, same compensating entry
+(BR-OPS-003). No row is edited and no ledger row is written by hand.
 
-```bash
-pnpm --filter @vuarau/api ops:correct-sale \
-  --workspace <id> --actor <id> --sale <id> --expected-version <n> \
-  --reason-code wrong_amount --reason "Ghi nhầm 2 thùng ớt, thực tế 1 thùng" \
-  --replace-with lines.json          # optional
-# add --commit when the printed arithmetic is right
-```
-
-Dry run by default. It prints the sale, the balance now and the balance the
-correction would produce, and writes nothing until you say so. Everything it does
-goes through the real `VoidSale` → `CreateSaleDraft` → `PostSale` — same
-permission, same audit trail, same compensating entry (BR-OPS-003). No row is
-edited and no ledger row is written by hand.
+`ops:correct-sale` remains a support tool for diagnosing or recovering an
+exceptional operational incident; it is not the normal worker workflow.
 
 Do this **between** transactions, not during one. The worker is being timed.
 

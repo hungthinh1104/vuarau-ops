@@ -37,12 +37,10 @@ book cannot be abandoned when something goes wrong, cannot be reset, and quietly
 becomes a system nobody chose. A shadow pilot can be stopped on the spot, and the
 worst outcome is a wasted morning.
 
-**Buys.** The facilitator may reconcile, correct and reset. The software has no
-void or replacement screen (below), so correcting a mis-entered sale is an
-operator's job at a shell — `ops:correct-sale`, which runs the real commands
-rather than editing rows (BR-OPS-003). In a shadow pilot that is an inconvenience,
-because the facilitator is standing there. In an operational one it is a depot
-unable to fix its own books without phoning somebody.
+**Buys.** The facilitator may reconcile, correct and reset. A permitted operator
+can void a posted sale or create a replacement from Sale detail; the UI runs the
+real commands rather than editing rows (BR-OPS-003). `ops:correct-sale` remains a
+support tool, not the normal workflow.
 
 **Costs.** Double entry. The worker records each sale twice — their way, then in
 the app — and that has to be presented as what it is rather than smuggled in. It
@@ -74,13 +72,13 @@ An **operational pilot** — where the depot's real receivables live in this sys
 and a person acts on them — needs all four of these **before it begins**. None is
 built today, which is why the mode is not on offer:
 
-| Prerequisite                            | State                                                                                                                                  |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Sale void and replacement UI**        | **Missing.** `VoidSale` has no screen. An operator can correct one at a shell (`ops:correct-sale`, BR-OPS-003); a depot cannot         |
-| **Backup and restore procedure**        | **Missing.** No documented restore, and no one has rehearsed one                                                                       |
-| **Real role assignment**                | **Missing.** ASM-017 (the role table is a developer's default) and ASM-018 (everyone was backfilled as `owner`)                        |
-| **Incident and reconciliation runbook** | **Missing.** "The balance is wrong and the depot is arguing with a customer" has no written first step                                 |
-| **ASM-002 confirmed**                   | **Owed.** The receivable arises at posting ([ADR-0014](../09-decisions/ADR-0014-debt-recognition-at-posting.md)); no owner has said so |
+| Prerequisite                            | State                                                                                                                                   |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Sale void and replacement UI**        | **Available.** A permitted owner/accountant can void only or void and create a prefilled replacement; retry preserves command identity. |
+| **Backup and restore procedure**        | **Missing.** No documented restore, and no one has rehearsed one                                                                        |
+| **Real role assignment**                | **Missing.** ASM-017 (the role table is a developer's default) and ASM-018 (everyone was backfilled as `owner`)                         |
+| **Incident and reconciliation runbook** | **Missing.** "The balance is wrong and the depot is arguing with a customer" has no written first step                                  |
+| **ASM-002 confirmed**                   | **Owed.** The receivable arises at posting ([ADR-0014](../09-decisions/ADR-0014-debt-recognition-at-posting.md)); no owner has said so  |
 
 The first is the sharpest. A depot that cannot undo its own mistake without a
 developer is a depot whose books depend on somebody's availability, and the

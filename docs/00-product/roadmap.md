@@ -62,7 +62,7 @@ evidence; see [validation-plan.md](validation-plan.md).
 
 ## Near-term execution — lock only these milestones
 
-### M8 — Sale Correction UI (now)
+### M8 — Sale Correction UI (completed)
 
 Close the correction workflow using existing `VoidSale`, `CreateSaleDraft`,
 `PostSale`, and command-recovery behavior. Do not create a second correction
@@ -77,6 +77,10 @@ engine.
 
 The governing invariant remains: a posted Sale is immutable; a correction is a
 void plus, when needed, a distinct replacement Sale.
+
+The workflow is covered through the real browser/API/Postgres stack, including a
+dropped void response replay. This is technical evidence only; it is not evidence
+that a depot has adopted the workflow.
 
 ### M9 — Payment & account operations (next)
 

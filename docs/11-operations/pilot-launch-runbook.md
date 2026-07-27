@@ -117,8 +117,9 @@ Use a separate workspace for a facilitator dry run: one-line sale, three-line
 sale, pre-post correction, payment, and dropped-response retry. It tests the
 facilitator, stopwatch, worksheet, assistance labels, comparison, and reset—not
 H2. Reset by discarding the dry-run workspace or creating a new clean pilot
-workspace. Never delete posted rows; use `ops:correct-sale` only where a correction
-is genuinely required, then return the intended pilot workspace to 12/12.
+workspace. Never delete posted rows; use Sale detail's void/replacement workflow
+where a correction is genuinely required, then return the intended pilot workspace
+to 12/12. `ops:correct-sale` is a support fallback only.
 
 ## Backup declaration
 
