@@ -86,6 +86,10 @@ Ordered by what costs most when missed. Stop at the first section that fails.
 
 ## 9. Scope and maintainability
 
+Apply [ENGINEERING_STANDARD.md](ENGINEERING_STANDARD.md): dependency direction,
+canonical business truth, explicit outcomes, pragmatic decomposition, financial
+read evidence, and contract-to-test-to-doc completion are review requirements.
+
 - [ ] Nothing from `docs/00-product/scope.md`'s excluded list was implemented.
 - [ ] No new dependency without a stated reason and no simpler alternative.
 - [ ] No abstraction with a single caller.
