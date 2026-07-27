@@ -52,9 +52,13 @@ export default defineConfig({
           name: "db",
           include: ["packages/db/src/**/*.db.test.ts", "apps/api/src/**/*.db.test.ts"],
           setupFiles: ["./apps/api/src/testing/setup.ts"],
-          // No truncation between files: every db test creates its own workspace
-          // and asserts within it, so parallel files cannot see each other's rows.
-          // That is the same isolation the product depends on, exercised for free.
+          // Every test still gets its own workspace, so its business rows do not
+          // collide. Migration bootstrap, however, writes PostgreSQL's global
+          // schema catalogue before that isolation exists; concurrent first runs
+          // can race while creating enum types. Keep this project sequential on
+          // the one shared PostgreSQL database used by local verification and CI.
+          pool: "forks",
+          poolOptions: { forks: { singleFork: true } },
         },
       },
       {

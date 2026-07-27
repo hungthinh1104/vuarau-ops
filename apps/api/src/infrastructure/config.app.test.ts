@@ -60,6 +60,12 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
     );
   });
 
+  it("refuses the Playwright authentication bridge in a pilot environment", () => {
+    expect(problemsFor({ ...pilot, NEXT_PUBLIC_E2E_AUTH_BRIDGE: "1" })).toContain(
+      "NEXT_PUBLIC_E2E_AUTH_BRIDGE",
+    );
+  });
+
   it("refuses both verification methods at once, rather than picking one", () => {
     expect(problemsFor({ ...development, SUPABASE_JWKS_URL: "https://x/jwks.json" })).toContain(
       "SUPABASE_JWT_SECRET",
