@@ -393,6 +393,30 @@ constraint and no posted sale changed.
 
 ---
 
+### BR-SALE-021 — History recall is active posted-sale history, scoped and explicit
+
+**Risk:** P1 · **Code:** — · **Tests:** TC-SALE-029
+
+Price recall reads only active, posted sales in the requested workspace. Drafts,
+discarded sales and voided sales are absent. A customer may see their own most
+recent `(product name, unit)` price, ordered by `transactionTime`; another
+customer may contribute only a product-name/unit hint and never a price. Different
+units are different historical facts. The worker must press “Dùng giá này” before
+a recalled price enters the draft, and may freely edit it afterwards.
+
+---
+
+### BR-SALE-022 — A bông is a derived presentation of one sale and its ledger effect
+
+**Risk:** P1 · **Code:** — · **Tests:** TC-SALE-030
+
+A bông is not an invoice, receipt aggregate, or public document. Its display
+reference is stable presentation only. Its before/change/after account values are
+calculated server-side from the sale-posting ledger entry and its running balance;
+the browser never adds them. The posted line snapshot remains the price truth.
+
+---
+
 ## Deprecated rules
 
 | Retired      | Superseded by | Change                                        |

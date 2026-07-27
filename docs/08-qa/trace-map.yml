@@ -640,6 +640,25 @@ business_rules:
       - packages/domain-kernel/src/sale/post-sale.ts
       - packages/domain-contracts/src/account/index.ts
 
+  BR-SALE-021:
+    title: History recall is active posted-sale history, scoped and explicit
+    risk: P1
+    doc: docs/04-business-rules/sale-rules.md
+    cases: []
+    tests: [TC-SALE-029]
+    implementation:
+      - apps/api/src/modules/sale/sale.queries.ts
+      - packages/db/src/repositories/read-queries.ts
+
+  BR-SALE-022:
+    title: A bong is a derived presentation of one sale and its ledger effect
+    risk: P1
+    doc: docs/04-business-rules/sale-rules.md
+    cases: []
+    tests: [TC-SALE-030]
+    implementation:
+      - apps/api/src/modules/sale/sale.queries.ts
+
   # --- operations ---------------------------------------------------------------
   BR-OPS-001:
     title: Server logs carry correlation identifiers and no business data

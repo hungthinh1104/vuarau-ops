@@ -64,7 +64,7 @@ since no record of the attempt would exist.
 undoing a completed sale. They differ in the only way that matters — the first
 moves no money and the second moves all of it.
 
-They are now two operations. `DiscardSaleDraft` (planned) for the first;
+They are now two operations. `DiscardSaleDraft` for the first;
 `VoidSale` for the second, with a full compensating entry, a mandatory reason
 code, and a different permission.
 

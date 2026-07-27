@@ -201,8 +201,8 @@ session.
 
 | Gap                                                      | Effect                                                                              |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| No sign-in screen                                        | The pilot needs a token supplied out of band — see `apps/web/README.md`             |
-| No `workspace.list` procedure                            | The workspace must be chosen from a configured list, not discovered from the server |
+| No sign-in screen                                        | Resolved: Supabase email OTP is the production sign-in path                         |
+| No `workspace.list` procedure                            | Resolved: `session.workspaces` is server-derived from the verified actor            |
 | No offline queue                                         | A transaction attempted with no signal is held in the tab and lost if it is closed  |
 | No product recall or last price                          | Every line is typed in full, which is the largest single cost in the timing target  |
 | `AdjustCustomerDebt` has no screen                       | An owner correcting an opening balance cannot do it in the UI yet                   |

@@ -8,7 +8,7 @@
 | Domain contracts      | Branded ids, money, quantity, commands, DTOs, events, rejection codes, capabilities, pagination         |
 | Domain kernel         | Pure decision functions for customer, sale, payment, customer account, membership                       |
 | Application layer     | Twelve command handlers and eleven queries: idempotency, optimistic concurrency, audit, one transaction |
-| Database              | Drizzle schema, seven migrations, repositories, transaction runner, append-only and immutability guards |
+| Database              | Drizzle schema, eight migrations, repositories, transaction runner, append-only and immutability guards |
 | API                   | tRPC router with contract tests; every read authorized like a command                                   |
 | Frontend foundation   | Next App Router, design system from `design.md`, typed tRPC client, Storybook over the state catalog    |
 | Production workflows  | Payment capture and quick sale, against the real backend                                                |
@@ -37,8 +37,8 @@ Building any of these now would commit the product to a shape it has not earned.
 
 | Excluded                                                         | Why now is too early                                                                                                                                                 |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Screens beyond payment capture and quick sale                    | Two workflows are enough to answer H1 and H2; a third built before those are observed is a third guess                                                               |
-| Product master search, last-price recall, pricing intelligence   | The sale line takes a typed product name by design (BR-SALE-011). Recall needs history nobody has yet                                                                |
+| Product master search, pricing intelligence                      | A typed sale-line snapshot remains the truth; no product lifecycle or pricing engine is justified                                                                    |
+| Customer-local history recall                                    | In scope for Milestone 7 only as an explicit, historical recall; it never auto-applies a price                                                                       |
 | Dashboards, reporting                                            | No accumulated ledger data to report on, and design.md says workflows come first                                                                                     |
 | AI / LLM parsing of free-text entry                              | The deterministic write path must be trustworthy before anything writes to it automatically                                                                          |
 | Demand forecasting, supplier scoring, customer health scoring    | Require months of ledger history                                                                                                                                     |
