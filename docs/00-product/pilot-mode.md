@@ -38,9 +38,11 @@ becomes a system nobody chose. A shadow pilot can be stopped on the spot, and th
 worst outcome is a wasted morning.
 
 **Buys.** The facilitator may reconcile, correct and reset. The software has no
-void or replacement screen (below), so correcting a mis-entered sale is currently
-an operator's job at a shell. In a shadow pilot that is an inconvenience. In an
-operational one it is a depot unable to fix its own books.
+void or replacement screen (below), so correcting a mis-entered sale is an
+operator's job at a shell — `ops:correct-sale`, which runs the real commands
+rather than editing rows (BR-OPS-003). In a shadow pilot that is an inconvenience,
+because the facilitator is standing there. In an operational one it is a depot
+unable to fix its own books without phoning somebody.
 
 **Costs.** Double entry. The worker records each sale twice — their way, then in
 the app — and that has to be presented as what it is rather than smuggled in. It
@@ -74,7 +76,7 @@ built today, which is why the mode is not on offer:
 
 | Prerequisite                            | State                                                                                                                                  |
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Sale void and replacement UI**        | **Missing.** `VoidSale` exists, is tested, and has no screen. A wrong sale can be corrected only at a shell                            |
+| **Sale void and replacement UI**        | **Missing.** `VoidSale` has no screen. An operator can correct one at a shell (`ops:correct-sale`, BR-OPS-003); a depot cannot         |
 | **Backup and restore procedure**        | **Missing.** No documented restore, and no one has rehearsed one                                                                       |
 | **Real role assignment**                | **Missing.** ASM-017 (the role table is a developer's default) and ASM-018 (everyone was backfilled as `owner`)                        |
 | **Incident and reconciliation runbook** | **Missing.** "The balance is wrong and the depot is arguing with a customer" has no written first step                                 |
@@ -113,5 +115,7 @@ by not looking.
 - [pilot-worksheet.md](pilot-worksheet.md) — the sheet used during the session
 - [pilot-onboarding.md](pilot-onboarding.md) — setting the workspace up
 - [scope.md](scope.md) — what is deliberately not built
+- [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — the environment the pilot runs in
+- [../11-operations/device-smoke-check.md](../11-operations/device-smoke-check.md) — proving the deployment works on a phone
 - [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — the owner's four questions
 - [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md) — ASM-017, ASM-018, ASM-023

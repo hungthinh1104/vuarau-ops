@@ -96,6 +96,51 @@ stripped, the issuer, which verification method. `ops:check-env` output ends up 
 a build log, a support message and a screenshot, and a checker that echoed its
 input would put a password in all three (TC-OPS-003).
 
+---
+
+### BR-OPS-003 — A posted sale is corrected by commands, or not at all
+
+**Risk:** P0 · **Codes:** `SALE_ALREADY_VOIDED`, `SALE_NOT_POSTED`, `PERMISSION_DENIED` · **Tests:** TC-OPS-005
+
+There is no void screen this phase. When a worker enters a wrong sale during an
+observed session, the correction is `ops:correct-sale`, and it runs the same
+`VoidSale` → optional `CreateSaleDraft` → `PostSale` a browser would
+([ADR-0012](../09-decisions/ADR-0012-sale-void-and-replacement.md)).
+
+**Not a shortcut around the rules.** Same permission (`sale.void`, so an operator
+whose role lacks it is refused exactly as a `sales` worker would be), same
+idempotency claim, same audit records, same compensating entry. **No ledger row is
+written and no row is updated** — the original sale still says what it always said,
+and the void is a record beside it (BR-SALE-008).
+
+`AdjustCustomerDebt` is deliberately not the path. It would leave the wrong sale
+document standing while quietly patching the balance, so the document and the
+balance would tell different stories (BR-ACCOUNT-010).
+
+**Dry run unless `--commit`.** A void is an appended record that cannot be
+un-appended, so the tool prints the sale, the balance now, and the balance the
+correction would produce, and writes nothing. The projection is arithmetic on
+values the server returned — the void compensates the **stored** posted total
+(BR-SALE-012) and the replacement is summed with the same `calculateLineTotal` the
+server posts with (BR-SALE-004) — and after a commit the tool re-reads the balance
+and shouts if the two disagree, because something else moved it.
+
+**The version is stated by the operator and checked.** `VoidSale` carries no
+`expectedVersion` by design: a posted sale's version never moves again, so there is
+no lost update to guard. What is guarded here is different — that the sale somebody
+**looked at** is the sale they are voiding. Between reading a total off a screen and
+typing a command, another person may have voided it already.
+
+**Ids are derived from a correction key, so a re-run is a resumption.** A crash
+between the void and the replacement leaves a real state — the customer owes
+nothing for that load until the replacement is posted — and re-running finishes the
+job rather than voiding twice. A void that exists but belongs to a _different_
+correction is refused: two corrections of one sale credit the customer twice for
+one mistake (BR-SALE-013).
+
+Nothing is rolled back on a partial failure, because there is nothing to roll back
+to. Unwinding a void would mean voiding a void.
+
 ## Related
 
 - [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — what an environment must satisfy

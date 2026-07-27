@@ -16,3 +16,9 @@ next-env.d.ts
 # Playwright
 test-results/
 playwright-report/
+
+# The operator's pilot declaration. It carries a depot owner's recorded answer on
+# debt recognition (ASM-023), and a committed one would be somebody's signature
+# checked in as test data. Keep it beside the signed worksheet.
+pilot.json
+pilot.*.json

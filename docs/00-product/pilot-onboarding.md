@@ -117,7 +117,50 @@ in front of you.
 are the events the system exists to record; a file of them would be financial
 history with no command and no actor behind it.
 
-## 5. Before the first session
+## 5. Check the whole thing at once
+
+```bash
+pnpm --filter @vuarau/api ops:pilot-readiness --example > pilot.json   # then fill it in
+pnpm --filter @vuarau/api ops:pilot-readiness --config pilot.json
+```
+
+Twelve checks, each pass or fail: the database, the migrations, the depot, who
+holds `owner`, the observed worker's role, the imported customers, whether any
+demo customer got in, what the worker's token resolves to, what the picker will
+show them, the recorded ASM-023 answer, the pilot mode, and whether anybody can
+correct a mistake.
+
+`pilot.json` is **yours**, not the repository's. It carries the depot owner's
+recorded answer, and a committed one would be somebody's signature as test data.
+Keep it beside the signed worksheet and do not add it to git.
+
+If the owner **rejected** posting-time debt recognition, readiness fails and the
+pilot stops. That is not a bug to work around: every `sale_posting` entry recorded
+afterwards would carry a `transactionTime` the owner says is wrong, on an
+append-only ledger, with no repair the design allows.
+
+## 6. If a sale goes in wrong during the session
+
+There is no void screen this phase, and that is the reason the pilot is a shadow
+one. What there is, is an operator at a shell:
+
+```bash
+pnpm --filter @vuarau/api ops:correct-sale \
+  --workspace <id> --actor <id> --sale <id> --expected-version <n> \
+  --reason-code wrong_amount --reason "Ghi nhầm 2 thùng ớt, thực tế 1 thùng" \
+  --replace-with lines.json          # optional
+# add --commit when the printed arithmetic is right
+```
+
+Dry run by default. It prints the sale, the balance now and the balance the
+correction would produce, and writes nothing until you say so. Everything it does
+goes through the real `VoidSale` → `CreateSaleDraft` → `PostSale` — same
+permission, same audit trail, same compensating entry (BR-OPS-003). No row is
+edited and no ledger row is written by hand.
+
+Do this **between** transactions, not during one. The worker is being timed.
+
+## 7. Before the first session
 
 - [ ] The depot exists, and only the pilot participants are members.
 - [ ] Each participant can sign in — check on the actual phone, on the actual
@@ -128,6 +171,9 @@ history with no command and no actor behind it.
       the one that cannot be done afterwards.
 - [ ] The owner has been told, in the words in
       [pilot-mode.md](pilot-mode.md), that their notebook is still the book.
+- [ ] `ops:pilot-readiness` passes, with the owner's answer recorded in it.
+- [ ] The [device smoke check](../11-operations/device-smoke-check.md) has been
+      run on the actual phone, over mobile data. Not emulated.
 
 ## Related
 
@@ -135,3 +181,5 @@ history with no command and no actor behind it.
 - [pilot-worksheet.md](pilot-worksheet.md) — the session sheet
 - [validation-plan.md](validation-plan.md) — what the session settles
 - [../04-business-rules/customer-rules.md](../04-business-rules/customer-rules.md) — BR-CUSTOMER-005
+- [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — the environment it all runs in
+- [../11-operations/device-smoke-check.md](../11-operations/device-smoke-check.md) — proving it works on a phone

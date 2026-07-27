@@ -74,7 +74,10 @@ pnpm boundary:check pnpm trace:check pnpm docs:check
 pnpm db:generate pnpm db:migrate pnpm db:seed
 
 # Operator tools. Shell access is the authorization boundary; none is a procedure.
-pnpm --filter @vuarau/api ops:pilot help
+pnpm --filter @vuarau/api ops:check-env          # judge a deployment's variables
+pnpm --filter @vuarau/api ops:pilot help         # depot, member, customer import
+pnpm --filter @vuarau/api ops:pilot-readiness    # the twelve pre-session checks
+pnpm --filter @vuarau/api ops:correct-sale       # void + replacement, dry run first
 pnpm --filter @vuarau/api ops:rebuild-balance <workspaceId> <customerId>
 ```
 
@@ -138,9 +141,16 @@ an operational pilot, and the four things that would make it one — void and
 replacement UI, a rehearsed restore, real role assignment, an incident runbook —
 are listed there rather than assumed.
 
+What an environment must provide is stated without naming a vendor
+([deployment-contract.md](docs/11-operations/deployment-contract.md)), the API
+refuses to start on a configuration it cannot trust (BR-OPS-002), and
+`ops:pilot-readiness` answers "may a session start" in twelve checks.
+
 Excluded in this phase, on top of [scope.md](docs/00-product/scope.md): a void or
 replacement **screen**, a role-management screen, a customer-import screen, an
-offline queue, an analytics service, and any dashboard.
+offline queue, an analytics service, and any dashboard. A posted sale is corrected
+by an operator at a shell (`ops:correct-sale`, BR-OPS-003) — which is exactly why
+this is a shadow pilot and not an operational one.
 
 **No claim about H2 has been earned.** Nothing in this repository can measure
 whether a worker records a sale accurately and unaided inside the target time; a
