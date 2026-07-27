@@ -160,5 +160,7 @@ function sourceHref(entry: {
 }): string | undefined {
   if (entry.source.document.type === "sale") return `/sales/${entry.source.document.id}`;
   if (entry.source.document.type === "payment") return `/payments/${entry.source.document.id}`;
+  if (entry.source.document.type === "adjustment")
+    return `/account-adjustments/${entry.source.document.id}`;
   return undefined;
 }

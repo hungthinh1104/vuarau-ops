@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   accountTimelineInputSchema,
+  accountAdjustmentGetInputSchema,
   adjustCustomerDebtCommandSchema,
   auditTimelineInputSchema,
   createCustomerCommandSchema,
@@ -43,6 +44,7 @@ import { adjustCustomerDebt } from "../../modules/account/adjust-debt.handler.ts
 import {
   getCustomerAccountBalance,
   getCustomerAccountTimeline,
+  getAccountAdjustmentDetail,
 } from "../../modules/account/account.queries.ts";
 import {
   getCustomer,
@@ -199,6 +201,9 @@ const paymentRouter = router({
  * worth the small asymmetry (ADR-0013, retained terminology).
  */
 const accountRouter = router({
+  adjustment: authenticatedProcedure
+    .input(accountAdjustmentGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getAccountAdjustmentDetail(ctx, input))),
   balance: authenticatedProcedure
     .input(z.object({ workspaceId: workspaceIdSchema, customerId: customerIdSchema }))
     .query(async ({ ctx, input }) =>

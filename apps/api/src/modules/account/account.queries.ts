@@ -1,6 +1,8 @@
 import type {
   AccountTimelineEntryDto,
   AccountTimelineInput,
+  AccountAdjustmentDetailDto,
+  AccountAdjustmentGetInput,
   CurrencyCode,
   CustomerAccountBalanceDto,
   CustomerId,
@@ -9,7 +11,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import { DEFAULT_CURRENCY } from "@vuarau/domain-contracts";
 import type { CustomerAccountBalance, DomainResult } from "@vuarau/domain-kernel";
-import { classifyBalance, ok } from "@vuarau/domain-kernel";
+import { classifyBalance, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { authorizeWorkspaceAccess, accountCapabilities } from "../shared/authorization.ts";
 import { emptyAccountBalance, rebuildCustomerAccountBalance } from "../shared/account-effects.ts";
@@ -108,4 +110,50 @@ export function getCustomerAccountTimeline(
       }));
     },
   });
+}
+
+export async function getAccountAdjustmentDetail(
+  ctx: CommandContext,
+  input: AccountAdjustmentGetInput,
+): Promise<DomainResult<AccountAdjustmentDetailDto>> {
+  const result = await runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "debt.read",
+    execute: async ({ repos }) => {
+      const row = await repos.accountReads.adjustmentDetail(input);
+      if (row === null) return null;
+      const change = row.amount;
+      const balanceBefore = {
+        amountMinor: row.runningBalance.amountMinor - change.amountMinor,
+        currency: change.currency,
+      };
+      return {
+        adjustmentId: row.adjustmentId,
+        entryId: row.entryId,
+        commandId: row.commandId,
+        workspace: row.workspace,
+        customer: row.customer,
+        actor: row.actor,
+        direction: change.amountMinor > 0 ? ("increase" as const) : ("decrease" as const),
+        reasonCode: row.reasonCode,
+        reason: row.reason,
+        transactionTime: row.transactionTime,
+        recordedAt: row.recordedAt,
+        accountEffect: {
+          balanceBefore,
+          change,
+          balanceAfter: row.runningBalance,
+          classificationAfter: classifyBalance(row.runningBalance),
+        },
+        displayReference: `ADJ-${row.adjustmentId.slice(0, 8)}`,
+      };
+    },
+  });
+  if (!result.ok) return result;
+  if (result.value === null)
+    return err("CUSTOMER_NOT_FOUND", "No such account adjustment in this workspace.", {
+      adjustmentId: input.adjustmentId,
+    });
+  return ok(result.value);
 }

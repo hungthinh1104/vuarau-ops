@@ -241,6 +241,34 @@ export const accountTimelineEntryDtoSchema = z.object({
 });
 export type AccountTimelineEntryDto = z.infer<typeof accountTimelineEntryDtoSchema>;
 
+export const accountAdjustmentGetInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  adjustmentId: z.uuid(),
+});
+export type AccountAdjustmentGetInput = z.infer<typeof accountAdjustmentGetInputSchema>;
+
+export const accountAdjustmentDetailDtoSchema = z.object({
+  adjustmentId: z.uuid(),
+  entryId: customerAccountEntryIdSchema,
+  commandId: commandIdSchema,
+  workspace: z.object({ id: workspaceIdSchema, name: z.string() }),
+  customer: z.object({ id: customerIdSchema, displayName: z.string() }),
+  actor: z.object({ id: actorIdSchema, displayName: z.string() }),
+  direction: debtAdjustmentDirectionSchema,
+  reasonCode: debtAdjustmentReasonCodeSchema,
+  reason: z.string(),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  accountEffect: z.object({
+    balanceBefore: moneySchema,
+    change: moneySchema,
+    balanceAfter: moneySchema,
+    classificationAfter: balanceClassificationSchema,
+  }),
+  displayReference: z.string(),
+});
+export type AccountAdjustmentDetailDto = z.infer<typeof accountAdjustmentDetailDtoSchema>;
+
 export const accountTimelineInputSchema = pageRequestSchema.extend({
   workspaceId: workspaceIdSchema,
   customerId: customerIdSchema,

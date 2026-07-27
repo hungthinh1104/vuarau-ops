@@ -19,7 +19,11 @@ import {
 } from "@vuarau/test-fixtures";
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { adjustCustomerDebt } from "./adjust-debt.handler.ts";
-import { getCustomerAccountBalance, rebuildAccountBalance } from "./account.queries.ts";
+import {
+  getAccountAdjustmentDetail,
+  getCustomerAccountBalance,
+  rebuildAccountBalance,
+} from "./account.queries.ts";
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
@@ -187,6 +191,24 @@ describe("BR-ACCOUNT-006 / TC-ACCOUNT-002", () => {
 });
 
 describe("BR-ACCOUNT-004 / TC-ACCOUNT-004", () => {
+  it("reads a manual adjustment from its ledger source with its historical account effect", async () => {
+    await adjustCustomerDebt(harness.ctx, adjustInput());
+    await recordCustomerPayment(harness.ctx, paymentInput("after-adjustment", vnd(10_000)));
+
+    const detail = await getAccountAdjustmentDetail(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      adjustmentId: ADJUSTMENT_ID,
+    });
+
+    expect(detail.ok).toBe(true);
+    if (!detail.ok) return;
+    expect(detail.value.direction).toBe("increase");
+    expect(detail.value.accountEffect.balanceBefore.amountMinor).toBe(0);
+    expect(detail.value.accountEffect.change.amountMinor).toBe(50_000);
+    expect(detail.value.accountEffect.balanceAfter.amountMinor).toBe(50_000);
+    expect(detail.value.commandId).toBe(ADJUST_COMMAND_ID);
+  });
+
   it("attributes every ledger entry to an actor and a command", async () => {
     await runCasebookLedger();
     await adjustCustomerDebt(harness.ctx, adjustInput());

@@ -723,6 +723,49 @@ export class InMemoryDatabase {
       },
 
       accountReads: {
+        adjustmentDetail: async ({ workspaceId, adjustmentId }) => {
+          const entry = store.accountEntries.find(
+            (item) =>
+              item.workspaceId === workspaceId &&
+              item.sourceType === "manual_adjustment" &&
+              item.sourceId === adjustmentId,
+          );
+          if (entry === undefined || entry.reasonCode === null || entry.reason === null)
+            return null;
+          const history = store.accountEntries
+            .filter(
+              (item) => item.workspaceId === workspaceId && item.customerId === entry.customerId,
+            )
+            .sort(
+              ascendingBy(
+                (item) => `${item.transactionTime}:${item.recordedAt}`,
+                (item) => item.id,
+              ),
+            );
+          let running = 0;
+          for (const item of history) {
+            running += item.amount.amountMinor;
+            if (item.id === entry.id) break;
+          }
+          const customer = store.customers.get(key(workspaceId, entry.customerId));
+          const workspace = store.workspaceNames.get(workspaceId);
+          const actor = store.actorNames.get(entry.actorId);
+          if (customer === undefined || workspace === undefined || actor === undefined) return null;
+          return {
+            adjustmentId,
+            entryId: entry.id,
+            commandId: entry.commandId,
+            workspace: { id: workspaceId, name: workspace },
+            customer: { id: entry.customerId, displayName: customer.displayName },
+            actor: { id: entry.actorId, displayName: actor },
+            amount: entry.amount,
+            reasonCode: entry.reasonCode,
+            reason: entry.reason,
+            transactionTime: entry.transactionTime,
+            recordedAt: entry.recordedAt,
+            runningBalance: money(running, entry.amount.currency),
+          };
+        },
         timeline: async ({ workspaceId, customerId, from, to, page }) => {
           // The running balance is computed over the customer's whole history in
           // business-time order, then the page is cut out of it — the same thing

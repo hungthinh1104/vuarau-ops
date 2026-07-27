@@ -12,6 +12,7 @@ import {
   saleLines,
   saleVoids,
   sales,
+  workspaces,
 } from "../schema/index.ts";
 import { classifyBalance } from "@vuarau/domain-kernel";
 import { fromIso, money, toIso, toIsoOrNull, toSaleState } from "./row-mappers.ts";
@@ -487,6 +488,87 @@ export function createReadRepositories(tx: Tx) {
     },
 
     accountReads: {
+      async adjustmentDetail({
+        workspaceId,
+        adjustmentId,
+      }: {
+        workspaceId: string;
+        adjustmentId: string;
+      }) {
+        const ranked = tx.$with("ranked").as(
+          tx
+            .select({
+              id: customerAccountEntries.id,
+              workspaceId: customerAccountEntries.workspaceId,
+              customerId: customerAccountEntries.customerId,
+              amountMinor: customerAccountEntries.amountMinor,
+              currency: customerAccountEntries.currency,
+              reasonCode: customerAccountEntries.reasonCode,
+              reason: customerAccountEntries.reason,
+              transactionTime: customerAccountEntries.transactionTime,
+              recordedAt: customerAccountEntries.recordedAt,
+              actorId: customerAccountEntries.actorId,
+              commandId: customerAccountEntries.commandId,
+              sourceType: customerAccountEntries.sourceType,
+              sourceId: customerAccountEntries.sourceId,
+              runningBalanceMinor: sql<number>`sum(${customerAccountEntries.amountMinor}) over (partition by ${customerAccountEntries.workspaceId}, ${customerAccountEntries.customerId} order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})::bigint`,
+            })
+            .from(customerAccountEntries),
+        );
+        const [row] = await tx
+          .with(ranked)
+          .select({
+            adjustmentId: ranked.sourceId,
+            entryId: ranked.id,
+            commandId: ranked.commandId,
+            workspaceId: workspaces.id,
+            workspaceName: workspaces.name,
+            customerId: customers.id,
+            customerName: customers.displayName,
+            actorId: actors.id,
+            actorName: actors.displayName,
+            amountMinor: ranked.amountMinor,
+            currency: ranked.currency,
+            reasonCode: ranked.reasonCode,
+            reason: ranked.reason,
+            transactionTime: ranked.transactionTime,
+            recordedAt: ranked.recordedAt,
+            runningBalanceMinor: ranked.runningBalanceMinor,
+          })
+          .from(ranked)
+          .innerJoin(customers, eq(customers.id, ranked.customerId))
+          .innerJoin(workspaces, eq(workspaces.id, ranked.workspaceId))
+          .innerJoin(actors, eq(actors.id, ranked.actorId))
+          .where(
+            and(
+              eq(ranked.workspaceId, workspaceId),
+              eq(ranked.sourceType, "manual_adjustment"),
+              eq(ranked.sourceId, adjustmentId),
+            ),
+          )
+          .limit(1);
+        if (
+          row === undefined ||
+          row.reasonCode === null ||
+          row.reason === null ||
+          row.amountMinor === 0
+        )
+          return null;
+        return {
+          adjustmentId: row.adjustmentId,
+          entryId: row.entryId,
+          commandId: row.commandId,
+          workspace: { id: row.workspaceId, name: row.workspaceName },
+          customer: { id: row.customerId, displayName: row.customerName },
+          actor: { id: row.actorId, displayName: row.actorName },
+          amount: money(row.amountMinor, row.currency),
+          reasonCode: row.reasonCode,
+          reason: row.reason,
+          transactionTime: toIso(row.transactionTime),
+          recordedAt: toIso(row.recordedAt),
+          runningBalance: money(Number(row.runningBalanceMinor), row.currency),
+        };
+      },
       async timeline(args: {
         workspaceId: string;
         customerId: string;

@@ -162,6 +162,21 @@ export type AccountTimelineRow = {
   readonly commandId: CommandId;
 };
 
+export type AccountAdjustmentDetailRow = {
+  readonly adjustmentId: string;
+  readonly entryId: CustomerAccountEntryId;
+  readonly commandId: CommandId;
+  readonly workspace: { readonly id: WorkspaceId; readonly name: string };
+  readonly customer: { readonly id: CustomerId; readonly displayName: string };
+  readonly actor: { readonly id: ActorId; readonly displayName: string };
+  readonly amount: Money;
+  readonly reasonCode: DebtAdjustmentReasonCode;
+  readonly reason: string;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly runningBalance: Money;
+};
+
 export type AuditTimelineRow = {
   readonly id: AuditRecordId;
   readonly workspaceId: WorkspaceId;
@@ -239,6 +254,10 @@ export type PaymentReadRepository = {
 };
 
 export type AccountReadRepository = {
+  adjustmentDetail(args: {
+    workspaceId: WorkspaceId;
+    adjustmentId: string;
+  }): Promise<AccountAdjustmentDetailRow | null>;
   timeline(args: {
     workspaceId: WorkspaceId;
     customerId: CustomerId;
