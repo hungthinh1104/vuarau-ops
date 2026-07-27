@@ -54,6 +54,11 @@ export default function SaleDetailPage() {
       saleId: replacedSaleId as SaleId,
     }),
     enabled: replacedSaleId !== null && replacedSaleId !== undefined,
+    // This sale was just read before it was voided. A normal 30-second cache
+    // window would show the old document without its void record on the
+    // replacement page, so the correction timeline would be incomplete.
+    refetchOnMount: "always",
+    staleTime: 0,
   });
   const voidSale = useMutation(trpc.sale.void.mutationOptions());
   const [correction, setCorrection] = useState<SaleCorrectionSubmission | null>(null);

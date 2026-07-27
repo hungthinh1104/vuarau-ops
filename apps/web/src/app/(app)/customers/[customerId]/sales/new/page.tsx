@@ -103,7 +103,7 @@ export default function NewSalePage() {
     if (replacementSource.data.customerId !== customerId) return;
 
     replacementSeededRef.current = true;
-    const replacement = replacementDraftFrom(replacementSource.data, crypto.randomUUID);
+    const replacement = replacementDraftFrom(replacementSource.data, () => crypto.randomUUID());
     setLines(replacement.lines);
     setNote(replacement.note);
     setActiveLineId(replacement.lines[0]?.lineId ?? null);

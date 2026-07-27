@@ -322,3 +322,70 @@ test.describe("TC-E2E-020 — analytics carry no business data", () => {
     }
   });
 });
+
+test.describe("TC-E2E-021 — an owner corrects a posted sale", () => {
+  test("voids the old sale, preloads a replacement, and records only the replacement amount", async ({
+    page,
+  }) => {
+    const customerId = await api.createCustomer(uniqueCustomerName("S13"));
+    await signIn(page, "owner");
+    await page.goto(`/customers/${customerId}/sales/new`);
+
+    await fillLine(page, 0, { product: "Ớt hiểm", quantity: "10", price: "12.000" });
+    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+
+    await page.getByRole("combobox", { name: "Loại điều chỉnh" }).selectOption("wrong_amount");
+    await page.getByRole("textbox", { name: /Lý do điều chỉnh/ }).fill("Nhập sai đơn giá");
+    await page.getByRole("checkbox", { name: /Tạo đơn thay thế sau khi void/ }).check();
+    await page.getByRole("button", { name: "Void và tạo đơn thay thế" }).click();
+
+    await expect(page.getByText(/Đang tạo đơn thay thế/)).toBeVisible();
+    await expect(page.getByTestId("sale-line-0").getByLabel("Mặt hàng")).toHaveValue("Ớt hiểm");
+    await expect(page.getByTestId("sale-line-0").getByLabel("Đơn giá")).toHaveValue("12000");
+
+    await page.getByTestId("sale-line-0").getByLabel("Đơn giá").fill("13.000");
+    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+    await expect(page.getByTestId("posted-total")).toHaveText("130.000 ₫");
+    await expect(page.getByText(/− Void: Nhập sai đơn giá/)).toBeVisible();
+
+    const timeline = await api.timeline(customerId);
+    expect(timeline.items.filter((entry) => entry.source.type === "sale_posting")).toHaveLength(2);
+    expect(timeline.items.filter((entry) => entry.source.type === "sale_void")).toHaveLength(1);
+    const balance = await api.balance(customerId);
+    expect(balance.balance.amountMinor).toBe(130_000);
+  });
+
+  test("a dropped void response is resent with the same command identity", async ({ page }) => {
+    const customerId = await api.createCustomer(uniqueCustomerName("S14"));
+    await signIn(page, "owner");
+    await page.goto(`/customers/${customerId}/sales/new`);
+
+    await fillLine(page, 0, { product: "Rau muống", quantity: "10", price: "5.000" });
+    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+
+    let dropped = false;
+    await page.route("**/trpc/sale.void**", async (route) => {
+      if (!dropped) {
+        dropped = true;
+        await route.fetch().catch(() => undefined);
+        await route.abort("connectionaborted");
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.getByRole("textbox", { name: /Lý do điều chỉnh/ }).fill("Ghi trùng đơn");
+    await page.getByRole("button", { name: "Xác nhận void" }).click();
+    await expect(page.getByText("Chưa rõ kết quả")).toBeVisible();
+    await page.getByRole("button", { name: "Gửi lại" }).click();
+    await expect(page.getByText(/− Void: Ghi trùng đơn/)).toBeVisible();
+
+    const timeline = await api.timeline(customerId);
+    expect(timeline.items.filter((entry) => entry.source.type === "sale_void")).toHaveLength(1);
+    const balance = await api.balance(customerId);
+    expect(balance.balance.amountMinor).toBe(0);
+  });
+});

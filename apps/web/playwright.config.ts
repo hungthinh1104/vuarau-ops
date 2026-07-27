@@ -42,6 +42,12 @@ const apiEnvironment = {
 
 const webEnvironment = {
   NEXT_PUBLIC_API_ORIGIN: `http://127.0.0.1:${E2E_API_PORT}`,
+  // E2E authenticates through the token bridge, never against a developer's
+  // Supabase project. Clear inherited public keys so the unauthenticated-route
+  // assertion is deterministic when `pnpm verify` is run from a populated .env.
+  NEXT_PUBLIC_SUPABASE_URL: "",
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
   /*
    * The one build that opens the token bridge.
    *
