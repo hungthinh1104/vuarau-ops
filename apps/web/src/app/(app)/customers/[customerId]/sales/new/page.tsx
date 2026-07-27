@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CustomerId, Money, SaleDto } from "@vuarau/domain-contracts";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "../../../../../../api/session-gate.tsx";
@@ -21,6 +21,7 @@ import {
   resolveLine,
   type SaleLineDraft,
 } from "../../../../../../ui/patterns/sale-line-editor.tsx";
+import { replacementDraftFrom } from "../../../../../../ui/patterns/replacement-sale-draft.ts";
 import { Badge } from "../../../../../../ui/primitives/badge.tsx";
 import { Button } from "../../../../../../ui/primitives/button.tsx";
 import { Textarea } from "../../../../../../ui/primitives/textarea.tsx";
@@ -49,11 +50,20 @@ export default function NewSalePage() {
   const { session, workspaceId } = useSession();
   const trpc = useTRPC();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams<{ customerId: string }>();
   const customerId = params.customerId as CustomerId;
+  const replacesSaleId = searchParams.get("replacesSaleId");
   const metrics = useWorkflowMetrics();
 
   const customer = useQuery(trpc.customer.get.queryOptions({ workspaceId, customerId }));
+  const replacementSource = useQuery({
+    ...trpc.sale.get.queryOptions({
+      workspaceId,
+      saleId: replacesSaleId as SaleDto["id"],
+    }),
+    enabled: replacesSaleId !== null,
+  });
   const [lines, setLines] = useState<readonly SaleLineDraft[]>(() => [
     emptyLine(crypto.randomUUID()),
   ]);
@@ -79,6 +89,25 @@ export default function NewSalePage() {
   const saleIdRef = useRef(crypto.randomUUID());
   const startedRef = useRef(false);
   const offeredForRef = useRef<string | null>(null);
+  const replacementSeededRef = useRef(false);
+  const replacementPending =
+    replacesSaleId !== null && (!replacementSource.isSuccess || !replacementSeededRef.current);
+
+  useEffect(() => {
+    if (
+      replacesSaleId === null ||
+      replacementSource.data === undefined ||
+      replacementSeededRef.current
+    )
+      return;
+    if (replacementSource.data.customerId !== customerId) return;
+
+    replacementSeededRef.current = true;
+    const replacement = replacementDraftFrom(replacementSource.data, crypto.randomUUID);
+    setLines(replacement.lines);
+    setNote(replacement.note);
+    setActiveLineId(replacement.lines[0]?.lineId ?? null);
+  }, [customerId, replacesSaleId, replacementSource.data]);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -170,11 +199,14 @@ export default function NewSalePage() {
       })),
       note: note.trim().length === 0 ? null : note.trim(),
       dueAt: null,
-      ...(draftRef.current === null ? { replacesSaleId: null } : {}),
+      ...(draftRef.current === null
+        ? { replacesSaleId: replacesSaleId as SaleDto["id"] | null }
+        : {}),
     };
   }
 
   async function saveDraft(): Promise<SaleDto | null> {
+    if (replacementPending) return null;
     setSubmitted(true);
     if (!allValid) {
       metrics.count("validation_error_count");
@@ -207,6 +239,7 @@ export default function NewSalePage() {
   }, [postCommand.phase.kind, metrics]);
 
   async function post(): Promise<void> {
+    if (replacementPending) return;
     setSubmitted(true);
     if (!allValid) {
       metrics.count("validation_error_count");
@@ -258,6 +291,22 @@ export default function NewSalePage() {
       <p className="rounded-card border border-info/30 bg-info-soft px-3 py-2 text-body-sm text-info">
         Đơn nháp <strong>chưa tính vào công nợ</strong>. Công nợ chỉ phát sinh khi bấm “Chốt đơn”.
       </p>
+
+      {replacesSaleId !== null ? (
+        <QueryStates
+          query={replacementSource}
+          loadingLabel="Đang tải đơn cần thay thế"
+          attemptedAction="Tải đơn cần thay thế"
+          onRetry={() => void replacementSource.refetch()}
+        >
+          {(source) => (
+            <p className="rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-body-sm text-ink">
+              Đang tạo đơn thay thế cho đơn {source.id.slice(0, 8).toUpperCase()}. Kiểm tra dữ liệu
+              trước khi chốt; đơn này là một giao dịch mới.
+            </p>
+          )}
+        </QueryStates>
+      ) : null}
 
       <QueryStates
         query={customer}
@@ -486,7 +535,11 @@ export default function NewSalePage() {
                 <Button tone="secondary" onClick={() => void discard()}>
                   {draft === null ? "Huỷ" : "Bỏ đơn"}
                 </Button>
-                <Button tone="secondary" onClick={() => void saveDraft()}>
+                <Button
+                  tone="secondary"
+                  onClick={() => void saveDraft()}
+                  {...(replacementPending ? { disabledReason: "Đang tải đơn cần thay thế…" } : {})}
+                >
                   Lưu nháp
                 </Button>
                 <Button
@@ -494,11 +547,14 @@ export default function NewSalePage() {
                   onClick={() => void post()}
                   {...(!mayPost
                     ? { disabledReason: "Bạn không có quyền chốt đơn." }
-                    : postCommand.phase.kind === "sending" || draftCommand.phase.kind === "sending"
-                      ? { disabledReason: "Đang gửi…" }
-                      : postCommand.phase.kind === "succeeded"
-                        ? { disabledReason: "Đã chốt." }
-                        : {})}
+                    : replacementPending
+                      ? { disabledReason: "Đang tải đơn cần thay thế…" }
+                      : postCommand.phase.kind === "sending" ||
+                          draftCommand.phase.kind === "sending"
+                        ? { disabledReason: "Đang gửi…" }
+                        : postCommand.phase.kind === "succeeded"
+                          ? { disabledReason: "Đã chốt." }
+                          : {})}
                 >
                   Chốt đơn
                 </Button>

@@ -1,14 +1,23 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import type { SaleId } from "@vuarau/domain-contracts";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import type { SaleDto, SaleId } from "@vuarau/domain-contracts";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "../../../../api/session-gate.tsx";
 import { useTRPC } from "../../../../api/providers.tsx";
+import { useCommand } from "../../../../api/use-command.ts";
 import { useWorkflowMetrics } from "../../../../api/workflow-metrics.ts";
+import { hasPermission } from "../../../../api/session.ts";
+import { messageForCode } from "../../../../ui/copy.ts";
+import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
+import { CorrectionTimeline } from "../../../../ui/patterns/correction-timeline.tsx";
 import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
+import {
+  SaleCorrectionPanel,
+  type SaleCorrectionSubmission,
+} from "../../../../ui/patterns/sale-correction-panel.tsx";
 import { SaleStatus } from "../../../../ui/patterns/sale-status.tsx";
 import {
   formatInstant,
@@ -30,17 +39,66 @@ import {
  * replacement, which is a different screen and a different permission.
  */
 export default function SaleDetailPage() {
-  const { workspaceId } = useSession();
+  const { session, workspaceId } = useSession();
   const trpc = useTRPC();
+  const router = useRouter();
   const params = useParams<{ saleId: string }>();
   const saleId = params.saleId as SaleId;
   const metrics = useWorkflowMetrics();
 
   const sale = useQuery(trpc.sale.detail.queryOptions({ workspaceId, saleId }));
+  const replacedSaleId = sale.data?.sale.replacesSaleId;
+  const replacedSale = useQuery({
+    ...trpc.sale.detail.queryOptions({
+      workspaceId,
+      saleId: replacedSaleId as SaleId,
+    }),
+    enabled: replacedSaleId !== null && replacedSaleId !== undefined,
+  });
+  const voidSale = useMutation(trpc.sale.void.mutationOptions());
+  const [correction, setCorrection] = useState<SaleCorrectionSubmission | null>(null);
+  const completedCorrectionRef = useRef<string | null>(null);
+  const voidCommand = useCommand<
+    {
+      saleVoidId: string;
+      saleId: string;
+      reasonCode: SaleCorrectionSubmission["reasonCode"];
+      reason: string;
+    },
+    SaleDto
+  >(async (envelope) => (await voidSale.mutateAsync(envelope as never)) as SaleDto);
 
   useEffect(() => {
     if (sale.isSuccess) metrics.mark("sale_detail_viewed");
   }, [metrics, sale.isSuccess]);
+
+  useEffect(() => {
+    if (
+      voidCommand.phase.kind !== "succeeded" ||
+      voidCommand.result === null ||
+      correction === null
+    )
+      return;
+    if (completedCorrectionRef.current === voidCommand.result.id) return;
+    completedCorrectionRef.current = voidCommand.result.id;
+    if (correction.replacement) {
+      router.push(
+        `/customers/${voidCommand.result.customerId}/sales/new?replacesSaleId=${voidCommand.result.id}`,
+      );
+      return;
+    }
+    void sale.refetch();
+  }, [correction, router, sale, voidCommand.phase.kind, voidCommand.result]);
+
+  function submitCorrection(next: SaleCorrectionSubmission): void {
+    setCorrection(next);
+    void voidCommand.submit({
+      saleVoidId: crypto.randomUUID(),
+      saleId,
+      reasonCode: next.reasonCode,
+      reason: next.reason,
+    });
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -137,25 +195,51 @@ export default function SaleDetailPage() {
             detail.correction.replacedBySaleId !== null ? (
               <section className="rounded-card border border-border bg-surface p-4 text-body-sm">
                 <h2 className="text-subheading font-semibold">Liên kết điều chỉnh</h2>
-                {detail.sale.replacesSaleId !== null ? (
+                {detail.sale.replacesSaleId === null || replacedSale.data !== undefined ? (
+                  <CorrectionTimeline
+                    sale={detail.sale}
+                    replacedBySaleId={detail.correction.replacedBySaleId}
+                    currentLabel={detail.displayReference}
+                    {...(replacedSale.data !== undefined
+                      ? { replacedSale: replacedSale.data.sale }
+                      : {})}
+                  />
+                ) : (
                   <Link
                     href={`/sales/${detail.sale.replacesSaleId}`}
-                    className="block text-info underline"
+                    className="mt-3 block text-info underline"
                   >
-                    Đơn này thay thế đơn {detail.sale.replacesSaleId.slice(0, 8).toUpperCase()}
+                    Xem đơn gốc trong chuỗi điều chỉnh
                   </Link>
-                ) : null}
-                {detail.correction.replacedBySaleId !== null ? (
-                  <Link
-                    href={`/sales/${detail.correction.replacedBySaleId}`}
-                    className="block text-info underline"
-                  >
-                    Đơn này đã được thay thế
-                  </Link>
-                ) : null}
-                {detail.correction.voidRecord !== null ? (
-                  <p>Đã void: {detail.correction.voidRecord.reason}</p>
-                ) : null}
+                )}
+              </section>
+            ) : null}
+
+            {detail.sale.status === "posted" ? (
+              <section className="flex flex-col gap-3">
+                {hasPermission(session, "sale.void") && detail.sale.capabilities.void.allowed ? (
+                  <SaleCorrectionPanel
+                    onSubmit={submitCorrection}
+                    disabled={
+                      voidCommand.phase.kind === "sending" || voidCommand.phase.kind === "unknown"
+                    }
+                  />
+                ) : hasPermission(session, "sale.void") ? (
+                  <p className="rounded-card border border-border bg-surface-muted p-4 text-body-sm text-ink-muted">
+                    {detail.sale.capabilities.void.reasonCode === undefined
+                      ? "Đơn này không thể điều chỉnh."
+                      : messageForCode(detail.sale.capabilities.void.reasonCode)}
+                  </p>
+                ) : (
+                  <p className="rounded-card border border-border bg-surface-muted p-4 text-body-sm text-ink-muted">
+                    Bạn không có quyền điều chỉnh đơn đã chốt.
+                  </p>
+                )}
+                <CommandOutcome
+                  command={voidCommand}
+                  attemptedAction="Void đơn đã chốt"
+                  onReload={() => void sale.refetch()}
+                />
               </section>
             ) : null}
 
