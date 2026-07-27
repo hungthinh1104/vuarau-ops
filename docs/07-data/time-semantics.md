@@ -25,14 +25,14 @@ Both facts matter, and neither can be derived from the other. So both are stored
 
 ## Which field each concern reads
 
-| Concern                                | Field                                         | Why                                     |
-| -------------------------------------- | --------------------------------------------- | --------------------------------------- |
-| Debt aging, "overdue by N days"        | `transactionTime`                             | Business reality                        |
-| Daily/monthly revenue reporting        | `transactionTime`                             | A sale belongs to the day it happened   |
-| Ledger ordering on the customer screen | `transactionTime`, then `recordedAt`, then entry id | Stable business-book ordering |
-| Audit, "what did this worker do today" | `recordedAt`                                  | Operational reality                     |
-| Debugging, incident timelines          | `recordedAt`                                  | When the system saw it                  |
-| Idempotency-window reasoning           | `recordedAt`                                  | A property of the request, not the sale |
+| Concern                                | Field                                               | Why                                     |
+| -------------------------------------- | --------------------------------------------------- | --------------------------------------- |
+| Debt aging, "overdue by N days"        | `transactionTime`                                   | Business reality                        |
+| Daily/monthly revenue reporting        | `transactionTime`                                   | A sale belongs to the day it happened   |
+| Ledger ordering on the customer screen | `transactionTime`, then `recordedAt`, then entry id | Stable business-book ordering           |
+| Audit, "what did this worker do today" | `recordedAt`                                        | Operational reality                     |
+| Debugging, incident timelines          | `recordedAt`                                        | When the system saw it                  |
+| Idempotency-window reasoning           | `recordedAt`                                        | A property of the request, not the sale |
 
 ## `updatedAt` — where it is and is not
 
