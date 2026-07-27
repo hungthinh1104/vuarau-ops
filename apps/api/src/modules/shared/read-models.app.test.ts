@@ -28,6 +28,7 @@ import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
 import { voidSale } from "../sale/void-sale.handler.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
+import { reverseCustomerPayment } from "../payment/reverse-payment.handler.ts";
 import { createCustomer } from "../customer/create-customer.handler.ts";
 
 let harness: Harness;
@@ -497,6 +498,16 @@ describe("UC-ACCOUNT-001 / TC-READ-006 — account.timeline", () => {
 
   it("resolves each entry's source document rather than leaving the browser to infer it", async () => {
     const { saleId, paymentId } = await seedActivity();
+    await reverseCustomerPayment(harness.ctx, {
+      ...envelope(),
+      expectedVersion: 1,
+      payload: {
+        reversalId: uuid(915),
+        paymentId,
+        amount: vnd(100_000),
+        reason: "Ghi nhầm số tiền",
+      },
+    });
 
     await voidSale(harness.ctx, {
       ...envelope(),
@@ -516,10 +527,12 @@ describe("UC-ACCOUNT-001 / TC-READ-006 — account.timeline", () => {
     const posting = timeline.value.items.find((item) => item.source.type === "sale_posting")!;
     const payment = timeline.value.items.find((item) => item.source.type === "payment")!;
     const voided = timeline.value.items.find((item) => item.source.type === "sale_void")!;
+    const reversal = timeline.value.items.find((item) => item.source.type === "payment_reversal")!;
     expect(posting.source.id).toBe(saleId);
     expect(payment.source.id).toBe(paymentId);
     expect(posting.source.document).toEqual({ type: "sale", id: saleId });
     expect(payment.source.document).toEqual({ type: "payment", id: paymentId });
+    expect(reversal.source.document).toEqual({ type: "payment", id: paymentId });
     // The void record has its own immutable source id, but its detail belongs to
     // the sale it compensates. The server, not a URL convention in the browser,
     // resolves that relationship.
