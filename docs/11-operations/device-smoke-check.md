@@ -145,6 +145,25 @@ awkward. It is the failure the product was designed around.
 Entries created:  ______   (must be exactly 1)
 ```
 
+## Execution record for every step
+
+Complete this alongside the ten steps. A timestamp, request ID, anonymised
+screenshot reference, sale ID, account-entry count, or operator initials may be
+used as evidence. Do not retain OTPs, tokens, customer names, or amounts here.
+
+| Step | Expected result                                                        | Evidence to retain                             | Stop condition                                                 | Reset after smoke                                            |
+| ---- | ---------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------ |
+| 1    | HTTPS page and sign-in form load without certificate warning           | timestamp, URL, screenshot reference           | Certificate warning, wrong host, or unconfigured sign-in       | none                                                         |
+| 2    | A real six-digit email OTP reaches the phone and resolves to a session | timestamp, delivery latency, operator initials | OTP unavailable, invalid unexpectedly, or authentication fails | sign out after the check                                     |
+| 3    | Only the declared pilot workspace appears and opens                    | screenshot reference, workspace ID             | Extra/missing workspace or access denied                       | sign out if selection persisted unexpectedly                 |
+| 4    | A real imported customer is findable; no fixture customer appears      | anonymised search reference, operator initials | Demo/fixture customer or wrong customer data                   | discard the workspace if fixture/foreign data is present     |
+| 5    | One sale posts with the displayed total and reachable controls         | sale ID, request ID, timestamp                 | Cannot post, wrong total, or inaccessible control              | record it for reconciliation; never delete it directly       |
+| 6    | Exactly one account effect and matching timeline/balance appear        | account-entry count, sale ID                   | Missing/duplicate/mismatched financial effect                  | stop and preserve evidence                                   |
+| 7    | One payment reduces the balance once                                   | payment ID/request ID, entry count             | Missing/duplicate/mismatched effect                            | stop and preserve evidence                                   |
+| 8    | Fresh sign-in works and workspace selection is not retained            | timestamp, operator initials                   | Session/auth regression                                        | sign out                                                     |
+| 9    | Sale, payment, and balance persist after fresh sign-in                 | IDs and account-entry count                    | Any persisted state differs                                    | stop and preserve evidence                                   |
+| 10   | Same retry produces exactly one financial effect                       | original request ID, sale ID, entry count      | Any retry ambiguity, duplicate, or lost effect                 | **stop the pilot immediately**; do not retry with a new sale |
+
 ---
 
 ## Result

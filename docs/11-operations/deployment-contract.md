@@ -38,25 +38,26 @@ a configuration the API would refuse (BR-OPS-002).
 
 ### API process
 
-| Variable                | Required        | Notes                                                          |
-| ----------------------- | --------------- | -------------------------------------------------------------- |
-| `APP_ENV`               | yes, `pilot`    | Turns on the stricter rules below. Defaults to `development`   |
-| `DATABASE_URL`          | yes             | `postgres://…`. Credentials belong to the deployment, not here |
-| `SUPABASE_JWT_ISSUER`   | yes             | Must be **https** in a pilot                                   |
-| `SUPABASE_JWT_AUDIENCE` | no              | Defaults to `authenticated`                                    |
-| `SUPABASE_JWKS_URL`     | yes, in a pilot | The **only** verification method a pilot accepts               |
-| `SUPABASE_JWT_SECRET`   | **refused**     | HS256 is a development and end-to-end path only                |
-| `PUBLIC_APP_ORIGIN`     | yes, in a pilot | The https origin a phone opens. Must be https                  |
-| `PORT`                  | no              | Defaults to 3000                                               |
+| Variable                      | Required        | Notes                                                          |
+| ----------------------------- | --------------- | -------------------------------------------------------------- |
+| `APP_ENV`                     | yes, `pilot`    | Turns on the stricter rules below. Defaults to `development`   |
+| `DATABASE_URL`                | yes             | `postgres://…`. Credentials belong to the deployment, not here |
+| `SUPABASE_JWT_ISSUER`         | yes             | Must be **https** in a pilot                                   |
+| `SUPABASE_JWT_AUDIENCE`       | no              | Defaults to `authenticated`                                    |
+| `SUPABASE_JWKS_URL`           | yes, in a pilot | The **only** verification method a pilot accepts               |
+| `SUPABASE_JWT_SECRET`         | **refused**     | HS256 is a development and end-to-end path only                |
+| `PUBLIC_APP_ORIGIN`           | yes, in a pilot | The https origin a phone opens. Must be https                  |
+| `NEXT_PUBLIC_E2E_AUTH_BRIDGE` | **refused**     | A Playwright-only bridge; `ops:check-env` rejects it in pilot  |
+| `PORT`                        | no              | Defaults to 3000                                               |
 
 ### Next application
 
-| Variable                        | Required  | Notes                                            |
-| ------------------------------- | --------- | ------------------------------------------------ |
-| `NEXT_PUBLIC_SUPABASE_URL`      | yes       | Public: identifies the project                   |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes       | Public: publishable, authorises nothing alone    |
-| `NEXT_PUBLIC_API_ORIGIN`        | yes       | Where `/trpc` is rewritten to                    |
-| `NEXT_PUBLIC_E2E_AUTH_BRIDGE`   | **never** | Playwright only, and inert in a production build |
+| Variable                               | Required  | Notes                                                                                                                |
+| -------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | yes       | Public: identifies the project                                                                                       |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | yes       | Public: publishable, authorises nothing alone. `NEXT_PUBLIC_SUPABASE_ANON_KEY` is the legacy spelling and still read |
+| `NEXT_PUBLIC_API_ORIGIN`               | yes       | Where `/trpc` is rewritten to                                                                                        |
+| `NEXT_PUBLIC_E2E_AUTH_BRIDGE`          | **never** | Playwright only, and inert in a production build                                                                     |
 
 **No production secret ever takes a `NEXT_PUBLIC_` name.** Next inlines those at
 build time, so such a variable is not merely readable by the browser — it is
@@ -65,8 +66,15 @@ belong there, and `ops:check-env` fails a configuration that names any other
 secret-shaped one.
 
 The browser therefore receives **only** the Supabase project URL and the
-publishable anon key. The JWT signing material, the database credentials and the
-service-role key never leave the server side.
+publishable key. The JWT signing material and the database credentials never leave
+the server side.
+
+**`SUPABASE_SECRET_KEY` is not part of this contract at all.** Supabase's secret
+key — formerly the service-role key — bypasses row-level security, and this
+application never calls Supabase with privilege: it verifies tokens against JWKS
+and does nothing else. Do not put it in any environment this application reads. An
+unused copy is not harmless; it is a key somebody later reaches for because it was
+already there.
 
 ## Token verification
 
@@ -144,11 +152,12 @@ configured with a redaction rule, because there is nothing to redact.
 and the blanks are the point.**
 
 ```text
-Database operator:            ____________________
+Backup owner:                 ____________________
 Backup mechanism:             ____________________
-Backup frequency:             ____________________
+Backup schedule:              ____________________
 Backup retention:             ____________________
-Restore rehearsed on:         ____________________   ← blank means: not rehearsed
+Restore rehearsal status:     ☐ not rehearsed  ☐ rehearsed
+Last restore rehearsal date:  ____________________   ← blank means: not rehearsed
 Who may read the database:    ____________________
 Deletion after the pilot:     ____________________
 ```
