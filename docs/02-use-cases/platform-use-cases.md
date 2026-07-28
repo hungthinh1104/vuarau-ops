@@ -194,6 +194,32 @@ TC-AUTH-014, TC-AUTH-015, TC-AUTH-016
 
 ---
 
+## UC-AUTH-005 — Manage workspace members and roles
+
+**Risk:** P0 · **Status:** implemented · **Commands:** `AddWorkspaceMember`,
+`ChangeWorkspaceMemberRole`, `RevokeWorkspaceMembership`,
+`ReactivateWorkspaceMember`
+
+Only an active owner with `workspace.manage` may list or mutate memberships.
+Enrollment targets an existing authenticated actor; identity-provider invitation
+and credential creation are outside this workflow.
+
+Every mutation is idempotent and audited. A role change states the role the owner
+observed, so a concurrent change is refused rather than overwritten. An owner
+cannot change their own role, and no command may leave the workspace without an
+active owner. Revocation preserves the actor and every transaction they recorded;
+reactivation restores the existing membership instead of minting a new identity.
+
+Authorization is server authority on every request. The next request after a role
+change or revocation uses the new membership immediately; the browser never maps
+a role into permissions itself.
+
+**Account effect:** none. **Offline policy:** not queued. Unknown outcomes are
+resent with the same command identity. UI states include loading, empty,
+permission denied, stale role, definite rejection and unknown outcome recovery.
+
+---
+
 ## UC-COMMAND-001 — Handle a retry, a duplicate, or a stale version
 
 **Risk:** P0 · **Status:** implemented · **Applies to:** every command

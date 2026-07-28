@@ -85,6 +85,18 @@ use_cases:
       - apps/api/src/modules/session/session.queries.ts
       - apps/api/src/infrastructure/trpc/router.ts
       - packages/db/src/repositories/index.ts
+
+  UC-AUTH-005:
+    title: Manage workspace members and roles
+    risk: P0
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules: [BR-AUTH-003, BR-AUTH-004, BR-AUTH-007, BR-AUTH-009]
+    cases: []
+    tests: [TC-AUTH-013, TC-E2E-024]
+    implementation:
+      - packages/domain-kernel/src/session/manage-membership.ts
+      - apps/api/src/modules/session/manage-membership.handler.ts
+      - apps/api/src/modules/session/session.queries.ts
       - apps/web/src/api/session-gate.tsx
       - apps/web/src/api/auth.tsx
       - apps/web/src/ui/patterns/sign-in.tsx
@@ -106,7 +118,7 @@ use_cases:
     doc: docs/02-use-cases/customer-use-cases.md
     rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002, BR-ACCOUNT-009, BR-READ-001, BR-READ-003]
     cases: [CASE-READ-001, CASE-READ-002]
-    tests: [TC-READ-002, TC-READ-008]
+    tests: [TC-READ-002, TC-READ-008, TC-READ-012]
     implementation:
       - apps/api/src/modules/customer/customer.queries.ts
       - packages/db/src/repositories/read-queries.ts
@@ -146,6 +158,17 @@ use_cases:
     rules: [BR-CUSTOMER-002, BR-CUSTOMER-003, BR-AUTH-004, BR-ACCOUNT-002, BR-COMMAND-006]
     cases: []
     tests: [TC-CUSTOMER-009]
+    implementation:
+      - packages/domain-kernel/src/customer/update-customer.ts
+      - apps/api/src/modules/customer/update-customer.handler.ts
+
+  UC-CUSTOMER-006:
+    title: Reactivate a customer
+    risk: P1
+    doc: docs/02-use-cases/customer-use-cases.md
+    rules: [BR-CUSTOMER-002, BR-CUSTOMER-003, BR-CUSTOMER-004, BR-CUSTOMER-006]
+    cases: []
+    tests: [TC-CUSTOMER-009, TC-READ-011, TC-READ-013, TC-E2E-025]
     implementation:
       - packages/domain-kernel/src/customer/update-customer.ts
       - apps/api/src/modules/customer/update-customer.handler.ts
@@ -412,15 +435,21 @@ use_cases:
       - apps/api/src/modules/shared/account-effects.ts
 
   UC-ACCOUNT-003:
-    title: Rebuild the customer account balance projection
+    title: Reconcile and rebuild the customer account balance projection
     risk: P0
     doc: docs/02-use-cases/customer-account-use-cases.md
-    rules: [BR-ACCOUNT-001, BR-ACCOUNT-002, BR-ACCOUNT-005, BR-ACCOUNT-006]
+    rules: [BR-ACCOUNT-001, BR-ACCOUNT-002, BR-ACCOUNT-005, BR-ACCOUNT-006, BR-ACCOUNT-011]
     cases: [CASE-ACCOUNT-007]
-    tests: [TC-ACCOUNT-002, TC-ACCOUNT-009]
+    tests:
+      - TC-ACCOUNT-002
+      - TC-ACCOUNT-009
+      - TC-ACCOUNT-011
+      - TC-ACCOUNT-012
+      - TC-READ-014
+      - TC-E2E-023
     implementation:
-      - apps/api/src/modules/shared/account-effects.ts
-      - apps/api/src/operations/rebuild-account-balance.ts
+      - apps/api/src/modules/account/reconciliation.ts
+      - apps/api/src/modules/account/rebuild-account-projection.handler.ts
 
   UC-COMMAND-001:
     title: Handle a retry, a duplicate, or a stale version
@@ -820,7 +849,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-ACCOUNT-007]
-    tests: [TC-ACCOUNT-002, TC-ACCOUNT-009]
+    tests: [TC-ACCOUNT-002, TC-ACCOUNT-009, TC-ACCOUNT-012]
     implementation:
       - apps/api/src/modules/shared/account-effects.ts
       - apps/api/src/modules/account/account.queries.ts
@@ -859,6 +888,16 @@ business_rules:
     tests: [TC-ACCOUNT-011]
     implementation:
       - packages/domain-contracts/src/account/index.ts
+
+  BR-ACCOUNT-011:
+    title: Reconciliation reports corruption and rebuild repairs projections only
+    risk: P0
+    doc: docs/04-business-rules/customer-account-rules.md
+    cases: [CASE-ACCOUNT-007]
+    tests: [TC-ACCOUNT-011, TC-READ-014, TC-E2E-023]
+    implementation:
+      - apps/api/src/modules/account/reconciliation.ts
+      - apps/api/src/modules/account/rebuild-account-projection.handler.ts
 
   # --- cross-cutting command rules ----------------------------------------------
   BR-COMMAND-001:
@@ -996,13 +1035,23 @@ business_rules:
       - apps/api/src/infrastructure/persistence/ports.ts
       - packages/db/src/repositories/index.ts
 
+  BR-AUTH-009:
+    title: Membership management is owner-only and preserves attribution
+    risk: P0
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: []
+    tests: [TC-AUTH-013, TC-E2E-024]
+    implementation:
+      - packages/domain-kernel/src/session/manage-membership.ts
+      - apps/api/src/modules/session/manage-membership.handler.ts
+
   # --- reads --------------------------------------------------------------------
   BR-READ-001:
     title: A page boundary never repeats or skips a row
     risk: P1
     doc: docs/04-business-rules/read-rules.md
     cases: [CASE-READ-001, CASE-READ-002]
-    tests: [TC-READ-004, TC-READ-008]
+    tests: [TC-READ-004, TC-READ-008, TC-READ-012]
     implementation:
       - packages/domain-contracts/src/shared/pagination.ts
       - packages/db/src/repositories/read-queries.ts
@@ -1054,7 +1103,7 @@ business_rules:
     risk: P1
     doc: docs/04-business-rules/customer-rules.md
     cases: []
-    tests: [TC-CUSTOMER-009]
+    tests: [TC-CUSTOMER-009, TC-CUSTOMER-012]
     implementation:
       - packages/domain-kernel/src/customer/update-customer.ts
 
@@ -1078,6 +1127,16 @@ business_rules:
       - apps/api/src/operations/pilot-csv.ts
       - apps/api/src/operations/pilot-onboarding.ts
       - packages/db/src/provisioning.ts
+
+  BR-CUSTOMER-006:
+    title: Reactivation and duplicate warnings never merge financial history
+    risk: P1
+    doc: docs/04-business-rules/customer-rules.md
+    cases: []
+    tests: [TC-CUSTOMER-009, TC-READ-011, TC-READ-013, TC-E2E-025]
+    implementation:
+      - packages/domain-kernel/src/customer/update-customer.ts
+      - apps/api/src/modules/customer/customer.queries.ts
 
 cases:
   CASE-SALE-001:
@@ -1443,6 +1502,15 @@ contract_tests:
   TC-E2E-022:
     title: Sale, payment, reversal and adjustment keep the account ledger, source links and permissions coherent
     file: apps/web/e2e/m9-account-ledger.spec.ts
+  TC-E2E-023:
+    title: Projection drift is explained, exported and rebuilt without changing the ledger
+    file: apps/web/e2e/m10-reconciliation.spec.ts
+  TC-E2E-024:
+    title: Owner membership changes take effect on the next real request
+    file: apps/web/e2e/m11-workspace-admin.spec.ts
+  TC-E2E-025:
+    title: Duplicate warning, edit, deactivate and reactivate preserve customer debt
+    file: apps/web/e2e/m12-customer-operations.spec.ts
 
   # --- running the thing ------------------------------------------------------
   TC-OPS-001:

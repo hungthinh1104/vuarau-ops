@@ -8,18 +8,16 @@ Two situations that no sale and no payment can express:
 
 1. **Opening balance.** A customer already owed 5.000.000 ₫ before the depot
    started using this system.
-2. **Correction or write-off.** A posted sale was wrong, or the owner forgives
-   part of a balance.
+2. **Settlement or write-off.** The owner forgives or settles part of a balance
+   without changing an underlying Sale or Payment.
 
 This is the only command that moves money without an underlying business document,
 which is exactly why the reason is mandatory and the audit trail is not optional.
 
 ## Actor
 
-Any authenticated member of the workspace. **This is knowingly too permissive** —
-manual debt adjustment is the most abusable command in the system. It is restricted
-to owner and accountant; it never corrects a posted Sale, which must use void plus
-replacement instead.
+Owner or accountant with `debt.adjust`. A sales worker is refused. This command
+never corrects a posted Sale, which must use void plus replacement instead.
 
 ## Preconditions
 
@@ -79,11 +77,10 @@ TC-ACCOUNT-003, TC-ACCOUNT-004, TC-ACCOUNT-006
 
 ## Implementation
 
-- `packages/domain-kernel/src/debt/adjust-debt.ts`
-- `apps/api/src/modules/debt/adjust-debt.handler.ts`
+- `packages/domain-kernel/src/account/adjust-debt.ts`
+- `apps/api/src/modules/account/adjust-debt.handler.ts`
 
 ## Open questions
 
-- Permission model (ASM-007) — currently any workspace member may do this.
 - Should large adjustments require a second approver? Not decided; see
   [decision backlog](../09-decisions/decision-backlog.md).

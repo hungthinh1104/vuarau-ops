@@ -110,17 +110,17 @@ TC-ACCOUNT-001, TC-AUTH-006, TC-ACCOUNT-010, TC-READ-005
 
 ---
 
-## UC-ACCOUNT-003 — Rebuild the account balance
+## UC-ACCOUNT-003 — Reconcile and rebuild the account balance
 
-**Risk:** P0 · **Status:** implemented as an operator CLI ·
-**Procedure:** `pnpm --filter @vuarau/api ops:rebuild-balance`
+**Risk:** P0 · **Status:** implemented · **Read:** `account.reconciliation` ·
+**Command:** `RebuildAccountProjection`
 
 | Field          | Value                                                    |
 | -------------- | -------------------------------------------------------- |
-| **Actor**      | Depot owner, or an operator running a maintenance task   |
-| **Trigger**    | A balance is suspected wrong; a restore; a migration     |
+| **Actor**      | Any account reader; owner/accountant for rebuild         |
+| **Trigger**    | Explain a balance; investigate projection drift          |
 | **Permission** | `debt.adjust` — the same bar as moving a balance by hand |
-| **Result DTO** | `CustomerAccountBalanceDto`, recomputed                  |
+| **Result DTO** | Typed reconciliation plus deterministic evidence         |
 
 ### Why this exists
 
@@ -131,19 +131,20 @@ equals the incremental value after a sale, a payment, and a void.
 
 ### Happy path
 
-1. Read every account entry for the customer, in this workspace.
-2. Sum the signed amounts (BR-ACCOUNT-001), count them, take the latest
-   `transactionTime`.
-3. Overwrite the projection row.
-4. Return the recomputed balance.
+1. Read every account entry and its canonical business source in this workspace.
+2. Compare the full ledger sum, count and latest transaction with the projection.
+3. Return `consistent`, `inconsistent`, `not_found`, or `integrity_failure`.
+4. Only projection-only drift may be rebuilt; return the post-rebuild result.
 
 ### Alternative and rejection paths
 
-| Situation                                 | Outcome                                                         |
-| ----------------------------------------- | --------------------------------------------------------------- |
-| The rebuild differs from the stored value | The rebuild wins, and the difference is reported, not swallowed |
-| Customer has no entries                   | Balance 0, `settled` — a legitimate result                      |
-| Caller lacks `debt.adjust`                | `PERMISSION_DENIED`                                             |
+| Situation                               | Outcome                                                        |
+| --------------------------------------- | -------------------------------------------------------------- |
+| Projection-only drift                   | Rebuild is allowed and before/after is audited                 |
+| Missing/malformed source or ledger data | `ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE`; rebuild is refused |
+| Diagnostics are not projection-only     | `ACCOUNT_RECONCILIATION_REBUILD_UNSAFE`                        |
+| Customer has no entries                 | Balance 0, `settled` — a legitimate result                     |
+| Caller lacks `debt.adjust`              | Read allowed; rebuild capability denied and command refused    |
 
 A silent rebuild that quietly changes a number is the wrong behaviour. If a
 projection had drifted, somebody needs to know it drifted — the drift is evidence
@@ -157,7 +158,7 @@ customer owes has changed; only the cached copy of it has been corrected.
 
 ### Audit effect
 
-One record, `account.rebuilt`, carrying the before and after balances. Not a money
+One record, `account.projection_rebuilt`, carrying the before and after balances. Not a money
 movement, but an operator action against financial data, and those are audited.
 
 ### Idempotency · Concurrency
@@ -168,13 +169,13 @@ fully included or fully excluded, never half.
 
 ### Offline policy
 
-None. This is a server-side maintenance procedure with no client surface.
+Not queued offline. A dropped response is resent with the same command identity.
 
 ### Capabilities · UI states
 
-Not surfaced as a capability in this phase. If exposed later it takes the
-`debt.adjust` bar. States: `loading`, `permission_denied`,
-`unknown_network_outcome`.
+The reconciliation result carries a server-authored rebuild capability. States:
+`loading`, `consistent`, `inconsistent`, `integrity_failure`,
+`permission_denied`, and `unknown_network_outcome`.
 
 ### Rules · Cases · Tests
 
@@ -183,7 +184,8 @@ CASE-ACCOUNT-007 · TC-ACCOUNT-002, TC-ACCOUNT-009
 
 ### Implementation
 
-- `apps/api/src/modules/shared/account-effects.ts`
+- `apps/api/src/modules/account/reconciliation.ts`
+- `apps/api/src/modules/account/rebuild-account-projection.handler.ts`
 
 ## Related
 

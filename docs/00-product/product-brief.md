@@ -61,15 +61,17 @@ Authentication → Customer → Sale draft → Posted sale → Customer account 
               → Payment → Payment reversal → Sale void → Audit history
 ```
 
-Twelve commands and eleven queries, all implemented and tested against PostgreSQL:
+The command/query surface is implemented and tested against PostgreSQL. The
+canonical inventory is maintained in the use-case catalog and typed router rather
+than duplicated as a count here.
 
 | Commands                                                                             | Queries                                                   |
 | ------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| `CreateCustomer` · `UpdateCustomer` · `DeactivateCustomer`                           | `session.me` · `session.workspaces`                       |
+| `CreateCustomer` · `UpdateCustomer` · `DeactivateCustomer` · `ReactivateCustomer`    | `session.me` · `session.workspaces` · `session.workspace` |
 | `CreateSaleDraft` · `UpdateSaleDraft` · `DiscardSaleDraft` · `PostSale` · `VoidSale` | `customer.search` · `customer.get`                        |
 | `RecordCustomerPayment` · `ReverseCustomerPayment`                                   | `sale.get` · `sale.list`                                  |
-| `AdjustCustomerDebt`                                                                 | `payment.get` · `payment.list`                            |
-| `RevokeWorkspaceMembership`                                                          | `account.balance` · `account.timeline` · `audit.timeline` |
+| `AdjustCustomerDebt` · `RebuildAccountProjection`                                    | `payment.get` · `payment.list`                            |
+| member add/change/revoke/reactivate commands                                         | account balance/timeline/reconciliation/evidence · audit  |
 
 Every use case in the [catalog](../02-use-cases/use-case-catalog.md) is
 implemented; no P0 rule is planned. The full surface is in
@@ -78,16 +80,10 @@ implemented; no P0 rule is planned. The full surface is in
 
 ### What is complete, and what that does not mean
 
-**Two workflows are complete.** `apps/web` records a payment and posts a
-multi-line sale, end to end against a real server and a real database, on the
-design system and typed client from the previous milestone. Every state in the
-[UI state catalog](../06-api-contracts/ui-state-catalog.md) has a story.
-
-**Correction remains incomplete.** Quick Sale now supports inline customer
-creation and Sale detail, but workers still cannot complete void-only or
-void-and-replace correction in the product UI. M8 closes that workflow by using
-the existing immutable Sale, void, replacement, and recovery contracts. Account
-operations and reconciliation follow as M9 and M10; see [roadmap.md](roadmap.md).
+The browser now closes the technical workflows through M12: Quick Sale,
+void/replacement correction, payment/reversal, debt adjustment, explainable
+account reconciliation, member/role administration, and customer lifecycle.
+These flows use the typed API and PostgreSQL in automated end-to-end tests.
 
 **Nobody has recorded a real sale in this software.** Every claim in "What good
 looks like" above — ten seconds, no lost writes, a correction anybody can follow —

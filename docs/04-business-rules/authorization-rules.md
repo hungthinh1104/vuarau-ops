@@ -201,6 +201,22 @@ TC-AUTH-016 asserts it against real SQL for that reason.
 
 ---
 
+### BR-AUTH-009 — Membership management is owner-only and preserves attribution
+
+**Risk:** P0 · **Codes:** `WORKSPACE_LAST_OWNER`,
+`WORKSPACE_MEMBER_SELF_ROLE_CHANGE_DENIED` · **Tests:** TC-AUTH-013,
+TC-E2E-024
+
+Only `workspace.manage` may add, change, revoke or reactivate a membership. Role
+changes use the stored membership as server authority and reject stale expected
+roles. An owner cannot demote themselves, and concurrent operations cannot remove
+the last active owner.
+
+Revocation and reactivation update the membership rather than deleting it. Sales,
+payments, adjustments, ledger entries and audits continue to name the same actor.
+
+---
+
 ## What is still open
 
 | Question                                                      | State                                           | Reference |

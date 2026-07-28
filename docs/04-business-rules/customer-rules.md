@@ -106,6 +106,18 @@ What it does **not** do is import balances. An opening balance is money, it need
 
 ---
 
+### BR-CUSTOMER-006 — Reactivation and duplicate warnings never merge financial history
+
+**Risk:** P1 · **Code:** `CUSTOMER_ALREADY_ACTIVE` · **Tests:**
+TC-CUSTOMER-009, TC-E2E-025
+
+`ReactivateCustomer` changes only activity state and preserves the ledger.
+Possible duplicates are workspace-scoped candidates based on folded name or
+normalized phone. They warn the worker but never block creation, auto-merge
+customers, or move Sale, Payment, adjustment or ledger rows between identities.
+
+---
+
 ## Deprecated rules
 
 None yet.

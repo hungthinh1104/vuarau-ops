@@ -12,36 +12,37 @@ proves it. As of the operations milestone **every use case in this slice is
 implemented** — nothing is left `planned`, and `pnpm trace:check` reports zero
 planned rules.
 
-One entry is deliberately not a tRPC procedure. UC-ACCOUNT-003 is an operator CLI
-(`pnpm --filter @vuarau/api ops:rebuild-balance`), because a button that silently
-recomputes a balance is a button that hides the fact the balance was wrong.
-Reaching it needs shell access, which is its own authorization boundary.
+The former operator-only projection rebuild remains available, but UC-ACCOUNT-003
+now has a typed reconciliation read and an audited, capability-gated command. The
+command refuses source or ledger corruption rather than hiding it.
 
 ## The catalog
 
-| ID              | Use case                                | Permission            | Status                     | Document                                                     |
-| --------------- | --------------------------------------- | --------------------- | -------------------------- | ------------------------------------------------------------ |
-| UC-AUTH-001     | Authenticate, resolve actor, authorize  | —                     | implemented                | [UC-AUTH-001](UC-AUTH-001-authenticate-and-authorize.md)     |
-| UC-AUTH-002     | Revoke a workspace membership           | `workspace.manage`    | implemented                | [platform](platform-use-cases.md)                            |
-| UC-AUTH-003     | View my capabilities                    | —                     | implemented                | [platform](platform-use-cases.md)                            |
-| UC-AUTH-004     | List the depots I may work in           | —                     | implemented                | [platform](platform-use-cases.md)                            |
-| UC-CUSTOMER-001 | Create a customer                       | `customer.create`     | implemented                | [UC-CUSTOMER-001](UC-CUSTOMER-001-create-customer.md)        |
-| UC-CUSTOMER-002 | Search and list customers               | `customer.read`       | implemented                | [customer](customer-use-cases.md)                            |
-| UC-CUSTOMER-003 | View a customer                         | `customer.read`       | implemented                | [customer](customer-use-cases.md)                            |
-| UC-CUSTOMER-004 | Update a customer                       | `customer.update`     | implemented                | [customer](customer-use-cases.md)                            |
-| UC-CUSTOMER-005 | Deactivate a customer                   | `customer.deactivate` | implemented                | [customer](customer-use-cases.md)                            |
-| UC-SALE-001     | Create, edit, discard a sale draft      | `sale.create`         | implemented                | [sale](sale-use-cases.md)                                    |
-| UC-SALE-002     | **Post a sale**                         | `sale.post`           | implemented                | [UC-SALE-002](UC-SALE-002-post-sale.md)                      |
-| UC-SALE-003     | View and list sales                     | `sale.read`           | implemented                | [sale](sale-use-cases.md)                                    |
-| UC-SALE-004     | **Void a sale**, and post a replacement | `sale.void`           | implemented                | [sale](sale-use-cases.md)                                    |
-| UC-PAYMENT-001  | Record a customer payment               | `payment.record`      | implemented                | [UC-PAYMENT-001](UC-PAYMENT-001-record-customer-payment.md)  |
-| UC-PAYMENT-002  | Reverse a payment, fully or partly      | `payment.reverse`     | implemented                | [UC-PAYMENT-002](UC-PAYMENT-002-reverse-customer-payment.md) |
-| UC-PAYMENT-003  | View a payment                          | `payment.read`        | implemented                | [platform](platform-use-cases.md)                            |
-| UC-ACCOUNT-001  | View the balance and timeline           | `debt.read`           | implemented                | [account](customer-account-use-cases.md)                     |
-| UC-ACCOUNT-002  | Adjust a customer account by hand       | `debt.adjust`         | implemented                | [UC-ACCOUNT-002](UC-ACCOUNT-002-adjust-customer-account.md)  |
-| UC-ACCOUNT-003  | Rebuild the balance projection          | shell access          | implemented — operator CLI | [account](customer-account-use-cases.md)                     |
-| UC-COMMAND-001  | Retries, duplicates, stale versions     | inherits              | implemented                | [platform](platform-use-cases.md)                            |
-| UC-AUDIT-001    | Trace a transaction and its corrections | `audit.read`          | implemented                | [platform](platform-use-cases.md)                            |
+| ID              | Use case                                | Permission            | Status      | Document                                                     |
+| --------------- | --------------------------------------- | --------------------- | ----------- | ------------------------------------------------------------ |
+| UC-AUTH-001     | Authenticate, resolve actor, authorize  | —                     | implemented | [UC-AUTH-001](UC-AUTH-001-authenticate-and-authorize.md)     |
+| UC-AUTH-002     | Revoke a workspace membership           | `workspace.manage`    | implemented | [platform](platform-use-cases.md)                            |
+| UC-AUTH-003     | View my capabilities                    | —                     | implemented | [platform](platform-use-cases.md)                            |
+| UC-AUTH-004     | List the depots I may work in           | —                     | implemented | [platform](platform-use-cases.md)                            |
+| UC-AUTH-005     | Manage workspace members and roles      | `workspace.manage`    | implemented | [platform](platform-use-cases.md)                            |
+| UC-CUSTOMER-001 | Create a customer                       | `customer.create`     | implemented | [UC-CUSTOMER-001](UC-CUSTOMER-001-create-customer.md)        |
+| UC-CUSTOMER-002 | Search and list customers               | `customer.read`       | implemented | [customer](customer-use-cases.md)                            |
+| UC-CUSTOMER-003 | View a customer                         | `customer.read`       | implemented | [customer](customer-use-cases.md)                            |
+| UC-CUSTOMER-004 | Update a customer                       | `customer.update`     | implemented | [customer](customer-use-cases.md)                            |
+| UC-CUSTOMER-005 | Deactivate a customer                   | `customer.deactivate` | implemented | [customer](customer-use-cases.md)                            |
+| UC-CUSTOMER-006 | Reactivate a customer                   | `customer.reactivate` | implemented | [customer](customer-use-cases.md)                            |
+| UC-SALE-001     | Create, edit, discard a sale draft      | `sale.create`         | implemented | [sale](sale-use-cases.md)                                    |
+| UC-SALE-002     | **Post a sale**                         | `sale.post`           | implemented | [UC-SALE-002](UC-SALE-002-post-sale.md)                      |
+| UC-SALE-003     | View and list sales                     | `sale.read`           | implemented | [sale](sale-use-cases.md)                                    |
+| UC-SALE-004     | **Void a sale**, and post a replacement | `sale.void`           | implemented | [sale](sale-use-cases.md)                                    |
+| UC-PAYMENT-001  | Record a customer payment               | `payment.record`      | implemented | [UC-PAYMENT-001](UC-PAYMENT-001-record-customer-payment.md)  |
+| UC-PAYMENT-002  | Reverse a payment, fully or partly      | `payment.reverse`     | implemented | [UC-PAYMENT-002](UC-PAYMENT-002-reverse-customer-payment.md) |
+| UC-PAYMENT-003  | View a payment                          | `payment.read`        | implemented | [platform](platform-use-cases.md)                            |
+| UC-ACCOUNT-001  | View the balance and timeline           | `debt.read`           | implemented | [account](customer-account-use-cases.md)                     |
+| UC-ACCOUNT-002  | Adjust a customer account by hand       | `debt.adjust`         | implemented | [UC-ACCOUNT-002](UC-ACCOUNT-002-adjust-customer-account.md)  |
+| UC-ACCOUNT-003  | Reconcile and rebuild the projection    | `debt.adjust`         | implemented | [account](customer-account-use-cases.md)                     |
+| UC-COMMAND-001  | Retries, duplicates, stale versions     | inherits              | implemented | [platform](platform-use-cases.md)                            |
+| UC-AUDIT-001    | Trace a transaction and its corrections | `audit.read`          | implemented | [platform](platform-use-cases.md)                            |
 
 ## The template every use case answers
 

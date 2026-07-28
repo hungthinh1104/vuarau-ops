@@ -165,6 +165,25 @@ that case, and the capability says so.
 
 ---
 
+### BR-ACCOUNT-011 — Reconciliation reports corruption; rebuild repairs projections only
+
+**Risk:** P0 · **Codes:** `ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE`,
+`ACCOUNT_RECONCILIATION_REBUILD_UNSAFE` · **Tests:** TC-ACCOUNT-011,
+TC-E2E-023
+
+Reconciliation compares the complete workspace/customer ledger with its
+projection and resolves every entry to its canonical Sale, Payment, reversal or
+manual-adjustment source. Missing sources, wrong workspace/customer/amount,
+duplicate source identity, zero amounts and malformed references are integrity
+failures.
+
+`RebuildAccountProjection` may run only when every diagnostic is projection
+drift. It replaces no entry and changes no business source. The command is
+idempotent, requires `debt.adjust`, and audits the before/after projection plus
+the operator reason.
+
+---
+
 ## Cross-cutting command rules
 
 ### BR-COMMAND-001 — Same idempotency key + same payload ⇒ exactly one effect

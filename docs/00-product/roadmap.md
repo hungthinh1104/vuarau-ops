@@ -97,7 +97,7 @@ Technical evidence: payment reversal and debt-adjustment recovery, server-projec
 detail reads, and cursor-paged customer account timeline are covered by automated
 tests. This is not evidence of real-depot adoption.
 
-### M10 — Financial reconciliation (then)
+### M10 — Financial reconciliation (completed)
 
 Provide the answer to: **Why is this customer's balance X?**
 
@@ -106,20 +106,44 @@ Provide the answer to: **Why is this customer's balance X?**
 - projection-versus-ledger consistency and missing/duplicate-source detection;
 - privileged projection rebuild and evidence export.
 
+The browser and API now expose a typed `consistent | inconsistent | not_found |
+integrity_failure` result. Projection-only drift can be rebuilt by an authorized
+owner/accountant with an idempotent command and before/after audit evidence.
+Source or ledger corruption is reported and cannot be repaired by that command.
+
+### M11 — Workspace, members and roles (completed)
+
+- owner-only member list and existing-account enrollment;
+- role change, revocation and reactivation with audit history;
+- last-owner, self-role-change, stale-role and workspace-isolation guards;
+- authorization is re-read on the next request rather than cached in the browser.
+
+Identity-provider account provisioning is still external. The product can manage
+roles for authenticated accounts; it does not send invitations or create login
+credentials.
+
+### M12 — Customer operations (completed)
+
+- create, edit, deactivate and reactivate without changing the ledger;
+- active/inactive filtering and cursor pagination;
+- duplicate-name/phone candidates are surfaced but never auto-merged;
+- customer detail retains balance, account history and links to source documents.
+
 **Horizon 1 gate:** a depot can sell, take payment, correct mistakes, and explain
-customer debt without a developer.
+customer debt without a developer. The M11/M12 self-service workflows are
+technically verified; real-worker adoption remains unproven.
 
 ## Later horizons — direction, not an implementation plan
 
-| Horizon                               | Milestones                                                                                               | Gate                                                                                   |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 2 — self-service and field resilience | M11 workspace/members/roles; M12 customer operations; M13 offline Quick Sale; M14 reliability/operations | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
-| 3 — goods and inputs                  | M15 product catalog; M16 supplier account; M17 purchase; M18 receiving/inventory movement ledger         | Money and goods flows are both traceable.                                              |
-| 4 — depot operations                  | M19 delivery; M20 documents/sharing; M21 reports; M22 performance/security/scale                         | Operational views drill down to reliable sources.                                      |
-| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                                                 | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+| Horizon                               | Milestones                                                                                                                       | Gate                                                                                   |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2 — self-service and field resilience | M11 workspace/members/roles (completed); M12 customer operations (completed); M13 offline Quick Sale; M14 reliability/operations | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
+| 3 — goods and inputs                  | M15 product catalog; M16 supplier account; M17 purchase; M18 receiving/inventory movement ledger                                 | Money and goods flows are both traceable.                                              |
+| 4 — depot operations                  | M19 delivery; M20 documents/sharing; M21 reports; M22 performance/security/scale                                                 | Operational views drill down to reliable sources.                                      |
+| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                                                                         | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
 
-The later horizons intentionally do not authorize work now. Re-evaluate their
-dependencies after M10.
+The later horizons intentionally do not authorize work now. The next unstarted
+scope is M13; completing M10–M12 does not authorize offline or Goods Flow work.
 
 ## Maturity stages
 

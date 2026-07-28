@@ -232,6 +232,22 @@ back-office action taken at a desk. `deactivate` carries
 BR-CUSTOMER-002, BR-CUSTOMER-003, BR-AUTH-004, BR-ACCOUNT-002 ·
 TC-CUSTOMER-009, TC-CUSTOMER-010
 
+---
+
+## UC-CUSTOMER-006 — Reactivate a customer
+
+**Risk:** P1 · **Status:** implemented · **Command:** `ReactivateCustomer`
+
+An owner may restore an inactive customer using the version they observed and a
+non-blank reason. The command changes only `isActive`, increments the version and
+audits `customer.reactivated`. It creates no account entry: existing balance,
+sales, payments and timeline remain unchanged.
+
+An active customer returns `CUSTOMER_ALREADY_ACTIVE`; a stale version returns
+`CUSTOMER_VERSION_CONFLICT`; other roles receive `PERMISSION_DENIED`. Duplicate
+name or normalized-phone candidates are warnings only. The system never
+auto-merges customer identities or their financial histories.
+
 ## Related
 
 - [UC-CUSTOMER-001-create-customer.md](UC-CUSTOMER-001-create-customer.md)
