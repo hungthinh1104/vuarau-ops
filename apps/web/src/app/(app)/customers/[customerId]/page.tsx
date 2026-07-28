@@ -247,7 +247,10 @@ export default function CustomerDetailPage() {
               />
             ) : (
               <>
-                <ul className="rounded-card border border-border bg-surface px-4">
+                <ul
+                  aria-label="Giao dịch công nợ"
+                  className="rounded-card border border-border bg-surface px-4"
+                >
                   {entries.map((entry) => {
                     const href = sourceHref(entry);
                     return (

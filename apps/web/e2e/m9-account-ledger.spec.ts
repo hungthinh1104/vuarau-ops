@@ -70,16 +70,26 @@ test.describe("TC-E2E-022 — M9 account ledger truth", () => {
 
     // Each rendered timeline source points to the detail endpoint that owns it.
     await page.goto(`/customers/${customerId}`);
-    await expect(page.locator(`a[href="/sales/${sale.id}"]`)).toBeVisible();
-    await expect(page.locator(`a[href="/payments/${payment.id}"]`)).toHaveCount(2);
-    await expect(page.locator(`a[href="/account-adjustments/${adjustmentId}"]`)).toBeVisible();
-    await page.locator(`a[href="/sales/${sale.id}"]`).click();
+    const accountTimeline = page.getByRole("list", { name: "Giao dịch công nợ" });
+    await expect(accountTimeline.locator(`a[href="/sales/${sale.id}"]`)).toBeVisible();
+    await expect(accountTimeline.locator(`a[href="/payments/${payment.id}"]`)).toHaveCount(2);
+    await expect(
+      accountTimeline.locator(`a[href="/account-adjustments/${adjustmentId}"]`),
+    ).toBeVisible();
+    await accountTimeline.locator(`a[href="/sales/${sale.id}"]`).click();
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
     await page.goto(`/customers/${customerId}`);
-    await page.locator(`a[href="/payments/${payment.id}"]`).first().click();
+    await page
+      .getByRole("list", { name: "Giao dịch công nợ" })
+      .locator(`a[href="/payments/${payment.id}"]`)
+      .first()
+      .click();
     await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
     await page.goto(`/customers/${customerId}`);
-    await page.locator(`a[href="/account-adjustments/${adjustmentId}"]`).click();
+    await page
+      .getByRole("list", { name: "Giao dịch công nợ" })
+      .locator(`a[href="/account-adjustments/${adjustmentId}"]`)
+      .click();
     await expect(page.getByText("−20.000 ₫")).toBeVisible();
 
     // Sales can read the account but cannot reverse or adjust it.
