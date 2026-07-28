@@ -111,18 +111,32 @@ export const api = {
     )) as { balance: { amountMinor: number }; classification: string };
   },
 
-  async timeline(
-    customerId: string,
-  ): Promise<{ items: { amount: { amountMinor: number }; source: { type: string } }[] }> {
+  async timeline(customerId: string): Promise<{
+    items: {
+      id: string;
+      amount: { amountMinor: number };
+      runningBalance: { amountMinor: number };
+      source: { type: string; document: { type: string; id: string } };
+    }[];
+  }> {
     return (await call(
       "account.timeline",
       "query",
       { workspaceId: E2E_WORKSPACE_ID, customerId, from: null, to: null, cursor: null, limit: 50 },
       "owner",
-    )) as { items: { amount: { amountMinor: number }; source: { type: string } }[] };
+    )) as {
+      items: {
+        id: string;
+        amount: { amountMinor: number };
+        runningBalance: { amountMinor: number };
+        source: { type: string; document: { type: string; id: string } };
+      }[];
+    };
   },
 
-  async payments(customerId: string): Promise<{ items: { amount: { amountMinor: number } }[] }> {
+  async payments(
+    customerId: string,
+  ): Promise<{ items: { id: string; amount: { amountMinor: number } }[] }> {
     return (await call(
       "payment.list",
       "query",
@@ -136,7 +150,24 @@ export const api = {
         limit: 50,
       },
       "owner",
-    )) as { items: { amount: { amountMinor: number } }[] };
+    )) as { items: { id: string; amount: { amountMinor: number } }[] };
+  },
+
+  async expectWorkspaceAccessDenied(customerId: string): Promise<void> {
+    await expectCallToFail(
+      "account.timeline",
+      "query",
+      {
+        workspaceId: crypto.randomUUID(),
+        customerId,
+        from: null,
+        to: null,
+        cursor: null,
+        limit: 50,
+      },
+      "owner",
+      "WORKSPACE_ACCESS_DENIED",
+    );
   },
 
   /**
@@ -204,6 +235,22 @@ export const api = {
     };
   },
 };
+
+async function expectCallToFail(
+  path: string,
+  kind: "query" | "mutation",
+  input: Envelope,
+  role: E2ERole,
+  code: string,
+): Promise<void> {
+  try {
+    await call(path, kind, input, role);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(`${path} failed: ${code}`)) return;
+    throw error;
+  }
+  throw new Error(`${path} unexpectedly succeeded; expected ${code}.`);
+}
 
 function actorFor(role: E2ERole): string {
   // One list, in `environment.ts`. A second copy here drifted the moment an actor

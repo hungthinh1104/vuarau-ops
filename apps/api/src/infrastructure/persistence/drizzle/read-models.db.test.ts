@@ -259,6 +259,96 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
     expect(expected).toBe(entries.reduce((sum, entry) => sum + entry.amount.amountMinor, 0));
   });
 
+  it("UC-ACCOUNT-001 / TC-READ-009 — page two retains full-history balances without tuple skips", async () => {
+    const all = await getCustomerAccountTimeline(owner, {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 50,
+    });
+    const first = await getCustomerAccountTimeline(owner, {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 2,
+    });
+    expect(all.ok).toBe(true);
+    expect(first.ok).toBe(true);
+    if (!all.ok || !first.ok || first.value.nextCursor === null) return;
+
+    const second = await getCustomerAccountTimeline(owner, {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+      from: null,
+      to: null,
+      cursor: first.value.nextCursor,
+      limit: 50,
+    });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+
+    const paged = [...first.value.items, ...second.value.items];
+    expect(paged.map((item) => item.id)).toEqual(all.value.items.map((item) => item.id));
+    expect(new Set(paged.map((item) => item.id)).size).toBe(paged.length);
+    const fullBalanceById = new Map(
+      all.value.items.map((item) => [item.id, item.runningBalance.amountMinor]),
+    );
+    for (const item of second.value.items) {
+      expect(item.runningBalance.amountMinor).toBe(fullBalanceById.get(item.id));
+    }
+  });
+
+  it("UC-ACCOUNT-001 / TC-READ-010 — date filters only filter rows; they never restart balance or cross a workspace", async () => {
+    const full = await getCustomerAccountTimeline(owner, {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 50,
+    });
+    expect(full.ok).toBe(true);
+    if (!full.ok) return;
+
+    const from = full.value.items.at(-2)?.transactionTime;
+    expect(from).toBeDefined();
+    if (from === undefined) return;
+    const filtered = await getCustomerAccountTimeline(owner, {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+      from,
+      to: null,
+      cursor: null,
+      limit: 50,
+    });
+    expect(filtered.ok).toBe(true);
+    if (!filtered.ok) return;
+
+    const fullBalanceById = new Map(
+      full.value.items.map((item) => [item.id, item.runningBalance.amountMinor]),
+    );
+    for (const item of filtered.value.items) {
+      expect(item.runningBalance.amountMinor).toBe(fullBalanceById.get(item.id));
+    }
+
+    const foreignWorkspace = await getCustomerAccountTimeline(owner, {
+      workspaceId: ctx.foreignWorkspaceId,
+      customerId: ctx.customerId,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 50,
+    });
+    expect(foreignWorkspace).toMatchObject({
+      ok: false,
+      error: { code: "WORKSPACE_ACCESS_DENIED" },
+    });
+  });
+
   it("UC-ACCOUNT-001 / TC-READ-006 — resolves every source kind through its join", async () => {
     const timeline = await getCustomerAccountTimeline(owner, {
       ...page,

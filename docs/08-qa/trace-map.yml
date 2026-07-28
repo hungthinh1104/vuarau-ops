@@ -359,7 +359,16 @@ use_cases:
       - BR-ACCOUNT-009
       - BR-CUSTOMER-002
     cases: [CASE-ACCOUNT-008, CASE-READ-003]
-    tests: [TC-ACCOUNT-001, TC-AUTH-006, TC-ACCOUNT-010, TC-READ-006]
+    tests:
+      [
+        TC-ACCOUNT-001,
+        TC-AUTH-006,
+        TC-ACCOUNT-010,
+        TC-READ-006,
+        TC-READ-009,
+        TC-READ-010,
+        TC-E2E-022,
+      ]
     implementation:
       - apps/api/src/modules/account/account.queries.ts
       - packages/db/src/repositories/read-queries.ts
@@ -1151,7 +1160,7 @@ cases:
     title: Reading a customer's account after a sale was voided
     doc: docs/05-casebook/read-cases.md
     rules: [BR-READ-003, BR-ACCOUNT-005]
-    tests: [TC-READ-006]
+    tests: [TC-READ-006, TC-READ-009, TC-READ-010]
 
   CASE-PAYMENT-001:
     title: Customer pays the exact balance
@@ -1431,6 +1440,9 @@ contract_tests:
   TC-E2E-021:
     title: The depot list comes from session.workspaces against a real database
     file: apps/web/e2e/sign-in.spec.ts
+  TC-E2E-022:
+    title: Sale, payment, reversal and adjustment keep the account ledger, source links and permissions coherent
+    file: apps/web/e2e/m9-account-ledger.spec.ts
 
   # --- running the thing ------------------------------------------------------
   TC-OPS-001:
