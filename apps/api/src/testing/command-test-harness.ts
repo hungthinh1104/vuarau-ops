@@ -12,6 +12,9 @@ import {
   WAREHOUSE_ACTOR_ID,
   WORKSPACE_ID,
   WORKSPACE_NAME,
+  PRODUCT_CA_CHUA_ID,
+  PRODUCT_OT_ID,
+  PRODUCT_RAU_MUONG_ID,
   activeCustomer,
   subjectFor,
 } from "@vuarau/test-fixtures";
@@ -82,6 +85,23 @@ export function createHarness(): Harness {
   db.registerActor(subjectFor(FOREIGN_ACTOR_ID), FOREIGN_ACTOR_ID);
 
   db.seedCustomer(activeCustomer);
+  for (const [id, displayName, preferredUnit] of [
+    [PRODUCT_CA_CHUA_ID, "Cà chua", "kg"],
+    [PRODUCT_RAU_MUONG_ID, "Rau muống", "bo"],
+    [PRODUCT_OT_ID, "Ớt hiểm", "thung"],
+  ] as const) {
+    db.seedProduct({
+      id,
+      workspaceId: WORKSPACE_ID,
+      displayName,
+      aliases: [],
+      preferredUnit,
+      isActive: true,
+      version: 1,
+      createdAt: LATEST_RECORDED_AT,
+      updatedAt: LATEST_RECORDED_AT,
+    });
+  }
 
   const clock = mutableClock();
   const deps: CommandDeps = { uow: db.unitOfWork(), clock };

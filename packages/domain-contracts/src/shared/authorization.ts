@@ -43,6 +43,11 @@ export const PERMISSIONS = [
   "audit.read",
   /** Managing who is a member of the workspace. Owner only. */
   "workspace.manage",
+  "product.read",
+  "product.create",
+  "product.update",
+  "product.deactivate",
+  "product.reactivate",
 ] as const;
 export const permissionSchema = z.enum(PERMISSIONS);
 export type Permission = z.infer<typeof permissionSchema>;
@@ -68,6 +73,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "payment.read",
     "debt.adjust",
     "debt.read",
+    "product.read",
   ],
 
   /**
@@ -85,18 +91,21 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "payment.record",
     "payment.read",
     "debt.read",
+    "product.read",
+    "product.create",
+    "product.update",
   ],
 
   // Warehouse staff pick and pack against a sale; they move no money. They can
   // read customers because a load has to be handed to somebody by name.
-  warehouse: ["sale.read", "customer.read"],
+  warehouse: ["sale.read", "customer.read", "product.read"],
 
   /**
    * Read-only. Whether a driver may record the cash they collect is a real
    * business question and is unanswered (ASM-017) — so the safe default applies
    * and the depot owner decides, rather than a developer.
    */
-  delivery: ["sale.read", "customer.read"],
+  delivery: ["sale.read", "customer.read", "product.read"],
 };
 
 /** Built once; lookup is the hot path on every command. */

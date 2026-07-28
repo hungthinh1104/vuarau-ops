@@ -39,6 +39,11 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   CUSTOMER_VERSION_CONFLICT: "Người khác vừa sửa khách hàng này. Hãy tải lại để xem thay đổi.",
   CUSTOMER_ALREADY_INACTIVE: "Khách hàng này đã ngưng hoạt động.",
   CUSTOMER_ALREADY_ACTIVE: "Khách hàng này đang hoạt động.",
+  PRODUCT_NOT_FOUND: "Không tìm thấy mặt hàng trong vựa này.",
+  PRODUCT_VERSION_CONFLICT: "Mặt hàng đã được người khác cập nhật.",
+  BACKUP_DIGEST_INVALID: "Checksum bản sao lưu không hợp lệ.",
+  BACKUP_UNSAFE_TARGET: "Chỉ có thể phục hồi vào vựa trống.",
+  BACKUP_INTEGRITY_ERROR: "Bản sao lưu có tham chiếu hoặc dữ liệu không hợp lệ.",
 
   SALE_NOT_FOUND: "Không tìm thấy đơn hàng này.",
   SALE_EMPTY: "Đơn chưa có mặt hàng nào. Hãy thêm ít nhất một dòng trước khi chốt.",

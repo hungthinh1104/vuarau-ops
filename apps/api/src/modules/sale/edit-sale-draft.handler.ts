@@ -35,6 +35,16 @@ export function updateSaleDraft(
     ctx,
     requiredPermission: "sale.create",
     execute: async ({ command, repos, recordedAt }) => {
+      for (const line of command.payload.lines) {
+        if (
+          line.productId !== null &&
+          (await repos.products.findById(command.workspaceId, line.productId)) === null
+        ) {
+          return err("PRODUCT_NOT_FOUND", "A referenced product is not in this workspace.", {
+            productId: line.productId,
+          });
+        }
+      }
       const sale = await repos.sales.findByIdForUpdate(command.workspaceId, command.payload.saleId);
       if (sale === null) {
         return err("SALE_NOT_FOUND", "No such sale in this workspace.", {

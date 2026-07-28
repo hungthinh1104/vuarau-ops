@@ -1,20 +1,24 @@
-import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   actors,
   auditLogs,
+  commandReceipts,
   customerAccountBalances,
   customerAccountEntries,
   customers,
   paymentReversals,
   payments,
+  products,
   saleLines,
   saleVoids,
   sales,
   workspaces,
+  workspaceMemberships,
 } from "../schema/index.ts";
 import type { Database } from "../client.ts";
 import { classifyBalance } from "@vuarau/domain-kernel";
+import { unitSchema } from "@vuarau/domain-contracts";
 import { fromIso, money, toIso, toIsoOrNull, toSaleState } from "./row-mappers.ts";
 
 /**
@@ -315,6 +319,75 @@ export function createReadRepositories(tx: Tx) {
             ],
           };
         });
+      },
+    },
+
+    productReads: {
+      async search(args: {
+        workspaceId: string;
+        query: string;
+        isActive: boolean | null;
+        page: Page;
+      }) {
+        const filters: SQL[] = [eq(products.workspaceId, args.workspaceId)];
+        if (args.isActive !== null) filters.push(eq(products.isActive, args.isActive));
+        if (args.query.length > 0) {
+          const pattern = `%${args.query}%`;
+          filters.push(
+            or(
+              sql`vuarau_fold(${products.name}) ILIKE vuarau_fold(${pattern})`,
+              sql`EXISTS (SELECT 1 FROM unnest(${products.aliases}) alias WHERE vuarau_fold(alias) ILIKE vuarau_fold(${pattern}))`,
+            )!,
+          );
+        }
+        if (args.page.after !== null) {
+          filters.push(
+            sql`(${products.name}, ${products.id}) > (${args.page.after.sortValue}, ${args.page.after.id}::uuid)`,
+          );
+        }
+        const rows = await tx
+          .select()
+          .from(products)
+          .where(and(...filters))
+          .orderBy(asc(products.name), asc(products.id))
+          .limit(fetchLimit(args.page));
+        return paged(
+          rows.map((row) => ({
+            id: row.id,
+            workspaceId: row.workspaceId,
+            displayName: row.name,
+            aliases: row.aliases,
+            preferredUnit: row.preferredUnit === null ? null : unitSchema.parse(row.preferredUnit),
+            isActive: row.isActive,
+            version: row.version,
+            createdAt: toIso(row.createdAt),
+            updatedAt: toIso(row.updatedAt),
+          })),
+          args.page,
+          (row) => ({ sortValue: row.displayName, id: row.id }),
+        );
+      },
+      async get(workspaceId: string, productId: string) {
+        const rows = await tx
+          .select()
+          .from(products)
+          .where(and(eq(products.workspaceId, workspaceId), eq(products.id, productId)))
+          .limit(1);
+        const row = rows[0];
+        return row === undefined
+          ? null
+          : {
+              id: row.id,
+              workspaceId: row.workspaceId,
+              displayName: row.name,
+              aliases: row.aliases,
+              preferredUnit:
+                row.preferredUnit === null ? null : unitSchema.parse(row.preferredUnit),
+              isActive: row.isActive,
+              version: row.version,
+              createdAt: toIso(row.createdAt),
+              updatedAt: toIso(row.updatedAt),
+            };
       },
     },
 
@@ -883,6 +956,197 @@ export function createReadRepositories(tx: Tx) {
               : money(Number(row.expectedAmountMinor), row.expectedCurrency),
           reversalTargetExists: row.reversalOfEntryId === null || row.reversalTargetId !== null,
         }));
+      },
+    },
+
+    operationsReads: {
+      async integrity(workspaceId: string) {
+        const rows = await tx.execute(sql`
+          WITH ledger AS (
+            SELECT workspace_id, customer_id, sum(amount_minor)::bigint AS ledger_minor
+            FROM ${customerAccountEntries}
+            WHERE workspace_id = ${workspaceId}::uuid
+            GROUP BY workspace_id, customer_id
+          ),
+          projection_anomalies AS (
+            SELECT c.id AS customer_id
+            FROM ${customers} c
+            LEFT JOIN ${customerAccountBalances} b
+              ON b.workspace_id = c.workspace_id AND b.customer_id = c.id
+            LEFT JOIN ledger l
+              ON l.workspace_id = c.workspace_id AND l.customer_id = c.id
+            WHERE c.workspace_id = ${workspaceId}::uuid
+              AND coalesce(b.balance_minor, 0) <> coalesce(l.ledger_minor, 0)
+          ),
+          source_checks AS (
+            SELECT
+              e.customer_id,
+              e.source_type,
+              e.source_id,
+              CASE e.source_type
+                WHEN 'sale_posting' THEN
+                  posting_sale.id IS NOT NULL
+                  AND posting_sale.workspace_id = e.workspace_id
+                  AND posting_sale.customer_id = e.customer_id
+                  AND posting_sale.status = 'posted'
+                  AND posting_sale.total_amount_minor = e.amount_minor
+                  AND posting_sale.currency = e.currency
+                WHEN 'sale_void' THEN
+                  void_record.id IS NOT NULL
+                  AND void_record.workspace_id = e.workspace_id
+                  AND void_sale.customer_id = e.customer_id
+                  AND -void_record.amount_minor = e.amount_minor
+                  AND void_record.currency = e.currency
+                WHEN 'payment' THEN
+                  source_payment.id IS NOT NULL
+                  AND source_payment.workspace_id = e.workspace_id
+                  AND source_payment.customer_id = e.customer_id
+                  AND -source_payment.amount_minor = e.amount_minor
+                  AND source_payment.currency = e.currency
+                WHEN 'payment_reversal' THEN
+                  reversal.id IS NOT NULL
+                  AND reversal.workspace_id = e.workspace_id
+                  AND reversed_payment.customer_id = e.customer_id
+                  AND reversal.amount_minor = e.amount_minor
+                  AND reversal.currency = e.currency
+                WHEN 'manual_adjustment' THEN
+                  e.amount_minor <> 0
+                  AND nullif(btrim(e.reason), '') IS NOT NULL
+                ELSE false
+              END AS source_valid
+            FROM ${customerAccountEntries} e
+            LEFT JOIN ${sales} posting_sale
+              ON posting_sale.id = e.source_id AND e.source_type = 'sale_posting'
+            LEFT JOIN ${saleVoids} void_record
+              ON void_record.id = e.source_id AND e.source_type = 'sale_void'
+            LEFT JOIN ${sales} void_sale ON void_sale.id = void_record.sale_id
+            LEFT JOIN ${payments} source_payment
+              ON source_payment.id = e.source_id AND e.source_type = 'payment'
+            LEFT JOIN ${paymentReversals} reversal
+              ON reversal.id = e.source_id AND e.source_type = 'payment_reversal'
+            LEFT JOIN ${payments} reversed_payment ON reversed_payment.id = reversal.payment_id
+            WHERE e.workspace_id = ${workspaceId}::uuid
+          ),
+          duplicate_groups AS (
+            SELECT
+              source_type,
+              source_id,
+              min(customer_id::text)::uuid AS customer_id,
+              count(*)::int AS source_count
+            FROM source_checks
+            GROUP BY source_type, source_id
+            HAVING count(*) > 1
+          ),
+          anomalous_customers AS (
+            SELECT customer_id FROM projection_anomalies
+            UNION
+            SELECT customer_id FROM source_checks WHERE NOT source_valid
+            UNION
+            SELECT customer_id FROM duplicate_groups
+          )
+          SELECT
+            (SELECT count(*)::int FROM ${customers}
+              WHERE workspace_id = ${workspaceId}::uuid) AS customer_count,
+            (SELECT count(*)::int FROM projection_anomalies) AS projection_drift,
+            (SELECT count(*)::int FROM source_checks WHERE NOT source_valid) AS missing_sources,
+            (SELECT coalesce(sum(source_count - 1), 0)::int FROM duplicate_groups)
+              AS duplicate_sources,
+            (SELECT count(*)::int FROM anomalous_customers) AS anomalous_customers
+        `);
+        const row = rows[0] as
+          | {
+              customer_count: number;
+              projection_drift: number;
+              missing_sources: number;
+              duplicate_sources: number;
+              anomalous_customers: number;
+            }
+          | undefined;
+        const customerCount = Number(row?.customer_count ?? 0);
+        const projectionDrift = Number(row?.projection_drift ?? 0);
+        const missingSources = Number(row?.missing_sources ?? 0);
+        const duplicateSources = Number(row?.duplicate_sources ?? 0);
+        const anomalousCustomers = Number(row?.anomalous_customers ?? 0);
+        return {
+          workspaceId,
+          healthyCustomers: customerCount - anomalousCustomers,
+          anomalousCustomers,
+          missingSources,
+          duplicateSources,
+          projectionDrift,
+          status: anomalousCustomers === 0 ? ("healthy" as const) : ("attention" as const),
+        };
+      },
+      async backupPayload(workspaceId: string) {
+        const workspace = await tx
+          .select()
+          .from(workspaces)
+          .where(eq(workspaces.id, workspaceId))
+          .limit(1);
+        if (workspace[0] === undefined) return null;
+        const [
+          membershipRows,
+          customerRows,
+          productRows,
+          saleRows,
+          saleLineRows,
+          saleVoidRows,
+          paymentRows,
+          reversalRows,
+          entryRows,
+          auditRows,
+          receiptRows,
+        ] = await Promise.all([
+          tx
+            .select()
+            .from(workspaceMemberships)
+            .where(eq(workspaceMemberships.workspaceId, workspaceId)),
+          tx.select().from(customers).where(eq(customers.workspaceId, workspaceId)),
+          tx.select().from(products).where(eq(products.workspaceId, workspaceId)),
+          tx.select().from(sales).where(eq(sales.workspaceId, workspaceId)),
+          tx.select().from(saleLines).where(eq(saleLines.workspaceId, workspaceId)),
+          tx.select().from(saleVoids).where(eq(saleVoids.workspaceId, workspaceId)),
+          tx.select().from(payments).where(eq(payments.workspaceId, workspaceId)),
+          tx.select().from(paymentReversals).where(eq(paymentReversals.workspaceId, workspaceId)),
+          tx
+            .select()
+            .from(customerAccountEntries)
+            .where(eq(customerAccountEntries.workspaceId, workspaceId)),
+          tx.select().from(auditLogs).where(eq(auditLogs.workspaceId, workspaceId)),
+          tx
+            .select()
+            .from(commandReceipts)
+            .where(
+              and(
+                eq(commandReceipts.workspaceId, workspaceId),
+                /*
+                 * An export receipt contains the exported document as its
+                 * idempotent result. Including it in the next export recursively
+                 * embeds the previous backup and makes every generation larger.
+                 * The audit row remains part of the logical backup; only this
+                 * transport receipt is excluded.
+                 */
+                ne(commandReceipts.commandType, "ExportWorkspaceBackup"),
+              ),
+            ),
+        ]);
+        const plain = (value: unknown): Record<string, unknown> =>
+          JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+        const list = (values: readonly unknown[]) => values.map(plain);
+        return {
+          workspace: plain(workspace[0]),
+          memberships: list(membershipRows),
+          customers: list(customerRows),
+          products: list(productRows),
+          sales: list(saleRows),
+          saleLines: list(saleLineRows),
+          saleVoids: list(saleVoidRows),
+          payments: list(paymentRows),
+          paymentReversals: list(reversalRows),
+          accountEntries: list(entryRows),
+          audit: list(auditRows),
+          commandReceipts: list(receiptRows),
+        };
       },
     },
 

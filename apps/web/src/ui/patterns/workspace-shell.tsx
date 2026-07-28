@@ -1,5 +1,6 @@
 import type { SessionDto, WorkspaceRole } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Badge } from "../primitives/badge.tsx";
 
 const ROLE_COPY: Readonly<Record<WorkspaceRole, string>> = {
@@ -44,6 +45,29 @@ export function WorkspaceShell({ workspaceName, session, notice, children }: Wor
           <Badge tone="info">{ROLE_COPY[session.role]}</Badge>
         </div>
       </header>
+      <nav
+        aria-label="Điều hướng chính"
+        className="border-b border-border bg-surface px-4 py-2 text-body-sm"
+      >
+        <div className="mx-auto flex max-w-[1440px] flex-wrap gap-4">
+          <Link href="/customers" className="text-info underline">
+            Khách hàng
+          </Link>
+          <Link href="/sales/new" className="text-info underline">
+            Ghi đơn nhanh
+          </Link>
+          {session.permissions.includes("product.read") ? (
+            <Link href="/products" className="text-info underline">
+              Mặt hàng
+            </Link>
+          ) : null}
+          {session.permissions.includes("workspace.manage") ? (
+            <Link href="/workspace/operations" className="text-info underline">
+              Vận hành
+            </Link>
+          ) : null}
+        </div>
+      </nav>
 
       {notice !== undefined ? (
         <p className="border-b border-warning/30 bg-warning-soft px-4 py-2 text-center text-body-sm text-warning lg:px-8">

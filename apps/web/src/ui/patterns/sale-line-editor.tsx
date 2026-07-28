@@ -1,6 +1,6 @@
 "use client";
 
-import type { Money, Quantity, Unit } from "@vuarau/domain-contracts";
+import type { Money, ProductId, Quantity, Unit } from "@vuarau/domain-contracts";
 import { UNITS, UNIT_LABEL_VI, calculateLineTotal } from "@vuarau/domain-contracts";
 import { IconButton } from "../primitives/icon-button.tsx";
 import { MoneyInput } from "../primitives/money-input.tsx";
@@ -20,6 +20,7 @@ import { formatMoney } from "../format.ts";
  */
 export type SaleLineDraft = {
   readonly lineId: string;
+  readonly productId?: ProductId | null;
   readonly productName: string;
   readonly quantityText: string;
   readonly unit: Unit;
@@ -39,6 +40,7 @@ export type SaleLineDraft = {
 export function emptyLine(lineId: string): SaleLineDraft {
   return {
     lineId,
+    productId: null,
     productName: "",
     quantityText: "",
     unit: "kg",

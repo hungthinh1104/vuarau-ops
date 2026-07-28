@@ -67,6 +67,9 @@ export default function WorkspacePage() {
           </>
         )}
       </QueryStates>
+      <Link href="/workspace/operations" className="text-info underline">
+        Vận hành, kiểm tra và sao lưu →
+      </Link>
       <Link href="/customers" className="text-info underline">
         ← Quay lại khách hàng
       </Link>

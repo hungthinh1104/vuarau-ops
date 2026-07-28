@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "../../../../api/session-gate.tsx";
 import { useTRPC } from "../../../../api/providers.tsx";
@@ -17,16 +18,25 @@ import { useCommand } from "../../../../api/use-command.ts";
 import { useWorkflowMetrics } from "../../../../api/workflow-metrics.ts";
 import { hasPermission } from "../../../../api/session.ts";
 import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
+import { useOffline } from "../../../../offline/provider.tsx";
+import type { CustomerDetailDto, CustomerId } from "@vuarau/domain-contracts";
+import { QuickSaleForm } from "../../customers/[customerId]/sales/new/page.tsx";
 
 /** The direct entry door: select a person, then reuse the one sale command workflow. */
 export default function QuickSaleStartPage() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const searchParams = useSearchParams();
+  const offline = useOffline();
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
+  const [offlineError, setOfflineError] = useState<string | null>(null);
+  const [offlineCaptureCustomerId, setOfflineCaptureCustomerId] = useState<CustomerId | null>(
+    () => searchParams.get("offlineCustomerId") as CustomerId | null,
+  );
   const customerIdRef = useRef<string | null>(null);
   const metrics = useWorkflowMetrics();
   const debounced = useDebounced(query, 200);
@@ -54,13 +64,70 @@ export default function QuickSaleStartPage() {
 
   async function createInline(): Promise<void> {
     if (name.trim().length === 0) return;
+    const customerId = customerIdRef.current ?? (customerIdRef.current = crypto.randomUUID());
+    if (!navigator.onLine) {
+      const now = new Date().toISOString();
+      const pendingCreate = {
+        customerId,
+        displayName: name.trim(),
+        phone: phone.trim() || null,
+        note: note.trim() || null,
+      };
+      try {
+        await offline.cacheCustomers([
+          {
+            ...offline.partition,
+            customerId,
+            displayName: pendingCreate.displayName,
+            phone: pendingCreate.phone,
+            fetchedAt: now,
+            pendingCreate,
+            detail: {
+              customer: {
+                id: customerId,
+                workspaceId,
+                displayName: pendingCreate.displayName,
+                phone: pendingCreate.phone,
+                note: pendingCreate.note,
+                isActive: true,
+                version: 0,
+                transactionTime: now,
+                recordedAt: now,
+                updatedAt: now,
+              },
+              balance: { amountMinor: 0, currency: "VND" },
+              classification: "settled",
+              capabilities: {
+                update: { allowed: false, reasonCode: "CUSTOMER_NOT_FOUND" },
+                deactivate: { allowed: false, reasonCode: "CUSTOMER_NOT_FOUND" },
+                reactivate: { allowed: false, reasonCode: "CUSTOMER_NOT_FOUND" },
+                adjustAccount: { allowed: false, reasonCode: "CUSTOMER_NOT_FOUND" },
+              },
+            } as CustomerDetailDto,
+          },
+        ]);
+        const next = new URLSearchParams(searchParams.toString());
+        next.set("offlineCustomerId", customerId);
+        window.history.replaceState(null, "", `/sales/new?${next.toString()}`);
+        setOfflineCaptureCustomerId(customerId as CustomerId);
+      } catch {
+        setOfflineError(
+          "Không lưu được khách trên thiết bị. Chưa có gì được xếp hàng; giải phóng bộ nhớ rồi thử lại.",
+        );
+      }
+      return;
+    }
     const created = await createCommand.submit({
-      customerId: customerIdRef.current ?? (customerIdRef.current = crypto.randomUUID()),
+      customerId,
       displayName: name.trim(),
       phone: phone.trim() || null,
       note: note.trim() || null,
     });
     void created;
+  }
+
+  if (offlineCaptureCustomerId !== null) {
+    return <QuickSaleForm customerIdOverride={offlineCaptureCustomerId} />;
   }
 
   return (
@@ -155,7 +222,9 @@ export default function QuickSaleStartPage() {
         </QueryStates>
       )}
       {!showingRecent &&
-      search.data?.items.length === 0 &&
+      (search.data?.items.length === 0 ||
+        search.isError ||
+        (typeof navigator !== "undefined" && !navigator.onLine && search.isPending)) &&
       hasPermission(session, "customer.create") ? (
         <section className="rounded-card border border-border bg-surface p-4">
           {!creating ? (
@@ -202,6 +271,7 @@ export default function QuickSaleStartPage() {
                 attemptedAction="Tạo khách hàng"
                 onReload={() => window.location.reload()}
               />
+              {offlineError === null ? null : <p role="alert">{offlineError}</p>}
             </div>
           )}
         </section>

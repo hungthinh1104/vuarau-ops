@@ -8,8 +8,10 @@ import type {
   AccountEntrySourceType,
   SaleId,
   PaymentId,
+  ProductId,
   WorkspaceId,
   WorkspaceRole,
+  WorkspaceBackupV1,
 } from "@vuarau/domain-contracts";
 import type {
   AuditDraft,
@@ -20,6 +22,7 @@ import type {
   SaleVoidState,
   PaymentReversalState,
   PaymentState,
+  ProductState,
 } from "@vuarau/domain-kernel";
 import type { ReadRepositories } from "./read-ports.ts";
 
@@ -125,6 +128,26 @@ export type CustomerRepository = {
    * entries are never removed.
    */
   update(customer: CustomerState, expectedVersion: number): Promise<boolean>;
+};
+
+export type ProductRepository = {
+  findById(workspaceId: WorkspaceId, productId: ProductId): Promise<ProductState | null>;
+  findByIdForUpdate(workspaceId: WorkspaceId, productId: ProductId): Promise<ProductState | null>;
+  insert(product: ProductState): Promise<void>;
+  update(product: ProductState, expectedVersion: number): Promise<boolean>;
+};
+
+export type OperationsRepository = {
+  restoreBackup(
+    workspaceId: WorkspaceId,
+    payload: WorkspaceBackupV1["payload"],
+  ): Promise<
+    | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
+    | {
+        readonly kind: "unsafe_target" | "integrity_error";
+        readonly reason: string;
+      }
+  >;
 };
 
 export type SaleRepository = {
@@ -244,6 +267,8 @@ export type Repositories = ReadRepositories & {
   readonly workspaces: WorkspaceRepository;
   readonly actors: ActorRepository;
   readonly customers: CustomerRepository;
+  readonly products: ProductRepository;
+  readonly operations: OperationsRepository;
   readonly sales: SaleRepository;
   readonly payments: PaymentRepository;
   readonly accountEntries: CustomerAccountEntryRepository;

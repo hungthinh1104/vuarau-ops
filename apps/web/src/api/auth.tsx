@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { e2eBridgeToken, setAccessToken } from "./access-token.ts";
 import { supabaseClient, supabaseConfigured } from "./supabase.ts";
+import { clearOfflineSessionCache } from "../offline/session-cache.ts";
 
 /**
  * Who is signed in, according to Supabase.
@@ -155,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    clearOfflineSessionCache();
     const supabase = supabaseClient();
     await supabase?.auth.signOut();
     setAccessToken(null);

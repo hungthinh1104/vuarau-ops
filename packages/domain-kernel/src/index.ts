@@ -4,3 +4,4 @@ export * from "./sale/index.ts";
 export * from "./payment/index.ts";
 export * from "./account/index.ts";
 export * from "./session/index.ts";
+export * from "./product/index.ts";

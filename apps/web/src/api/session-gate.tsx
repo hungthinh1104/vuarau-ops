@@ -14,6 +14,14 @@ import { Skeleton } from "../ui/primitives/skeleton.tsx";
 import { BusinessRejection } from "../ui/patterns/business-rejection.tsx";
 import { SignIn, SignInUnconfigured } from "../ui/patterns/sign-in.tsx";
 import { WorkspaceShell } from "../ui/patterns/workspace-shell.tsx";
+import { OfflineProvider } from "../offline/provider.tsx";
+import { SyncIndicator } from "../offline/sync-indicator.tsx";
+import {
+  cacheSession,
+  cacheWorkspaces,
+  cachedSession,
+  cachedWorkspaces,
+} from "../offline/session-cache.ts";
 
 /**
  * What every production route sits behind: a verified identity, an explicitly
@@ -117,13 +125,18 @@ function ChooseWorkspace({
   const auth = useAuth();
   const trpc = useTRPC();
   const workspaces = useQuery(trpc.session.workspaces.queryOptions({}));
+  const [offlineWorkspaces] = useState(cachedWorkspaces);
+  useEffect(() => {
+    if (workspaces.data !== undefined) cacheWorkspaces(workspaces.data);
+  }, [workspaces.data]);
 
-  if (workspaces.isPending) {
+  if (workspaces.isPending && offlineWorkspaces === null) {
     return <Waiting label="Đang tải danh sách vựa" />;
   }
 
-  if (workspaces.isError) {
-    const domainError = domainErrorOf(workspaces.error);
+  const workspaceError = workspaces.isError ? domainErrorOf(workspaces.error) : null;
+  if (workspaces.isError && (offlineWorkspaces === null || workspaceError !== null)) {
+    const domainError = workspaceError;
     return (
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-10">
         {domainError === null ? (
@@ -146,7 +159,7 @@ function ChooseWorkspace({
     );
   }
 
-  const choices = workspaces.data.workspaces;
+  const choices = workspaces.data?.workspaces ?? offlineWorkspaces?.workspaces ?? [];
   const chosen = choices.find((choice) => choice.workspaceId === workspaceId) ?? null;
 
   if (chosen === null) {
@@ -174,13 +187,18 @@ function ResolveSession({
   const trpc = useTRPC();
   const workspaceId = choice.workspaceId;
   const me = useQuery(trpc.session.me.queryOptions({ workspaceId }));
+  const [offlineSession] = useState(() => cachedSession(workspaceId));
+  useEffect(() => {
+    if (me.data !== undefined) cacheSession(workspaceId, me.data);
+  }, [me.data, workspaceId]);
 
-  if (me.isPending) {
+  if (me.isPending && offlineSession === null) {
     return <Waiting label="Đang kiểm tra quyền truy cập" />;
   }
 
-  if (me.isError) {
-    const domainError = domainErrorOf(me.error);
+  const sessionError = me.isError ? domainErrorOf(me.error) : null;
+  if (me.isError && (offlineSession === null || sessionError !== null)) {
+    const domainError = sessionError;
     return (
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-10">
         {domainError === null ? (
@@ -206,11 +224,16 @@ function ResolveSession({
     );
   }
 
+  const session = me.data ?? offlineSession;
+  if (session === null) return <Waiting label="Đang kiểm tra quyền truy cập" />;
   return (
-    <SessionContext.Provider value={{ session: me.data, workspaceId, workspaceName: choice.name }}>
-      <WorkspaceShell workspaceName={choice.name} session={me.data}>
-        {children}
-      </WorkspaceShell>
+    <SessionContext.Provider value={{ session, workspaceId, workspaceName: choice.name }}>
+      <OfflineProvider session={session} workspaceId={workspaceId}>
+        <WorkspaceShell workspaceName={choice.name} session={session}>
+          {children}
+        </WorkspaceShell>
+        <SyncIndicator />
+      </OfflineProvider>
     </SessionContext.Provider>
   );
 }

@@ -16,7 +16,15 @@ import { domainRejectionCodeSchema } from "../shared/rejection-codes.ts";
  * intent. See docs/07-data/data-model.md.
  */
 
-export const AUDIT_AGGREGATE_TYPES = ["customer", "sale", "payment", "debt", "membership"] as const;
+export const AUDIT_AGGREGATE_TYPES = [
+  "customer",
+  "sale",
+  "payment",
+  "debt",
+  "membership",
+  "product",
+  "workspace",
+] as const;
 export const auditAggregateTypeSchema = z.enum(AUDIT_AGGREGATE_TYPES);
 export type AuditAggregateType = z.infer<typeof auditAggregateTypeSchema>;
 
@@ -38,6 +46,12 @@ export const AUDIT_ACTIONS = [
   "membership.role_changed",
   "membership.reactivated",
   "membership.revoked",
+  "product.created",
+  "product.updated",
+  "product.deactivated",
+  "product.reactivated",
+  "workspace.backup_exported",
+  "workspace.backup_restored",
 ] as const;
 export const auditActionSchema = z.enum(AUDIT_ACTIONS);
 export type AuditAction = z.infer<typeof auditActionSchema>;

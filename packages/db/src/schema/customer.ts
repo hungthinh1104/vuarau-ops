@@ -43,10 +43,13 @@ export const products = pgTable(
       .notNull()
       .references(() => workspaces.id),
     name: text("name").notNull(),
+    aliases: text("aliases").array().notNull().default([]),
+    preferredUnit: text("preferred_unit"),
     /** Suggested price only; the sale line's snapshot is what a customer owes. */
     defaultUnitPriceMinor: bigint("default_unit_price_minor", { mode: "number" }),
     currency: currencyCodeEnum("currency").notNull().default("VND"),
     isActive: boolean("is_active").notNull().default(true),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

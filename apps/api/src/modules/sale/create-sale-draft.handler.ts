@@ -38,6 +38,16 @@ export function createSaleDraft(
           customerId: command.payload.customerId,
         });
       }
+      for (const line of command.payload.lines) {
+        if (
+          line.productId !== null &&
+          (await repos.products.findById(command.workspaceId, line.productId)) === null
+        ) {
+          return err("PRODUCT_NOT_FOUND", "A referenced product is not in this workspace.", {
+            productId: line.productId,
+          });
+        }
+      }
 
       if (
         command.payload.replacesSaleId === null &&

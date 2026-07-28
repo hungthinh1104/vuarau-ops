@@ -38,6 +38,9 @@ export const DOMAIN_REJECTION_CODES = [
   "WORKSPACE_MEMBER_ROLE_UNCHANGED",
   "WORKSPACE_MEMBER_ROLE_CONFLICT",
   "WORKSPACE_MEMBER_SELF_ROLE_CHANGE_DENIED",
+  "BACKUP_DIGEST_INVALID",
+  "BACKUP_UNSAFE_TARGET",
+  "BACKUP_INTEGRITY_ERROR",
 
   // --- customer -------------------------------------------------------------
   "CUSTOMER_NOT_FOUND",
@@ -46,6 +49,10 @@ export const DOMAIN_REJECTION_CODES = [
   /** Deactivating a customer who already is. Their balance is untouched either way. */
   "CUSTOMER_ALREADY_INACTIVE",
   "CUSTOMER_ALREADY_ACTIVE",
+
+  // --- product --------------------------------------------------------------
+  "PRODUCT_NOT_FOUND",
+  "PRODUCT_VERSION_CONFLICT",
 
   // --- sale ------------------------------------------------------------------
   "SALE_NOT_FOUND",

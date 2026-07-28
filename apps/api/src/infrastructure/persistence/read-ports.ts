@@ -17,9 +17,12 @@ import type {
   PaymentId,
   PaymentMethod,
   PaymentStatus,
+  ProductDto,
   SaleId,
   SaleStatus,
   WorkspaceId,
+  WorkspaceBackupV1,
+  WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
 import type { SaleState } from "@vuarau/domain-kernel";
 
@@ -244,6 +247,16 @@ export type CustomerReadRepository = {
   }): Promise<readonly DuplicateCustomerCandidateRow[]>;
 };
 
+export type ProductReadRepository = {
+  search(args: {
+    workspaceId: WorkspaceId;
+    query: string;
+    isActive: boolean | null;
+    page: PageQuery;
+  }): Promise<PageResult<ProductDto>>;
+  get(workspaceId: WorkspaceId, productId: string): Promise<ProductDto | null>;
+};
+
 export type SaleReadRepository = {
   /**
    * The full sale, lines and void record included, **without** a row lock. The
@@ -316,6 +329,11 @@ export type AuditReadRepository = {
   }): Promise<PageResult<AuditTimelineRow>>;
 };
 
+export type OperationsReadRepository = {
+  integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV1["payload"] | null>;
+};
+
 /**
  * The read side's own bundle. It is reachable from a `Repositories` too, so a
  * query runs in the same transaction as the authorization check that guards it —
@@ -324,8 +342,10 @@ export type AuditReadRepository = {
  */
 export type ReadRepositories = {
   readonly customerReads: CustomerReadRepository;
+  readonly productReads: ProductReadRepository;
   readonly saleReads: SaleReadRepository;
   readonly paymentReads: PaymentReadRepository;
   readonly accountReads: AccountReadRepository;
   readonly auditReads: AuditReadRepository;
+  readonly operationsReads: OperationsReadRepository;
 };

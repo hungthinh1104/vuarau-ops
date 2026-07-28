@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type {
   ActorId,
@@ -13,6 +13,7 @@ import type {
   AccountEntrySourceType,
   SaleId,
   PaymentId,
+  ProductId,
   WorkspaceId,
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
@@ -23,6 +24,7 @@ import type {
   SaleState,
   PaymentReversalState,
   PaymentState,
+  ProductState,
   SaleVoidState,
 } from "@vuarau/domain-kernel";
 import {
@@ -37,6 +39,7 @@ import {
   sales,
   paymentReversals,
   payments,
+  products,
   workspaceMemberships,
   workspaces,
 } from "../schema/index.ts";
@@ -70,6 +73,20 @@ import {
 type Tx = PgTransaction<never, never, never>;
 
 export type IdMinter = { newId(): string };
+
+function toProductState(row: typeof products.$inferSelect): ProductState {
+  return {
+    id: row.id as ProductId,
+    workspaceId: row.workspaceId as WorkspaceId,
+    displayName: row.name,
+    aliases: row.aliases,
+    preferredUnit: row.preferredUnit as ProductState["preferredUnit"],
+    isActive: row.isActive,
+    version: row.version,
+    createdAt: toIso(row.createdAt),
+    updatedAt: toIso(row.updatedAt),
+  };
+}
 
 export function createRepositories(tx: Tx, ids: IdMinter) {
   return {
@@ -333,6 +350,293 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           recordedAt: fromIso(customer.recordedAt),
           updatedAt: fromIso(customer.updatedAt),
         });
+      },
+    },
+
+    products: {
+      async findById(workspaceId: WorkspaceId, productId: ProductId): Promise<ProductState | null> {
+        const rows = await tx
+          .select()
+          .from(products)
+          .where(and(eq(products.workspaceId, workspaceId), eq(products.id, productId)))
+          .limit(1);
+        const row = rows[0];
+        return row === undefined ? null : toProductState(row);
+      },
+      async findByIdForUpdate(
+        workspaceId: WorkspaceId,
+        productId: ProductId,
+      ): Promise<ProductState | null> {
+        const rows = await tx
+          .select()
+          .from(products)
+          .where(and(eq(products.workspaceId, workspaceId), eq(products.id, productId)))
+          .limit(1)
+          .for("update");
+        const row = rows[0];
+        return row === undefined ? null : toProductState(row);
+      },
+      async insert(product: ProductState): Promise<void> {
+        await tx.insert(products).values({
+          id: product.id,
+          workspaceId: product.workspaceId,
+          name: product.displayName,
+          aliases: [...product.aliases],
+          preferredUnit: product.preferredUnit,
+          isActive: product.isActive,
+          version: product.version,
+          createdAt: fromIso(product.createdAt),
+          updatedAt: fromIso(product.updatedAt),
+        });
+      },
+      async update(product: ProductState, expectedVersion: number): Promise<boolean> {
+        const rows = await tx
+          .update(products)
+          .set({
+            name: product.displayName,
+            aliases: [...product.aliases],
+            preferredUnit: product.preferredUnit,
+            isActive: product.isActive,
+            version: product.version,
+            updatedAt: fromIso(product.updatedAt),
+          })
+          .where(
+            and(
+              eq(products.workspaceId, product.workspaceId),
+              eq(products.id, product.id),
+              eq(products.version, expectedVersion),
+            ),
+          )
+          .returning({ id: products.id });
+        return rows.length === 1;
+      },
+    },
+
+    operations: {
+      async restoreBackup(
+        workspaceId: WorkspaceId,
+        payload: {
+          readonly workspace: Record<string, unknown>;
+          readonly memberships: readonly Record<string, unknown>[];
+          readonly customers: readonly Record<string, unknown>[];
+          readonly products: readonly Record<string, unknown>[];
+          readonly sales: readonly Record<string, unknown>[];
+          readonly saleLines: readonly Record<string, unknown>[];
+          readonly saleVoids: readonly Record<string, unknown>[];
+          readonly payments: readonly Record<string, unknown>[];
+          readonly paymentReversals: readonly Record<string, unknown>[];
+          readonly accountEntries: readonly Record<string, unknown>[];
+          readonly audit: readonly Record<string, unknown>[];
+          readonly commandReceipts: readonly Record<string, unknown>[];
+        },
+      ) {
+        const [customerRows, productRows, saleRows, paymentRows, entryRows] = await Promise.all([
+          tx
+            .select({ id: customers.id })
+            .from(customers)
+            .where(eq(customers.workspaceId, workspaceId))
+            .limit(1),
+          tx
+            .select({ id: products.id })
+            .from(products)
+            .where(eq(products.workspaceId, workspaceId))
+            .limit(1),
+          tx
+            .select({ id: sales.id })
+            .from(sales)
+            .where(eq(sales.workspaceId, workspaceId))
+            .limit(1),
+          tx
+            .select({ id: payments.id })
+            .from(payments)
+            .where(eq(payments.workspaceId, workspaceId))
+            .limit(1),
+          tx
+            .select({ id: customerAccountEntries.id })
+            .from(customerAccountEntries)
+            .where(eq(customerAccountEntries.workspaceId, workspaceId))
+            .limit(1),
+        ]);
+        if (
+          [customerRows, productRows, saleRows, paymentRows, entryRows].some(
+            (rows) => rows.length > 0,
+          )
+        ) {
+          return { kind: "unsafe_target" as const, reason: "target contains business data" };
+        }
+        const sourceWorkspaceId = payload.workspace["id"];
+        if (typeof sourceWorkspaceId !== "string") {
+          return { kind: "integrity_error" as const, reason: "missing source workspace identity" };
+        }
+        if (sourceWorkspaceId !== workspaceId) {
+          const sourceStillPresent = await tx
+            .select({ id: workspaces.id })
+            .from(workspaces)
+            .where(eq(workspaces.id, sourceWorkspaceId))
+            .limit(1);
+          if (sourceStillPresent.length > 0) {
+            return {
+              kind: "integrity_error" as const,
+              reason: "source identities already exist in this database",
+            };
+          }
+        }
+
+        const actorIds = [
+          ...payload.accountEntries.map((row) => row["actorId"]),
+          ...payload.audit.map((row) => row["actorId"]),
+        ].filter((value): value is string => typeof value === "string");
+        if (actorIds.length > 0) {
+          const existing = await tx
+            .select({ id: actors.id })
+            .from(actors)
+            .where(inArray(actors.id, [...new Set(actorIds)]));
+          if (existing.length !== new Set(actorIds).size) {
+            return { kind: "integrity_error" as const, reason: "unresolved actor identity" };
+          }
+        }
+
+        const date = (value: unknown): Date => new Date(String(value));
+        const scoped = (
+          row: Record<string, unknown>,
+        ): Record<string, unknown> & { workspaceId: WorkspaceId } => ({
+          ...row,
+          workspaceId,
+        });
+        if (payload.customers.length > 0) {
+          await tx.insert(customers).values(
+            payload.customers.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                transactionTime: date(row["transactionTime"]),
+                recordedAt: date(row["recordedAt"]),
+                updatedAt: date(row["updatedAt"]),
+              };
+            }) as unknown as (typeof customers.$inferInsert)[],
+          );
+        }
+        if (payload.products.length > 0) {
+          await tx.insert(products).values(
+            payload.products.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                createdAt: date(row["createdAt"]),
+                updatedAt: date(row["updatedAt"]),
+              };
+            }) as unknown as (typeof products.$inferInsert)[],
+          );
+        }
+        if (payload.sales.length > 0) {
+          await tx.insert(sales).values(
+            payload.sales.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                transactionTime: date(row["transactionTime"]),
+                recordedAt: date(row["recordedAt"]),
+                postedAt: row["postedAt"] == null ? null : date(row["postedAt"]),
+                discardedAt: row["discardedAt"] == null ? null : date(row["discardedAt"]),
+                dueAt: row["dueAt"] == null ? null : date(row["dueAt"]),
+              };
+            }) as unknown as (typeof sales.$inferInsert)[],
+          );
+        }
+        if (payload.saleLines.length > 0)
+          await tx
+            .insert(saleLines)
+            .values(payload.saleLines.map(scoped) as unknown as (typeof saleLines.$inferInsert)[]);
+        if (payload.saleVoids.length > 0) {
+          await tx.insert(saleVoids).values(
+            payload.saleVoids.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                transactionTime: date(row["transactionTime"]),
+                recordedAt: date(row["recordedAt"]),
+              };
+            }) as unknown as (typeof saleVoids.$inferInsert)[],
+          );
+        }
+        if (payload.payments.length > 0) {
+          await tx.insert(payments).values(
+            payload.payments.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                transactionTime: date(row["transactionTime"]),
+                recordedAt: date(row["recordedAt"]),
+              };
+            }) as unknown as (typeof payments.$inferInsert)[],
+          );
+        }
+        if (payload.paymentReversals.length > 0) {
+          await tx.insert(paymentReversals).values(
+            payload.paymentReversals.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                transactionTime: date(row["transactionTime"]),
+                recordedAt: date(row["recordedAt"]),
+              };
+            }) as unknown as (typeof paymentReversals.$inferInsert)[],
+          );
+        }
+        if (payload.accountEntries.length > 0) {
+          await tx.insert(customerAccountEntries).values(
+            payload.accountEntries.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                transactionTime: date(row["transactionTime"]),
+                recordedAt: date(row["recordedAt"]),
+              };
+            }) as unknown as (typeof customerAccountEntries.$inferInsert)[],
+          );
+        }
+        if (payload.audit.length > 0) {
+          await tx.insert(auditLogs).values(
+            payload.audit.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                transactionTime: date(row["transactionTime"]),
+                recordedAt: date(row["recordedAt"]),
+              };
+            }) as unknown as (typeof auditLogs.$inferInsert)[],
+          );
+        }
+        if (payload.commandReceipts.length > 0) {
+          await tx.insert(commandReceipts).values(
+            payload.commandReceipts.map((raw) => {
+              const row = scoped(raw);
+              return { ...row, recordedAt: date(row["recordedAt"]) };
+            }) as unknown as (typeof commandReceipts.$inferInsert)[],
+          );
+        }
+        await tx.execute(sql`
+            INSERT INTO ${customerAccountBalances}
+              (workspace_id, customer_id, balance_minor, currency, entry_count,
+               last_entry_transaction_time, updated_at)
+            SELECT ${workspaceId}::uuid, c.id, coalesce(sum(e.amount_minor), 0),
+                   coalesce(max(e.currency::text), 'VND')::currency_code,
+                   count(e.id)::int, max(e.transaction_time), now()
+            FROM ${customers} c
+            LEFT JOIN ${customerAccountEntries} e
+              ON e.workspace_id = c.workspace_id AND e.customer_id = c.id
+            WHERE c.workspace_id = ${workspaceId}::uuid
+            GROUP BY c.id
+          `);
+        return {
+          kind: "restored" as const,
+          counts: Object.fromEntries(
+            Object.entries(payload).map(([name, rows]) => [
+              name,
+              Array.isArray(rows) ? rows.length : 1,
+            ]),
+          ),
+        };
       },
     },
 

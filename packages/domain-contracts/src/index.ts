@@ -5,3 +5,5 @@ export * from "./payment/index.ts";
 export * from "./account/index.ts";
 export * from "./audit/index.ts";
 export * from "./session/index.ts";
+export * from "./product/index.ts";
+export * from "./operations/index.ts";

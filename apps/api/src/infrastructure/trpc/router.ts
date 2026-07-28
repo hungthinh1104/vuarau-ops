@@ -34,6 +34,16 @@ import {
   voidSaleCommandSchema,
   workspaceIdSchema,
   workspaceDetailInputSchema,
+  createProductCommandSchema,
+  updateProductCommandSchema,
+  deactivateProductCommandSchema,
+  reactivateProductCommandSchema,
+  productSearchInputSchema,
+  productGetInputSchema,
+  validateWorkspaceBackupInputSchema,
+  workspaceIntegrityInputSchema,
+  restoreWorkspaceBackupCommandSchema,
+  exportWorkspaceBackupCommandSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "./trpc.ts";
 import { createCustomer } from "../../modules/customer/create-customer.handler.ts";
@@ -82,6 +92,19 @@ import {
   getWorkspaceDetail,
   listActorWorkspaces,
 } from "../../modules/session/session.queries.ts";
+import {
+  createProduct,
+  deactivateProduct,
+  reactivateProduct,
+  updateProduct,
+} from "../../modules/product/product.handlers.ts";
+import { getProduct, searchProducts } from "../../modules/product/product.queries.ts";
+import {
+  exportWorkspaceBackup,
+  getWorkspaceIntegrity,
+  validateWorkspaceBackup,
+} from "../../modules/operations/operations.queries.ts";
+import { restoreWorkspaceBackup } from "../../modules/operations/restore-workspace.handler.ts";
 
 /**
  * Twelve mutations, one per business command. No `update`, no `patch`, and no
@@ -299,6 +322,44 @@ const debtRouter = router({
     .mutation(async ({ ctx, input }) => unwrap(await adjustCustomerDebt(ctx, input))),
 });
 
+const productRouter = router({
+  create: commandProcedure
+    .input(createProductCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await createProduct(ctx, input))),
+  update: commandProcedure
+    .input(updateProductCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await updateProduct(ctx, input))),
+  deactivate: commandProcedure
+    .input(deactivateProductCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await deactivateProduct(ctx, input))),
+  reactivate: commandProcedure
+    .input(reactivateProductCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reactivateProduct(ctx, input))),
+  search: authenticatedProcedure
+    .input(productSearchInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await searchProducts(ctx, input))),
+  get: authenticatedProcedure
+    .input(productGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getProduct(ctx, input))),
+});
+
+const operationsRouter = router({
+  integrity: authenticatedProcedure
+    .input(workspaceIntegrityInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getWorkspaceIntegrity(ctx, input.workspaceId))),
+  exportBackup: commandProcedure
+    .input(exportWorkspaceBackupCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await exportWorkspaceBackup(ctx, input))),
+  validateBackup: authenticatedProcedure
+    .input(validateWorkspaceBackupInputSchema)
+    .query(async ({ ctx, input }) =>
+      unwrap(await validateWorkspaceBackup(ctx, input.workspaceId, input.backup)),
+    ),
+  restoreBackup: commandProcedure
+    .input(restoreWorkspaceBackupCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await restoreWorkspaceBackup(ctx, input))),
+});
+
 export const appRouter = router({
   session: sessionRouter,
   customer: customerRouter,
@@ -307,6 +368,8 @@ export const appRouter = router({
   account: accountRouter,
   audit: auditRouter,
   debt: debtRouter,
+  product: productRouter,
+  operations: operationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

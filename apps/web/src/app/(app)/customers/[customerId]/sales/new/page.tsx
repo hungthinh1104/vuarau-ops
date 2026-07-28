@@ -1,8 +1,14 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { CustomerId, Money, SaleDto } from "@vuarau/domain-contracts";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import type {
+  CustomerDetailDto,
+  CustomerId,
+  Money,
+  ProductId,
+  SaleDto,
+} from "@vuarau/domain-contracts";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "../../../../../../api/session-gate.tsx";
@@ -11,6 +17,8 @@ import { useCommand } from "../../../../../../api/use-command.ts";
 import { hasPermission } from "../../../../../../api/session.ts";
 import { useWorkflowMetrics } from "../../../../../../api/workflow-metrics.ts";
 import { useDebounced } from "../../../../../../api/use-debounced.ts";
+import { useOffline } from "../../../../../../offline/provider.tsx";
+import type { CachedProduct } from "../../../../../../offline/types.ts";
 import { QueryStates } from "../../../../../../ui/patterns/query-states.tsx";
 import { BalancePreview } from "../../../../../../ui/patterns/balance-preview.tsx";
 import { CommandOutcome } from "../../../../../../ui/patterns/command-outcome.tsx";
@@ -47,14 +55,33 @@ import { formatDate, formatMoney } from "../../../../../../ui/format.ts";
  * mis-tap away from posting a sale.
  */
 export default function NewSalePage() {
+  return <QuickSaleForm />;
+}
+
+export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId }) {
   const { session, workspaceId } = useSession();
   const trpc = useTRPC();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const params = useParams<{ customerId: string }>();
-  const customerId = params.customerId as CustomerId;
+  const params = useParams<{ customerId?: string }>();
+  const customerId = (props.customerIdOverride ??
+    params.customerId ??
+    searchParams.get("customerId")) as CustomerId;
   const replacesSaleId = searchParams.get("replacesSaleId");
   const metrics = useWorkflowMetrics();
+  const offline = useOffline();
+  const loadOfflineDraft = offline.loadDraft;
+  const saveOfflineDraft = offline.saveDraft;
+  const [cachedCustomer, setCachedCustomer] = useState<CustomerDetailDto | null>(null);
+  const [pendingCustomerCreate, setPendingCustomerCreate] = useState<{
+    readonly customerId: string;
+    readonly displayName: string;
+    readonly phone: string | null;
+    readonly note: string | null;
+  } | null>(null);
+  const [cacheFetchedAt, setCacheFetchedAt] = useState<string | null>(null);
+  const [cachedProducts, setCachedProducts] = useState<readonly CachedProduct[]>([]);
 
   const customer = useQuery(trpc.customer.get.queryOptions({ workspaceId, customerId }));
   const replacementSource = useQuery({
@@ -64,6 +91,8 @@ export default function NewSalePage() {
     }),
     enabled: replacesSaleId !== null,
   });
+  const localSaleId = searchParams.get("localSaleId") ?? crypto.randomUUID();
+  const saleIdRef = useRef(localSaleId);
   const [lines, setLines] = useState<readonly SaleLineDraft[]>(() => [
     emptyLine(crypto.randomUUID()),
   ]);
@@ -73,6 +102,8 @@ export default function NewSalePage() {
   const [dirty, setDirty] = useState(true);
   const [unitNotice, setUnitNotice] = useState<string | null>(null);
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  const [localHydrated, setLocalHydrated] = useState(false);
+  const [locallyQueued, setLocallyQueued] = useState(false);
   const activeLine = lines.find((line) => line.lineId === activeLineId) ?? lines[0]!;
   const activeProductQuery = useDebounced(activeLine.productName, 200);
   const capture = useQuery(
@@ -83,15 +114,144 @@ export default function NewSalePage() {
       limit: 10,
     }),
   );
+  const productSuggestions = useQuery(
+    trpc.product.search.queryOptions({
+      workspaceId,
+      query: activeProductQuery,
+      isActive: true,
+      cursor: null,
+      limit: 8,
+    }),
+  );
+  useEffect(() => {
+    if (productSuggestions.data === undefined) return;
+    const fetchedAt = new Date().toISOString();
+    const rows = productSuggestions.data.items.map((product) => ({
+      ...offline.partition,
+      productId: product.id,
+      displayName: product.displayName,
+      aliases: product.aliases,
+      preferredUnit: product.preferredUnit,
+      fetchedAt,
+    }));
+    setCachedProducts(rows);
+    void offline.cacheProducts(rows);
+  }, [offline, productSuggestions.data]);
+  useEffect(() => {
+    if (productSuggestions.data !== undefined) return;
+    void offline.cachedProducts().then(setCachedProducts);
+  }, [offline, productSuggestions.data]);
+  const visibleProducts =
+    productSuggestions.data?.items ??
+    cachedProducts
+      .filter((product) => {
+        const needle = activeProductQuery.toLocaleLowerCase("vi");
+        return (
+          product.displayName.toLocaleLowerCase("vi").includes(needle) ||
+          product.aliases.some((alias) => alias.toLocaleLowerCase("vi").includes(needle))
+        );
+      })
+      .map((product) => ({
+        id: product.productId as ProductId,
+        displayName: product.displayName,
+        aliases: [...product.aliases],
+        preferredUnit: product.preferredUnit as SaleLineDraft["unit"] | null,
+      }));
+  const cachedCatalogFetchedAt =
+    productSuggestions.data === undefined
+      ? (cachedProducts
+          .map((product) => product.fetchedAt)
+          .sort()
+          .at(-1) ?? null)
+      : null;
 
   // The sale's identity is minted once, when the screen opens. A draft saved,
   // edited and saved again is the same sale throughout.
-  const saleIdRef = useRef(crypto.randomUUID());
   const startedRef = useRef(false);
+  const queueingRef = useRef(false);
   const offeredForRef = useRef<string | null>(null);
   const replacementSeededRef = useRef(false);
   const replacementPending =
     replacesSaleId !== null && (!replacementSource.isSuccess || !replacementSeededRef.current);
+
+  useEffect(() => {
+    if (
+      searchParams.has("localSaleId") ||
+      new URLSearchParams(window.location.search).has("localSaleId")
+    )
+      return;
+    const next = new URLSearchParams(searchParams.toString());
+    if (props.customerIdOverride !== undefined) {
+      next.set("offlineCustomerId", props.customerIdOverride);
+    }
+    next.set("localSaleId", saleIdRef.current);
+    const url = `${pathname}?${next.toString()}`;
+    if (props.customerIdOverride !== undefined) {
+      window.history.replaceState(null, "", url);
+    } else {
+      router.replace(url);
+    }
+  }, [pathname, props.customerIdOverride, router, searchParams]);
+
+  useEffect(() => {
+    let active = true;
+    void loadOfflineDraft(saleIdRef.current).then((saved) => {
+      if (!active) return;
+      if (saved !== null) {
+        setLines(saved.lines as readonly SaleLineDraft[]);
+        setNote(saved.note ?? "");
+        setLocallyQueued(saved.syncState !== "local");
+      }
+      setLocalHydrated(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [loadOfflineDraft]);
+
+  useEffect(() => {
+    if (!localHydrated || locallyQueued) return;
+    void saveOfflineDraft({
+      saleId: saleIdRef.current,
+      customerId,
+      ...offline.partition,
+      lines,
+      note: note.trim().length === 0 ? null : note,
+      occurredAt: new Date().toISOString(),
+      syncState: "local",
+      updatedAt: new Date().toISOString(),
+    });
+  }, [customerId, lines, localHydrated, locallyQueued, note, offline.partition, saveOfflineDraft]);
+
+  useEffect(() => {
+    if (customer.data === undefined) return;
+    const fetchedAt = new Date().toISOString();
+    void offline.cacheCustomers([
+      {
+        ...offline.partition,
+        customerId,
+        displayName: customer.data.customer.displayName,
+        phone: customer.data.customer.phone,
+        detail: customer.data,
+        fetchedAt,
+      },
+    ]);
+  }, [customer.data, customerId, offline]);
+
+  useEffect(() => {
+    if (customer.data !== undefined) return;
+    let active = true;
+    void offline.cachedCustomers().then((customers) => {
+      const cached = customers.find((candidate) => candidate.customerId === customerId);
+      if (!active || cached === undefined) return;
+      setCachedCustomer(cached.detail);
+      setCacheFetchedAt(cached.fetchedAt);
+      setPendingCustomerCreate(cached.pendingCreate ?? null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [customer.data, customerId, offline]);
 
   useEffect(() => {
     if (
@@ -187,15 +347,11 @@ export default function NewSalePage() {
       lines: lines.map((line, index) => ({
         lineId: line.lineId,
         /*
-         * `null`, because the worker typed a name rather than picking a
-         * catalogue entry. `productName` is the identity of what was sold
-         * (BR-SALE-011); `productId` is a link to a suggestion, and there is no
-         * product master to link to yet (BR-SALE-019).
-         *
-         * Minting a uuid here would create a foreign key to a product that does
-         * not exist, which is how this was discovered.
+         * A catalog choice carries its real id; free text carries null.
+         * `productName`, unit and price remain the immutable Sale snapshot
+         * (BR-SALE-011 / ADR-0017). Never mint a product id for free text.
          */
-        productId: null,
+        productId: line.productId ?? null,
         productName: line.productName.trim(),
         quantity: resolved[index]!.quantity,
         unitPrice: resolved[index]!.unitPrice,
@@ -238,6 +394,20 @@ export default function NewSalePage() {
   }, [postCommand.phase.kind, postCommand.result, router, metrics, lines.length]);
 
   useEffect(() => {
+    const post = offline.commands.find(
+      (command) =>
+        command.chainId === saleIdRef.current &&
+        command.kind === "sale.post" &&
+        command.state === "confirmed",
+    );
+    const result = post?.result as SaleDto | undefined;
+    if (result?.id !== undefined) {
+      metrics.mark("post_confirmed_at");
+      router.replace(`/sales/${result.id}`);
+    }
+  }, [metrics, offline.commands, router]);
+
+  useEffect(() => {
     if (postCommand.phase.kind === "unknown") metrics.count("unknown_outcome_count");
   }, [postCommand.phase.kind, metrics]);
 
@@ -249,6 +419,34 @@ export default function NewSalePage() {
       return;
     }
     metrics.mark("post_attempted_at");
+
+    if (
+      draftRef.current === null &&
+      replacesSaleId === null &&
+      (!navigator.onLine || pendingCustomerCreate !== null)
+    ) {
+      if (queueingRef.current) return;
+      queueingRef.current = true;
+      try {
+        await offline.queueSale({
+          ...(pendingCustomerCreate === null ? {} : { customerCommand: pendingCustomerCreate }),
+          sale: {
+            saleId: saleIdRef.current,
+            customerId,
+            lines: toPayload().lines,
+            note: note.trim().length === 0 ? null : note.trim(),
+            replacesSaleId: null,
+          },
+          draftLines: lines,
+          occurredAt: new Date().toISOString(),
+        });
+        setLocallyQueued(true);
+        await offline.retry();
+      } finally {
+        queueingRef.current = false;
+      }
+      return;
+    }
 
     /*
      * One tap does both: a draft has to exist before it can be posted, and asking
@@ -286,8 +484,16 @@ export default function NewSalePage() {
         <h1 className="text-heading font-bold">Đơn hàng mới</h1>
         {/* The state, said in words rather than implied by a colour. Until the
             sale is posted no debt exists (BR-SALE-010). */}
-        <Badge tone={draft === null || dirty ? "neutral" : "info"}>
-          {draft === null ? "Chưa lưu" : dirty ? "Có thay đổi chưa lưu" : "Đã lưu nháp"}
+        <Badge tone={locallyQueued ? "warning" : draft === null || dirty ? "neutral" : "info"}>
+          {locallyQueued
+            ? offline.blockedCount > 0
+              ? "Cần xử lý đồng bộ"
+              : "Đã lưu trên thiết bị · chờ máy chủ"
+            : draft === null
+              ? "Chưa lưu"
+              : dirty
+                ? "Có thay đổi chưa lưu"
+                : "Đã lưu nháp"}
         </Badge>
       </div>
 
@@ -311,8 +517,37 @@ export default function NewSalePage() {
         </QueryStates>
       ) : null}
 
+      {cacheFetchedAt !== null && customer.data === undefined ? (
+        <p
+          role="status"
+          className="rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-body-sm"
+        >
+          Đang dùng thông tin khách đã lưu lúc {formatDate(cacheFetchedAt)}. Số dư chỉ là thông tin
+          cũ và không được dùng để quyết định giao dịch.
+        </p>
+      ) : null}
+      {pendingCustomerCreate !== null ? (
+        <p
+          role="status"
+          className="rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-body-sm"
+        >
+          Khách mới đang lưu trên thiết bị. Khi chốt đơn, hệ thống sẽ đồng bộ khách trước rồi mới
+          tạo và chốt Sale.
+        </p>
+      ) : null}
+
       <QueryStates
-        query={customer}
+        query={
+          cachedCustomer === null
+            ? customer
+            : ({
+                ...customer,
+                data: cachedCustomer,
+                isPending: false,
+                isError: false,
+                error: null,
+              } as typeof customer)
+        }
         loadingLabel="Đang tải khách hàng"
         attemptedAction="Xem khách hàng"
         onRetry={() => void customer.refetch()}
@@ -362,7 +597,12 @@ export default function NewSalePage() {
                             "Giá lần trước đã được xoá vì mặt hàng hoặc đơn vị thay đổi.",
                           );
                           metrics.count("recalled_price_cleared_after_context_change");
-                          return { ...next, unitPriceText: "", priceOrigin: null };
+                          return {
+                            ...next,
+                            productId: productChanged ? null : (next.productId ?? null),
+                            unitPriceText: "",
+                            priceOrigin: null,
+                          };
                         }
                         // Any edit to a recalled visible price is an intentional manual override.
                         if (existing.unitPriceText !== next.unitPriceText && recalled) {
@@ -375,7 +615,7 @@ export default function NewSalePage() {
                         ) {
                           return { ...next, priceOrigin: { kind: "manual" } };
                         }
-                        return next;
+                        return productChanged ? { ...next, productId: null } : next;
                       }),
                     )
                   }
@@ -388,6 +628,49 @@ export default function NewSalePage() {
               <p role="status" className="text-caption text-warning">
                 {unitNotice}
               </p>
+            ) : null}
+            {cachedCatalogFetchedAt !== null ? (
+              <p
+                role="status"
+                className="rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-body-sm"
+              >
+                Đang dùng danh mục đã lưu lúc {formatDate(cachedCatalogFetchedAt)}. Kiểm tra lại khi
+                có mạng; tên và đơn vị này chỉ là gợi ý nhập liệu.
+              </p>
+            ) : null}
+            {visibleProducts.length > 0 ? (
+              <section className="rounded-card border border-border bg-surface p-3">
+                <h2 className="text-label font-semibold">Danh mục mặt hàng</h2>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {visibleProducts.map((product) => (
+                    <Button
+                      key={product.id}
+                      tone="secondary"
+                      onClick={() =>
+                        editLines(
+                          lines.map((line) =>
+                            line.lineId === activeLine.lineId
+                              ? {
+                                  ...line,
+                                  productId: product.id,
+                                  productName: product.displayName,
+                                  unit: product.preferredUnit ?? line.unit,
+                                }
+                              : line,
+                          ),
+                        )
+                      }
+                    >
+                      {product.displayName}
+                      {product.preferredUnit === null ? "" : ` · ${product.preferredUnit}`}
+                    </Button>
+                  ))}
+                </div>
+                <p className="mt-2 text-caption text-ink-muted">
+                  Chọn mặt hàng chỉ điền tên và đơn vị; đơn giá vẫn do bạn nhập hoặc chủ động dùng
+                  giá lần trước.
+                </p>
+              </section>
             ) : null}
             <QueryStates
               query={capture}
@@ -513,13 +796,17 @@ export default function NewSalePage() {
               </div>
             </section>
 
-            {total.amountMinor > 0 ? (
+            {total.amountMinor > 0 && pendingCustomerCreate === null ? (
               <BalancePreview
                 currentBalance={detail.balance}
                 currentClassification={detail.classification}
                 change={total}
                 changeLabel="Đơn này"
               />
+            ) : pendingCustomerCreate !== null ? (
+              <p className="text-caption text-ink-muted">
+                Công nợ hiện tại chưa có trên máy chủ; ứng dụng không tự suy ra số dư.
+              </p>
             ) : null}
 
             <CommandOutcome
@@ -552,12 +839,14 @@ export default function NewSalePage() {
                     ? { disabledReason: "Bạn không có quyền chốt đơn." }
                     : replacementPending
                       ? { disabledReason: "Đang tải đơn cần thay thế…" }
-                      : postCommand.phase.kind === "sending" ||
-                          draftCommand.phase.kind === "sending"
-                        ? { disabledReason: "Đang gửi…" }
-                        : postCommand.phase.kind === "succeeded"
-                          ? { disabledReason: "Đã chốt." }
-                          : {})}
+                      : locallyQueued
+                        ? { disabledReason: "Đơn đã được lưu an toàn trên thiết bị." }
+                        : postCommand.phase.kind === "sending" ||
+                            draftCommand.phase.kind === "sending"
+                          ? { disabledReason: "Đang gửi…" }
+                          : postCommand.phase.kind === "succeeded"
+                            ? { disabledReason: "Đã chốt." }
+                            : {})}
                 >
                   Chốt đơn
                 </Button>

@@ -71,6 +71,13 @@
       "when": 1785486400000,
       "tag": "0009_operational_self_service",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785572800000,
+      "tag": "0010_product_catalog",
+      "breakpoints": true
     }
   ]
 }

@@ -53,6 +53,18 @@ export type CustomerState = {
   readonly updatedAt: IsoInstant;
 };
 
+export type ProductState = {
+  readonly id: ProductId;
+  readonly workspaceId: WorkspaceId;
+  readonly displayName: string;
+  readonly aliases: readonly string[];
+  readonly preferredUnit: Quantity["unit"] | null;
+  readonly isActive: boolean;
+  readonly version: number;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+};
+
 export type SaleLineState = {
   readonly lineId: SaleLineId;
   readonly productId: ProductId | null;

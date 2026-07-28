@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ApiProvider } from "../../api/providers.tsx";
 import { AuthProvider } from "../../api/auth.tsx";
 import { SessionGate } from "../../api/session-gate.tsx";
+import { ServiceWorkerRegistration } from "../../offline/service-worker-registration.tsx";
 
 /**
  * Every production route sits behind this, and nothing else does.
@@ -23,6 +24,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <ApiProvider>
+        <ServiceWorkerRegistration />
         <SessionGate>{children}</SessionGate>
       </ApiProvider>
     </AuthProvider>

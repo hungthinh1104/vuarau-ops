@@ -18,6 +18,7 @@ import type {
   CustomerState,
   SaleState,
   PaymentState,
+  ProductState,
 } from "@vuarau/domain-kernel";
 
 /**
@@ -38,6 +39,7 @@ type Store = {
   /** Actor display names, for the audit timeline's `actorDisplayName`. */
   actorNames: Map<string, string>;
   customers: Map<string, CustomerState>;
+  products: Map<string, ProductState>;
   sales: Map<string, SaleState>;
   payments: Map<string, PaymentState>;
   reversals: PaymentReversalState[];
@@ -55,6 +57,7 @@ function emptyStore(): Store {
     actorsBySubject: new Map(),
     actorNames: new Map(),
     customers: new Map(),
+    products: new Map(),
     sales: new Map(),
     payments: new Map(),
     reversals: [],
@@ -190,6 +193,10 @@ export class InMemoryDatabase {
 
   seedCustomer(customer: CustomerState): void {
     this.store.customers.set(key(customer.workspaceId, customer.id), customer);
+  }
+
+  seedProduct(product: ProductState): void {
+    this.store.products.set(key(product.workspaceId, product.id), product);
   }
 
   seedSale(sale: SaleState): void {
@@ -391,6 +398,106 @@ export class InMemoryDatabase {
           }
           store.customers.set(key(customer.workspaceId, customer.id), customer);
           return true;
+        },
+      },
+
+      products: {
+        findById: async (workspaceId, productId) =>
+          store.products.get(key(workspaceId, productId)) ?? null,
+        findByIdForUpdate: async (workspaceId, productId) =>
+          store.products.get(key(workspaceId, productId)) ?? null,
+        insert: async (product) => {
+          store.products.set(key(product.workspaceId, product.id), product);
+        },
+        update: async (product, expectedVersion) => {
+          const current = store.products.get(key(product.workspaceId, product.id));
+          if (current === undefined || current.version !== expectedVersion) return false;
+          store.products.set(key(product.workspaceId, product.id), product);
+          return true;
+        },
+      },
+
+      operations: {
+        restoreBackup: async (workspaceId, payload) => {
+          const occupied =
+            [...store.customers.values(), ...store.products.values(), ...store.sales.values()].some(
+              (row) => row.workspaceId === workspaceId,
+            ) || store.accountEntries.some((row) => row.workspaceId === workspaceId);
+          if (occupied) {
+            return { kind: "unsafe_target" as const, reason: "target contains business data" };
+          }
+          try {
+            const remap = <T extends Record<string, unknown>>(row: T) => ({
+              ...row,
+              workspaceId,
+            });
+            for (const raw of payload.customers) {
+              const row = remap(raw) as unknown as CustomerState;
+              store.customers.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.products) {
+              const row = remap(raw) as unknown as ProductState;
+              store.products.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.sales) {
+              const row = remap(raw) as unknown as SaleState;
+              store.sales.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.saleVoids) {
+              store.saleVoids.push(remap(raw) as unknown as SaleVoidState);
+            }
+            for (const raw of payload.payments) {
+              const row = remap(raw) as unknown as PaymentState;
+              store.payments.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.paymentReversals) {
+              store.reversals.push(remap(raw) as unknown as PaymentReversalState);
+            }
+            for (const raw of payload.accountEntries) {
+              store.accountEntries.push(remap(raw) as unknown as CustomerAccountEntryDto);
+            }
+            for (const raw of payload.audit) {
+              store.audit.push(remap(raw) as unknown as AuditRecordDto);
+            }
+            for (const raw of payload.commandReceipts) {
+              const row = remap(raw) as unknown as CommandReceipt;
+              store.receipts.set(key(workspaceId, row.idempotencyKey), row);
+            }
+            for (const customer of [...store.customers.values()].filter(
+              (row) => row.workspaceId === workspaceId,
+            )) {
+              const entries = store.accountEntries.filter(
+                (entry) => entry.workspaceId === workspaceId && entry.customerId === customer.id,
+              );
+              const balance = money(
+                entries.reduce((sum, entry) => sum + entry.amount.amountMinor, 0),
+                "VND",
+              );
+              store.balances.set(key(workspaceId, customer.id), {
+                workspaceId,
+                customerId: customer.id,
+                balance,
+                entryCount: entries.length,
+                lastEntryTransactionTime:
+                  entries
+                    .map((entry) => entry.transactionTime)
+                    .sort()
+                    .at(-1) ?? null,
+                updatedAt: new Date().toISOString() as IsoInstant,
+              });
+            }
+            return {
+              kind: "restored" as const,
+              counts: Object.fromEntries(
+                Object.entries(payload).map(([name, rows]) => [
+                  name,
+                  Array.isArray(rows) ? rows.length : 1,
+                ]),
+              ),
+            };
+          } catch {
+            return { kind: "integrity_error" as const, reason: "malformed canonical data" };
+          }
         },
       },
 
@@ -684,6 +791,41 @@ export class InMemoryDatabase {
                 : a.customer.displayName.localeCompare(b.customer.displayName),
             )
             .slice(0, limit);
+        },
+      },
+
+      productReads: {
+        search: async ({ workspaceId, query, isActive, page }) => {
+          const needle = fold(query.trim());
+          const rows = [...store.products.values()]
+            .filter((product) => product.workspaceId === workspaceId)
+            .filter((product) => isActive === null || product.isActive === isActive)
+            .filter(
+              (product) =>
+                needle.length === 0 ||
+                fold(product.displayName).includes(needle) ||
+                product.aliases.some((alias) => fold(alias).includes(needle)),
+            )
+            .sort(
+              ascendingBy(
+                (product) => product.displayName,
+                (product) => product.id,
+              ),
+            )
+            .filter((product) =>
+              page.after === null
+                ? true
+                : after([product.displayName, product.id], [page.after.sortValue, page.after.id]),
+            );
+          return takePage(
+            rows.map((row) => ({ ...row, aliases: [...row.aliases] })),
+            page,
+            (row) => ({ sortValue: row.displayName, id: row.id }),
+          );
+        },
+        get: async (workspaceId, productId) => {
+          const row = store.products.get(key(workspaceId, productId));
+          return row === undefined ? null : { ...row, aliases: [...row.aliases] };
         },
       },
 
@@ -1035,6 +1177,140 @@ export class InMemoryDatabase {
                 reversalTargetExists,
               };
             }),
+      },
+
+      operationsReads: {
+        integrity: async (workspaceId) => {
+          const customers = [...store.customers.values()].filter(
+            (customer) => customer.workspaceId === workspaceId,
+          );
+          const entries = store.accountEntries.filter((entry) => entry.workspaceId === workspaceId);
+          const anomalousCustomerIds = new Set<string>();
+          let projectionDrift = 0;
+          for (const customer of customers) {
+            const ledger = entries
+              .filter((entry) => entry.customerId === customer.id)
+              .reduce((sum, entry) => sum + entry.amount.amountMinor, 0);
+            if (
+              (store.balances.get(key(workspaceId, customer.id))?.balance.amountMinor ?? 0) !==
+              ledger
+            ) {
+              projectionDrift += 1;
+              anomalousCustomerIds.add(customer.id);
+            }
+          }
+          const validSource = (entry: CustomerAccountEntryDto): boolean => {
+            if (entry.sourceType === "manual_adjustment") {
+              return entry.amount.amountMinor !== 0 && (entry.reason?.trim().length ?? 0) > 0;
+            }
+            if (entry.sourceType === "sale_posting") {
+              const sale = [...store.sales.values()].find((item) => item.id === entry.sourceId);
+              return (
+                sale !== undefined &&
+                sale.workspaceId === entry.workspaceId &&
+                sale.customerId === entry.customerId &&
+                sale.status === "posted" &&
+                sale.totalAmount.amountMinor === entry.amount.amountMinor &&
+                sale.totalAmount.currency === entry.amount.currency
+              );
+            }
+            if (entry.sourceType === "sale_void") {
+              const record = store.saleVoids.find((item) => item.id === entry.sourceId);
+              const sale =
+                record === undefined
+                  ? undefined
+                  : [...store.sales.values()].find((item) => item.id === record.saleId);
+              return (
+                record !== undefined &&
+                sale !== undefined &&
+                record.workspaceId === entry.workspaceId &&
+                sale.customerId === entry.customerId &&
+                -record.amount.amountMinor === entry.amount.amountMinor &&
+                record.amount.currency === entry.amount.currency
+              );
+            }
+            if (entry.sourceType === "payment") {
+              const payment = [...store.payments.values()].find(
+                (item) => item.id === entry.sourceId,
+              );
+              return (
+                payment !== undefined &&
+                payment.workspaceId === entry.workspaceId &&
+                payment.customerId === entry.customerId &&
+                -payment.amount.amountMinor === entry.amount.amountMinor &&
+                payment.amount.currency === entry.amount.currency
+              );
+            }
+            const reversal = store.reversals.find((item) => item.id === entry.sourceId);
+            const payment =
+              reversal === undefined
+                ? undefined
+                : [...store.payments.values()].find((item) => item.id === reversal.paymentId);
+            return (
+              reversal !== undefined &&
+              payment !== undefined &&
+              reversal.workspaceId === entry.workspaceId &&
+              payment.customerId === entry.customerId &&
+              reversal.amount.amountMinor === entry.amount.amountMinor &&
+              reversal.amount.currency === entry.amount.currency
+            );
+          };
+          const missingSources = entries.filter((entry) => {
+            const invalid = !validSource(entry);
+            if (invalid) anomalousCustomerIds.add(entry.customerId);
+            return invalid;
+          }).length;
+          const sourceCounts = new Map<string, { count: number; customerId: string }>();
+          for (const entry of entries) {
+            const sourceKey = `${entry.sourceType}:${entry.sourceId}`;
+            const current = sourceCounts.get(sourceKey);
+            sourceCounts.set(sourceKey, {
+              count: (current?.count ?? 0) + 1,
+              customerId: current?.customerId ?? entry.customerId,
+            });
+          }
+          let duplicateSources = 0;
+          for (const source of sourceCounts.values()) {
+            if (source.count <= 1) continue;
+            duplicateSources += source.count - 1;
+            anomalousCustomerIds.add(source.customerId);
+          }
+          const anomalousCustomers = anomalousCustomerIds.size;
+          return {
+            workspaceId,
+            healthyCustomers: customers.length - anomalousCustomers,
+            anomalousCustomers,
+            missingSources,
+            duplicateSources,
+            projectionDrift,
+            status: anomalousCustomers === 0 ? ("healthy" as const) : ("attention" as const),
+          };
+        },
+        backupPayload: async (workspaceId) => {
+          const workspaceName = store.workspaceNames.get(workspaceId);
+          if (workspaceName === undefined) return null;
+          const rows = <T extends { readonly workspaceId: string }>(values: Iterable<T>) =>
+            [...values].filter((row) => row.workspaceId === workspaceId);
+          const sales = rows(store.sales.values());
+          return {
+            workspace: { id: workspaceId, name: workspaceName },
+            memberships: rows(store.memberships.values()),
+            customers: rows(store.customers.values()),
+            products: rows(store.products.values()),
+            sales,
+            saleLines: sales.flatMap((sale) =>
+              sale.lines.map((line) => ({ ...line, saleId: sale.id, workspaceId })),
+            ),
+            saleVoids: rows(store.saleVoids),
+            payments: rows(store.payments.values()),
+            paymentReversals: rows(store.reversals),
+            accountEntries: rows(store.accountEntries),
+            audit: rows(store.audit),
+            commandReceipts: rows(store.receipts.values()).filter(
+              (receipt) => receipt.commandType !== "ExportWorkspaceBackup",
+            ),
+          };
+        },
       },
 
       auditReads: {
