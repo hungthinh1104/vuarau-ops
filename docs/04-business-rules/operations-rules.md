@@ -141,6 +141,27 @@ one mistake (BR-SALE-013).
 Nothing is rolled back on a partial failure, because there is nothing to roll back
 to. Unwinding a void would mean voiding a void.
 
+---
+
+### BR-OPS-004 — Logical recovery is checksummed, empty-target and atomic
+
+**Risk:** P0 · **Codes:** `BACKUP_DIGEST_INVALID`, `BACKUP_UNSAFE_TARGET`,
+`BACKUP_INTEGRITY_ERROR` · **Tests:** TC-OPS-006
+
+Only an owner may export, validate or restore a workspace backup. The SHA-256
+digest covers a canonical ordering of the payload. Restore rejects a non-empty
+business target and broken workspace/customer/product/source references before
+success. All canonical inserts and the command receipt share one application
+transaction; any thrown persistence failure rolls the transaction back.
+
+Balance projections are excluded from backup authority. Restore rebuilds them
+from `customer_account_entries` and then runs the workspace integrity read. A
+non-healthy result is a failure, not a warning. Retrying the same restore command
+returns its original receipt and does not insert another copy.
+
+This is application-level logical recovery. Physical database restore and PITR
+remain deployment infrastructure.
+
 ## Related
 
 - [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — what an environment must satisfy

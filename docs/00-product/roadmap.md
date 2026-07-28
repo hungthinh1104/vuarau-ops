@@ -135,15 +135,35 @@ technically verified; real-worker adoption remains unproven.
 
 ## Later horizons — direction, not an implementation plan
 
-| Horizon                               | Milestones                                                                                                                       | Gate                                                                                   |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 2 — self-service and field resilience | M11 workspace/members/roles (completed); M12 customer operations (completed); M13 offline Quick Sale; M14 reliability/operations | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
-| 3 — goods and inputs                  | M15 product catalog; M16 supplier account; M17 purchase; M18 receiving/inventory movement ledger                                 | Money and goods flows are both traceable.                                              |
-| 4 — depot operations                  | M19 delivery; M20 documents/sharing; M21 reports; M22 performance/security/scale                                                 | Operational views drill down to reliable sources.                                      |
-| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                                                                         | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+### M13 — Offline Quick Sale (technical evidence complete)
 
-The later horizons intentionally do not authorize work now. The next unstarted
-scope is M13; completing M10–M12 does not authorize offline or Goods Flow work.
+IndexedDB persists actor/workspace-partitioned drafts and immutable command
+chains. Reload, retry and reconnect preserve command identity; local state is not
+presented as server-posted truth. The browser shell, cached customer/catalog reads
+and global sync status cover the field capture path.
+
+### M14 — Reliability & operations (technical evidence complete)
+
+The owner operations surface provides sync state, workspace integrity, a
+versioned checksummed logical backup, validation and an atomic, idempotent restore
+to an empty recovery target. Restore rebuilds projections and requires a healthy
+integrity read before success. Infrastructure PITR remains a deployment concern.
+
+### M15 — Product catalog (technical evidence complete)
+
+Product identity, lifecycle, cursor search, permissions, offline read cache and
+Sale snapshot integration are implemented. This does not authorize supplier,
+purchase, inventory, pricing or unit conversion work.
+
+| Horizon                               | Milestones                                                                                                            | Gate                                                                                   |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2 — self-service and field resilience | M11–M14 technically complete                                                                                          | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
+| 3 — goods and inputs                  | M15 product catalog technically complete; M16 supplier account; M17 purchase; M18 receiving/inventory movement ledger | Money and goods flows are both traceable.                                              |
+| 4 — depot operations                  | M19 delivery; M20 documents/sharing; M21 reports; M22 performance/security/scale                                      | Operational views drill down to reliable sources.                                      |
+| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                                                              | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+
+The explicit M13–M15 execution batch superseded the older deferral. The next
+unstarted goods scope is M16, which remains unauthorized here.
 
 ## Maturity stages
 

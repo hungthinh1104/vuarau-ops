@@ -85,6 +85,10 @@ the caller's membership, using the static table in
 | `account.balance`, `account.timeline` | `debt.read`                                                | owner, accountant, sales                      | implemented |
 | `audit.timeline`                      | `audit.read`                                               | **owner, accountant**                         | implemented |
 | `RevokeWorkspaceMembership`           | `workspace.manage`                                         | **owner**                                     | implemented |
+| Product search/get                    | `product.read`                                             | all operational roles                         | implemented |
+| `CreateProduct`, `UpdateProduct`      | `product.create`, `product.update`                         | owner, sales                                  | implemented |
+| Product deactivate/reactivate         | `product.deactivate`, `product.reactivate`                 | **owner**                                     | implemented |
+| Operations integrity/export/restore   | `workspace.manage`                                         | **owner**                                     | implemented |
 | `session.me`                          | — (identity only)                                          | all roles                                     | implemented |
 | `session.workspaces`                  | — (identity only)                                          | all roles                                     | implemented |
 

@@ -2,8 +2,9 @@
 
 This document records the currently delivered boundary. The product direction
 and the only authorized near-term sequence are in [roadmap.md](roadmap.md):
-**M8 Sale Correction UI → M9 Payment & Account Operations → M10 Financial
-Reconciliation**. Later modules are direction, not approved implementation work.
+M8–M15 now have technical implementation evidence, including the deliberately
+narrow empty-target logical restore. M16 and later goods-flow modules are not
+approved by this batch.
 
 ## In scope
 
@@ -42,7 +43,7 @@ Building any of these now would commit the product to a shape it has not earned.
 
 | Excluded                                                         | Why now is too early                                                                                                                                                 |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Product master search, pricing intelligence                      | A typed sale-line snapshot remains the truth; no product lifecycle or pricing engine is justified                                                                    |
+| Pricing intelligence                                             | Product catalog exists, but a typed sale-line snapshot remains truth and no pricing engine is justified                                                              |
 | Customer-local history recall                                    | Delivered as explicit historical recall; it never auto-applies a price                                                                                               |
 | Dashboards, reporting                                            | No accumulated ledger data to report on, and design.md says workflows come first                                                                                     |
 | AI / LLM parsing of free-text entry                              | The deterministic write path must be trustworthy before anything writes to it automatically                                                                          |
@@ -51,7 +52,7 @@ Building any of these now would commit the product to a shape it has not earned.
 | Delivery route optimisation                                      | No delivery module                                                                                                                                                   |
 | Generalised rule builders                                        | A rule engine before six hard-coded rules is speculation                                                                                                             |
 | Inventory, receiving, allocation, delivery, invoicing, suppliers | Each is its own aggregate and lifecycle; the slice does not need them                                                                                                |
-| Offline synchronisation                                          | Idempotent commands + client-supplied ids are the foundation it will need; the sync engine itself is later                                                           |
+| Offline mutation queues beyond Quick Sale                        | M13 is deliberately limited to its customer/sale chain; payment, correction and catalog mutations stay online                                                        |
 | Microservices, Kafka, Kubernetes                                 | See [ADR-0001](../09-decisions/ADR-0001-modular-monolith.md)                                                                                                         |
 | Full event sourcing                                              | The customer account ledger is append-only; the rest of the system is not, and does not need to be ([ADR-0004](../09-decisions/ADR-0004-append-only-debt-ledger.md)) |
 | Full double-entry accounting                                     | The depot needs customer debt, not a general ledger and trial balance                                                                                                |

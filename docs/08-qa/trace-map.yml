@@ -1511,6 +1511,27 @@ contract_tests:
   TC-E2E-025:
     title: Duplicate warning, edit, deactivate and reactivate preserve customer debt
     file: apps/web/e2e/m12-customer-operations.spec.ts
+  TC-OFFLINE-001:
+    title: Offline command chains are immutable, FIFO, partitioned and exact-identity retry safe
+    file: apps/web/src/offline/offline.test.ts
+  TC-OFFLINE-002:
+    title: Cached workspace authority survives reload and is cleared on sign-out
+    file: apps/web/src/offline/session-cache.test.ts
+  TC-OPS-006:
+    title: Logical backup is deterministic, secret-free, validated and idempotently restored to an empty target
+    file: apps/api/src/modules/operations/operations.app.test.ts
+  TC-PRODUCT-001:
+    title: Product search, lifecycle, versioning, permissions and workspace isolation
+    file: apps/api/src/modules/product/product.app.test.ts
+  TC-E2E-026:
+    title: Offline Quick Sale survives reload and synchronizes one posting
+    file: apps/web/e2e/m13-offline-quick-sale.spec.ts
+  TC-E2E-027:
+    title: Owner inspects integrity and exports a checksummed backup
+    file: apps/web/e2e/m14-operations.spec.ts
+  TC-E2E-028:
+    title: Owner creates and finds a catalog Product
+    file: apps/web/e2e/m15-products.spec.ts
 
   # --- running the thing ------------------------------------------------------
   TC-OPS-001:
