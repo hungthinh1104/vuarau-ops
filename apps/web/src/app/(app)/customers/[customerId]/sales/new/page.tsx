@@ -501,6 +501,19 @@ export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId 
         Đơn nháp <strong>chưa tính vào công nợ</strong>. Công nợ chỉ phát sinh khi bấm “Chốt đơn”.
       </p>
 
+      {locallyQueued ? (
+        <section
+          role="status"
+          className="rounded-card border border-warning/40 bg-warning-soft px-3 py-3 text-body-sm"
+        >
+          <p className="font-semibold">Đơn đã được lưu an toàn trên thiết bị.</p>
+          <p>
+            Dữ liệu đang chờ máy chủ xác nhận và không thể sửa trong lúc đồng bộ. Bạn có thể thử
+            đồng bộ từ trạng thái phía trên, rời màn hình hoặc tải lại trang.
+          </p>
+        </section>
+      ) : null}
+
       {replacesSaleId !== null ? (
         <QueryStates
           query={replacementSource}
@@ -584,6 +597,7 @@ export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId 
                     ? { serverIssue: "Máy chủ từ chối dòng này. Kiểm tra số lượng và đơn giá." }
                     : {})}
                   canRemove={lines.length > 1}
+                  disabled={locallyQueued}
                   onFocus={() => setActiveLineId(line.lineId)}
                   onChange={(next) =>
                     editLines(
@@ -646,6 +660,7 @@ export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId 
                     <Button
                       key={product.id}
                       tone="secondary"
+                      disabled={locallyQueued}
                       onClick={() =>
                         editLines(
                           lines.map((line) =>
@@ -686,6 +701,7 @@ export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId 
                       <Button
                         key={`workspace-${history.productName}-${history.unit}`}
                         tone="secondary"
+                        disabled={locallyQueued}
                         onClick={() => {
                           editLines(
                             lines.map((line) =>
@@ -721,6 +737,7 @@ export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId 
                         activeLine.unit === history.unit ? (
                           <Button
                             tone="secondary"
+                            disabled={locallyQueued}
                             onClick={() => {
                               editLines(
                                 lines.map((line) =>
@@ -746,6 +763,7 @@ export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId 
                         ) : (
                           <Button
                             tone="secondary"
+                            disabled={locallyQueued}
                             onClick={() => {
                               editLines(
                                 lines.map((line) =>
@@ -773,13 +791,14 @@ export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId 
 
             {/* `type="button"`, like every control here: adding a line must never
                 be one mis-tap away from posting a sale. */}
-            <Button tone="secondary" fullWidth onClick={addLine}>
+            <Button tone="secondary" fullWidth onClick={addLine} disabled={locallyQueued}>
               + Thêm dòng
             </Button>
 
             <Textarea
               label="Ghi chú"
               rows={2}
+              disabled={locallyQueued}
               value={note}
               onChange={(event) => {
                 setNote(event.target.value);
@@ -822,13 +841,21 @@ export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId 
 
             <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface px-4 py-3">
               <div className="mx-auto flex max-w-[1440px] gap-2">
-                <Button tone="secondary" onClick={() => void discard()}>
+                <Button
+                  tone="secondary"
+                  onClick={() => void discard()}
+                  {...(locallyQueued ? { disabledReason: "Đơn đang chờ máy chủ xác nhận." } : {})}
+                >
                   {draft === null ? "Huỷ" : "Bỏ đơn"}
                 </Button>
                 <Button
                   tone="secondary"
                   onClick={() => void saveDraft()}
-                  {...(replacementPending ? { disabledReason: "Đang tải đơn cần thay thế…" } : {})}
+                  {...(locallyQueued
+                    ? { disabledReason: "Đơn đã được lưu an toàn trên thiết bị." }
+                    : replacementPending
+                      ? { disabledReason: "Đang tải đơn cần thay thế…" }
+                      : {})}
                 >
                   Lưu nháp
                 </Button>

@@ -125,6 +125,8 @@ export type SaleLineEditorProps = {
   readonly onRemove: () => void;
   readonly canRemove: boolean;
   readonly onFocus?: () => void;
+  /** A durably queued offline snapshot is immutable until server confirmation. */
+  readonly disabled?: boolean;
 };
 
 /**
@@ -147,6 +149,7 @@ export function SaleLineEditor({
   onRemove,
   canRemove,
   onFocus,
+  disabled = false,
 }: SaleLineEditorProps) {
   const { total } = resolveLine(line);
 
@@ -159,7 +162,7 @@ export function SaleLineEditor({
       <div className="flex items-center justify-between gap-2">
         <span className="text-caption font-semibold text-ink-muted">Dòng {index + 1}</span>
         {canRemove ? (
-          <IconButton label={`Xoá dòng ${index + 1}`} onClick={onRemove}>
+          <IconButton label={`Xoá dòng ${index + 1}`} onClick={onRemove} disabled={disabled}>
             ✕
           </IconButton>
         ) : null}
@@ -168,6 +171,7 @@ export function SaleLineEditor({
       <TextInput
         label="Mặt hàng"
         required
+        disabled={disabled}
         value={line.productName}
         onChange={(event) => onChange({ ...line, productName: event.target.value })}
         {...(issues.productName !== undefined ? { error: issues.productName } : {})}
@@ -177,6 +181,7 @@ export function SaleLineEditor({
         <QuantityInput
           label="Số lượng"
           required
+          disabled={disabled}
           unit={line.unit}
           value={line.quantityText}
           onChange={(event) => onChange({ ...line, quantityText: event.target.value })}
@@ -184,6 +189,7 @@ export function SaleLineEditor({
         />
         <Select
           label="Đơn vị"
+          disabled={disabled}
           value={line.unit}
           onChange={(event) => onChange({ ...line, unit: event.target.value as Unit })}
           options={UNIT_OPTIONS}
@@ -193,6 +199,7 @@ export function SaleLineEditor({
       <MoneyInput
         label="Đơn giá"
         required
+        disabled={disabled}
         currency="VND"
         value={line.unitPriceText}
         onChange={(event) => onChange({ ...line, unitPriceText: event.target.value })}

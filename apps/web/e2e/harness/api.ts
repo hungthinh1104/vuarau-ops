@@ -292,6 +292,31 @@ export const api = {
       }[];
     };
   },
+
+  async sale(saleId: string): Promise<{
+    id: string;
+    note: string | null;
+    lines: {
+      productName: string;
+      quantity: { valueScaled: number; unit: string };
+      unitPrice: { amountMinor: number; currency: string };
+    }[];
+  }> {
+    return (await call(
+      "sale.get",
+      "query",
+      { workspaceId: E2E_WORKSPACE_ID, saleId },
+      "owner",
+    )) as {
+      id: string;
+      note: string | null;
+      lines: {
+        productName: string;
+        quantity: { valueScaled: number; unit: string };
+        unitPrice: { amountMinor: number; currency: string };
+      }[];
+    };
+  },
 };
 
 function requiredDatabaseUrl(): string {

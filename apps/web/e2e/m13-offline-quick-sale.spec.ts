@@ -21,17 +21,48 @@ test.describe("M13 — durable offline Quick Sale", () => {
     await page.reload();
     await expect(page.getByLabel("Mặt hàng")).toBeVisible();
 
-    await context.setOffline(true);
     await page.getByLabel("Mặt hàng").fill("Rau muống offline");
     await page.getByLabel("Số lượng").fill("10");
     await page.getByLabel("Đơn giá").fill("12.000");
+    await page.getByLabel("Ghi chú").fill("Ảnh chụp bất biến trên thiết bị");
+    await page.waitForTimeout(250);
+
+    // A local draft has no frozen command yet, so reload must preserve it
+    // without taking away the worker's ability to continue editing.
+    await page.reload();
+    await expect(page.getByLabel("Mặt hàng")).toHaveValue("Rau muống offline");
+    await expect(page.getByLabel("Mặt hàng")).toBeEnabled();
+    await expect(page.getByRole("button", { name: "+ Thêm dòng" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Lưu nháp" })).toBeEnabled();
+
+    await context.setOffline(true);
+    await page.getByRole("button", { name: "+ Thêm dòng" }).click();
+    const secondLine = page.getByTestId("sale-line-1");
+    await secondLine.getByLabel("Mặt hàng").fill("Cải ngọt offline");
+    await secondLine.getByLabel("Số lượng").fill("2");
+    await secondLine.getByLabel("Đơn giá").fill("15.000");
     await page.getByRole("button", { name: "Chốt đơn" }).dblclick();
     await expect(page.getByText(/Đã lưu trên thiết bị/)).toBeVisible();
 
     await page.reload();
-    await expect(page.getByLabel("Mặt hàng")).toHaveValue("Rau muống offline");
-    await expect(page.getByText(/chờ máy chủ/)).toBeVisible();
+    await expect(page.getByTestId("sale-line-0").getByLabel("Mặt hàng")).toHaveValue(
+      "Rau muống offline",
+    );
+    await expect(
+      page.getByText("Đã lưu trên thiết bị · chờ máy chủ", { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("Đơn đã được lưu an toàn trên thiết bị.")).toBeVisible();
     await expect(page.getByText(/Đang dùng danh mục đã lưu lúc/)).toBeVisible();
+    await expect(page.getByTestId("sale-line-0").getByLabel("Mặt hàng")).toBeDisabled();
+    await expect(page.getByTestId("sale-line-0").getByLabel("Số lượng")).toBeDisabled();
+    await expect(page.getByTestId("sale-line-0").getByLabel("Đơn vị")).toBeDisabled();
+    await expect(page.getByTestId("sale-line-0").getByLabel("Đơn giá")).toBeDisabled();
+    await expect(page.getByTestId("sale-line-1").getByLabel("Mặt hàng")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Xoá dòng 2" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "+ Thêm dòng" })).toBeDisabled();
+    await expect(page.getByLabel("Ghi chú")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Lưu nháp" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Chốt đơn" })).toBeDisabled();
 
     await context.setOffline(false);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
@@ -41,6 +72,20 @@ test.describe("M13 — durable offline Quick Sale", () => {
 
     const sales = await api.sales(customerId);
     expect(sales.items).toHaveLength(1);
+    const posted = await api.sale(sales.items[0]!.id);
+    expect(posted.note).toBe("Ảnh chụp bất biến trên thiết bị");
+    expect(posted.lines).toMatchObject([
+      {
+        productName: "Rau muống offline",
+        quantity: { valueScaled: 10_000, unit: "kg" },
+        unitPrice: { amountMinor: 12_000, currency: "VND" },
+      },
+      {
+        productName: "Cải ngọt offline",
+        quantity: { valueScaled: 2_000, unit: "kg" },
+        unitPrice: { amountMinor: 15_000, currency: "VND" },
+      },
+    ]);
     const timeline = await api.timeline(customerId);
     expect(timeline.items.filter((entry) => entry.source.type === "sale_posting")).toHaveLength(1);
   });
