@@ -32,6 +32,12 @@ export const DOMAIN_REJECTION_CODES = [
    * itself out of its own account book has no self-service remedy (BR-AUTH-007).
    */
   "WORKSPACE_LAST_OWNER",
+  "WORKSPACE_MEMBER_NOT_FOUND",
+  "WORKSPACE_MEMBER_ALREADY_EXISTS",
+  "WORKSPACE_MEMBER_ALREADY_ACTIVE",
+  "WORKSPACE_MEMBER_ROLE_UNCHANGED",
+  "WORKSPACE_MEMBER_ROLE_CONFLICT",
+  "WORKSPACE_MEMBER_SELF_ROLE_CHANGE_DENIED",
 
   // --- customer -------------------------------------------------------------
   "CUSTOMER_NOT_FOUND",
@@ -39,6 +45,7 @@ export const DOMAIN_REJECTION_CODES = [
   "CUSTOMER_VERSION_CONFLICT",
   /** Deactivating a customer who already is. Their balance is untouched either way. */
   "CUSTOMER_ALREADY_INACTIVE",
+  "CUSTOMER_ALREADY_ACTIVE",
 
   // --- sale ------------------------------------------------------------------
   "SALE_NOT_FOUND",
@@ -84,6 +91,8 @@ export const DOMAIN_REJECTION_CODES = [
   "DEBT_ADJUSTMENT_AMOUNT_INVALID",
   "ACCOUNT_ADJUSTMENT_NOT_FOUND",
   "ACCOUNT_ADJUSTMENT_INTEGRITY_ERROR",
+  "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
+  "ACCOUNT_RECONCILIATION_REBUILD_UNSAFE",
 
   // --- command plumbing -----------------------------------------------------
   "DUPLICATE_COMMAND",

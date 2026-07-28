@@ -64,6 +64,13 @@
       "when": 1785174096444,
       "tag": "0008_futuristic_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785486400000,
+      "tag": "0009_operational_self_service",
+      "breakpoints": true
     }
   ]
 }

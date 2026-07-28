@@ -3,6 +3,8 @@ import type {
   CustomerCapabilities,
   CustomerDetailDto,
   CustomerSummaryDto,
+  DuplicateCustomerCandidateDto,
+  DuplicateCustomerInput,
   GetCustomerInput,
   Page,
   Permission,
@@ -43,12 +45,17 @@ export function customerCapabilities(
       : denied("PERMISSION_DENIED", { permission, role });
 
   const deactivate = permitted("customer.deactivate");
+  const reactivate = permitted("customer.reactivate");
   return {
     update: permitted("customer.update"),
     deactivate:
       deactivate.allowed && customer?.isActive === false
         ? denied("CUSTOMER_ALREADY_INACTIVE", {})
         : deactivate,
+    reactivate:
+      reactivate.allowed && customer?.isActive !== false
+        ? denied("CUSTOMER_ALREADY_ACTIVE", {})
+        : reactivate,
     adjustAccount: permitted("debt.adjust"),
   };
 }
@@ -116,4 +123,31 @@ export async function getCustomer(
     });
   }
   return { ok: true, value: result.value };
+}
+
+export function findPossibleDuplicateCustomers(
+  ctx: CommandContext,
+  input: DuplicateCustomerInput,
+): Promise<DomainResult<readonly DuplicateCustomerCandidateDto[]>> {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "customer.read",
+    execute: async ({ repos, membership }) => {
+      const rows = await repos.customerReads.possibleDuplicates({
+        workspaceId: input.workspaceId,
+        displayName: input.displayName,
+        phone: input.phone,
+        excludeCustomerId: input.excludeCustomerId,
+        limit: 10,
+      });
+      return rows.map((row) => ({
+        customer: {
+          ...row.customer,
+          capabilities: customerCapabilities(membership.role, row.customer),
+        },
+        reasons: [...row.reasons],
+      }));
+    },
+  });
 }

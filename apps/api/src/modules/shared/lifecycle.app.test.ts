@@ -18,7 +18,11 @@ import { createHarness, ledgerBalance, type Harness } from "../../testing/comman
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
 import { discardSaleDraft, updateSaleDraft } from "../sale/edit-sale-draft.handler.ts";
-import { deactivateCustomer, updateCustomer } from "../customer/update-customer.handler.ts";
+import {
+  deactivateCustomer,
+  reactivateCustomer,
+  updateCustomer,
+} from "../customer/update-customer.handler.ts";
 import { revokeWorkspaceMembership } from "../session/revoke-membership.handler.ts";
 import { adjustCustomerDebt } from "../account/adjust-debt.handler.ts";
 import { getCustomer } from "../customer/customer.queries.ts";
@@ -275,6 +279,59 @@ describe("BR-CUSTOMER-003 / TC-CUSTOMER-009 — DeactivateCustomer", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("PERMISSION_DENIED");
+  });
+});
+
+describe("BR-CUSTOMER-003 / TC-CUSTOMER-011 — ReactivateCustomer", () => {
+  it("restores operational use without touching the existing ledger history", async () => {
+    await adjustCustomerDebt(harness.ctx, {
+      ...envelope(),
+      payload: {
+        adjustmentId: uuid(602),
+        customerId: CUSTOMER_ID,
+        direction: "increase",
+        amount: vnd(125_000),
+        reasonCode: "opening_balance",
+        reason: "Nợ cũ",
+      },
+    });
+    await deactivateCustomer(harness.ctx, deactivateInput());
+    const entriesBefore = structuredClone(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID));
+
+    const result = await reactivateCustomer(harness.ctx, {
+      ...envelope(),
+      expectedVersion: 2,
+      payload: { customerId: CUSTOMER_ID, reason: "Khách quay lại mua hàng" },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.isActive).toBe(true);
+    expect(result.value.version).toBe(3);
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toEqual(entriesBefore);
+    expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(125_000);
+  });
+
+  it("is owner-only and duplicate-safe", async () => {
+    await deactivateCustomer(harness.ctx, deactivateInput());
+    const command = {
+      ...replayable("reactivate"),
+      expectedVersion: 2,
+      payload: { customerId: CUSTOMER_ID, reason: "Khôi phục hồ sơ" },
+    };
+    const first = await reactivateCustomer(harness.ctx, command);
+    const replay = await reactivateCustomer(harness.ctx, command);
+    expect(first.ok).toBe(true);
+    expect(replay).toEqual(first);
+
+    const denied = await reactivateCustomer(harness.contextFor(SALES_ACTOR_ID), {
+      ...envelope(SALES_ACTOR_ID),
+      expectedVersion: 3,
+      payload: { customerId: CUSTOMER_ID, reason: "Không đủ quyền" },
+    });
+    expect(denied.ok).toBe(false);
+    if (denied.ok) return;
+    expect(denied.error.code).toBe("PERMISSION_DENIED");
   });
 });
 

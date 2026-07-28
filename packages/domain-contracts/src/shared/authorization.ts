@@ -27,6 +27,7 @@ export const PERMISSIONS = [
   "customer.read",
   "customer.update",
   "customer.deactivate",
+  "customer.reactivate",
   "sale.create",
   "sale.post",
   /** Removes a receivable without a payment arriving. Sits with `debt.adjust`. */

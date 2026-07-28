@@ -1,17 +1,26 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { AccountTimelineEntryDto, Cursor, CustomerId, Page } from "@vuarau/domain-contracts";
+import type {
+  AccountTimelineEntryDto,
+  Cursor,
+  CustomerDto,
+  CustomerId,
+  Page,
+} from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "../../../../api/session-gate.tsx";
 import { useTRPC } from "../../../../api/providers.tsx";
+import { useCommand } from "../../../../api/use-command.ts";
 import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
 import { BalanceCard } from "../../../../ui/patterns/balance-card.tsx";
 import { TimelineItem } from "../../../../ui/patterns/timeline-item.tsx";
 import { Badge } from "../../../../ui/primitives/badge.tsx";
 import { EmptyState } from "../../../../ui/primitives/empty-state.tsx";
+import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
+import { formatDate, formatMoney } from "../../../../ui/format.ts";
 
 /**
  * One customer: what they owe, how it got that way, and what can be done next.
@@ -34,7 +43,44 @@ export default function CustomerDetailPage() {
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const [pages, setPages] = useState<readonly Page<AccountTimelineEntryDto>[]>([]);
 
-  const customer = useQuery(trpc.customer.get.queryOptions({ workspaceId, customerId }));
+  const customer = useQuery({
+    ...trpc.customer.get.queryOptions({ workspaceId, customerId }),
+    // A detail route is also the landing page after customer commands. Always
+    // reconcile its cached copy with server truth when the route mounts.
+    refetchOnMount: "always",
+  });
+  const sales = useQuery(
+    trpc.sale.list.queryOptions({
+      workspaceId,
+      customerId,
+      status: null,
+      financialState: null,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 5,
+    }),
+  );
+  const payments = useQuery(
+    trpc.payment.list.queryOptions({
+      workspaceId,
+      customerId,
+      status: null,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 5,
+    }),
+  );
+  const deactivateMutation = useMutation(trpc.customer.deactivate.mutationOptions());
+  const reactivateMutation = useMutation(trpc.customer.reactivate.mutationOptions());
+  const deactivateCommand = useCommand<
+    { customerId: CustomerId; reason: string | null },
+    CustomerDto
+  >((envelope) => deactivateMutation.mutateAsync(envelope as never) as Promise<CustomerDto>);
+  const reactivateCommand = useCommand<{ customerId: CustomerId; reason: string }, CustomerDto>(
+    (envelope) => reactivateMutation.mutateAsync(envelope as never) as Promise<CustomerDto>,
+  );
   const timeline = useQuery(
     trpc.account.timeline.queryOptions({
       workspaceId,
@@ -54,6 +100,13 @@ export default function CustomerDetailPage() {
     if (!timeline.data) return;
     setPages((current) => (cursor === null ? [timeline.data] : [...current, timeline.data]));
   }, [cursor, timeline.data]);
+  useEffect(() => {
+    if (
+      deactivateCommand.phase.kind === "succeeded" ||
+      reactivateCommand.phase.kind === "succeeded"
+    )
+      void customer.refetch();
+  }, [customer.refetch, deactivateCommand.phase.kind, reactivateCommand.phase.kind]);
   const entries = pages.flatMap((page) => page.items);
   const nextCursor = pages.at(-1)?.nextCursor ?? null;
 
@@ -96,6 +149,14 @@ export default function CustomerDetailPage() {
             ) : null}
 
             <div className="flex flex-wrap gap-3">
+              {detail.capabilities.update.allowed ? (
+                <Link
+                  href={`/customers/${customerId}/edit`}
+                  className="touch-target inline-flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink"
+                >
+                  Sửa hồ sơ
+                </Link>
+              ) : null}
               <Link
                 href={`/customers/${customerId}/sales/new`}
                 className="touch-target inline-flex flex-1 items-center justify-center rounded-button bg-leaf px-4 text-label font-semibold text-white hover:bg-leaf-hover"
@@ -116,7 +177,54 @@ export default function CustomerDetailPage() {
                   Điều chỉnh công nợ
                 </Link>
               ) : null}
+              <Link
+                href={`/customers/${customerId}/account/reconciliation`}
+                className="touch-target inline-flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
+              >
+                Giải thích số dư
+              </Link>
             </div>
+
+            {detail.capabilities.deactivate.allowed ? (
+              <button
+                type="button"
+                disabled={deactivateCommand.phase.kind === "sending"}
+                onClick={() =>
+                  void deactivateCommand.submit(
+                    { customerId, reason: "Ngưng dùng hồ sơ khách hàng" },
+                    { expectedVersion: detail.customer.version },
+                  )
+                }
+                className="touch-target rounded-button border border-danger px-4 text-label text-danger"
+              >
+                Ngưng khách hàng
+              </button>
+            ) : null}
+            {detail.capabilities.reactivate.allowed ? (
+              <button
+                type="button"
+                disabled={reactivateCommand.phase.kind === "sending"}
+                onClick={() =>
+                  void reactivateCommand.submit(
+                    { customerId, reason: "Khôi phục hồ sơ khách hàng" },
+                    { expectedVersion: detail.customer.version },
+                  )
+                }
+                className="touch-target rounded-button border border-border px-4 text-label"
+              >
+                Kích hoạt lại
+              </button>
+            ) : null}
+            <CommandOutcome
+              command={deactivateCommand}
+              attemptedAction="Ngưng khách hàng"
+              onReload={() => void customer.refetch()}
+            />
+            <CommandOutcome
+              command={reactivateCommand}
+              attemptedAction="Kích hoạt lại khách hàng"
+              onReload={() => void customer.refetch()}
+            />
           </div>
         )}
       </QueryStates>
@@ -179,6 +287,41 @@ export default function CustomerDetailPage() {
             )
           }
         </QueryStates>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-card border border-border p-4">
+          <h2 className="text-subheading font-semibold">Đơn gần đây</h2>
+          {sales.data?.items.length ? (
+            <ul className="mt-2 flex flex-col gap-2 text-body-sm">
+              {sales.data.items.map((sale) => (
+                <li key={sale.id}>
+                  <Link href={`/sales/${sale.id}`} className="text-info underline">
+                    {formatDate(sale.transactionTime)} · {formatMoney(sale.totalAmount)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-body-sm text-ink-muted">Chưa có đơn.</p>
+          )}
+        </div>
+        <div className="rounded-card border border-border p-4">
+          <h2 className="text-subheading font-semibold">Thanh toán gần đây</h2>
+          {payments.data?.items.length ? (
+            <ul className="mt-2 flex flex-col gap-2 text-body-sm">
+              {payments.data.items.map((payment) => (
+                <li key={payment.id}>
+                  <Link href={`/payments/${payment.id}`} className="text-info underline">
+                    {formatDate(payment.transactionTime)} · {formatMoney(payment.amount)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-body-sm text-ink-muted">Chưa có thanh toán.</p>
+          )}
+        </div>
       </section>
 
       <Link href="/customers" className="text-body-sm text-info underline underline-offset-2">

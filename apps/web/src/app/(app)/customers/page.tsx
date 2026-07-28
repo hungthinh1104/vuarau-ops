@@ -1,9 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { CustomerSummaryDto } from "@vuarau/domain-contracts";
+import type { Cursor, CustomerSummaryDto, Page } from "@vuarau/domain-contracts";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "../../../api/session-gate.tsx";
 import { useTRPC } from "../../../api/providers.tsx";
 import { useDebounced } from "../../../api/use-debounced.ts";
@@ -27,9 +27,12 @@ import { describeBalance } from "../../../ui/format.ts";
  * balance can disagree on screen.
  */
 export default function CustomersPage() {
-  const { workspaceId } = useSession();
+  const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<boolean | null>(null);
+  const [cursor, setCursor] = useState<Cursor | null>(null);
+  const [pages, setPages] = useState<readonly Page<CustomerSummaryDto>[]>([]);
   // 250 ms: long enough that a typed name is one request rather than fourteen,
   // short enough that the list feels like it is keeping up on a slow connection.
   const debounced = useDebounced(query, 250);
@@ -38,15 +41,37 @@ export default function CustomersPage() {
     trpc.customer.search.queryOptions({
       workspaceId,
       query: debounced,
-      isActive: null,
-      cursor: null,
+      isActive: activeFilter,
+      cursor,
       limit: 25,
     }),
   );
+  useEffect(() => {
+    setCursor(null);
+    setPages([]);
+  }, [workspaceId, debounced, activeFilter]);
+  useEffect(() => {
+    if (!customers.data) return;
+    setPages((current) => (cursor === null ? [customers.data] : [...current, customers.data]));
+  }, [cursor, customers.data]);
+  const items = pages.flatMap((page) => page.items);
+  const nextCursor = pages.at(-1)?.nextCursor ?? null;
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-heading font-bold">Khách hàng</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-heading font-bold">Khách hàng</h1>
+        {session.permissions.includes("workspace.manage") ? (
+          <Link href="/workspace" className="text-body-sm text-info underline">
+            Quản lý vựa
+          </Link>
+        ) : null}
+        {session.permissions.includes("customer.create") ? (
+          <Link href="/customers/new" className="text-body-sm text-info underline">
+            Thêm khách hàng
+          </Link>
+        ) : null}
+      </div>
 
       <SearchInput
         label="Tìm khách hàng"
@@ -57,13 +82,28 @@ export default function CustomersPage() {
         autoFocus
       />
 
+      <label className="text-label">
+        Trạng thái
+        <select
+          value={activeFilter === null ? "all" : activeFilter ? "active" : "inactive"}
+          onChange={(event) =>
+            setActiveFilter(event.target.value === "all" ? null : event.target.value === "active")
+          }
+          className="ml-2 rounded-button border border-border px-3 py-2"
+        >
+          <option value="all">Tất cả</option>
+          <option value="active">Đang hoạt động</option>
+          <option value="inactive">Đã ngưng</option>
+        </select>
+      </label>
+
       <QueryStates
         query={customers}
         loadingLabel="Đang tìm khách hàng"
         onRetry={() => void customers.refetch()}
       >
-        {(page) =>
-          page.items.length === 0 ? (
+        {() =>
+          items.length === 0 ? (
             <EmptyState
               title={query.length === 0 ? "Chưa có khách hàng nào" : "Không tìm thấy khách nào"}
               description={
@@ -74,7 +114,7 @@ export default function CustomersPage() {
             />
           ) : (
             <ul className="flex flex-col gap-2">
-              {page.items.map((customer) => (
+              {items.map((customer) => (
                 <li key={customer.id}>
                   <CustomerRow customer={customer} />
                 </li>
@@ -84,13 +124,27 @@ export default function CustomersPage() {
         }
       </QueryStates>
 
-      {customers.data?.nextCursor != null ? (
-        // Deliberately not infinite scroll: a worker looking for one person wants
-        // a better query, not more rows. Narrowing the search is faster than
-        // paging, and this says so.
-        <p className="text-caption text-ink-muted">
-          Còn khách khác chưa hiện. Gõ thêm chữ để thu hẹp danh sách.
-        </p>
+      {nextCursor !== null ? (
+        <div className="flex items-center gap-3">
+          <p className="text-caption text-ink-muted">Đang hiện {items.length} khách hàng.</p>
+          <button
+            type="button"
+            className="touch-target rounded-button border border-border px-3 text-label"
+            disabled={customers.isFetching}
+            onClick={() => setCursor(nextCursor)}
+          >
+            {customers.isFetching ? "Đang tải" : "Tải thêm"}
+          </button>
+          {customers.isError ? (
+            <button
+              type="button"
+              className="text-info underline"
+              onClick={() => customers.refetch()}
+            >
+              Thử lại
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

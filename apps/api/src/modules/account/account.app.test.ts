@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  commandIdSchema,
+  customerAccountEntryIdSchema,
+  customerIdSchema,
+} from "@vuarau/domain-contracts";
+import {
   ACTOR_ID,
   ADJUSTMENT_ID,
   COMMAND_ID,
@@ -10,6 +15,7 @@ import {
   OTHER_IDEMPOTENCY_KEY,
   PAYMENT_AMOUNT,
   PAYMENT_ID,
+  SALES_ACTOR_ID,
   SECOND_COMMAND_ID,
   THIRD_COMMAND_ID,
   TRANSACTION_TIME,
@@ -21,9 +27,11 @@ import { createHarness, ledgerBalance, type Harness } from "../../testing/comman
 import { adjustCustomerDebt } from "./adjust-debt.handler.ts";
 import {
   getAccountAdjustmentDetail,
+  getAccountReconciliation,
   getCustomerAccountBalance,
   rebuildAccountBalance,
 } from "./account.queries.ts";
+import { rebuildAccountProjection } from "./rebuild-account-projection.handler.ts";
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
@@ -397,5 +405,149 @@ describe("BR-ACCOUNT-009 / TC-ACCOUNT-010", () => {
     // collect from somebody the depot owes.
     expect(credit.value.balance.amountMinor).toBe(-400_000);
     expect(credit.value.classification).toBe("customer_credit");
+  });
+});
+
+describe("BR-ACCOUNT-006 / TC-ACCOUNT-011 — reconciliation and safe repair", () => {
+  const rebuildInput = {
+    commandId: "00000000-0000-4000-8000-000000000901",
+    idempotencyKey: "rebuild-account-projection-0001",
+    workspaceId: WORKSPACE_ID,
+    actorId: ACTOR_ID,
+    occurredAt: LATER_TRANSACTION_TIME,
+    payload: {
+      customerId: CUSTOMER_ID,
+      reason: "Đối soát phát hiện bảng tổng hợp bị lệch",
+    },
+  };
+
+  it("classifies a matching projection and ledger as consistent", async () => {
+    await runCasebookLedger();
+
+    const result = await getAccountReconciliation(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.kind).toBe("consistent");
+    if (result.value.kind !== "consistent") return;
+    expect(result.value.ledger.balance.amountMinor).toBe(375_000);
+    expect(result.value.projection?.balance.amountMinor).toBe(375_000);
+    expect(result.value.difference.amountMinor).toBe(0);
+    expect(result.value.ledger.entryCount).toBe(2);
+  });
+
+  it("detects projection drift, repairs it once, and replays without another ledger effect", async () => {
+    await runCasebookLedger();
+    harness.db.overwriteBalance({
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+      balance: vnd(999_999),
+      entryCount: 99,
+      lastEntryTransactionTime: null,
+      updatedAt: TRANSACTION_TIME,
+    });
+    const ledgerBefore = structuredClone(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID));
+
+    const drift = await getAccountReconciliation(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+    });
+    expect(drift.ok).toBe(true);
+    if (!drift.ok || drift.value.kind !== "inconsistent") return;
+    expect(drift.value.diagnostics.map((item) => item.code)).toEqual(
+      expect.arrayContaining([
+        "projection_balance_mismatch",
+        "projection_entry_count_mismatch",
+        "projection_last_transaction_mismatch",
+      ]),
+    );
+
+    const first = await rebuildAccountProjection(harness.ctx, rebuildInput);
+    const replay = await rebuildAccountProjection(harness.ctx, rebuildInput);
+
+    expect(first.ok).toBe(true);
+    expect(replay).toEqual(first);
+    if (!first.ok) return;
+    expect(first.value.after.balance.amountMinor).toBe(375_000);
+    expect(first.value.reconciliation.kind).toBe("consistent");
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toEqual(ledgerBefore);
+    expect(
+      harness.db.auditRecords().filter((record) => record.action === "account.projection_rebuilt"),
+    ).toHaveLength(1);
+  });
+
+  it("refuses repair when a ledger source is missing", async () => {
+    await runCasebookLedger();
+    harness.db.removeSale(WORKSPACE_ID, SALE_ID);
+
+    const reconciliation = await getAccountReconciliation(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+    });
+    expect(reconciliation.ok).toBe(true);
+    if (!reconciliation.ok || reconciliation.value.kind !== "integrity_failure") return;
+    expect(reconciliation.value.diagnostics.some((item) => item.code === "source_missing")).toBe(
+      true,
+    );
+
+    const rebuild = await rebuildAccountProjection(harness.ctx, rebuildInput);
+    expect(rebuild.ok).toBe(false);
+    if (rebuild.ok) return;
+    expect(rebuild.error.code).toBe("ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE");
+  });
+
+  it("returns explicit not-found and integrity-failure outcomes", async () => {
+    const missing = await getAccountReconciliation(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      customerId: customerIdSchema.parse("00000000-0000-4000-8000-000000009999"),
+    });
+    expect(missing.ok).toBe(true);
+    if (!missing.ok) return;
+    expect(missing.value.kind).toBe("not_found");
+
+    harness.db.seedAccountEntry({
+      id: customerAccountEntryIdSchema.parse("00000000-0000-4000-8000-000000009901"),
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+      amount: vnd(0),
+      sourceType: "manual_adjustment",
+      sourceId: "00000000-0000-4000-8000-000000009902",
+      reversalOfEntryId: null,
+      reasonCode: "other",
+      reason: "Corrupt zero row",
+      transactionTime: TRANSACTION_TIME,
+      recordedAt: TRANSACTION_TIME,
+      actorId: ACTOR_ID,
+      commandId: commandIdSchema.parse("00000000-0000-4000-8000-000000009903"),
+    });
+    const corrupt = await getAccountReconciliation(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+    });
+    expect(corrupt.ok).toBe(true);
+    if (!corrupt.ok) return;
+    expect(corrupt.value.kind).toBe("integrity_failure");
+  });
+
+  it("lets sales read reconciliation but refuses a projection rebuild", async () => {
+    await runCasebookLedger();
+    const sales = harness.contextFor(SALES_ACTOR_ID);
+
+    const read = await getAccountReconciliation(sales, {
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+    });
+    expect(read.ok).toBe(true);
+
+    const rebuild = await rebuildAccountProjection(sales, {
+      ...rebuildInput,
+      actorId: SALES_ACTOR_ID,
+    });
+    expect(rebuild.ok).toBe(false);
+    if (rebuild.ok) return;
+    expect(rebuild.error.code).toBe("PERMISSION_DENIED");
   });
 });

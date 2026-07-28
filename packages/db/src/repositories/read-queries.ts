@@ -242,6 +242,80 @@ export function createReadRepositories(tx: Tx) {
           };
         });
       },
+
+      async possibleDuplicates(args: {
+        workspaceId: string;
+        displayName: string;
+        phone: string | null;
+        excludeCustomerId: string | null;
+        limit: number;
+      }) {
+        const normalizedName = args.displayName.trim();
+        const normalizedPhone = args.phone?.replace(/\D/g, "") ?? "";
+        if (normalizedName.length === 0 && normalizedPhone.length === 0) return [];
+
+        const sameName =
+          normalizedName.length === 0
+            ? sql<boolean>`false`
+            : sql<boolean>`vuarau_fold(trim(${customers.displayName})) = vuarau_fold(${normalizedName})`;
+        const samePhone =
+          normalizedPhone.length === 0
+            ? sql<boolean>`false`
+            : sql<boolean>`regexp_replace(coalesce(${customers.phone}, ''), '[^0-9]', '', 'g') = ${normalizedPhone}`;
+        const filters: SQL[] = [
+          eq(customers.workspaceId, args.workspaceId),
+          or(sameName, samePhone)!,
+        ];
+        if (args.excludeCustomerId !== null) {
+          filters.push(sql`${customers.id} <> ${args.excludeCustomerId}::uuid`);
+        }
+        const rows = await tx
+          .select({
+            id: customers.id,
+            workspaceId: customers.workspaceId,
+            displayName: customers.displayName,
+            phone: customers.phone,
+            isActive: customers.isActive,
+            version: customers.version,
+            balanceMinor: customerAccountBalances.balanceMinor,
+            currency: customerAccountBalances.currency,
+            lastEntryTransactionTime: customerAccountBalances.lastEntryTransactionTime,
+            sameName,
+            samePhone,
+          })
+          .from(customers)
+          .leftJoin(
+            customerAccountBalances,
+            and(
+              eq(customerAccountBalances.workspaceId, customers.workspaceId),
+              eq(customerAccountBalances.customerId, customers.id),
+            ),
+          )
+          .where(and(...filters))
+          .orderBy(asc(customers.displayName), asc(customers.id))
+          .limit(args.limit);
+
+        return rows.map((row) => {
+          const balance = money(row.balanceMinor ?? 0, row.currency ?? "VND");
+          return {
+            customer: {
+              id: row.id,
+              workspaceId: row.workspaceId,
+              displayName: row.displayName,
+              phone: row.phone,
+              isActive: row.isActive,
+              version: row.version,
+              balance,
+              classification: classifyBalance(balance),
+              lastEntryTransactionTime: toIsoOrNull(row.lastEntryTransactionTime),
+            },
+            reasons: [
+              ...(row.sameName ? (["same_name"] as const) : []),
+              ...(row.samePhone ? (["same_phone"] as const) : []),
+            ],
+          };
+        });
+      },
     },
 
     saleReads: {
@@ -717,6 +791,98 @@ export function createReadRepositories(tx: Tx) {
           page,
           (row) => ({ sortValue: `${row.transactionTime}|${row.recordedAt}`, id: row.id }),
         );
+      },
+
+      async sourceObservations(args: { workspaceId: string; customerId: string }) {
+        const postingSale = alias(sales, "reconciliation_posting_sale");
+        const voidRecord = alias(saleVoids, "reconciliation_sale_void");
+        const voidSale = alias(sales, "reconciliation_void_sale");
+        const sourcePayment = alias(payments, "reconciliation_payment");
+        const reversal = alias(paymentReversals, "reconciliation_payment_reversal");
+        const reversedPayment = alias(payments, "reconciliation_reversed_payment");
+        const reversalTarget = alias(customerAccountEntries, "reconciliation_reversal_target");
+
+        const rows = await tx
+          .select({
+            entryId: customerAccountEntries.id,
+            sourceType: customerAccountEntries.sourceType,
+            sourceId: customerAccountEntries.sourceId,
+            sourceExists: sql<boolean>`CASE ${customerAccountEntries.sourceType}
+              WHEN 'sale_posting' THEN ${postingSale.id} IS NOT NULL
+              WHEN 'sale_void' THEN ${voidRecord.id} IS NOT NULL
+              WHEN 'payment' THEN ${sourcePayment.id} IS NOT NULL
+              WHEN 'payment_reversal' THEN ${reversal.id} IS NOT NULL
+              WHEN 'manual_adjustment' THEN true
+              ELSE false
+            END`,
+            sourceWorkspaceId: sql<string | null>`CASE ${customerAccountEntries.sourceType}
+              WHEN 'sale_posting' THEN ${postingSale.workspaceId}
+              WHEN 'sale_void' THEN ${voidRecord.workspaceId}
+              WHEN 'payment' THEN ${sourcePayment.workspaceId}
+              WHEN 'payment_reversal' THEN ${reversal.workspaceId}
+              WHEN 'manual_adjustment' THEN ${customerAccountEntries.workspaceId}
+              ELSE NULL
+            END`,
+            sourceCustomerId: sql<string | null>`CASE ${customerAccountEntries.sourceType}
+              WHEN 'sale_posting' THEN ${postingSale.customerId}
+              WHEN 'sale_void' THEN ${voidSale.customerId}
+              WHEN 'payment' THEN ${sourcePayment.customerId}
+              WHEN 'payment_reversal' THEN ${reversedPayment.customerId}
+              WHEN 'manual_adjustment' THEN ${customerAccountEntries.customerId}
+              ELSE NULL
+            END`,
+            expectedAmountMinor: sql<number | null>`CASE ${customerAccountEntries.sourceType}
+              WHEN 'sale_posting' THEN ${postingSale.totalAmountMinor}
+              WHEN 'sale_void' THEN -${voidRecord.amountMinor}
+              WHEN 'payment' THEN -${sourcePayment.amountMinor}
+              WHEN 'payment_reversal' THEN ${reversal.amountMinor}
+              WHEN 'manual_adjustment' THEN ${customerAccountEntries.amountMinor}
+              ELSE NULL
+            END`,
+            expectedCurrency: sql<"VND" | null>`CASE ${customerAccountEntries.sourceType}
+              WHEN 'sale_posting' THEN ${postingSale.currency}
+              WHEN 'sale_void' THEN ${voidRecord.currency}
+              WHEN 'payment' THEN ${sourcePayment.currency}
+              WHEN 'payment_reversal' THEN ${reversal.currency}
+              WHEN 'manual_adjustment' THEN ${customerAccountEntries.currency}
+              ELSE NULL
+            END`,
+            reversalOfEntryId: customerAccountEntries.reversalOfEntryId,
+            reversalTargetId: reversalTarget.id,
+          })
+          .from(customerAccountEntries)
+          .leftJoin(postingSale, eq(postingSale.id, customerAccountEntries.sourceId))
+          .leftJoin(voidRecord, eq(voidRecord.id, customerAccountEntries.sourceId))
+          .leftJoin(voidSale, eq(voidSale.id, voidRecord.saleId))
+          .leftJoin(sourcePayment, eq(sourcePayment.id, customerAccountEntries.sourceId))
+          .leftJoin(reversal, eq(reversal.id, customerAccountEntries.sourceId))
+          .leftJoin(reversedPayment, eq(reversedPayment.id, reversal.paymentId))
+          .leftJoin(reversalTarget, eq(reversalTarget.id, customerAccountEntries.reversalOfEntryId))
+          .where(
+            and(
+              eq(customerAccountEntries.workspaceId, args.workspaceId),
+              eq(customerAccountEntries.customerId, args.customerId),
+            ),
+          )
+          .orderBy(
+            asc(customerAccountEntries.transactionTime),
+            asc(customerAccountEntries.recordedAt),
+            asc(customerAccountEntries.id),
+          );
+
+        return rows.map((row) => ({
+          entryId: row.entryId,
+          sourceType: row.sourceType,
+          sourceId: row.sourceId,
+          sourceExists: row.sourceExists,
+          sourceWorkspaceId: row.sourceWorkspaceId,
+          sourceCustomerId: row.sourceCustomerId,
+          expectedAmount:
+            row.expectedAmountMinor === null || row.expectedCurrency === null
+              ? null
+              : money(Number(row.expectedAmountMinor), row.expectedCurrency),
+          reversalTargetExists: row.reversalOfEntryId === null || row.reversalTargetId !== null,
+        }));
       },
     },
 

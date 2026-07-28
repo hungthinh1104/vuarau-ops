@@ -1,14 +1,22 @@
 import type {
   CustomerDto,
   DeactivateCustomerCommand,
+  ReactivateCustomerCommand,
   UpdateCustomerCommand,
 } from "@vuarau/domain-contracts";
 import {
   deactivateCustomerCommandSchema,
+  reactivateCustomerCommandSchema,
   updateCustomerCommandSchema,
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
-import { decideDeactivateCustomer, decideUpdateCustomer, err, ok } from "@vuarau/domain-kernel";
+import {
+  decideDeactivateCustomer,
+  decideReactivateCustomer,
+  decideUpdateCustomer,
+  err,
+  ok,
+} from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { toCustomerDto } from "../shared/mappers.ts";
@@ -115,6 +123,48 @@ export function deactivateCustomer(
         commandId: command.commandId,
       });
 
+      return ok(toCustomerDto(decision.value.aggregate));
+    },
+  });
+}
+
+export function reactivateCustomer(
+  ctx: CommandContext,
+  input: unknown,
+): Promise<DomainResult<CustomerDto>> {
+  return runCommand<ReactivateCustomerCommand, CustomerDto>({
+    commandType: "ReactivateCustomer",
+    schema: reactivateCustomerCommandSchema,
+    input,
+    ctx,
+    requiredPermission: "customer.reactivate",
+    execute: async ({ command, repos, recordedAt }) => {
+      const customer = await repos.customers.findByIdForUpdate(
+        command.workspaceId,
+        command.payload.customerId,
+      );
+      if (customer === null) {
+        return err("CUSTOMER_NOT_FOUND", "No such customer in this workspace.", {
+          customerId: command.payload.customerId,
+        });
+      }
+      const decision = decideReactivateCustomer({ command, customer, recordedAt });
+      if (!decision.ok) return decision;
+
+      const written = await repos.customers.update(decision.value.aggregate, customer.version);
+      if (!written) {
+        return err("CUSTOMER_VERSION_CONFLICT", "Customer was modified by someone else.", {
+          customerId: customer.id,
+          expectedVersion: command.expectedVersion,
+          actualVersion: customer.version,
+        });
+      }
+      await repos.audit.append({
+        ...decision.value.audit,
+        workspaceId: command.workspaceId,
+        actorId: command.actorId,
+        commandId: command.commandId,
+      });
       return ok(toCustomerDto(decision.value.aggregate));
     },
   });

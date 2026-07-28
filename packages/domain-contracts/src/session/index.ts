@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { actorIdSchema, workspaceIdSchema } from "../shared/ids.ts";
 import { permissionSchema, workspaceRoleSchema } from "../shared/authorization.ts";
+import { capabilitySchema } from "../shared/capability.ts";
+import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand } from "../shared/command.ts";
 
 /**
@@ -108,3 +110,57 @@ export const workspaceMembershipDtoSchema = z.object({
   isActive: z.boolean(),
 });
 export type WorkspaceMembershipDto = z.infer<typeof workspaceMembershipDtoSchema>;
+
+// --- workspace administration ----------------------------------------------
+
+export const workspaceMemberDtoSchema = z.object({
+  actorId: actorIdSchema,
+  displayName: z.string().min(1),
+  role: workspaceRoleSchema,
+  isActive: z.boolean(),
+  createdAt: isoInstantSchema,
+});
+export type WorkspaceMemberDto = z.infer<typeof workspaceMemberDtoSchema>;
+
+export const workspaceDetailDtoSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  name: z.string().min(1),
+  members: z.array(workspaceMemberDtoSchema),
+  capabilities: z.object({ manage: capabilitySchema }),
+});
+export type WorkspaceDetailDto = z.infer<typeof workspaceDetailDtoSchema>;
+
+export const workspaceDetailInputSchema = z.object({ workspaceId: workspaceIdSchema });
+export type WorkspaceDetailInput = z.infer<typeof workspaceDetailInputSchema>;
+
+export const addWorkspaceMemberPayloadSchema = z.object({
+  actorId: actorIdSchema,
+  role: workspaceRoleSchema,
+  reason: z.string().trim().min(1).max(500),
+});
+export const addWorkspaceMemberCommandSchema = defineCommand(addWorkspaceMemberPayloadSchema);
+export type AddWorkspaceMemberCommand = z.infer<typeof addWorkspaceMemberCommandSchema>;
+
+export const changeWorkspaceMemberRolePayloadSchema = z.object({
+  actorId: actorIdSchema,
+  expectedRole: workspaceRoleSchema,
+  role: workspaceRoleSchema,
+  reason: z.string().trim().min(1).max(500),
+});
+export const changeWorkspaceMemberRoleCommandSchema = defineCommand(
+  changeWorkspaceMemberRolePayloadSchema,
+);
+export type ChangeWorkspaceMemberRoleCommand = z.infer<
+  typeof changeWorkspaceMemberRoleCommandSchema
+>;
+
+export const reactivateWorkspaceMemberPayloadSchema = z.object({
+  actorId: actorIdSchema,
+  reason: z.string().trim().min(1).max(500),
+});
+export const reactivateWorkspaceMemberCommandSchema = defineCommand(
+  reactivateWorkspaceMemberPayloadSchema,
+);
+export type ReactivateWorkspaceMemberCommand = z.infer<
+  typeof reactivateWorkspaceMemberCommandSchema
+>;

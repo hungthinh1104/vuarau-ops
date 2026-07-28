@@ -14,9 +14,17 @@ import { reverseCustomerPayment } from "../../../modules/payment/reverse-payment
 import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
 import { adjustCustomerDebt } from "../../../modules/account/adjust-debt.handler.ts";
 import {
+  deactivateCustomer,
+  reactivateCustomer,
+  updateCustomer,
+} from "../../../modules/customer/update-customer.handler.ts";
+import { getCustomer } from "../../../modules/customer/customer.queries.ts";
+import {
+  getAccountReconciliation,
   getCustomerAccountBalance,
   rebuildAccountBalance,
 } from "../../../modules/account/account.queries.ts";
+import { rebuildAccountProjection } from "../../../modules/account/rebuild-account-projection.handler.ts";
 
 /**
  * The whole slice, end to end, against real Postgres: real transactions, real
@@ -322,6 +330,52 @@ describe.skipIf(skipWithoutDatabase())("full slice against Postgres", () => {
     expect(rebuilt.lastEntryTransactionTime).toBe(incremental.value.lastEntryTransactionTime);
   });
 
+  it("BR-ACCOUNT-006 / TC-ACCOUNT-012 — Postgres detects and repairs projection-only drift idempotently", async () => {
+    const entriesBefore = await accountEntryRows();
+    const expectedBalance = entriesBefore.reduce(
+      (total, entry) => total + entry.amount.amountMinor,
+      0,
+    );
+    await ctx.overwriteAccountProjection({
+      balanceMinor: expectedBalance + 123_456,
+      entryCount: entriesBefore.length + 7,
+      lastEntryTransactionTime: null,
+    });
+
+    const drift = await getAccountReconciliation(owner, {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+    });
+    expect(drift.ok).toBe(true);
+    if (!drift.ok || drift.value.kind !== "inconsistent") return;
+    expect(drift.value.diagnostics.map((item) => item.code)).toEqual(
+      expect.arrayContaining([
+        "projection_balance_mismatch",
+        "projection_entry_count_mismatch",
+        "projection_last_transaction_mismatch",
+      ]),
+    );
+
+    const command = {
+      ...envelope("db-reconcile-rebuild"),
+      payload: {
+        customerId: ctx.customerId,
+        reason: "PostgreSQL reconciliation regression",
+      },
+    };
+    const first = await rebuildAccountProjection(owner, command);
+    const replay = await rebuildAccountProjection(owner, command);
+
+    expect(first.ok).toBe(true);
+    expect(replay).toEqual(first);
+    if (!first.ok) return;
+    expect(first.value.reconciliation.kind).toBe("consistent");
+    expect(first.value.after.balance.amountMinor).toBe(expectedBalance);
+    expect(await accountEntryRows()).toEqual(entriesBefore);
+    const actions = await ctx.auditActions();
+    expect(actions.filter((action) => action === "account.projection_rebuilt")).toHaveLength(1);
+  });
+
   it("BR-COMMAND-005 / TC-COMMAND-004 — a refused command leaves no row behind", async () => {
     const before = await accountEntryRows();
 
@@ -589,5 +643,48 @@ describe.skipIf(skipWithoutDatabase())("full slice against Postgres", () => {
     expect(stored.ok).toBe(true);
     if (!stored.ok) return;
     expect(stored.value.balance.amountMinor).toBe(sum);
+  });
+
+  it("BR-CUSTOMER-003 / TC-CUSTOMER-012 — profile lifecycle preserves PostgreSQL money truth", async () => {
+    const entriesBefore = await accountEntryRows();
+    const balanceBefore = entriesBefore.reduce(
+      (total, entry) => total + entry.amount.amountMinor,
+      0,
+    );
+    const updated = await updateCustomer(owner, {
+      ...envelope("db-customer-update"),
+      expectedVersion: 1,
+      payload: {
+        customerId: ctx.customerId,
+        displayName: "Chị Lan — hồ sơ đã cập nhật",
+        phone: "090 999 8888",
+        note: "Chỉ sửa master data",
+      },
+    });
+    expect(updated.ok).toBe(true);
+
+    const deactivated = await deactivateCustomer(owner, {
+      ...envelope("db-customer-deactivate"),
+      expectedVersion: 2,
+      payload: { customerId: ctx.customerId, reason: "Tạm ngưng giao dịch" },
+    });
+    expect(deactivated.ok).toBe(true);
+    const reactivated = await reactivateCustomer(owner, {
+      ...envelope("db-customer-reactivate"),
+      expectedVersion: 3,
+      payload: { customerId: ctx.customerId, reason: "Khách quay lại" },
+    });
+    expect(reactivated.ok).toBe(true);
+
+    expect(await accountEntryRows()).toEqual(entriesBefore);
+    const detail = await getCustomer(owner, {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+    });
+    expect(detail.ok).toBe(true);
+    if (!detail.ok) return;
+    expect(detail.value.customer.isActive).toBe(true);
+    expect(detail.value.customer.version).toBe(4);
+    expect(detail.value.balance.amountMinor).toBe(balanceBefore);
   });
 });

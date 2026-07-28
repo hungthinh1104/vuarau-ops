@@ -17,6 +17,11 @@ const ALLOWED = { allowed: true } as const;
 const ownerCapabilities: CustomerCapabilities = {
   update: ALLOWED,
   deactivate: ALLOWED,
+  reactivate: {
+    allowed: false,
+    reasonCode: "CUSTOMER_ALREADY_ACTIVE",
+    details: {},
+  },
   adjustAccount: ALLOWED,
 };
 

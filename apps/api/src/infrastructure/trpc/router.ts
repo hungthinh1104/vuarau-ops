@@ -1,12 +1,16 @@
 import { z } from "zod";
 import {
   accountTimelineInputSchema,
+  accountReconciliationInputSchema,
+  addWorkspaceMemberCommandSchema,
   accountAdjustmentGetInputSchema,
   adjustCustomerDebtCommandSchema,
   auditTimelineInputSchema,
   createCustomerCommandSchema,
+  changeWorkspaceMemberRoleCommandSchema,
   createSaleDraftCommandSchema,
   deactivateCustomerCommandSchema,
+  duplicateCustomerInputSchema,
   discardSaleDraftCommandSchema,
   customerIdSchema,
   getCustomerInputSchema,
@@ -20,21 +24,31 @@ import {
   postSaleCommandSchema,
   recordCustomerPaymentCommandSchema,
   reverseCustomerPaymentCommandSchema,
+  rebuildAccountProjectionCommandSchema,
+  reactivateWorkspaceMemberCommandSchema,
+  reactivateCustomerCommandSchema,
   revokeWorkspaceMembershipCommandSchema,
   searchCustomersInputSchema,
   updateCustomerCommandSchema,
   updateSaleDraftCommandSchema,
   voidSaleCommandSchema,
   workspaceIdSchema,
+  workspaceDetailInputSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "./trpc.ts";
 import { createCustomer } from "../../modules/customer/create-customer.handler.ts";
 import {
   deactivateCustomer,
+  reactivateCustomer,
   updateCustomer,
 } from "../../modules/customer/update-customer.handler.ts";
 import { discardSaleDraft, updateSaleDraft } from "../../modules/sale/edit-sale-draft.handler.ts";
 import { revokeWorkspaceMembership } from "../../modules/session/revoke-membership.handler.ts";
+import {
+  addWorkspaceMember,
+  changeWorkspaceMemberRole,
+  reactivateWorkspaceMember,
+} from "../../modules/session/manage-membership.handler.ts";
 import { createSaleDraft } from "../../modules/sale/create-sale-draft.handler.ts";
 import { postSale } from "../../modules/sale/post-sale.handler.ts";
 import { voidSale } from "../../modules/sale/void-sale.handler.ts";
@@ -42,12 +56,16 @@ import { recordCustomerPayment } from "../../modules/payment/record-payment.hand
 import { reverseCustomerPayment } from "../../modules/payment/reverse-payment.handler.ts";
 import { adjustCustomerDebt } from "../../modules/account/adjust-debt.handler.ts";
 import {
+  exportAccountReconciliationEvidence,
   getCustomerAccountBalance,
   getCustomerAccountTimeline,
   getAccountAdjustmentDetail,
+  getAccountReconciliation,
 } from "../../modules/account/account.queries.ts";
+import { rebuildAccountProjection } from "../../modules/account/rebuild-account-projection.handler.ts";
 import {
   getCustomer,
+  findPossibleDuplicateCustomers,
   recentCustomers,
   searchCustomers,
 } from "../../modules/customer/customer.queries.ts";
@@ -59,7 +77,11 @@ import {
 } from "../../modules/sale/sale.queries.ts";
 import { getPayment, listPayments } from "../../modules/payment/payment.queries.ts";
 import { getAuditTimeline } from "../../modules/audit/audit.queries.ts";
-import { getSession, listActorWorkspaces } from "../../modules/session/session.queries.ts";
+import {
+  getSession,
+  getWorkspaceDetail,
+  listActorWorkspaces,
+} from "../../modules/session/session.queries.ts";
 
 /**
  * Twelve mutations, one per business command. No `update`, no `patch`, and no
@@ -110,6 +132,22 @@ const sessionRouter = router({
   revokeMembership: commandProcedure
     .input(revokeWorkspaceMembershipCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await revokeWorkspaceMembership(ctx, input))),
+
+  workspace: authenticatedProcedure
+    .input(workspaceDetailInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getWorkspaceDetail(ctx, input.workspaceId))),
+
+  addMember: commandProcedure
+    .input(addWorkspaceMemberCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await addWorkspaceMember(ctx, input))),
+
+  changeMemberRole: commandProcedure
+    .input(changeWorkspaceMemberRoleCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await changeWorkspaceMemberRole(ctx, input))),
+
+  reactivateMember: commandProcedure
+    .input(reactivateWorkspaceMemberCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reactivateWorkspaceMember(ctx, input))),
 });
 
 const customerRouter = router({
@@ -125,6 +163,10 @@ const customerRouter = router({
     .input(deactivateCustomerCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await deactivateCustomer(ctx, input))),
 
+  reactivate: commandProcedure
+    .input(reactivateCustomerCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reactivateCustomer(ctx, input))),
+
   search: authenticatedProcedure
     .input(searchCustomersInputSchema)
     .query(async ({ ctx, input }) => unwrap(await searchCustomers(ctx, input))),
@@ -136,6 +178,10 @@ const customerRouter = router({
   recent: authenticatedProcedure
     .input(recentCustomersInputSchema)
     .query(async ({ ctx, input }) => unwrap(await recentCustomers(ctx, input))),
+
+  duplicates: authenticatedProcedure
+    .input(duplicateCustomerInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await findPossibleDuplicateCustomers(ctx, input))),
 });
 
 const saleRouter = router({
@@ -227,6 +273,18 @@ const accountRouter = router({
   timeline: authenticatedProcedure
     .input(accountTimelineInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getCustomerAccountTimeline(ctx, input))),
+
+  reconciliation: authenticatedProcedure
+    .input(accountReconciliationInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getAccountReconciliation(ctx, input))),
+
+  reconciliationEvidence: authenticatedProcedure
+    .input(accountReconciliationInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await exportAccountReconciliationEvidence(ctx, input))),
+
+  rebuildProjection: commandProcedure
+    .input(rebuildAccountProjectionCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await rebuildAccountProjection(ctx, input))),
 });
 
 const auditRouter = router({

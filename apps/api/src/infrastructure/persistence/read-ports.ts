@@ -97,6 +97,11 @@ export type RecentCustomerRow = {
   readonly lastSaleTransactionTime: IsoInstant | null;
 };
 
+export type DuplicateCustomerCandidateRow = {
+  readonly customer: CustomerSummaryRow;
+  readonly reasons: readonly ("same_name" | "same_phone")[];
+};
+
 export type CaptureHistoryRow = {
   readonly productName: string;
   readonly unit: string;
@@ -182,6 +187,22 @@ export type AccountAdjustmentDetailRead =
   | { readonly kind: "not_found" }
   | { readonly kind: "integrity_error"; readonly reason: string };
 
+/**
+ * Persistence facts used by the reconciliation policy. Repositories resolve
+ * source rows and amounts; the application decides whether a mismatch is safe
+ * drift, an explainable inconsistency, or corrupt ledger data.
+ */
+export type AccountSourceObservation = {
+  readonly entryId: CustomerAccountEntryId;
+  readonly sourceType: AccountTimelineRow["source"]["type"];
+  readonly sourceId: string;
+  readonly sourceExists: boolean;
+  readonly sourceWorkspaceId: WorkspaceId | null;
+  readonly sourceCustomerId: CustomerId | null;
+  readonly expectedAmount: Money | null;
+  readonly reversalTargetExists: boolean;
+};
+
 export type AuditTimelineRow = {
   readonly id: AuditRecordId;
   readonly workspaceId: WorkspaceId;
@@ -214,6 +235,13 @@ export type CustomerReadRepository = {
 
   get(workspaceId: WorkspaceId, customerId: CustomerId): Promise<CustomerDetailRow | null>;
   recent(workspaceId: WorkspaceId, limit: number): Promise<readonly RecentCustomerRow[]>;
+  possibleDuplicates(args: {
+    workspaceId: WorkspaceId;
+    displayName: string;
+    phone: string | null;
+    excludeCustomerId: CustomerId | null;
+    limit: number;
+  }): Promise<readonly DuplicateCustomerCandidateRow[]>;
 };
 
 export type SaleReadRepository = {
@@ -270,6 +298,10 @@ export type AccountReadRepository = {
     to: IsoInstant | null;
     page: PageQuery;
   }): Promise<PageResult<AccountTimelineRow>>;
+  sourceObservations(args: {
+    workspaceId: WorkspaceId;
+    customerId: CustomerId;
+  }): Promise<readonly AccountSourceObservation[]>;
 };
 
 export type AuditReadRepository = {

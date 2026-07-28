@@ -6,13 +6,16 @@ import {
   paymentDtoSchema,
   type DomainError,
   accountTimelineEntryDtoSchema,
+  accountReconciliationResultDtoSchema,
   auditTimelineEntryDtoSchema,
+  duplicateCustomerCandidateDtoSchema,
   customerSummaryDtoSchema,
   pageOf,
   paymentSummaryDtoSchema,
   saleSummaryDtoSchema,
   sessionDtoSchema,
   actorWorkspacesDtoSchema,
+  workspaceDetailDtoSchema,
 } from "@vuarau/domain-contracts";
 import {
   ACCOUNTANT_ACTOR_ID,
@@ -499,6 +502,25 @@ describe("UC-SALE-003 / TC-READ-009 — the published read surface", () => {
       limit: 10,
     });
     expect(pageOf(accountTimelineEntryDtoSchema).safeParse(timeline).success).toBe(true);
+
+    const reconciliation = await caller.account.reconciliation({
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+    });
+    expect(accountReconciliationResultDtoSchema.safeParse(reconciliation).success).toBe(true);
+
+    const workspace = await caller.session.workspace({ workspaceId: WORKSPACE_ID });
+    expect(workspaceDetailDtoSchema.safeParse(workspace).success).toBe(true);
+
+    const duplicates = await caller.customer.duplicates({
+      workspaceId: WORKSPACE_ID,
+      displayName: "Cô Hoa",
+      phone: null,
+      excludeCustomerId: null,
+    });
+    expect(
+      duplicates.every((item) => duplicateCustomerCandidateDtoSchema.safeParse(item).success),
+    ).toBe(true);
 
     const audit = await caller.audit.timeline({
       workspaceId: WORKSPACE_ID,

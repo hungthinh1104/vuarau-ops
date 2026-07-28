@@ -13,6 +13,7 @@ import { toAccountEntryDto } from "../repositories/row-mappers.ts";
 import {
   actors,
   auditLogs,
+  customerAccountBalances,
   customers,
   customerAccountEntries,
   products,
@@ -86,6 +87,11 @@ export type DbTestContext = {
    * crack in that (docs/10-ai-coding/REPO_MAP.md).
    */
   accountEntryRows(): Promise<readonly CustomerAccountEntryDto[]>;
+  overwriteAccountProjection(input: {
+    balanceMinor: number;
+    entryCount: number;
+    lastEntryTransactionTime: Date | null;
+  }): Promise<void>;
   auditActions(): Promise<readonly string[]>;
   close(): Promise<void>;
 };
@@ -214,6 +220,23 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
           asc(customerAccountEntries.recordedAt),
         );
       return rows.map(toAccountEntryDto);
+    },
+
+    async overwriteAccountProjection(input) {
+      await database.db
+        .update(customerAccountBalances)
+        .set({
+          balanceMinor: input.balanceMinor,
+          entryCount: input.entryCount,
+          lastEntryTransactionTime: input.lastEntryTransactionTime,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(customerAccountBalances.workspaceId, workspaceId),
+            eq(customerAccountBalances.customerId, customerId),
+          ),
+        );
     },
 
     async auditActions() {

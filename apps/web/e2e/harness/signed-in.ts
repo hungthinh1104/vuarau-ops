@@ -3,6 +3,7 @@ import {
   E2E_WORKSPACE_ID,
   endToEndDisabled,
   mintAccessToken,
+  mintAccessTokenForActor,
   type E2ERole,
 } from "./environment.ts";
 
@@ -27,6 +28,17 @@ export async function signIn(page: Page, role: E2ERole = "sales"): Promise<void>
   await page.addInitScript((workspaceId) => {
     window.sessionStorage.setItem("vuarau.workspace_id", workspaceId);
   }, E2E_WORKSPACE_ID);
+}
+
+export async function signInActor(page: Page, actorId: string): Promise<void> {
+  const token = await mintAccessTokenForActor(actorId);
+  await page.addInitScript(
+    ({ accessToken, workspaceId }) => {
+      window.sessionStorage.setItem("vuarau.access_token", accessToken);
+      window.sessionStorage.setItem("vuarau.workspace_id", workspaceId);
+    },
+    { accessToken: token, workspaceId: E2E_WORKSPACE_ID },
+  );
 }
 
 /**

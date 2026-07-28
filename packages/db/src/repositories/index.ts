@@ -137,6 +137,78 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           .returning({ actorId: workspaceMemberships.actorId });
         return updated.length === 1;
       },
+
+      async listMembers(workspaceId: WorkspaceId) {
+        const rows = await tx
+          .select({
+            actorId: workspaceMemberships.actorId,
+            displayName: actors.displayName,
+            role: workspaceMemberships.role,
+            isActive: workspaceMemberships.isActive,
+            createdAt: workspaceMemberships.createdAt,
+          })
+          .from(workspaceMemberships)
+          .innerJoin(actors, eq(actors.id, workspaceMemberships.actorId))
+          .where(eq(workspaceMemberships.workspaceId, workspaceId))
+          .orderBy(asc(actors.displayName), asc(actors.id));
+        return rows.map((row) => ({
+          workspaceId,
+          actorId: row.actorId,
+          displayName: row.displayName,
+          role: row.role,
+          isActive: row.isActive,
+          createdAt: toIso(row.createdAt),
+        }));
+      },
+
+      async addMembership(
+        workspaceId: WorkspaceId,
+        actorId: ActorId,
+        role: WorkspaceRole,
+      ): Promise<boolean> {
+        const rows = await tx
+          .insert(workspaceMemberships)
+          .values({ workspaceId, actorId, role, isActive: true })
+          .onConflictDoNothing()
+          .returning({ actorId: workspaceMemberships.actorId });
+        return rows.length === 1;
+      },
+
+      async changeMembershipRole(
+        workspaceId: WorkspaceId,
+        actorId: ActorId,
+        expectedRole: WorkspaceRole,
+        role: WorkspaceRole,
+      ): Promise<boolean> {
+        const rows = await tx
+          .update(workspaceMemberships)
+          .set({ role })
+          .where(
+            and(
+              eq(workspaceMemberships.workspaceId, workspaceId),
+              eq(workspaceMemberships.actorId, actorId),
+              eq(workspaceMemberships.role, expectedRole),
+              eq(workspaceMemberships.isActive, true),
+            ),
+          )
+          .returning({ actorId: workspaceMemberships.actorId });
+        return rows.length === 1;
+      },
+
+      async reactivateMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean> {
+        const rows = await tx
+          .update(workspaceMemberships)
+          .set({ isActive: true })
+          .where(
+            and(
+              eq(workspaceMemberships.workspaceId, workspaceId),
+              eq(workspaceMemberships.actorId, actorId),
+              eq(workspaceMemberships.isActive, false),
+            ),
+          )
+          .returning({ actorId: workspaceMemberships.actorId });
+        return rows.length === 1;
+      },
     },
 
     actors: {
@@ -148,6 +220,18 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           .limit(1);
         const row = rows[0];
         return row === undefined ? null : { actorId: row.id as ActorId };
+      },
+
+      async findById(actorId: ActorId) {
+        const rows = await tx
+          .select({ id: actors.id, displayName: actors.displayName })
+          .from(actors)
+          .where(eq(actors.id, actorId))
+          .limit(1);
+        const row = rows[0];
+        return row === undefined
+          ? null
+          : { actorId: row.id as ActorId, displayName: row.displayName };
       },
 
       /**
@@ -560,6 +644,7 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           .orderBy(
             asc(customerAccountEntries.transactionTime),
             asc(customerAccountEntries.recordedAt),
+            asc(customerAccountEntries.id),
           );
         return rows.map(toAccountEntryDto);
       },

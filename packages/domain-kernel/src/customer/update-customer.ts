@@ -1,6 +1,7 @@
 import type {
   DeactivateCustomerCommand,
   IsoInstant,
+  ReactivateCustomerCommand,
   UpdateCustomerCommand,
 } from "@vuarau/domain-contracts";
 import type { Decision } from "../shared/effects.ts";
@@ -137,6 +138,46 @@ export function decideDeactivateCustomer({
       recordedAt,
       before: { isActive: true },
       after: { isActive: false },
+      reason: command.payload.reason,
+    },
+  });
+}
+
+export function decideReactivateCustomer(args: {
+  readonly command: ReactivateCustomerCommand;
+  readonly customer: CustomerState;
+  readonly recordedAt: IsoInstant;
+}): DomainResult<Decision<CustomerState>> {
+  const { command, customer, recordedAt } = args;
+  if (command.expectedVersion !== customer.version) {
+    return err("CUSTOMER_VERSION_CONFLICT", "Customer was modified by someone else.", {
+      customerId: customer.id,
+      expectedVersion: command.expectedVersion,
+      actualVersion: customer.version,
+    });
+  }
+  if (customer.isActive) {
+    return err("CUSTOMER_ALREADY_ACTIVE", "This customer is already active.", {
+      customerId: customer.id,
+    });
+  }
+  const reactivated: CustomerState = {
+    ...customer,
+    isActive: true,
+    version: customer.version + 1,
+    updatedAt: recordedAt,
+  };
+  return ok({
+    aggregate: reactivated,
+    accountEntries: [],
+    audit: {
+      aggregateType: "customer",
+      aggregateId: customer.id,
+      action: "customer.reactivated",
+      transactionTime: command.occurredAt,
+      recordedAt,
+      before: { isActive: false },
+      after: { isActive: true },
       reason: command.payload.reason,
     },
   });

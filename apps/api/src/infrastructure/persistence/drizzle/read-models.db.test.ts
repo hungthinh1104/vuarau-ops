@@ -14,11 +14,16 @@ import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
-import { searchCustomers } from "../../../modules/customer/customer.queries.ts";
+import {
+  findPossibleDuplicateCustomers,
+  searchCustomers,
+} from "../../../modules/customer/customer.queries.ts";
+import { createCustomer } from "../../../modules/customer/create-customer.handler.ts";
 import { listSales } from "../../../modules/sale/sale.queries.ts";
 import { listPayments } from "../../../modules/payment/payment.queries.ts";
 import {
   getAccountAdjustmentDetail,
+  getAccountReconciliation,
   getCustomerAccountTimeline,
 } from "../../../modules/account/account.queries.ts";
 import { adjustCustomerDebt } from "../../../modules/account/adjust-debt.handler.ts";
@@ -133,6 +138,69 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
     expect(found.ok).toBe(true);
     if (!found.ok) return;
     expect(found.value.items.map((item) => item.id)).toContain(ctx.customerId);
+  });
+
+  it("UC-CUSTOMER-002 / TC-READ-012 — customer cursor pagination survives equal names", async () => {
+    const expected: string[] = [];
+    for (let index = 0; index < 6; index += 1) {
+      const customerId = crypto.randomUUID();
+      expected.push(customerId);
+      const created = await createCustomer(owner, {
+        ...envelope(`read-customer-page-${index}`),
+        payload: {
+          customerId,
+          displayName: "Khách trùng tên phân trang",
+          phone: `09080000${index}`,
+          note: null,
+        },
+      });
+      expect(created.ok).toBe(true);
+    }
+
+    const seen: string[] = [];
+    let cursor: Cursor | null = null;
+    for (let guard = 0; guard < 10; guard += 1) {
+      const result = await searchCustomers(owner, {
+        workspaceId: ctx.workspaceId,
+        query: "Khách trùng tên phân trang",
+        isActive: null,
+        cursor,
+        limit: 2,
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      seen.push(...result.value.items.map((item) => item.id));
+      cursor = result.value.nextCursor;
+      if (cursor === null) break;
+    }
+    expect(seen).toHaveLength(expected.length);
+    expect(new Set(seen).size).toBe(expected.length);
+    expect([...seen].sort()).toEqual([...expected].sort());
+  });
+
+  it("UC-CUSTOMER-006 / TC-READ-013 — Postgres normalizes phone duplicate evidence", async () => {
+    const customerId = crypto.randomUUID();
+    const created = await createCustomer(owner, {
+      ...envelope("read-customer-duplicate"),
+      payload: {
+        customerId,
+        displayName: "Cô Hoà Chợ Lớn",
+        phone: "090 555 6677",
+        note: null,
+      },
+    });
+    expect(created.ok).toBe(true);
+
+    const result = await findPossibleDuplicateCustomers(owner, {
+      workspaceId: ctx.workspaceId,
+      displayName: "co hoa cho lon",
+      phone: "090-555-6677",
+      excludeCustomerId: null,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const candidate = result.value.find((item) => item.customer.id === customerId);
+    expect(candidate?.reasons).toEqual(expect.arrayContaining(["same_name", "same_phone"]));
   });
 
   it("UC-SALE-003 / TC-READ-004 — pages sales without repeating or skipping", async () => {
@@ -456,6 +524,53 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
       adjustmentId,
     });
     expect(detail.ok).toBe(true);
+  });
+
+  it("UC-ACCOUNT-003 / TC-READ-014 — reconciliation exposes a missing source instead of rebuilding over it", async () => {
+    const posting = (await ctx.accountEntryRows()).find(
+      (entry) => entry.sourceType === "sale_posting",
+    );
+    expect(posting).toBeDefined();
+    if (posting === undefined) return;
+    const missingSourceId = crypto.randomUUID();
+
+    await ctx.database.db.transaction(async (tx) => {
+      await tx.execute(sql`set local session_replication_role = replica`);
+      try {
+        await tx.execute(sql`
+          update customer_account_entries
+          set source_id = ${missingSourceId}::uuid
+          where id = ${posting.id}::uuid
+        `);
+        const integrityOwner: CommandContext = {
+          ...owner,
+          deps: {
+            ...deps,
+            uow: createUnitOfWork(
+              tx as unknown as typeof ctx.database.db,
+              randomIdGenerator,
+            ) as CommandDeps["uow"],
+          },
+        };
+        const result = await getAccountReconciliation(integrityOwner, {
+          workspaceId: ctx.workspaceId,
+          customerId: ctx.customerId,
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok || result.value.kind !== "integrity_failure") return;
+        expect(result.value.diagnostics).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ code: "source_missing", entryId: posting.id }),
+          ]),
+        );
+      } finally {
+        await tx.execute(sql`
+          update customer_account_entries
+          set source_id = ${posting.sourceId}::uuid
+          where id = ${posting.id}::uuid
+        `);
+      }
+    });
   });
 
   it("UC-AUDIT-001 / TC-READ-007 — resolves the actor and the correction in one query", async () => {

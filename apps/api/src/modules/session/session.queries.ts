@@ -1,8 +1,14 @@
-import type { ActorWorkspacesDto, SessionDto, WorkspaceId } from "@vuarau/domain-contracts";
-import { permissionsForRole } from "@vuarau/domain-contracts";
+import type {
+  ActorWorkspacesDto,
+  SessionDto,
+  WorkspaceDetailDto,
+  WorkspaceId,
+} from "@vuarau/domain-contracts";
+import { ALLOWED, permissionsForRole } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
+import { runQuery } from "../shared/read-pipeline.ts";
 
 /**
  * UC-AUTH-003 — the first call a client makes.
@@ -81,5 +87,40 @@ export function listActorWorkspaces(
         permissions: [...permissionsForRole(membership.role)],
       })),
     });
+  });
+}
+
+export async function getWorkspaceDetail(
+  ctx: CommandContext,
+  workspaceId: WorkspaceId,
+): Promise<DomainResult<WorkspaceDetailDto>> {
+  const result = await runQuery({
+    ctx,
+    workspaceId,
+    permission: "workspace.manage",
+    execute: async ({ repos }) =>
+      Promise.all([
+        repos.workspaces.findName(workspaceId),
+        repos.workspaces.listMembers(workspaceId),
+      ]),
+  });
+  if (!result.ok) {
+    return result;
+  }
+  const [name, members] = result.value;
+  if (name === null) {
+    return err("WORKSPACE_ACCESS_DENIED", "The workspace record is missing.", { workspaceId });
+  }
+  return ok({
+    workspaceId,
+    name,
+    members: members.map((item) => ({
+      actorId: item.actorId,
+      displayName: item.displayName,
+      role: item.role,
+      isActive: item.isActive,
+      createdAt: item.createdAt,
+    })),
+    capabilities: { manage: ALLOWED },
   });
 }

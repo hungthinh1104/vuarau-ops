@@ -282,3 +282,122 @@ export const getAccountBalanceInputSchema = z.object({
   customerId: customerIdSchema,
 });
 export type GetAccountBalanceInput = z.infer<typeof getAccountBalanceInputSchema>;
+
+// --- reconciliation ---------------------------------------------------------
+
+/**
+ * Closed diagnostic vocabulary for the projection-versus-ledger check.
+ *
+ * These are evidence codes, not prose. The UI may translate their labels, while
+ * exports and tests keep branching on the stable code.
+ */
+export const ACCOUNT_RECONCILIATION_DIAGNOSTIC_CODES = [
+  "projection_missing",
+  "projection_balance_mismatch",
+  "projection_entry_count_mismatch",
+  "projection_last_transaction_mismatch",
+  "ledger_currency_mismatch",
+  "ledger_zero_amount",
+  "duplicate_source_identity",
+  "source_missing",
+  "source_workspace_mismatch",
+  "source_customer_mismatch",
+  "source_amount_mismatch",
+  "malformed_source_reference",
+] as const;
+export const accountReconciliationDiagnosticCodeSchema = z.enum(
+  ACCOUNT_RECONCILIATION_DIAGNOSTIC_CODES,
+);
+export type AccountReconciliationDiagnosticCode = z.infer<
+  typeof accountReconciliationDiagnosticCodeSchema
+>;
+
+export const accountReconciliationDiagnosticSchema = z.object({
+  code: accountReconciliationDiagnosticCodeSchema,
+  entryId: customerAccountEntryIdSchema.nullable(),
+  sourceType: accountEntrySourceTypeSchema.nullable(),
+  sourceId: z.uuid().nullable(),
+});
+export type AccountReconciliationDiagnostic = z.infer<typeof accountReconciliationDiagnosticSchema>;
+
+export const accountReconciliationInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+});
+export type AccountReconciliationInput = z.infer<typeof accountReconciliationInputSchema>;
+
+const accountProjectionEvidenceSchema = z.object({
+  balance: moneySchema,
+  entryCount: z.int().nonnegative(),
+  lastEntryTransactionTime: isoInstantSchema.nullable(),
+  updatedAt: isoInstantSchema,
+});
+
+const accountLedgerEvidenceSchema = z.object({
+  balance: moneySchema,
+  classification: balanceClassificationSchema,
+  entryCount: z.int().nonnegative(),
+  latestTransactionTime: isoInstantSchema.nullable(),
+  latestRecordedAt: isoInstantSchema.nullable(),
+});
+
+const accountReconciliationCommonSchema = z.object({
+  workspace: z.object({ id: workspaceIdSchema, name: z.string().min(1) }),
+  customer: z.object({ id: customerIdSchema, displayName: z.string().min(1) }),
+  projection: accountProjectionEvidenceSchema.nullable(),
+  ledger: accountLedgerEvidenceSchema,
+  difference: moneySchema,
+  diagnostics: z.array(accountReconciliationDiagnosticSchema),
+  capabilities: z.object({ rebuild: capabilitySchema }),
+});
+
+export const accountReconciliationResultDtoSchema = z.discriminatedUnion("kind", [
+  accountReconciliationCommonSchema.extend({ kind: z.literal("consistent") }),
+  accountReconciliationCommonSchema.extend({ kind: z.literal("inconsistent") }),
+  z.object({
+    kind: z.literal("not_found"),
+    workspaceId: workspaceIdSchema,
+    customerId: customerIdSchema,
+  }),
+  z.object({
+    kind: z.literal("integrity_failure"),
+    workspaceId: workspaceIdSchema,
+    customerId: customerIdSchema,
+    diagnostics: z.array(accountReconciliationDiagnosticSchema).min(1),
+  }),
+]);
+export type AccountReconciliationResultDto = z.infer<typeof accountReconciliationResultDtoSchema>;
+
+export const rebuildAccountProjectionPayloadSchema = z.object({
+  customerId: customerIdSchema,
+  reason: z.string().trim().min(1).max(500),
+});
+export const rebuildAccountProjectionCommandSchema = defineCommand(
+  rebuildAccountProjectionPayloadSchema,
+);
+export type RebuildAccountProjectionCommand = z.infer<typeof rebuildAccountProjectionCommandSchema>;
+
+export const rebuildAccountProjectionResultDtoSchema = z.object({
+  customerId: customerIdSchema,
+  before: accountProjectionEvidenceSchema.nullable(),
+  after: accountProjectionEvidenceSchema,
+  reconciliation: accountReconciliationResultDtoSchema,
+});
+export type RebuildAccountProjectionResultDto = z.infer<
+  typeof rebuildAccountProjectionResultDtoSchema
+>;
+
+/**
+ * Deterministic machine-readable evidence. `asOf` is derived from the newest
+ * canonical ledger row, never from the request clock, so exporting the same
+ * immutable history twice yields the same document.
+ */
+export const accountReconciliationEvidenceDtoSchema = z.object({
+  schemaVersion: z.literal(1),
+  asOf: isoInstantSchema.nullable(),
+  reconciliation: accountReconciliationResultDtoSchema,
+  entries: z.array(accountTimelineEntryDtoSchema),
+});
+export type AccountReconciliationEvidenceDto = z.infer<
+  typeof accountReconciliationEvidenceDtoSchema
+>;

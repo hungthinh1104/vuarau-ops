@@ -11,7 +11,12 @@ import {
   WORKSPACE_NAME,
 } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
-import { listActorWorkspaces } from "./session.queries.ts";
+import { getSession, getWorkspaceDetail, listActorWorkspaces } from "./session.queries.ts";
+import {
+  addWorkspaceMember,
+  changeWorkspaceMemberRole,
+  reactivateWorkspaceMember,
+} from "./manage-membership.handler.ts";
 
 let harness: Harness;
 
@@ -108,5 +113,105 @@ describe("BR-AUTH-008 / TC-AUTH-014 — workspace discovery", () => {
     expect(sales.ok && sales.value.actorId).toBe(SALES_ACTOR_ID);
     expect(owner.ok && owner.value.workspaces[0]?.role).toBe("owner");
     expect(sales.ok && sales.value.workspaces[0]?.role).toBe("sales");
+  });
+});
+
+describe("BR-AUTH-007 / TC-AUTH-015 — self-service membership administration", () => {
+  const envelope = (key: string) => ({
+    commandId: crypto.randomUUID(),
+    idempotencyKey: key,
+    workspaceId: WORKSPACE_ID,
+    actorId: ACTOR_ID,
+    occurredAt: "2026-07-20T05:00:00.000Z",
+  });
+
+  it("lets an owner inspect members while a sales worker is refused by the server", async () => {
+    const owner = await getWorkspaceDetail(harness.ctx, WORKSPACE_ID);
+    expect(owner.ok).toBe(true);
+    if (!owner.ok) return;
+    expect(owner.value.members.some((member) => member.actorId === SALES_ACTOR_ID)).toBe(true);
+
+    const sales = await getWorkspaceDetail(harness.contextFor(SALES_ACTOR_ID), WORKSPACE_ID);
+    expect(sales.ok).toBe(false);
+    if (sales.ok) return;
+    expect(sales.error.code).toBe("PERMISSION_DENIED");
+  });
+
+  it("adds an existing actor once and replays the same command safely", async () => {
+    const command = {
+      ...envelope("member-add-foreign"),
+      payload: {
+        actorId: FOREIGN_ACTOR_ID,
+        role: "warehouse" as const,
+        reason: "Bổ sung nhân sự kho",
+      },
+    };
+    const first = await addWorkspaceMember(harness.ctx, command);
+    const replay = await addWorkspaceMember(harness.ctx, command);
+
+    expect(first.ok).toBe(true);
+    expect(replay).toEqual(first);
+    const detail = await getWorkspaceDetail(harness.ctx, WORKSPACE_ID);
+    expect(detail.ok).toBe(true);
+    if (!detail.ok) return;
+    expect(
+      detail.value.members.filter((member) => member.actorId === FOREIGN_ACTOR_ID),
+    ).toHaveLength(1);
+  });
+
+  it("changes another member's role and the next authorization read sees it", async () => {
+    const changed = await changeWorkspaceMemberRole(harness.ctx, {
+      ...envelope("member-role-sales-accountant"),
+      payload: {
+        actorId: SALES_ACTOR_ID,
+        expectedRole: "sales",
+        role: "accountant",
+        reason: "Chuyển sang phụ trách sổ",
+      },
+    });
+    expect(changed.ok).toBe(true);
+
+    const session = await getSession(harness.contextFor(SALES_ACTOR_ID), WORKSPACE_ID);
+    expect(session.ok).toBe(true);
+    if (!session.ok) return;
+    expect(session.value.role).toBe("accountant");
+    expect(session.value.permissions).toContain("debt.adjust");
+  });
+
+  it("refuses self-role changes and non-owner administration", async () => {
+    const self = await changeWorkspaceMemberRole(harness.ctx, {
+      ...envelope("member-role-self"),
+      payload: {
+        actorId: ACTOR_ID,
+        expectedRole: "owner",
+        role: "accountant",
+        reason: "Tự đổi vai trò",
+      },
+    });
+    expect(self.ok).toBe(false);
+    if (self.ok) return;
+    expect(self.error.code).toBe("WORKSPACE_MEMBER_SELF_ROLE_CHANGE_DENIED");
+
+    const sales = await reactivateWorkspaceMember(harness.contextFor(SALES_ACTOR_ID), {
+      ...envelope("member-reactivate-denied"),
+      actorId: SALES_ACTOR_ID,
+      payload: { actorId: REVOKED_ACTOR_ID, reason: "Không đủ quyền" },
+    });
+    expect(sales.ok).toBe(false);
+    if (sales.ok) return;
+    expect(sales.error.code).toBe("PERMISSION_DENIED");
+  });
+
+  it("reactivates a revoked membership without deleting its identity", async () => {
+    const activated = await reactivateWorkspaceMember(harness.ctx, {
+      ...envelope("member-reactivate"),
+      payload: { actorId: REVOKED_ACTOR_ID, reason: "Quay lại làm việc" },
+    });
+    expect(activated.ok).toBe(true);
+
+    const session = await getSession(harness.contextFor(REVOKED_ACTOR_ID), WORKSPACE_ID);
+    expect(session.ok).toBe(true);
+    if (!session.ok) return;
+    expect(session.value.role).toBe("owner");
   });
 });

@@ -5,6 +5,7 @@ import {
   mintAccessToken,
   type E2ERole,
 } from "./environment.ts";
+import { actors, createDatabase } from "@vuarau/db";
 
 /**
  * A thin, deliberately untyped tRPC caller for **arranging** test data.
@@ -66,14 +67,23 @@ function envelope(extra: Envelope = {}): Envelope {
 }
 
 export const api = {
-  async createCustomer(displayName: string, role: E2ERole = "owner"): Promise<string> {
+  async createCustomer(
+    displayName: string,
+    role: E2ERole = "owner",
+    profile: { phone?: string | null; note?: string | null } = {},
+  ): Promise<string> {
     const customerId = crypto.randomUUID();
     await call(
       "customer.create",
       "mutation",
       {
         ...envelope({ actorId: actorFor(role) }),
-        payload: { customerId, displayName, phone: null, note: null },
+        payload: {
+          customerId,
+          displayName,
+          phone: profile.phone ?? null,
+          note: profile.note ?? null,
+        },
       },
       role,
     );
@@ -170,6 +180,54 @@ export const api = {
     );
   },
 
+  async reconciliation(customerId: string): Promise<{
+    kind: string;
+    diagnostics: { code: string }[];
+    ledger?: { balance: { amountMinor: number }; entryCount: number };
+    projection?: { balance: { amountMinor: number }; entryCount: number } | null;
+  }> {
+    return (await call(
+      "account.reconciliation",
+      "query",
+      { workspaceId: E2E_WORKSPACE_ID, customerId },
+      "owner",
+    )) as {
+      kind: string;
+      diagnostics: { code: string }[];
+      ledger?: { balance: { amountMinor: number }; entryCount: number };
+      projection?: { balance: { amountMinor: number }; entryCount: number } | null;
+    };
+  },
+
+  async corruptProjection(customerId: string, balanceMinor: number, entryCount: number) {
+    const databaseUrl = requiredDatabaseUrl();
+    const database = createDatabase(databaseUrl, { max: 1 });
+    try {
+      await database.sql`
+        update customer_account_balances
+        set balance_minor = ${balanceMinor}, entry_count = ${entryCount}, updated_at = now()
+        where workspace_id = ${E2E_WORKSPACE_ID}::uuid and customer_id = ${customerId}::uuid
+      `;
+    } finally {
+      await database.sql.end();
+    }
+  },
+
+  async createUnassignedActor(displayName: string): Promise<string> {
+    const actorId = crypto.randomUUID();
+    const database = createDatabase(requiredDatabaseUrl(), { max: 1 });
+    try {
+      await database.db.insert(actors).values({
+        id: actorId,
+        supabaseUserId: actorId,
+        displayName,
+      });
+    } finally {
+      await database.sql.end();
+    }
+    return actorId;
+  },
+
   /**
    * Moves a draft's version out from under the browser, so a spec can produce a
    * genuine `SALE_VERSION_CONFLICT` rather than simulating one.
@@ -235,6 +293,13 @@ export const api = {
     };
   },
 };
+
+function requiredDatabaseUrl(): string {
+  const value = process.env["DATABASE_URL"];
+  if (value === undefined || value.length === 0)
+    throw new Error("DATABASE_URL is required for real-stack E2E database assertions.");
+  return value;
+}
 
 async function expectCallToFail(
   path: string,

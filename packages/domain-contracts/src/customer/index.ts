@@ -67,6 +67,15 @@ export const deactivateCustomerCommandSchema = defineVersionedCommand(
 );
 export type DeactivateCustomerCommand = z.infer<typeof deactivateCustomerCommandSchema>;
 
+export const reactivateCustomerPayloadSchema = z.object({
+  customerId: customerIdSchema,
+  reason: z.string().trim().min(1).max(500),
+});
+export const reactivateCustomerCommandSchema = defineVersionedCommand(
+  reactivateCustomerPayloadSchema,
+);
+export type ReactivateCustomerCommand = z.infer<typeof reactivateCustomerCommandSchema>;
+
 export const customerDtoSchema = z.object({
   id: customerIdSchema,
   workspaceId: workspaceIdSchema,
@@ -95,6 +104,7 @@ export type CustomerCreatedEvent = z.infer<typeof customerCreatedEventSchema>;
 export const customerCapabilitiesSchema = z.object({
   update: capabilitySchema,
   deactivate: capabilitySchema,
+  reactivate: capabilitySchema,
   adjustAccount: capabilitySchema,
 });
 export type CustomerCapabilities = z.infer<typeof customerCapabilitiesSchema>;
@@ -166,3 +176,17 @@ export const recentCustomerDtoSchema = z.object({
   lastSaleTransactionTime: isoInstantSchema.nullable(),
 });
 export type RecentCustomerDto = z.infer<typeof recentCustomerDtoSchema>;
+
+export const duplicateCustomerInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  displayName: z.string().trim().max(200),
+  phone: z.string().trim().max(40).nullable(),
+  excludeCustomerId: customerIdSchema.nullable().default(null),
+});
+export type DuplicateCustomerInput = z.infer<typeof duplicateCustomerInputSchema>;
+
+export const duplicateCustomerCandidateDtoSchema = z.object({
+  customer: customerSummaryDtoSchema,
+  reasons: z.array(z.enum(["same_name", "same_phone"])).min(1),
+});
+export type DuplicateCustomerCandidateDto = z.infer<typeof duplicateCustomerCandidateDtoSchema>;

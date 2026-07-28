@@ -3,6 +3,7 @@ import type {
   AuditRecordDto,
   SaleId,
   CustomerAccountEntryDto,
+  IsoInstant,
   WorkspaceId,
   WorkspaceRole,
   Money,
@@ -29,7 +30,7 @@ import type {
  * does the wrong thing with X — these tests assert on stored state instead.
  */
 type Store = {
-  memberships: Map<string, WorkspaceMembership>;
+  memberships: Map<string, WorkspaceMembership & { readonly createdAt: IsoInstant }>;
   /** Workspace id → display name, which is all a picker needs (BR-AUTH-008). */
   workspaceNames: Map<string, string>;
   /** Supabase subject → local actor id (BR-AUTH-005). */
@@ -166,6 +167,7 @@ export class InMemoryDatabase {
       actorId,
       role,
       isActive,
+      createdAt: "2026-01-01T00:00:00.000Z" as IsoInstant,
     });
   }
 
@@ -196,6 +198,16 @@ export class InMemoryDatabase {
 
   seedPayment(payment: PaymentState): void {
     this.store.payments.set(key(payment.workspaceId, payment.id), payment);
+  }
+
+  /** Test-only corruption hook: reconciliation must make damaged rows visible. */
+  seedAccountEntry(entry: CustomerAccountEntryDto): void {
+    this.store.accountEntries.push(entry);
+  }
+
+  /** Test-only corruption hook for a ledger reference whose source vanished. */
+  removeSale(workspaceId: WorkspaceId, saleId: SaleId): void {
+    this.store.sales.delete(key(workspaceId, saleId));
   }
 
   accountEntries(): readonly CustomerAccountEntryDto[] {
@@ -285,12 +297,60 @@ export class InMemoryDatabase {
           store.memberships.set(key(workspaceId, actorId), { ...membership, isActive: false });
           return true;
         },
+
+        listMembers: async (workspaceId) =>
+          [...store.memberships.values()]
+            .filter((membership) => membership.workspaceId === workspaceId)
+            .flatMap((membership) => {
+              const displayName = store.actorNames.get(membership.actorId);
+              return displayName === undefined ? [] : [{ ...membership, displayName }];
+            })
+            .sort((a, b) =>
+              a.displayName === b.displayName
+                ? a.actorId.localeCompare(b.actorId)
+                : a.displayName.localeCompare(b.displayName),
+            ),
+
+        addMembership: async (workspaceId, actorId, role) => {
+          const membershipKey = key(workspaceId, actorId);
+          if (store.memberships.has(membershipKey)) return false;
+          store.memberships.set(membershipKey, {
+            workspaceId,
+            actorId,
+            role,
+            isActive: true,
+            createdAt: "2026-01-01T00:00:00.000Z" as IsoInstant,
+          });
+          return true;
+        },
+
+        changeMembershipRole: async (workspaceId, actorId, expectedRole, role) => {
+          const membershipKey = key(workspaceId, actorId);
+          const membership = store.memberships.get(membershipKey);
+          if (membership === undefined || !membership.isActive || membership.role !== expectedRole)
+            return false;
+          store.memberships.set(membershipKey, { ...membership, role });
+          return true;
+        },
+
+        reactivateMembership: async (workspaceId, actorId) => {
+          const membershipKey = key(workspaceId, actorId);
+          const membership = store.memberships.get(membershipKey);
+          if (membership === undefined || membership.isActive) return false;
+          store.memberships.set(membershipKey, { ...membership, isActive: true });
+          return true;
+        },
       },
 
       actors: {
         findBySupabaseUserId: async (supabaseUserId) => {
           const actorId = store.actorsBySubject.get(supabaseUserId);
           return actorId === undefined ? null : { actorId };
+        },
+
+        findById: async (actorId) => {
+          const displayName = store.actorNames.get(actorId);
+          return displayName === undefined ? null : { actorId, displayName };
         },
 
         listActiveWorkspaces: async (actorId) =>
@@ -576,6 +636,55 @@ export class InMemoryDatabase {
             )
             .slice(0, limit);
         },
+
+        possibleDuplicates: async ({
+          workspaceId,
+          displayName,
+          phone,
+          excludeCustomerId,
+          limit,
+        }) => {
+          const normalizedName = fold(displayName.trim());
+          const normalizedPhone = phone?.replace(/\D/g, "") ?? "";
+          return [...store.customers.values()]
+            .filter((customer) => customer.workspaceId === workspaceId)
+            .filter((customer) => customer.id !== excludeCustomerId)
+            .flatMap((customer) => {
+              const reasons: Array<"same_name" | "same_phone"> = [];
+              if (normalizedName.length > 0 && fold(customer.displayName.trim()) === normalizedName)
+                reasons.push("same_name");
+              if (
+                normalizedPhone.length > 0 &&
+                (customer.phone ?? "").replace(/\D/g, "") === normalizedPhone
+              )
+                reasons.push("same_phone");
+              if (reasons.length === 0) return [];
+              const stored = store.balances.get(key(workspaceId, customer.id));
+              const balance = stored?.balance ?? zeroMoney(DEFAULT_CURRENCY);
+              return [
+                {
+                  customer: {
+                    id: customer.id,
+                    workspaceId: customer.workspaceId,
+                    displayName: customer.displayName,
+                    phone: customer.phone,
+                    isActive: customer.isActive,
+                    version: customer.version,
+                    balance,
+                    classification: classifyBalance(balance),
+                    lastEntryTransactionTime: stored?.lastEntryTransactionTime ?? null,
+                  },
+                  reasons,
+                },
+              ];
+            })
+            .sort((a, b) =>
+              a.customer.displayName === b.customer.displayName
+                ? a.customer.id.localeCompare(b.customer.id)
+                : a.customer.displayName.localeCompare(b.customer.displayName),
+            )
+            .slice(0, limit);
+        },
       },
 
       saleReads: {
@@ -834,6 +943,98 @@ export class InMemoryDatabase {
             id: row.id,
           }));
         },
+        sourceObservations: async ({ workspaceId, customerId }) =>
+          store.accountEntries
+            .filter((entry) => entry.workspaceId === workspaceId && entry.customerId === customerId)
+            .sort(
+              ascendingBy(
+                (entry) => `${entry.transactionTime}|${entry.recordedAt}`,
+                (entry) => entry.id,
+              ),
+            )
+            .map((entry) => {
+              const reversalTargetExists =
+                entry.reversalOfEntryId === null ||
+                store.accountEntries.some((candidate) => candidate.id === entry.reversalOfEntryId);
+              if (entry.sourceType === "manual_adjustment") {
+                return {
+                  entryId: entry.id,
+                  sourceType: entry.sourceType,
+                  sourceId: entry.sourceId,
+                  sourceExists: true,
+                  sourceWorkspaceId: entry.workspaceId,
+                  sourceCustomerId: entry.customerId,
+                  expectedAmount: entry.amount,
+                  reversalTargetExists,
+                };
+              }
+              if (entry.sourceType === "sale_posting") {
+                const sale = [...store.sales.values()].find((item) => item.id === entry.sourceId);
+                return {
+                  entryId: entry.id,
+                  sourceType: entry.sourceType,
+                  sourceId: entry.sourceId,
+                  sourceExists: sale !== undefined,
+                  sourceWorkspaceId: sale?.workspaceId ?? null,
+                  sourceCustomerId: sale?.customerId ?? null,
+                  expectedAmount: sale?.totalAmount ?? null,
+                  reversalTargetExists,
+                };
+              }
+              if (entry.sourceType === "sale_void") {
+                const voidRecord = store.saleVoids.find((item) => item.id === entry.sourceId);
+                const sale =
+                  voidRecord === undefined
+                    ? undefined
+                    : [...store.sales.values()].find((item) => item.id === voidRecord.saleId);
+                return {
+                  entryId: entry.id,
+                  sourceType: entry.sourceType,
+                  sourceId: entry.sourceId,
+                  sourceExists: voidRecord !== undefined,
+                  sourceWorkspaceId: voidRecord?.workspaceId ?? null,
+                  sourceCustomerId: sale?.customerId ?? null,
+                  expectedAmount:
+                    voidRecord === undefined
+                      ? null
+                      : money(-voidRecord.amount.amountMinor, voidRecord.amount.currency),
+                  reversalTargetExists,
+                };
+              }
+              if (entry.sourceType === "payment") {
+                const payment = [...store.payments.values()].find(
+                  (item) => item.id === entry.sourceId,
+                );
+                return {
+                  entryId: entry.id,
+                  sourceType: entry.sourceType,
+                  sourceId: entry.sourceId,
+                  sourceExists: payment !== undefined,
+                  sourceWorkspaceId: payment?.workspaceId ?? null,
+                  sourceCustomerId: payment?.customerId ?? null,
+                  expectedAmount:
+                    payment === undefined
+                      ? null
+                      : money(-payment.amount.amountMinor, payment.amount.currency),
+                  reversalTargetExists,
+                };
+              }
+              const reversal = store.reversals.find((item) => item.id === entry.sourceId);
+              const payment =
+                reversal === undefined
+                  ? undefined
+                  : [...store.payments.values()].find((item) => item.id === reversal.paymentId);
+              return {
+                entryId: entry.id,
+                sourceType: entry.sourceType,
+                sourceId: entry.sourceId,
+                sourceExists: reversal !== undefined,
+                sourceWorkspaceId: reversal?.workspaceId ?? null,
+                sourceCustomerId: payment?.customerId ?? null,
+                expectedAmount: reversal?.amount ?? null,
+                reversalTargetExists,
+              };
+            }),
       },
 
       auditReads: {

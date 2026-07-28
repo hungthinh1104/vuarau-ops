@@ -43,6 +43,11 @@ export type WorkspaceMembership = {
   readonly isActive: boolean;
 };
 
+export type WorkspaceMember = WorkspaceMembership & {
+  readonly displayName: string;
+  readonly createdAt: IsoInstant;
+};
+
 export type WorkspaceRepository = {
   /** Presentation name for an already workspace-scoped read model. */
   findName(workspaceId: WorkspaceId): Promise<string | null>;
@@ -60,6 +65,15 @@ export type WorkspaceRepository = {
   countActiveOwnersForUpdate(workspaceId: WorkspaceId): Promise<number>;
   /** Sets `is_active = false`. Never deletes the row (UC-AUTH-002). */
   revokeMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean>;
+  listMembers(workspaceId: WorkspaceId): Promise<readonly WorkspaceMember[]>;
+  addMembership(workspaceId: WorkspaceId, actorId: ActorId, role: WorkspaceRole): Promise<boolean>;
+  changeMembershipRole(
+    workspaceId: WorkspaceId,
+    actorId: ActorId,
+    expectedRole: WorkspaceRole,
+    role: WorkspaceRole,
+  ): Promise<boolean>;
+  reactivateMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean>;
 };
 
 /** One row of "which depots may this person act in", for the workspace picker. */
@@ -83,6 +97,7 @@ export type ActorWorkspace = {
  */
 export type ActorRepository = {
   findBySupabaseUserId(supabaseUserId: string): Promise<{ actorId: ActorId } | null>;
+  findById(actorId: ActorId): Promise<{ actorId: ActorId; displayName: string } | null>;
   /**
    * **Active memberships only.** Unlike `findMembership`, a revoked row must not
    * appear: the caller of that method is answering "why were you refused", and

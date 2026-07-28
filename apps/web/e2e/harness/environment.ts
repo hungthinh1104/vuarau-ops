@@ -46,9 +46,13 @@ export const E2E_JWT_ISSUER = "https://e2e.local/auth/v1";
 export const E2E_JWT_AUDIENCE = "authenticated";
 
 export async function mintAccessToken(role: E2ERole): Promise<string> {
+  return mintAccessTokenForActor(E2E_ACTORS[role]);
+}
+
+export async function mintAccessTokenForActor(actorId: string): Promise<string> {
   return new SignJWT({})
     .setProtectedHeader({ alg: "HS256" })
-    .setSubject(E2E_ACTORS[role])
+    .setSubject(actorId)
     .setIssuer(E2E_JWT_ISSUER)
     .setAudience(E2E_JWT_AUDIENCE)
     .setIssuedAt()

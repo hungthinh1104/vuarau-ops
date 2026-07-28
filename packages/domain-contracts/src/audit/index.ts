@@ -24,6 +24,7 @@ export const AUDIT_ACTIONS = [
   "customer.created",
   "customer.updated",
   "customer.deactivated",
+  "customer.reactivated",
   "sale.draft_created",
   "sale.draft_edited",
   "sale.discarded",
@@ -32,6 +33,10 @@ export const AUDIT_ACTIONS = [
   "payment.recorded",
   "payment.reversed",
   "debt.adjusted",
+  "account.projection_rebuilt",
+  "membership.added",
+  "membership.role_changed",
+  "membership.reactivated",
   "membership.revoked",
 ] as const;
 export const auditActionSchema = z.enum(AUDIT_ACTIONS);

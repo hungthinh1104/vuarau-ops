@@ -27,11 +27,18 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   WORKSPACE_MEMBERSHIP_INACTIVE: "Quyền truy cập của bạn đã bị thu hồi. Hãy liên hệ chủ vựa.",
   PERMISSION_DENIED: "Bạn không có quyền thực hiện việc này. Hãy nhờ chủ vựa hoặc kế toán.",
   WORKSPACE_LAST_OWNER: "Không thể thu hồi chủ vựa cuối cùng. Hãy thêm một chủ vựa khác trước đã.",
+  WORKSPACE_MEMBER_NOT_FOUND: "Không tìm thấy thành viên này trong vựa.",
+  WORKSPACE_MEMBER_ALREADY_EXISTS: "Tài khoản này đã có hồ sơ thành viên trong vựa.",
+  WORKSPACE_MEMBER_ALREADY_ACTIVE: "Thành viên này đang hoạt động.",
+  WORKSPACE_MEMBER_ROLE_UNCHANGED: "Thành viên đã có vai trò này.",
+  WORKSPACE_MEMBER_ROLE_CONFLICT: "Vai trò vừa được người khác thay đổi. Hãy tải lại.",
+  WORKSPACE_MEMBER_SELF_ROLE_CHANGE_DENIED: "Bạn không thể tự thay đổi vai trò của mình.",
 
   CUSTOMER_NOT_FOUND: "Không tìm thấy khách hàng này.",
   CUSTOMER_NAME_REQUIRED: "Tên khách hàng không được để trống.",
   CUSTOMER_VERSION_CONFLICT: "Người khác vừa sửa khách hàng này. Hãy tải lại để xem thay đổi.",
   CUSTOMER_ALREADY_INACTIVE: "Khách hàng này đã ngưng hoạt động.",
+  CUSTOMER_ALREADY_ACTIVE: "Khách hàng này đang hoạt động.",
 
   SALE_NOT_FOUND: "Không tìm thấy đơn hàng này.",
   SALE_EMPTY: "Đơn chưa có mặt hàng nào. Hãy thêm ít nhất một dòng trước khi chốt.",
@@ -69,6 +76,10 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   ACCOUNT_ADJUSTMENT_NOT_FOUND: "Không tìm thấy điều chỉnh công nợ này.",
   ACCOUNT_ADJUSTMENT_INTEGRITY_ERROR:
     "Điều chỉnh công nợ thiếu dữ liệu sổ cái. Hãy báo người quản trị để kiểm tra.",
+  ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE:
+    "Sổ công nợ có dữ liệu hỏng nên chưa thể đối soát tự động.",
+  ACCOUNT_RECONCILIATION_REBUILD_UNSAFE:
+    "Không thể dựng lại số dư vì sai lệch không chỉ nằm ở bảng tổng hợp.",
 
   DUPLICATE_COMMAND: "Lệnh này đã được gửi với mã khác. Hãy tải lại rồi thử lại.",
   IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD:

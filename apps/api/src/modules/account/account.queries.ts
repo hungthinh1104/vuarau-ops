@@ -1,6 +1,9 @@
 import type {
   AccountTimelineEntryDto,
   AccountTimelineInput,
+  AccountReconciliationEvidenceDto,
+  AccountReconciliationInput,
+  AccountReconciliationResultDto,
   AccountAdjustmentDetailDto,
   AccountAdjustmentGetInput,
   CurrencyCode,
@@ -17,6 +20,7 @@ import { authorizeWorkspaceAccess, accountCapabilities } from "../shared/authori
 import { emptyAccountBalance, rebuildCustomerAccountBalance } from "../shared/account-effects.ts";
 import { toAccountBalanceDto } from "../shared/mappers.ts";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
+import { loadAccountReconciliation } from "./reconciliation.ts";
 
 /**
  * Reads. Plain queries, not commands — only the write side is command-shaped
@@ -102,12 +106,82 @@ export function getCustomerAccountTimeline(
         page: toPageQuery(input),
       });
 
-      return toPage(result, (row) => ({
-        ...row,
-        // Named per line, not only for the final balance: a timeline that shows a
-        // running total crossing zero has to say which side of zero each line is.
-        classification: classifyBalance(row.runningBalance),
-      }));
+      return toPage(result, toTimelineDto);
+    },
+  });
+}
+
+function toTimelineDto(
+  row: Omit<AccountTimelineEntryDto, "classification">,
+): AccountTimelineEntryDto {
+  return {
+    ...row,
+    // Named per line, not only for the final balance: a timeline that shows a
+    // running total crossing zero has to say which side of zero each line is.
+    classification: classifyBalance(row.runningBalance),
+  };
+}
+
+export function getAccountReconciliation(
+  ctx: CommandContext,
+  input: AccountReconciliationInput,
+): Promise<DomainResult<AccountReconciliationResultDto>> {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "debt.read",
+    execute: ({ repos, membership }) =>
+      loadAccountReconciliation({
+        repos,
+        workspaceId: input.workspaceId,
+        customerId: input.customerId,
+        role: membership.role,
+      }),
+  });
+}
+
+export function exportAccountReconciliationEvidence(
+  ctx: CommandContext,
+  input: AccountReconciliationInput,
+): Promise<DomainResult<AccountReconciliationEvidenceDto>> {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "debt.read",
+    execute: async ({ repos, membership }) => {
+      const reconciliation = await loadAccountReconciliation({
+        repos,
+        workspaceId: input.workspaceId,
+        customerId: input.customerId,
+        role: membership.role,
+      });
+
+      const entries: AccountTimelineEntryDto[] = [];
+      let after: { sortValue: string; id: string } | null = null;
+      do {
+        const page = await repos.accountReads.timeline({
+          workspaceId: input.workspaceId,
+          customerId: input.customerId,
+          from: null,
+          to: null,
+          page: { after, limit: 100 },
+        });
+        entries.push(...page.rows.map(toTimelineDto));
+        after = page.next;
+      } while (after !== null);
+
+      // Exports read newest-first for humans, but their identity is stable and
+      // `asOf` comes from immutable ledger data rather than the request clock.
+      const asOf =
+        reconciliation.kind === "consistent" || reconciliation.kind === "inconsistent"
+          ? reconciliation.ledger.latestRecordedAt
+          : null;
+      return {
+        schemaVersion: 1 as const,
+        asOf,
+        reconciliation,
+        entries,
+      };
     },
   });
 }

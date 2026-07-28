@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { decodeCursor, encodeCursor, permissionsForRole } from "@vuarau/domain-contracts";
+import {
+  customerIdSchema,
+  decodeCursor,
+  encodeCursor,
+  permissionsForRole,
+} from "@vuarau/domain-contracts";
 import type { Cursor, PaymentId, SaleId } from "@vuarau/domain-contracts";
 import {
   ACCOUNTANT_ACTOR_ID,
@@ -19,7 +24,11 @@ import {
 } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { getSession } from "../session/session.queries.ts";
-import { getCustomer, searchCustomers } from "../customer/customer.queries.ts";
+import {
+  findPossibleDuplicateCustomers,
+  getCustomer,
+  searchCustomers,
+} from "../customer/customer.queries.ts";
 import { getSale, listSales } from "../sale/sale.queries.ts";
 import { getPayment, listPayments } from "../payment/payment.queries.ts";
 import { getCustomerAccountTimeline } from "../account/account.queries.ts";
@@ -239,6 +248,48 @@ describe("UC-CUSTOMER-002 / TC-READ-002 — customer.search", () => {
       });
       expect(result.ok).toBe(permissionsForRole(role).includes("customer.read"));
     }
+  });
+});
+
+describe("UC-CUSTOMER-006 / TC-READ-011 — possible duplicate detection", () => {
+  it("surfaces normalized phone and folded-name matches without blocking a legitimate duplicate", async () => {
+    const duplicateId = uuid(777);
+    const created = await createCustomer(harness.ctx, {
+      ...envelope(),
+      payload: {
+        customerId: duplicateId,
+        displayName: "Chị Lan chợ Bình Điền",
+        phone: "090 123 4567",
+        note: "Một người khác có thể trùng tên",
+      },
+    });
+    expect(created.ok).toBe(true);
+
+    const candidates = await findPossibleDuplicateCustomers(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      displayName: "chi lan cho binh dien",
+      phone: "090-123-4567",
+      excludeCustomerId: customerIdSchema.parse(duplicateId),
+    });
+    expect(candidates.ok).toBe(true);
+    if (!candidates.ok) return;
+    expect(candidates.value).toHaveLength(1);
+    expect(candidates.value[0]?.customer.id).toBe(CUSTOMER_ID);
+    expect(candidates.value[0]?.reasons).toEqual(
+      expect.arrayContaining(["same_name", "same_phone"]),
+    );
+  });
+
+  it("does not leak candidates from a workspace the caller cannot read", async () => {
+    const result = await findPossibleDuplicateCustomers(harness.contextFor(FOREIGN_ACTOR_ID), {
+      workspaceId: WORKSPACE_ID,
+      displayName: activeCustomer.displayName,
+      phone: activeCustomer.phone,
+      excludeCustomerId: null,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("WORKSPACE_ACCESS_DENIED");
   });
 });
 
