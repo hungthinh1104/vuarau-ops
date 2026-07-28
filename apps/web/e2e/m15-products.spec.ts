@@ -1,0 +1,69 @@
+import { expect, test, signIn } from "./harness/signed-in.ts";
+import { api } from "./harness/api.ts";
+import { uniqueCustomerName } from "./harness/environment.ts";
+
+test.describe("M15 — Product catalog", () => {
+  test("catalog changes never rewrite a posted Sale snapshot or block free text", async ({
+    page,
+  }) => {
+    await signIn(page, "owner");
+    await page.goto("/products/new");
+    const name = `Cải bẹ M15 ${Date.now()}`;
+    await page.getByLabel("Tên mặt hàng").fill(name);
+    await page.getByLabel("Tên gọi khác").fill("cai be");
+    await page.getByLabel("Đơn vị gợi ý").selectOption("kg");
+    await page.getByRole("button", { name: "Tạo mặt hàng" }).click();
+    await page.waitForURL(/\/products\/[0-9a-f-]+$/);
+    await expect(page.getByRole("heading", { name: "Mặt hàng", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Tên mặt hàng")).toHaveValue(name);
+    const productUrl = page.url();
+
+    await page.goto("/products");
+    await page.getByLabel("Tìm mặt hàng").fill("cai be");
+    await expect(page.getByText(name)).toBeVisible();
+
+    const customerId = await api.createCustomer(uniqueCustomerName("product-sale"));
+    await page.goto(`/customers/${customerId}/sales/new`);
+    const line = page.getByTestId("sale-line-0");
+    await line.getByLabel("Mặt hàng").fill("cai be");
+    await page.getByRole("button", { name: `${name} · kg`, exact: true }).click();
+    await expect(line.getByLabel("Mặt hàng")).toHaveValue(name);
+    await expect(line.getByLabel("Đơn vị")).toHaveValue("kg");
+    await expect(line.getByLabel("Đơn giá")).toHaveValue("");
+    await line.getByLabel("Số lượng").fill("2");
+    await line.getByLabel("Đơn giá").fill("20.000");
+    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+    await expect(page.getByText(name)).toBeVisible();
+    await expect(page.getByText("2 kg × 20.000 ₫")).toBeVisible();
+    const saleUrl = page.url();
+
+    const renamed = `${name} đổi tên`;
+    await page.goto(productUrl);
+    await page.getByLabel("Tên mặt hàng").fill(renamed);
+    await page.getByLabel("Đơn vị gợi ý").selectOption("cai");
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+    await expect(page.getByText(/phiên bản 2/)).toBeVisible();
+    await page.getByRole("button", { name: "Ngưng mặt hàng" }).click();
+    await expect(page.getByRole("button", { name: "Dùng lại mặt hàng" })).toBeVisible();
+
+    await page.goto(saleUrl);
+    await expect(page.getByText(name)).toBeVisible();
+    await expect(page.getByText("2 kg × 20.000 ₫")).toBeVisible();
+    await expect(page.getByText(renamed)).toHaveCount(0);
+
+    const freeTextCustomerId = await api.createCustomer(uniqueCustomerName("free-text"));
+    await page.goto(`/customers/${freeTextCustomerId}/sales/new`);
+    const freeTextLine = page.getByTestId("sale-line-0");
+    await freeTextLine.getByLabel("Mặt hàng").fill(renamed);
+    await expect(page.getByRole("button", { name: `${renamed} · cái`, exact: true })).toHaveCount(
+      0,
+    );
+    await freeTextLine.getByLabel("Số lượng").fill("1");
+    await freeTextLine.getByLabel("Đơn giá").fill("10.000");
+    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+    await expect(page.getByText(renamed)).toBeVisible();
+    await expect(page.getByText("1 kg × 10.000 ₫")).toBeVisible();
+  });
+});

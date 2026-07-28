@@ -67,10 +67,16 @@ const webEnvironment = {
 
 export default defineConfig({
   testDir: "./e2e",
-  // Specs share one seeded workspace and create their own customers, so they are
-  // independent. Parallel across files; serial within one, because a workflow is
-  // a sequence.
-  fullyParallel: true,
+  /*
+   * The browser projects share one API process and one PostgreSQL database.
+   * Financial workflows are data-isolated, but high parallelism can exhaust the
+   * real-stack request path while long backup and offline scenarios are running,
+   * leaving otherwise-valid reads pending until their test timeout. Serialize
+   * the acceptance gate: command concurrency is tested explicitly at the
+   * application/outbox layers, while this suite proves complete user journeys.
+   */
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] === undefined ? 0 : 1,
   reporter: "list",
@@ -115,7 +121,10 @@ export default defineConfig({
           command: `next dev --port ${E2E_WEB_PORT}`,
           url: `http://127.0.0.1:${E2E_WEB_PORT}`,
           env: webEnvironment,
-          reuseExistingServer: !process.env["CI"],
+          // A previously interrupted offline run can leave a dev server process
+          // alive but unable to serve navigations. The acceptance gate must own
+          // both processes so readiness reflects this exact run.
+          reuseExistingServer: false,
           timeout: 120_000,
         },
       ]
