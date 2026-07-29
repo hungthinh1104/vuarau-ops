@@ -67,3 +67,7 @@ customer/supplier/inventory reconciliation:
 operator:
 incident or deviations:
 ```
+
+For the M23 provider execution record, including separate customer, supplier and
+inventory reconciliation fields, use
+[m23-deployment-recovery-evidence.md](m23-deployment-recovery-evidence.md).

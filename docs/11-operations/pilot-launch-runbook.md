@@ -1,8 +1,9 @@
 # Shadow pilot launch runbook
 
 This runbook prepares one **new, isolated** shadow-pilot environment. It does not
-authorise a session by itself: an observed session starts only after readiness is
-12/12, the real-phone smoke check is 10/10, and the human gates below are recorded.
+authorise a session by itself: an observed session starts only after repository
+and pilot readiness both pass, the real-phone smoke check is 10/10, and the human
+gates below are recorded.
 Do not put a filled `pilot.json`, customer CSV, OTP, token, signed worksheet, or
 customer details in this repository.
 
@@ -67,9 +68,12 @@ must stay out of logs shared with the project.
    convenience.
 
    ```bash
-   pnpm --filter @vuarau/api ops:pilot workspace --name "<pilot workspace>"
-   pnpm --filter @vuarau/api ops:pilot member --workspace <workspace-id> \
-     --subject <supabase-subject> --name "<worker display name>" --role sales
+   pnpm --filter @vuarau/api ops:pilot bootstrap --workspace <workspace-id> \
+     --name "<pilot workspace>" --actor <owner-actor-id> \
+     --subject <owner-supabase-subject> --owner-name "<owner display name>"
+   # review, repeat the exact bootstrap with --commit, then add the worker
+   # through the authenticated membership UI/API
+   pnpm --filter @vuarau/api ops:pilot review --workspace <workspace-id>
    pnpm --filter @vuarau/api ops:pilot-readiness --example > /secure/path/pilot.json
    pnpm --filter @vuarau/api ops:pilot-readiness --config /secure/path/pilot.json
    ```
@@ -102,9 +106,9 @@ must stay out of logs shared with the project.
    pnpm --filter @vuarau/api ops:pilot-readiness --config /secure/path/pilot.json
    ```
 
-   Expected: exactly `12/12 checks passed`. If rejected, output says `STOP` and
-   exits non-zero. Record a finding with the answer and affected model; do not
-   change the debt-recognition model in this milestone.
+   Expected: every repository and external check passes. A rejected recognition
+   answer exits non-zero. Record the contradiction and affected model; do not
+   change recognition semantics inside M23.
 
 7. Complete [device-smoke-check.md](device-smoke-check.md) on the worker's normal
    phone over mobile data. A failure at step 10 stops the pilot. Then use the
@@ -119,7 +123,7 @@ facilitator, stopwatch, worksheet, assistance labels, comparison, and reset—no
 H2. Reset by discarding the dry-run workspace or creating a new clean pilot
 workspace. Never delete posted rows; use Sale detail's void/replacement workflow
 where a correction is genuinely required, then return the intended pilot workspace
-to 12/12. `ops:correct-sale` is a support fallback only.
+to a fully passing readiness result. `ops:correct-sale` is a support fallback only.
 
 ## Backup declaration
 

@@ -6,7 +6,8 @@ reviewed.
 
 ## Preconditions
 
-- `ops:pilot-readiness` is 12/12 and the device smoke is 10/10.
+- `ops:pilot-readiness` reports repository and pilot readiness PASS, and the
+  device smoke is 10/10.
 - One real worker uses their usual phone over 4G or equivalent real network.
 - The worker's notebook/bông remains the official record; this workspace is
   isolated shadow evidence, never the basis for a financial decision.

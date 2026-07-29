@@ -1017,6 +1017,21 @@ business_rules:
       - packages/db/src/performance/m22-scale.ts
       - packages/db/migrations/0020_white_black_crow.sql
 
+  BR-OPS-008:
+    title: Pilot preparation is attributable, deterministic and fail-closed
+    risk: P0
+    doc: docs/04-business-rules/operations-rules.md
+    cases: []
+    tests: [TC-OPS-012, TC-OPS-013, TC-CUSTOMER-013]
+    implementation:
+      - packages/db/src/provisioning.ts
+      - packages/db/src/pilot-inspection.ts
+      - apps/api/src/operations/pilot-onboarding.ts
+      - apps/api/src/operations/pilot-csv.ts
+      - apps/api/src/operations/pilot-config.ts
+      - apps/api/src/operations/pilot-readiness.ts
+      - scripts/m23-pilot-dry-run.ts
+
   # --- payment ------------------------------------------------------------------
   BR-PAYMENT-001:
     title: Payment amount must be greater than zero
@@ -1934,6 +1949,15 @@ contract_tests:
   TC-OPS-011:
     title: Production-shape query plans meet fixed budgets without unexplained full scans
     file: packages/db/src/performance/m22-scale.ts
+  TC-OPS-012:
+    title: Pilot owner bootstrap is atomic, audited and duplicate-safe
+    file: packages/db/src/provisioning.db.test.ts
+  TC-OPS-013:
+    title: Pilot declaration requires exact release and explicit external gates
+    file: apps/api/src/operations/pilot-config.app.test.ts
+  TC-CUSTOMER-013:
+    title: Customer and Product pilot imports replay real commands without crossing workspaces
+    file: apps/api/src/infrastructure/persistence/drizzle/pilot-onboarding.db.test.ts
   TC-PRODUCT-001:
     title: Product search, lifecycle, versioning, permissions and workspace isolation
     file: apps/api/src/modules/product/product.app.test.ts

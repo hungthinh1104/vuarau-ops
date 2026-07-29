@@ -18,6 +18,12 @@ document exists to prevent. **A green test suite is technical evidence for H1 an
 prerequisite evidence for the other workflows; it is not field validation.** No
 count of passing tests may be reported as product validation.
 
+M23 freezes the observation fields, assistance labels, independent-reference rule
+and pass criteria in
+[m23-field-validation-protocol.md](m23-field-validation-protocol.md). Do not edit
+those criteria after the first observation; a changed release SHA starts a new
+evidence series.
+
 > **H2 was reworded on 2026-07-27.** It previously read _"a worker can record a
 > real multi-line sale **faster than the current paper/memory process**"_. That
 > is a causal comparison, and the session that was designed to settle it could

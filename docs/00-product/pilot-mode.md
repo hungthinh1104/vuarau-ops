@@ -68,17 +68,13 @@ it.
 
 ## What would make it an operational pilot
 
-An **operational pilot** — where the depot's real receivables live in this system
-and a person acts on them — needs all four of these **before it begins**. None is
-built today, which is why the mode is not on offer:
-
-| Prerequisite                            | State                                                                                                                                   |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Sale void and replacement UI**        | **Available.** A permitted owner/accountant can void only or void and create a prefilled replacement; retry preserves command identity. |
-| **Backup and restore procedure**        | **Missing.** No documented restore, and no one has rehearsed one                                                                        |
-| **Real role assignment**                | **Missing.** ASM-017 (the role table is a developer's default) and ASM-018 (everyone was backfilled as `owner`)                         |
-| **Incident and reconciliation runbook** | **Missing.** "The balance is wrong and the depot is arguing with a customer" has no written first step                                  |
-| **ASM-002 confirmed**                   | **Owed.** The receivable arises at posting ([ADR-0014](../09-decisions/ADR-0014-debt-recognition-at-posting.md)); no owner has said so  |
+An **operational pilot** — where the depot acts on this system as truth — is not
+authorized by M23. Repository workflows for correction, logical restore,
+reconciliation, role management and incidents now exist, but operational use
+still requires the signed ASM-023/024/025 semantics, ASM-017/018 access review,
+ASM-030 data policy, real-phone deployment evidence and measured provider
+PITR/RPO/RTO evidence. Missing external evidence is a hard gate, not a missing
+feature to code around.
 
 The first is the sharpest. A depot that cannot undo its own mistake without a
 developer is a depot whose books depend on somebody's availability, and the
@@ -115,5 +111,6 @@ by not looking.
 - [scope.md](scope.md) — what is deliberately not built
 - [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — the environment the pilot runs in
 - [../11-operations/device-smoke-check.md](../11-operations/device-smoke-check.md) — proving the deployment works on a phone
-- [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — the owner's four questions
+- [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — ASM-023 owner worksheet
+- [m23-pilot-contract.md](m23-pilot-contract.md) — frozen gates and incident rules
 - [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md) — ASM-017, ASM-018, ASM-023

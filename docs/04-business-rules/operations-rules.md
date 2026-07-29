@@ -1,6 +1,6 @@
 # Operations business rules
 
-Two rules about the running system rather than about a sale. They are here, with
+These rules are about the running system rather than about a Sale. They are here, with
 IDs and tests, because both fail the same way every business rule fails — quietly,
 in production, in a place nobody looks — and because "obviously we would not log a
 customer's name" is exactly the kind of obviousness that stops being true on a
@@ -197,6 +197,15 @@ BUFFERS)` must show no unexplained sequential scan of the million-row canonical
 tables for page reads. Date/cursor filters and `LIMIT` execute in PostgreSQL before
 mapping. Same-time rows use the canonical total order and never disappear or
 repeat across pages. A cache may not be added without measured evidence.
+
+### BR-OPS-008 — Pilot preparation is attributable, deterministic and fail-closed
+
+The first owner bootstrap is one audited transaction and cannot change an
+existing non-empty workspace. Later membership changes use authenticated
+commands. Customer/Product import is a dry run by default, judges the whole file
+before mutation, surfaces duplicate candidates and uses deterministic command and
+aggregate identities. Pilot readiness separates repository checks from external
+owner/provider evidence and never turns a missing external gate into a pass.
 
 ## Related
 

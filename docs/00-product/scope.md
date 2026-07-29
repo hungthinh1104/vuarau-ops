@@ -1,8 +1,9 @@
 # Current scope — depot transaction operating system
 
-This is the delivered technical boundary through M22. M8–M22 have automated
-implementation evidence; provider PITR and owner acceptance remain deployment
-gates. M23 remains unopened.
+This is the delivered technical boundary through M23 repository readiness.
+M8–M23 have automated implementation evidence; provider PITR, owner policy
+acceptance, real-phone deployment and H2–H6 observations remain external pilot
+gates. M24 is not authorized.
 
 Technical completion is not field validation. The distinction is defined in the
 [product invariants](product-invariants.md) and measured by the

@@ -235,6 +235,23 @@ source-backed reports.
   are recorded. Provider PITR and owner acceptance remain hard deployment gates,
   not claimed repository evidence.
 
+### M23 — Shadow-pilot readiness (repository evidence complete; pilot blocked/pending)
+
+- `603e830` is the pre-M23 baseline; every evidence packet is bound to the exact
+  deployed full SHA and the depot notebook remains operational truth;
+- audited first-owner bootstrap, authenticated member commands, effective-role
+  review and fail-closed readiness declarations prepare one isolated workspace;
+- Customer and Product CSVs dry-run, validate every row, surface duplicate
+  candidates and replay deterministic real commands without demo seeding;
+- the disposable dry-run composes existing real browser/API/PostgreSQL workflows
+  with request/readiness failures instead of duplicating their scenarios;
+- H2–H6 criteria, P0–P3 stop rules, deployment/recovery evidence and support
+  runbooks are frozen.
+
+Repository readiness may pass. Pilot readiness remains **BLOCKED/PENDING** until
+ASM-023/024/025, ASM-017/018, ASM-030, real-phone deployment and provider
+PITR/RPO/RTO/restore evidence are actually recorded. M24 is not authorized.
+
 | Horizon                               | Milestones                                                                | Gate                                                                                   |
 | ------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | 2 — self-service and field resilience | M11–M14 technically complete                                              | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
@@ -242,9 +259,10 @@ source-backed reports.
 | 4 — depot operations                  | M19–M22 technically complete; provider recovery evidence gates deployment | Operational views meet measured budgets and production trust boundaries fail closed.   |
 | 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                  | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
 
-The depot-operations batch and M21.5–M22 hardening close repository-owned
-technical evidence through M22. M23 remains unopened. Provider PITR and owner
-acceptance are deployment blockers, not reasons to invent evidence in this book.
+The depot-operations batch and M21.5–M23 hardening close repository-owned
+technical evidence through shadow-pilot readiness. Provider PITR, owner policy
+answers, real-phone evidence and field observations are external blockers, not
+reasons to invent evidence in this book.
 
 ## Maturity stages
 

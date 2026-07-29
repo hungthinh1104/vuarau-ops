@@ -1,5 +1,10 @@
 # Deployment contract — what a pilot environment must satisfy
 
+For an M23 shadow pilot, set `APP_RELEASE_SHA` to the deployed full git SHA and
+copy it into every private readiness/evidence record. See
+[m23-deployment-recovery-evidence.md](m23-deployment-recovery-evidence.md) for the
+repository/deployment/operator evidence split.
+
 **Vendor-neutral on purpose.** This says what has to be true, not who provides it.
 A hosting choice made now would be made before anybody has watched a depot use the
 product, and it would be copied forward as though it had been decided.
