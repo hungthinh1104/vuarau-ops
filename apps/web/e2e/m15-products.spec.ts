@@ -8,9 +8,11 @@ test.describe("M15 — Product catalog", () => {
   }) => {
     await signIn(page, "owner");
     await page.goto("/products/new");
-    const name = `Cải bẹ M15 ${Date.now()}`;
+    const uniqueSuffix = Date.now();
+    const name = `Cải bẹ M15 ${uniqueSuffix}`;
+    const alias = `cai be ${uniqueSuffix}`;
     await page.getByLabel("Tên mặt hàng").fill(name);
-    await page.getByLabel("Tên gọi khác").fill("cai be");
+    await page.getByLabel("Tên gọi khác").fill(alias);
     await page.getByLabel("Đơn vị gợi ý").selectOption("kg");
     await page.getByRole("button", { name: "Tạo mặt hàng" }).click();
     await page.waitForURL(/\/products\/[0-9a-f-]+$/);
@@ -19,13 +21,13 @@ test.describe("M15 — Product catalog", () => {
     const productUrl = page.url();
 
     await page.goto("/products");
-    await page.getByLabel("Tìm mặt hàng").fill("cai be");
-    await expect(page.getByText(name)).toBeVisible();
+    await page.getByLabel("Tìm mặt hàng").fill(alias);
+    await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
 
     const customerId = await api.createCustomer(uniqueCustomerName("product-sale"));
     await page.goto(`/customers/${customerId}/sales/new`);
     const line = page.getByTestId("sale-line-0");
-    await line.getByLabel("Mặt hàng").fill("cai be");
+    await line.getByLabel("Mặt hàng").fill(alias);
     await page.getByRole("button", { name: `${name} · kg`, exact: true }).click();
     await expect(line.getByLabel("Mặt hàng")).toHaveValue(name);
     await expect(line.getByLabel("Đơn vị")).toHaveValue("kg");
@@ -34,7 +36,7 @@ test.describe("M15 — Product catalog", () => {
     await line.getByLabel("Đơn giá").fill("20.000");
     await page.getByRole("button", { name: "Chốt đơn" }).click();
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
-    await expect(page.getByText(name)).toBeVisible();
+    await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
     await expect(page.getByText("2 kg × 20.000 ₫")).toBeVisible();
     const saleUrl = page.url();
 
@@ -48,7 +50,7 @@ test.describe("M15 — Product catalog", () => {
     await expect(page.getByRole("button", { name: "Dùng lại mặt hàng" })).toBeVisible();
 
     await page.goto(saleUrl);
-    await expect(page.getByText(name)).toBeVisible();
+    await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
     await expect(page.getByText("2 kg × 20.000 ₫")).toBeVisible();
     await expect(page.getByText(renamed)).toHaveCount(0);
 
@@ -63,7 +65,7 @@ test.describe("M15 — Product catalog", () => {
     await freeTextLine.getByLabel("Đơn giá").fill("10.000");
     await page.getByRole("button", { name: "Chốt đơn" }).click();
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
-    await expect(page.getByText(renamed)).toBeVisible();
+    await expect(page.getByText(renamed, { exact: true }).first()).toBeVisible();
     await expect(page.getByText("1 kg × 10.000 ₫")).toBeVisible();
   });
 });
