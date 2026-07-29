@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { observeOperationalEvent } from "./metrics.ts";
 
 /**
  * Structured server logs, with a closed vocabulary.
@@ -47,6 +48,23 @@ export type LogEvent =
       readonly durationMs: number;
     }
   | {
+      readonly event: "query";
+      readonly requestId: string | null;
+      readonly queryType: string;
+      readonly workspaceId: string;
+      readonly actorId: string;
+      readonly outcome: "accepted" | "rejected";
+      readonly code: string | null;
+      readonly durationMs: number;
+    }
+  | {
+      readonly event: "integrity";
+      readonly requestId: string | null;
+      readonly workspaceId: string;
+      readonly checkType: "workspace" | "report";
+      readonly status: "healthy" | "attention";
+    }
+  | {
       readonly event: "health";
       readonly probe: "live" | "ready";
       readonly status: number;
@@ -76,6 +94,7 @@ export function setLogSink(replacement: LogSink | null): void {
 }
 
 export function log(event: LogEvent): void {
+  observeOperationalEvent(event);
   sink(event);
 }
 

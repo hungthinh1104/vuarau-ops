@@ -13,6 +13,7 @@ import type { Repositories, WorkspaceMembership } from "../../infrastructure/per
 import type { PageQuery, PageResult } from "../../infrastructure/persistence/read-ports.ts";
 import type { CommandContext } from "./command-pipeline.ts";
 import { authorizeWorkspaceAccess } from "./authorization.ts";
+import { currentRequestId, log } from "../../infrastructure/logging.ts";
 
 /**
  * The read counterpart of `runCommand`.
@@ -41,10 +42,11 @@ export async function runQuery<TResult>(args: {
 }): Promise<DomainResult<TResult>> {
   const { ctx, workspaceId, permission, execute } = args;
   const asOf = ctx.deps.clock.now();
+  const startedAt = Date.now();
 
   // Inside the transaction, so the authorization check and the read it guards see
   // the same snapshot: a membership revoked mid-query cannot let the read finish.
-  return ctx.deps.uow.transaction(async (repos) => {
+  const result = await ctx.deps.uow.transaction(async (repos) => {
     const authorized = await authorizeWorkspaceAccess({
       repos,
       principal: ctx.principal,
@@ -57,6 +59,17 @@ export async function runQuery<TResult>(args: {
 
     return ok(await execute({ repos, membership: authorized.value, asOf }));
   });
+  log({
+    event: "query",
+    requestId: currentRequestId(),
+    queryType: permission,
+    workspaceId,
+    actorId: ctx.principal.actorId,
+    outcome: result.ok ? "accepted" : "rejected",
+    code: result.ok ? null : result.error.code,
+    durationMs: Date.now() - startedAt,
+  });
+  return result;
 }
 
 /** Decodes the client's opaque cursor into the keyset position the ports take. */

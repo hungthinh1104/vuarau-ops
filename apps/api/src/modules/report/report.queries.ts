@@ -5,6 +5,8 @@ import {
 } from "@vuarau/domain-contracts";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery, toPageQuery } from "../shared/read-pipeline.ts";
+import { currentRequestId, log } from "../../infrastructure/logging.ts";
+import { csvCell } from "./csv.ts";
 
 export const getOperationalReport = (ctx: CommandContext, input: ReportInput) =>
   runQuery({
@@ -23,6 +25,13 @@ export const getOperationalReport = (ctx: CommandContext, input: ReportInput) =>
         }),
         repos.operationsReads.integrity(input.workspaceId),
       ]);
+      log({
+        event: "integrity",
+        requestId: currentRequestId(),
+        workspaceId: input.workspaceId,
+        checkType: "report",
+        status: integrity.status,
+      });
       if (integrity.status === "healthy") return report;
       return {
         ...report,
@@ -31,11 +40,6 @@ export const getOperationalReport = (ctx: CommandContext, input: ReportInput) =>
       };
     },
   });
-
-const csvCell = (value: string | number | null): string => {
-  const text = value === null ? "" : String(value);
-  return `"${text.replaceAll('"', '""')}"`;
-};
 
 export const getOperationalReportCsv = (ctx: CommandContext, input: ReportInput) =>
   runQuery({
