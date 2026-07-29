@@ -415,7 +415,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               onReload={() => window.location.reload()}
             />
 
-            <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface px-4 py-3">
+            <div className="fixed inset-x-0 bottom-16 z-20 border-t border-border bg-surface px-4 py-3 lg:bottom-0">
               <div className="mx-auto flex max-w-[1440px] gap-2">
                 <Button
                   tone="secondary"

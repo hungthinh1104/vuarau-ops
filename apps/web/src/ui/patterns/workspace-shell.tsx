@@ -1,5 +1,6 @@
 import type { SessionDto, WorkspaceRole } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Badge } from "../primitives/badge.tsx";
 import { Button } from "../primitives/button.tsx";
 import { AppNav } from "./app-nav.tsx";
@@ -73,6 +74,16 @@ export function WorkspaceShell({
           </div>
         </div>
       </header>
+      {session.permissions.includes("sale.create") ? (
+        <div className="border-b border-border bg-surface px-4 py-2 lg:hidden">
+          <Link
+            href="/sales/new"
+            className="touch-target mx-auto flex max-w-xl items-center justify-center rounded-button bg-leaf text-label font-semibold text-white"
+          >
+            Ghi đơn nhanh
+          </Link>
+        </div>
+      ) : null}
 
       {notice !== undefined ? (
         <p className="border-b border-warning/30 bg-warning-soft px-4 py-2 text-center text-body-sm text-warning lg:px-8">

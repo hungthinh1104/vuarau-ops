@@ -43,6 +43,10 @@ describe("Goods Truth workspace navigation", () => {
     );
     expect(screen.queryByRole("link", { name: "Nhà cung cấp" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Nhận hàng" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ghi đơn nhanh" })).toHaveAttribute(
+      "href",
+      "/sales/new",
+    );
   });
 
   it("keeps depot, user, role, workspace change and sign-out visible", () => {
