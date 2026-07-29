@@ -76,6 +76,23 @@ Computed at read time from the sign of the customer account balance
 | `settled`         | `balance = 0` | Nothing outstanding either way |
 | `customer_credit` | `balance < 0` | The depot owes the customer    |
 
+## Purchase status — `PurchaseStatus` (stored)
+
+| Value       | Meaning                                  | Terminal | Supplier effect    |
+| ----------- | ---------------------------------------- | -------- | ------------------ |
+| `draft`     | Editable commercial document             | no       | none               |
+| `confirmed` | Immutable Purchase snapshot              | yes      | one `+total` entry |
+| `discarded` | Abandoned draft retained without effects | yes      | none               |
+
+Voiding is a derived financial state from a separate `purchase_voids` row, not a
+status mutation. Receipt progress is also derived and does not enter this enum.
+
+## Supplier balance and inventory classifications (derived)
+
+Supplier balance is `payable` above zero, `settled` at zero and
+`supplier_credit` below zero. Inventory per Product/unit is `positive`, `zero` or
+`negative`. Negative values are retained facts, not invalid states.
+
 ## Values that are NOT states
 
 Recorded here so nobody adds them later thinking they were forgotten.

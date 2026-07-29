@@ -94,6 +94,41 @@ Postgres, and returned by a command that a test exercises.
 | `WORKSPACE_MEMBER_SELF_ROLE_CHANGE_DENIED` | Owner attempted to change their own role             | BR-AUTH-009     | UC-AUTH-005     |
 | `CUSTOMER_ALREADY_ACTIVE`                  | Reactivation targeted an active customer             | BR-CUSTOMER-006 | UC-CUSTOMER-006 |
 
+## Goods Truth codes
+
+| Code                                                 | Meaning                                                     |
+| ---------------------------------------------------- | ----------------------------------------------------------- |
+| `SUPPLIER_NOT_FOUND`                                 | Supplier does not resolve in this workspace                 |
+| `SUPPLIER_INACTIVE`                                  | Inactive Supplier cannot start a new Purchase               |
+| `SUPPLIER_VERSION_CONFLICT`                          | Supplier or supplier payment version is stale               |
+| `SUPPLIER_PAYMENT_AMOUNT_INVALID`                    | Supplier payment is not positive                            |
+| `SUPPLIER_PAYMENT_NOT_FOUND`                         | Supplier payment does not resolve                           |
+| `SUPPLIER_PAYMENT_ALREADY_REVERSED`                  | Supplier payment has no reversible remainder                |
+| `SUPPLIER_PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT` | Reversal exceeds the remaining cash-out                     |
+| `SUPPLIER_PAYMENT_REVERSAL_REASON_REQUIRED`          | Supplier payment reversal lacks explanation                 |
+| `SUPPLIER_ACCOUNT_ADJUSTMENT_REASON_REQUIRED`        | Supplier adjustment lacks explanation                       |
+| `SUPPLIER_ACCOUNT_ADJUSTMENT_AMOUNT_INVALID`         | Supplier adjustment amount is not positive                  |
+| `SUPPLIER_ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE`  | Canonical supplier source is corrupt                        |
+| `SUPPLIER_ACCOUNT_RECONCILIATION_REBUILD_UNSAFE`     | Rebuild would hide canonical corruption                     |
+| `PURCHASE_NOT_FOUND`                                 | Purchase does not resolve in this workspace                 |
+| `PURCHASE_EMPTY`                                     | Purchase has no line to confirm                             |
+| `PURCHASE_LINE_INVALID`                              | Purchase line reference, quantity, unit or money is invalid |
+| `PURCHASE_VERSION_CONFLICT`                          | Purchase draft version is stale                             |
+| `PURCHASE_ALREADY_CONFIRMED`                         | Confirmed Purchase cannot be changed                        |
+| `PURCHASE_ALREADY_DISCARDED`                         | Discarded Purchase cannot be changed                        |
+| `PURCHASE_ALREADY_VOIDED`                            | Purchase already has a void record                          |
+| `PURCHASE_NOT_CONFIRMED`                             | Only a confirmed Purchase may be voided                     |
+| `PURCHASE_REPLACEMENT_INVALID`                       | Replacement source is not one eligible voided Purchase      |
+| `PURCHASE_HAS_ACTIVE_RECEIPTS`                       | Active received quantity must be reversed before void       |
+| `PURCHASE_VOID_REASON_REQUIRED`                      | Purchase void lacks explanation                             |
+| `RECEIPT_NOT_FOUND`                                  | Receipt does not resolve in this workspace                  |
+| `RECEIPT_ALREADY_REVERSED`                           | Receipt already has a reversal                              |
+| `RECEIPT_QUANTITY_EXCEEDS_PURCHASE`                  | Net received quantity exceeds purchased quantity            |
+| `RECEIPT_UNIT_MISMATCH`                              | Receipt unit differs from immutable Purchase line           |
+| `RECEIPT_REVERSAL_REASON_REQUIRED`                   | Receipt reversal lacks explanation                          |
+| `INVENTORY_ADJUSTMENT_REASON_REQUIRED`               | Inventory adjustment lacks explanation                      |
+| `INVENTORY_RECONCILIATION_INTEGRITY_FAILURE`         | Canonical movement source is corrupt                        |
+
 ## Rules for changing this catalog
 
 1. Adding a code: append to the enum, add a row here, name the rule it serves.

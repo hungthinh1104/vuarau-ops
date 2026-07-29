@@ -23,7 +23,9 @@ A depot cannot do that at 4 a.m. with a truck waiting.
    and never quietly edited.
 3. **Recover safely from mistakes.** Workers mistype. Customers dispute. The fix is
    always a compensating record, never an erasure.
-4. **Progressively support better operational decisions.** Later — not now — the
+4. **Trace inbound goods independently from money.** Supplier payable, Purchase
+   confirmation and physical Receiving remain separate, source-linked facts.
+5. **Progressively support better operational decisions.** Later — not now — the
    accumulated ledger answers questions like who pays late and which customer is
    worth extending credit to.
 
@@ -80,10 +82,12 @@ implemented; no P0 rule is planned. The full surface is in
 
 ### What is complete, and what that does not mean
 
-The browser now closes the technical workflows through M12: Quick Sale,
+The browser now closes the technical workflows through M18: Quick Sale,
 void/replacement correction, payment/reversal, debt adjustment, explainable
 account reconciliation, member/role administration, and customer lifecycle.
 These flows use the typed API and PostgreSQL in automated end-to-end tests.
+Supplier payment, Purchase correction, Receiving/reversal and per-unit inventory
+movement are included; Sale fulfilment remains the M19 boundary.
 
 **Nobody has recorded a real sale in this software.** Every claim in "What good
 looks like" above — ten seconds, no lost writes, a correction anybody can follow —

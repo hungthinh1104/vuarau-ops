@@ -1,5 +1,19 @@
 # Transition catalog
 
+M16–M18 add these explicit transitions:
+
+| ID             | Aggregate | From      | Command                | To / adjacent record |
+| -------------- | --------- | --------- | ---------------------- | -------------------- |
+| T-PURCHASE-001 | Purchase  | creation  | CreatePurchaseDraft    | `draft`              |
+| T-PURCHASE-002 | Purchase  | `draft`   | ConfirmPurchase        | `confirmed`          |
+| T-PURCHASE-003 | Purchase  | `draft`   | DiscardPurchaseDraft   | `discarded`          |
+| T-PURCHASE-004 | Purchase  | confirmed | VoidPurchase           | append void record   |
+| T-RECEIPT-001  | Receipt   | creation  | RecordPurchaseReceipt  | active Receipt       |
+| T-RECEIPT-002  | Receipt   | active    | ReversePurchaseReceipt | append reversal      |
+
+Purchase and Receipt terminal history is never rewritten. Details and guards are
+in [purchase-state-machine.md](purchase-state-machine.md).
+
 Every state change in the system, in one table. A command that is not listed here
 cannot change a lifecycle value.
 

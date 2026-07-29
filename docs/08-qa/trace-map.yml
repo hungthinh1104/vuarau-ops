@@ -488,7 +488,205 @@ use_cases:
       - apps/api/src/modules/audit/audit.queries.ts
       - packages/db/src/repositories/read-queries.ts
 
+  UC-SUPPLIER-001:
+    title: Manage and explain supplier payable
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-SUPPLIER-001, BR-SUPPLIER-002, BR-SUPPLIER-003, BR-SUPPLIER-004, BR-SUPPLIER-005]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-002, TC-E2E-029]
+    implementation:
+      - packages/domain-kernel/src/supplier/index.ts
+      - apps/api/src/modules/supplier/supplier.handlers.ts
+      - packages/db/src/schema/supplier.ts
+
+  UC-PURCHASE-001:
+    title: Record and correct a Purchase
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules:
+      [
+        BR-PURCHASE-001,
+        BR-PURCHASE-002,
+        BR-PURCHASE-003,
+        BR-PURCHASE-004,
+        BR-PURCHASE-005,
+        BR-PURCHASE-006,
+      ]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-003, TC-E2E-029]
+    implementation:
+      - packages/domain-kernel/src/purchase/index.ts
+      - apps/api/src/modules/purchase/purchase.handlers.ts
+      - packages/db/src/schema/purchase.ts
+
+  UC-RECEIVING-001:
+    title: Receive and reverse physical goods
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-INVENTORY-001, BR-INVENTORY-002, BR-INVENTORY-003, BR-INVENTORY-004]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-004, TC-E2E-029]
+    implementation:
+      - packages/domain-kernel/src/inventory/index.ts
+      - apps/api/src/modules/inventory/inventory.handlers.ts
+      - packages/db/src/schema/inventory.ts
+
+  UC-INVENTORY-001:
+    title: Explain and reconcile physical quantity
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules:
+      [BR-INVENTORY-005, BR-INVENTORY-006, BR-INVENTORY-007, BR-INVENTORY-008, BR-INVENTORY-009]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-004, TC-GOODS-005, TC-E2E-029]
+    implementation:
+      - apps/api/src/modules/inventory/inventory.queries.ts
+      - packages/db/src/repositories/read-queries.ts
+      - apps/web/src/app/(app)/products/[productId]/inventory/page.tsx
+
 business_rules:
+  BR-SUPPLIER-001:
+    title: Supplier lifecycle is workspace scoped and versioned
+    risk: P1
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-002]
+    implementation: [packages/domain-kernel/src/supplier/index.ts]
+  BR-SUPPLIER-002:
+    title: Supplier account ledger is signed and append only
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [packages/db/src/schema/supplier.ts]
+  BR-SUPPLIER-003:
+    title: Supplier payment and reversal create exact referenced effects
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-002]
+    implementation: [apps/api/src/modules/supplier/supplier.handlers.ts]
+  BR-SUPPLIER-004:
+    title: Supplier adjustments are explicit and explained
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-002]
+    implementation: [apps/api/src/modules/supplier/supplier.handlers.ts]
+  BR-SUPPLIER-005:
+    title: Supplier projection is rebuildable from healthy canonical sources
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [apps/api/src/modules/supplier/rebuild-supplier-account.handler.ts]
+  BR-PURCHASE-001:
+    title: Confirmed Purchase snapshots are immutable
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-003]
+    implementation: [packages/domain-kernel/src/purchase/index.ts]
+  BR-PURCHASE-002:
+    title: Purchase reuses canonical exact line arithmetic
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-003]
+    implementation: [packages/domain-kernel/src/purchase/index.ts]
+  BR-PURCHASE-003:
+    title: Purchase confirmation creates payable and no inventory
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [apps/api/src/modules/purchase/purchase.handlers.ts]
+  BR-PURCHASE-004:
+    title: Purchase void creates one exact payable compensation
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [apps/api/src/modules/purchase/purchase.handlers.ts]
+  BR-PURCHASE-005:
+    title: Purchase replacement requires one eligible voided source
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [apps/api/src/modules/purchase/purchase.handlers.ts]
+  BR-PURCHASE-006:
+    title: Active Receipts block Purchase void
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001, TC-E2E-029]
+    implementation: [apps/api/src/modules/purchase/purchase.handlers.ts]
+  BR-INVENTORY-001:
+    title: Receipt references exact Purchase Product and unit
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-004]
+    implementation: [packages/domain-kernel/src/inventory/index.ts]
+  BR-INVENTORY-002:
+    title: Net received quantity cannot exceed purchased quantity
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-004]
+    implementation: [packages/domain-kernel/src/inventory/index.ts]
+  BR-INVENTORY-003:
+    title: Each Receipt line creates one movement
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
+  BR-INVENTORY-004:
+    title: Receipt reversal creates referenced inverse movements
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
+  BR-INVENTORY-005:
+    title: Inventory projection is keyed by Product and unit
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [packages/db/src/schema/inventory.ts]
+  BR-INVENTORY-006:
+    title: Negative inventory remains visible
+    risk: P1
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-004]
+    implementation: [packages/domain-kernel/src/inventory/index.ts]
+  BR-INVENTORY-007:
+    title: Inventory adjustment is explicit and explained
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-004]
+    implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
+  BR-INVENTORY-008:
+    title: Goods timelines use one cursor-compatible total order
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-005]
+    implementation: [packages/db/src/repositories/read-queries.ts]
+  BR-INVENTORY-009:
+    title: M18 does not infer outbound movement from Sale
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
+
   # --- sale ---------------------------------------------------------------------
   BR-SALE-001:
     title: Sale total equals the sum of its line totals
@@ -1321,6 +1519,24 @@ cases:
 # Tests that exercise the API contract rather than a single rule. Declared here so
 # `trace-check` recognises them; they still name their rules in the test titles.
 contract_tests:
+  TC-GOODS-001:
+    title: PostgreSQL proves payable, receipt, reversal, void and retry truth
+    file: apps/api/src/infrastructure/persistence/drizzle/goods-truth.db.test.ts
+  TC-GOODS-002:
+    title: Supplier application and PostgreSQL tests prove lifecycle, permissions and ledger
+    file: apps/api/src/modules/supplier/supplier.app.test.ts
+  TC-GOODS-003:
+    title: Purchase domain tests prove exact arithmetic and immutable confirmation
+    file: packages/domain-kernel/src/purchase/purchase.test.ts
+  TC-GOODS-004:
+    title: Inventory domain tests prove receipt limits and signed adjustment
+    file: packages/domain-kernel/src/inventory/inventory.test.ts
+  TC-GOODS-005:
+    title: PostgreSQL cursor tests prove equal-time Goods ordering
+    file: apps/api/src/infrastructure/persistence/drizzle/goods-truth.db.test.ts
+  TC-E2E-029:
+    title: Browser API and PostgreSQL prove complete Goods Truth and source navigation
+    file: apps/web/e2e/m16-m18-goods-truth.spec.ts
   TC-SALE-013:
     title: Sale procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts

@@ -155,15 +155,35 @@ Product identity, lifecycle, cursor search, permissions, offline read cache and
 Sale snapshot integration are implemented. This does not authorize supplier,
 purchase, inventory, pricing or unit conversion work.
 
-| Horizon                               | Milestones                                                                                                            | Gate                                                                                   |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 2 — self-service and field resilience | M11–M14 technically complete                                                                                          | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
-| 3 — goods and inputs                  | M15 product catalog technically complete; M16 supplier account; M17 purchase; M18 receiving/inventory movement ledger | Money and goods flows are both traceable.                                              |
-| 4 — depot operations                  | M19 delivery; M20 documents/sharing; M21 reports; M22 performance/security/scale                                      | Operational views drill down to reliable sources.                                      |
-| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                                                              | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+### M16 — Supplier account (technical evidence complete)
 
-The explicit M13–M15 execution batch superseded the older deferral. The next
-unstarted goods scope is M16, which remains unauthorized here.
+Supplier lifecycle, payment/reversal, explicit adjustment, append-only payable
+ledger, source-linked timeline, reconciliation and safe projection rebuild are
+implemented. Negative supplier credit is supported.
+
+### M17 — Purchase lifecycle (technical evidence complete)
+
+Purchase draft/confirm/discard, immutable void/replacement correction and exact
+supplier-payable effects are implemented. Confirmation moves money but not
+physical quantity.
+
+### M18 — Receiving and inventory movements (technical evidence complete)
+
+Partial Receipt capture, full reversal, over-receipt protection, immutable
+per-line movements, per-Product/unit projections, adjustments and reconciliation
+are implemented. Inbound Goods Truth is proven; outbound Sale fulfilment remains
+the explicit M19 boundary.
+
+| Horizon                               | Milestones                                                                       | Gate                                                                                   |
+| ------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2 — self-service and field resilience | M11–M14 technically complete                                                     | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
+| 3 — goods and inputs                  | M15–M18 technically complete                                                     | Supplier money and inbound goods flows are source-traceable.                           |
+| 4 — depot operations                  | M19 delivery; M20 documents/sharing; M21 reports; M22 performance/security/scale | Operational views drill down to reliable sources.                                      |
+| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                         | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+
+The explicit Goods Truth batch closes M16–M18 with technical evidence. M19
+delivery/outbound fulfilment is the next unstarted scope and is not authorized by
+this batch.
 
 ## Maturity stages
 
