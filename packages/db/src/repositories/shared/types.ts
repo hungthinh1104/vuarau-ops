@@ -1,4 +1,4 @@
-import type { PgTransaction } from "drizzle-orm/pg-core";
+import type { Database } from "../../client.ts";
 
-export type Tx = PgTransaction<never, never, never>;
+export type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
 export type IdMinter = { newId(): string };
