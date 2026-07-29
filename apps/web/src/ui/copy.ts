@@ -126,6 +126,24 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   INVALID_COMMAND_PAYLOAD: "Có ô nhập chưa hợp lệ. Kiểm tra lại các ô được đánh dấu.",
   TRANSACTION_TIME_IN_FUTURE: "Thời điểm giao dịch nằm ở tương lai. Kiểm tra giờ trên máy.",
 
+  DELIVERY_NOT_FOUND: "Không tìm thấy phiếu giao hàng này.",
+  DELIVERY_LINE_INVALID: "Dòng giao hàng không khớp với đơn bán.",
+  DELIVERY_VERSION_CONFLICT: "Phiếu giao hàng vừa được thay đổi. Hãy tải lại.",
+  DELIVERY_ALREADY_DISPATCHED: "Phiếu giao hàng đã xuất kho.",
+  DELIVERY_ALREADY_CANCELLED: "Phiếu giao hàng đã huỷ.",
+  DELIVERY_ALREADY_DELIVERED: "Phiếu giao hàng đã hoàn tất.",
+  DELIVERY_QUANTITY_EXCEEDS_SALE: "Số lượng giao vượt quá phần còn lại của đơn bán.",
+  DELIVERY_RETURN_EXCEEDS_DISPATCH: "Số lượng trả vượt quá số đã giao.",
+  DELIVERY_PRODUCT_REQUIRED: "Dòng bán cần liên kết sản phẩm trước khi giao.",
+  DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED: "Không thể thay thế đơn đã có hoạt động giao hàng.",
+  DELIVERY_REASON_REQUIRED: "Cần ghi rõ lý do.",
+  DOCUMENT_NOT_FOUND: "Không tìm thấy chứng từ này.",
+  DOCUMENT_SOURCE_INVALID: "Nguồn chứng từ không hợp lệ.",
+  DOCUMENT_SHARE_NOT_FOUND: "Không tìm thấy liên kết chia sẻ.",
+  DOCUMENT_SHARE_REVOKED: "Liên kết chia sẻ đã bị thu hồi.",
+  DOCUMENT_SHARE_EXPIRED: "Liên kết chia sẻ đã hết hạn.",
+  REPORT_INTEGRITY_FAILURE: "Báo cáo phát hiện dữ liệu cần kiểm tra.",
+
   COMMAND_NOT_AVAILABLE: "Chức năng này chưa có.",
 };
 

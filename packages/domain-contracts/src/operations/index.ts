@@ -68,9 +68,29 @@ export const workspaceBackupV2Schema = z.object({
   digest: z.string().regex(/^[a-f0-9]{64}$/),
 });
 export type WorkspaceBackupV2 = z.infer<typeof workspaceBackupV2Schema>;
+export const workspaceBackupPayloadV3Schema = workspaceBackupPayloadV2Schema.extend({
+  deliveries: z.array(backupRecordSchema),
+  deliveryLines: z.array(backupRecordSchema),
+  deliveryReturns: z.array(backupRecordSchema),
+  deliveryReturnLines: z.array(backupRecordSchema),
+  documents: z.array(backupRecordSchema),
+  documentShares: z.array(backupRecordSchema),
+});
+export const workspaceBackupV3Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(3),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m21"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV3Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV3 = z.infer<typeof workspaceBackupV3Schema>;
 export const workspaceBackupSchema = z.discriminatedUnion("version", [
   workspaceBackupV1Schema,
   workspaceBackupV2Schema,
+  workspaceBackupV3Schema,
 ]);
 export type WorkspaceBackup = z.infer<typeof workspaceBackupSchema>;
 export const exportWorkspaceBackupCommandSchema = defineCommand(z.object({}));

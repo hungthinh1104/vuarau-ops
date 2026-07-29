@@ -75,6 +75,21 @@ import {
   rebuildSupplierAccountCommandSchema,
   inventoryReconciliationInputSchema,
   rebuildInventoryCommandSchema,
+  createDeliveryDraftCommandSchema,
+  updateDeliveryDraftCommandSchema,
+  cancelDeliveryDraftCommandSchema,
+  dispatchDeliveryCommandSchema,
+  markDeliveryDeliveredCommandSchema,
+  recordDeliveryReturnCommandSchema,
+  deliveryGetInputSchema,
+  deliveryListInputSchema,
+  saleFulfilmentInputSchema,
+  generateDocumentCommandSchema,
+  createDocumentShareCommandSchema,
+  revokeDocumentShareCommandSchema,
+  documentGetInputSchema,
+  documentSourceInputSchema,
+  reportInputSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "./trpc.ts";
 import { createCustomer } from "../../modules/customer/create-customer.handler.ts";
@@ -178,6 +193,29 @@ import {
   listPurchaseReceipts,
 } from "../../modules/inventory/inventory.queries.ts";
 import { rebuildInventory } from "../../modules/inventory/rebuild-inventory.handler.ts";
+import {
+  cancelDeliveryDraft,
+  createDeliveryDraft,
+  dispatchDelivery,
+  markDeliveryDelivered,
+  recordDeliveryReturn,
+  updateDeliveryDraft,
+} from "../../modules/delivery/delivery.handlers.ts";
+import {
+  getDelivery,
+  getSaleFulfilment,
+  listDeliveries,
+} from "../../modules/delivery/delivery.queries.ts";
+import {
+  createDocumentShare,
+  generateDocument,
+  revokeDocumentShare,
+} from "../../modules/document/document.handlers.ts";
+import { getDocument, listDocumentsForSource } from "../../modules/document/document.queries.ts";
+import {
+  getOperationalReport,
+  getOperationalReportCsv,
+} from "../../modules/report/report.queries.ts";
 
 /**
  * Twelve mutations, one per business command. No `update`, no `patch`, and no
@@ -549,6 +587,63 @@ const operationsRouter = router({
     .mutation(async ({ ctx, input }) => unwrap(await restoreWorkspaceBackup(ctx, input))),
 });
 
+const deliveryRouter = router({
+  createDraft: commandProcedure
+    .input(createDeliveryDraftCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await createDeliveryDraft(ctx, input))),
+  updateDraft: commandProcedure
+    .input(updateDeliveryDraftCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await updateDeliveryDraft(ctx, input))),
+  cancelDraft: commandProcedure
+    .input(cancelDeliveryDraftCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await cancelDeliveryDraft(ctx, input))),
+  dispatch: commandProcedure
+    .input(dispatchDeliveryCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await dispatchDelivery(ctx, input))),
+  markDelivered: commandProcedure
+    .input(markDeliveryDeliveredCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await markDeliveryDelivered(ctx, input))),
+  recordReturn: commandProcedure
+    .input(recordDeliveryReturnCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await recordDeliveryReturn(ctx, input))),
+  get: authenticatedProcedure
+    .input(deliveryGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getDelivery(ctx, input))),
+  list: authenticatedProcedure
+    .input(deliveryListInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await listDeliveries(ctx, input))),
+  fulfilment: authenticatedProcedure
+    .input(saleFulfilmentInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSaleFulfilment(ctx, input))),
+});
+
+const documentRouter = router({
+  generate: commandProcedure
+    .input(generateDocumentCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await generateDocument(ctx, input))),
+  share: commandProcedure
+    .input(createDocumentShareCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await createDocumentShare(ctx, input))),
+  revokeShare: commandProcedure
+    .input(revokeDocumentShareCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await revokeDocumentShare(ctx, input))),
+  get: authenticatedProcedure
+    .input(documentGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getDocument(ctx, input))),
+  listForSource: authenticatedProcedure
+    .input(documentSourceInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await listDocumentsForSource(ctx, input))),
+});
+
+const reportRouter = router({
+  operational: authenticatedProcedure
+    .input(reportInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getOperationalReport(ctx, input))),
+  csv: authenticatedProcedure
+    .input(reportInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getOperationalReportCsv(ctx, input))),
+});
+
 export const appRouter = router({
   session: sessionRouter,
   customer: customerRouter,
@@ -562,6 +657,9 @@ export const appRouter = router({
   purchase: purchaseRouter,
   receiving: receivingRouter,
   inventory: inventoryRouter,
+  delivery: deliveryRouter,
+  document: documentRouter,
+  report: reportRouter,
   operations: operationsRouter,
 });
 

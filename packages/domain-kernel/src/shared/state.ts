@@ -28,6 +28,10 @@ import type {
   PurchaseReceiptReversalId,
   Quantity,
   WorkspaceId,
+  DeliveryId,
+  DeliveryLineId,
+  DeliveryReturnId,
+  DeliveryStatus,
 } from "@vuarau/domain-contracts";
 
 /**
@@ -185,6 +189,43 @@ export type InventoryMovementState = {
   readonly recordedAt: IsoInstant;
   readonly actorId: ActorId;
   readonly commandId: CommandId;
+};
+
+export type DeliveryReturnState = {
+  readonly id: DeliveryReturnId;
+  readonly workspaceId: WorkspaceId;
+  readonly deliveryId: DeliveryId;
+  readonly lines: readonly {
+    readonly deliveryLineId: DeliveryLineId;
+    readonly quantity: Quantity;
+  }[];
+  readonly reason: string;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly actorId: ActorId;
+};
+
+export type DeliveryState = {
+  readonly id: DeliveryId;
+  readonly workspaceId: WorkspaceId;
+  readonly saleId: SaleId;
+  readonly status: DeliveryStatus;
+  readonly lines: readonly {
+    readonly deliveryLineId: DeliveryLineId;
+    readonly saleLineId: SaleLineId;
+    readonly productId: ProductId;
+    readonly productName: string;
+    readonly quantity: Quantity;
+  }[];
+  readonly note: string | null;
+  readonly cancellationReason: string | null;
+  readonly version: number;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly dispatchedAt: IsoInstant | null;
+  readonly deliveredAt: IsoInstant | null;
+  readonly actorId: ActorId;
+  readonly returns: readonly DeliveryReturnState[];
 };
 
 export type SaleLineState = {

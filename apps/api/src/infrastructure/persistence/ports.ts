@@ -14,7 +14,12 @@ import type {
   SupplierAccountEntryDto,
   WorkspaceId,
   WorkspaceRole,
-  WorkspaceBackupV2,
+  WorkspaceBackupV3,
+  DeliveryId,
+  DocumentDto,
+  DocumentShareId,
+  DocumentSourceType,
+  DocumentType,
 } from "@vuarau/domain-contracts";
 import type {
   AuditDraft,
@@ -33,6 +38,8 @@ import type {
   PurchaseReceiptState,
   PurchaseReceiptReversalState,
   InventoryMovementState,
+  DeliveryState,
+  DeliveryReturnState,
 } from "@vuarau/domain-kernel";
 import type { ReadRepositories } from "./read-ports.ts";
 
@@ -274,10 +281,57 @@ export type InventoryBalanceRepository = {
   save(balance: InventoryBalanceState): Promise<void>;
 };
 
+export type DeliveryRepository = {
+  findById(workspaceId: WorkspaceId, deliveryId: DeliveryId): Promise<DeliveryState | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    deliveryId: DeliveryId,
+  ): Promise<DeliveryState | null>;
+  insert(delivery: DeliveryState): Promise<boolean>;
+  update(delivery: DeliveryState, expectedVersion: number, replaceLines: boolean): Promise<boolean>;
+  insertReturn(record: DeliveryReturnState): Promise<boolean>;
+  netFulfilledBySaleLine(
+    workspaceId: WorkspaceId,
+    saleId: SaleId,
+    excludeDeliveryId: DeliveryId | null,
+  ): Promise<ReadonlyMap<string, number>>;
+  fulfilmentBySaleLine(
+    workspaceId: WorkspaceId,
+    saleId: SaleId,
+  ): Promise<ReadonlyMap<string, { readonly dispatched: number; readonly returned: number }>>;
+};
+
+export type DocumentRepository = {
+  nextVersion(args: {
+    workspaceId: WorkspaceId;
+    documentType: DocumentType;
+    sourceType: DocumentSourceType;
+    sourceId: string;
+  }): Promise<number>;
+  insert(document: DocumentDto): Promise<boolean>;
+  get(workspaceId: WorkspaceId, documentId: string): Promise<DocumentDto | null>;
+  insertShare(share: {
+    id: DocumentShareId;
+    workspaceId: WorkspaceId;
+    documentId: DocumentDto["id"];
+    tokenHash: string;
+    expiresAt: IsoInstant | null;
+    createdAt: IsoInstant;
+    createdBy: ActorId;
+  }): Promise<boolean>;
+  revokeShare(args: {
+    workspaceId: WorkspaceId;
+    shareId: DocumentShareId;
+    revokedAt: IsoInstant;
+    revokedBy: ActorId;
+    reason: string;
+  }): Promise<boolean>;
+};
+
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV2["payload"],
+    payload: WorkspaceBackupV3["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -413,6 +467,8 @@ export type Repositories = ReadRepositories & {
   readonly purchaseReceipts: ReceiptRepository;
   readonly inventoryMovements: InventoryMovementRepository;
   readonly inventoryBalances: InventoryBalanceRepository;
+  readonly deliveries: DeliveryRepository;
+  readonly documents: DocumentRepository;
   readonly operations: OperationsRepository;
   readonly sales: SaleRepository;
   readonly payments: PaymentRepository;

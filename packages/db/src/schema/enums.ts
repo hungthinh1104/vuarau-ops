@@ -44,8 +44,28 @@ export const inventoryMovementSourceTypeEnum = pgEnum(
     "purchase_receipt",
     "purchase_receipt_reversal",
     "inventory_adjustment",
+    "delivery_dispatch",
+    "delivery_return",
   ],
 );
+export const deliveryStatusEnum = pgEnum("delivery_status", [
+  "draft",
+  "cancelled",
+  "dispatched",
+  "delivered",
+]);
+export const documentTypeEnum = pgEnum("document_type", [
+  "sale_receipt",
+  "customer_statement",
+  "purchase_order",
+  "delivery_note",
+]);
+export const documentSourceTypeEnum = pgEnum("document_source_type", [
+  "sale",
+  "customer",
+  "purchase",
+  "delivery",
+]);
 export const commandReceiptStatusEnum = pgEnum("command_receipt_status", [
   "in_progress",
   "completed",

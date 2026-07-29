@@ -76,6 +76,11 @@ export function WorkspaceShell({ workspaceName, session, notice, children }: Wor
               Vận hành
             </Link>
           ) : null}
+          {session.permissions.includes("report.read") ? (
+            <Link href="/reports" className="text-info underline">
+              Báo cáo
+            </Link>
+          ) : null}
         </div>
       </nav>
 

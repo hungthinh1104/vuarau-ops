@@ -8,3 +8,4 @@ export * from "./product/index.ts";
 export * from "./supplier/index.ts";
 export * from "./purchase/index.ts";
 export * from "./inventory/index.ts";
+export * from "./delivery/index.ts";

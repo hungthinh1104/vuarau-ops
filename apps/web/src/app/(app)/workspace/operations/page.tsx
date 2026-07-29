@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
   WorkspaceBackup,
-  WorkspaceBackupV2,
+  WorkspaceBackupV3,
   WorkspaceRestoreResultDto,
 } from "@vuarau/domain-contracts";
 import { workspaceBackupSchema } from "@vuarau/domain-contracts";
@@ -28,7 +28,7 @@ export default function OperationsPage() {
   const [fileError, setFileError] = useState<string | null>(null);
   const integrity = useQuery(trpc.operations.integrity.queryOptions({ workspaceId }));
   const exportMutation = useMutation(trpc.operations.exportBackup.mutationOptions());
-  const exportCommand = useCommand<Record<string, never>, WorkspaceBackupV2>((envelope) =>
+  const exportCommand = useCommand<Record<string, never>, WorkspaceBackupV3>((envelope) =>
     exportMutation.mutateAsync(envelope as never),
   );
   const validation = useQuery({

@@ -23,6 +23,12 @@ import {
   purchaseReceiptReversals,
   inventoryMovements,
   inventoryBalances,
+  deliveries,
+  deliveryLines,
+  deliveryReturns,
+  deliveryReturnLines,
+  documents,
+  documentShares,
   saleLines,
   saleVoids,
   sales,
@@ -31,7 +37,7 @@ import {
 } from "../schema/index.ts";
 import type { Database } from "../client.ts";
 import { classifyBalance, classifyInventory, classifySupplierBalance } from "@vuarau/domain-kernel";
-import { unitSchema } from "@vuarau/domain-contracts";
+import { encodeCursor, unitSchema } from "@vuarau/domain-contracts";
 import { fromIso, money, toIso, toIsoOrNull, toSaleState } from "./row-mappers.ts";
 
 /**
@@ -58,6 +64,15 @@ import { fromIso, money, toIso, toIsoOrNull, toSaleState } from "./row-mappers.t
 type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
 
 type Page = { after: { sortValue: string; id: string } | null; limit: number };
+
+function vietnamBusinessDate(value: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(value);
+}
 
 /** Reads one extra row to answer "is there more" without a second count query. */
 function fetchLimit(page: Page): number {
@@ -202,6 +217,99 @@ async function readReceiptDto(tx: Tx, workspaceId: string, receiptId: string) {
           },
   };
 }
+
+async function readDeliveryDto(tx: Tx, workspaceId: string, deliveryId: string) {
+  const rows = await tx
+    .select()
+    .from(deliveries)
+    .where(and(eq(deliveries.workspaceId, workspaceId), eq(deliveries.id, deliveryId)))
+    .limit(1);
+  const row = rows[0];
+  if (row === undefined) return null;
+  const [lines, returnRows] = await Promise.all([
+    tx
+      .select()
+      .from(deliveryLines)
+      .where(
+        and(eq(deliveryLines.workspaceId, workspaceId), eq(deliveryLines.deliveryId, deliveryId)),
+      )
+      .orderBy(asc(deliveryLines.id)),
+    tx
+      .select()
+      .from(deliveryReturns)
+      .where(
+        and(
+          eq(deliveryReturns.workspaceId, workspaceId),
+          eq(deliveryReturns.deliveryId, deliveryId),
+        ),
+      )
+      .orderBy(
+        asc(deliveryReturns.transactionTime),
+        asc(deliveryReturns.recordedAt),
+        asc(deliveryReturns.id),
+      ),
+  ]);
+  const returnIds = returnRows.map((record) => record.id);
+  const returnLineRows =
+    returnIds.length === 0
+      ? []
+      : await tx
+          .select()
+          .from(deliveryReturnLines)
+          .where(inArray(deliveryReturnLines.returnId, returnIds));
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    saleId: row.saleId,
+    status: row.status,
+    lines: lines.map((line) => {
+      const returnedQuantity = returnLineRows
+        .filter((item) => item.deliveryLineId === line.id)
+        .reduce((sum, item) => sum + item.quantityScaled, 0);
+      return {
+        deliveryLineId: line.id,
+        saleLineId: line.saleLineId,
+        productId: line.productId,
+        productName: line.productName,
+        quantity: { valueScaled: line.quantityScaled, unit: line.unit },
+        returnedQuantity: { valueScaled: returnedQuantity, unit: line.unit },
+      };
+    }),
+    note: row.note,
+    cancellationReason: row.cancellationReason,
+    version: row.version,
+    transactionTime: toIso(row.transactionTime),
+    recordedAt: toIso(row.recordedAt),
+    dispatchedAt: toIsoOrNull(row.dispatchedAt),
+    deliveredAt: toIsoOrNull(row.deliveredAt),
+    returns: returnRows.map((record) => ({
+      id: record.id,
+      reason: record.reason,
+      lines: returnLineRows
+        .filter((item) => item.returnId === record.id)
+        .map((item) => ({
+          deliveryLineId: item.deliveryLineId,
+          quantity: { valueScaled: item.quantityScaled, unit: item.unit },
+        })),
+      transactionTime: toIso(record.transactionTime),
+      recordedAt: toIso(record.recordedAt),
+      actorId: record.actorId,
+    })),
+  };
+}
+
+const toDocumentDto = (row: typeof documents.$inferSelect) => ({
+  id: row.id,
+  workspaceId: row.workspaceId,
+  documentType: row.documentType,
+  sourceType: row.sourceType,
+  sourceId: row.sourceId,
+  version: row.version,
+  snapshot: row.snapshot as Record<string, unknown>,
+  digest: row.digest,
+  generatedAt: toIso(row.generatedAt),
+  generatedBy: row.generatedBy,
+});
 
 /**
  * Diacritic folding for search.
@@ -1078,6 +1186,24 @@ export function createReadRepositories(tx: Tx) {
                     inArray(purchaseReceiptReversals.id, reversalIds),
                   ),
                 );
+        const deliveryReturnIds = rows
+          .filter((row) => row.sourceType === "delivery_return")
+          .map((row) => row.sourceId);
+        const deliveryReturnSources =
+          deliveryReturnIds.length === 0
+            ? []
+            : await tx
+                .select({
+                  returnId: deliveryReturns.id,
+                  deliveryId: deliveryReturns.deliveryId,
+                })
+                .from(deliveryReturns)
+                .where(
+                  and(
+                    eq(deliveryReturns.workspaceId, args.workspaceId),
+                    inArray(deliveryReturns.id, deliveryReturnIds),
+                  ),
+                );
         return paged(
           rows.map((row) => ({
             id: row.id,
@@ -1097,14 +1223,23 @@ export function createReadRepositories(tx: Tx) {
             sourceDocument:
               row.sourceType === "inventory_adjustment"
                 ? { type: "inventory_adjustment" as const, id: row.sourceId }
-                : {
-                    type: "receipt" as const,
-                    id:
-                      row.sourceType === "purchase_receipt"
-                        ? row.sourceId
-                        : (reversalSources.find((source) => source.reversalId === row.sourceId)
-                            ?.receiptId ?? row.sourceId),
-                  },
+                : row.sourceType === "delivery_dispatch"
+                  ? { type: "delivery" as const, id: row.sourceId }
+                  : row.sourceType === "delivery_return"
+                    ? {
+                        type: "delivery" as const,
+                        id:
+                          deliveryReturnSources.find((source) => source.returnId === row.sourceId)
+                            ?.deliveryId ?? row.sourceId,
+                      }
+                    : {
+                        type: "receipt" as const,
+                        id:
+                          row.sourceType === "purchase_receipt"
+                            ? row.sourceId
+                            : (reversalSources.find((source) => source.reversalId === row.sourceId)
+                                ?.receiptId ?? row.sourceId),
+                      },
           })),
           args.page,
           (row) => ({
@@ -1134,6 +1269,20 @@ export function createReadRepositories(tx: Tx) {
                 or im.reversal_of_movement_id <> original.id
                 or im.quantity_scaled <> -original.quantity_scaled)
               then 'broken_receipt_reversal'
+            when im.source_type = 'delivery_dispatch'
+              and (dl.id is null or d.id is null
+                or dl.product_id <> im.product_id or dl.unit <> im.unit
+                or -dl.quantity_scaled <> im.quantity_scaled)
+              then 'missing_or_mismatched_delivery_dispatch'
+            when im.source_type = 'delivery_return'
+              and (dr.id is null or drl.delivery_line_id is null or return_dl.id is null
+                or return_dl.product_id <> im.product_id or return_dl.unit <> im.unit
+                or drl.quantity_scaled <> im.quantity_scaled
+                or original.id is null
+                or original.source_type <> 'delivery_dispatch'
+                or original.source_id <> dr.delivery_id
+                or original.source_line_id <> drl.delivery_line_id)
+              then 'broken_delivery_return'
             else null end as diagnostic
           from inventory_movements im
           left join purchase_receipt_lines prl
@@ -1142,12 +1291,517 @@ export function createReadRepositories(tx: Tx) {
           left join purchase_receipt_reversals prr
             on im.source_type = 'purchase_receipt_reversal' and prr.id = im.source_id
           left join inventory_movements original on original.id = im.reversal_of_movement_id
+          left join delivery_lines dl
+            on im.source_type = 'delivery_dispatch'
+            and dl.workspace_id = im.workspace_id
+            and dl.delivery_id = im.source_id and dl.id = im.source_line_id
+          left join deliveries d
+            on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
+          left join delivery_returns dr
+            on im.source_type = 'delivery_return'
+            and dr.workspace_id = im.workspace_id and dr.id = im.source_id
+          left join delivery_return_lines drl
+            on drl.return_id = dr.id and drl.delivery_line_id = im.source_line_id
+          left join delivery_lines return_dl
+            on return_dl.workspace_id = im.workspace_id and return_dl.id = drl.delivery_line_id
           where im.workspace_id = ${workspaceId}::uuid
             and im.product_id = ${productId}::uuid and im.unit = ${unit}::unit
         `);
         return (rows as unknown as Array<{ diagnostic: string | null }>).flatMap((row) =>
           row.diagnostic === null ? [] : [row.diagnostic],
         );
+      },
+    },
+
+    deliveryReads: {
+      get: (workspaceId: string, deliveryId: string) =>
+        readDeliveryDto(tx, workspaceId, deliveryId),
+      async list(args: {
+        workspaceId: string;
+        saleId: string | null;
+        status: typeof deliveries.$inferSelect.status | null;
+        page: Page;
+      }) {
+        const filters: SQL[] = [eq(deliveries.workspaceId, args.workspaceId)];
+        if (args.saleId !== null) filters.push(eq(deliveries.saleId, args.saleId));
+        if (args.status !== null) filters.push(eq(deliveries.status, args.status));
+        if (args.page.after !== null) {
+          const [transactionTime, recordedAt] = args.page.after.sortValue.split("|");
+          filters.push(sql`(${deliveries.transactionTime}, ${deliveries.recordedAt}, ${deliveries.id})
+            < (${transactionTime}::timestamptz, ${recordedAt}::timestamptz, ${args.page.after.id}::uuid)`);
+        }
+        const rows = await tx
+          .select()
+          .from(deliveries)
+          .where(and(...filters))
+          .orderBy(
+            desc(deliveries.transactionTime),
+            desc(deliveries.recordedAt),
+            desc(deliveries.id),
+          )
+          .limit(fetchLimit(args.page));
+        const ids = rows.map((row) => row.id);
+        const [lineRows, returnRows] =
+          ids.length === 0
+            ? [[], []]
+            : await Promise.all([
+                tx
+                  .select()
+                  .from(deliveryLines)
+                  .where(
+                    and(
+                      eq(deliveryLines.workspaceId, args.workspaceId),
+                      inArray(deliveryLines.deliveryId, ids),
+                    ),
+                  ),
+                tx
+                  .select()
+                  .from(deliveryReturns)
+                  .where(
+                    and(
+                      eq(deliveryReturns.workspaceId, args.workspaceId),
+                      inArray(deliveryReturns.deliveryId, ids),
+                    ),
+                  ),
+              ]);
+        const returnIds = returnRows.map((row) => row.id);
+        const returnLineRows =
+          returnIds.length === 0
+            ? []
+            : await tx
+                .select()
+                .from(deliveryReturnLines)
+                .where(inArray(deliveryReturnLines.returnId, returnIds));
+        const loaded = rows.map((row) => {
+          const deliveryLineRows = lineRows.filter((line) => line.deliveryId === row.id);
+          const deliveryReturnRows = returnRows.filter((record) => record.deliveryId === row.id);
+          return {
+            id: row.id,
+            workspaceId: row.workspaceId,
+            saleId: row.saleId,
+            status: row.status,
+            lines: deliveryLineRows.map((line) => ({
+              deliveryLineId: line.id,
+              saleLineId: line.saleLineId,
+              productId: line.productId,
+              productName: line.productName,
+              quantity: { valueScaled: line.quantityScaled, unit: line.unit },
+              returnedQuantity: {
+                valueScaled: returnLineRows
+                  .filter((item) => item.deliveryLineId === line.id)
+                  .reduce((sum, item) => sum + item.quantityScaled, 0),
+                unit: line.unit,
+              },
+            })),
+            note: row.note,
+            cancellationReason: row.cancellationReason,
+            version: row.version,
+            transactionTime: toIso(row.transactionTime),
+            recordedAt: toIso(row.recordedAt),
+            dispatchedAt: toIsoOrNull(row.dispatchedAt),
+            deliveredAt: toIsoOrNull(row.deliveredAt),
+            returns: deliveryReturnRows.map((record) => ({
+              id: record.id,
+              reason: record.reason,
+              lines: returnLineRows
+                .filter((item) => item.returnId === record.id)
+                .map((item) => ({
+                  deliveryLineId: item.deliveryLineId,
+                  quantity: { valueScaled: item.quantityScaled, unit: item.unit },
+                })),
+              transactionTime: toIso(record.transactionTime),
+              recordedAt: toIso(record.recordedAt),
+              actorId: record.actorId,
+            })),
+          };
+        });
+        return paged(loaded, args.page, (row) => ({
+          sortValue: `${row.transactionTime}|${row.recordedAt}`,
+          id: row.id,
+        }));
+      },
+    },
+
+    documentReads: {
+      async get(workspaceId: string, documentId: string) {
+        const rows = await tx
+          .select()
+          .from(documents)
+          .where(and(eq(documents.workspaceId, workspaceId), eq(documents.id, documentId)))
+          .limit(1);
+        return rows[0] === undefined ? null : toDocumentDto(rows[0]);
+      },
+      async listBySource(workspaceId: string, sourceType: string, sourceId: string) {
+        const rows = await tx
+          .select()
+          .from(documents)
+          .where(
+            and(
+              eq(documents.workspaceId, workspaceId),
+              eq(documents.sourceType, sourceType as typeof documents.$inferSelect.sourceType),
+              eq(documents.sourceId, sourceId),
+            ),
+          )
+          .orderBy(desc(documents.version), desc(documents.id));
+        return rows.map(toDocumentDto);
+      },
+      async publicByTokenHash(tokenHash: string, now: string) {
+        const rows = await tx
+          .select({ share: documentShares, document: documents })
+          .from(documentShares)
+          .innerJoin(documents, eq(documents.id, documentShares.documentId))
+          .where(eq(documentShares.tokenHash, tokenHash))
+          .limit(1);
+        const row = rows[0];
+        if (row === undefined) return { kind: "not_found" as const };
+        if (row.share.revokedAt !== null) return { kind: "revoked" as const };
+        if (row.share.expiresAt !== null && row.share.expiresAt < fromIso(now as never))
+          return { kind: "expired" as const };
+        return { kind: "found" as const, document: toDocumentDto(row.document) };
+      },
+    },
+
+    reportReads: {
+      async operational(args: {
+        workspaceId: string;
+        reportType:
+          | "daily_operations"
+          | "customer_receivables"
+          | "supplier_payables"
+          | "inventory_by_product_unit"
+          | "inventory_movement_report"
+          | "outstanding_delivery";
+        businessDate: string | null;
+        productId: string | null;
+        unit: typeof inventoryMovements.$inferSelect.unit | null;
+        page: Page;
+      }) {
+        type Row = {
+          id: string;
+          label: string;
+          sourceType: string;
+          sourceId: string;
+          documentHref: string | null;
+          transactionTime: string | null;
+          amount: { amountMinor: number; currency: "VND" } | null;
+          quantity: {
+            valueScaled: number;
+            unit: typeof inventoryMovements.$inferSelect.unit;
+          } | null;
+          status: string;
+        };
+        let rows: Row[] = [];
+        const diagnostics: string[] = [];
+        if (args.reportType === "daily_operations") {
+          const entries = await tx
+            .select()
+            .from(customerAccountEntries)
+            .where(eq(customerAccountEntries.workspaceId, args.workspaceId));
+          const voidIds = entries
+            .filter((entry) => entry.sourceType === "sale_void")
+            .map((entry) => entry.sourceId);
+          const reversalIds = entries
+            .filter((entry) => entry.sourceType === "payment_reversal")
+            .map((entry) => entry.sourceId);
+          const [voidSources, reversalSources] = await Promise.all([
+            voidIds.length === 0
+              ? Promise.resolve([])
+              : tx
+                  .select({ id: saleVoids.id, saleId: saleVoids.saleId })
+                  .from(saleVoids)
+                  .where(
+                    and(
+                      eq(saleVoids.workspaceId, args.workspaceId),
+                      inArray(saleVoids.id, voidIds),
+                    ),
+                  ),
+            reversalIds.length === 0
+              ? Promise.resolve([])
+              : tx
+                  .select({ id: paymentReversals.id, paymentId: paymentReversals.paymentId })
+                  .from(paymentReversals)
+                  .where(
+                    and(
+                      eq(paymentReversals.workspaceId, args.workspaceId),
+                      inArray(paymentReversals.id, reversalIds),
+                    ),
+                  ),
+          ]);
+          rows = entries
+            .filter(
+              (entry) =>
+                args.businessDate === null ||
+                vietnamBusinessDate(entry.transactionTime) === args.businessDate,
+            )
+            .map((entry) => ({
+              id: entry.id,
+              label: entry.sourceType.replaceAll("_", " "),
+              sourceType: entry.sourceType,
+              sourceId: entry.sourceId,
+              documentHref:
+                entry.sourceType === "sale_posting"
+                  ? `/sales/${entry.sourceId}`
+                  : entry.sourceType === "sale_void"
+                    ? `/sales/${voidSources.find((source) => source.id === entry.sourceId)?.saleId ?? entry.sourceId}`
+                    : entry.sourceType === "payment"
+                      ? `/payments/${entry.sourceId}`
+                      : entry.sourceType === "payment_reversal"
+                        ? `/payments/${reversalSources.find((source) => source.id === entry.sourceId)?.paymentId ?? entry.sourceId}`
+                        : `/account-adjustments/${entry.sourceId}`,
+              transactionTime: toIso(entry.transactionTime),
+              amount: money(entry.amountMinor, entry.currency),
+              quantity: null,
+              status: "canonical",
+            }));
+        } else if (args.reportType === "customer_receivables") {
+          const values = await tx
+            .select({ balance: customerAccountBalances, customer: customers })
+            .from(customerAccountBalances)
+            .innerJoin(
+              customers,
+              and(
+                eq(customers.workspaceId, customerAccountBalances.workspaceId),
+                eq(customers.id, customerAccountBalances.customerId),
+              ),
+            )
+            .where(eq(customerAccountBalances.workspaceId, args.workspaceId));
+          rows = values
+            .filter((value) => value.balance.balanceMinor > 0)
+            .map(({ balance, customer }) => ({
+              id: customer.id,
+              label: customer.displayName,
+              sourceType: "customer",
+              sourceId: customer.id,
+              documentHref: `/customers/${customer.id}`,
+              transactionTime: toIsoOrNull(balance.lastEntryTransactionTime),
+              amount: money(balance.balanceMinor, balance.currency),
+              quantity: null,
+              status: "receivable",
+            }));
+        } else if (args.reportType === "supplier_payables") {
+          const values = await tx
+            .select({ balance: supplierAccountBalances, supplier: suppliers })
+            .from(supplierAccountBalances)
+            .innerJoin(
+              suppliers,
+              and(
+                eq(suppliers.workspaceId, supplierAccountBalances.workspaceId),
+                eq(suppliers.id, supplierAccountBalances.supplierId),
+              ),
+            )
+            .where(eq(supplierAccountBalances.workspaceId, args.workspaceId));
+          rows = values
+            .filter((value) => value.balance.balanceMinor > 0)
+            .map(({ balance, supplier }) => ({
+              id: supplier.id,
+              label: supplier.displayName,
+              sourceType: "supplier",
+              sourceId: supplier.id,
+              documentHref: `/suppliers/${supplier.id}`,
+              transactionTime: toIsoOrNull(balance.lastEntryTransactionTime),
+              amount: money(balance.balanceMinor, balance.currency),
+              quantity: null,
+              status: "payable",
+            }));
+        } else if (args.reportType === "inventory_by_product_unit") {
+          const filters = [eq(inventoryBalances.workspaceId, args.workspaceId)];
+          if (args.productId !== null)
+            filters.push(eq(inventoryBalances.productId, args.productId));
+          if (args.unit !== null) filters.push(eq(inventoryBalances.unit, args.unit));
+          const values = await tx
+            .select({ balance: inventoryBalances, product: products })
+            .from(inventoryBalances)
+            .innerJoin(
+              products,
+              and(
+                eq(products.workspaceId, inventoryBalances.workspaceId),
+                eq(products.id, inventoryBalances.productId),
+              ),
+            )
+            .where(and(...filters));
+          rows = values.map(({ balance, product }) => ({
+            id: `${product.id}:${balance.unit}`,
+            label: `${product.name} · ${balance.unit}`,
+            sourceType: "product",
+            sourceId: product.id,
+            documentHref: `/products/${product.id}/inventory`,
+            transactionTime: toIsoOrNull(balance.lastMovementTransactionTime),
+            amount: null,
+            quantity: { valueScaled: balance.quantityScaled, unit: balance.unit },
+            status: classifyInventory(balance.quantityScaled),
+          }));
+        } else if (args.reportType === "inventory_movement_report") {
+          const filters = [eq(inventoryMovements.workspaceId, args.workspaceId)];
+          if (args.productId !== null)
+            filters.push(eq(inventoryMovements.productId, args.productId));
+          if (args.unit !== null) filters.push(eq(inventoryMovements.unit, args.unit));
+          const values = await tx
+            .select()
+            .from(inventoryMovements)
+            .where(and(...filters));
+          const deliveryReturnIds = values
+            .filter((movement) => movement.sourceType === "delivery_return")
+            .map((movement) => movement.sourceId);
+          const deliveryReturnSources =
+            deliveryReturnIds.length === 0
+              ? []
+              : await tx
+                  .select({ id: deliveryReturns.id, deliveryId: deliveryReturns.deliveryId })
+                  .from(deliveryReturns)
+                  .where(
+                    and(
+                      eq(deliveryReturns.workspaceId, args.workspaceId),
+                      inArray(deliveryReturns.id, deliveryReturnIds),
+                    ),
+                  );
+          const receiptReversalIds = values
+            .filter((movement) => movement.sourceType === "purchase_receipt_reversal")
+            .map((movement) => movement.sourceId);
+          const receiptReversalSources =
+            receiptReversalIds.length === 0
+              ? []
+              : await tx
+                  .select({
+                    id: purchaseReceiptReversals.id,
+                    receiptId: purchaseReceiptReversals.receiptId,
+                  })
+                  .from(purchaseReceiptReversals)
+                  .where(
+                    and(
+                      eq(purchaseReceiptReversals.workspaceId, args.workspaceId),
+                      inArray(purchaseReceiptReversals.id, receiptReversalIds),
+                    ),
+                  );
+          rows = values.map((movement) => ({
+            id: movement.id,
+            label: movement.sourceType.replaceAll("_", " "),
+            sourceType: movement.sourceType,
+            sourceId: movement.sourceId,
+            documentHref: movement.sourceType.startsWith("delivery_")
+              ? `/deliveries/${
+                  movement.sourceType === "delivery_return"
+                    ? (deliveryReturnSources.find((source) => source.id === movement.sourceId)
+                        ?.deliveryId ?? movement.sourceId)
+                    : movement.sourceId
+                }`
+              : movement.sourceType === "purchase_receipt"
+                ? `/receipts/${movement.sourceId}`
+                : movement.sourceType === "purchase_receipt_reversal"
+                  ? `/receipts/${
+                      receiptReversalSources.find((source) => source.id === movement.sourceId)
+                        ?.receiptId ?? movement.sourceId
+                    }`
+                  : movement.sourceType === "inventory_adjustment"
+                    ? `/inventory-adjustments/${movement.sourceId}`
+                    : null,
+            transactionTime: toIso(movement.transactionTime),
+            amount: null,
+            quantity: { valueScaled: movement.quantityScaled, unit: movement.unit },
+            status: "canonical",
+          }));
+        } else {
+          const values = await tx.execute(sql`
+            with dispatched as (
+              select dl.sale_line_id, sum(dl.quantity_scaled)::bigint quantity
+              from delivery_lines dl
+              join deliveries d
+                on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
+              where d.workspace_id=${args.workspaceId}::uuid
+                and d.status in ('dispatched','delivered')
+              group by dl.sale_line_id
+            ), returned as (
+              select dl.sale_line_id, sum(drl.quantity_scaled)::bigint quantity
+              from delivery_return_lines drl
+              join delivery_returns dr on dr.id=drl.return_id
+              join delivery_lines dl on dl.id=drl.delivery_line_id
+              where dr.workspace_id=${args.workspaceId}::uuid
+              group by dl.sale_line_id
+            )
+            select s.id as sale_id, c.display_name,
+              sl.id as sale_line_id, sl.product_name, sl.quantity_scaled, sl.unit,
+              (coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0))::bigint
+                as net_fulfilled
+            from sales s
+            join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
+            join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
+            left join dispatched on dispatched.sale_line_id=sl.id
+            left join returned on returned.sale_line_id=sl.id
+            where s.workspace_id=${args.workspaceId}::uuid and s.status='posted'
+          `);
+          rows = values.flatMap((value) => {
+            const ordered = Number(value["quantity_scaled"]);
+            const net = Number(value["net_fulfilled"]);
+            return ordered - net <= 0
+              ? []
+              : [
+                  {
+                    id: String(value["sale_line_id"]),
+                    label: `${String(value["display_name"])} · ${String(value["product_name"])}`,
+                    sourceType: "sale",
+                    sourceId: String(value["sale_id"]),
+                    documentHref: `/sales/${String(value["sale_id"])}`,
+                    transactionTime: null,
+                    amount: null,
+                    quantity: {
+                      valueScaled: ordered - net,
+                      unit: value["unit"] as typeof inventoryMovements.$inferSelect.unit,
+                    },
+                    status: "outstanding",
+                  },
+                ];
+          });
+        }
+        rows.sort((a, b) => {
+          const aKey = `${a.transactionTime ?? ""}|${a.id}`;
+          const bKey = `${b.transactionTime ?? ""}|${b.id}`;
+          return aKey < bKey ? 1 : aKey > bKey ? -1 : 0;
+        });
+        const allRows = rows;
+        if (args.page.after !== null) {
+          const boundary = `${args.page.after.sortValue}|${args.page.after.id}`;
+          rows = rows.filter((row) => `${row.transactionTime ?? ""}|${row.id}` < boundary);
+        }
+        const visible = rows.slice(0, args.page.limit);
+        const next =
+          rows.length <= args.page.limit || visible.length === 0
+            ? null
+            : {
+                sortValue: visible[visible.length - 1]!.transactionTime ?? "",
+                id: visible[visible.length - 1]!.id,
+              };
+        const amountRows = allRows.flatMap((row) => (row.amount === null ? [] : [row.amount]));
+        const quantityTotals = new Map<string, number>();
+        for (const row of allRows) {
+          if (row.quantity !== null)
+            quantityTotals.set(
+              row.quantity.unit,
+              (quantityTotals.get(row.quantity.unit) ?? 0) + row.quantity.valueScaled,
+            );
+        }
+        return {
+          reportType: args.reportType,
+          businessDate: args.businessDate,
+          timezone: "Asia/Ho_Chi_Minh" as const,
+          integrity: diagnostics.length === 0 ? ("healthy" as const) : ("attention" as const),
+          diagnostics,
+          totals: {
+            amount:
+              amountRows.length === 0
+                ? null
+                : money(
+                    amountRows.reduce((sum, amount) => sum + amount.amountMinor, 0),
+                    "VND",
+                  ),
+            quantities: [...quantityTotals.entries()].map(([unit, valueScaled]) => ({
+              unit: unit as typeof inventoryMovements.$inferSelect.unit,
+              valueScaled,
+            })),
+          },
+          page: {
+            items: visible,
+            nextCursor: next === null ? null : encodeCursor(next),
+          },
+        };
       },
     },
 
@@ -1896,6 +2550,22 @@ export function createReadRepositories(tx: Tx) {
               ON im.source_type = 'purchase_receipt' AND pr.id = im.source_id
             LEFT JOIN ${purchaseReceiptReversals} prr
               ON im.source_type = 'purchase_receipt_reversal' AND prr.id = im.source_id
+            LEFT JOIN ${deliveryLines} dl
+              ON im.source_type = 'delivery_dispatch'
+              AND dl.workspace_id = im.workspace_id
+              AND dl.delivery_id = im.source_id AND dl.id = im.source_line_id
+            LEFT JOIN ${deliveries} d
+              ON d.workspace_id = dl.workspace_id AND d.id = dl.delivery_id
+            LEFT JOIN ${deliveryReturns} dr
+              ON im.source_type = 'delivery_return'
+              AND dr.workspace_id = im.workspace_id AND dr.id = im.source_id
+            LEFT JOIN ${deliveryReturnLines} drl
+              ON drl.return_id = dr.id AND drl.delivery_line_id = im.source_line_id
+            LEFT JOIN ${deliveryLines} return_dl
+              ON return_dl.workspace_id = im.workspace_id
+              AND return_dl.id = drl.delivery_line_id
+            LEFT JOIN ${inventoryMovements} original
+              ON original.id = im.reversal_of_movement_id
             WHERE im.workspace_id = ${workspaceId}::uuid
               AND (
                 im.quantity_scaled = 0
@@ -1903,6 +2573,20 @@ export function createReadRepositories(tx: Tx) {
                   AND (im.reason_code IS NULL OR nullif(btrim(im.reason), '') IS NULL))
                 OR (im.source_type = 'purchase_receipt' AND pr.id IS NULL)
                 OR (im.source_type = 'purchase_receipt_reversal' AND prr.id IS NULL)
+                OR (im.source_type = 'delivery_dispatch'
+                  AND (d.id IS NULL OR dl.id IS NULL
+                    OR dl.product_id <> im.product_id OR dl.unit <> im.unit
+                    OR -dl.quantity_scaled <> im.quantity_scaled))
+                OR (im.source_type = 'delivery_return'
+                  AND (dr.id IS NULL OR drl.delivery_line_id IS NULL
+                    OR return_dl.id IS NULL
+                    OR return_dl.product_id <> im.product_id
+                    OR return_dl.unit <> im.unit
+                    OR drl.quantity_scaled <> im.quantity_scaled
+                    OR original.id IS NULL
+                    OR original.source_type <> 'delivery_dispatch'
+                    OR original.source_id <> dr.delivery_id
+                    OR original.source_line_id <> drl.delivery_line_id))
               )
           ),
           inventory_anomalies AS (
@@ -1971,6 +2655,12 @@ export function createReadRepositories(tx: Tx) {
           purchaseReceiptLineRows,
           purchaseReceiptReversalRows,
           inventoryMovementRows,
+          deliveryRows,
+          deliveryLineRows,
+          deliveryReturnRows,
+          deliveryReturnLineRows,
+          documentRows,
+          documentShareRows,
         ] = await Promise.all([
           tx
             .select()
@@ -2030,6 +2720,16 @@ export function createReadRepositories(tx: Tx) {
             .select()
             .from(inventoryMovements)
             .where(eq(inventoryMovements.workspaceId, workspaceId)),
+          tx.select().from(deliveries).where(eq(deliveries.workspaceId, workspaceId)),
+          tx.select().from(deliveryLines).where(eq(deliveryLines.workspaceId, workspaceId)),
+          tx.select().from(deliveryReturns).where(eq(deliveryReturns.workspaceId, workspaceId)),
+          tx
+            .select({ line: deliveryReturnLines })
+            .from(deliveryReturnLines)
+            .innerJoin(deliveryReturns, eq(deliveryReturns.id, deliveryReturnLines.returnId))
+            .where(eq(deliveryReturns.workspaceId, workspaceId)),
+          tx.select().from(documents).where(eq(documents.workspaceId, workspaceId)),
+          tx.select().from(documentShares).where(eq(documentShares.workspaceId, workspaceId)),
         ]);
         const plain = (value: unknown): Record<string, unknown> =>
           JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
@@ -2058,6 +2758,12 @@ export function createReadRepositories(tx: Tx) {
           receiptLines: list(purchaseReceiptLineRows),
           receiptReversals: list(purchaseReceiptReversalRows),
           inventoryMovements: list(inventoryMovementRows),
+          deliveries: list(deliveryRows),
+          deliveryLines: list(deliveryLineRows),
+          deliveryReturns: list(deliveryReturnRows),
+          deliveryReturnLines: list(deliveryReturnLineRows.map((row) => row.line)),
+          documents: list(documentRows),
+          documentShares: list(documentShareRows),
         };
       },
     },

@@ -27,7 +27,13 @@ const nextConfig: NextConfig = {
    */
   devIndicators: false,
   async rewrites() {
-    return [{ source: "/trpc/:path*", destination: `${apiOrigin}/:path*` }];
+    return [
+      { source: "/trpc/:path*", destination: `${apiOrigin}/:path*` },
+      {
+        source: "/shared/documents/:token",
+        destination: `${apiOrigin}/public/documents/:token`,
+      },
+    ];
   },
 };
 

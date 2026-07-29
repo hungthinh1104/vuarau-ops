@@ -19,7 +19,11 @@ import type {
   SupplierAccountEntryDto,
   WorkspaceId,
   WorkspaceRole,
-  WorkspaceBackupV2,
+  WorkspaceBackupV3,
+  DeliveryId,
+  DocumentDto,
+  DocumentSourceType,
+  DocumentType,
 } from "@vuarau/domain-contracts";
 import type {
   CustomerAccountBalance,
@@ -37,6 +41,8 @@ import type {
   PurchaseReceiptState,
   PurchaseReceiptReversalState,
   InventoryMovementState,
+  DeliveryState,
+  DeliveryReturnState,
 } from "@vuarau/domain-kernel";
 import {
   actors,
@@ -64,6 +70,12 @@ import {
   purchaseReceiptReversals,
   inventoryMovements,
   inventoryBalances,
+  deliveries,
+  deliveryLines,
+  deliveryReturns,
+  deliveryReturnLines,
+  documents,
+  documentShares,
   workspaceMemberships,
   workspaces,
 } from "../schema/index.ts";
@@ -204,6 +216,83 @@ async function loadPurchase(tx: Tx, workspaceId: WorkspaceId, purchaseId: string
             actorId: voidRow.actorId,
           },
   } as unknown as PurchaseState;
+}
+
+async function loadDelivery(tx: Tx, workspaceId: WorkspaceId, deliveryId: string) {
+  const rows = await tx
+    .select()
+    .from(deliveries)
+    .where(and(eq(deliveries.workspaceId, workspaceId), eq(deliveries.id, deliveryId)))
+    .limit(1);
+  const row = rows[0];
+  if (row === undefined) return null;
+  const [lines, returnRows] = await Promise.all([
+    tx
+      .select()
+      .from(deliveryLines)
+      .where(
+        and(eq(deliveryLines.workspaceId, workspaceId), eq(deliveryLines.deliveryId, deliveryId)),
+      )
+      .orderBy(asc(deliveryLines.id)),
+    tx
+      .select()
+      .from(deliveryReturns)
+      .where(
+        and(
+          eq(deliveryReturns.workspaceId, workspaceId),
+          eq(deliveryReturns.deliveryId, deliveryId),
+        ),
+      )
+      .orderBy(
+        asc(deliveryReturns.transactionTime),
+        asc(deliveryReturns.recordedAt),
+        asc(deliveryReturns.id),
+      ),
+  ]);
+  const returnIds = returnRows.map((record) => record.id);
+  const returnLines =
+    returnIds.length === 0
+      ? []
+      : await tx
+          .select()
+          .from(deliveryReturnLines)
+          .where(inArray(deliveryReturnLines.returnId, returnIds));
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    saleId: row.saleId,
+    status: row.status,
+    lines: lines.map((line) => ({
+      deliveryLineId: line.id,
+      saleLineId: line.saleLineId,
+      productId: line.productId,
+      productName: line.productName,
+      quantity: { valueScaled: line.quantityScaled, unit: line.unit },
+    })),
+    note: row.note,
+    cancellationReason: row.cancellationReason,
+    version: row.version,
+    transactionTime: toIso(row.transactionTime),
+    recordedAt: toIso(row.recordedAt),
+    dispatchedAt: toIsoOrNull(row.dispatchedAt),
+    deliveredAt: toIsoOrNull(row.deliveredAt),
+    actorId: row.actorId,
+    returns: returnRows.map((record) => ({
+      id: record.id,
+      workspaceId: record.workspaceId,
+      deliveryId: record.deliveryId,
+      lines: returnLines
+        .filter((line) => line.returnId === record.id)
+        .map((line) => ({
+          deliveryLineId: line.deliveryLineId,
+          quantity: { valueScaled: line.quantityScaled, unit: line.unit },
+        })),
+      reason: record.reason,
+      transactionTime: toIso(record.transactionTime),
+      recordedAt: toIso(record.recordedAt),
+      actorId: record.actorId,
+    })),
+  } as unknown as DeliveryState;
 }
 
 export function createRepositories(tx: Tx, ids: IdMinter) {
@@ -1304,8 +1393,325 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
       },
     },
 
+    deliveries: {
+      findById: (workspaceId: WorkspaceId, deliveryId: DeliveryId) =>
+        loadDelivery(tx, workspaceId, deliveryId),
+      async findByIdForUpdate(workspaceId: WorkspaceId, deliveryId: DeliveryId) {
+        await tx
+          .select({ id: deliveries.id })
+          .from(deliveries)
+          .where(and(eq(deliveries.workspaceId, workspaceId), eq(deliveries.id, deliveryId)))
+          .limit(1)
+          .for("update");
+        return loadDelivery(tx, workspaceId, deliveryId);
+      },
+      async insert(delivery: DeliveryState) {
+        const inserted = await tx
+          .insert(deliveries)
+          .values({
+            id: delivery.id,
+            workspaceId: delivery.workspaceId,
+            saleId: delivery.saleId,
+            status: delivery.status,
+            note: delivery.note,
+            cancellationReason: delivery.cancellationReason,
+            version: delivery.version,
+            transactionTime: fromIso(delivery.transactionTime),
+            recordedAt: fromIso(delivery.recordedAt),
+            dispatchedAt: fromIsoOrNull(delivery.dispatchedAt),
+            deliveredAt: fromIsoOrNull(delivery.deliveredAt),
+            actorId: delivery.actorId,
+          })
+          .onConflictDoNothing()
+          .returning({ id: deliveries.id });
+        if (inserted.length === 0) return false;
+        await tx.insert(deliveryLines).values(
+          delivery.lines.map((line) => ({
+            id: line.deliveryLineId,
+            workspaceId: delivery.workspaceId,
+            deliveryId: delivery.id,
+            saleLineId: line.saleLineId,
+            productId: line.productId,
+            productName: line.productName,
+            quantityScaled: line.quantity.valueScaled,
+            unit: line.quantity.unit,
+          })),
+        );
+        return true;
+      },
+      async update(delivery: DeliveryState, expectedVersion: number, replaceLines: boolean) {
+        const changed = await tx
+          .update(deliveries)
+          .set({
+            status: delivery.status,
+            note: delivery.note,
+            cancellationReason: delivery.cancellationReason,
+            version: delivery.version,
+            recordedAt: fromIso(delivery.recordedAt),
+            dispatchedAt: fromIsoOrNull(delivery.dispatchedAt),
+            deliveredAt: fromIsoOrNull(delivery.deliveredAt),
+          })
+          .where(
+            and(
+              eq(deliveries.workspaceId, delivery.workspaceId),
+              eq(deliveries.id, delivery.id),
+              eq(deliveries.version, expectedVersion),
+            ),
+          )
+          .returning({ id: deliveries.id });
+        if (changed.length === 0) return false;
+        if (replaceLines) {
+          await tx
+            .delete(deliveryLines)
+            .where(
+              and(
+                eq(deliveryLines.workspaceId, delivery.workspaceId),
+                eq(deliveryLines.deliveryId, delivery.id),
+              ),
+            );
+          await tx.insert(deliveryLines).values(
+            delivery.lines.map((line) => ({
+              id: line.deliveryLineId,
+              workspaceId: delivery.workspaceId,
+              deliveryId: delivery.id,
+              saleLineId: line.saleLineId,
+              productId: line.productId,
+              productName: line.productName,
+              quantityScaled: line.quantity.valueScaled,
+              unit: line.quantity.unit,
+            })),
+          );
+        }
+        return true;
+      },
+      async insertReturn(record: DeliveryReturnState) {
+        const inserted = await tx
+          .insert(deliveryReturns)
+          .values({
+            id: record.id,
+            workspaceId: record.workspaceId,
+            deliveryId: record.deliveryId,
+            reason: record.reason,
+            transactionTime: fromIso(record.transactionTime),
+            recordedAt: fromIso(record.recordedAt),
+            actorId: record.actorId,
+          })
+          .onConflictDoNothing()
+          .returning({ id: deliveryReturns.id });
+        if (inserted.length === 0) return false;
+        await tx.insert(deliveryReturnLines).values(
+          record.lines.map((line) => ({
+            returnId: record.id,
+            deliveryLineId: line.deliveryLineId,
+            quantityScaled: line.quantity.valueScaled,
+            unit: line.quantity.unit,
+          })),
+        );
+        return true;
+      },
+      async netFulfilledBySaleLine(
+        workspaceId: WorkspaceId,
+        saleId: SaleId,
+        excludeDeliveryId: DeliveryId | null,
+      ) {
+        const rows = await tx.execute(sql`
+          with dispatched as (
+            select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as quantity
+            from ${deliveryLines} dl
+            join ${deliveries} d
+              on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
+            where d.workspace_id = ${workspaceId}::uuid
+              and d.sale_id = ${saleId}::uuid
+              and d.status in ('dispatched', 'delivered')
+              and (${excludeDeliveryId}::uuid is null or d.id <> ${excludeDeliveryId}::uuid)
+            group by dl.sale_line_id
+          ), returned as (
+            select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as quantity
+            from ${deliveryReturnLines} drl
+            join ${deliveryReturns} dr on dr.id = drl.return_id
+            join ${deliveryLines} dl on dl.id = drl.delivery_line_id
+            join ${deliveries} d
+              on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
+            where d.workspace_id = ${workspaceId}::uuid
+              and d.sale_id = ${saleId}::uuid
+              and (${excludeDeliveryId}::uuid is null or d.id <> ${excludeDeliveryId}::uuid)
+            group by dl.sale_line_id
+          )
+          select coalesce(dispatched.sale_line_id, returned.sale_line_id) as "saleLineId",
+            (coalesce(dispatched.quantity, 0) - coalesce(returned.quantity, 0))::bigint as "net"
+          from dispatched
+          full join returned using (sale_line_id)
+        `);
+        return new Map(
+          (rows as unknown as Array<{ saleLineId: string; net: number | string }>).map((row) => [
+            String(row.saleLineId),
+            Number(row.net),
+          ]),
+        );
+      },
+      async fulfilmentBySaleLine(workspaceId: WorkspaceId, saleId: SaleId) {
+        const rows = await tx.execute(sql`
+          with dispatched as (
+            select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as quantity
+            from ${deliveryLines} dl
+            join ${deliveries} d
+              on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
+            where d.workspace_id = ${workspaceId}::uuid
+              and d.sale_id = ${saleId}::uuid
+              and d.status in ('dispatched', 'delivered')
+            group by dl.sale_line_id
+          ), returned as (
+            select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as quantity
+            from ${deliveryReturnLines} drl
+            join ${deliveryReturns} dr
+              on dr.workspace_id = ${workspaceId}::uuid and dr.id = drl.return_id
+            join ${deliveryLines} dl on dl.id = drl.delivery_line_id
+            join ${deliveries} d
+              on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
+            where d.workspace_id = ${workspaceId}::uuid
+              and d.sale_id = ${saleId}::uuid
+            group by dl.sale_line_id
+          )
+          select coalesce(dispatched.sale_line_id, returned.sale_line_id) as "saleLineId",
+            coalesce(dispatched.quantity, 0)::bigint as "dispatched",
+            coalesce(returned.quantity, 0)::bigint as "returned"
+          from dispatched
+          full join returned using (sale_line_id)
+        `);
+        return new Map(
+          (
+            rows as unknown as Array<{
+              saleLineId: string;
+              dispatched: number | string;
+              returned: number | string;
+            }>
+          ).map((row) => [
+            String(row.saleLineId),
+            { dispatched: Number(row.dispatched), returned: Number(row.returned) },
+          ]),
+        );
+      },
+    },
+
+    documents: {
+      async nextVersion(args: {
+        workspaceId: WorkspaceId;
+        documentType: DocumentType;
+        sourceType: DocumentSourceType;
+        sourceId: string;
+      }) {
+        await tx.execute(sql`select pg_advisory_xact_lock(
+          hashtextextended(
+            ${`${args.workspaceId}:${args.documentType}:${args.sourceType}:${args.sourceId}`},
+            0
+          )
+        )`);
+        const rows = await tx
+          .select({ version: sql<number>`coalesce(max(${documents.version}), 0) + 1` })
+          .from(documents)
+          .where(
+            and(
+              eq(documents.workspaceId, args.workspaceId),
+              eq(documents.documentType, args.documentType),
+              eq(documents.sourceType, args.sourceType),
+              eq(documents.sourceId, args.sourceId),
+            ),
+          );
+        return Number(rows[0]?.version ?? 1);
+      },
+      async insert(document: DocumentDto) {
+        const rows = await tx
+          .insert(documents)
+          .values({
+            id: document.id,
+            workspaceId: document.workspaceId,
+            documentType: document.documentType,
+            sourceType: document.sourceType,
+            sourceId: document.sourceId,
+            version: document.version,
+            snapshot: document.snapshot,
+            digest: document.digest,
+            generatedAt: fromIso(document.generatedAt),
+            generatedBy: document.generatedBy,
+          })
+          .onConflictDoNothing()
+          .returning({ id: documents.id });
+        return rows.length === 1;
+      },
+      async get(workspaceId: WorkspaceId, documentId: string) {
+        const rows = await tx
+          .select()
+          .from(documents)
+          .where(and(eq(documents.workspaceId, workspaceId), eq(documents.id, documentId)))
+          .limit(1);
+        const row = rows[0];
+        return row === undefined
+          ? null
+          : ({
+              id: row.id,
+              workspaceId: row.workspaceId,
+              documentType: row.documentType,
+              sourceType: row.sourceType,
+              sourceId: row.sourceId,
+              version: row.version,
+              snapshot: row.snapshot as Record<string, unknown>,
+              digest: row.digest,
+              generatedAt: toIso(row.generatedAt),
+              generatedBy: row.generatedBy,
+            } as DocumentDto);
+      },
+      async insertShare(share: {
+        id: string;
+        workspaceId: WorkspaceId;
+        documentId: string;
+        tokenHash: string;
+        expiresAt: IsoInstant | null;
+        createdAt: IsoInstant;
+        createdBy: ActorId;
+      }) {
+        const rows = await tx
+          .insert(documentShares)
+          .values({
+            id: share.id,
+            workspaceId: share.workspaceId,
+            documentId: share.documentId,
+            tokenHash: share.tokenHash,
+            expiresAt: fromIsoOrNull(share.expiresAt),
+            createdAt: fromIso(share.createdAt),
+            createdBy: share.createdBy,
+          })
+          .onConflictDoNothing()
+          .returning({ id: documentShares.id });
+        return rows.length === 1;
+      },
+      async revokeShare(args: {
+        workspaceId: WorkspaceId;
+        shareId: string;
+        revokedAt: IsoInstant;
+        revokedBy: ActorId;
+        reason: string;
+      }) {
+        const rows = await tx
+          .update(documentShares)
+          .set({
+            revokedAt: fromIso(args.revokedAt),
+            revokedBy: args.revokedBy,
+            revocationReason: args.reason,
+          })
+          .where(
+            and(
+              eq(documentShares.workspaceId, args.workspaceId),
+              eq(documentShares.id, args.shareId),
+              sql`${documentShares.revokedAt} is null`,
+            ),
+          )
+          .returning({ id: documentShares.id });
+        return rows.length === 1;
+      },
+    },
+
     operations: {
-      async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV2["payload"]) {
+      async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV3["payload"]) {
         const [
           customerRows,
           productRows,
@@ -1315,6 +1721,8 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           supplierRows,
           purchaseRows,
           movementRows,
+          deliveryRows,
+          documentRows,
         ] = await Promise.all([
           tx
             .select({ id: customers.id })
@@ -1356,6 +1764,16 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
             .from(inventoryMovements)
             .where(eq(inventoryMovements.workspaceId, workspaceId))
             .limit(1),
+          tx
+            .select({ id: deliveries.id })
+            .from(deliveries)
+            .where(eq(deliveries.workspaceId, workspaceId))
+            .limit(1),
+          tx
+            .select({ id: documents.id })
+            .from(documents)
+            .where(eq(documents.workspaceId, workspaceId))
+            .limit(1),
         ]);
         if (
           [
@@ -1367,6 +1785,8 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
             supplierRows,
             purchaseRows,
             movementRows,
+            deliveryRows,
+            documentRows,
           ].some((rows) => rows.length > 0)
         ) {
           return { kind: "unsafe_target" as const, reason: "target contains business data" };
@@ -1396,6 +1816,10 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           ...payload.receipts.map((row) => row["actorId"]),
           ...payload.receiptReversals.map((row) => row["actorId"]),
           ...payload.inventoryMovements.map((row) => row["actorId"]),
+          ...payload.deliveries.map((row) => row["actorId"]),
+          ...payload.deliveryReturns.map((row) => row["actorId"]),
+          ...payload.documents.map((row) => row["generatedBy"]),
+          ...payload.documentShares.flatMap((row) => [row["createdBy"], row["revokedBy"]]),
         ].filter((value): value is string => typeof value === "string");
         if (actorIds.length > 0) {
           const existing = await tx
@@ -1478,6 +1902,44 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
           await tx
             .insert(saleLines)
             .values(payload.saleLines.map(scoped) as unknown as (typeof saleLines.$inferInsert)[]);
+        if (payload.deliveries.length > 0) {
+          await tx.insert(deliveries).values(
+            payload.deliveries.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                transactionTime: date(row["transactionTime"]),
+                recordedAt: date(row["recordedAt"]),
+                dispatchedAt: row["dispatchedAt"] == null ? null : date(row["dispatchedAt"]),
+                deliveredAt: row["deliveredAt"] == null ? null : date(row["deliveredAt"]),
+              };
+            }) as unknown as (typeof deliveries.$inferInsert)[],
+          );
+        }
+        if (payload.deliveryLines.length > 0)
+          await tx
+            .insert(deliveryLines)
+            .values(
+              payload.deliveryLines.map(scoped) as unknown as (typeof deliveryLines.$inferInsert)[],
+            );
+        if (payload.deliveryReturns.length > 0) {
+          await tx.insert(deliveryReturns).values(
+            payload.deliveryReturns.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                transactionTime: date(row["transactionTime"]),
+                recordedAt: date(row["recordedAt"]),
+              };
+            }) as unknown as (typeof deliveryReturns.$inferInsert)[],
+          );
+        }
+        if (payload.deliveryReturnLines.length > 0)
+          await tx
+            .insert(deliveryReturnLines)
+            .values(
+              payload.deliveryReturnLines as unknown as (typeof deliveryReturnLines.$inferInsert)[],
+            );
         if (payload.purchases.length > 0) {
           await tx.insert(purchases).values(
             payload.purchases.map((raw) => {
@@ -1637,6 +2099,27 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
                 recordedAt: date(row["recordedAt"]),
               };
             }) as unknown as (typeof inventoryMovements.$inferInsert)[],
+          );
+        }
+        if (payload.documents.length > 0) {
+          await tx.insert(documents).values(
+            payload.documents.map((raw) => {
+              const row = scoped(raw);
+              return { ...row, generatedAt: date(row["generatedAt"]) };
+            }) as unknown as (typeof documents.$inferInsert)[],
+          );
+        }
+        if (payload.documentShares.length > 0) {
+          await tx.insert(documentShares).values(
+            payload.documentShares.map((raw) => {
+              const row = scoped(raw);
+              return {
+                ...row,
+                expiresAt: row["expiresAt"] == null ? null : date(row["expiresAt"]),
+                createdAt: date(row["createdAt"]),
+                revokedAt: row["revokedAt"] == null ? null : date(row["revokedAt"]),
+              };
+            }) as unknown as (typeof documentShares.$inferInsert)[],
           );
         }
         if (payload.audit.length > 0) {

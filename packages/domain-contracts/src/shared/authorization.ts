@@ -70,6 +70,17 @@ export const PERMISSIONS = [
   "inventory.read",
   "inventory.adjust",
   "inventory.rebuild",
+  "delivery.read",
+  "delivery.create",
+  "delivery.update",
+  "delivery.cancel",
+  "delivery.dispatch",
+  "delivery.complete",
+  "delivery.return",
+  "document.read",
+  "document.generate",
+  "document.share",
+  "report.read",
 ] as const;
 export const permissionSchema = z.enum(PERMISSIONS);
 export type Permission = z.infer<typeof permissionSchema>;
@@ -114,6 +125,11 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "purchase.void",
     "receiving.read",
     "inventory.read",
+    "delivery.read",
+    "document.read",
+    "document.generate",
+    "document.share",
+    "report.read",
   ],
 
   /**
@@ -135,6 +151,14 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "product.create",
     "product.update",
     "inventory.read",
+    "delivery.read",
+    "delivery.create",
+    "delivery.update",
+    "delivery.cancel",
+    "document.read",
+    "document.generate",
+    "document.share",
+    "report.read",
   ],
 
   // Warehouse staff pick and pack against a sale; they move no money. They can
@@ -153,6 +177,15 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "receiving.reverse",
     "inventory.read",
     "inventory.adjust",
+    "delivery.read",
+    "delivery.create",
+    "delivery.update",
+    "delivery.cancel",
+    "delivery.dispatch",
+    "delivery.return",
+    "document.read",
+    "document.generate",
+    "report.read",
   ],
 
   /**
@@ -160,7 +193,18 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
    * business question and is unanswered (ASM-017) — so the safe default applies
    * and the depot owner decides, rather than a developer.
    */
-  delivery: ["sale.read", "customer.read", "product.read"],
+  delivery: [
+    "sale.read",
+    "customer.read",
+    "product.read",
+    "inventory.read",
+    "delivery.read",
+    "delivery.complete",
+    "delivery.return",
+    "document.read",
+    "document.generate",
+    "report.read",
+  ],
 };
 
 /** Built once; lookup is the hot path on every command. */

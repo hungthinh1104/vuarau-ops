@@ -6,6 +6,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { currencyCodeEnum, saleStatusEnum, saleVoidReasonCodeEnum, unitEnum } from "./enums.ts";
@@ -51,6 +52,7 @@ export const sales = pgTable(
     replacesSaleId: uuid("replaces_sale_id"),
   },
   (table) => [
+    uniqueIndex("sales_workspace_id_id_uq").on(table.workspaceId, table.id),
     index("sales_workspace_status_time_idx").on(
       table.workspaceId,
       table.status,

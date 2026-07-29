@@ -1,7 +1,7 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV2,
+  WorkspaceBackupV3,
 } from "@vuarau/domain-contracts";
 import { restoreWorkspaceBackupCommandSchema } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
@@ -52,6 +52,18 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const receiptReversals = new Set(
     "receiptReversals" in payload ? payload.receiptReversals.map((row) => row["id"]) : [],
   );
+  const deliveries = new Set(
+    "deliveries" in payload ? payload.deliveries.map((row) => row["id"]) : [],
+  );
+  const deliveryLines = new Set(
+    "deliveryLines" in payload ? payload.deliveryLines.map((row) => row["id"]) : [],
+  );
+  const deliveryReturns = new Set(
+    "deliveryReturns" in payload ? payload.deliveryReturns.map((row) => row["id"]) : [],
+  );
+  const documents = new Set(
+    "documents" in payload ? payload.documents.map((row) => row["id"]) : [],
+  );
   return (
     payload.sales.every((row) => customers.has(row["customerId"])) &&
     payload.saleLines.every(
@@ -100,12 +112,40 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
         if (row["sourceType"] === "purchase_receipt") return receipts.has(row["sourceId"]);
         if (row["sourceType"] === "purchase_receipt_reversal")
           return receiptReversals.has(row["sourceId"]);
+        if (row["sourceType"] === "delivery_dispatch")
+          return deliveries.has(row["sourceId"]) && deliveryLines.has(row["sourceLineId"]);
+        if (row["sourceType"] === "delivery_return")
+          return deliveryReturns.has(row["sourceId"]) && deliveryLines.has(row["sourceLineId"]);
         return row["sourceType"] === "inventory_adjustment";
-      }))
+      })) &&
+    (!("deliveries" in payload) || payload.deliveries.every((row) => sales.has(row["saleId"]))) &&
+    (!("deliveryLines" in payload) ||
+      payload.deliveryLines.every(
+        (row) =>
+          deliveries.has(row["deliveryId"]) &&
+          products.has(row["productId"]) &&
+          payload.saleLines.some((saleLine) => saleLine["id"] === row["saleLineId"]),
+      )) &&
+    (!("deliveryReturns" in payload) ||
+      payload.deliveryReturns.every((row) => deliveries.has(row["deliveryId"]))) &&
+    (!("deliveryReturnLines" in payload) ||
+      payload.deliveryReturnLines.every(
+        (row) => deliveryReturns.has(row["returnId"]) && deliveryLines.has(row["deliveryLineId"]),
+      )) &&
+    (!("documents" in payload) ||
+      payload.documents.every((row) => {
+        if (row["sourceType"] === "sale") return sales.has(row["sourceId"]);
+        if (row["sourceType"] === "customer") return customers.has(row["sourceId"]);
+        if (row["sourceType"] === "purchase") return purchases.has(row["sourceId"]);
+        if (row["sourceType"] === "delivery") return deliveries.has(row["sourceId"]);
+        return false;
+      })) &&
+    (!("documentShares" in payload) ||
+      payload.documentShares.every((row) => documents.has(row["documentId"])))
   );
 }
 
-function v2Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV2["payload"] {
+function v3Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV3["payload"] {
   const payload = command.payload.backup.payload;
   return {
     ...payload,
@@ -122,6 +162,12 @@ function v2Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV2["p
     receiptLines: "receiptLines" in payload ? payload.receiptLines : [],
     receiptReversals: "receiptReversals" in payload ? payload.receiptReversals : [],
     inventoryMovements: "inventoryMovements" in payload ? payload.inventoryMovements : [],
+    deliveries: "deliveries" in payload ? payload.deliveries : [],
+    deliveryLines: "deliveryLines" in payload ? payload.deliveryLines : [],
+    deliveryReturns: "deliveryReturns" in payload ? payload.deliveryReturns : [],
+    deliveryReturnLines: "deliveryReturnLines" in payload ? payload.deliveryReturnLines : [],
+    documents: "documents" in payload ? payload.documents : [],
+    documentShares: "documentShares" in payload ? payload.documentShares : [],
   };
 }
 
@@ -145,7 +191,7 @@ export function restoreWorkspaceBackup(
       }
       const restored = await repos.operations.restoreBackup(
         command.workspaceId,
-        v2Payload(command),
+        v3Payload(command),
       );
       if (restored.kind === "unsafe_target") {
         return err("BACKUP_UNSAFE_TARGET", "Restore requires an empty recovery workspace.", {
@@ -165,7 +211,7 @@ export function restoreWorkspaceBackup(
       }
       const supplierDiagnostics = (
         await Promise.all(
-          v2Payload(command).suppliers.map((row) =>
+          v3Payload(command).suppliers.map((row) =>
             repos.supplierAccountReads.integrity(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.supplierAccountReads.integrity>[1],
@@ -174,7 +220,7 @@ export function restoreWorkspaceBackup(
         )
       ).flat();
       const inventoryKeys = new Map<string, { productId: string; unit: string }>();
-      for (const movement of v2Payload(command).inventoryMovements) {
+      for (const movement of v3Payload(command).inventoryMovements) {
         inventoryKeys.set(`${String(movement["productId"])}:${String(movement["unit"])}`, {
           productId: String(movement["productId"]),
           unit: String(movement["unit"]),

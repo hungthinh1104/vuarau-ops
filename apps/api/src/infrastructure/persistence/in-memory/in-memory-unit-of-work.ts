@@ -8,10 +8,14 @@ import type {
   WorkspaceRole,
   Money,
   SupplierAccountEntryDto,
+  DeliveryDto,
+  DocumentDto,
+  DocumentShareId,
+  OperationalReportDto,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import { classifyBalance, money, zeroMoney } from "@vuarau/domain-kernel";
-import { DEFAULT_CURRENCY } from "@vuarau/domain-contracts";
+import { DEFAULT_CURRENCY, encodeCursor } from "@vuarau/domain-contracts";
 import type { IdGenerator } from "../../clock.ts";
 import type { CommandReceipt, Repositories, UnitOfWork, WorkspaceMembership } from "../ports.ts";
 import type {
@@ -27,6 +31,8 @@ import type {
   PurchaseReceiptState,
   PurchaseReceiptReversalState,
   InventoryMovementState,
+  DeliveryState,
+  DeliveryReturnState,
 } from "@vuarau/domain-kernel";
 
 /**
@@ -87,6 +93,24 @@ type Store = {
       updatedAt: IsoInstant;
     }
   >;
+  deliveries: Map<string, DeliveryState>;
+  deliveryReturns: DeliveryReturnState[];
+  documents: Map<string, DocumentDto>;
+  documentShares: Map<
+    string,
+    {
+      id: DocumentShareId;
+      workspaceId: WorkspaceId;
+      documentId: DocumentDto["id"];
+      tokenHash: string;
+      expiresAt: IsoInstant | null;
+      createdAt: IsoInstant;
+      createdBy: ActorId;
+      revokedAt: IsoInstant | null;
+      revokedBy: ActorId | null;
+      revokeReason: string | null;
+    }
+  >;
   sales: Map<string, SaleState>;
   payments: Map<string, PaymentState>;
   reversals: PaymentReversalState[];
@@ -115,6 +139,10 @@ function emptyStore(): Store {
     purchaseReceipts: new Map(),
     inventoryMovements: [],
     inventoryBalances: new Map(),
+    deliveries: new Map(),
+    deliveryReturns: [],
+    documents: new Map(),
+    documentShares: new Map(),
     sales: new Map(),
     payments: new Map(),
     reversals: [],
@@ -222,6 +250,47 @@ function toPurchaseDto(purchase: PurchaseState) {
   };
 }
 
+function toDeliveryDto(delivery: DeliveryState): DeliveryDto {
+  return {
+    id: delivery.id,
+    workspaceId: delivery.workspaceId,
+    saleId: delivery.saleId,
+    status: delivery.status,
+    lines: delivery.lines.map((line) => ({
+      deliveryLineId: line.deliveryLineId,
+      saleLineId: line.saleLineId,
+      productId: line.productId,
+      productName: line.productName,
+      quantity: line.quantity,
+      returnedQuantity: {
+        valueScaled: delivery.returns
+          .flatMap((record) => record.lines)
+          .filter((candidate) => candidate.deliveryLineId === line.deliveryLineId)
+          .reduce((sum, candidate) => sum + candidate.quantity.valueScaled, 0),
+        unit: line.quantity.unit,
+      },
+    })),
+    note: delivery.note,
+    cancellationReason: delivery.cancellationReason,
+    version: delivery.version,
+    transactionTime: delivery.transactionTime,
+    recordedAt: delivery.recordedAt,
+    dispatchedAt: delivery.dispatchedAt,
+    deliveredAt: delivery.deliveredAt,
+    returns: delivery.returns.map((record) => ({
+      id: record.id,
+      reason: record.reason,
+      lines: record.lines.map((line) => ({
+        deliveryLineId: line.deliveryLineId,
+        quantity: line.quantity,
+      })),
+      transactionTime: record.transactionTime,
+      recordedAt: record.recordedAt,
+      actorId: record.actorId,
+    })),
+  };
+}
+
 export class InMemoryDatabase {
   private store: Store = emptyStore();
   /** An explicit field: Node strips types, and a parameter property emits code. */
@@ -317,6 +386,24 @@ export class InMemoryDatabase {
 
   payments(): readonly PaymentState[] {
     return [...this.store.payments.values()];
+  }
+
+  inventoryMovementRecords(): readonly InventoryMovementState[] {
+    return this.store.inventoryMovements;
+  }
+
+  deliveryRecords(): readonly DeliveryState[] {
+    return [...this.store.deliveries.values()];
+  }
+
+  corruptDocumentSnapshot(
+    workspaceId: WorkspaceId,
+    documentId: DocumentDto["id"],
+    snapshot: Record<string, unknown>,
+  ): void {
+    const documentKey = key(workspaceId, documentId);
+    const current = this.store.documents.get(documentKey);
+    if (current !== undefined) this.store.documents.set(documentKey, { ...current, snapshot });
   }
 
   balanceFor(workspaceId: WorkspaceId, customerId: string): CustomerAccountBalance | null {
@@ -755,6 +842,179 @@ export class InMemoryDatabase {
           );
         },
       },
+      deliveries: {
+        findById: async (workspaceId, deliveryId) =>
+          store.deliveries.get(key(workspaceId, deliveryId)) ?? null,
+        findByIdForUpdate: async (workspaceId, deliveryId) =>
+          store.deliveries.get(key(workspaceId, deliveryId)) ?? null,
+        insert: async (delivery) => {
+          const deliveryKey = key(delivery.workspaceId, delivery.id);
+          if (store.deliveries.has(deliveryKey)) return false;
+          store.deliveries.set(deliveryKey, delivery);
+          return true;
+        },
+        update: async (delivery, expectedVersion) => {
+          const deliveryKey = key(delivery.workspaceId, delivery.id);
+          const current = store.deliveries.get(deliveryKey);
+          if (current === undefined || current.version !== expectedVersion) return false;
+          store.deliveries.set(deliveryKey, delivery);
+          return true;
+        },
+        insertReturn: async (record) => {
+          if (
+            store.deliveryReturns.some(
+              (candidate) =>
+                candidate.workspaceId === record.workspaceId && candidate.id === record.id,
+            )
+          )
+            return false;
+          store.deliveryReturns.push(record);
+          const deliveryKey = key(record.workspaceId, record.deliveryId);
+          const delivery = store.deliveries.get(deliveryKey);
+          if (delivery !== undefined)
+            store.deliveries.set(deliveryKey, {
+              ...delivery,
+              returns: [...delivery.returns, record],
+            });
+          return true;
+        },
+        netFulfilledBySaleLine: async (workspaceId, saleId, excludeDeliveryId) => {
+          const totals = new Map<string, number>();
+          for (const delivery of store.deliveries.values()) {
+            if (
+              delivery.workspaceId !== workspaceId ||
+              delivery.saleId !== saleId ||
+              delivery.id === excludeDeliveryId ||
+              !["dispatched", "delivered"].includes(delivery.status)
+            )
+              continue;
+            for (const line of delivery.lines)
+              totals.set(
+                line.saleLineId,
+                (totals.get(line.saleLineId) ?? 0) + line.quantity.valueScaled,
+              );
+          }
+          for (const returned of store.deliveryReturns) {
+            const delivery = store.deliveries.get(key(workspaceId, returned.deliveryId));
+            if (
+              returned.workspaceId !== workspaceId ||
+              delivery?.saleId !== saleId ||
+              delivery.id === excludeDeliveryId
+            )
+              continue;
+            for (const line of returned.lines) {
+              const deliveryLine = delivery.lines.find(
+                (candidate) => candidate.deliveryLineId === line.deliveryLineId,
+              );
+              if (deliveryLine !== undefined)
+                totals.set(
+                  deliveryLine.saleLineId,
+                  (totals.get(deliveryLine.saleLineId) ?? 0) - line.quantity.valueScaled,
+                );
+            }
+          }
+          return totals;
+        },
+        fulfilmentBySaleLine: async (workspaceId, saleId) => {
+          const totals = new Map<string, { dispatched: number; returned: number }>();
+          for (const delivery of store.deliveries.values()) {
+            if (
+              delivery.workspaceId !== workspaceId ||
+              delivery.saleId !== saleId ||
+              !["dispatched", "delivered"].includes(delivery.status)
+            )
+              continue;
+            for (const line of delivery.lines) {
+              const current = totals.get(line.saleLineId) ?? { dispatched: 0, returned: 0 };
+              totals.set(line.saleLineId, {
+                dispatched: current.dispatched + line.quantity.valueScaled,
+                returned: current.returned,
+              });
+            }
+          }
+          for (const returned of store.deliveryReturns) {
+            const delivery = store.deliveries.get(key(workspaceId, returned.deliveryId));
+            if (returned.workspaceId !== workspaceId || delivery?.saleId !== saleId) continue;
+            for (const line of returned.lines) {
+              const deliveryLine = delivery.lines.find(
+                (candidate) => candidate.deliveryLineId === line.deliveryLineId,
+              );
+              if (deliveryLine === undefined) continue;
+              const current = totals.get(deliveryLine.saleLineId) ?? {
+                dispatched: 0,
+                returned: 0,
+              };
+              totals.set(deliveryLine.saleLineId, {
+                dispatched: current.dispatched,
+                returned: current.returned + line.quantity.valueScaled,
+              });
+            }
+          }
+          return totals;
+        },
+      },
+      documents: {
+        nextVersion: async ({ workspaceId, documentType, sourceType, sourceId }) =>
+          Math.max(
+            0,
+            ...[...store.documents.values()]
+              .filter(
+                (document) =>
+                  document.workspaceId === workspaceId &&
+                  document.documentType === documentType &&
+                  document.sourceType === sourceType &&
+                  document.sourceId === sourceId,
+              )
+              .map((document) => document.version),
+          ) + 1,
+        insert: async (document) => {
+          const documentKey = key(document.workspaceId, document.id);
+          if (
+            store.documents.has(documentKey) ||
+            [...store.documents.values()].some(
+              (candidate) =>
+                candidate.workspaceId === document.workspaceId &&
+                candidate.documentType === document.documentType &&
+                candidate.sourceType === document.sourceType &&
+                candidate.sourceId === document.sourceId &&
+                candidate.version === document.version,
+            )
+          )
+            return false;
+          store.documents.set(documentKey, document);
+          return true;
+        },
+        get: async (workspaceId, documentId) =>
+          store.documents.get(key(workspaceId, documentId)) ?? null,
+        insertShare: async (share) => {
+          if (
+            store.documentShares.has(key(share.workspaceId, share.id)) ||
+            [...store.documentShares.values()].some(
+              (candidate) => candidate.tokenHash === share.tokenHash,
+            )
+          )
+            return false;
+          store.documentShares.set(key(share.workspaceId, share.id), {
+            ...share,
+            revokedAt: null,
+            revokedBy: null,
+            revokeReason: null,
+          });
+          return true;
+        },
+        revokeShare: async (args) => {
+          const shareKey = key(args.workspaceId, args.shareId);
+          const current = store.documentShares.get(shareKey);
+          if (current === undefined || current.revokedAt !== null) return false;
+          store.documentShares.set(shareKey, {
+            ...current,
+            revokedAt: args.revokedAt,
+            revokedBy: args.revokedBy,
+            revokeReason: args.reason,
+          });
+          return true;
+        },
+      },
 
       operations: {
         restoreBackup: async (workspaceId, payload) => {
@@ -765,6 +1025,8 @@ export class InMemoryDatabase {
               ...store.sales.values(),
               ...store.suppliers.values(),
               ...store.purchases.values(),
+              ...store.deliveries.values(),
+              ...store.documents.values(),
             ].some((row) => row.workspaceId === workspaceId) ||
             store.accountEntries.some((row) => row.workspaceId === workspaceId) ||
             store.inventoryMovements.some((row) => row.workspaceId === workspaceId);
@@ -837,6 +1099,31 @@ export class InMemoryDatabase {
             }
             for (const raw of payload.inventoryMovements) {
               store.inventoryMovements.push(remap(raw) as unknown as InventoryMovementState);
+            }
+            for (const raw of payload.deliveries) {
+              const row = remap(raw) as unknown as DeliveryState;
+              store.deliveries.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.deliveryReturns)
+              store.deliveryReturns.push(remap(raw) as unknown as DeliveryReturnState);
+            for (const raw of payload.documents) {
+              const row = remap(raw) as unknown as DocumentDto;
+              store.documents.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.documentShares) {
+              const row = remap(raw) as unknown as {
+                id: DocumentShareId;
+                workspaceId: WorkspaceId;
+                documentId: DocumentDto["id"];
+                tokenHash: string;
+                expiresAt: IsoInstant | null;
+                createdAt: IsoInstant;
+                createdBy: ActorId;
+                revokedAt: IsoInstant | null;
+                revokedBy: ActorId | null;
+                revokeReason: string | null;
+              };
+              store.documentShares.set(key(workspaceId, row.id), row);
             }
             for (const customer of [...store.customers.values()].filter(
               (row) => row.workspaceId === workspaceId,
@@ -1527,15 +1814,24 @@ export class InMemoryDatabase {
               sourceDocument:
                 row.sourceType === "inventory_adjustment"
                   ? { type: "inventory_adjustment" as const, id: row.sourceId }
-                  : {
-                      type: "receipt" as const,
-                      id:
-                        row.sourceType === "purchase_receipt"
-                          ? row.sourceId
-                          : ([...store.purchaseReceipts.values()].find(
-                              (receipt) => receipt.reversal?.id === row.sourceId,
-                            )?.id ?? row.sourceId),
-                    },
+                  : row.sourceType === "delivery_dispatch"
+                    ? { type: "delivery" as const, id: row.sourceId }
+                    : row.sourceType === "delivery_return"
+                      ? {
+                          type: "delivery" as const,
+                          id:
+                            store.deliveryReturns.find((returned) => returned.id === row.sourceId)
+                              ?.deliveryId ?? row.sourceId,
+                        }
+                      : {
+                          type: "receipt" as const,
+                          id:
+                            row.sourceType === "purchase_receipt"
+                              ? row.sourceId
+                              : ([...store.purchaseReceipts.values()].find(
+                                  (receipt) => receipt.reversal?.id === row.sourceId,
+                                )?.id ?? row.sourceId),
+                        },
             })),
             page,
             (row) => ({
@@ -1571,8 +1867,337 @@ export class InMemoryDatabase {
               )
                 diagnostics.push("missing_or_mismatched_receipt");
             }
+            if (movement.sourceType === "delivery_dispatch") {
+              const delivery = store.deliveries.get(key(workspaceId, movement.sourceId));
+              const line = delivery?.lines.find(
+                (item) => item.deliveryLineId === movement.sourceLineId,
+              );
+              if (
+                line === undefined ||
+                line.productId !== productId ||
+                line.quantity.unit !== unit ||
+                -line.quantity.valueScaled !== movement.quantity.valueScaled
+              )
+                diagnostics.push("missing_or_mismatched_delivery_dispatch");
+            }
+            if (movement.sourceType === "delivery_return") {
+              const returned = store.deliveryReturns.find(
+                (item) => item.workspaceId === workspaceId && item.id === movement.sourceId,
+              );
+              const returnLine = returned?.lines.find(
+                (item) => item.deliveryLineId === movement.sourceLineId,
+              );
+              const delivery = returned
+                ? store.deliveries.get(key(workspaceId, returned.deliveryId))
+                : undefined;
+              const deliveryLine = delivery?.lines.find(
+                (item) => item.deliveryLineId === returnLine?.deliveryLineId,
+              );
+              const original = store.inventoryMovements.find(
+                (item) => item.id === movement.reversalOfMovementId,
+              );
+              if (
+                returnLine === undefined ||
+                deliveryLine === undefined ||
+                deliveryLine.productId !== productId ||
+                returnLine.quantity.unit !== unit ||
+                returnLine.quantity.valueScaled !== movement.quantity.valueScaled ||
+                original?.sourceType !== "delivery_dispatch" ||
+                original.sourceId !== returned?.deliveryId ||
+                original.sourceLineId !== returnLine.deliveryLineId
+              )
+                diagnostics.push("broken_delivery_return");
+            }
           }
           return diagnostics;
+        },
+      },
+
+      deliveryReads: {
+        get: async (workspaceId, deliveryId) => {
+          const delivery = store.deliveries.get(key(workspaceId, deliveryId));
+          return delivery === undefined ? null : toDeliveryDto(delivery);
+        },
+        list: async ({ workspaceId, saleId, status, page }) => {
+          const rows = [...store.deliveries.values()]
+            .filter((row) => row.workspaceId === workspaceId)
+            .filter((row) => saleId === null || row.saleId === saleId)
+            .filter((row) => status === null || row.status === status)
+            .sort((a, b) => {
+              const aSort = `${a.transactionTime}|${a.recordedAt}`;
+              const bSort = `${b.transactionTime}|${b.recordedAt}`;
+              return aSort === bSort ? b.id.localeCompare(a.id) : bSort.localeCompare(aSort);
+            })
+            .filter((row) => {
+              if (page.after === null) return true;
+              const sort = `${row.transactionTime}|${row.recordedAt}`;
+              return (
+                sort < page.after.sortValue ||
+                (sort === page.after.sortValue && row.id < page.after.id)
+              );
+            });
+          return takePage(rows.map(toDeliveryDto), page, (row) => ({
+            sortValue: `${row.transactionTime}|${row.recordedAt}`,
+            id: row.id,
+          }));
+        },
+      },
+      documentReads: {
+        get: async (workspaceId, documentId) =>
+          store.documents.get(key(workspaceId, documentId)) ?? null,
+        listBySource: async (workspaceId, sourceType, sourceId) =>
+          [...store.documents.values()]
+            .filter(
+              (document) =>
+                document.workspaceId === workspaceId &&
+                document.sourceType === sourceType &&
+                document.sourceId === sourceId,
+            )
+            .sort((a, b) => b.version - a.version || b.id.localeCompare(a.id)),
+        publicByTokenHash: async (tokenHash, now) => {
+          const share = [...store.documentShares.values()].find(
+            (candidate) => candidate.tokenHash === tokenHash,
+          );
+          if (share === undefined) return { kind: "not_found" as const };
+          if (share.revokedAt !== null) return { kind: "revoked" as const };
+          if (share.expiresAt !== null && share.expiresAt < now)
+            return { kind: "expired" as const };
+          const document = store.documents.get(key(share.workspaceId, share.documentId));
+          return document === undefined
+            ? { kind: "not_found" as const }
+            : { kind: "found" as const, document };
+        },
+      },
+      reportReads: {
+        operational: async ({ workspaceId, reportType, businessDate, productId, unit, page }) => {
+          type Row = OperationalReportDto["page"]["items"][number];
+          let rows: Row[] = [];
+          if (reportType === "daily_operations") {
+            rows = store.accountEntries
+              .filter((entry) => entry.workspaceId === workspaceId)
+              .filter(
+                (entry) =>
+                  businessDate === null ||
+                  new Intl.DateTimeFormat("en-CA", {
+                    timeZone: "Asia/Ho_Chi_Minh",
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  }).format(new Date(entry.transactionTime)) === businessDate,
+              )
+              .map((entry) => ({
+                id: entry.id,
+                label: entry.sourceType.replaceAll("_", " "),
+                sourceType: entry.sourceType,
+                sourceId: entry.sourceId,
+                documentHref:
+                  entry.sourceType === "sale_posting"
+                    ? `/sales/${entry.sourceId}`
+                    : entry.sourceType === "sale_void"
+                      ? `/sales/${store.saleVoids.find((row) => row.id === entry.sourceId)?.saleId ?? entry.sourceId}`
+                      : entry.sourceType === "payment"
+                        ? `/payments/${entry.sourceId}`
+                        : entry.sourceType === "payment_reversal"
+                          ? `/payments/${store.reversals.find((row) => row.id === entry.sourceId)?.paymentId ?? entry.sourceId}`
+                          : `/account-adjustments/${entry.sourceId}`,
+                transactionTime: entry.transactionTime,
+                amount: entry.amount,
+                quantity: null,
+                status: "canonical",
+              }));
+          } else if (reportType === "customer_receivables") {
+            rows = [...store.customers.values()]
+              .filter((customer) => customer.workspaceId === workspaceId)
+              .flatMap((customer) => {
+                const balance = store.balances.get(key(workspaceId, customer.id));
+                return balance === undefined || balance.balance.amountMinor <= 0
+                  ? []
+                  : [
+                      {
+                        id: customer.id,
+                        label: customer.displayName,
+                        sourceType: "customer",
+                        sourceId: customer.id,
+                        documentHref: `/customers/${customer.id}`,
+                        transactionTime: balance.lastEntryTransactionTime,
+                        amount: balance.balance,
+                        quantity: null,
+                        status: "receivable",
+                      },
+                    ];
+              });
+          } else if (reportType === "supplier_payables") {
+            rows = [...store.suppliers.values()]
+              .filter((supplier) => supplier.workspaceId === workspaceId)
+              .flatMap((supplier) => {
+                const balance = store.supplierAccountBalances.get(key(workspaceId, supplier.id));
+                return balance === undefined || balance.balance.amountMinor <= 0
+                  ? []
+                  : [
+                      {
+                        id: supplier.id,
+                        label: supplier.displayName,
+                        sourceType: "supplier",
+                        sourceId: supplier.id,
+                        documentHref: `/suppliers/${supplier.id}`,
+                        transactionTime: balance.lastEntryTransactionTime,
+                        amount: balance.balance,
+                        quantity: null,
+                        status: "payable",
+                      },
+                    ];
+              });
+          } else if (reportType === "inventory_by_product_unit") {
+            rows = [...store.inventoryBalances.values()]
+              .filter((balance) => balance.workspaceId === workspaceId)
+              .filter((balance) => productId === null || balance.productId === productId)
+              .filter((balance) => unit === null || balance.unit === unit)
+              .flatMap((balance) => {
+                const product = store.products.get(key(workspaceId, balance.productId));
+                return product === undefined
+                  ? []
+                  : [
+                      {
+                        id: `${product.id}:${balance.unit}`,
+                        label: `${product.displayName} · ${balance.unit}`,
+                        sourceType: "product",
+                        sourceId: product.id,
+                        documentHref: `/products/${product.id}/inventory`,
+                        transactionTime: balance.lastMovementTransactionTime,
+                        amount: null,
+                        quantity: { valueScaled: balance.quantityScaled, unit: balance.unit },
+                        status:
+                          balance.quantityScaled < 0
+                            ? "negative"
+                            : balance.quantityScaled === 0
+                              ? "zero"
+                              : "positive",
+                      },
+                    ];
+              });
+          } else if (reportType === "inventory_movement_report") {
+            rows = store.inventoryMovements
+              .filter((movement) => movement.workspaceId === workspaceId)
+              .filter((movement) => productId === null || movement.productId === productId)
+              .filter((movement) => unit === null || movement.quantity.unit === unit)
+              .map((movement) => ({
+                id: movement.id,
+                label: movement.sourceType.replaceAll("_", " "),
+                sourceType: movement.sourceType,
+                sourceId: movement.sourceId,
+                documentHref:
+                  movement.sourceType === "delivery_dispatch"
+                    ? `/deliveries/${movement.sourceId}`
+                    : movement.sourceType === "delivery_return"
+                      ? `/deliveries/${store.deliveryReturns.find((row) => row.id === movement.sourceId)?.deliveryId ?? movement.sourceId}`
+                      : movement.sourceType === "purchase_receipt"
+                        ? `/receipts/${movement.sourceId}`
+                        : movement.sourceType === "purchase_receipt_reversal"
+                          ? `/receipts/${
+                              [...store.purchaseReceipts.values()].find(
+                                (receipt) => receipt.reversal?.id === movement.sourceId,
+                              )?.id ?? movement.sourceId
+                            }`
+                          : movement.sourceType === "inventory_adjustment"
+                            ? `/inventory-adjustments/${movement.sourceId}`
+                            : null,
+                transactionTime: movement.transactionTime,
+                amount: null,
+                quantity: movement.quantity,
+                status: "canonical",
+              }));
+          } else {
+            for (const sale of store.sales.values()) {
+              if (sale.workspaceId !== workspaceId || sale.status !== "posted") continue;
+              const fulfilled = new Map<string, number>();
+              for (const delivery of store.deliveries.values()) {
+                if (
+                  delivery.workspaceId !== workspaceId ||
+                  delivery.saleId !== sale.id ||
+                  !["dispatched", "delivered"].includes(delivery.status)
+                )
+                  continue;
+                for (const line of delivery.lines)
+                  fulfilled.set(
+                    line.saleLineId,
+                    (fulfilled.get(line.saleLineId) ?? 0) + line.quantity.valueScaled,
+                  );
+                for (const returned of delivery.returns)
+                  for (const returnLine of returned.lines) {
+                    const deliveryLine = delivery.lines.find(
+                      (line) => line.deliveryLineId === returnLine.deliveryLineId,
+                    );
+                    if (deliveryLine !== undefined)
+                      fulfilled.set(
+                        deliveryLine.saleLineId,
+                        (fulfilled.get(deliveryLine.saleLineId) ?? 0) -
+                          returnLine.quantity.valueScaled,
+                      );
+                  }
+              }
+              for (const line of sale.lines) {
+                const remaining = line.quantity.valueScaled - (fulfilled.get(line.lineId) ?? 0);
+                if (remaining > 0)
+                  rows.push({
+                    id: line.lineId,
+                    label: line.productName,
+                    sourceType: "sale",
+                    sourceId: sale.id,
+                    documentHref: `/sales/${sale.id}`,
+                    transactionTime: sale.transactionTime,
+                    amount: null,
+                    quantity: { valueScaled: remaining, unit: line.quantity.unit },
+                    status: "outstanding",
+                  });
+              }
+            }
+          }
+          rows.sort((a, b) => {
+            const left = `${a.transactionTime ?? ""}|${a.id}`;
+            const right = `${b.transactionTime ?? ""}|${b.id}`;
+            return right.localeCompare(left);
+          });
+          const all = rows;
+          if (page.after !== null) {
+            const boundary = `${page.after.sortValue}|${page.after.id}`;
+            rows = rows.filter((row) => `${row.transactionTime ?? ""}|${row.id}` < boundary);
+          }
+          const pageResult = takePage(rows, page, (row) => ({
+            sortValue: row.transactionTime ?? "",
+            id: row.id,
+          }));
+          const quantities = new Map<string, number>();
+          for (const row of all)
+            if (row.quantity !== null)
+              quantities.set(
+                row.quantity.unit,
+                (quantities.get(row.quantity.unit) ?? 0) + row.quantity.valueScaled,
+              );
+          const amounts = all.flatMap((row) => (row.amount === null ? [] : [row.amount]));
+          return {
+            reportType,
+            businessDate,
+            timezone: "Asia/Ho_Chi_Minh",
+            integrity: "healthy",
+            diagnostics: [],
+            totals: {
+              amount:
+                amounts.length === 0
+                  ? null
+                  : money(
+                      amounts.reduce((sum, amount) => sum + amount.amountMinor, 0),
+                      "VND",
+                    ),
+              quantities: [...quantities].map(([quantityUnit, valueScaled]) => ({
+                unit: quantityUnit as InventoryMovementState["quantity"]["unit"],
+                valueScaled,
+              })),
+            },
+            page: {
+              items: [...pageResult.rows],
+              nextCursor: pageResult.next === null ? null : encodeCursor(pageResult.next),
+            },
+          } satisfies OperationalReportDto;
         },
       },
 
@@ -2040,6 +2665,7 @@ export class InMemoryDatabase {
             }),
           );
           const inventoryGroups = new Map<string, number>();
+          const anomalousInventory = new Set<string>();
           for (const movement of store.inventoryMovements.filter(
             (item) => item.workspaceId === workspaceId,
           )) {
@@ -2048,12 +2674,53 @@ export class InMemoryDatabase {
               movementKey,
               (inventoryGroups.get(movementKey) ?? 0) + movement.quantity.valueScaled,
             );
+            if (movement.quantity.valueScaled === 0) anomalousInventory.add(movementKey);
+            if (
+              movement.sourceType === "inventory_adjustment" &&
+              (movement.reasonCode === null || (movement.reason?.trim().length ?? 0) === 0)
+            )
+              anomalousInventory.add(movementKey);
+            if (movement.sourceType === "delivery_dispatch") {
+              const delivery = store.deliveries.get(key(workspaceId, movement.sourceId));
+              const line = delivery?.lines.find(
+                (item) => item.deliveryLineId === movement.sourceLineId,
+              );
+              if (
+                line === undefined ||
+                line.productId !== movement.productId ||
+                line.quantity.unit !== movement.quantity.unit ||
+                -line.quantity.valueScaled !== movement.quantity.valueScaled
+              )
+                anomalousInventory.add(movementKey);
+            }
+            if (movement.sourceType === "delivery_return") {
+              const returned = store.deliveryReturns.find(
+                (item) => item.workspaceId === workspaceId && item.id === movement.sourceId,
+              );
+              const line = returned?.lines.find(
+                (item) => item.deliveryLineId === movement.sourceLineId,
+              );
+              const original = store.inventoryMovements.find(
+                (item) => item.id === movement.reversalOfMovementId,
+              );
+              if (
+                line === undefined ||
+                line.quantity.valueScaled !== movement.quantity.valueScaled ||
+                line.quantity.unit !== movement.quantity.unit ||
+                original?.sourceType !== "delivery_dispatch" ||
+                original.sourceId !== returned?.deliveryId ||
+                original.sourceLineId !== line.deliveryLineId
+              )
+                anomalousInventory.add(movementKey);
+            }
           }
-          const anomalousInventoryKeys = [...inventoryGroups].filter(
-            ([inventoryKey, quantity]) =>
+          for (const [inventoryKey, quantity] of inventoryGroups)
+            if (
               store.inventoryBalances.get(`${workspaceId}:${inventoryKey}`)?.quantityScaled !==
-              quantity,
-          ).length;
+              quantity
+            )
+              anomalousInventory.add(inventoryKey);
+          const anomalousInventoryKeys = anomalousInventory.size;
           return {
             workspaceId,
             healthyCustomers: customers.length - anomalousCustomers,
@@ -2112,6 +2779,16 @@ export class InMemoryDatabase {
               receipt.reversal === null ? [] : [receipt.reversal],
             ),
             inventoryMovements: rows(store.inventoryMovements),
+            deliveries: rows(store.deliveries.values()),
+            deliveryLines: rows(store.deliveries.values()).flatMap((delivery) =>
+              delivery.lines.map((line) => ({ ...line, deliveryId: delivery.id, workspaceId })),
+            ),
+            deliveryReturns: rows(store.deliveryReturns),
+            deliveryReturnLines: rows(store.deliveryReturns).flatMap((record) =>
+              record.lines.map((line) => ({ ...line, returnId: record.id })),
+            ),
+            documents: rows(store.documents.values()),
+            documentShares: rows(store.documentShares.values()),
           };
         },
       },

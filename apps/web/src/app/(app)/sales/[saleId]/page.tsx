@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { SaleDto, SaleId } from "@vuarau/domain-contracts";
+import type { DocumentDto, DocumentId, SaleDto, SaleId } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -49,6 +49,20 @@ export default function SaleDetailPage() {
   const metrics = useWorkflowMetrics();
 
   const sale = useQuery(trpc.sale.detail.queryOptions({ workspaceId, saleId }));
+  const fulfilment = useQuery({
+    ...trpc.delivery.fulfilment.queryOptions({ workspaceId, saleId }),
+    enabled: hasPermission(session, "delivery.read"),
+  });
+  const deliveries = useQuery({
+    ...trpc.delivery.list.queryOptions({
+      workspaceId,
+      saleId,
+      status: null,
+      cursor: null,
+      limit: 100,
+    }),
+    enabled: hasPermission(session, "delivery.read"),
+  });
   const replacedSaleId = sale.data?.sale.replacesSaleId;
   const replacedSale = useQuery({
     ...trpc.sale.detail.queryOptions({
@@ -63,6 +77,11 @@ export default function SaleDetailPage() {
     staleTime: 0,
   });
   const voidSale = useMutation(trpc.sale.void.mutationOptions());
+  const documentMutation = useMutation(trpc.document.generate.mutationOptions());
+  const [receiptDocumentId] = useState(() => crypto.randomUUID() as DocumentId);
+  const receiptDocument = useCommand<unknown, DocumentDto>((envelope) =>
+    documentMutation.mutateAsync(envelope as never),
+  );
   const [correction, setCorrection] = useState<SaleCorrectionSubmission | null>(null);
   const [replacementCustomerQuery, setReplacementCustomerQuery] = useState("");
   const [recoveryCustomerId, setRecoveryCustomerId] = useState<string | null>(null);
@@ -113,6 +132,10 @@ export default function SaleDetailPage() {
     }
     void sale.refetch();
   }, [correction, router, sale, voidCommand.phase.kind, voidCommand.result]);
+
+  useEffect(() => {
+    if (receiptDocument.result !== null) router.push(`/documents/${receiptDocument.result.id}`);
+  }, [receiptDocument.result, router]);
 
   function submitCorrection(next: SaleCorrectionSubmission): void {
     setCorrection(next);
@@ -212,6 +235,69 @@ export default function SaleDetailPage() {
                   <dd>{detail.accountEffect.classificationAfter}</dd>
                 </dl>
               </section>
+            ) : null}
+
+            {fulfilment.data !== undefined ? (
+              <section className="rounded-card border border-border bg-surface p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-subheading font-semibold">Thực hiện giao hàng</h2>
+                  {hasPermission(session, "delivery.create") &&
+                  detail.sale.status === "posted" &&
+                  fulfilment.data.lines.some((line) => line.remaining.valueScaled > 0) ? (
+                    <Link href={`/sales/${saleId}/deliveries/new`} className="text-info underline">
+                      Tạo phiếu giao
+                    </Link>
+                  ) : null}
+                </div>
+                <ul className="mt-3 divide-y divide-border">
+                  {fulfilment.data.lines.map((line) => (
+                    <li key={line.saleLineId} className="grid gap-1 py-2 md:grid-cols-5">
+                      <strong>{line.productName}</strong>
+                      <span>Đặt {formatQuantity(line.ordered)}</span>
+                      <span>Đã xuất {formatQuantity(line.dispatched)}</span>
+                      <span>Đã trả {formatQuantity(line.returned)}</span>
+                      <span>Còn {formatQuantity(line.remaining)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {(deliveries.data?.items.length ?? 0) > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-3">
+                    {deliveries.data?.items.map((delivery) => (
+                      <Link
+                        key={delivery.id}
+                        href={`/deliveries/${delivery.id}`}
+                        className="text-info underline"
+                      >
+                        Phiếu {delivery.id.slice(0, 8).toUpperCase()} · {delivery.status}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            {detail.sale.status === "posted" &&
+            session.permissions.includes("document.generate") ? (
+              <div>
+                <Button
+                  tone="secondary"
+                  onClick={() =>
+                    void receiptDocument.submit({
+                      documentId: receiptDocumentId,
+                      documentType: "sale_receipt",
+                      sourceType: "sale",
+                      sourceId: saleId,
+                    })
+                  }
+                >
+                  Tạo phiếu bán hàng
+                </Button>
+                <CommandOutcome
+                  command={receiptDocument}
+                  attemptedAction="Tạo phiếu bán hàng"
+                  onReload={() => void sale.refetch()}
+                />
+              </div>
             ) : null}
 
             {detail.sale.replacesSaleId !== null ||

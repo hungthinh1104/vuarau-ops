@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type {
   ExportWorkspaceBackupCommand,
   WorkspaceBackup,
-  WorkspaceBackupV2,
+  WorkspaceBackupV3,
   WorkspaceId,
   WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
@@ -32,7 +32,7 @@ export function backupDigest(payload: WorkspaceBackup["payload"]): string {
   return createHash("sha256").update(canonical(payload)).digest("hex");
 }
 
-function orderedPayload(payload: WorkspaceBackupV2["payload"]): WorkspaceBackupV2["payload"] {
+function orderedPayload(payload: WorkspaceBackupV3["payload"]): WorkspaceBackupV3["payload"] {
   return Object.fromEntries(
     Object.entries(payload).map(([name, value]) => [
       name,
@@ -40,7 +40,7 @@ function orderedPayload(payload: WorkspaceBackupV2["payload"]): WorkspaceBackupV
         ? [...value].sort((left, right) => canonical(left).localeCompare(canonical(right)))
         : value,
     ]),
-  ) as WorkspaceBackupV2["payload"];
+  ) as WorkspaceBackupV3["payload"];
 }
 
 export function getWorkspaceIntegrity(
@@ -58,8 +58,8 @@ export function getWorkspaceIntegrity(
 export function exportWorkspaceBackup(
   ctx: CommandContext,
   input: unknown,
-): Promise<DomainResult<WorkspaceBackupV2>> {
-  return runCommand<ExportWorkspaceBackupCommand, WorkspaceBackupV2>({
+): Promise<DomainResult<WorkspaceBackupV3>> {
+  return runCommand<ExportWorkspaceBackupCommand, WorkspaceBackupV3>({
     commandType: "ExportWorkspaceBackup",
     schema: exportWorkspaceBackupCommandSchema,
     input,
@@ -75,12 +75,12 @@ export function exportWorkspaceBackup(
           Array.isArray(rows) ? rows.length : 1,
         ]),
       );
-      const backup: WorkspaceBackupV2 = {
+      const backup: WorkspaceBackupV3 = {
         format: "vuarau.workspace-backup",
-        version: 2,
+        version: 3,
         sourceWorkspaceId: command.workspaceId,
         createdAt: recordedAt,
-        schemaCompatibility: "m18",
+        schemaCompatibility: "m21",
         recordCounts,
         payload,
         digest: backupDigest(payload),

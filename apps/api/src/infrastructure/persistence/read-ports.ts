@@ -21,7 +21,7 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV2,
+  WorkspaceBackupV3,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
@@ -36,6 +36,13 @@ import type {
   InventoryMovementDto,
   ProductId,
   Unit,
+  DeliveryDto,
+  DeliveryId,
+  DeliveryStatus,
+  DocumentDto,
+  DocumentSourceType,
+  OperationalReportDto,
+  ReportType,
 } from "@vuarau/domain-contracts";
 import type { SaleState } from "@vuarau/domain-kernel";
 
@@ -362,6 +369,43 @@ export type InventoryReadRepository = {
   integrity(workspaceId: WorkspaceId, productId: ProductId, unit: Unit): Promise<readonly string[]>;
 };
 
+export type DeliveryReadRepository = {
+  get(workspaceId: WorkspaceId, deliveryId: DeliveryId): Promise<DeliveryDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    saleId: SaleId | null;
+    status: DeliveryStatus | null;
+    page: PageQuery;
+  }): Promise<PageResult<DeliveryDto>>;
+};
+
+export type DocumentReadRepository = {
+  get(workspaceId: WorkspaceId, documentId: string): Promise<DocumentDto | null>;
+  listBySource(
+    workspaceId: WorkspaceId,
+    sourceType: DocumentSourceType,
+    sourceId: string,
+  ): Promise<readonly DocumentDto[]>;
+  publicByTokenHash(
+    tokenHash: string,
+    now: IsoInstant,
+  ): Promise<
+    | { readonly kind: "found"; readonly document: DocumentDto }
+    | { readonly kind: "not_found" | "revoked" | "expired" }
+  >;
+};
+
+export type ReportReadRepository = {
+  operational(args: {
+    workspaceId: WorkspaceId;
+    reportType: ReportType;
+    businessDate: string | null;
+    productId: ProductId | null;
+    unit: Unit | null;
+    page: PageQuery;
+  }): Promise<OperationalReportDto>;
+};
+
 export type AccountReadRepository = {
   adjustmentDetail(args: {
     workspaceId: WorkspaceId;
@@ -394,7 +438,7 @@ export type AuditReadRepository = {
 
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV2["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV3["payload"] | null>;
 };
 
 /**
@@ -410,6 +454,9 @@ export type ReadRepositories = {
   readonly supplierAccountReads: SupplierAccountReadRepository;
   readonly purchaseReads: PurchaseReadRepository;
   readonly inventoryReads: InventoryReadRepository;
+  readonly deliveryReads: DeliveryReadRepository;
+  readonly documentReads: DocumentReadRepository;
+  readonly reportReads: ReportReadRepository;
   readonly saleReads: SaleReadRepository;
   readonly paymentReads: PaymentReadRepository;
   readonly accountReads: AccountReadRepository;

@@ -10,6 +10,7 @@ import { describeConfig, readServerConfig } from "./infrastructure/config.ts";
 import { log, withRequestId } from "./infrastructure/logging.ts";
 import { checkReadiness } from "./infrastructure/readiness.ts";
 import type { CommandDeps } from "./modules/shared/command-pipeline.ts";
+import { createPublicDocumentHandler } from "./modules/document/public-document.ts";
 
 /**
  * The API process.
@@ -96,6 +97,7 @@ const deps: CommandDeps = {
 };
 
 const health = createHealthHandler(() => checkReadiness(database));
+const publicDocument = createPublicDocumentHandler(deps);
 const trpc = createApiHandler(deps, verifier);
 
 createServer((req, res) => {
@@ -126,6 +128,7 @@ createServer((req, res) => {
 
   void withRequestId(requestId, async () => {
     if (await health(req, res)) return;
+    if (await publicDocument(req, res)) return;
     trpc(req, res);
   });
 }).listen(config.port, () => {

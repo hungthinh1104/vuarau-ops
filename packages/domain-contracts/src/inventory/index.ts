@@ -64,6 +64,8 @@ export const inventoryMovementSourceTypeSchema = z.enum([
   "purchase_receipt",
   "purchase_receipt_reversal",
   "inventory_adjustment",
+  "delivery_dispatch",
+  "delivery_return",
 ]);
 export type InventoryMovementSourceType = z.infer<typeof inventoryMovementSourceTypeSchema>;
 export const inventoryMovementDtoSchema = z.object({
@@ -83,7 +85,7 @@ export const inventoryMovementDtoSchema = z.object({
   commandId: commandIdSchema,
   sourceDocument: z
     .object({
-      type: z.enum(["receipt", "inventory_adjustment"]),
+      type: z.enum(["receipt", "inventory_adjustment", "delivery"]),
       id: z.uuid(),
     })
     .optional(),
