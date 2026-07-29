@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { and, eq } from "drizzle-orm";
 import type { ActorId, WorkspaceId, WorkspaceRole } from "@vuarau/domain-contracts";
 import type { Database } from "./client.ts";
-import { actors, customers, workspaces, workspaceMemberships } from "./schema/index.ts";
+import { actors, customers, products, workspaces, workspaceMemberships } from "./schema/index.ts";
 
 /**
  * Read-only queries for `ops:pilot-readiness`, which asks questions no procedure
@@ -146,6 +146,11 @@ export type CustomerCensus = {
   readonly suspicious: readonly string[];
 };
 
+export type ProductCensus = {
+  readonly active: number;
+  readonly suspicious: readonly string[];
+};
+
 /**
  * The seed's three customers, and the prefix every end-to-end spec uses.
  *
@@ -175,6 +180,48 @@ export async function customerCensus(
     );
 
   return { active: rows.length, suspicious };
+}
+
+export async function productCensus(
+  database: Database,
+  workspaceId: WorkspaceId,
+): Promise<ProductCensus> {
+  const rows = await database.db
+    .select({ displayName: products.name })
+    .from(products)
+    .where(and(eq(products.workspaceId, workspaceId), eq(products.isActive, true)));
+  return {
+    active: rows.length,
+    suspicious: rows
+      .map((row) => row.displayName)
+      .filter((name) => FIXTURE_PREFIXES.some((prefix) => name.startsWith(prefix))),
+  };
+}
+
+/** Names only, for a dry-run duplicate-candidate warning before import. */
+export async function existingCustomerNames(
+  database: Database,
+  workspaceId: WorkspaceId,
+): Promise<readonly string[]> {
+  return (
+    await database.db
+      .select({ displayName: customers.displayName })
+      .from(customers)
+      .where(and(eq(customers.workspaceId, workspaceId), eq(customers.isActive, true)))
+  ).map((row) => row.displayName);
+}
+
+/** Product counterpart of `existingCustomerNames`; still scoped to one workspace. */
+export async function existingProductNames(
+  database: Database,
+  workspaceId: WorkspaceId,
+): Promise<readonly string[]> {
+  return (
+    await database.db
+      .select({ displayName: products.name })
+      .from(products)
+      .where(and(eq(products.workspaceId, workspaceId), eq(products.isActive, true)))
+  ).map((row) => row.displayName);
 }
 
 /** Whether the connection answers at all. Nothing about what is in it. */

@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import type { CustomerId, IdempotencyKey } from "@vuarau/domain-contracts";
+import type {
+  CommandId,
+  CustomerId,
+  IdempotencyKey,
+  ProductId,
+  Unit,
+} from "@vuarau/domain-contracts";
+import { UNITS } from "@vuarau/domain-contracts";
 import { deterministicUuid } from "../infrastructure/deterministic-id.ts";
 
 /**
@@ -32,6 +39,17 @@ export type ImportRow = {
    * same key, which is a rejection rather than a replay.
    */
   readonly customerId: CustomerId;
+  readonly commandId: CommandId;
+  readonly idempotencyKey: IdempotencyKey;
+};
+
+export type ProductImportRow = {
+  readonly line: number;
+  readonly displayName: string;
+  readonly aliases: readonly string[];
+  readonly preferredUnit: Unit | null;
+  readonly productId: ProductId;
+  readonly commandId: CommandId;
   readonly idempotencyKey: IdempotencyKey;
 };
 
@@ -47,8 +65,10 @@ export type RowWarning = {
   readonly warning: string;
 };
 
-export type ParsedImport = {
-  readonly rows: readonly ImportRow[];
+export type ParsedImport<TRow = ImportRow> = {
+  /** Data rows in the input, including rows rejected during validation. */
+  readonly inputRows: number;
+  readonly rows: readonly TRow[];
   readonly problems: readonly RowProblem[];
   readonly warnings: readonly RowWarning[];
   /** Identifies this file, so two different files never share idempotency keys. */
@@ -143,6 +163,7 @@ export function readCustomerCsv(text: string, workspaceId: string): ParsedImport
   if (table.length === 0) {
     return {
       rows: [],
+      inputRows: 0,
       problems: [{ line: 1, column: "-", problem: "Tệp rỗng." }],
       warnings,
       batchId,
@@ -157,6 +178,7 @@ export function readCustomerCsv(text: string, workspaceId: string): ParsedImport
   if (nameAt < 0) {
     return {
       rows: [],
+      inputRows: Math.max(0, table.length - 1),
       problems: [
         {
           line: 1,
@@ -219,16 +241,138 @@ export function readCustomerCsv(text: string, workspaceId: string): ParsedImport
         `vuarau:pilot-import:customer:${workspaceId}:${batchId}`,
         String(line),
       ) as CustomerId,
-      idempotencyKey: `pilot-import:${batchId}:${line}` as IdempotencyKey,
+      commandId: deterministicUuid(
+        `vuarau:pilot-import:customer-command:${workspaceId}:${batchId}`,
+        String(line),
+      ) as CommandId,
+      idempotencyKey: `pilot-import:customer:${batchId}:${line}` as IdempotencyKey,
     });
   }
 
-  return { rows, problems, warnings, batchId };
+  return { inputRows: Math.max(0, table.length - 1), rows, problems, warnings, batchId };
+}
+
+const PRODUCT_NAME_HEADERS = ["name", "ten", "tên", "ten_hang", "mặt hàng", "mat_hang"];
+const ALIAS_HEADERS = ["aliases", "alias", "ten_khac", "tên khác"];
+const UNIT_HEADERS = ["unit", "don_vi", "đơn vị"];
+
+/** Product onboarding uses the same deterministic, workspace-scoped identity rules. */
+export function readProductCsv(text: string, workspaceId: string): ParsedImport<ProductImportRow> {
+  const batchId = createHash("sha256").update(text).digest("hex").slice(0, 16);
+  const table = parseCsv(text);
+  const problems: RowProblem[] = [];
+  const warnings: RowWarning[] = [];
+  const inputRows = Math.max(0, table.length - 1);
+
+  if (table.length === 0) {
+    return {
+      inputRows: 0,
+      rows: [],
+      problems: [{ line: 1, column: "-", problem: "Tệp rỗng." }],
+      warnings,
+      batchId,
+    };
+  }
+
+  const header = table[0]!.map((cell) => cell.trim().toLowerCase());
+  const nameAt = header.findIndex((cell) => PRODUCT_NAME_HEADERS.includes(cell));
+  const aliasesAt = header.findIndex((cell) => ALIAS_HEADERS.includes(cell));
+  const unitAt = header.findIndex((cell) => UNIT_HEADERS.includes(cell));
+  if (nameAt < 0) {
+    return {
+      inputRows,
+      rows: [],
+      problems: [
+        {
+          line: 1,
+          column: "header",
+          problem: `Không tìm thấy cột tên hàng. Chấp nhận: ${PRODUCT_NAME_HEADERS.join(", ")}.`,
+        },
+      ],
+      warnings,
+      batchId,
+    };
+  }
+
+  const rows: ProductImportRow[] = [];
+  const seenNames = new Map<string, number>();
+  for (let index = 1; index < table.length; index += 1) {
+    const line = index + 1;
+    const cells = table[index]!;
+    if (cells.every((cell) => cell.trim().length === 0)) {
+      problems.push({ line, column: "-", problem: "Dòng trống." });
+      continue;
+    }
+    const displayName = (cells[nameAt] ?? "").trim();
+    const aliases =
+      aliasesAt < 0
+        ? []
+        : (cells[aliasesAt] ?? "")
+            .split("|")
+            .map((alias) => alias.trim())
+            .filter((alias) => alias.length > 0);
+    const unitRaw = unitAt < 0 ? "" : (cells[unitAt] ?? "").trim().toLowerCase();
+
+    if (displayName.length === 0) {
+      problems.push({ line, column: "name", problem: "Thiếu tên mặt hàng." });
+      continue;
+    }
+    if (displayName.length > 200) {
+      problems.push({ line, column: "name", problem: "Tên dài quá 200 ký tự." });
+      continue;
+    }
+    if (aliases.length > 30 || aliases.some((alias) => alias.length > 200)) {
+      problems.push({
+        line,
+        column: "aliases",
+        problem: "Tối đa 30 tên khác, mỗi tên không quá 200 ký tự.",
+      });
+      continue;
+    }
+    if (unitRaw.length > 0 && !(UNITS as readonly string[]).includes(unitRaw)) {
+      problems.push({
+        line,
+        column: "unit",
+        problem: `Đơn vị không hợp lệ. Chấp nhận: ${UNITS.join(", ")}.`,
+      });
+      continue;
+    }
+
+    const normalizedName = displayName.toLocaleLowerCase("vi");
+    const firstSeen = seenNames.get(normalizedName);
+    if (firstSeen === undefined) seenNames.set(normalizedName, line);
+    else warnings.push({ line, warning: `Trùng tên với dòng ${firstSeen}: "${displayName}".` });
+
+    rows.push({
+      line,
+      displayName,
+      aliases,
+      preferredUnit: unitRaw.length === 0 ? null : (unitRaw as Unit),
+      productId: deterministicUuid(
+        `vuarau:pilot-import:product:${workspaceId}:${batchId}`,
+        String(line),
+      ) as ProductId,
+      commandId: deterministicUuid(
+        `vuarau:pilot-import:product-command:${workspaceId}:${batchId}`,
+        String(line),
+      ) as CommandId,
+      idempotencyKey: `pilot-import:product:${batchId}:${line}` as IdempotencyKey,
+    });
+  }
+
+  return { inputRows, rows, problems, warnings, batchId };
 }
 
 /** The report, as text. Printed on every run, dry or not. */
-export function formatReport(
-  parsed: ParsedImport,
+export function formatReport<
+  TRow extends {
+    readonly line: number;
+    readonly displayName: string;
+    readonly customerId?: string;
+    readonly productId?: string;
+  },
+>(
+  parsed: ParsedImport<TRow>,
   outcome: {
     readonly mode: "dry-run" | "commit";
     readonly created: readonly { line: number; customerId: string }[];
@@ -239,8 +383,9 @@ export function formatReport(
   const lines: string[] = [];
   lines.push(`batch:    ${parsed.batchId}`);
   lines.push(`mode:     ${outcome.mode}`);
-  lines.push(`readable: ${parsed.rows.length} row(s)`);
-  lines.push(`problems: ${parsed.problems.length}`);
+  lines.push(`input:    ${parsed.inputRows} row(s)`);
+  lines.push(`accepted: ${parsed.rows.length} row(s)`);
+  lines.push(`rejected: ${Math.max(0, parsed.inputRows - parsed.rows.length)} row(s)`);
   lines.push(`warnings: ${parsed.warnings.length}`);
 
   if (parsed.problems.length > 0) {
@@ -260,7 +405,9 @@ export function formatReport(
   if (outcome.mode === "dry-run" && parsed.problems.length === 0) {
     lines.push("", "would create:");
     for (const row of parsed.rows) {
-      lines.push(`  line ${row.line}: ${row.displayName} → ${row.customerId}`);
+      lines.push(
+        `  line ${row.line}: ${row.displayName} → ${row.customerId ?? row.productId ?? "invalid-id"}`,
+      );
     }
     lines.push("", "Nothing was written. Re-run with --commit to import.");
   }

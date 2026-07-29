@@ -1,7 +1,13 @@
 import { and, asc, eq } from "drizzle-orm";
-import type { ActorId, WorkspaceId, WorkspaceRole } from "@vuarau/domain-contracts";
+import type {
+  ActorId,
+  AuditRecordId,
+  CommandId,
+  WorkspaceId,
+  WorkspaceRole,
+} from "@vuarau/domain-contracts";
 import type { Database } from "./client.ts";
-import { actors, workspaces, workspaceMemberships } from "./schema/index.ts";
+import { actors, auditLogs, workspaces, workspaceMemberships } from "./schema/index.ts";
 
 /**
  * Creating a depot and putting somebody in it.
@@ -26,6 +32,137 @@ export type ProvisionedWorkspace = {
   readonly name: string;
   readonly created: boolean;
 };
+
+export type PilotBootstrapResult =
+  | {
+      readonly kind: "created";
+      readonly workspaceId: WorkspaceId;
+      readonly actorId: ActorId;
+    }
+  | {
+      readonly kind: "replayed";
+      readonly workspaceId: WorkspaceId;
+      readonly actorId: ActorId;
+    }
+  | { readonly kind: "conflict"; readonly reason: string };
+
+/**
+ * Bootstrap the first owner as one auditable, idempotent transaction.
+ *
+ * This is intentionally narrower than `ensureWorkspace`/`ensureMembership`: it
+ * cannot change a role, reactivate a member, or add a second member. Those are
+ * normal application commands after the first owner can authenticate.
+ */
+export async function bootstrapPilotWorkspace(
+  database: Database,
+  input: {
+    readonly workspaceId: WorkspaceId;
+    readonly workspaceName: string;
+    readonly actorId: ActorId;
+    readonly supabaseUserId: string;
+    readonly actorDisplayName: string;
+    readonly commandId: CommandId;
+    readonly auditRecordId: AuditRecordId;
+    readonly occurredAt: Date;
+  },
+): Promise<PilotBootstrapResult> {
+  return database.db.transaction(async (tx) => {
+    const workspace = (
+      await tx
+        .select({ id: workspaces.id, name: workspaces.name })
+        .from(workspaces)
+        .where(eq(workspaces.id, input.workspaceId))
+        .limit(1)
+    )[0];
+    if (workspace !== undefined && workspace.name !== input.workspaceName) {
+      return {
+        kind: "conflict",
+        reason: `workspace id already belongs to "${workspace.name}"`,
+      };
+    }
+
+    const actor = (
+      await tx
+        .select({ id: actors.id, displayName: actors.displayName })
+        .from(actors)
+        .where(eq(actors.supabaseUserId, input.supabaseUserId))
+        .limit(1)
+    )[0];
+    if (actor !== undefined && actor.id !== input.actorId) {
+      return { kind: "conflict", reason: "Supabase subject already belongs to another actor" };
+    }
+
+    const membership = (
+      await tx
+        .select({ role: workspaceMemberships.role, isActive: workspaceMemberships.isActive })
+        .from(workspaceMemberships)
+        .where(
+          and(
+            eq(workspaceMemberships.workspaceId, input.workspaceId),
+            eq(workspaceMemberships.actorId, input.actorId),
+          ),
+        )
+        .limit(1)
+    )[0];
+    if (membership !== undefined) {
+      return membership.role === "owner" && membership.isActive
+        ? { kind: "replayed", workspaceId: input.workspaceId, actorId: input.actorId }
+        : {
+            kind: "conflict",
+            reason: "existing membership is not the active owner declared by this bootstrap",
+          };
+    }
+
+    if (workspace !== undefined) {
+      const anyMember = (
+        await tx
+          .select({ actorId: workspaceMemberships.actorId })
+          .from(workspaceMemberships)
+          .where(eq(workspaceMemberships.workspaceId, input.workspaceId))
+          .limit(1)
+      )[0];
+      if (anyMember !== undefined) {
+        return {
+          kind: "conflict",
+          reason: "workspace already has members; use workspace membership commands",
+        };
+      }
+    }
+
+    if (workspace === undefined) {
+      await tx.insert(workspaces).values({ id: input.workspaceId, name: input.workspaceName });
+    }
+    if (actor === undefined) {
+      await tx.insert(actors).values({
+        id: input.actorId,
+        supabaseUserId: input.supabaseUserId,
+        displayName: input.actorDisplayName,
+      });
+    }
+    await tx.insert(workspaceMemberships).values({
+      workspaceId: input.workspaceId,
+      actorId: input.actorId,
+      role: "owner",
+      isActive: true,
+    });
+    await tx.insert(auditLogs).values({
+      id: input.auditRecordId,
+      workspaceId: input.workspaceId,
+      commandId: input.commandId,
+      actorId: input.actorId,
+      aggregateType: "membership",
+      aggregateId: input.actorId,
+      action: "membership.added",
+      transactionTime: input.occurredAt,
+      recordedAt: input.occurredAt,
+      before: null,
+      after: { role: "owner", workspaceCreated: workspace === undefined },
+      reason: "M23 pilot bootstrap",
+      rejectionCode: null,
+    });
+    return { kind: "created", workspaceId: input.workspaceId, actorId: input.actorId };
+  });
+}
 
 /** Creates the depot if the id is new, and reports which of the two happened. */
 export async function ensureWorkspace(

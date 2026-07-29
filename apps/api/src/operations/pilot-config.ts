@@ -40,6 +40,28 @@ export const debtRecognitionConfirmationSchema = z.object({
 });
 export type DebtRecognitionConfirmation = z.infer<typeof debtRecognitionConfirmationSchema>;
 
+const ownerDecisionSchema = debtRecognitionConfirmationSchema;
+const reviewSchema = z.object({
+  reviewerName: z.string().trim().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD"),
+  decision: z.enum(["accepted", "rejected"]),
+  worksheetReference: z.string().trim().min(1),
+  notes: z.string().trim().default(""),
+});
+
+const recoveryEvidenceSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("passed"),
+    providerEvidenceReference: z.string().trim().min(1),
+    restoreDrillReference: z.string().trim().min(1),
+  }),
+  z.object({
+    status: z.literal("pending"),
+    owner: z.string().trim().min(1),
+    trigger: z.string().trim().min(1),
+  }),
+]);
+
 export const pilotConfigSchema = z.object({
   /**
    * Only `shadow` is implemented. `operational` is refused rather than absent, so
@@ -47,6 +69,8 @@ export const pilotConfigSchema = z.object({
    * (docs/00-product/pilot-mode.md) instead of finding the word accepted.
    */
   mode: z.enum(["shadow", "operational"]),
+  /** Exact immutable build deployed for this evidence packet. */
+  releaseSha: z.string().regex(/^[0-9a-f]{40}$/, "expected a 40-character git SHA"),
   workspaceId: workspaceIdSchema,
   /** What the depot calls itself. Checked against the row, to catch a wrong id. */
   workspaceName: z.string().trim().min(1),
@@ -74,12 +98,19 @@ export const pilotConfigSchema = z.object({
   allowedOwnerActorIds: z.array(actorIdSchema),
 
   debtRecognitionConfirmation: debtRecognitionConfirmationSchema,
+  commercialRecognitionConfirmation: ownerDecisionSchema,
+  supplierPayableRecognitionConfirmation: ownerDecisionSchema,
+  rolePermissionReview: reviewSchema,
+  ownerMembershipReview: reviewSchema,
+  dataSharingRetentionReview: reviewSchema,
+  recoveryEvidence: recoveryEvidenceSchema,
 });
 export type PilotConfig = z.infer<typeof pilotConfigSchema>;
 
 /** A blank one, for `ops:pilot-readiness --example`. Filled in by a person. */
 export const EXAMPLE_PILOT_CONFIG = {
   mode: "shadow",
+  releaseSha: "0000000000000000000000000000000000000000",
   workspaceId: "00000000-0000-0000-0000-000000000000",
   workspaceName: "Vựa rau …",
   actor: {
@@ -94,6 +125,46 @@ export const EXAMPLE_PILOT_CONFIG = {
     decision: "accepted",
     notes: "",
     worksheetReference: "",
+  },
+  commercialRecognitionConfirmation: {
+    ownerName: "",
+    date: "",
+    decision: "accepted",
+    notes: "",
+    worksheetReference: "",
+  },
+  supplierPayableRecognitionConfirmation: {
+    ownerName: "",
+    date: "",
+    decision: "accepted",
+    notes: "",
+    worksheetReference: "",
+  },
+  rolePermissionReview: {
+    reviewerName: "",
+    date: "",
+    decision: "accepted",
+    worksheetReference: "",
+    notes: "",
+  },
+  ownerMembershipReview: {
+    reviewerName: "",
+    date: "",
+    decision: "accepted",
+    worksheetReference: "",
+    notes: "",
+  },
+  dataSharingRetentionReview: {
+    reviewerName: "",
+    date: "",
+    decision: "accepted",
+    worksheetReference: "",
+    notes: "",
+  },
+  recoveryEvidence: {
+    status: "pending",
+    owner: "",
+    trigger: "",
   },
 } as const;
 

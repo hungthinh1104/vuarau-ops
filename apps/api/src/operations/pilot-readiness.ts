@@ -7,6 +7,7 @@ import {
   findWorkspace,
   listMembers,
   migrationState,
+  productCensus,
 } from "@vuarau/db";
 import { roleHasPermission } from "@vuarau/domain-contracts";
 import { randomIdGenerator, systemClock } from "../infrastructure/clock.ts";
@@ -16,22 +17,10 @@ import { listActorWorkspaces } from "../modules/session/session.queries.ts";
 import { EXAMPLE_PILOT_CONFIG, readPilotConfig, type PilotConfig } from "./pilot-config.ts";
 
 /**
- * One command that answers: **may an observed pilot session start?**
- *
- *   pnpm --filter @vuarau/api ops:pilot-readiness --config pilot.json
- *
- * Twelve checks, each pass or fail, none of them optional and none of them
- * inferred. It exists because the alternative is a checklist somebody reads on the
- * morning of the session, and the items that get skipped are always the ones about
- * data that looks fine.
- *
- * It **only reads**. Nothing here creates a workspace, grants a membership or
- * writes a confirmation — `ops:pilot` does the first two, and the third is a
- * person's signature on a worksheet. A readiness command that could fix what it
- * found would be a readiness command whose green result meant nothing.
- *
- * Exit codes are the interface: 0 means the checks passed, 1 means at least one
- * failed, 2 means it could not run.
+ * Read-only M23 gate. Repository checks inspect runtime/database state; external
+ * checks require explicit owner/provider evidence. The command never repairs what
+ * it finds. Exit 0 means every gate passed, 1 means blocked, 2 means unusable
+ * input/environment.
  */
 
 type CheckStatus = "pass" | "fail";
@@ -39,19 +28,30 @@ type CheckStatus = "pass" | "fail";
 type Check = {
   readonly name: string;
   readonly status: CheckStatus;
+  readonly gate: "repository" | "external";
   /** One line. What was found, never a value that identifies a customer. */
   readonly detail: string;
 };
 
-const pass = (name: string, detail: string): Check => ({ name, status: "pass", detail });
-const fail = (name: string, detail: string): Check => ({ name, status: "fail", detail });
+const pass = (name: string, detail: string, gate: Check["gate"] = "repository"): Check => ({
+  name,
+  status: "pass",
+  gate,
+  detail,
+});
+const fail = (name: string, detail: string, gate: Check["gate"] = "repository"): Check => ({
+  name,
+  status: "fail",
+  gate,
+  detail,
+});
 
 const USAGE = `
 usage: node src/operations/pilot-readiness.ts --config <pilot.json>
        node src/operations/pilot-readiness.ts --example
 
-  --config   the operator's declaration: which depot, which person, which role,
-             and the depot owner's recorded answer on debt recognition (ASM-023).
+  --config   the operator's declaration: depot, actor, exact release, owner
+             semantics, role/owner review, data policy and recovery evidence.
   --example  print a blank one to fill in.
 
 DATABASE_URL must be set. The file is never written to and never committed.
@@ -108,22 +108,28 @@ type Db = ReturnType<typeof createDatabase>;
 async function runChecks(database: Db, config: PilotConfig): Promise<readonly Check[]> {
   const checks: Check[] = [];
 
-  // 11. Mode. Checked first because it decides whether the rest is even the right
-  //     set of questions — an operational pilot needs four things that do not
-  //     exist (docs/00-product/pilot-mode.md).
+  const deployedSha = process.env["APP_RELEASE_SHA"]?.trim() ?? "";
+  checks.push(
+    deployedSha === config.releaseSha
+      ? pass("deployed release matches frozen pilot SHA", config.releaseSha)
+      : fail(
+          "deployed release matches frozen pilot SHA",
+          deployedSha.length === 0
+            ? "APP_RELEASE_SHA is absent; evidence cannot be attributed to an exact build"
+            : `runtime ${deployedSha} differs from declaration ${config.releaseSha}`,
+        ),
+  );
+
   checks.push(
     config.mode === "shadow"
       ? pass("pilot mode is shadow", "mode: shadow")
       : fail(
           "pilot mode is shadow",
-          `mode: ${config.mode} — only a shadow pilot is supported. An operational ` +
-            "one needs a void/replacement UI, a rehearsed restore, real role " +
-            "assignment and an incident runbook. None exists.",
+          `mode: ${config.mode} — M23 authorizes shadow observation only; operational ` +
+            "replacement is not part of the frozen pilot contract.",
         ),
   );
 
-  // 10. ASM-023. Second, because a rejection stops everything regardless of how
-  //     healthy the database is.
   const confirmation = config.debtRecognitionConfirmation;
   if (confirmation.decision === "rejected") {
     checks.push(
@@ -132,6 +138,7 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
         `${confirmation.ownerName} rejected posting-time recognition on ${confirmation.date}. ` +
           "STOP. Every sale_posting entry would carry a transactionTime the owner " +
           "says is wrong, on an append-only ledger, with no repair the design allows.",
+        "external",
       ),
     );
   } else {
@@ -140,9 +147,68 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
         "ASM-023 debt recognition confirmed",
         `accepted by ${confirmation.ownerName} on ${confirmation.date} ` +
           `(worksheet: ${confirmation.worksheetReference})`,
+        "external",
       ),
     );
   }
+
+  for (const [name, decision] of [
+    ["ASM-024 PostSale meaning", config.commercialRecognitionConfirmation],
+    ["ASM-025 supplier payable recognition", config.supplierPayableRecognitionConfirmation],
+  ] as const) {
+    checks.push(
+      decision.decision === "accepted"
+        ? pass(
+            `${name} confirmed`,
+            `accepted by ${decision.ownerName} on ${decision.date} ` +
+              `(worksheet: ${decision.worksheetReference})`,
+            "external",
+          )
+        : fail(
+            `${name} confirmed`,
+            `rejected by ${decision.ownerName} on ${decision.date}; current semantics ` +
+              "cannot enter the shadow pilot",
+            "external",
+          ),
+    );
+  }
+
+  for (const [name, review] of [
+    ["ASM-017 role-permission review", config.rolePermissionReview],
+    ["ASM-018 owner-membership review", config.ownerMembershipReview],
+    ["ASM-030 sharing and retention review", config.dataSharingRetentionReview],
+  ] as const) {
+    checks.push(
+      review.decision === "accepted"
+        ? pass(
+            `${name} accepted`,
+            `reviewed by ${review.reviewerName} on ${review.date} ` +
+              `(worksheet: ${review.worksheetReference})`,
+            "external",
+          )
+        : fail(
+            `${name} accepted`,
+            `rejected by ${review.reviewerName} on ${review.date}`,
+            "external",
+          ),
+    );
+  }
+
+  checks.push(
+    config.recoveryEvidence.status === "passed"
+      ? pass(
+          "provider recovery evidence attached",
+          `provider: ${config.recoveryEvidence.providerEvidenceReference}; ` +
+            `drill: ${config.recoveryEvidence.restoreDrillReference}`,
+          "external",
+        )
+      : fail(
+          "provider recovery evidence attached",
+          `pending — owner: ${config.recoveryEvidence.owner}; ` +
+            `trigger: ${config.recoveryEvidence.trigger}`,
+          "external",
+        ),
+  );
 
   // 1. Database reachable.
   const reachable = await databaseReachable(database);
@@ -258,6 +324,21 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
         ),
   );
 
+  const catalog = await productCensus(database, config.workspaceId);
+  checks.push(
+    catalog.active > 0
+      ? pass("Products imported", `${catalog.active} active Product(s)`)
+      : fail("Products imported", "none — Product lookup cannot be validated"),
+  );
+  checks.push(
+    catalog.suspicious.length === 0
+      ? pass("no fixture Products", "none found")
+      : fail(
+          "no fixture Products",
+          `${catalog.suspicious.length} fixture-shaped Product name(s) found`,
+        ),
+  );
+
   // 8 & 9. What the worker's own token will actually resolve to.
   const deps: CommandDeps = {
     uow: createUnitOfWork(database.db, randomIdGenerator) as CommandDeps["uow"],
@@ -331,14 +412,21 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
 
 function report(checks: readonly Check[], config: PilotConfig): void {
   const failed = checks.filter((check) => check.status === "fail");
+  const repositoryFailed = failed.filter((check) => check.gate === "repository");
+  const externalFailed = failed.filter((check) => check.gate === "external");
 
   console.warn(`pilot readiness — ${config.workspaceName}\n`);
   for (const check of checks) {
-    console.warn(`  ${check.status === "pass" ? "✓" : "✗"} ${check.name}`);
+    console.warn(`  ${check.status === "pass" ? "✓" : "✗"} [${check.gate}] ${check.name}`);
     console.warn(`      ${check.detail}`);
   }
 
   console.warn(`\n${checks.length - failed.length}/${checks.length} checks passed.`);
+  console.warn(
+    `Repository readiness: ${repositoryFailed.length === 0 ? "PASS" : "FAIL"}; ` +
+      `pilot readiness: ${failed.length === 0 ? "PASS" : "BLOCKED/PENDING"} ` +
+      `(${externalFailed.length} external gate(s) open).`,
+  );
 
   if (failed.length === 0) {
     console.warn(

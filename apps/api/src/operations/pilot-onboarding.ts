@@ -1,42 +1,33 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import {
+  bootstrapPilotWorkspace,
   createDatabase,
   createUnitOfWork,
-  ensureMembership,
-  ensureWorkspace,
+  existingCustomerNames,
+  existingProductNames,
+  listMembers,
   listWorkspaces,
 } from "@vuarau/db";
-import type { ActorId, WorkspaceId, WorkspaceRole } from "@vuarau/domain-contracts";
-import { WORKSPACE_ROLES, workspaceIdSchema } from "@vuarau/domain-contracts";
+import type { ActorId, AuditRecordId, CommandId, WorkspaceId } from "@vuarau/domain-contracts";
+import { permissionsForRole, workspaceIdSchema } from "@vuarau/domain-contracts";
 import { randomIdGenerator, systemClock } from "../infrastructure/clock.ts";
+import { deterministicUuid } from "../infrastructure/deterministic-id.ts";
 import type { CommandContext, CommandDeps } from "../modules/shared/command-pipeline.ts";
 import { createCustomer } from "../modules/customer/create-customer.handler.ts";
-import { formatReport, readCustomerCsv, type ImportRow } from "./pilot-csv.ts";
+import { createProduct } from "../modules/product/product.handlers.ts";
+import {
+  formatReport,
+  readCustomerCsv,
+  readProductCsv,
+  type ImportRow,
+  type ProductImportRow,
+} from "./pilot-csv.ts";
 
 /**
- * Setting a depot up for a pilot session, from a shell.
- *
- * Three jobs, in the order a facilitator does them:
- *
- *   workspaces                        list what already exists
- *   workspace  --name …               create or select the pilot depot
- *   member     --workspace … --subject …   provision somebody who can sign in
- *   customers  --workspace … --file …     import the worker's own customers
- *
- * **The import is a dry run unless `--commit` is passed.** That is not caution
- * for its own sake: the file is somebody's real customer list, typed once, and
- * seeing exactly what would be created before anything is costs one extra command
- * and saves an afternoon of cleanup that the ledger design makes expensive.
- *
- * There is deliberately **no UI for any of this** (docs/00-product/scope.md). An
- * import screen is a second way to create customers, with its own validation and
- * its own bugs, for a job done once per depot by somebody with shell access.
- *
- * Reaching this needs shell access to the server, which is its own authorization
- * boundary — the same reasoning as the balance rebuild tool. Customer creation
- * still goes through the real `CreateCustomer` command, so every rule, every audit
- * record and every idempotency key applies exactly as they do from a browser
- * (BR-CUSTOMER-005).
+ * Shell-only M23 workspace bootstrap, role review and Customer/Product import.
+ * Bootstrap is audited and imports are dry-run by default. Canonical master data
+ * still goes through CreateCustomer/CreateProduct with deterministic identities;
+ * later membership changes go through authenticated application commands.
  */
 
 type Flags = Readonly<Record<string, string | true>>;
@@ -69,18 +60,24 @@ usage: node src/operations/pilot-onboarding.ts <command> [flags]
   workspaces
       List every depot in the database, with its id.
 
-  workspace --name "<tên vựa>" [--id <uuid>]
-      Create the pilot depot, or report the one that already has that id.
+  bootstrap --workspace <uuid> --name "<tên vựa>" --actor <uuid>
+            --subject <supabase-user-id> --owner-name "<họ tên>" [--commit]
+      Dry-run by default. Atomically creates the depot and its first owner, with
+      one audit record. A replay uses the same deterministic command identity.
+      Later membership changes must use the authenticated workspace UI/API.
 
-  member --workspace <uuid> --subject <supabase-user-id> --name "<họ tên>"
-         --role <${WORKSPACE_ROLES.join("|")}> [--actor <uuid>]
-      Provision somebody who can sign in and act in that depot.
-      --subject is the Supabase user id the token will carry (BR-AUTH-005).
+  review --workspace <uuid>
+      Print active/revoked roles and their effective permissions for owner review.
 
   customers --workspace <uuid> --actor <uuid> --file <customers.csv>
             [--commit] [--report <path>]
       Import customers from a UTF-8 CSV. Dry run unless --commit is given.
       Columns: name/ten (required), phone/dien_thoai, note/ghi_chu.
+
+  products --workspace <uuid> --actor <uuid> --file <products.csv>
+           [--commit] [--report <path>]
+      Import Products through CreateProduct. Dry run unless --commit is given.
+      Columns: name/ten (required), aliases/ten_khac (separate with |), unit/don_vi.
 
 DATABASE_URL must be set.
 `.trim();
@@ -116,14 +113,17 @@ async function main(): Promise<void> {
       case "workspaces":
         await runList(database);
         return;
-      case "workspace":
-        await runWorkspace(database, flags);
+      case "bootstrap":
+        await runBootstrap(database, flags);
         return;
-      case "member":
-        await runMember(database, flags);
+      case "review":
+        await runReview(database, flags);
         return;
       case "customers":
-        await runImport(database, flags);
+        await runCustomerImport(database, flags);
+        return;
+      case "products":
+        await runProductImport(database, flags);
         return;
       default:
         fail(`unknown command: ${command}\n\n${USAGE}`);
@@ -144,69 +144,117 @@ async function runList(database: Db): Promise<void> {
   for (const row of rows) console.warn(`${row.workspaceId}  ${row.name}`);
 }
 
-async function runWorkspace(database: Db, flags: Flags): Promise<void> {
-  const name = stringFlag(flags, "name");
-  if (name === null) fail('--name "<tên vựa>" is required.\n\n' + USAGE);
+async function runBootstrap(database: Db, flags: Flags): Promise<void> {
+  const workspaceId = requireWorkspaceId(flags);
+  const workspaceName = stringFlag(flags, "name");
+  const subject = stringFlag(flags, "subject");
+  const displayName = stringFlag(flags, "owner-name");
+  const actorId = stringFlag(flags, "actor");
+  if (workspaceName === null) fail('--name "<tên vựa>" is required.\n\n' + USAGE);
+  if (subject === null) fail("--subject <supabase-user-id> is required.\n\n" + USAGE);
+  if (displayName === null) fail('--owner-name "<họ tên>" is required.\n\n' + USAGE);
+  if (actorId === null) fail("--actor <uuid> is required.\n\n" + USAGE);
+  const demoPattern = /\b(demo|fixture|example|test)\b/i;
+  if (
+    demoPattern.test(subject) ||
+    demoPattern.test(displayName) ||
+    demoPattern.test(workspaceName)
+  ) {
+    fail("Pilot bootstrap refuses demo, fixture, example, or test identities.");
+  }
 
-  const idFlag = stringFlag(flags, "id");
-  const workspaceId =
-    idFlag === null
-      ? (crypto.randomUUID() as WorkspaceId)
-      : requireWorkspaceId({ workspace: idFlag });
+  const identity = `${workspaceId}:${actorId}:${subject}`;
+  const plan = {
+    workspaceId,
+    workspaceName,
+    actorId: actorId as ActorId,
+    supabaseUserId: subject,
+    actorDisplayName: displayName,
+    commandId: deterministicUuid("vuarau:m23:pilot-bootstrap:command", identity) as CommandId,
+    auditRecordId: deterministicUuid("vuarau:m23:pilot-bootstrap:audit", identity) as AuditRecordId,
+    occurredAt: new Date(systemClock.now()),
+  };
+  if (flags["commit"] !== true) {
+    console.warn(
+      [
+        "mode: dry-run",
+        `workspace: ${workspaceId} — ${workspaceName}`,
+        `first owner: ${actorId} — ${displayName}`,
+        `command: ${plan.commandId}`,
+        "Nothing was written. Re-run with --commit after owner review.",
+      ].join("\n"),
+    );
+    return;
+  }
 
-  const result = await ensureWorkspace(database, workspaceId, name);
+  const result = await bootstrapPilotWorkspace(database, plan);
+  if (result.kind === "conflict") {
+    fail(`Pilot bootstrap refused: ${result.reason}`);
+  }
   console.warn(
-    result.created
-      ? `created depot ${result.workspaceId} — ${result.name}`
-      : `depot ${result.workspaceId} already exists — ${result.name} (name left unchanged)`,
+    `${result.kind === "created" ? "created" : "replayed"} depot ${workspaceId} and first owner ` +
+      `${actorId}; command ${plan.commandId}`,
   );
 }
 
-async function runMember(database: Db, flags: Flags): Promise<void> {
+async function runReview(database: Db, flags: Flags): Promise<void> {
   const workspaceId = requireWorkspaceId(flags);
-  const subject = stringFlag(flags, "subject");
-  const displayName = stringFlag(flags, "name");
-  const role = stringFlag(flags, "role");
-
-  if (subject === null) fail("--subject <supabase-user-id> is required.\n\n" + USAGE);
-  if (displayName === null) fail('--name "<họ tên>" is required.\n\n' + USAGE);
-  if (role === null || !(WORKSPACE_ROLES as readonly string[]).includes(role)) {
-    fail(`--role must be one of: ${WORKSPACE_ROLES.join(", ")}`);
+  const members = await listMembers(database, workspaceId);
+  if (members.length === 0) {
+    console.warn("No memberships.");
+    return;
   }
-
-  const result = await ensureMembership(database, {
-    workspaceId,
-    actorId: (stringFlag(flags, "actor") ?? crypto.randomUUID()) as ActorId,
-    supabaseUserId: subject,
-    displayName,
-    role: role as WorkspaceRole,
-  });
-
-  console.warn(
-    `actor ${result.actorId} ${result.actorCreated ? "created" : "already existed"}; ` +
-      `membership ${result.membershipCreated ? "created" : "updated"} as ${result.role}` +
-      (result.reactivated ? " (reactivated a revoked membership)" : ""),
-  );
-  // The role table is a developer's default beyond `debt.adjust` (ASM-017), and a
-  // pilot is the first time anybody is given one in anger.
-  if (result.role === "owner" || result.role === "accountant") {
+  for (const member of members) {
     console.warn(
-      "note: this role holds debt.adjust and sale.void — the two ways to move money " +
-        "with no new trade. Confirm it is what the depot owner intended (ASM-017).",
+      `${member.actorId}  ${member.role}  ${member.isActive ? "active" : "revoked"}\n` +
+        `  permissions: ${permissionsForRole(member.role).join(", ")}`,
     );
   }
 }
 
-async function runImport(database: Db, flags: Flags): Promise<void> {
+function importArgs(flags: Flags): {
+  workspaceId: WorkspaceId;
+  file: string;
+  actor: ActorId;
+  commit: boolean;
+} {
   const workspaceId = requireWorkspaceId(flags);
   const file = stringFlag(flags, "file");
   const actor = stringFlag(flags, "actor");
   const commit = flags["commit"] === true;
 
-  if (file === null) fail("--file <customers.csv> is required.\n\n" + USAGE);
+  if (file === null) fail("--file <import.csv> is required.\n\n" + USAGE);
   if (actor === null) fail("--actor <uuid> is required — every row names who imported it.");
+  return { workspaceId, file, actor: actor as ActorId, commit };
+}
 
-  const parsed = readCustomerCsv(readFileSync(file, "utf8"), workspaceId);
+function commandContext(
+  database: Db,
+  actor: ActorId,
+): {
+  deps: CommandDeps;
+  ctx: CommandContext;
+} {
+  const deps: CommandDeps = {
+    uow: createUnitOfWork(database.db, randomIdGenerator) as CommandDeps["uow"],
+    clock: systemClock,
+  };
+  return {
+    deps,
+    ctx: {
+      deps,
+      principal: { actorId: actor, subject: `operator:${actor}` },
+    },
+  };
+}
+
+async function runCustomerImport(database: Db, flags: Flags): Promise<void> {
+  const { workspaceId, file, actor, commit } = importArgs(flags);
+
+  const parsed = withExistingNameWarnings(
+    readCustomerCsv(readFileSync(file, "utf8"), workspaceId),
+    await existingCustomerNames(database, workspaceId),
+  );
 
   /*
    * All or nothing, and judged before anything is attempted.
@@ -233,18 +281,7 @@ async function runImport(database: Db, flags: Flags): Promise<void> {
     return;
   }
 
-  const deps: CommandDeps = {
-    uow: createUnitOfWork(database.db, randomIdGenerator) as CommandDeps["uow"],
-    clock: systemClock,
-  };
-  const ctx: CommandContext = {
-    deps,
-    // A real principal, because `CreateCustomer` checks that the envelope's actor
-    // is the authenticated one (BR-AUTH-002). The subject is unused by the command
-    // itself — the resolution from token to actor already happened, out of band,
-    // when the operator was given shell access.
-    principal: { actorId: actor as ActorId, subject: `operator:${actor}` },
-  };
+  const { deps, ctx } = commandContext(database, actor);
 
   const created: { line: number; customerId: string }[] = [];
   const replayed: { line: number; customerId: string }[] = [];
@@ -253,7 +290,7 @@ async function runImport(database: Db, flags: Flags): Promise<void> {
   for (const row of parsed.rows) {
     const before = await customerExists(deps, workspaceId, row);
     const result = await createCustomer(ctx, {
-      commandId: crypto.randomUUID(),
+      commandId: row.commandId,
       idempotencyKey: row.idempotencyKey,
       workspaceId,
       actorId: actor,
@@ -268,7 +305,7 @@ async function runImport(database: Db, flags: Flags): Promise<void> {
 
     if (!result.ok) {
       failed.push({ line: row.line, code: result.error.code, message: result.error.message });
-      break;
+      continue;
     }
     (before ? replayed : created).push({ line: row.line, customerId: row.customerId });
   }
@@ -276,7 +313,62 @@ async function runImport(database: Db, flags: Flags): Promise<void> {
   emit(formatReport(parsed, { mode: "commit", created, replayed, failed }), flags);
 
   if (failed.length > 0) {
-    console.error(`\nImport stopped at line ${failed[0]!.line}. See the report above.`);
+    console.error(`\n${failed.length} row(s) rejected. Every row outcome is listed above.`);
+    process.exit(1);
+  }
+}
+
+async function runProductImport(database: Db, flags: Flags): Promise<void> {
+  const { workspaceId, file, actor, commit } = importArgs(flags);
+  const parsed = withExistingNameWarnings(
+    readProductCsv(readFileSync(file, "utf8"), workspaceId),
+    await existingProductNames(database, workspaceId),
+  );
+  if (parsed.problems.length > 0 || !commit) {
+    emit(
+      formatReport(parsed, {
+        mode: commit ? "commit" : "dry-run",
+        created: [],
+        replayed: [],
+        failed: [],
+      }),
+      flags,
+    );
+    if (parsed.problems.length > 0) {
+      console.error(`\n${parsed.problems.length} problem(s). Nothing was written.`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  const { deps, ctx } = commandContext(database, actor);
+  const created: { line: number; customerId: string }[] = [];
+  const replayed: { line: number; customerId: string }[] = [];
+  const failed: { line: number; code: string; message: string }[] = [];
+  for (const row of parsed.rows) {
+    const before = await productExists(deps, workspaceId, row);
+    const result = await createProduct(ctx, {
+      commandId: row.commandId,
+      idempotencyKey: row.idempotencyKey,
+      workspaceId,
+      actorId: actor,
+      occurredAt: systemClock.now(),
+      payload: {
+        productId: row.productId,
+        displayName: row.displayName,
+        aliases: [...row.aliases],
+        preferredUnit: row.preferredUnit,
+      },
+    });
+    if (!result.ok) {
+      failed.push({ line: row.line, code: result.error.code, message: result.error.message });
+      continue;
+    }
+    (before ? replayed : created).push({ line: row.line, customerId: row.productId });
+  }
+  emit(formatReport(parsed, { mode: "commit", created, replayed, failed }), flags);
+  if (failed.length > 0) {
+    console.error(`\n${failed.length} row(s) rejected. Every row outcome is listed above.`);
     process.exit(1);
   }
 }
@@ -291,6 +383,44 @@ async function customerExists(
     repos.customers.findById(workspaceId, row.customerId),
   );
   return found !== null;
+}
+
+async function productExists(
+  deps: CommandDeps,
+  workspaceId: WorkspaceId,
+  row: ProductImportRow,
+): Promise<boolean> {
+  const found = await deps.uow.transaction((repos) =>
+    repos.products.findById(workspaceId, row.productId),
+  );
+  return found !== null;
+}
+
+function withExistingNameWarnings<
+  TRow extends { readonly line: number; readonly displayName: string },
+>(
+  parsed: {
+    readonly inputRows: number;
+    readonly rows: readonly TRow[];
+    readonly problems: readonly { line: number; column: string; problem: string }[];
+    readonly warnings: readonly { line: number; warning: string }[];
+    readonly batchId: string;
+  },
+  existingNames: readonly string[],
+) {
+  const normalized = new Set(existingNames.map((name) => name.toLocaleLowerCase("vi")));
+  return {
+    ...parsed,
+    warnings: [
+      ...parsed.warnings,
+      ...parsed.rows
+        .filter((row) => normalized.has(row.displayName.toLocaleLowerCase("vi")))
+        .map((row) => ({
+          line: row.line,
+          warning: `"${row.displayName}" trùng tên đang có trong workspace; kiểm tra trước khi commit.`,
+        })),
+    ],
+  };
 }
 
 function emit(report: string, flags: Flags): void {

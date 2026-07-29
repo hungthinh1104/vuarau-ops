@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { WORKSPACE_ID } from "@vuarau/test-fixtures";
-import { formatReport, parseCsv, readCustomerCsv } from "./pilot-csv.ts";
+import { formatReport, parseCsv, readCustomerCsv, readProductCsv } from "./pilot-csv.ts";
 
 /**
  * BR-CUSTOMER-005 / TC-CUSTOMER-010 — a customer import is judged whole, before
@@ -51,6 +51,7 @@ describe("BR-CUSTOMER-005 / TC-CUSTOMER-010 — reading a customer CSV", () => {
       { line: 3, column: "name", problem: "Thiếu tên khách hàng." },
       { line: 4, column: "name", problem: "Tên dài quá 200 ký tự." },
     ]);
+    expect(parsed.inputRows).toBe(parsed.rows.length + parsed.problems.length);
   });
 
   it("refuses a file with no name column rather than guessing which one it is", () => {
@@ -100,6 +101,7 @@ describe("BR-CUSTOMER-005 / TC-CUSTOMER-011 — import identity", () => {
     expect(second.rows.map((row) => row.idempotencyKey)).toEqual(
       first.rows.map((row) => row.idempotencyKey),
     );
+    expect(second.rows.map((row) => row.commandId)).toEqual(first.rows.map((row) => row.commandId));
   });
 
   it("gives a different file different keys, so two imports cannot collide", () => {
@@ -145,5 +147,36 @@ describe("BR-CUSTOMER-005 / TC-CUSTOMER-011 — import identity", () => {
     expect(report).toContain("created:");
     expect(report).toContain("FAILED");
     expect(report).toContain("line 3: CUSTOMER_NAME_REQUIRED");
+  });
+});
+
+describe("M23 — deterministic Product onboarding", () => {
+  const file = "ten,ten_khac,don_vi\nCà chua,cà bi|tomato,kg\nRau muống,rau muon,bo\n";
+
+  it("validates Product rows using the command vocabulary", () => {
+    const parsed = readProductCsv(file, WORKSPACE_ID);
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.inputRows).toBe(2);
+    expect(parsed.rows).toMatchObject([
+      { displayName: "Cà chua", aliases: ["cà bi", "tomato"], preferredUnit: "kg" },
+      { displayName: "Rau muống", aliases: ["rau muon"], preferredUnit: "bo" },
+    ]);
+  });
+
+  it("rejects invalid rows without hiding accepted rows", () => {
+    const parsed = readProductCsv("ten,don_vi\nCà chua,kg\n,kg\nỚt,bao\n", WORKSPACE_ID);
+    expect(parsed.inputRows).toBe(3);
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.problems).toHaveLength(2);
+    expect(parsed.inputRows).toBe(parsed.rows.length + parsed.problems.length);
+  });
+
+  it("keeps command, Product and idempotency identity stable and workspace scoped", () => {
+    const first = readProductCsv(file, WORKSPACE_ID);
+    const replay = readProductCsv(file, WORKSPACE_ID);
+    const foreign = readProductCsv(file, "00000000-0000-4000-8000-0000000000a2");
+    expect(replay.rows).toEqual(first.rows);
+    expect(foreign.rows[0]?.productId).not.toBe(first.rows[0]?.productId);
+    expect(foreign.rows[0]?.commandId).not.toBe(first.rows[0]?.commandId);
   });
 });
