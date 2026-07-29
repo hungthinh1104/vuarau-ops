@@ -123,6 +123,12 @@ export const inventoryMovements = pgTable(
       table.recordedAt,
       table.id,
     ),
+    index("inventory_movements_workspace_time_idx").on(
+      table.workspaceId,
+      table.transactionTime,
+      table.recordedAt,
+      table.id,
+    ),
   ],
 );
 export const inventoryBalances = pgTable(

@@ -1,24 +1,19 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   customerAccountBalances,
-  customerAccountEntries,
   customers,
-  paymentReversals,
   products,
   suppliers,
   supplierAccountBalances,
-  purchaseReceiptReversals,
-  inventoryMovements,
   inventoryBalances,
-  deliveryReturns,
-  saleVoids,
 } from "../../schema/index.ts";
+import type { inventoryMovements } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
 import { encodeCursor } from "@vuarau/domain-contracts";
-import { money, toIso, toIsoOrNull } from "../row-mappers.ts";
+import { money, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
-import { vietnamBusinessDate } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
+import { customerActivityAtScale, inventoryMovementReportAtScale } from "./report-scale.ts";
 
 export const createReportReadRepositories = (tx: Tx) => ({
   reportReads: {
@@ -36,6 +31,12 @@ export const createReportReadRepositories = (tx: Tx) => ({
       unit: typeof inventoryMovements.$inferSelect.unit | null;
       page: Page;
     }) {
+      if (args.reportType === "customer_account_activity") {
+        return customerActivityAtScale(tx, args);
+      }
+      if (args.reportType === "inventory_movement_report") {
+        return inventoryMovementReportAtScale(tx, args);
+      }
       type Row = {
         id: string;
         label: string;
@@ -52,65 +53,7 @@ export const createReportReadRepositories = (tx: Tx) => ({
       };
       let rows: Row[] = [];
       const diagnostics: string[] = [];
-      if (args.reportType === "customer_account_activity") {
-        const entries = await tx
-          .select()
-          .from(customerAccountEntries)
-          .where(eq(customerAccountEntries.workspaceId, args.workspaceId));
-        const voidIds = entries
-          .filter((entry) => entry.sourceType === "sale_void")
-          .map((entry) => entry.sourceId);
-        const reversalIds = entries
-          .filter((entry) => entry.sourceType === "payment_reversal")
-          .map((entry) => entry.sourceId);
-        const [voidSources, reversalSources] = await Promise.all([
-          voidIds.length === 0
-            ? Promise.resolve([])
-            : tx
-                .select({ id: saleVoids.id, saleId: saleVoids.saleId })
-                .from(saleVoids)
-                .where(
-                  and(eq(saleVoids.workspaceId, args.workspaceId), inArray(saleVoids.id, voidIds)),
-                ),
-          reversalIds.length === 0
-            ? Promise.resolve([])
-            : tx
-                .select({ id: paymentReversals.id, paymentId: paymentReversals.paymentId })
-                .from(paymentReversals)
-                .where(
-                  and(
-                    eq(paymentReversals.workspaceId, args.workspaceId),
-                    inArray(paymentReversals.id, reversalIds),
-                  ),
-                ),
-        ]);
-        rows = entries
-          .filter(
-            (entry) =>
-              args.businessDate === null ||
-              vietnamBusinessDate(entry.transactionTime) === args.businessDate,
-          )
-          .map((entry) => ({
-            id: entry.id,
-            label: entry.sourceType.replaceAll("_", " "),
-            sourceType: entry.sourceType,
-            sourceId: entry.sourceId,
-            documentHref:
-              entry.sourceType === "sale_posting"
-                ? `/sales/${entry.sourceId}`
-                : entry.sourceType === "sale_void"
-                  ? `/sales/${voidSources.find((source) => source.id === entry.sourceId)?.saleId ?? entry.sourceId}`
-                  : entry.sourceType === "payment"
-                    ? `/payments/${entry.sourceId}`
-                    : entry.sourceType === "payment_reversal"
-                      ? `/payments/${reversalSources.find((source) => source.id === entry.sourceId)?.paymentId ?? entry.sourceId}`
-                      : `/account-adjustments/${entry.sourceId}`,
-            transactionTime: toIso(entry.transactionTime),
-            amount: money(entry.amountMinor, entry.currency),
-            quantity: null,
-            status: "canonical",
-          }));
-      } else if (args.reportType === "customer_receivables") {
+      if (args.reportType === "customer_receivables") {
         const values = await tx
           .select({ balance: customerAccountBalances, customer: customers })
           .from(customerAccountBalances)
@@ -185,74 +128,6 @@ export const createReportReadRepositories = (tx: Tx) => ({
           amount: null,
           quantity: { valueScaled: balance.quantityScaled, unit: balance.unit },
           status: classifyInventory(balance.quantityScaled),
-        }));
-      } else if (args.reportType === "inventory_movement_report") {
-        const filters = [eq(inventoryMovements.workspaceId, args.workspaceId)];
-        if (args.productId !== null) filters.push(eq(inventoryMovements.productId, args.productId));
-        if (args.unit !== null) filters.push(eq(inventoryMovements.unit, args.unit));
-        const values = await tx
-          .select()
-          .from(inventoryMovements)
-          .where(and(...filters));
-        const deliveryReturnIds = values
-          .filter((movement) => movement.sourceType === "delivery_return")
-          .map((movement) => movement.sourceId);
-        const deliveryReturnSources =
-          deliveryReturnIds.length === 0
-            ? []
-            : await tx
-                .select({ id: deliveryReturns.id, deliveryId: deliveryReturns.deliveryId })
-                .from(deliveryReturns)
-                .where(
-                  and(
-                    eq(deliveryReturns.workspaceId, args.workspaceId),
-                    inArray(deliveryReturns.id, deliveryReturnIds),
-                  ),
-                );
-        const receiptReversalIds = values
-          .filter((movement) => movement.sourceType === "purchase_receipt_reversal")
-          .map((movement) => movement.sourceId);
-        const receiptReversalSources =
-          receiptReversalIds.length === 0
-            ? []
-            : await tx
-                .select({
-                  id: purchaseReceiptReversals.id,
-                  receiptId: purchaseReceiptReversals.receiptId,
-                })
-                .from(purchaseReceiptReversals)
-                .where(
-                  and(
-                    eq(purchaseReceiptReversals.workspaceId, args.workspaceId),
-                    inArray(purchaseReceiptReversals.id, receiptReversalIds),
-                  ),
-                );
-        rows = values.map((movement) => ({
-          id: movement.id,
-          label: movement.sourceType.replaceAll("_", " "),
-          sourceType: movement.sourceType,
-          sourceId: movement.sourceId,
-          documentHref: movement.sourceType.startsWith("delivery_")
-            ? `/deliveries/${
-                movement.sourceType === "delivery_return"
-                  ? (deliveryReturnSources.find((source) => source.id === movement.sourceId)
-                      ?.deliveryId ?? movement.sourceId)
-                  : movement.sourceId
-              }`
-            : movement.sourceType === "purchase_receipt"
-              ? `/receipts/${movement.sourceId}`
-              : movement.sourceType === "purchase_receipt_reversal"
-                ? `/receipts/${
-                    receiptReversalSources.find((source) => source.id === movement.sourceId)
-                      ?.receiptId ?? movement.sourceId
-                  }`
-                : movement.sourceType === "inventory_adjustment"
-                  ? `/inventory-adjustments/${movement.sourceId}`
-                  : null,
-          transactionTime: toIso(movement.transactionTime),
-          amount: null,
-          quantity: { valueScaled: movement.quantityScaled, unit: movement.unit },
-          status: "canonical",
         }));
       } else {
         const values = await tx.execute(sql`

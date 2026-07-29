@@ -114,6 +114,12 @@ export const supplierAccountEntries = pgTable(
       table.recordedAt,
       table.id,
     ),
+    index("supplier_account_entries_workspace_time_idx").on(
+      table.workspaceId,
+      table.transactionTime,
+      table.recordedAt,
+      table.id,
+    ),
   ],
 );
 

@@ -11,7 +11,9 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/migrate.ts",
-    "db:seed": "node src/seeds/seed.ts"
+    "db:seed": "node src/seeds/seed.ts",
+    "perf:m22": "node src/performance/m22-scale.ts",
+    "rehearse:m22": "node src/performance/m22-migration-rehearsal.ts"
   },
   "dependencies": {
     "@vuarau/domain-contracts": "workspace:*",

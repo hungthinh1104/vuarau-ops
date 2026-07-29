@@ -42,6 +42,13 @@ export const deliveries = pgTable(
       table.recordedAt,
       table.id,
     ),
+    index("deliveries_workspace_status_time_idx").on(
+      table.workspaceId,
+      table.status,
+      table.transactionTime,
+      table.recordedAt,
+      table.id,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.saleId],
       foreignColumns: [sales.workspaceId, sales.id],
