@@ -6,33 +6,42 @@ import {
   type WorkspaceId,
 } from "@vuarau/domain-contracts";
 
-const WORKSPACES_KEY = "vuarau.offline.workspaces";
-const sessionKey = (workspaceId: WorkspaceId) => `vuarau.offline.session:${workspaceId}`;
+const subjectKey = (subject: string) => encodeURIComponent(subject);
+const workspacesKey = (subject: string) => `vuarau.offline.${subjectKey(subject)}.workspaces`;
+const sessionKey = (subject: string, workspaceId: WorkspaceId) =>
+  `vuarau.offline.${subjectKey(subject)}.session:${workspaceId}`;
 
-export function cacheWorkspaces(value: ActorWorkspacesDto): void {
-  sessionStorage.setItem(WORKSPACES_KEY, JSON.stringify(value));
+export function cacheWorkspaces(subject: string, value: ActorWorkspacesDto): void {
+  sessionStorage.setItem(workspacesKey(subject), JSON.stringify(value));
 }
 
-export function cachedWorkspaces(): ActorWorkspacesDto | null {
-  const raw = sessionStorage.getItem(WORKSPACES_KEY);
+export function cachedWorkspaces(subject: string): ActorWorkspacesDto | null {
+  const raw = sessionStorage.getItem(workspacesKey(subject));
   if (raw === null) return null;
   const parsed = actorWorkspacesDtoSchema.safeParse(JSON.parse(raw));
   return parsed.success ? parsed.data : null;
 }
 
-export function cacheSession(workspaceId: WorkspaceId, value: SessionDto): void {
-  sessionStorage.setItem(sessionKey(workspaceId), JSON.stringify(value));
+export function cacheSession(subject: string, workspaceId: WorkspaceId, value: SessionDto): void {
+  sessionStorage.setItem(sessionKey(subject, workspaceId), JSON.stringify(value));
 }
 
-export function cachedSession(workspaceId: WorkspaceId): SessionDto | null {
-  const raw = sessionStorage.getItem(sessionKey(workspaceId));
+export function cachedSession(subject: string, workspaceId: WorkspaceId): SessionDto | null {
+  const raw = sessionStorage.getItem(sessionKey(subject, workspaceId));
   if (raw === null) return null;
   const parsed = sessionDtoSchema.safeParse(JSON.parse(raw));
   return parsed.success ? parsed.data : null;
 }
 
-export function clearOfflineSessionCache(): void {
+export function clearOfflineSessionCache(subject: string): void {
+  const prefix = `vuarau.offline.${subjectKey(subject)}.`;
   for (const key of Object.keys(sessionStorage)) {
-    if (key.startsWith("vuarau.offline.")) sessionStorage.removeItem(key);
+    if (
+      key.startsWith(prefix) ||
+      key === "vuarau.offline.workspaces" ||
+      key.startsWith("vuarau.offline.session:")
+    ) {
+      sessionStorage.removeItem(key);
+    }
   }
 }

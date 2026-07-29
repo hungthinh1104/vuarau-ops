@@ -12,13 +12,12 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Nobody is signed in. An email and a code — no password, ever. */
+/** Nobody is signed in. Credentials were provisioned by an operator. */
 export const SignedOut: Story = {
   name: "signed_out — chưa đăng nhập",
   parameters: coversState("signed_out"),
   args: {
-    requestCode: async () => ({ ok: true }),
-    submitCode: async () => ({ ok: true }),
+    signIn: async () => ({ ok: true }),
   },
 };
 
@@ -26,13 +25,12 @@ export const SignedOut: Story = {
  * The code was wrong or has expired. The message says what to do next — press
  * send again — rather than reporting that something failed.
  */
-export const CodeRejected: Story = {
-  name: "signed_out — mã sai hoặc hết hạn",
+export const CredentialsRejected: Story = {
+  name: "signed_out — thông tin đăng nhập không đúng",
   args: {
-    requestCode: async () => ({ ok: true }),
-    submitCode: async () => ({
+    signIn: async () => ({
       ok: false,
-      message: "Mã không đúng hoặc đã hết hạn. Bấm gửi lại để nhận mã mới.",
+      message: "Email hoặc mật khẩu không đúng.",
     }),
   },
 };
@@ -41,14 +39,13 @@ export const CodeRejected: Story = {
  * An email nobody provisioned. Sign-up is off on purpose: a typo would otherwise
  * create an account that can sign in and see nothing at all.
  */
-export const EmailNotProvisioned: Story = {
-  name: "signed_out — email chưa được cấp quyền",
+export const NetworkUnavailable: Story = {
+  name: "signed_out — không kết nối được dịch vụ đăng nhập",
   args: {
-    requestCode: async () => ({
+    signIn: async () => ({
       ok: false,
-      message: "Email này chưa được cấp quyền. Báo chủ vựa để được thêm vào.",
+      message: "Không kết nối được dịch vụ đăng nhập. Kiểm tra mạng rồi thử lại.",
     }),
-    submitCode: async () => ({ ok: true }),
   },
 };
 

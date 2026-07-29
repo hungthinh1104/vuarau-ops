@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { actorWorkspacesDtoSchema } from "@vuarau/domain-contracts";
-import { storeWorkspaceId, storedWorkspaceId } from "./workspace.ts";
+import { clearWorkspaceSelection, storeWorkspaceId, storedWorkspaceId } from "./workspace.ts";
 import { setAccessToken, browserAccessToken, TOKEN_KEY } from "./access-token.ts";
 import { ownerWorkspaces } from "../fixtures/session.fixtures.ts";
 import { WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
+
+const SUBJECT_A = "supabase-user-a";
+const SUBJECT_B = "supabase-user-b";
 
 /**
  * TC-WEB-017 — the depot list comes from the server, and the selection is a
@@ -37,16 +40,26 @@ describe("TC-WEB-017 — the depot list and the stored selection", () => {
   });
 
   it("round-trips a chosen depot for the life of the tab", () => {
-    expect(storedWorkspaceId()).toBeNull();
-    storeWorkspaceId(WORKSPACE_ID);
-    expect(storedWorkspaceId()).toBe(WORKSPACE_ID);
-    storeWorkspaceId(null);
-    expect(storedWorkspaceId()).toBeNull();
+    expect(storedWorkspaceId(SUBJECT_A)).toBeNull();
+    storeWorkspaceId(SUBJECT_A, WORKSPACE_ID);
+    expect(storedWorkspaceId(SUBJECT_A)).toBe(WORKSPACE_ID);
+    storeWorkspaceId(SUBJECT_A, null);
+    expect(storedWorkspaceId(SUBJECT_A)).toBeNull();
   });
 
   it("refuses a stored value that is not a workspace id", () => {
-    window.sessionStorage.setItem("vuarau.workspace_id", "not-a-uuid");
-    expect(storedWorkspaceId()).toBeNull();
+    window.sessionStorage.setItem(
+      `vuarau.workspace_id:${encodeURIComponent(SUBJECT_A)}`,
+      "not-a-uuid",
+    );
+    expect(storedWorkspaceId(SUBJECT_A)).toBeNull();
+  });
+
+  it("does not expose one subject's selection to another and clears it on logout", () => {
+    storeWorkspaceId(SUBJECT_A, WORKSPACE_ID);
+    expect(storedWorkspaceId(SUBJECT_B)).toBeNull();
+    clearWorkspaceSelection(SUBJECT_A);
+    expect(storedWorkspaceId(SUBJECT_A)).toBeNull();
   });
 });
 

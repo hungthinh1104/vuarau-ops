@@ -94,12 +94,13 @@ try {
 }
 
 /**
- * 2. Is the anon key this project's, and is email sign-in on?
+ * 2. Is the publishable key this project's, and is password sign-in on?
  *
  * `/auth/v1/settings` is the endpoint the browser client itself reads. A wrong
  * key answers 401 here rather than at the first code request, and the response
- * says whether email is enabled and whether sign-up is disabled — which this app
- * relies on, because it calls `signInWithOtp` with `shouldCreateUser: false`.
+ * says whether email auth is enabled, sign-up is disabled, and email confirmation
+ * is bypassed. With no SMTP, all three are required for pre-provisioned password
+ * accounts to authenticate without opening a public account-creation path.
  */
 let signupDisabled: boolean | null = null;
 if (!canCheckKey) {
@@ -124,14 +125,15 @@ if (!canCheckKey) {
       };
       const emailEnabled = settings.external?.["email"] ?? false;
       signupDisabled = settings.disable_signup ?? null;
+      const emailConfirmationDisabled = settings.mailer_autoconfirm ?? null;
 
       record("anon key accepted", true, "settings answered");
       record(
-        "email sign-in enabled",
+        "email/password sign-in enabled",
         emailEnabled,
         emailEnabled
           ? "external.email = true"
-          : "external.email = false — the code form has nothing to send",
+          : "external.email = false — password sign-in is disabled",
       );
       record(
         "public sign-up disabled",
@@ -141,6 +143,15 @@ if (!canCheckKey) {
           : signupDisabled === false
             ? "disable_signup = false — STOP: the project can create accounts outside the app"
             : "settings did not report disable_signup — verify it in Supabase before the pilot",
+      );
+      record(
+        "email confirmation disabled while SMTP is unavailable",
+        emailConfirmationDisabled === true,
+        emailConfirmationDisabled === true
+          ? "mailer_autoconfirm = true"
+          : emailConfirmationDisabled === false
+            ? "mailer_autoconfirm = false — pre-provisioned users may be blocked waiting for email"
+            : "settings did not report mailer_autoconfirm — verify it in Supabase before the pilot",
       );
     }
   } catch (error) {

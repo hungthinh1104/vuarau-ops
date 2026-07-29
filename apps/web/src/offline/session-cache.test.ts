@@ -14,6 +14,8 @@ import {
 
 const workspaceId = workspaceIdSchema.parse("00000000-0000-4000-8000-000000000001");
 const actorId = "00000000-0000-4000-8000-000000000002";
+const SUBJECT_A = "supabase-user-a";
+const SUBJECT_B = "supabase-user-b";
 
 describe("offline session partition bootstrap", () => {
   it("restores validated server authority for the same workspace and clears it on sign-out", () => {
@@ -34,13 +36,19 @@ describe("offline session partition bootstrap", () => {
       role: "sales",
       permissions: ["sale.create", "sale.post", "sale.read"],
     });
-    cacheWorkspaces(workspaces);
-    cacheSession(workspaceId, session);
-    expect(cachedWorkspaces()).toEqual(workspaces);
-    expect(cachedSession(workspaceId)).toEqual(session);
+    cacheWorkspaces(SUBJECT_A, workspaces);
+    cacheSession(SUBJECT_A, workspaceId, session);
+    expect(cachedWorkspaces(SUBJECT_A)).toEqual(workspaces);
+    expect(cachedSession(SUBJECT_A, workspaceId)).toEqual(session);
+    expect(cachedWorkspaces(SUBJECT_B)).toBeNull();
+    expect(cachedSession(SUBJECT_B, workspaceId)).toBeNull();
+    window.sessionStorage.setItem("vuarau.offline.workspaces", "legacy-authority");
+    window.sessionStorage.setItem(`vuarau.offline.session:${workspaceId}`, "legacy-authority");
 
-    clearOfflineSessionCache();
-    expect(cachedWorkspaces()).toBeNull();
-    expect(cachedSession(workspaceId)).toBeNull();
+    clearOfflineSessionCache(SUBJECT_A);
+    expect(cachedWorkspaces(SUBJECT_A)).toBeNull();
+    expect(cachedSession(SUBJECT_A, workspaceId)).toBeNull();
+    expect(window.sessionStorage.getItem("vuarau.offline.workspaces")).toBeNull();
+    expect(window.sessionStorage.getItem(`vuarau.offline.session:${workspaceId}`)).toBeNull();
   });
 });

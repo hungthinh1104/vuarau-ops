@@ -5,7 +5,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 /**
  * The Supabase browser client, and the one place it is constructed.
  *
- * Supabase owns authentication: the sign-in, the code, the session, the refresh
+ * Supabase owns authentication: the password check, the session and the refresh
  * ([ADR-0010](../../../../docs/09-decisions/ADR-0010-supabase-jwt-verification.md)).
  * This app verifies tokens on the server and reimplements none of the rest — a
  * second implementation of "is this person signed in" is a second answer to it.
@@ -52,10 +52,9 @@ export function supabaseClient(): SupabaseClient | null {
       persistSession: true,
       autoRefreshToken: true,
       /*
-       * Off, because this app never receives a session in a URL. Sign-in is an
-       * emailed code typed into the form, so there is no callback route and no
-       * fragment to parse — and a client that parses one is a client that can be
-       * handed a session by a link somebody else wrote.
+       * Password sign-in never receives a session in a URL. The reserved OAuth
+       * callback will perform an explicit PKCE code exchange if OAuth is enabled
+       * later; provider tokens still do not become browser URL fragments.
        */
       detectSessionInUrl: false,
     },

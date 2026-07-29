@@ -58,6 +58,34 @@ export function e2eBridgeToken(): string | null {
   }
 }
 
+function decodeJwtSubject(token: string): string | null {
+  const payload = token.split(".")[1];
+  if (payload === undefined) return null;
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const normalized = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const decoded = JSON.parse(window.atob(normalized)) as { sub?: unknown };
+    return typeof decoded.sub === "string" && decoded.sub.length > 0 ? decoded.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Subject is used only to partition browser state; API identity still comes from verified JWT. */
+export function e2eBridgeSubject(): string | null {
+  const token = e2eBridgeToken();
+  return token === null ? null : decodeJwtSubject(token);
+}
+
+export function clearE2eBridgeToken(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Storage unavailable already means the bridge cannot survive a reload.
+  }
+}
+
 /**
  * The current access token, or null when nobody is signed in.
  *

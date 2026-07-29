@@ -2,6 +2,7 @@ import type { SessionDto, WorkspaceRole } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Badge } from "../primitives/badge.tsx";
+import { Button } from "../primitives/button.tsx";
 
 const ROLE_COPY: Readonly<Record<WorkspaceRole, string>> = {
   owner: "Chủ vựa",
@@ -17,6 +18,7 @@ export type WorkspaceShellProps = {
   readonly session: SessionDto;
   /** A standing message about the page itself, not about a command. */
   readonly notice?: string;
+  readonly onSignOut?: () => void | Promise<void>;
   readonly children: ReactNode;
 };
 
@@ -33,7 +35,13 @@ export type WorkspaceShellProps = {
  * no sidebar yet because there is nothing to navigate to — design.md's web
  * navigation arrives with the screens it points at, not before them.
  */
-export function WorkspaceShell({ workspaceName, session, notice, children }: WorkspaceShellProps) {
+export function WorkspaceShell({
+  workspaceName,
+  session,
+  notice,
+  onSignOut,
+  children,
+}: WorkspaceShellProps) {
   return (
     <div className="min-h-screen bg-canvas">
       <header className="border-b border-border bg-surface">
@@ -42,7 +50,14 @@ export function WorkspaceShell({ workspaceName, session, notice, children }: Wor
             <p className="text-caption text-ink-muted">Đang ghi vào</p>
             <p className="text-subheading font-semibold text-ink">{workspaceName}</p>
           </div>
-          <Badge tone="info">{ROLE_COPY[session.role]}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge tone="info">{ROLE_COPY[session.role]}</Badge>
+            {onSignOut !== undefined ? (
+              <Button tone="secondary" onClick={() => void onSignOut()}>
+                Đăng xuất
+              </Button>
+            ) : null}
+          </div>
         </div>
       </header>
       <nav

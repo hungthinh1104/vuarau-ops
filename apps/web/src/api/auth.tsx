@@ -2,18 +2,23 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { e2eBridgeToken, setAccessToken } from "./access-token.ts";
+import {
+  clearE2eBridgeToken,
+  e2eBridgeSubject,
+  e2eBridgeToken,
+  setAccessToken,
+} from "./access-token.ts";
 import { supabaseClient, supabaseConfigured } from "./supabase.ts";
-import { clearOfflineSessionCache } from "../offline/session-cache.ts";
+import { clearIdentityBrowserState, clearIdentityQueryState } from "./identity-lifecycle.ts";
 
 /**
  * Who is signed in, according to Supabase.
  *
- * The provider does two things and nothing else: it keeps the module-level access
- * token current so a tRPC header callback can read it synchronously, and it tells
- * the tree whether there is a session at all. It holds no user profile, no role
- * and no permissions — those come from `session.me` against the depot the person
- * chose, because they are the server's answer and not the token's (ADR-0011).
+ * The provider keeps the module-level access token current, exposes the Supabase
+ * subject that partitions browser state, and destroys the previous subject's
+ * authority caches on a transition. It holds no business profile, role or
+ * permissions — those come from `session.me` against the depot the person chose,
+ * because they are the server's answer and not the token's (ADR-0011).
  */
 export type AuthState =
   /** Supabase has not answered yet. One frame, usually. */
@@ -21,13 +26,10 @@ export type AuthState =
   /** No Supabase project configured. A deployment problem with a real screen. */
   | { readonly status: "unconfigured" }
   | { readonly status: "signed_out" }
-  | { readonly status: "signed_in"; readonly email: string | null };
+  | { readonly status: "signed_in"; readonly subject: string; readonly email: string | null };
 
 export type Auth = AuthState & {
-  /** Sends a one-time code to an email that already has an account. */
-  requestCode(email: string): Promise<{ ok: true } | { ok: false; message: string }>;
-  /** Exchanges the emailed code for a session. */
-  submitCode(email: string, code: string): Promise<{ ok: true } | { ok: false; message: string }>;
+  signIn(email: string, password: string): Promise<{ ok: true } | { ok: false; message: string }>;
   signOut(): Promise<void>;
 };
 
@@ -48,20 +50,53 @@ export function useAuth(): Auth {
  * rather than the situation. The same rule the rejection-code copy follows: a
  * message a worker reads must say what to do next.
  */
-function messageFor(
+export function signInErrorMessage(
   error: { message?: string | undefined; status?: number | undefined } | null,
 ): string {
   const raw = (error?.message ?? "").toLowerCase();
-  if (raw.includes("invalid") || raw.includes("expired") || error?.status === 403) {
-    return "Mã không đúng hoặc đã hết hạn. Bấm gửi lại để nhận mã mới.";
-  }
   if (raw.includes("rate") || error?.status === 429) {
-    return "Đã gửi quá nhiều lần. Đợi một phút rồi thử lại.";
+    return "Đã thử đăng nhập quá nhiều lần. Đợi một phút rồi thử lại.";
   }
-  if (raw.includes("signups not allowed") || raw.includes("not found") || error?.status === 400) {
-    return "Email này chưa được cấp quyền. Báo chủ vựa để được thêm vào.";
+  if (
+    raw.includes("invalid login credentials") ||
+    raw.includes("invalid credentials") ||
+    error?.status === 400 ||
+    error?.status === 403
+  ) {
+    return "Email hoặc mật khẩu không đúng.";
   }
-  return "Không đăng nhập được. Kiểm tra mạng rồi thử lại.";
+  if (raw.includes("fetch") || raw.includes("network") || raw.includes("timeout")) {
+    return "Không kết nối được dịch vụ đăng nhập. Kiểm tra mạng rồi thử lại.";
+  }
+  return "Không đăng nhập được. Thử lại sau hoặc báo người vận hành.";
+}
+
+type PasswordAuth = {
+  signInWithPassword(credentials: { email: string; password: string }): Promise<{
+    error: { message?: string | undefined; status?: number | undefined } | null;
+  }>;
+};
+
+export async function authenticateWithPassword(
+  auth: PasswordAuth | null,
+  email: string,
+  password: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (auth === null) {
+    return {
+      ok: false,
+      message: "Đăng nhập chưa được cấu hình. Báo người cài đặt hệ thống.",
+    };
+  }
+  try {
+    const { error } = await auth.signInWithPassword({ email, password });
+    return error === null ? { ok: true } : { ok: false, message: signInErrorMessage(error) };
+  } catch (error) {
+    return {
+      ok: false,
+      message: signInErrorMessage(error instanceof Error ? error : null),
+    };
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -81,8 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      * and the client's first render agree; `sessionStorage` does not exist on the
      * server.
      */
-    if (e2eBridgeToken() !== null) {
-      setState({ status: "signed_in", email: null });
+    const bridgeToken = e2eBridgeToken();
+    const bridgeSubject = e2eBridgeSubject();
+    if (bridgeToken !== null && bridgeSubject !== null) {
+      setAccessToken(bridgeToken);
+      setState({ status: "signed_in", subject: bridgeSubject, email: null });
       return;
     }
 
@@ -90,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (supabase === null) return;
 
     let cancelled = false;
+    let authEventSeen = false;
 
     /*
      * `getSession` first, then subscribe. Without the first call a returning tab
@@ -97,25 +136,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      * happens to fire an event, which is a person typing their email again for
      * no reason.
      */
-    void supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return;
-      setAccessToken(data.session?.access_token ?? null);
-      setState(
-        data.session === null
-          ? { status: "signed_out" }
-          : { status: "signed_in", email: data.session.user.email ?? null },
-      );
-    });
+    let activeSubject: string | null = null;
+    let transitionVersion = 0;
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Covers the refresh as well as sign-in and sign-out: the token a request
-      // carries is whatever Supabase last handed us, never a captured copy.
+    const applySession = async (
+      session: {
+        access_token: string;
+        user: { id: string; email?: string | undefined };
+      } | null,
+    ) => {
+      const version = ++transitionVersion;
+      const nextSubject = session?.user.id ?? null;
+      if (activeSubject !== null && activeSubject !== nextSubject) {
+        setAccessToken(null);
+        await clearIdentityQueryState();
+        clearIdentityBrowserState(activeSubject);
+      }
+      if (cancelled || version !== transitionVersion) return;
+      activeSubject = nextSubject;
       setAccessToken(session?.access_token ?? null);
       setState(
         session === null
           ? { status: "signed_out" }
-          : { status: "signed_in", email: session.user.email ?? null },
+          : {
+              status: "signed_in",
+              subject: session.user.id,
+              email: session.user.email ?? null,
+            },
       );
+    };
+
+    void supabase.auth.getSession().then(({ data }) => {
+      if (cancelled || authEventSeen) return;
+      void applySession(data.session);
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      authEventSeen = true;
+      // Covers the refresh as well as sign-in and sign-out: the token a request
+      // carries is whatever Supabase last handed us, never a captured copy.
+      void applySession(session);
     });
 
     return () => {
@@ -124,48 +184,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const requestCode = useCallback(async (email: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const supabase = supabaseClient();
-    if (supabase === null) return { ok: false as const, message: messageFor(null) };
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        /*
-         * A depot worker is provisioned by the facilitator before the pilot, so
-         * an unknown email is a mistake rather than a new account. Left on, any
-         * typo would create a Supabase user with no membership — a person who can
-         * sign in and see nothing, which is the most confusing possible outcome.
-         */
-        shouldCreateUser: false,
-      },
-    });
-    return error === null
-      ? { ok: true as const }
-      : { ok: false as const, message: messageFor(error) };
-  }, []);
-
-  const submitCode = useCallback(async (email: string, code: string) => {
-    const supabase = supabaseClient();
-    if (supabase === null) return { ok: false as const, message: messageFor(null) };
-
-    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
-    return error === null
-      ? { ok: true as const }
-      : { ok: false as const, message: messageFor(error) };
+    return authenticateWithPassword(supabase?.auth ?? null, email, password);
   }, []);
 
   const signOut = useCallback(async () => {
-    clearOfflineSessionCache();
-    const supabase = supabaseClient();
-    await supabase?.auth.signOut();
+    const subject = state.status === "signed_in" ? state.subject : null;
     setAccessToken(null);
-  }, []);
+    await clearIdentityQueryState();
+    if (subject !== null) clearIdentityBrowserState(subject);
+    const supabase = supabaseClient();
+    try {
+      await supabase?.auth.signOut();
+    } finally {
+      clearE2eBridgeToken();
+      setAccessToken(null);
+      setState({ status: "signed_out" });
+    }
+  }, [state]);
 
-  const value = useMemo<Auth>(
-    () => ({ ...state, requestCode, submitCode, signOut }),
-    [state, requestCode, submitCode, signOut],
-  );
+  const value = useMemo<Auth>(() => ({ ...state, signIn, signOut }), [state, signIn, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

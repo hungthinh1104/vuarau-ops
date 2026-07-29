@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { SessionDto, WorkspaceId } from "@vuarau/domain-contracts";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useTRPC } from "./providers.tsx";
 import { useAuth } from "./auth.tsx";
 import { domainErrorOf } from "./domain-error.ts";
@@ -12,7 +13,7 @@ import { Button } from "../ui/primitives/button.tsx";
 import { EmptyState } from "../ui/primitives/empty-state.tsx";
 import { Skeleton } from "../ui/primitives/skeleton.tsx";
 import { BusinessRejection } from "../ui/patterns/business-rejection.tsx";
-import { SignIn, SignInUnconfigured } from "../ui/patterns/sign-in.tsx";
+import { SignInUnconfigured } from "../ui/patterns/sign-in.tsx";
 import { WorkspaceShell } from "../ui/patterns/workspace-shell.tsx";
 import { OfflineProvider } from "../offline/provider.tsx";
 import { SyncIndicator } from "../offline/sync-indicator.tsx";
@@ -66,6 +67,8 @@ function Waiting({ label }: { label: string }) {
 
 export function SessionGate({ children }: { children: ReactNode }) {
   const auth = useAuth();
+  const router = useRouter();
+  const subject = auth.status === "signed_in" ? auth.subject : null;
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
 
   /*
@@ -76,9 +79,18 @@ export function SessionGate({ children }: { children: ReactNode }) {
    */
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    setWorkspaceId(storedWorkspaceId());
+    if (subject === null) {
+      setWorkspaceId(null);
+      setMounted(true);
+      return;
+    }
+    setWorkspaceId(storedWorkspaceId(subject));
     setMounted(true);
-  }, []);
+  }, [subject]);
+
+  useEffect(() => {
+    if (mounted && auth.status === "signed_out") router.replace("/login");
+  }, [auth.status, mounted, router]);
 
   if (!mounted || auth.status === "checking") {
     return <Waiting label="Đang mở phiên làm việc" />;
@@ -89,16 +101,17 @@ export function SessionGate({ children }: { children: ReactNode }) {
   }
 
   if (auth.status === "signed_out") {
-    return <SignIn requestCode={auth.requestCode} submitCode={auth.submitCode} />;
+    return <Waiting label="Đang trở về đăng nhập" />;
   }
 
   return (
     <ChooseWorkspace
       workspaceId={workspaceId}
       onChoose={(chosen) => {
-        storeWorkspaceId(chosen);
+        storeWorkspaceId(auth.subject, chosen);
         setWorkspaceId(chosen);
       }}
+      subject={auth.subject}
     >
       {children}
     </ChooseWorkspace>
@@ -117,18 +130,20 @@ function ChooseWorkspace({
   workspaceId,
   onChoose,
   children,
+  subject,
 }: {
   workspaceId: WorkspaceId | null;
   onChoose: (workspaceId: WorkspaceId | null) => void;
   children: ReactNode;
+  subject: string;
 }) {
   const auth = useAuth();
   const trpc = useTRPC();
   const workspaces = useQuery(trpc.session.workspaces.queryOptions({}));
-  const [offlineWorkspaces] = useState(cachedWorkspaces);
+  const [offlineWorkspaces] = useState(() => cachedWorkspaces(subject));
   useEffect(() => {
-    if (workspaces.data !== undefined) cacheWorkspaces(workspaces.data);
-  }, [workspaces.data]);
+    if (workspaces.data !== undefined) cacheWorkspaces(subject, workspaces.data);
+  }, [subject, workspaces.data]);
 
   if (workspaces.isPending && offlineWorkspaces === null) {
     return <Waiting label="Đang tải danh sách vựa" />;
@@ -169,7 +184,7 @@ function ChooseWorkspace({
   }
 
   return (
-    <ResolveSession choice={chosen} onChangeWorkspace={() => onChoose(null)}>
+    <ResolveSession choice={chosen} subject={subject} onChangeWorkspace={() => onChoose(null)}>
       {children}
     </ResolveSession>
   );
@@ -179,18 +194,21 @@ function ResolveSession({
   choice,
   onChangeWorkspace,
   children,
+  subject,
 }: {
   choice: WorkspaceChoice;
   onChangeWorkspace: () => void;
   children: ReactNode;
+  subject: string;
 }) {
+  const auth = useAuth();
   const trpc = useTRPC();
   const workspaceId = choice.workspaceId;
   const me = useQuery(trpc.session.me.queryOptions({ workspaceId }));
-  const [offlineSession] = useState(() => cachedSession(workspaceId));
+  const [offlineSession] = useState(() => cachedSession(subject, workspaceId));
   useEffect(() => {
-    if (me.data !== undefined) cacheSession(workspaceId, me.data);
-  }, [me.data, workspaceId]);
+    if (me.data !== undefined) cacheSession(subject, workspaceId, me.data);
+  }, [me.data, subject, workspaceId]);
 
   if (me.isPending && offlineSession === null) {
     return <Waiting label="Đang kiểm tra quyền truy cập" />;
@@ -229,7 +247,7 @@ function ResolveSession({
   return (
     <SessionContext.Provider value={{ session, workspaceId, workspaceName: choice.name }}>
       <OfflineProvider session={session} workspaceId={workspaceId}>
-        <WorkspaceShell workspaceName={choice.name} session={session}>
+        <WorkspaceShell workspaceName={choice.name} session={session} onSignOut={auth.signOut}>
           {children}
         </WorkspaceShell>
         <SyncIndicator />
