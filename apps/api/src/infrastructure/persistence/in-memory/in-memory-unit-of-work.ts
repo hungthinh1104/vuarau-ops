@@ -557,6 +557,29 @@ export class InMemoryDatabase {
       supplierAccountBalances: {
         get: async (workspaceId, supplierId) =>
           store.supplierAccountBalances.get(key(workspaceId, supplierId)) ?? null,
+        applyDelta: async (delta) => {
+          const balanceKey = key(delta.workspaceId, delta.supplierId);
+          const current = store.supplierAccountBalances.get(balanceKey);
+          store.supplierAccountBalances.set(balanceKey, {
+            workspaceId: delta.workspaceId,
+            supplierId: delta.supplierId,
+            balance: {
+              amountMinor: (current?.balance.amountMinor ?? 0) + delta.amount.amountMinor,
+              currency: delta.amount.currency,
+            },
+            entryCount: (current?.entryCount ?? 0) + delta.entryCount,
+            lastEntryTransactionTime:
+              current?.lastEntryTransactionTime !== null &&
+              current?.lastEntryTransactionTime !== undefined &&
+              current.lastEntryTransactionTime > delta.lastEntryTransactionTime
+                ? current.lastEntryTransactionTime
+                : delta.lastEntryTransactionTime,
+            updatedAt:
+              current !== undefined && current.updatedAt > delta.updatedAt
+                ? current.updatedAt
+                : delta.updatedAt,
+          });
+        },
         save: async (balance) => {
           store.supplierAccountBalances.set(key(balance.workspaceId, balance.supplierId), balance);
         },
@@ -573,7 +596,18 @@ export class InMemoryDatabase {
         findByIdForUpdate: async (workspaceId, purchaseId) =>
           store.purchases.get(key(workspaceId, purchaseId)) ?? null,
         insert: async (purchase) => {
+          if (
+            store.purchases.has(key(purchase.workspaceId, purchase.id)) ||
+            (purchase.replacesPurchaseId !== null &&
+              [...store.purchases.values()].some(
+                (existing) =>
+                  existing.workspaceId === purchase.workspaceId &&
+                  existing.replacesPurchaseId === purchase.replacesPurchaseId,
+              ))
+          )
+            return false;
           store.purchases.set(key(purchase.workspaceId, purchase.id), purchase);
+          return true;
         },
         updateDraft: async (purchase, expectedVersion) => {
           const current = store.purchases.get(key(purchase.workspaceId, purchase.id));
@@ -653,10 +687,24 @@ export class InMemoryDatabase {
       },
       inventoryMovements: {
         append: async (movements) => {
-          const appended = movements.map((movement) => ({
-            ...movement,
-            id: ids.newId() as InventoryMovementState["id"],
-          }));
+          const appended: InventoryMovementState[] = [];
+          for (const movement of movements) {
+            const duplicate = store.inventoryMovements.some(
+              (existing) =>
+                existing.workspaceId === movement.workspaceId &&
+                existing.sourceType === movement.sourceType &&
+                existing.sourceId === movement.sourceId &&
+                (movement.sourceType === "inventory_adjustment" ||
+                  (movement.sourceLineId !== null &&
+                    existing.sourceLineId === movement.sourceLineId)),
+            );
+            if (!duplicate) {
+              appended.push({
+                ...movement,
+                id: ids.newId() as InventoryMovementState["id"],
+              });
+            }
+          }
           store.inventoryMovements.push(...appended);
           return appended;
         },
@@ -679,6 +727,27 @@ export class InMemoryDatabase {
       inventoryBalances: {
         get: async (workspaceId, productId, unit) =>
           store.inventoryBalances.get(`${workspaceId}:${productId}:${unit}`) ?? null,
+        applyDelta: async (delta) => {
+          const balanceKey = `${delta.workspaceId}:${delta.productId}:${delta.unit}`;
+          const current = store.inventoryBalances.get(balanceKey);
+          store.inventoryBalances.set(balanceKey, {
+            workspaceId: delta.workspaceId,
+            productId: delta.productId,
+            unit: delta.unit,
+            quantityScaled: (current?.quantityScaled ?? 0) + delta.quantityScaled,
+            movementCount: (current?.movementCount ?? 0) + delta.movementCount,
+            lastMovementTransactionTime:
+              current?.lastMovementTransactionTime !== null &&
+              current?.lastMovementTransactionTime !== undefined &&
+              current.lastMovementTransactionTime > delta.lastMovementTransactionTime
+                ? current.lastMovementTransactionTime
+                : delta.lastMovementTransactionTime,
+            updatedAt:
+              current !== undefined && current.updatedAt > delta.updatedAt
+                ? current.updatedAt
+                : delta.updatedAt,
+          });
+        },
         save: async (balance) => {
           store.inventoryBalances.set(
             `${balance.workspaceId}:${balance.productId}:${balance.unit}`,

@@ -25,21 +25,20 @@ export async function applySupplierAccountEffects(
     });
   }
   for (const target of affected.values()) {
-    const current = await repos.supplierAccountBalances.get(target.workspaceId, target.supplierId);
     const newEntries = appended.filter(
       (entry) => entry.workspaceId === target.workspaceId && entry.supplierId === target.supplierId,
     );
-    let balance = current?.balance ?? zeroMoney(currency);
-    let last = current?.lastEntryTransactionTime ?? null;
+    let amount = zeroMoney(currency);
+    let last = newEntries[0]!.transactionTime;
     for (const entry of newEntries) {
-      balance = addMoney(balance, entry.amount);
-      if (last === null || entry.transactionTime > last) last = entry.transactionTime;
+      amount = addMoney(amount, entry.amount);
+      if (entry.transactionTime > last) last = entry.transactionTime;
     }
-    await repos.supplierAccountBalances.save({
+    await repos.supplierAccountBalances.applyDelta({
       workspaceId: target.workspaceId,
       supplierId: target.supplierId,
-      balance,
-      entryCount: (current?.entryCount ?? 0) + newEntries.length,
+      amount,
+      entryCount: newEntries.length,
       lastEntryTransactionTime: last,
       updatedAt: newEntries[newEntries.length - 1]!.recordedAt,
     });

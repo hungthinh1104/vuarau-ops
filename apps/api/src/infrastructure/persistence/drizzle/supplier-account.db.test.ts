@@ -141,6 +141,66 @@ describe.skipIf(skipWithoutDatabase())("M16 Supplier Account against Postgres", 
     if (!denied.ok) expect(denied.error.code).toBe("WORKSPACE_ACCESS_DENIED");
   });
 
+  it("atomically accumulates concurrent supplier-account projection deltas", async () => {
+    const concurrentSupplierId = crypto.randomUUID() as SupplierId;
+    expect(
+      (
+        await createSupplier(context(), {
+          ...command("concurrent-supplier"),
+          payload: {
+            supplierId: concurrentSupplierId,
+            displayName: "Nhà cung cấp đồng thời",
+            phone: null,
+            note: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+
+    const effects = [210_000, 340_000] as const;
+    const results = await Promise.all(
+      effects.map((amountMinor, index) =>
+        adjustSupplierAccount(context(), {
+          ...command(`concurrent-supplier-adjustment-${index}`),
+          payload: {
+            adjustmentId: crypto.randomUUID(),
+            supplierId: concurrentSupplierId,
+            amount: { amountMinor, currency: "VND" as const },
+            direction: "increase_payable" as const,
+            reasonCode: "manual_adjustment" as const,
+            reason: `Điều chỉnh đồng thời ${index}`,
+          },
+        }),
+      ),
+    );
+    expect(results.every((result) => result.ok)).toBe(true);
+
+    const rows = await ctx.database.sql<
+      readonly {
+        canonical_sum: number;
+        canonical_count: number;
+        projection_balance: number;
+        projection_count: number;
+      }[]
+    >`select
+        coalesce(sum(e.amount_minor), 0)::int as canonical_sum,
+        count(e.id)::int as canonical_count,
+        b.balance_minor::int as projection_balance,
+        b.entry_count::int as projection_count
+      from supplier_account_entries e
+      join supplier_account_balances b
+        on b.workspace_id = e.workspace_id and b.supplier_id = e.supplier_id
+      where e.workspace_id = ${ctx.workspaceId}::uuid
+        and e.supplier_id = ${concurrentSupplierId}::uuid
+      group by b.balance_minor, b.entry_count`;
+    expect(rows[0]).toEqual({
+      canonical_sum: 550_000,
+      canonical_count: 2,
+      projection_balance: 550_000,
+      projection_count: 2,
+    });
+  });
+
   it("paginates equal business and recorded times without skipping or duplicating entries", async () => {
     const sameTimeSupplier = crypto.randomUUID() as SupplierId;
     expect(

@@ -100,7 +100,14 @@ export function createPurchaseDraft(
       }
       const refs = await validateReferences(repos, decision.value, true);
       if (!refs.ok) return refs;
-      await repos.purchases.insert(decision.value);
+      if (!(await repos.purchases.insert(decision.value))) {
+        return decision.value.replacesPurchaseId === null
+          ? err("PURCHASE_VERSION_CONFLICT", "Purchase identity already exists.")
+          : err(
+              "PURCHASE_REPLACEMENT_INVALID",
+              "Replacement requires one voided Purchase without an existing replacement.",
+            );
+      }
       await repos.audit.append({
         workspaceId: command.workspaceId,
         actorId: command.actorId,

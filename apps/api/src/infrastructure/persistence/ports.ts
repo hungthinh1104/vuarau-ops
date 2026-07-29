@@ -204,6 +204,14 @@ export type SupplierAccountBalanceRepository = {
     workspaceId: WorkspaceId,
     supplierId: SupplierId,
   ): Promise<SupplierAccountBalanceState | null>;
+  applyDelta(delta: {
+    readonly workspaceId: WorkspaceId;
+    readonly supplierId: SupplierId;
+    readonly amount: SupplierPaymentState["amount"];
+    readonly entryCount: number;
+    readonly lastEntryTransactionTime: IsoInstant;
+    readonly updatedAt: IsoInstant;
+  }): Promise<void>;
   save(balance: SupplierAccountBalanceState): Promise<void>;
 };
 
@@ -211,7 +219,7 @@ export type PurchaseRepository = {
   findById(workspaceId: WorkspaceId, purchaseId: string): Promise<PurchaseState | null>;
   findReplacementOf(workspaceId: WorkspaceId, purchaseId: string): Promise<PurchaseState | null>;
   findByIdForUpdate(workspaceId: WorkspaceId, purchaseId: string): Promise<PurchaseState | null>;
-  insert(purchase: PurchaseState): Promise<void>;
+  insert(purchase: PurchaseState): Promise<boolean>;
   updateDraft(
     purchase: PurchaseState,
     expectedVersion: number,
@@ -254,6 +262,15 @@ export type InventoryBalanceRepository = {
     productId: ProductId,
     unit: InventoryBalanceState["unit"],
   ): Promise<InventoryBalanceState | null>;
+  applyDelta(delta: {
+    readonly workspaceId: WorkspaceId;
+    readonly productId: ProductId;
+    readonly unit: InventoryBalanceState["unit"];
+    readonly quantityScaled: number;
+    readonly movementCount: number;
+    readonly lastMovementTransactionTime: IsoInstant;
+    readonly updatedAt: IsoInstant;
+  }): Promise<void>;
   save(balance: InventoryBalanceState): Promise<void>;
 };
 

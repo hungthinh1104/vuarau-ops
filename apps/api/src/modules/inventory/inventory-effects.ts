@@ -22,29 +22,24 @@ export async function applyInventoryMovements(
     });
   }
   for (const target of keys.values()) {
-    const current = await repos.inventoryBalances.get(
-      target.workspaceId,
-      target.productId,
-      target.unit,
-    );
     const movements = appended.filter(
       (movement) =>
         movement.workspaceId === target.workspaceId &&
         movement.productId === target.productId &&
         movement.quantity.unit === target.unit,
     );
-    let quantityScaled = current?.quantityScaled ?? 0;
-    let last = current?.lastMovementTransactionTime ?? null;
+    let quantityScaled = 0;
+    let last = movements[0]!.transactionTime;
     for (const movement of movements) {
       quantityScaled += movement.quantity.valueScaled;
-      if (last === null || movement.transactionTime > last) last = movement.transactionTime;
+      if (movement.transactionTime > last) last = movement.transactionTime;
     }
-    await repos.inventoryBalances.save({
+    await repos.inventoryBalances.applyDelta({
       workspaceId: target.workspaceId,
       productId: target.productId,
       unit: target.unit,
       quantityScaled,
-      movementCount: (current?.movementCount ?? 0) + movements.length,
+      movementCount: movements.length,
       lastMovementTransactionTime: last,
       updatedAt: movements[movements.length - 1]!.recordedAt,
     });

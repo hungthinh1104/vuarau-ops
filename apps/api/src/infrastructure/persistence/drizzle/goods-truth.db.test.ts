@@ -29,6 +29,7 @@ import {
 } from "../../../modules/purchase/purchase.handlers.ts";
 import { getPurchase } from "../../../modules/purchase/purchase.queries.ts";
 import {
+  adjustInventory,
   recordPurchaseReceipt,
   reversePurchaseReceipt,
 } from "../../../modules/inventory/inventory.handlers.ts";
@@ -276,24 +277,135 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
       dueAt: null,
       replacesPurchaseId: purchaseId,
     };
-    const replacement = await createPurchaseDraft(context(), {
-      ...command("goods-replacement"),
-      payload: {
-        ...replacementPayload,
-        purchaseId: crypto.randomUUID() as PurchaseId,
-      },
+    const replacementIds = [
+      crypto.randomUUID() as PurchaseId,
+      crypto.randomUUID() as PurchaseId,
+    ] as const;
+    const replacements = await Promise.all(
+      replacementIds.map((replacementId, index) =>
+        createPurchaseDraft(context(), {
+          ...command(`goods-replacement-race-${index}`),
+          payload: {
+            ...replacementPayload,
+            purchaseId: replacementId,
+          },
+        }),
+      ),
+    );
+    expect(replacements.filter((result) => result.ok)).toHaveLength(1);
+    const rejected = replacements.find((result) => !result.ok);
+    expect(rejected?.ok).toBe(false);
+    if (rejected !== undefined && !rejected.ok)
+      expect(rejected.error.code).toBe("PURCHASE_REPLACEMENT_INVALID");
+
+    const replacementEvidence = await ctx.database.sql<
+      readonly { purchases: number; audits: number }[]
+    >`select
+        (select count(*)::int
+           from purchases
+          where workspace_id = ${ctx.workspaceId}::uuid
+            and replaces_purchase_id = ${purchaseId}::uuid) as purchases,
+        (select count(*)::int
+           from audit_logs a
+           join purchases p
+             on p.workspace_id = a.workspace_id and p.id = a.aggregate_id
+          where p.workspace_id = ${ctx.workspaceId}::uuid
+            and p.replaces_purchase_id = ${purchaseId}::uuid
+            and a.action = 'purchase.draft_created') as audits`;
+    expect(replacementEvidence[0]).toEqual({ purchases: 1, audits: 1 });
+  });
+
+  it("atomically accumulates concurrent inventory projection deltas", async () => {
+    const effects = [70_000, 30_000] as const;
+    const results = await Promise.all(
+      effects.map((valueScaled, index) =>
+        adjustInventory(context(), {
+          ...command(`concurrent-inventory-adjustment-${index}`),
+          payload: {
+            adjustmentId: crypto.randomUUID(),
+            productId: ctx.productIds[0],
+            quantity: { valueScaled, unit: "thung" as const },
+            direction: "increase" as const,
+            reasonCode: "count_correction" as const,
+            reason: `Kiểm kê đồng thời ${index}`,
+          },
+        }),
+      ),
+    );
+    expect(results.every((result) => result.ok)).toBe(true);
+
+    const rows = await ctx.database.sql<
+      readonly {
+        canonical_sum: number;
+        canonical_count: number;
+        projection_quantity: number;
+        projection_count: number;
+      }[]
+    >`select
+        coalesce(sum(m.quantity_scaled), 0)::int as canonical_sum,
+        count(m.id)::int as canonical_count,
+        b.quantity_scaled::int as projection_quantity,
+        b.movement_count::int as projection_count
+      from inventory_movements m
+      join inventory_balances b
+        on b.workspace_id = m.workspace_id
+       and b.product_id = m.product_id
+       and b.unit = m.unit
+      where m.workspace_id = ${ctx.workspaceId}::uuid
+        and m.product_id = ${ctx.productIds[0]}::uuid
+        and m.unit = 'thung'
+      group by b.quantity_scaled, b.movement_count`;
+    expect(rows[0]).toEqual({
+      canonical_sum: 100_000,
+      canonical_count: 2,
+      projection_quantity: 100_000,
+      projection_count: 2,
     });
-    expect(replacement.ok).toBe(true);
-    const secondReplacement = await createPurchaseDraft(context(), {
-      ...command("goods-second-replacement"),
-      payload: {
-        ...replacementPayload,
-        purchaseId: crypto.randomUUID() as PurchaseId,
-      },
+  });
+
+  it("deduplicates one inventory adjustment source across command identities", async () => {
+    const adjustmentId = crypto.randomUUID();
+    const payload = {
+      adjustmentId,
+      productId: ctx.productIds[0],
+      quantity: { valueScaled: 25_000, unit: "kien" as const },
+      direction: "increase" as const,
+      reasonCode: "count_correction" as const,
+      reason: "Một lần kiểm kê",
+    };
+    const results = await Promise.all([
+      adjustInventory(context(), { ...command("duplicate-adjustment-a"), payload }),
+      adjustInventory(context(), { ...command("duplicate-adjustment-b"), payload }),
+    ]);
+    expect(results.every((result) => result.ok)).toBe(true);
+
+    const rows = await ctx.database.sql<
+      readonly {
+        movement_count: number;
+        canonical_sum: number;
+        projection_quantity: number;
+        projection_count: number;
+      }[]
+    >`select
+        count(m.id)::int as movement_count,
+        coalesce(sum(m.quantity_scaled), 0)::int as canonical_sum,
+        b.quantity_scaled::int as projection_quantity,
+        b.movement_count::int as projection_count
+      from inventory_movements m
+      join inventory_balances b
+        on b.workspace_id = m.workspace_id
+       and b.product_id = m.product_id
+       and b.unit = m.unit
+      where m.workspace_id = ${ctx.workspaceId}::uuid
+        and m.source_type = 'inventory_adjustment'
+        and m.source_id = ${adjustmentId}::uuid
+      group by b.quantity_scaled, b.movement_count`;
+    expect(rows[0]).toEqual({
+      movement_count: 1,
+      canonical_sum: 25_000,
+      projection_quantity: 25_000,
+      projection_count: 1,
     });
-    expect(secondReplacement.ok).toBe(false);
-    if (!secondReplacement.ok)
-      expect(secondReplacement.error.code).toBe("PURCHASE_REPLACEMENT_INVALID");
   });
 
   it("uses the full inventory order at equal timestamps across cursor boundaries", async () => {

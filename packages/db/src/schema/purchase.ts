@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   index,
@@ -37,6 +38,9 @@ export const purchases = pgTable(
   },
   (table) => [
     uniqueIndex("purchases_workspace_id_id_uq").on(table.workspaceId, table.id),
+    uniqueIndex("purchases_replacement_uq")
+      .on(table.workspaceId, table.replacesPurchaseId)
+      .where(sql`${table.replacesPurchaseId} is not null`),
     index("purchases_workspace_time_idx").on(
       table.workspaceId,
       table.transactionTime,

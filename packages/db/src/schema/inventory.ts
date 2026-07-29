@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   index,
@@ -108,12 +109,12 @@ export const inventoryMovements = pgTable(
       .references(() => commandReceipts.commandId),
   },
   (table) => [
-    uniqueIndex("inventory_movements_source_uq").on(
-      table.workspaceId,
-      table.sourceType,
-      table.sourceId,
-      table.sourceLineId,
-    ),
+    uniqueIndex("inventory_movements_adjustment_source_uq")
+      .on(table.workspaceId, table.sourceType, table.sourceId)
+      .where(sql`${table.sourceType} = 'inventory_adjustment'`),
+    uniqueIndex("inventory_movements_line_source_uq")
+      .on(table.workspaceId, table.sourceType, table.sourceId, table.sourceLineId)
+      .where(sql`${table.sourceLineId} is not null`),
     index("inventory_movements_timeline_idx").on(
       table.workspaceId,
       table.productId,

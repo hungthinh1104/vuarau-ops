@@ -783,6 +783,39 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
               updatedAt: toIso(row.updatedAt),
             };
       },
+      async applyDelta(delta: {
+        workspaceId: WorkspaceId;
+        supplierId: SupplierId;
+        amount: SupplierPaymentState["amount"];
+        entryCount: number;
+        lastEntryTransactionTime: IsoInstant;
+        updatedAt: IsoInstant;
+      }) {
+        await tx
+          .insert(supplierAccountBalances)
+          .values({
+            workspaceId: delta.workspaceId,
+            supplierId: delta.supplierId,
+            balanceMinor: delta.amount.amountMinor,
+            currency: delta.amount.currency,
+            entryCount: delta.entryCount,
+            lastEntryTransactionTime: fromIso(delta.lastEntryTransactionTime),
+            updatedAt: fromIso(delta.updatedAt),
+          })
+          .onConflictDoUpdate({
+            target: [supplierAccountBalances.workspaceId, supplierAccountBalances.supplierId],
+            set: {
+              balanceMinor: sql`${supplierAccountBalances.balanceMinor} + excluded.balance_minor`,
+              currency: sql`excluded.currency`,
+              entryCount: sql`${supplierAccountBalances.entryCount} + excluded.entry_count`,
+              lastEntryTransactionTime: sql`greatest(
+                ${supplierAccountBalances.lastEntryTransactionTime},
+                excluded.last_entry_transaction_time
+              )`,
+              updatedAt: sql`greatest(${supplierAccountBalances.updatedAt}, excluded.updated_at)`,
+            },
+          });
+      },
       async save(balance: {
         workspaceId: WorkspaceId;
         supplierId: SupplierId;
@@ -841,22 +874,27 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
         return loadPurchase(tx, workspaceId, purchaseId);
       },
       async insert(purchase: PurchaseState) {
-        await tx.insert(purchases).values({
-          id: purchase.id,
-          workspaceId: purchase.workspaceId,
-          supplierId: purchase.supplierId,
-          status: purchase.status,
-          currency: purchase.currency,
-          totalAmountMinor: purchase.totalAmount.amountMinor,
-          note: purchase.note,
-          dueAt: fromIsoOrNull(purchase.dueAt),
-          version: purchase.version,
-          transactionTime: fromIso(purchase.transactionTime),
-          recordedAt: fromIso(purchase.recordedAt),
-          confirmedAt: fromIsoOrNull(purchase.confirmedAt),
-          discardedAt: fromIsoOrNull(purchase.discardedAt),
-          replacesPurchaseId: purchase.replacesPurchaseId,
-        });
+        const inserted = await tx
+          .insert(purchases)
+          .values({
+            id: purchase.id,
+            workspaceId: purchase.workspaceId,
+            supplierId: purchase.supplierId,
+            status: purchase.status,
+            currency: purchase.currency,
+            totalAmountMinor: purchase.totalAmount.amountMinor,
+            note: purchase.note,
+            dueAt: fromIsoOrNull(purchase.dueAt),
+            version: purchase.version,
+            transactionTime: fromIso(purchase.transactionTime),
+            recordedAt: fromIso(purchase.recordedAt),
+            confirmedAt: fromIsoOrNull(purchase.confirmedAt),
+            discardedAt: fromIsoOrNull(purchase.discardedAt),
+            replacesPurchaseId: purchase.replacesPurchaseId,
+          })
+          .onConflictDoNothing()
+          .returning({ id: purchases.id });
+        if (inserted.length === 0) return false;
         if (purchase.lines.length > 0) {
           await tx.insert(purchaseLines).values(
             purchase.lines.map((line) => ({
@@ -873,6 +911,7 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
             })),
           );
         }
+        return true;
       },
       async updateDraft(purchase: PurchaseState, expectedVersion: number, replaceLines: boolean) {
         const rows = await tx
@@ -1110,6 +1149,7 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
               commandId: movement.commandId,
             })),
           )
+          .onConflictDoNothing()
           .returning();
         return rows.map((row) => ({
           id: row.id,
@@ -1194,6 +1234,43 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
               lastMovementTransactionTime: toIsoOrNull(row.lastMovementTransactionTime),
               updatedAt: toIso(row.updatedAt),
             };
+      },
+      async applyDelta(delta: {
+        workspaceId: WorkspaceId;
+        productId: ProductId;
+        unit: InventoryMovementState["quantity"]["unit"];
+        quantityScaled: number;
+        movementCount: number;
+        lastMovementTransactionTime: IsoInstant;
+        updatedAt: IsoInstant;
+      }) {
+        await tx
+          .insert(inventoryBalances)
+          .values({
+            workspaceId: delta.workspaceId,
+            productId: delta.productId,
+            unit: delta.unit,
+            quantityScaled: delta.quantityScaled,
+            movementCount: delta.movementCount,
+            lastMovementTransactionTime: fromIso(delta.lastMovementTransactionTime),
+            updatedAt: fromIso(delta.updatedAt),
+          })
+          .onConflictDoUpdate({
+            target: [
+              inventoryBalances.workspaceId,
+              inventoryBalances.productId,
+              inventoryBalances.unit,
+            ],
+            set: {
+              quantityScaled: sql`${inventoryBalances.quantityScaled} + excluded.quantity_scaled`,
+              movementCount: sql`${inventoryBalances.movementCount} + excluded.movement_count`,
+              lastMovementTransactionTime: sql`greatest(
+                ${inventoryBalances.lastMovementTransactionTime},
+                excluded.last_movement_transaction_time
+              )`,
+              updatedAt: sql`greatest(${inventoryBalances.updatedAt}, excluded.updated_at)`,
+            },
+          });
       },
       async save(balance: {
         workspaceId: WorkspaceId;
