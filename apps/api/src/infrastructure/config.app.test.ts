@@ -23,6 +23,7 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
     SUPABASE_JWT_ISSUER: "https://project.supabase.co/auth/v1",
     SUPABASE_JWKS_URL: "https://project.supabase.co/auth/v1/.well-known/jwks.json",
     PUBLIC_APP_ORIGIN: "https://pilot.example.vn",
+    TRUSTED_PROXY_ADDRESSES: "10.0.0.2",
   };
 
   const problemsFor = (env: Env): readonly string[] => {
@@ -59,6 +60,22 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
 
   it("accepts a pilot environment on JWKS", () => {
     expect(readServerConfig(pilot).ok).toBe(true);
+  });
+
+  it("accepts only explicit exact trusted-proxy IP addresses", () => {
+    const accepted = readServerConfig({
+      ...development,
+      TRUSTED_PROXY_ADDRESSES: "127.0.0.1,::1",
+    });
+    expect(accepted.ok).toBe(true);
+    if (accepted.ok) {
+      expect(accepted.config.requestLimits.trustedProxyAddresses).toEqual(["127.0.0.1", "::1"]);
+    }
+    expect(
+      problemsFor({ ...development, TRUSTED_PROXY_ADDRESSES: "127.0.0.1,proxy.internal" }),
+    ).toContain("TRUSTED_PROXY_ADDRESSES");
+    const { TRUSTED_PROXY_ADDRESSES: _missing, ...pilotWithoutProxy } = pilot;
+    expect(problemsFor(pilotWithoutProxy)).toContain("TRUSTED_PROXY_ADDRESSES");
   });
 
   it("names every missing variable at once, not the first one", () => {

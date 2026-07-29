@@ -72,6 +72,7 @@ TC-AUTH-001 … TC-AUTH-011, TC-CUSTOMER-002, TC-CUSTOMER-003
   stays valid until it expires, even if the membership is deactivated
   mid-session. Access is re-checked per request, so a revoked _membership_ takes
   effect immediately (BR-AUTH-003); a revoked _session_ does not.
-- No rate limiting on failed authentication.
+- Failed authentication is covered by the per-client API transport bucket. There
+  is no separate credential-aware or adaptive authentication limiter.
 - Postgres row-level security is not enabled (ASM-009); isolation is enforced in
   the application layer only.

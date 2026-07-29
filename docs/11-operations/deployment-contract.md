@@ -38,21 +38,22 @@ a configuration the API would refuse (BR-OPS-002).
 
 ### API process
 
-| Variable                      | Required        | Notes                                                          |
-| ----------------------------- | --------------- | -------------------------------------------------------------- |
-| `APP_ENV`                     | yes, `pilot`    | Turns on the stricter rules below. Defaults to `development`   |
-| `DATABASE_URL`                | yes             | `postgres://…`. Credentials belong to the deployment, not here |
-| `SUPABASE_JWT_ISSUER`         | yes             | Must be **https** in a pilot                                   |
-| `SUPABASE_JWT_AUDIENCE`       | no              | Defaults to `authenticated`                                    |
-| `SUPABASE_JWKS_URL`           | yes, in a pilot | The **only** verification method a pilot accepts               |
-| `SUPABASE_JWT_SECRET`         | **refused**     | HS256 is a development and end-to-end path only                |
-| `PUBLIC_APP_ORIGIN`           | yes, in a pilot | The https origin a phone opens. Must be https                  |
-| `NEXT_PUBLIC_E2E_AUTH_BRIDGE` | **refused**     | A Playwright-only bridge; `ops:check-env` rejects it in pilot  |
-| `PORT`                        | no              | Defaults to 3000                                               |
-| `MAX_REQUEST_BYTES`           | no              | Defaults to 1 MiB; positive integer                            |
-| `RATE_LIMIT_WINDOW_MS`        | no              | Defaults to 60 seconds                                         |
-| `RATE_LIMIT_AUTHENTICATED`    | no              | Defaults to 600 requests/window per connection address         |
-| `RATE_LIMIT_PUBLIC`           | no              | Defaults to 60 public document reads/window per address        |
+| Variable                      | Required        | Notes                                                           |
+| ----------------------------- | --------------- | --------------------------------------------------------------- |
+| `APP_ENV`                     | yes, `pilot`    | Turns on the stricter rules below. Defaults to `development`    |
+| `DATABASE_URL`                | yes             | `postgres://…`. Credentials belong to the deployment, not here  |
+| `SUPABASE_JWT_ISSUER`         | yes             | Must be **https** in a pilot                                    |
+| `SUPABASE_JWT_AUDIENCE`       | no              | Defaults to `authenticated`                                     |
+| `SUPABASE_JWKS_URL`           | yes, in a pilot | The **only** verification method a pilot accepts                |
+| `SUPABASE_JWT_SECRET`         | **refused**     | HS256 is a development and end-to-end path only                 |
+| `PUBLIC_APP_ORIGIN`           | yes, in a pilot | The https origin a phone opens. Must be https                   |
+| `NEXT_PUBLIC_E2E_AUTH_BRIDGE` | **refused**     | A Playwright-only bridge; `ops:check-env` rejects it in pilot   |
+| `PORT`                        | no              | Defaults to 3000                                                |
+| `MAX_REQUEST_BYTES`           | no              | Defaults to 1 MiB; positive integer                             |
+| `RATE_LIMIT_WINDOW_MS`        | no              | Defaults to 60 seconds                                          |
+| `RATE_LIMIT_AUTHENTICATED`    | no              | Defaults to 600 requests/window per validated client identity   |
+| `RATE_LIMIT_PUBLIC`           | no              | Defaults to 60 public document reads/window per client identity |
+| `TRUSTED_PROXY_ADDRESSES`     | yes, in a pilot | Exact immediate Next proxy IPs; never client/public ranges      |
 
 ### Next application
 
@@ -79,6 +80,21 @@ application never calls Supabase with privilege: it verifies tokens against JWKS
 and does nothing else. Do not put it in any environment this application reads. An
 unused copy is not harmless; it is a key somebody later reaches for because it was
 already there.
+
+## Trusted proxy and rate-limit identity
+
+The API trusts no forwarded address by default. In the required same-origin
+topology, `TRUSTED_PROXY_ADDRESSES` lists the exact immediate Next proxy IP
+address(es) as observed by the API socket. Only a request whose immediate peer is
+on that list may contribute one validated `X-Forwarded-For` client IP. Missing,
+malformed or multi-hop values fall back to the immediate socket peer and cannot be
+used to spoof another bucket.
+
+Do not configure a public subnet, load-balancer client range or `0.0.0.0/0`.
+Ensure the Next/edge hop replaces, rather than appends to, inbound
+`X-Forwarded-For`. This separates browser clients behind one Next proxy for the
+application's per-instance limit. A multi-instance deployment still requires a
+shared/global edge limiter.
 
 ## Token verification
 
@@ -196,8 +212,9 @@ reason to skip the table above.
 - **A hosting vendor, a container runtime, or a CI deployment pipeline.** Choosing
   one before a depot has used the product is choosing it on no evidence.
 - **TLS termination and graceful shutdown.** Both belong to the environment.
-- **Global/shared rate limiting.** The application enforces a per-instance limit;
-  the edge must enforce the shared deployment limit.
+- **Global/shared rate limiting.** The application enforces proxy-aware,
+  per-client buckets inside each API instance; the edge must enforce the shared
+  deployment limit across instances.
 - **Horizontal scaling.** One depot, one worker, one phone.
 
 ## Related

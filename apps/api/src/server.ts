@@ -19,9 +19,10 @@ import { createPublicDocumentHandler } from "./modules/document/public-document.
  *
  * Configuration is read and judged **before anything listens** (BR-OPS-002): a
  * missing variable is a startup failure naming the variable, not a request that
- * fails at a loading bay. What is still not here, and is listed rather than
- * half-built: TLS termination, rate limiting and graceful shutdown, all of which
- * belong to the environment (docs/11-operations/deployment-contract.md).
+ * fails at a loading bay. The process enforces request-size and per-instance
+ * rate limits. TLS termination, deployment-wide rate limiting and graceful
+ * shutdown remain environment responsibilities
+ * (docs/11-operations/deployment-contract.md).
  */
 export function createApiHandler(deps: CommandDeps, verifier: JwtVerifier) {
   return createHTTPHandler({

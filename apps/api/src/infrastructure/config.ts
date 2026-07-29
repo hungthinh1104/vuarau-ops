@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 /**
  * What the server needs before it is allowed to answer anything.
  *
@@ -45,6 +47,7 @@ export type ServerConfig = {
     readonly windowMs: number;
     readonly authenticatedRequestsPerWindow: number;
     readonly publicRequestsPerWindow: number;
+    readonly trustedProxyAddresses: readonly string[];
   };
 };
 
@@ -185,6 +188,26 @@ export function readServerConfig(env: Env): ConfigResult {
     windowMs: positiveInteger("RATE_LIMIT_WINDOW_MS", 60_000),
     authenticatedRequestsPerWindow: positiveInteger("RATE_LIMIT_AUTHENTICATED", 600),
     publicRequestsPerWindow: positiveInteger("RATE_LIMIT_PUBLIC", 60),
+    trustedProxyAddresses: (() => {
+      const configured = present(env, "TRUSTED_PROXY_ADDRESSES");
+      if (configured === null) {
+        if (isPilot) {
+          fail(
+            "TRUSTED_PROXY_ADDRESSES",
+            "required in a pilot — list the exact immediate Next proxy address(es)",
+          );
+        }
+        return [];
+      }
+      const addresses = configured.split(",").map((address) => address.trim());
+      if (addresses.some((address) => address.length === 0 || isIP(address) === 0)) {
+        fail(
+          "TRUSTED_PROXY_ADDRESSES",
+          "must be a comma-separated list of exact IPv4/IPv6 addresses",
+        );
+      }
+      return [...new Set(addresses)];
+    })(),
   };
 
   if (problems.length > 0) {
@@ -230,5 +253,6 @@ export function describeConfig(config: ServerConfig): readonly string[] {
     `public origin:  ${config.publicAppOrigin ?? "(not set)"}`,
     `request bytes:  ${config.requestLimits.maxBodyBytes}`,
     `rate window:    ${config.requestLimits.windowMs} ms`,
+    `trusted proxies:${config.requestLimits.trustedProxyAddresses.length}`,
   ];
 }

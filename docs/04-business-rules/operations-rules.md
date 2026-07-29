@@ -171,10 +171,12 @@ remain deployment infrastructure.
 **Risk:** P0 · **Tests:** TC-OPS-007, TC-OPS-008
 
 The API refuses declared or streamed request bodies above the configured limit and
-rate-limits authenticated and public-document surfaces independently. Correlation
-ids have a bounded printable shape. CSV fields that spreadsheet applications could
-execute as formulae are emitted as literal cells. Public document reads remain
-no-store, digest-verified and free of driver/stack detail.
+rate-limits authenticated and public-document surfaces independently. A forwarded
+client address is accepted only from an explicitly configured immediate proxy and
+must contain exactly one valid IP; otherwise the socket peer is the safe identity.
+Correlation ids have a bounded printable shape. CSV fields that spreadsheet
+applications could execute as formulae are emitted as literal cells. Public
+document reads remain no-store, digest-verified and free of driver/stack detail.
 
 ### BR-OPS-006 — Operational signals carry enough correlation and no business payload
 

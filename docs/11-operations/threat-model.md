@@ -19,9 +19,11 @@
   49 command and 48 query procedures.
 - A request above 1 MiB is refused with 413. Chunked bodies are counted while
   streaming; no body is logged.
-- Authenticated/API traffic defaults to 600 requests/minute per connection address;
-  public document reads default to 60/minute. Deployment edge limits remain
-  mandatory for multi-instance/global enforcement.
+- Authenticated/API traffic defaults to 600 requests/minute per validated client;
+  public document reads default to 60/minute in a separate bucket. Forwarded
+  identity is used only from an explicitly trusted immediate peer and only when it
+  is one valid IP. Deployment edge limits remain mandatory for
+  multi-instance/global enforcement.
 - CSV cells beginning with `=`, `+`, `-`, or `@` after whitespace are forced to
   literal text before quoting.
 - Public documents return no stack/driver error, use no-store, deny framing and
@@ -35,8 +37,9 @@
 
 - Application isolation is the canonical tenant policy; PostgreSQL RLS is absent.
   The database role is therefore operator-only and private (ADR-0020).
-- The in-process rate limiter bounds one instance. A production edge must add a
-  shared/global limiter without weakening the application limit.
+- The proxy-aware in-process rate limiter separates clients within one instance.
+  A production edge must add a shared/global limiter without weakening the
+  application limit.
 - Metrics expose only bounded operation/rejection names and counts. `/metrics` is
   served by the private API origin and must not be routed through the public Next
   origin.
