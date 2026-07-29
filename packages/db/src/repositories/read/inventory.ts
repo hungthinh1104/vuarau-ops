@@ -1,17 +1,17 @@
-import { and, asc, desc, eq, inArray, or, sql, SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   purchaseReceipts,
   purchaseReceiptLines,
   purchaseReceiptReversals,
   inventoryMovements,
   inventoryBalances,
-  deliveries,
   deliveryReturns,
 } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
 import { toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
-import { fetchLimit, paged, readReceiptDto, sourceDocument } from "../shared/read-helpers.ts";
+import { fetchLimit, paged, readReceiptDto } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
 
 export const createInventoryReadRepositories = (tx: Tx) => ({

@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, gte, lte, or, sql, SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   actors,

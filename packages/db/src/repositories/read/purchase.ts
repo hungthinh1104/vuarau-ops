@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, inArray, sql, SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { purchases, purchaseLines, purchaseVoids } from "../../schema/index.ts";
 import { money, toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";

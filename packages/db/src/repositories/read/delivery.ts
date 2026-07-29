@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray, sql, SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   deliveries,
   deliveryLines,

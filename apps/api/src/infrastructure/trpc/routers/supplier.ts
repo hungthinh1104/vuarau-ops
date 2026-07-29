@@ -15,7 +15,6 @@ import {
   rebuildSupplierAccountCommandSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
-import { getPayment } from "../../../modules/payment/payment.queries.ts";
 import {
   adjustSupplierAccount,
   createSupplier,

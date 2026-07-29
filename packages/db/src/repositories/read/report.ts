@@ -4,17 +4,14 @@ import {
   customerAccountEntries,
   customers,
   paymentReversals,
-  payments,
   products,
   suppliers,
   supplierAccountBalances,
   purchaseReceiptReversals,
   inventoryMovements,
   inventoryBalances,
-  deliveries,
   deliveryReturns,
   saleVoids,
-  sales,
 } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
 import { encodeCursor } from "@vuarau/domain-contracts";

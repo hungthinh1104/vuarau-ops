@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
+import type { documents } from "../../schema/index.ts";
 import {
   customers,
   payments,
@@ -12,7 +13,6 @@ import {
   deliveryLines,
   deliveryReturns,
   deliveryReturnLines,
-  documents,
 } from "../../schema/index.ts";
 import { money, toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Tx } from "./types.ts";

@@ -1,5 +1,5 @@
 import type { Repositories } from "../../ports.ts";
-import { key, ascendingBy, after, takePage, fold, sourceDocument } from "../store.ts";
+import { key, ascendingBy, after, takePage, fold } from "../store.ts";
 import type { Store } from "../store.ts";
 
 export const createSupplierReads = (

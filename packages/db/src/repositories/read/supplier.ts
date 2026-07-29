@@ -1,17 +1,17 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql, SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import {
   suppliers,
   supplierPayments,
   supplierPaymentReversals,
   supplierAccountEntries,
   supplierAccountBalances,
-  purchases,
   purchaseVoids,
 } from "../../schema/index.ts";
 import { classifySupplierBalance } from "@vuarau/domain-kernel";
 import { money, toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
-import { fetchLimit, paged, sourceDocument } from "../shared/read-helpers.ts";
+import { fetchLimit, paged } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
 
 export const createSupplierReadRepositories = (tx: Tx) => ({

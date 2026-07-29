@@ -1,4 +1,5 @@
-import { and, desc, eq, gte, lte, sql, SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { payments } from "../../schema/index.ts";
 import { fromIso } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";

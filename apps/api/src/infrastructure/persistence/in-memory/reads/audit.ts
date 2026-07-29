@@ -1,6 +1,6 @@
 import type { Repositories } from "../../ports.ts";
 import type { SaleId } from "@vuarau/domain-contracts";
-import { key, descendingBy, after, before, takePage } from "../store.ts";
+import { key, descendingBy, before, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 
 export const createAuditReads = (store: Store): Pick<Repositories, "auditReads"> => ({

@@ -1,5 +1,5 @@
-import { and, asc, eq, or, sql, SQL } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import type { SQL } from "drizzle-orm";
+import { and, asc, eq, or, sql } from "drizzle-orm";
 import { products } from "../../schema/index.ts";
 import { unitSchema } from "@vuarau/domain-contracts";
 import { toIso } from "../row-mappers.ts";

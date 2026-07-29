@@ -3,7 +3,7 @@ import type { OperationalReportDto } from "@vuarau/domain-contracts";
 import { money } from "@vuarau/domain-kernel";
 import { encodeCursor } from "@vuarau/domain-contracts";
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
-import { key, after, takePage } from "../store.ts";
+import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 
 export const createReportReads = (store: Store): Pick<Repositories, "reportReads"> => ({

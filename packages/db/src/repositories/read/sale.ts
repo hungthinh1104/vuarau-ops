@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, gte, lte, sql, SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { customers, saleLines, saleVoids, sales } from "../../schema/index.ts";
 import { fromIso, money, toIso, toIsoOrNull, toSaleState } from "../row-mappers.ts";

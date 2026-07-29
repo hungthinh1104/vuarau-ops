@@ -14,10 +14,8 @@ import type {
   PurchaseState,
   DeliveryState,
 } from "@vuarau/domain-kernel";
+import type { products, suppliers, supplierPayments } from "../../schema/index.ts";
 import {
-  products,
-  suppliers,
-  supplierPayments,
   purchases,
   purchaseLines,
   purchaseVoids,

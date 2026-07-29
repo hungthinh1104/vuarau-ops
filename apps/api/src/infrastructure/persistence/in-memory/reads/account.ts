@@ -1,6 +1,6 @@
 import type { Repositories } from "../../ports.ts";
 import { money } from "@vuarau/domain-kernel";
-import { key, ascendingBy, after, before, takePage, sourceDocument } from "../store.ts";
+import { key, ascendingBy, before, takePage, sourceDocument } from "../store.ts";
 import type { Store } from "../store.ts";
 
 export const createAccountReads = (store: Store): Pick<Repositories, "accountReads"> => ({

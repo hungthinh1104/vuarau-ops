@@ -1,5 +1,5 @@
 import type { Repositories } from "../../ports.ts";
-import { key, descendingBy, after, before, takePage, toPaymentSummaryRow } from "../store.ts";
+import { key, descendingBy, before, takePage, toPaymentSummaryRow } from "../store.ts";
 import type { Store } from "../store.ts";
 
 export const createPaymentReads = (store: Store): Pick<Repositories, "paymentReads"> => ({

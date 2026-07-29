@@ -1,5 +1,5 @@
 import type { Repositories } from "../../ports.ts";
-import { key, after, takePage, sourceDocument } from "../store.ts";
+import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 
 export const createInventoryReads = (store: Store): Pick<Repositories, "inventoryReads"> => ({

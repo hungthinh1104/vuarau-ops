@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, ilike, or, sql, SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { customerAccountBalances, customers, saleVoids, sales } from "../../schema/index.ts";
 import { classifyBalance } from "@vuarau/domain-kernel";
 import { money, toIso, toIsoOrNull } from "../row-mappers.ts";
