@@ -4,8 +4,8 @@ This runbook prepares one **new, isolated** shadow-pilot environment. It does no
 authorise a session by itself: an observed session starts only after repository
 and pilot readiness both pass, the real-phone smoke check is 10/10, and the human
 gates below are recorded.
-Do not put a filled `pilot.json`, customer CSV, OTP, token, signed worksheet, or
-customer details in this repository.
+Do not put a filled `pilot.json`, customer CSV, password, token, signed worksheet,
+or customer details in this repository.
 
 ## Stop rules
 
@@ -57,10 +57,12 @@ must stay out of logs shared with the project.
    pnpm --filter @vuarau/api ops:check-supabase
    ```
 
-   Expected: project reachable, publishable key accepted, email sign-in enabled,
-   public sign-up disabled, JWKS keys present, and issuer matching. A later run
-   with a real device token must also pass verifier validation. These are human
-   deployment gates if this operator lacks Supabase dashboard access.
+   Expected: project reachable, publishable key accepted, email/password enabled,
+   public sign-up disabled, email confirmation disabled while SMTP is unavailable,
+   JWKS keys present, and issuer matching. Manually confirm anonymous signup,
+   OTP/Magic Link and recovery email are unused/disabled. A later run with a real
+   device token must also pass verifier validation. See
+   [pilot-authentication.md](pilot-authentication.md).
 
 4. Create the isolated workspace and provision the real Supabase subject. Use the
    least-privilege default `sales` for the observed worker; use an existing
@@ -135,8 +137,8 @@ restore rehearsal without a dated execution record.
 
 ## Human gates still requiring an operator
 
-- Create/configure the Supabase project, disable public sign-up, and verify the
-  real OTP on a device.
+- Create/configure the Supabase project, disable public/anonymous signup and email
+  recovery, then verify a real pre-provisioned password account on a device.
 - Create the real user, collect their Supabase subject, and choose roles with the
   depot owner.
 - Obtain and retain the ASM-023 worksheet outside Git.

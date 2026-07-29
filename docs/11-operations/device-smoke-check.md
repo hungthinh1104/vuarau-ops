@@ -7,8 +7,8 @@ this checklist becomes worse than not having it.
 
 Run it **after** deploying and **before** the observed session. It takes about
 fifteen minutes and it is the only thing that catches the class of problem that
-survives everything else: a certificate a phone rejects, an email that lands in
-spam, a rewrite that works on `localhost` and not behind a proxy, a viewport that
+survives everything else: a certificate a phone rejects, a real Supabase password
+flow that was never enabled, a rewrite that works on `localhost` and not behind a proxy, a viewport that
 puts a control under the keyboard.
 
 ---
@@ -30,8 +30,8 @@ for H2**, and neither may be reported as if it were
 ([validation-plan.md](../00-product/validation-plan.md)).
 
 The order matters: automated first, then smoke, then a person. A pilot session
-spent discovering that the email code never arrives is a session that measured the
-facilitator's morning.
+spent discovering that the real login is misconfigured is a session that measured
+the facilitator's morning.
 
 ---
 
@@ -43,7 +43,8 @@ facilitator's morning.
       that drops, and a depot has no wifi at the loading bay.
 - [ ] The deployment passes `ops:check-env` and `/health/ready` returns 200.
 - [ ] `ops:pilot-readiness` passes.
-- [ ] An email address you can actually read on that phone.
+- [ ] A pre-provisioned pilot email/password account. Do not copy its password
+      into this checklist.
 
 Record the phone, the network and the deployment, because "it worked" is not a
 finding unless somebody knows where:
@@ -68,13 +69,13 @@ Date and tester:        ____________________
 
 ### 2. Sign in
 
-- [ ] Enter the email. Tap **Gửi mã đăng nhập**.
-- [ ] The code arrives. **Note how long it took, and whether it went to spam.**
-- [ ] Enter the code. Tap **Xác nhận**.
+- [ ] Enter the email and password. Tap **Đăng nhập**.
+- [ ] An incorrect password shows the generic invalid-credentials message and
+      does not reveal whether the email exists.
 - [ ] You end up at the depot picker, not at an error.
 
 ```text
-Code arrival time:  ______ s        In spam?  ☐ yes  ☐ no
+Login completed at:  __________     Operator initials:  __________
 ```
 
 ### 3. Choose the depot
@@ -117,7 +118,7 @@ Code arrival time:  ______ s        In spam?  ☐ yes  ☐ no
 ### 8. Sign out and back in
 
 - [ ] Sign out.
-- [ ] Sign in again with a fresh code.
+- [ ] Sign in again with the same pre-provisioned account.
 - [ ] You are asked to choose the depot again — selection is never remembered
       across a session for you.
 
@@ -149,20 +150,20 @@ Entries created:  ______   (must be exactly 1)
 
 Complete this alongside the ten steps. A timestamp, request ID, anonymised
 screenshot reference, sale ID, account-entry count, or operator initials may be
-used as evidence. Do not retain OTPs, tokens, customer names, or amounts here.
+used as evidence. Do not retain passwords, tokens, customer names, or amounts here.
 
-| Step | Expected result                                                        | Evidence to retain                             | Stop condition                                                 | Reset after smoke                                            |
-| ---- | ---------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------ |
-| 1    | HTTPS page and sign-in form load without certificate warning           | timestamp, URL, screenshot reference           | Certificate warning, wrong host, or unconfigured sign-in       | none                                                         |
-| 2    | A real six-digit email OTP reaches the phone and resolves to a session | timestamp, delivery latency, operator initials | OTP unavailable, invalid unexpectedly, or authentication fails | sign out after the check                                     |
-| 3    | Only the declared pilot workspace appears and opens                    | screenshot reference, workspace ID             | Extra/missing workspace or access denied                       | sign out if selection persisted unexpectedly                 |
-| 4    | A real imported customer is findable; no fixture customer appears      | anonymised search reference, operator initials | Demo/fixture customer or wrong customer data                   | discard the workspace if fixture/foreign data is present     |
-| 5    | One sale posts with the displayed total and reachable controls         | sale ID, request ID, timestamp                 | Cannot post, wrong total, or inaccessible control              | record it for reconciliation; never delete it directly       |
-| 6    | Exactly one account effect and matching timeline/balance appear        | account-entry count, sale ID                   | Missing/duplicate/mismatched financial effect                  | stop and preserve evidence                                   |
-| 7    | One payment reduces the balance once                                   | payment ID/request ID, entry count             | Missing/duplicate/mismatched effect                            | stop and preserve evidence                                   |
-| 8    | Fresh sign-in works and workspace selection is not retained            | timestamp, operator initials                   | Session/auth regression                                        | sign out                                                     |
-| 9    | Sale, payment, and balance persist after fresh sign-in                 | IDs and account-entry count                    | Any persisted state differs                                    | stop and preserve evidence                                   |
-| 10   | Same retry produces exactly one financial effect                       | original request ID, sale ID, entry count      | Any retry ambiguity, duplicate, or lost effect                 | **stop the pilot immediately**; do not retry with a new sale |
+| Step | Expected result                                                   | Evidence to retain                             | Stop condition                                            | Reset after smoke                                            |
+| ---- | ----------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| 1    | HTTPS page and sign-in form load without certificate warning      | timestamp, URL, screenshot reference           | Certificate warning, wrong host, or unconfigured sign-in  | none                                                         |
+| 2    | A real pre-provisioned password login resolves to a session       | timestamp, operator initials                   | generic-error/privacy rule breaks or authentication fails | sign out after the check                                     |
+| 3    | Only the declared pilot workspace appears and opens               | screenshot reference, workspace ID             | Extra/missing workspace or access denied                  | sign out if selection persisted unexpectedly                 |
+| 4    | A real imported customer is findable; no fixture customer appears | anonymised search reference, operator initials | Demo/fixture customer or wrong customer data              | discard the workspace if fixture/foreign data is present     |
+| 5    | One sale posts with the displayed total and reachable controls    | sale ID, request ID, timestamp                 | Cannot post, wrong total, or inaccessible control         | record it for reconciliation; never delete it directly       |
+| 6    | Exactly one account effect and matching timeline/balance appear   | account-entry count, sale ID                   | Missing/duplicate/mismatched financial effect             | stop and preserve evidence                                   |
+| 7    | One payment reduces the balance once                              | payment ID/request ID, entry count             | Missing/duplicate/mismatched effect                       | stop and preserve evidence                                   |
+| 8    | Fresh sign-in works and workspace selection is not retained       | timestamp, operator initials                   | Session/auth regression                                   | sign out                                                     |
+| 9    | Sale, payment, and balance persist after fresh sign-in            | IDs and account-entry count                    | Any persisted state differs                               | stop and preserve evidence                                   |
+| 10   | Same retry produces exactly one financial effect                  | original request ID, sale ID, entry count      | Any retry ambiguity, duplicate, or lost effect            | **stop the pilot immediately**; do not retry with a new sale |
 
 ---
 

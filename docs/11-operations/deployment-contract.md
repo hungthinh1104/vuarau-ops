@@ -79,6 +79,12 @@ The browser therefore receives **only** the Supabase project URL and the
 publishable key. The JWT signing material and the database credentials never leave
 the server side.
 
+The pilot Supabase project enables email/password, disables public and anonymous
+signup, disables email confirmation while SMTP is unavailable, and does not offer
+OTP/Magic Link or recovery email. Password reset is operator-assisted. The exact
+dashboard checklist and real-login smoke are in
+[pilot-authentication.md](pilot-authentication.md).
+
 **`SUPABASE_SECRET_KEY` is not part of this contract at all.** Supabase's secret
 key — formerly the service-role key — bypasses row-level security, and this
 application never calls Supabase with privilege: it verifies tokens against JWKS

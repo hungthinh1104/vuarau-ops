@@ -12,6 +12,11 @@ that person's role lets them do — before any business data is read or written.
 
 A depot owner or worker holding a Supabase session.
 
+The browser obtains that session directly from Supabase with email/password.
+Credentials never pass through this API and are never stored in the business
+database. Pilot users are provisioned explicitly; authentication never creates an
+Actor, workspace or membership.
+
 ## Main flow
 
 1. The client sends `Authorization: Bearer <supabase access token>`.
@@ -76,3 +81,6 @@ TC-AUTH-001 … TC-AUTH-011, TC-CUSTOMER-002, TC-CUSTOMER-003
   is no separate credential-aware or adaptive authentication limiter.
 - Postgres row-level security is not enabled (ASM-009); isolation is enforced in
   the application layer only.
+- Password recovery is operator-assisted while SMTP is unavailable. OAuth is not
+  enabled; `/auth/callback` is reserved for a future PKCE exchange that must still
+  resolve through the same Supabase `sub`.

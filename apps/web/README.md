@@ -23,31 +23,30 @@ DATABASE_URL=… pnpm web:e2e                # end to end, against a real API + 
 | `/sales/[id]`                  | The posted sale and the account entry it produced      |
 | `/demo`                        | **Fixtures.** Design review only, and labelled as such |
 
-Everything except `/` and `/demo` sits behind `SessionGate`: a Supabase session,
-a depot discovered from `session.workspaces` and chosen by a person, and a
-`session.me` that still answers.
+Business routes sit behind `SessionGate`: a Supabase session, a depot discovered
+from `session.workspaces` and chosen by a person, and a `session.me` that still
+answers. `/login` and the reserved `/auth/callback` are public;
+`/select-workspace` is the explicit boundary before protected data renders.
 
 ## Signing in
 
-An email and a six-digit code, through the official Supabase browser client. No
-password: a depot phone is shared, a password on a shared phone gets written on
-the wall next to it, and the recovery flow for a forgotten one is a support
-conversation nobody is staffed for. A code rather than a magic link, because a
-link means leaving the app for an email client and coming back through a browser
-that may not hold the session.
+Email and password through the official Supabase browser client. The app calls
+`signInWithPassword`; it does not proxy credentials through the API and never
+stores them in PostgreSQL. Password recovery is operator-assisted while SMTP is
+unavailable.
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=…            # publishable; authorises nothing alone
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=…     # public; authorises nothing alone
 ```
 
 Both are public by design. The JWT **signing** material verifies tokens and lives
 in the API process — never in a `NEXT_PUBLIC_*` variable, which is a bundle a
 phone downloads.
 
-Sign-up is off (`shouldCreateUser: false`). A pilot participant is provisioned by
-the facilitator beforehand; left on, a typo would create an account that can sign
-in and see nothing at all, which is the most confusing possible outcome.
+Public sign-up, email OTP/Magic Link, anonymous signup and recovery email are off.
+Email/password is on. Email confirmation is off while SMTP is unavailable. A
+pilot participant and their password are provisioned by the operator beforehand.
 
 Without both variables the app shows "chưa cấu hình đăng nhập" and names them,
 rather than a client that throws on first use.
@@ -63,6 +62,12 @@ fallback: a second source for "which depots exist" is a second answer to it.
 Selection is still explicit, including when the server returns exactly one. That
 is the case where somebody who keeps two depots would not notice which set of
 books they were writing into.
+
+QueryClient, SessionDto/permission caches and the selected workspace are scoped to
+the authenticated Supabase subject. Logout and any remote subject transition
+cancel old API work and clear that authority state before another identity is
+rendered. Durable offline commands stay in their actor/workspace partition; they
+are not re-attributed to the next user.
 
 ### The one door for the end-to-end suite
 

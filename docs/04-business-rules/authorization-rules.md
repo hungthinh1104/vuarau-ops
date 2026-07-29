@@ -228,6 +228,26 @@ payments, adjustments, ledger entries and audits continue to name the same actor
 
 ---
 
+### BR-AUTH-010 — Browser authority state is scoped to the authenticated subject
+
+**Risk:** P0 · **Tests:** TC-WEB-027, TC-WEB-028, TC-E2E-031
+
+React Query results, workspace selection, cached SessionDto, permissions and actor
+state belong to one verified Supabase subject. On logout, expiry, remote sign-out
+or A→B transition in the same tab, the browser cancels old API work, clears the
+old QueryClient and authority caches, clears the old token, and requires the new
+subject to choose from `session.workspaces` again.
+
+Workspace selections and offline session caches use subject-scoped keys. Durable
+offline business commands remain in their actor/workspace partition; clearing
+authority must neither re-attribute nor silently delete those commands.
+
+Supabase refresh for the same subject replaces the live access token without
+destroying that subject's active selection. A subject change is the boundary, not
+every token refresh.
+
+---
+
 ## What is still open
 
 | Question                                                      | State                                           | Reference |

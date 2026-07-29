@@ -181,6 +181,11 @@ Not applicable. Cacheable for the life of a sign-in, with the same caveat as
 `session.me`: a membership may be revoked between the picker and the first
 command, and the command is where that is discovered.
 
+The cache and selected workspace are scoped to the authenticated Supabase
+subject. Logout, expiry, remote sign-out or a subject change clears them and
+destroys the old QueryClient before the next identity may render (BR-AUTH-010).
+Even a single returned workspace is chosen explicitly.
+
 ### Capabilities · UI states
 
 `loading`, `empty` (signed in, no depot — the state that most needs real copy
@@ -189,8 +194,9 @@ rather than a spinner that never resolves), `permission_denied`,
 
 ### Rules · Tests
 
-BR-AUTH-001, BR-AUTH-002, BR-AUTH-003, BR-AUTH-005, BR-AUTH-008, BR-CUSTOMER-002 ·
-TC-AUTH-014, TC-AUTH-015, TC-AUTH-016
+BR-AUTH-001, BR-AUTH-002, BR-AUTH-003, BR-AUTH-005, BR-AUTH-008, BR-AUTH-010,
+BR-CUSTOMER-002 · TC-AUTH-014, TC-AUTH-015, TC-AUTH-016, TC-WEB-024 …
+TC-WEB-028, TC-E2E-021, TC-E2E-031
 
 ---
 

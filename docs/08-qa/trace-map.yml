@@ -78,13 +78,31 @@ use_cases:
       - BR-AUTH-003
       - BR-AUTH-005
       - BR-AUTH-008
+      - BR-AUTH-010
       - BR-CUSTOMER-002
     cases: []
-    tests: [TC-AUTH-014, TC-AUTH-015, TC-AUTH-016, TC-WEB-024, TC-WEB-025, TC-E2E-021]
+    tests:
+      - TC-AUTH-014
+      - TC-AUTH-015
+      - TC-AUTH-016
+      - TC-WEB-024
+      - TC-WEB-025
+      - TC-WEB-026
+      - TC-WEB-027
+      - TC-WEB-028
+      - TC-E2E-021
+      - TC-E2E-031
     implementation:
       - apps/api/src/modules/session/session.queries.ts
       - apps/api/src/infrastructure/trpc/routers/session.ts
       - packages/db/src/repositories/write/workspace.ts
+      - apps/web/src/api/auth.tsx
+      - apps/web/src/api/providers.tsx
+      - apps/web/src/api/session-gate.tsx
+      - apps/web/src/api/identity-lifecycle.ts
+      - apps/web/src/api/workspace.ts
+      - apps/web/src/offline/session-cache.ts
+      - apps/web/src/ui/patterns/sign-in.tsx
 
   UC-AUTH-005:
     title: Manage workspace members and roles
@@ -1347,6 +1365,19 @@ business_rules:
       - packages/domain-kernel/src/session/manage-membership.ts
       - apps/api/src/modules/session/manage-membership.handler.ts
 
+  BR-AUTH-010:
+    title: Browser authority state is scoped to the authenticated subject
+    risk: P0
+    doc: docs/04-business-rules/authorization-rules.md
+    cases: []
+    tests: [TC-WEB-027, TC-WEB-028, TC-E2E-031]
+    implementation:
+      - apps/web/src/api/auth.tsx
+      - apps/web/src/api/providers.tsx
+      - apps/web/src/api/identity-lifecycle.ts
+      - apps/web/src/api/workspace.ts
+      - apps/web/src/offline/session-cache.ts
+
   # --- reads --------------------------------------------------------------------
   BR-READ-001:
     title: A page boundary never repeats or skips a row
@@ -1908,10 +1939,22 @@ contract_tests:
     title: The end-to-end token bridge is off unless a build explicitly enables it
     file: apps/web/src/api/workspace.test.ts
   TC-WEB-025:
-    title: Signing in asks for an email and a code, never a password, and keeps what was typed
+    title: Password sign-in supports conventional fields, Enter, duplicate blocking and retained input
     file: apps/web/src/ui/sign-in.test.tsx
+  TC-WEB-026:
+    title: The Supabase adapter uses password auth and classifies credential, network, rate and configuration failures
+    file: apps/web/src/api/auth.test.ts
+  TC-WEB-027:
+    title: Query and browser authority caches are cleared per authentication subject
+    file: apps/web/src/api/identity-lifecycle.test.ts
+  TC-WEB-028:
+    title: Token refresh stays live while expiry and logout clear the previous subject
+    file: apps/web/src/api/auth-session.test.tsx
   TC-E2E-021:
     title: The depot list comes from session.workspaces against a real database
+    file: apps/web/e2e/sign-in.spec.ts
+  TC-E2E-031:
+    title: User A state cannot survive logout and User B login in the same browser tab
     file: apps/web/e2e/sign-in.spec.ts
   TC-E2E-022:
     title: Sale, payment, reversal and adjustment keep the account ledger, source links and permissions coherent
@@ -1929,7 +1972,7 @@ contract_tests:
     title: Offline command chains are immutable, FIFO, partitioned and exact-identity retry safe
     file: apps/web/src/offline/offline.test.ts
   TC-OFFLINE-002:
-    title: Cached workspace authority survives reload and is cleared on sign-out
+    title: Cached workspace authority is subject-scoped and cleared on sign-out
     file: apps/web/src/offline/session-cache.test.ts
   TC-OPS-006:
     title: Logical backup is deterministic, secret-free, validated and idempotently restored to an empty target
