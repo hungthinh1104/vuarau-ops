@@ -13,6 +13,7 @@ import {
   moneySchema,
   workspaceIdSchema,
 } from "@vuarau/domain-contracts";
+import type { WorkspaceBackupV1 } from "@vuarau/domain-contracts";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import {
   backupDigest,
@@ -99,6 +100,53 @@ describe("M14 logical operations evidence", () => {
     expect(replay).toEqual(first);
     const restoredCustomerId = customerIdSchema.parse(exported.value.payload.customers[0]?.["id"]);
     expect(harness.db.balanceFor(target, restoredCustomerId)).toBeDefined();
+  });
+
+  it("keeps WorkspaceBackupV1 restore-compatible while exporting V2", async () => {
+    const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
+    if (!exported.ok) return;
+    expect(exported.value.version).toBe(2);
+    const {
+      suppliers: _suppliers,
+      supplierPayments: _supplierPayments,
+      supplierPaymentReversals: _supplierPaymentReversals,
+      supplierAccountEntries: _supplierAccountEntries,
+      purchases: _purchases,
+      purchaseLines: _purchaseLines,
+      purchaseVoids: _purchaseVoids,
+      receipts: _receipts,
+      receiptLines: _receiptLines,
+      receiptReversals: _receiptReversals,
+      inventoryMovements: _inventoryMovements,
+      ...payload
+    } = exported.value.payload;
+    const legacy: WorkspaceBackupV1 = {
+      format: "vuarau.workspace-backup",
+      version: 1,
+      sourceWorkspaceId: exported.value.sourceWorkspaceId,
+      createdAt: exported.value.createdAt,
+      schemaCompatibility: "m15",
+      recordCounts: Object.fromEntries(
+        Object.entries(payload).map(([name, rows]) => [
+          name,
+          Array.isArray(rows) ? rows.length : 1,
+        ]),
+      ),
+      payload,
+      digest: backupDigest(payload),
+    };
+    const target = workspaceIdSchema.parse("00000000-0000-4000-8000-000000000797");
+    harness.db.registerWorkspace(target, "Vựa phục hồi V1");
+    harness.db.grantMembership(target, ACTOR_ID, "owner", true);
+    const restored = await restoreWorkspaceBackup(harness.ctx, {
+      commandId: "00000000-0000-4000-8000-000000000796",
+      idempotencyKey: "restore-backup-v1-key",
+      workspaceId: target,
+      actorId: ACTOR_ID,
+      occurredAt: LATEST_TRANSACTION_TIME,
+      payload: { backup: legacy, reason: "Kiểm tra tương thích V1" },
+    });
+    expect(restored.ok).toBe(true);
   });
 
   it("reports a ledger entry whose canonical source is missing", async () => {

@@ -67,6 +67,75 @@ function envelope(extra: Envelope = {}): Envelope {
 }
 
 export const api = {
+  async supplierBalance(supplierId: string): Promise<{
+    balance: { amountMinor: number };
+    entryCount: number;
+  }> {
+    return (await call(
+      "supplier.balance",
+      "query",
+      { workspaceId: E2E_WORKSPACE_ID, supplierId },
+      "owner",
+    )) as { balance: { amountMinor: number }; entryCount: number };
+  },
+
+  async inventoryBalances(productId: string): Promise<
+    {
+      unit: string;
+      quantityScaled: number;
+      movementCount: number;
+    }[]
+  > {
+    return (await call(
+      "inventory.balances",
+      "query",
+      { workspaceId: E2E_WORKSPACE_ID, productId },
+      "owner",
+    )) as { unit: string; quantityScaled: number; movementCount: number }[];
+  },
+
+  async goodsCounts(ids: { supplierId: string; purchaseId: string; productId: string }): Promise<{
+    purchases: number;
+    supplierEntries: number;
+    movements: number;
+    receipts: number;
+  }> {
+    const database = createDatabase(requiredDatabaseUrl(), { max: 1 });
+    try {
+      const rows = await database.sql<
+        readonly {
+          purchases: number;
+          supplier_entries: number;
+          movements: number;
+          receipts: number;
+        }[]
+      >`
+        select
+          (select count(*)::int from purchases
+            where workspace_id = ${E2E_WORKSPACE_ID}::uuid
+              and id = ${ids.purchaseId}::uuid) purchases,
+          (select count(*)::int from supplier_account_entries
+            where workspace_id = ${E2E_WORKSPACE_ID}::uuid
+              and supplier_id = ${ids.supplierId}::uuid) supplier_entries,
+          (select count(*)::int from inventory_movements
+            where workspace_id = ${E2E_WORKSPACE_ID}::uuid
+              and product_id = ${ids.productId}::uuid) movements,
+          (select count(*)::int from purchase_receipts
+            where workspace_id = ${E2E_WORKSPACE_ID}::uuid
+              and purchase_id = ${ids.purchaseId}::uuid) receipts
+      `;
+      const row = rows[0]!;
+      return {
+        purchases: row.purchases,
+        supplierEntries: row.supplier_entries,
+        movements: row.movements,
+        receipts: row.receipts,
+      };
+    } finally {
+      await database.sql.end();
+    }
+  },
+
   async createCustomer(
     displayName: string,
     role: E2ERole = "owner",
