@@ -1,6 +1,6 @@
 import { expect, test, signIn } from "./harness/signed-in.ts";
 import { api } from "./harness/api.ts";
-import { E2E_WORKSPACE_NAME, uniqueCustomerName } from "./harness/environment.ts";
+import { E2E_ACTORS, E2E_WORKSPACE_NAME, uniqueCustomerName } from "./harness/environment.ts";
 
 /**
  * M5A — the payment workflow, against a real API and a real database.
@@ -281,7 +281,9 @@ test.describe("TC-E2E-010 — the workspace is chosen explicitly", () => {
   }) => {
     // Signed in, but with no workspace stored.
     await signIn(page);
-    await page.addInitScript(() => window.sessionStorage.removeItem("vuarau.workspace_id"));
+    await page.addInitScript((subject) => {
+      window.sessionStorage.removeItem(`vuarau.workspace_id:${encodeURIComponent(subject)}`);
+    }, E2E_ACTORS.sales);
     await page.goto("/customers");
 
     await expect(page.getByRole("heading", { name: "Chọn vựa" })).toBeVisible();
