@@ -5,7 +5,7 @@ import { productIdSchema, workspaceIdSchema } from "../shared/ids.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
 
 export const REPORT_TYPES = [
-  "daily_operations",
+  "customer_account_activity",
   "customer_receivables",
   "supplier_payables",
   "inventory_by_product_unit",

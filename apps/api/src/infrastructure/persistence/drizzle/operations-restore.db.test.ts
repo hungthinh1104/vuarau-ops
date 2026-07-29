@@ -512,4 +512,49 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       inventory_movements: 0,
     });
   });
+
+  it("rejects a mismatched document snapshot before restoring any canonical row", async () => {
+    const backup = await prepareCanonicalBackup();
+    await emptyRecoveryWorkspace();
+    const document = backup.payload.documents[0]!;
+    const payload = {
+      ...backup.payload,
+      documents: [
+        {
+          ...document,
+          snapshot: { tampered: true },
+        },
+      ],
+    };
+    const tampered: WorkspaceBackupV3 = {
+      ...backup,
+      payload,
+      digest: backupDigest(payload),
+    };
+
+    const restored = await restoreWorkspaceBackup(context(), {
+      ...command("recovery-document-digest"),
+      payload: { backup: tampered, reason: "Snapshot sai digest phải bị từ chối" },
+    });
+    expect(restored.ok).toBe(false);
+    if (!restored.ok) expect(restored.error.code).toBe("BACKUP_INTEGRITY_ERROR");
+    expect(await canonicalCounts()).toMatchObject({
+      customers: 0,
+      products: 0,
+      sales: 0,
+      sale_lines: 0,
+      payments: 0,
+      account_entries: 0,
+      audit: 0,
+      command_receipts: 0,
+      suppliers: 0,
+      purchases: 0,
+      supplier_account_entries: 0,
+      receipts: 0,
+      inventory_movements: 0,
+      deliveries: 0,
+      documents: 0,
+      document_shares: 0,
+    });
+  });
 });

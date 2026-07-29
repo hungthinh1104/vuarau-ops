@@ -218,7 +218,7 @@ export function dispatchDelivery(ctx: CommandContext, input: unknown) {
         )
           return err("DELIVERY_QUANTITY_EXCEEDS_SALE", "Dispatch exceeds Sale quantity.");
       }
-      const decision = decideDispatchDelivery(current, command, recordedAt);
+      const decision = decideDispatchDelivery(current, sale, command, recordedAt);
       if (!decision.ok) return decision;
       if (!(await repos.deliveries.update(decision.value, current.version, false)))
         return err("DELIVERY_VERSION_CONFLICT", "Delivery changed on the server.");

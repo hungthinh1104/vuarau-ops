@@ -1465,7 +1465,7 @@ export function createReadRepositories(tx: Tx) {
       async operational(args: {
         workspaceId: string;
         reportType:
-          | "daily_operations"
+          | "customer_account_activity"
           | "customer_receivables"
           | "supplier_payables"
           | "inventory_by_product_unit"
@@ -1492,7 +1492,7 @@ export function createReadRepositories(tx: Tx) {
         };
         let rows: Row[] = [];
         const diagnostics: string[] = [];
-        if (args.reportType === "daily_operations") {
+        if (args.reportType === "customer_account_activity") {
           const entries = await tx
             .select()
             .from(customerAccountEntries)

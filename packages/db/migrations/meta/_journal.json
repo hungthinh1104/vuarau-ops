@@ -134,6 +134,13 @@
       "when": 1786264000000,
       "tag": "0018_fixed_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786350400000,
+      "tag": "0019_documents_append_only",
+      "breakpoints": true
     }
   ]
 }

@@ -34,13 +34,16 @@ import {
   dispatchDelivery,
   markDeliveryDelivered,
   recordDeliveryReturn,
+  updateDeliveryDraft,
 } from "../../../modules/delivery/delivery.handlers.ts";
+import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
 import { getSaleFulfilment } from "../../../modules/delivery/delivery.queries.ts";
 import {
   createDocumentShare,
   generateDocument,
   revokeDocumentShare,
 } from "../../../modules/document/document.handlers.ts";
+import { getDocument } from "../../../modules/document/document.queries.ts";
 import { getOperationalReport } from "../../../modules/report/report.queries.ts";
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
 
@@ -328,7 +331,7 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
     ]);
     const daily = await getOperationalReport(context(), {
       workspaceId: ctx.workspaceId,
-      reportType: "daily_operations",
+      reportType: "customer_account_activity",
       businessDate: "2026-07-29",
       productId: null,
       unit: null,
@@ -492,5 +495,229 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
       repos.inventoryMovements.listByProduct(ctx.workspaceId, productId, "kg"),
     );
     expect(movements.filter((row) => row.sourceType === "delivery_dispatch")).toHaveLength(1);
+  });
+
+  it("blocks new physical work after Sale void but preserves explicit returns", async () => {
+    const productId = ctx.productIds[0];
+    const saleId = crypto.randomUUID() as SaleId;
+    const saleLineId = crypto.randomUUID() as SaleLineId;
+    expect(
+      (
+        await createSaleDraft(context(), {
+          ...envelope("void-sale", "2026-07-29T02:00:00.000Z"),
+          payload: {
+            saleId,
+            customerId: ctx.customerId,
+            currency: "VND",
+            lines: [
+              {
+                lineId: saleLineId,
+                productId,
+                productName: "Cà chua",
+                quantity: { valueScaled: 100_000, unit: "kg" },
+                unitPrice: { amountMinor: 20_000, currency: "VND" },
+              },
+            ],
+            note: null,
+            dueAt: null,
+            replacesSaleId: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await postSale(context(), {
+          ...envelope("void-post", "2026-07-29T02:01:00.000Z"),
+          expectedVersion: 1,
+          payload: { saleId },
+        })
+      ).ok,
+    ).toBe(true);
+
+    const dispatchedId = crypto.randomUUID() as DeliveryId;
+    const dispatchedLineId = crypto.randomUUID() as DeliveryLineId;
+    const draftId = crypto.randomUUID() as DeliveryId;
+    const draftLineId = crypto.randomUUID() as DeliveryLineId;
+    for (const [id, lineId] of [
+      [dispatchedId, dispatchedLineId],
+      [draftId, draftLineId],
+    ] as const)
+      expect(
+        (
+          await createDeliveryDraft(context(), {
+            ...envelope("void-delivery", "2026-07-29T03:00:00.000Z"),
+            payload: {
+              deliveryId: id,
+              saleId,
+              lines: [
+                {
+                  deliveryLineId: lineId,
+                  saleLineId,
+                  productId,
+                  quantity: { valueScaled: 20_000, unit: "kg" },
+                },
+              ],
+              note: null,
+            },
+          })
+        ).ok,
+      ).toBe(true);
+    expect(
+      (
+        await dispatchDelivery(context(), {
+          ...envelope("void-dispatch-before", "2026-07-29T03:01:00.000Z"),
+          expectedVersion: 1,
+          payload: { deliveryId: dispatchedId },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await voidSale(context(), {
+          ...envelope("void-sale-command", "2026-07-29T04:00:00.000Z"),
+          payload: {
+            saleVoidId: crypto.randomUUID(),
+            saleId,
+            reasonCode: "goods_returned",
+            reason: "Sale đã huỷ sau khi một chuyến rời kho",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+
+    const createAfterVoid = await createDeliveryDraft(context(), {
+      ...envelope("create-after-void", "2026-07-29T04:01:00.000Z"),
+      payload: {
+        deliveryId: crypto.randomUUID() as DeliveryId,
+        saleId,
+        lines: [
+          {
+            deliveryLineId: crypto.randomUUID() as DeliveryLineId,
+            saleLineId,
+            productId,
+            quantity: { valueScaled: 10_000, unit: "kg" },
+          },
+        ],
+        note: null,
+      },
+    });
+    const updateAfterVoid = await updateDeliveryDraft(context(), {
+      ...envelope("update-after-void", "2026-07-29T04:02:00.000Z"),
+      expectedVersion: 1,
+      payload: {
+        deliveryId: draftId,
+        lines: [
+          {
+            deliveryLineId: draftLineId,
+            saleLineId,
+            productId,
+            quantity: { valueScaled: 10_000, unit: "kg" },
+          },
+        ],
+        note: "Không được ghi",
+      },
+    });
+    const dispatchAfterVoid = await dispatchDelivery(context(), {
+      ...envelope("dispatch-after-void", "2026-07-29T04:03:00.000Z"),
+      expectedVersion: 1,
+      payload: { deliveryId: draftId },
+    });
+    for (const result of [createAfterVoid, updateAfterVoid, dispatchAfterVoid]) {
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.code).toBe("SALE_ALREADY_VOIDED");
+    }
+
+    const returned = await recordDeliveryReturn(context(), {
+      ...envelope("return-after-void", "2026-07-29T05:00:00.000Z"),
+      payload: {
+        returnId: crypto.randomUUID() as DeliveryReturnId,
+        deliveryId: dispatchedId,
+        lines: [
+          {
+            deliveryLineId: dispatchedLineId,
+            quantity: { valueScaled: 5_000, unit: "kg" },
+          },
+        ],
+        reason: "Hàng quay lại sau khi Sale bị huỷ",
+      },
+    });
+    expect(returned.ok).toBe(true);
+  });
+
+  it("keeps documents append-only and refuses a corrupted authenticated snapshot", async () => {
+    const saleId = crypto.randomUUID() as SaleId;
+    const saleLineId = crypto.randomUUID() as SaleLineId;
+    expect(
+      (
+        await createSaleDraft(context(), {
+          ...envelope("document-sale", "2026-07-29T02:00:00.000Z"),
+          payload: {
+            saleId,
+            customerId: ctx.customerId,
+            currency: "VND",
+            lines: [
+              {
+                lineId: saleLineId,
+                productId: ctx.productIds[0],
+                productName: "Cà chua",
+                quantity: { valueScaled: 1_000, unit: "kg" },
+                unitPrice: { amountMinor: 20_000, currency: "VND" },
+              },
+            ],
+            note: null,
+            dueAt: null,
+            replacesSaleId: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await postSale(context(), {
+          ...envelope("document-post", "2026-07-29T02:01:00.000Z"),
+          expectedVersion: 1,
+          payload: { saleId },
+        })
+      ).ok,
+    ).toBe(true);
+    const generated = await generateDocument(context(), {
+      ...envelope("append-only-document", "2026-07-29T03:00:00.000Z"),
+      payload: {
+        documentId: crypto.randomUUID() as DocumentId,
+        documentType: "sale_receipt",
+        sourceType: "sale",
+        sourceId: saleId,
+      },
+    });
+    expect(generated.ok).toBe(true);
+    if (!generated.ok) return;
+    await expect(
+      ctx.database.sql`
+        update documents set digest = repeat('0', 64)
+        where id = ${generated.value.id}::uuid
+      `,
+    ).rejects.toThrow(/append-only/i);
+    await expect(
+      ctx.database.sql`delete from documents where id = ${generated.value.id}::uuid`,
+    ).rejects.toThrow(/append-only/i);
+
+    const corruptedId = crypto.randomUUID() as DocumentId;
+    await ctx.database.sql`
+      insert into documents (
+        id, workspace_id, document_type, source_type, source_id, version,
+        snapshot, digest, generated_at, generated_by
+      ) values (
+        ${corruptedId}::uuid, ${ctx.workspaceId}::uuid, 'sale_receipt', 'sale',
+        ${saleId}::uuid, 99, '{"tampered":true}'::jsonb, repeat('0', 64),
+        now(), ${ctx.actorId}::uuid
+      )
+    `;
+    const read = await getDocument(context(), {
+      workspaceId: ctx.workspaceId,
+      documentId: corruptedId,
+    });
+    expect(read.ok).toBe(false);
+    if (!read.ok) expect(read.error.code).toBe("DOCUMENT_SOURCE_INVALID");
   });
 });

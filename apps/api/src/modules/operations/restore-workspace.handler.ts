@@ -8,6 +8,7 @@ import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { hashPayload } from "../../infrastructure/hash.ts";
 import { backupDigest } from "./operations.queries.ts";
 
 function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
@@ -134,6 +135,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
       )) &&
     (!("documents" in payload) ||
       payload.documents.every((row) => {
+        if (hashPayload(row["snapshot"]) !== row["digest"]) return false;
         if (row["sourceType"] === "sale") return sales.has(row["sourceId"]);
         if (row["sourceType"] === "customer") return customers.has(row["sourceId"]);
         if (row["sourceType"] === "purchase") return purchases.has(row["sourceId"]);

@@ -1972,7 +1972,7 @@ export class InMemoryDatabase {
         operational: async ({ workspaceId, reportType, businessDate, productId, unit, page }) => {
           type Row = OperationalReportDto["page"]["items"][number];
           let rows: Row[] = [];
-          if (reportType === "daily_operations") {
+          if (reportType === "customer_account_activity") {
             rows = store.accountEntries
               .filter((entry) => entry.workspaceId === workspaceId)
               .filter(

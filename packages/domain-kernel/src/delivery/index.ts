@@ -57,6 +57,8 @@ export function decideCreateDeliveryDraft(args: {
 }): DomainResult<DeliveryState> {
   if (args.sale.status !== "posted")
     return err("SALE_NOT_POSTED", "Delivery requires a posted Sale.");
+  if (args.sale.voidRecord !== null)
+    return err("SALE_ALREADY_VOIDED", "A voided Sale cannot start a new Delivery.");
   if (args.sale.replacesSaleId !== null && args.predecessorHasFulfilment)
     return err(
       "DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED",
@@ -91,6 +93,8 @@ export function decideUpdateDeliveryDraft(args: {
 }): DomainResult<DeliveryState> {
   if (args.current.status !== "draft")
     return err("DELIVERY_ALREADY_DISPATCHED", "Only a Delivery draft can be edited.");
+  if (args.sale.voidRecord !== null)
+    return err("SALE_ALREADY_VOIDED", "A Delivery for a voided Sale cannot be edited.");
   if (args.current.version !== args.command.expectedVersion)
     return err("DELIVERY_VERSION_CONFLICT", "Delivery changed on the server.");
   const lines = deliveryLines(
@@ -132,9 +136,12 @@ export function decideCancelDelivery(
 
 export function decideDispatchDelivery(
   current: DeliveryState,
+  sale: SaleState,
   command: DispatchDeliveryCommand,
   recordedAt: IsoInstant,
 ): DomainResult<DeliveryState> {
+  if (sale.voidRecord !== null)
+    return err("SALE_ALREADY_VOIDED", "A Delivery for a voided Sale cannot be dispatched.");
   if (current.status === "cancelled")
     return err("DELIVERY_ALREADY_CANCELLED", "Cancelled Delivery cannot dispatch.");
   if (current.status !== "draft")

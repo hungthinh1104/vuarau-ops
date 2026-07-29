@@ -8,7 +8,12 @@ import type {
   SaleLineId,
 } from "@vuarau/domain-contracts";
 import type { SaleState } from "../shared/state.ts";
-import { decideCreateDeliveryDraft, decideRecordDeliveryReturn } from "./index.ts";
+import {
+  decideCreateDeliveryDraft,
+  decideDispatchDelivery,
+  decideRecordDeliveryReturn,
+  decideUpdateDeliveryDraft,
+} from "./index.ts";
 
 const sale = {
   id: crypto.randomUUID() as SaleId,
@@ -83,6 +88,61 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED");
+  });
+
+  it("blocks creation, editing, and dispatch after the Sale is voided", () => {
+    const voidedSale = {
+      ...sale,
+      voidRecord: { id: crypto.randomUUID() },
+    } as unknown as SaleState;
+    const creation = decideCreateDeliveryDraft({
+      command: command(10_000),
+      sale: voidedSale,
+      fulfilled: new Map(),
+      predecessorHasFulfilment: false,
+      recordedAt: "2026-07-28T02:00:01.000Z",
+    });
+    expect(creation.ok).toBe(false);
+    if (!creation.ok) expect(creation.error.code).toBe("SALE_ALREADY_VOIDED");
+
+    const draft = decideCreateDeliveryDraft({
+      command: command(10_000),
+      sale,
+      fulfilled: new Map(),
+      predecessorHasFulfilment: false,
+      recordedAt: "2026-07-28T02:00:01.000Z",
+    });
+    if (!draft.ok) throw new Error("fixture failed");
+    const update = decideUpdateDeliveryDraft({
+      current: draft.value,
+      sale: voidedSale,
+      command: {
+        ...command(10_000),
+        expectedVersion: 1,
+        payload: {
+          deliveryId: draft.value.id,
+          lines: command(10_000).payload.lines,
+          note: null,
+        },
+      } as never,
+      fulfilledExcludingCurrent: new Map(),
+      recordedAt: "2026-07-28T02:00:02.000Z",
+    });
+    expect(update.ok).toBe(false);
+    if (!update.ok) expect(update.error.code).toBe("SALE_ALREADY_VOIDED");
+
+    const dispatch = decideDispatchDelivery(
+      draft.value,
+      voidedSale,
+      {
+        ...command(10_000),
+        expectedVersion: 1,
+        payload: { deliveryId: draft.value.id },
+      } as never,
+      "2026-07-28T02:00:03.000Z",
+    );
+    expect(dispatch.ok).toBe(false);
+    if (!dispatch.ok) expect(dispatch.error.code).toBe("SALE_ALREADY_VOIDED");
   });
 
   it("refuses returns beyond the dispatched line", () => {

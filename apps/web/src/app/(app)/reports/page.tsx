@@ -14,7 +14,7 @@ import { INPUT_CLASS } from "../../../ui/primitives/field.tsx";
 import { Select } from "../../../ui/primitives/select.tsx";
 
 const TYPES: readonly { value: ReportType; label: string }[] = [
-  { value: "daily_operations", label: "Hoạt động trong ngày" },
+  { value: "customer_account_activity", label: "Biến động công nợ khách hàng" },
   { value: "customer_receivables", label: "Phải thu khách hàng" },
   { value: "supplier_payables", label: "Phải trả nhà cung cấp" },
   { value: "inventory_by_product_unit", label: "Tồn kho theo mặt hàng và đơn vị" },
@@ -25,14 +25,15 @@ const TYPES: readonly { value: ReportType; label: string }[] = [
 export default function ReportsPage() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
-  const [reportType, setReportType] = useState<ReportType>("daily_operations");
+  const [reportType, setReportType] = useState<ReportType>("customer_account_activity");
   const [businessDate, setBusinessDate] = useState("");
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const input = useMemo(
     () => ({
       workspaceId,
       reportType,
-      businessDate: reportType === "daily_operations" && businessDate ? businessDate : null,
+      businessDate:
+        reportType === "customer_account_activity" && businessDate ? businessDate : null,
       productId: null,
       unit: null,
       cursor,
@@ -71,7 +72,7 @@ export default function ReportsPage() {
             setCursor(null);
           }}
         />
-        {reportType === "daily_operations" ? (
+        {reportType === "customer_account_activity" ? (
           <label className="grid gap-2">
             <span>Ngày nghiệp vụ · Asia/Ho_Chi_Minh</span>
             <input
