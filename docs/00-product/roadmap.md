@@ -207,15 +207,28 @@ source-backed reports.
 - `source:check` enforces declared composition entry points at 250 lines with no
   raw SQL, warns ordinary source files above 450 lines, and fails them above 700.
 
-| Horizon                               | Milestones                                                                      | Gate                                                                                   |
-| ------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 2 — self-service and field resilience | M11–M14 technically complete                                                    | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
-| 3 — goods and inputs                  | M15–M18 technically complete                                                    | Supplier money and inbound goods flows are source-traceable.                           |
-| 4 — depot operations                  | M19–M21.5 technically complete; M22 performance/security/scale remains separate | Operational views drill down to reliable sources.                                      |
-| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                        | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+### M21.6 — Product policy and vision closure (technical evidence complete)
 
-The depot-operations batch and its M21.5 hardening close M19–M21.5 with technical
-evidence. M22 remains unopened and requires its own authorization.
+- ASM-024–031 classify the remaining recognition, business-day, negative-stock,
+  adjustment, delivery-cash, data-policy and recovery-policy questions without
+  inventing depot answers;
+- owner worksheets make Sale and supplier-payable recognition explicit pre-live
+  gates;
+- the product brief, delivered scope, H1–H6 validation plan, use-case surface,
+  state/transition catalogs and product-level invariants now describe Money
+  Truth, Goods Flow and Operational Control as one transaction system;
+- traceability points through bounded-context implementations after M21.5
+  modularization.
+
+| Horizon                               | Milestones                                                                      | Gate                                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 2 — self-service and field resilience | M11–M14 technically complete                                                    | Onboard, authorize, operate on weak networks, back up and recover without a developer.    |
+| 3 — goods and inputs                  | M15–M18 technically complete                                                    | Supplier money and inbound goods flows are source-traceable.                              |
+| 4 — depot operations                  | M19–M21.6 technically complete; M22 performance/security/scale remains separate | Operational views drill down to reliable sources and open policy has an owner or trigger. |
+| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                        | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.               |
+
+The depot-operations batch and M21.5/M21.6 hardening close M19–M21.6 with
+technical evidence. M22 remains unopened and requires its own authorization.
 
 ## Maturity stages
 

@@ -1,82 +1,71 @@
-# Current scope — trusted sales ledger
+# Current scope — depot transaction operating system
 
-This document records the currently delivered boundary. The product direction
-and the only authorized near-term sequence are in [roadmap.md](roadmap.md):
-M8–M21.5 now have technical implementation evidence, including versioned logical
-restore, inbound/outbound Goods Truth, immutable documents, secure sharing, and
-source-backed operational reports. M22 and later modules are not approved by
-this batch.
+This is the delivered technical boundary through M21.6. M8–M21.5 have automated
+implementation evidence; M21.6 aligns policy, vision and traceability without
+changing runtime behavior. M22 remains unopened.
 
-## In scope
+Technical completion is not field validation. The distinction is defined in the
+[product invariants](product-invariants.md) and measured by the
+[validation plan](validation-plan.md).
 
-| Area                  | Delivered                                                                                               |
-| --------------------- | ------------------------------------------------------------------------------------------------------- |
-| Repository foundation | pnpm workspace, strict TypeScript, five Vitest projects, lint, format, boundary/docs/trace checks       |
-| Domain contracts      | Branded ids, money, quantity, commands, DTOs, events, rejection codes, capabilities, pagination         |
-| Domain kernel         | Pure decisions for customer money, Supplier payable, Purchase, Receiving and inventory movement         |
-| Application layer     | Twelve command handlers and eleven queries: idempotency, optimistic concurrency, audit, one transaction |
-| Database              | Drizzle schema, migrations, repositories, transaction runner, append-only and immutability guards       |
-| API                   | tRPC router with contract tests; every read authorized like a command                                   |
-| Frontend foundation   | Next App Router, design system from `design.md`, typed tRPC client, Storybook over the state catalog    |
-| Production workflows  | Payment capture and quick sale, against the real backend                                                |
-| Access                | Supabase sign-in, server-derived workspace discovery, pilot onboarding CLI                              |
-| Documentation         | This tree, with stable IDs and a machine-checked trace map                                              |
-| Tests                 | Five Vitest projects, Next and Storybook builds, and Playwright against a real API and PostgreSQL       |
+## Delivered workflow surface
 
-### The vertical slice
+| Dimension           | Delivered boundary                                                                                                                                                                                                   |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Money Truth         | Customer lifecycle; Quick Sale; Sale correction; customer Payment/reversal/adjustment; account timeline, reconciliation and rebuild; supplier payable, Payment/reversal/adjustment and Purchase correction           |
+| Goods Flow          | Product and Supplier lifecycle; Purchase; Receiving/reversal; per-Product/unit inventory; adjustment and reconciliation; Delivery dispatch/completion/return                                                         |
+| Operational Control | Supabase identity; workspace roles and capabilities; audit; immutable digest-verified documents; revocable sharing; customer-account activity and source-backed reports; logical export/restore and integrity checks |
+| Reliability         | Client command identity, idempotent receipts, optimistic concurrency, transactional writes, append-only money/goods facts, offline Quick Sale queue and retry recovery                                               |
+| Engineering         | Strict TypeScript, architecture boundaries, source-size/composition gates, docs and trace checks, Vitest projects, PostgreSQL integration, Next/Storybook builds and real-stack Playwright                           |
 
+The runtime exposes **49 authenticated command procedures** and **48 authenticated
+query procedures** across 16 bounded-context router namespaces. These counts
+describe the current router modules; the authoritative contracts remain
+[command-contracts.md](../06-api-contracts/command-contracts.md) and
+[read-models.md](../06-api-contracts/read-models.md).
+
+## End-to-end depot workflow
+
+```text
+Identity and workspace
+  → Customer → Sale → customer account → Payment/correction
+  → Supplier → Purchase → supplier account → Receiving → Inventory
+  → Sale → Delivery → Return
+  → Source documents → sharing/reports → reconciliation/export/restore
 ```
-Authentication → Customer → Sale draft → Posted sale → Customer account entry
-              → Payment → Payment reversal → Sale void → Audit history
-```
 
-Twelve commands, listed in
-[command-contracts.md](../06-api-contracts/command-contracts.md). Seven of them
-move money or could be mistaken for a command that does; five are lifecycle
-commands with no account effect at all.
+Commercial truth, financial truth and physical truth remain separate. A named
+command may create a cross-dimension effect only where a business rule says so;
+no UI or report supplies a second implementation of that policy.
 
-There is no `updateEntity`, no `patch`, and no procedure that takes a status as an
-argument ([ADR-0002](../09-decisions/ADR-0002-command-based-writes.md)).
+## Deliberately out of scope
 
-## Out of scope — deliberately not built
+| Excluded                                                         | Boundary                                                                                                              |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| AI/LLM transaction entry                                         | AI may propose in a future milestone but may never bypass deterministic commands                                      |
+| Pricing intelligence and automatic recommendations               | Last-price recall is explicit, customer/unit scoped and never auto-applied                                            |
+| Demand forecasting, supplier scoring and customer health scoring | Require field evidence and enough history to justify a model                                                          |
+| Tax invoicing, allocation and inventory valuation                | Current documents make no tax claim; Payments are not allocated to Sales                                              |
+| Delivery route optimization                                      | Delivery truth exists; routing is a separate product problem                                                          |
+| Offline mutation beyond Quick Sale                               | Payment, correction, catalog, goods and control commands remain online-only                                           |
+| General rule builders, microservices, Kafka and Kubernetes       | The modular monolith and explicit rules remain sufficient                                                             |
+| Full event sourcing or double-entry accounting                   | Append-only account ledgers and inventory movements are canonical for their bounded purposes, not a general ledger    |
+| Production policy invented by software                           | RPO/RTO, retention, encryption, public-read policy and restore-drill ownership remain ASM-030/031 operational actions |
 
-Building any of these now would commit the product to a shape it has not earned.
+## Open policy boundary
 
-| Excluded                                                      | Why now is too early                                                                                                                                                 |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pricing intelligence                                          | Product catalog exists, but a typed sale-line snapshot remains truth and no pricing engine is justified                                                              |
-| Customer-local history recall                                 | Delivered as explicit historical recall; it never auto-applies a price                                                                                               |
-| Decorative dashboards, forecasting and recommendations        | M21 provides source-backed operational reports only; speculative metrics remain excluded                                                                             |
-| AI / LLM parsing of free-text entry                           | The deterministic write path must be trustworthy before anything writes to it automatically                                                                          |
-| Demand forecasting, supplier scoring, customer health scoring | Require months of ledger history                                                                                                                                     |
-| Advanced pricing recommendations                              | Requires a pricing model that does not exist                                                                                                                         |
-| Delivery route optimisation                                   | Delivery truth exists, but routing and optimisation are a separate unproven workflow                                                                                 |
-| Generalised rule builders                                     | A rule engine before six hard-coded rules is speculation                                                                                                             |
-| Allocation, tax invoicing and inventory valuation             | M19 records outbound fulfilment; M20 snapshots make no tax claim and valuation remains excluded                                                                      |
-| Offline mutation queues beyond Quick Sale                     | M13 is deliberately limited to its customer/sale chain; payment, correction and catalog mutations stay online                                                        |
-| Microservices, Kafka, Kubernetes                              | See [ADR-0001](../09-decisions/ADR-0001-modular-monolith.md)                                                                                                         |
-| Full event sourcing                                           | The customer account ledger is append-only; the rest of the system is not, and does not need to be ([ADR-0004](../09-decisions/ADR-0004-append-only-debt-ledger.md)) |
-| Full double-entry accounting                                  | The depot needs customer debt, not a general ledger and trial balance                                                                                                |
-| Deployment pipelines and hosting choices                      | CI is a quality gate; hosting is not chosen here and no vendor is named                                                                                              |
-| Sale correction **screen**                                    | M8 closes this existing command workflow; it must reuse the immutable-sale/void/replacement model rather than inventing a correction engine                          |
-| Role-management and customer-import screens                   | M11/M12 work; not authorized before Money Truth is closed                                                                                                            |
+Every known policy question is classified in the
+[decision backlog](../09-decisions/decision-backlog.md). In particular:
 
-## Extension points left open, not built
-
-These exist as shapes in the code so the excluded work can be added without a
-rewrite. Nothing behind them is implemented.
-
-- `workspaceId` on every business row and in every command → multi-workspace SaaS.
-- Client-supplied aggregate ids + `idempotencyKey` → offline capture and replay.
-- `transactionTime` distinct from `recordedAt` → back-dated entry and debt aging.
-- Explicit customer, Supplier and inventory source enums → new proven sources are additive.
-- `Capability` on DTOs → UI affordances without a second copy of the rules.
-- `Money.currency` with a per-currency exponent → non-VND currency later.
-- Sale lifecycle deliberately excludes payment/delivery state → those become
-  separate dimensions, not new values in this enum.
+- ASM-024 and ASM-025 require depot-owner validation before real Sale or Purchase
+  recognition;
+- ASM-026–029 have explicit temporary defaults and triggers;
+- ASM-030/031 block real-data sharing or production readiness until named owners
+  record the policy.
 
 ## Related
 
 - [product-brief.md](product-brief.md)
+- [product-invariants.md](product-invariants.md)
 - [roadmap.md](roadmap.md)
-- [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md)
+- [../02-use-cases/use-case-catalog.md](../02-use-cases/use-case-catalog.md)

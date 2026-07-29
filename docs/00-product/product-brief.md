@@ -1,140 +1,141 @@
-# Product brief
+# Product brief — the depot transaction operating system
 
-**vuarau-ops** is an operational decision system for wholesale vegetable depots (vựa rau)
-in Vietnam.
+**vuarau-ops** records and explains the operational transactions of a wholesale
+vegetable depot (vựa rau) in Vietnam.
 
-It is not an ERP, not an accounting package, and not a warehouse management system.
-Those products ask the user to model their business before they can record a sale.
-A depot cannot do that at 4 a.m. with a truck waiting.
+It is not a general ERP, accounting package, or warehouse-management suite. Its
+job is narrower and stricter: capture depot events quickly, preserve the
+commercial, money, and goods facts that resulted, and let an authorized worker
+trace or correct them without erasing history.
 
 ## Who uses it
 
-| User                         | Context                                                  | What they need                                                                |
-| ---------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Depot owner (chủ vựa), 40–60 | Knows every customer by name and roughly what each owes  | Trustworthy debt totals, the ability to undo a mistake without losing history |
-| Worker (nhân viên), any age  | Standing at a scale, phone in one hand, on 4G that drops | Entry in seconds, no lost writes, no duplicate charges after a retry          |
+| Persona          | Working context                                  | What they need                                                                                      |
+| ---------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Owner            | Oversees the depot and settles disputes          | Explain customer debt, supplier payable, inventory, corrections, reports and recovery               |
+| Accountant       | Records and reconciles money                     | Exact payments, reversals, adjustments, source links and attributable audit evidence                |
+| Sales worker     | Agrees and records customer sales                | Fast multi-line Sale capture, safe retry, explicit last-price reuse and clear correction boundaries |
+| Warehouse worker | Receives, counts, dispatches and accepts returns | Product/unit accuracy, attributable movements and no hidden money effect                            |
+| Delivery worker  | Carries goods and records fulfilment facts       | Clear dispatch/return assignments without authority to change commercial or money truth             |
 
-## What the product is for
+These role boundaries are technically enforced. Their fit with each depot remains
+field-unvalidated until ASM-017 and the relevant validation hypotheses are closed.
 
-1. **Capture operational transactions quickly.** Sales and payments get entered
-   during or shortly after the event, often from memory, often back-dated.
-2. **Preserve trustworthy debt and payment records.** What a customer owes is the
-   most contested number in the business. It must be reconstructible, attributable,
-   and never quietly edited.
-3. **Recover safely from mistakes.** Workers mistype. Customers dispute. The fix is
-   always a compensating record, never an erasure.
-4. **Trace inbound goods independently from money.** Supplier payable, Purchase
-   confirmation and physical Receiving remain separate, source-linked facts.
-5. **Progressively support better operational decisions.** Later — not now — the
-   accumulated ledger answers questions like who pays late and which customer is
-   worth extending credit to.
+## The three operating loops
+
+### Money Truth
+
+Customer Sale posting, customer Payment, reversal, void, replacement and debt
+adjustment produce an append-only customer account history. Purchase confirmation,
+supplier Payment, reversal, Purchase void and supplier adjustment do the same for
+supplier accounts. Every total must resolve to canonical, attributable sources.
+
+### Goods Flow
+
+Products and units anchor Purchase Receiving, receipt reversal, inventory
+adjustment, Sale Delivery, dispatch and return. Physical movement remains separate
+from the commercial agreement and from customer or supplier money.
+
+### Operational Control
+
+Workspace membership and capabilities, audit, immutable generated documents,
+controlled sharing, source-backed reports, export, restore, reconciliation and
+integrity checks let the depot operate and recover without rewriting canonical
+history.
+
+The cross-context rules are explicit in
+[product-invariants.md](product-invariants.md).
 
 ## Why this is hard
 
-- **The network is not reliable.** A submit button tapped twice on a stalled 4G
-  connection must not create two debts. Idempotency is a product requirement, not
-  a technical nicety.
-- **Recorded time ≠ transaction time.** Yesterday's sale entered this morning ages
-  from yesterday. One timestamp cannot mean both.
-- **Money is contested.** Every ledger movement must name an actor, a command, and
-  a cause.
-- **Vietnamese units are irregular.** kg, gram, lạng, bó, thùng, rổ, kiện, cái. A bó
-  of rau muống has no fixed mass; the system must not pretend otherwise.
-- **Đồng amounts are large and must be exact.** Floating point is disqualified.
+- **The network is unreliable.** A retry after a dropped response must resolve the
+  same command, not duplicate a Sale, payment, movement, document, or account
+  effect.
+- **Recorded time is not transaction time.** Business ordering and historical
+  balances must use the event's business time and a deterministic tie-break.
+- **Money and goods are contested.** Every effect needs one actor, command, source
+  and correction path.
+- **Vietnamese units are irregular.** kg, gram, lạng, bó, thùng, rổ, kiện and cái
+  are not interchangeable unless an explicit future policy says they are.
+- **Đồng and quantities must be exact.** Floating-point arithmetic is disqualified
+  from canonical effects.
+- **Recognition policy matters.** The software currently recognizes customer debt
+  at `PostSale` and supplier payable at `ConfirmPurchase`; owner validation is
+  still required by ASM-024 and ASM-025.
 
-## What "good" looks like
+## What good looks like
 
-- A worker records a sale in under ten seconds and never thinks about sync.
-- An owner can point at any number in a debt total and see which sale or payment
-  produced it, who entered it, and when.
-- A mistake is corrected in one action that leaves both the error and the fix
-  visible.
+The statements below deliberately separate implementation evidence from product
+evidence.
 
-## Current phase — pilot gate
+### Technically proven
 
-The vertical slice is **implemented end to end**, backend and browser. What has
-not been tested is whether it helps anybody, and the current phase is about
-getting a real worker in front of it without overstating what that will prove.
+- Quick Sale, explicit price recall, payment, reversal, correction and account
+  explanation use typed commands and source-linked PostgreSQL records.
+- Purchase confirmation, Receiving/reversal, inventory movement,
+  Dispatch/Return and supplier-account operations keep commercial, financial and
+  physical facts separate.
+- Documents are immutable snapshots whose authenticated reads verify their
+  digests; shares are revocable and expiry-aware.
+- Export/restore, projection rebuilds, reconciliation and integrity checks have
+  automated technical evidence, including transactional restore.
+- Duplicate-safe command receipts and offline Quick Sale synchronization preserve
+  one canonical effect for one command.
 
-### What exists
+### Field-validated
 
-```
-Authentication → Customer → Sale draft → Posted sale → Customer account entry
-              → Payment → Payment reversal → Sale void → Audit history
-```
+No workflow is yet claimed as field-validated. No real depot observation has
+proved that the implemented recognition moments, role split, speed, terminology,
+document sharing, or recovery procedure fit daily work.
 
-The command/query surface is implemented and tested against PostgreSQL. The
-canonical inventory is maintained in the use-case catalog and typed router rather
-than duplicated as a count here.
+### Still hypothetical
 
-| Commands                                                                             | Queries                                                   |
-| ------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| `CreateCustomer` · `UpdateCustomer` · `DeactivateCustomer` · `ReactivateCustomer`    | `session.me` · `session.workspaces` · `session.workspace` |
-| `CreateSaleDraft` · `UpdateSaleDraft` · `DiscardSaleDraft` · `PostSale` · `VoidSale` | `customer.search` · `customer.get`                        |
-| `RecordCustomerPayment` · `ReverseCustomerPayment`                                   | `sale.get` · `sale.list`                                  |
-| `AdjustCustomerDebt` · `RebuildAccountProjection`                                    | `payment.get` · `payment.list`                            |
-| member add/change/revoke/reactivate commands                                         | account balance/timeline/reconciliation/evidence · audit  |
+- A sales worker records a correct multi-line Sale unaided at depot pace.
+- A warehouse or delivery worker records Receiving, Dispatch and Return accurately
+  without mixing goods facts with money.
+- An owner can explain customer debt, supplier payable and inventory from source
+  documents without developer help.
+- An owner can share an appropriate document and complete export/restore under an
+  approved retention and recovery policy.
+- The current `PostSale` and `ConfirmPurchase` recognition moments match depot
+  commercial practice.
 
-Every use case in the [catalog](../02-use-cases/use-case-catalog.md) is
-implemented; no P0 rule is planned. The full surface is in
-[command-contracts.md](../06-api-contracts/command-contracts.md) and
-[read-models.md](../06-api-contracts/read-models.md).
+These claims are measured by H2–H6 in
+[validation-plan.md](validation-plan.md), not by treating a green test suite as
+field evidence.
 
-### What is complete, and what that does not mean
+## Delivered boundary
 
-The browser now closes the technical workflows through M21, with M21.5 integrity
-and maintainability hardening: Quick Sale,
-void/replacement correction, payment/reversal, debt adjustment, explainable
-account reconciliation, member/role administration, and customer lifecycle.
-These flows use the typed API and PostgreSQL in automated end-to-end tests.
-Supplier payment, Purchase correction, Receiving/reversal and per-unit inventory
-movement, Sale fulfilment/return, immutable operational documents, secure
-sharing, and source-backed reports are included.
-
-**Nobody has recorded a real sale in this software.** Every claim in "What good
-looks like" above — ten seconds, no lost writes, a correction anybody can follow —
-is an intention rather than a measurement, and a passing test suite is not
-evidence for any of them.
-
-That gap is the whole of the current phase.
-
-## The two hypotheses under test
+The technical workflow surface through M21.5 is implemented across the three
+loops:
 
 ```text
-H1 — frontend commands integrate safely with the real backend
-H2 — a worker records a real multi-line sale accurately, unaided, within the
-     target time
+Customer → Sale → customer account → Payment/correction
+Supplier → Purchase → supplier account → Receiving → Inventory
+Sale → Delivery → Return
+Canonical sources → Documents/shares/reports → Export/restore/integrity
 ```
 
-**H1 is testable by us.** It asks whether idempotency, capabilities, version
-conflicts and the unknown-network path behave against a real server and a real
-database, rather than against fixtures. Automated tests can settle it, and
-[validation-plan.md](validation-plan.md) says which ones.
+M21.6 closes product-policy classification, vision, catalog and traceability
+gaps. It adds no runtime behavior and does not open M22.
 
-**H2 is not.** It asks whether a depot worker, on their own phone, at their own
-pace, gets the right sale into the system without help and inside the time it
-should take. No test in this repository can answer that, and no green suite should
-be reported as if it had. It is settled by watching 15–20 real transactions, which
-is what [pilot-worksheet.md](pilot-worksheet.md) is for.
+The authoritative command/query inventory lives in
+[command-contracts.md](../06-api-contracts/command-contracts.md),
+[read-models.md](../06-api-contracts/read-models.md), and the
+[use-case catalog](../02-use-cases/use-case-catalog.md). The
+[scope](scope.md) records the delivered boundary without confusing it with field
+validation.
 
-H2 previously read _"faster than the current paper/memory process"_. That is a
-comparison, and the pilot never measured the process it compared against — so the
-claim was a size larger than any evidence it could produce. The worker's own
-recording is still observed, and it now does the job it is actually good for:
-it is the **reference copy of what was sold**, against which the recorded sale is
-checked for accuracy. [Why in full](validation-plan.md).
+## Current validation phase
 
-The order matters. Putting an unsafe workflow in front of a depot would produce
-feedback about the wrong thing — and if it duplicated a receivable, it would cost
-somebody real money to find out.
+H1, backend/browser integration safety, has technical evidence on the real stack.
+H2–H6 remain field hypotheses. ASM-024 and ASM-025 are mandatory owner-validation
+actions before real Sale posting or Purchase confirmation because a contrary
+answer would change money-recognition semantics.
 
-See [scope.md](scope.md) for the current delivered boundary and
-[roadmap.md](roadmap.md) for the product direction.
+See:
 
-## Related
-
-- Scope: [scope.md](scope.md)
-- Roadmap: [roadmap.md](roadmap.md)
-- Glossary: [../01-domain/glossary.md](../01-domain/glossary.md)
-- Ledger design: [../07-data/ledger-model.md](../07-data/ledger-model.md)
-- Open policy questions: [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md)
+- [validation-plan.md](validation-plan.md)
+- [decision-backlog.md](../09-decisions/decision-backlog.md)
+- [roadmap.md](roadmap.md)
+- [scope.md](scope.md)

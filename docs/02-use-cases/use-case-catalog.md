@@ -1,16 +1,19 @@
 # Use-case catalog
 
-Every use case in the vertical slice, in the order a depot actually performs them:
+Every implemented use case in the depot transaction workflow:
 
 ```
-Authentication → Customer → Sale draft → Post sale → Customer account
-              → Payment → Payment reversal → Sale void → Audit and recovery
+Identity/workspace
+  → Customer → Sale → customer account → Payment/correction
+  → Supplier → Purchase → supplier account → Receiving → Inventory
+  → Delivery → Return
+  → Audit → Documents/sharing/reports → Export/restore/integrity
 ```
 
 **Status** is the honest one: `implemented` means the backend does it and a test
-proves it. As of the operations milestone **every use case in this slice is
-implemented** — nothing is left `planned`, and `pnpm trace:check` reports zero
-planned rules.
+proves the stated technical behavior. It does not mean a depot has field-validated
+the workflow. As of M21.5 every catalogued use case is implemented; nothing is
+left `planned`, and `pnpm trace:check` reports zero planned rules.
 
 The former operator-only projection rebuild remains available, but UC-ACCOUNT-003
 now has a typed reconciliation read and an audited, capability-gated command. The
@@ -54,21 +57,23 @@ command refuses source or ledger corruption rather than hiding it.
 ## The template every use case answers
 
 A use case in this repository is not a description of a screen. It is the contract
-one operation must satisfy, and it is incomplete until all nineteen fields are
+one operation must satisfy, and it is incomplete until all twenty fields are
 answered — several of the most expensive mistakes in this system would have been
 caught by the field that was skipped.
 
 ```
 actor · trigger · preconditions · permission · inputs · happy path
 alternative and rejection paths · state transition · account effect · audit effect
-idempotency · concurrency · offline policy · result DTO · capabilities
+goods effect · idempotency · concurrency · offline policy · result DTO · capabilities
 rules · cases · planned tests · UI states
 ```
 
-Three of these are load-bearing and easy to leave blank:
+Four of these are load-bearing and easy to leave blank:
 
 - **account effect** — writing "none" is an assertion, and it gets a test
   (BR-SALE-010 exists because of this field);
+- **goods effect** — Receiving, Dispatch and Return name their source-linked
+  movement; a commercial or money-only command states `none`;
 - **offline policy** — a depot works without signal; "not supported" is a valid
   answer, but it has to be given;
 - **UI states** — every path above has to be renderable, including the ones nobody

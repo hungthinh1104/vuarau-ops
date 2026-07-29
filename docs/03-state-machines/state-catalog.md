@@ -1,139 +1,123 @@
 # State catalog
 
-Every persisted lifecycle value in the system, and every derived state that looks
-like one but is not stored. Adding a value to any of these enums requires updating
-this file and the corresponding [transition catalog](transition-catalog.md) entry —
-see [../10-ai-coding/CHANGE_PROTOCOL.md](../10-ai-coding/CHANGE_PROTOCOL.md).
+Every versioned aggregate lifecycle and every persisted or derived condition that
+behaves like state. Adding a value requires updating this catalog, the
+[transition catalog](transition-catalog.md), contracts, rules and tests.
 
-## Sale status — `SaleStatus` (stored)
+## Versioned aggregates
 
-Defined in `packages/domain-contracts/src/sale/index.ts`.
+Each aggregate starts at version 1 and increments by one for every successful
+command that changes its mutable state.
 
-| Value    | Meaning                                     | Terminal | Financial effect on entry  | Reachable from |
-| -------- | ------------------------------------------- | -------- | -------------------------- | -------------- |
-| `draft`  | Being entered. May be empty, may be edited. | no       | none (BR-SALE-010)         | creation       |
-| `posted` | Completed sale. The customer owes the total | **yes**  | one account entry `+total` | `draft`        |
+| Aggregate       | Stored lifecycle                                | Mutable transitions                                 | Terminal boundary   |
+| --------------- | ----------------------------------------------- | --------------------------------------------------- | ------------------- |
+| Customer        | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
+| Product         | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
+| Supplier        | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
+| Sale            | `draft`, `posted`, `discarded`                  | update draft, post, discard                         | posted/discarded    |
+| Payment         | `recorded`, `partially_reversed`, `reversed`    | reverse remaining amount                            | reversed            |
+| SupplierPayment | `recorded`, `partially_reversed`, `reversed`    | reverse remaining amount                            | reversed            |
+| Purchase        | `draft`, `confirmed`, `discarded`               | update draft, confirm, discard                      | confirmed/discarded |
+| Delivery        | `draft`, `cancelled`, `dispatched`, `delivered` | update/cancel draft, dispatch, acknowledge delivery | cancelled/delivered |
 
-Two values, and the second is terminal. That is the whole stored lifecycle.
+Document `version` is an immutable sequence number per source document, not an
+optimistic-concurrency lifecycle. Memberships, voids, receipt reversals, returns,
+adjustments, account entries and inventory movements are immutable or adjacent
+facts rather than versioned aggregates.
 
-`posted` is terminal because a posted sale is immutable (BR-SALE-008). Everything
-that can happen to it afterwards — voiding, replacement — is recorded **beside**
-it, never in it.
+## Stored lifecycle details
 
-## Sale financial state — `SaleFinancialState` (derived)
+### Sale
 
-Computed at read time from the presence of a `sale_voids` row. Not a column.
+| Value       | Meaning                              | Direct effect                       |
+| ----------- | ------------------------------------ | ----------------------------------- |
+| `draft`     | Editable commercial proposal         | none                                |
+| `posted`    | Immutable agreed Sale                | one customer account entry `+total` |
+| `discarded` | Abandoned draft retained for history | none                                |
 
-| Value    | Derivation                                  | Meaning                                   |
-| -------- | ------------------------------------------- | ----------------------------------------- |
-| `active` | `status = posted` and no void record exists | The receivable stands                     |
-| `voided` | `status = posted` and a void record exists  | Fully compensated; the net effect is zero |
+### Customer and supplier Payment
 
-Why derived rather than stored: a stored `voided` flag would be a second place the
-truth lives, and keeping it in step would mean updating a row the system has
-promised never to update. Deriving it makes "a voided sale nets to zero" true by
-construction — the void record and the compensating entry are written in the same
-transaction, so a sale cannot be marked voided without the money having moved.
+Both use the same lifecycle, recomputed from canonical `amount` and
+`reversedAmount` on each write:
 
-A `draft` sale has no financial state. It has no financial effect to have a state
-about.
+| Value                | Derivation                                     |
+| -------------------- | ---------------------------------------------- |
+| `recorded`           | reversed amount is zero                        |
+| `partially_reversed` | reversed amount is above zero and below amount |
+| `reversed`           | reversed amount equals amount                  |
 
-## Sale due state — `SaleDueState` (derived)
+### Purchase
 
-Computed at read time from `sale.dueAt` and the reading clock (BR-SALE-017).
+| Value       | Meaning                              | Direct effect                       |
+| ----------- | ------------------------------------ | ----------------------------------- |
+| `draft`     | Editable commercial proposal         | none                                |
+| `confirmed` | Immutable agreed Purchase            | one supplier account entry `+total` |
+| `discarded` | Abandoned draft retained for history | none                                |
 
-| Value         | Derivation      | Meaning                       |
-| ------------- | --------------- | ----------------------------- |
-| `no_due_date` | `dueAt IS NULL` | No term was agreed            |
-| `due`         | `dueAt >= now`  | A term was agreed, not yet up |
-| `overdue`     | `dueAt < now`   | The agreed date has passed    |
+### Delivery
 
-`no_due_date` is deliberately **not** a synonym for `overdue`. Most depot sales
-carry no term at all, and calling them overdue would put every customer on a chase
-list the day they buy. See ASM-016, which this bounds without closing.
+| Value        | Meaning                                                  | Direct effect                  |
+| ------------ | -------------------------------------------------------- | ------------------------------ |
+| `draft`      | Editable fulfilment proposal for a posted, non-void Sale | none                           |
+| `cancelled`  | Abandoned before dispatch                                | none                           |
+| `dispatched` | Goods left inventory                                     | one negative movement per line |
+| `delivered`  | Completion acknowledged                                  | none beyond dispatch           |
 
-## Payment status — `PaymentStatus` (stored)
+Returns are immutable adjacent facts with positive movements; they do not rewrite
+Delivery, Sale, or customer money.
 
-Defined in `packages/domain-contracts/src/payment/index.ts`.
+## Derived business states
 
-| Value                | Meaning                           | Terminal | Derivation                    | Reachable from                   |
-| -------------------- | --------------------------------- | -------- | ----------------------------- | -------------------------------- |
-| `recorded`           | Money received, nothing reversed. | no       | `reversedAmount = 0`          | creation                         |
-| `partially_reversed` | Some of it undone.                | no       | `0 < reversedAmount < amount` | `recorded`, itself               |
-| `reversed`           | Fully undone.                     | **yes**  | `reversedAmount = amount`     | `recorded`, `partially_reversed` |
+These are read-time views of canonical facts, never independent truth.
 
-Stored, but never assigned directly: recomputed from `reversedAmount` on every
-write (BR-PAYMENT-008), so the column cannot contradict the amounts.
+| State family               | Values or condition                                            | Canonical derivation                                                                |
+| -------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Sale financial             | `active`, `voided`                                             | posted Sale plus absence/presence of `sale_voids`                                   |
+| Sale due                   | `no_due_date`, `due`, `overdue`                                | nullable `dueAt` compared with the reading clock                                    |
+| Purchase financial         | active/voided condition                                        | confirmed Purchase plus absence/presence of `purchase_voids`; no public stored enum |
+| Purchase receiving         | remaining/complete quantities per line                         | Purchase line quantity minus active Receipts plus reversals; no stored status       |
+| Receipt                    | active/reversed condition                                      | Receipt plus absence/presence of its immutable reversal; no stored status           |
+| Delivery fulfilment        | dispatched, returned and net quantities                        | Delivery lines plus immutable return lines                                          |
+| Document share             | available, expired or revoked condition                        | token digest, `expiresAt` and `revokedAt`; no stored public-read status             |
+| Customer balance           | `receivable`, `settled`, `customer_credit`                     | sign of canonical customer account sum                                              |
+| Supplier balance           | `payable`, `settled`, `supplier_credit`                        | sign of canonical supplier account sum                                              |
+| Inventory                  | `positive`, `zero`, `negative`                                 | sign of canonical Product/unit movement sum                                         |
+| Customer reconciliation    | `consistent`, `inconsistent`, `not_found`, `integrity_failure` | canonical customer ledger versus projection and source integrity                    |
+| Supplier reconciliation    | `consistent`, `inconsistent`, `not_found`, `integrity_failure` | canonical supplier ledger versus projection and source integrity                    |
+| Inventory reconciliation   | `consistent`, `inconsistent`, `not_found`, `integrity_failure` | canonical movements versus projection and source integrity                          |
+| Workspace/report integrity | `healthy`, `attention`                                         | source, projection, reference and digest checks                                     |
 
-## Balance classification — `BalanceClassification` (derived)
+Negative customer, supplier or inventory values are retained facts with explicit
+classifications. They are not silently clamped or rejected.
 
-Computed at read time from the sign of the customer account balance
-(BR-ACCOUNT-009).
+## Internal persisted state
 
-| Value             | Derivation    | Meaning                        |
-| ----------------- | ------------- | ------------------------------ |
-| `receivable`      | `balance > 0` | The customer owes the depot    |
-| `settled`         | `balance = 0` | Nothing outstanding either way |
-| `customer_credit` | `balance < 0` | The depot owes the customer    |
+`command_receipts` use `in_progress` and `completed` to coordinate idempotent
+execution. This is infrastructure recovery state, not a business aggregate
+lifecycle. Offline queue state is client-only; the server sees either an
+uncommitted command or one atomic committed receipt and result.
 
-## Purchase status — `PurchaseStatus` (stored)
+## Values that are not states
 
-| Value       | Meaning                                  | Terminal | Supplier effect    |
-| ----------- | ---------------------------------------- | -------- | ------------------ |
-| `draft`     | Editable commercial document             | no       | none               |
-| `confirmed` | Immutable Purchase snapshot              | yes      | one `+total` entry |
-| `discarded` | Abandoned draft retained without effects | yes      | none               |
+| Tempting value                      | Why it is not a state                                             |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| paid/unpaid Sale                    | Payments are not allocated to Sales; customer balance is separate |
+| delivered/returned Sale             | Delivery and Return are physical facts, not Sale lifecycle        |
+| received Purchase                   | Receipts are physical facts, not Purchase lifecycle               |
+| voided Sale/Purchase column         | Void is an immutable adjacent record and compensating effect      |
+| has-debt Customer                   | Derived from canonical account entries                            |
+| synced/pending-upload server status | Offline queue state belongs to the client                         |
+| report total                        | A disposable view that must resolve to canonical sources          |
 
-Voiding is a derived financial state from a separate `purchase_voids` row, not a
-status mutation. Receipt progress is also derived and does not enter this enum.
+## Cross-context boundary
 
-## Supplier balance and inventory classifications (derived)
-
-Supplier balance is `payable` above zero, `settled` at zero and
-`supplier_credit` below zero. Inventory per Product/unit is `positive`, `zero` or
-`negative`. Negative values are retained facts, not invalid states.
-
-## Delivery status — `DeliveryStatus` (stored)
-
-| Value        | Meaning                               | Terminal | Inventory effect      |
-| ------------ | ------------------------------------- | -------- | --------------------- |
-| `draft`      | Editable physical fulfilment proposal | no       | none                  |
-| `cancelled`  | Abandoned before dispatch             | yes      | none                  |
-| `dispatched` | Goods left inventory                  | no       | one negative per line |
-| `delivered`  | Completion was acknowledged           | yes      | none beyond dispatch  |
-
-Returns are immutable adjacent records with positive compensating movements;
-they do not rewrite Delivery status or Sale financial history.
-
-## Values that are NOT states
-
-Recorded here so nobody adds them later thinking they were forgotten.
-
-| Tempting "status"           | Where it actually lives                    | Why not a status                                                                                   |
-| --------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `paid` / `unpaid` sale      | The customer account balance               | Payments are not allocated to sales (ASM-004); a sale has no payment state                         |
-| `voided` sale               | Derived from `sale_voids`                  | Storing it would mean updating a row promised to be immutable (BR-SALE-008)                        |
-| `overdue` customer          | Derived per sale from `dueAt` at read time | Time-dependent conditions must not be frozen into a column a cron job has to keep true             |
-| `has_debt` customer         | `SUM(account entries) ≠ 0`                 | Derived; storing it creates a second source of truth for the one number that must be unambiguous   |
-| `cancelled` sale            | Nowhere — the concept was removed          | A posted sale is voided, a draft is discarded. "Cancelled" collapsed two different events into one |
-| `delivered` sale            | The separate Delivery aggregate            | Physical fulfilment is a separate lifecycle and never a Sale status                                |
-| `returned` sale             | Immutable Delivery return records          | Returns compensate inventory; they do not become a Sale status or silently change customer debt    |
-| `synced` / `pending_upload` | Client-side only                           | The server has no concept of a half-arrived command; a command either committed or did not         |
-
-## Aggregate version
-
-`sales.version`, `payments.version`, and `customers.version` are integers starting
-at 1, incremented by exactly one on every successful state-changing command. They
-are the optimistic-concurrency token (BR-SALE-006, BR-PAYMENT-007), not a state.
-
-A posted sale's version never moves again, because nothing updates the row.
-`VoidSale` therefore takes no `expectedVersion`: there is no lost update to lose,
-and demanding a version the caller cannot affect would be theatre. Concurrency for
-voiding is handled by a row lock plus `UNIQUE (sale_id)` on `sale_voids`
-(BR-SALE-013).
+Commercial, financial and physical state remain separate dimensions. A transition
+may cross dimensions only when its named rule declares the effect. See
+[product-invariants.md](../00-product/product-invariants.md).
 
 ## Related
 
+- [transition-catalog.md](transition-catalog.md)
 - [sale-state-machine.md](sale-state-machine.md)
 - [payment-state-machine.md](payment-state-machine.md)
-- [transition-catalog.md](transition-catalog.md)
+- [purchase-state-machine.md](purchase-state-machine.md)

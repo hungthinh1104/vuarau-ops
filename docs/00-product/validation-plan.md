@@ -1,16 +1,22 @@
 # Validation plan
 
-How H1 and H2 get settled, and what would count as settling them.
+How the integration and field hypotheses get settled, and what would count as
+settling them.
 
 ```text
 H1 — frontend commands integrate safely with the real backend
 H2 — a worker records a real multi-line sale accurately, unaided, within the
      target time
+H3 — a warehouse worker records Receiving accurately
+H4 — warehouse and delivery workers record Dispatch and Return safely
+H5 — an owner explains customer, supplier and inventory totals
+H6 — an owner exports and restores without developer assistance
 ```
 
-The two need different evidence, and conflating them is the failure this document
-exists to prevent. **A green test suite is evidence for H1 and evidence for
-nothing else.** No count of passing tests may be reported as product validation.
+The hypotheses need different evidence, and conflating them is the failure this
+document exists to prevent. **A green test suite is technical evidence for H1 and
+prerequisite evidence for the other workflows; it is not field validation.** No
+count of passing tests may be reported as product validation.
 
 > **H2 was reworded on 2026-07-27.** It previously read _"a worker can record a
 > real multi-line sale **faster than the current paper/memory process**"_. That
@@ -194,20 +200,100 @@ starts owing money, and that answer cannot be recovered from the data afterwards
 
 ---
 
-## Known gaps that would affect either hypothesis
+Before a real posted Sale or confirmed Purchase, also complete the
+[ASM-024 worksheet](../09-decisions/ASM-024-post-sale-meaning-worksheet.md) and
+[ASM-025 worksheet](../09-decisions/ASM-025-supplier-payable-recognition-worksheet.md).
+A usability observation cannot substitute for the owner's recognition decision.
+
+## H3 — accurate Receiving
+
+**Still hypothetical.** Observe a warehouse worker receive real goods against the
+depot's independent supplier record.
+
+Pass only when:
+
+```text
+Product, unit, quantity and transaction time match the independent record
+every receipt and reversal has one source-linked inventory movement
+the worker can explain that Receiving changed goods but not supplier payable
+no duplicate movement appears after a recoverable retry
+no facilitator takes over
+```
+
+Record split receipts, weight differences, rejected goods and the worker's own
+words. ASM-025 must be answered before interpreting supplier-money results.
+
+## H4 — safe Dispatch and Return
+
+**Still hypothetical.** Observe warehouse and delivery workers dispatch a posted
+Sale and record any real return.
+
+Pass only when:
+
+```text
+loaded and returned Product/unit quantities match the independent physical record
+Dispatch creates one negative movement per line and Return one positive movement
+customer debt does not change as a hidden consequence
+the worker can distinguish dispatched, delivered and returned facts
+retry does not duplicate a movement
+no facilitator takes over
+```
+
+If a task would make inventory negative, record the event and activate ASM-027's
+owner-decision trigger rather than declaring the current default validated.
+
+## H5 — owner explains customer, supplier and inventory totals
+
+**Still hypothetical.** Give the owner three real disputed or non-trivial totals:
+one customer balance, one supplier balance and one Product/unit quantity. Do not
+tell them which document to open.
+
+Pass only when the owner:
+
+```text
+states each total with the correct sign, unit and classification
+drills from projection or report to every canonical source needed to explain it
+identifies a void, reversal, return or adjustment without developer help
+distinguishes transaction time from recorded time
+finds no unresolved or unattributable effect
+```
+
+Automated reconciliation proves the implementation can compare projections with
+canonical history. It cannot prove the owner understands the explanation.
+
+## H6 — owner exports and restores without developer assistance
+
+**Still hypothetical.** In an approved recovery environment, ask the owner to
+export a workspace, prepare the documented empty target, restore it, and inspect
+integrity and reconciliation results.
+
+Pass only when:
+
+```text
+the owner completes the documented path without a developer taking over
+the restored workspace reports healthy integrity and consistent reconciliations
+canonical source links resolve and command retry history is preserved
+repeating the Restore command creates no duplicate canonical rows
+the owner can say what is backed up, retained, encrypted and recoverable
+```
+
+The final criterion cannot pass until ASM-031 has owned production RPO/RTO,
+retention, encryption and restore-drill requirements.
+
+---
+
+## Known gaps and policy gates
 
 Recorded rather than worked around, because a gap a pilot rediscovers is a wasted
 session.
 
-| Gap                                                      | Effect                                                                              |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| No sign-in screen                                        | Resolved: Supabase email OTP is the production sign-in path                         |
-| No `workspace.list` procedure                            | Resolved: `session.workspaces` is server-derived from the verified actor            |
-| No offline queue                                         | A transaction attempted with no signal is held in the tab and lost if it is closed  |
-| No product recall or last price                          | Every line is typed in full, which is the largest single cost in the timing target  |
-| `AdjustCustomerDebt` has no screen                       | An owner correcting an opening balance cannot do it in the UI yet                   |
-| Reads are not audited (ASM-022)                          | "Who looked at this balance" is unanswerable                                        |
-| The role table is a developer's guess (ASM-017, ASM-018) | A pilot may reveal that `sales` should or should not hold a permission it has today |
+| Gap or gate                                                                  | Effect                                                                                  |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Reads are not audited (ASM-022)                                              | “Who looked at this balance?” remains unanswerable                                      |
+| Role mapping and migrated owners need confirmation (ASM-017/018)             | A field session may expose a capability mismatch; roles must be assigned before go-live |
+| Sale and supplier recognition need owner signatures (ASM-024/025)            | Real money entries must not be created until the owner confirms the business event      |
+| Delivery cash handling is undefined (ASM-029)                                | Do not pilot driver cash collection before the trigger is resolved                      |
+| Sharing/retention and production recovery policy are unwritten (ASM-030/031) | Real-data public sharing and production readiness remain blocked                        |
 
 ## Related
 
@@ -218,4 +304,6 @@ session.
 - [../08-qa/test-strategy.md](../08-qa/test-strategy.md) — what the automated suites do and do not cover
 - [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md) — the ASM entries a pilot could settle
 - [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — the four questions for the owner
+- [../09-decisions/ASM-024-post-sale-meaning-worksheet.md](../09-decisions/ASM-024-post-sale-meaning-worksheet.md) — Sale recognition validation
+- [../09-decisions/ASM-025-supplier-payable-recognition-worksheet.md](../09-decisions/ASM-025-supplier-payable-recognition-worksheet.md) — supplier recognition validation
 - [../09-decisions/ADR-0014-debt-recognition-at-posting.md](../09-decisions/ADR-0014-debt-recognition-at-posting.md) — when a customer starts owing

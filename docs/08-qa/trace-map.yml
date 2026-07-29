@@ -83,8 +83,8 @@ use_cases:
     tests: [TC-AUTH-014, TC-AUTH-015, TC-AUTH-016, TC-WEB-024, TC-WEB-025, TC-E2E-021]
     implementation:
       - apps/api/src/modules/session/session.queries.ts
-      - apps/api/src/infrastructure/trpc/router.ts
-      - packages/db/src/repositories/index.ts
+      - apps/api/src/infrastructure/trpc/routers/session.ts
+      - packages/db/src/repositories/write/workspace.ts
 
   UC-AUTH-005:
     title: Manage workspace members and roles
@@ -121,7 +121,7 @@ use_cases:
     tests: [TC-READ-002, TC-READ-008, TC-READ-012]
     implementation:
       - apps/api/src/modules/customer/customer.queries.ts
-      - packages/db/src/repositories/read-queries.ts
+      - packages/db/src/repositories/read/customer.ts
 
   UC-CUSTOMER-003:
     title: View a customer
@@ -265,7 +265,7 @@ use_cases:
     implementation:
       - apps/api/src/modules/sale/sale.queries.ts
       - packages/domain-kernel/src/sale/capabilities.ts
-      - packages/db/src/repositories/read-queries.ts
+      - packages/db/src/repositories/read/sale.ts
 
   UC-SALE-004:
     title: Void a sale, and post a replacement
@@ -394,7 +394,7 @@ use_cases:
       ]
     implementation:
       - apps/api/src/modules/account/account.queries.ts
-      - packages/db/src/repositories/read-queries.ts
+      - packages/db/src/repositories/read/account.ts
 
   UC-ACCOUNT-002:
     title: Adjust a customer account by hand
@@ -486,7 +486,7 @@ use_cases:
     tests: [TC-READ-007]
     implementation:
       - apps/api/src/modules/audit/audit.queries.ts
-      - packages/db/src/repositories/read-queries.ts
+      - packages/db/src/repositories/read/audit.ts
 
   UC-SUPPLIER-001:
     title: Manage and explain supplier payable
@@ -542,7 +542,7 @@ use_cases:
     tests: [TC-GOODS-001, TC-GOODS-004, TC-GOODS-005, TC-E2E-029]
     implementation:
       - apps/api/src/modules/inventory/inventory.queries.ts
-      - packages/db/src/repositories/read-queries.ts
+      - packages/db/src/repositories/read/inventory.ts
       - apps/web/src/app/(app)/products/[productId]/inventory/page.tsx
 
   UC-DELIVERY-001:
@@ -724,7 +724,7 @@ business_rules:
     doc: docs/04-business-rules/goods-flow-rules.md
     cases: []
     tests: [TC-GOODS-005]
-    implementation: [packages/db/src/repositories/read-queries.ts]
+    implementation: [packages/db/src/repositories/read/inventory.ts]
   BR-INVENTORY-009:
     title: M18 does not infer outbound movement from Sale
     risk: P0
@@ -930,7 +930,7 @@ business_rules:
     tests: [TC-SALE-029]
     implementation:
       - apps/api/src/modules/sale/sale.queries.ts
-      - packages/db/src/repositories/read-queries.ts
+      - packages/db/src/repositories/read/sale.ts
 
   BR-SALE-022:
     title: A Sale detail view is derived from the Sale and its ledger effect
@@ -1226,7 +1226,7 @@ business_rules:
     tests: [TC-AUTH-003]
     implementation:
       - apps/api/src/modules/shared/authorization.ts
-      - packages/db/src/repositories/index.ts
+      - packages/db/src/repositories/write/workspace.ts
 
   BR-AUTH-004:
     title: Every command requires a permission its role carries
@@ -1266,7 +1266,7 @@ business_rules:
     tests: [TC-AUTH-013]
     implementation:
       - packages/domain-kernel/src/session/revoke-membership.ts
-      - packages/db/src/repositories/index.ts
+      - packages/db/src/repositories/write/workspace.ts
 
   BR-AUTH-008:
     title: Workspace discovery answers from the token and takes no input
@@ -1276,8 +1276,8 @@ business_rules:
     tests: [TC-AUTH-014, TC-AUTH-015, TC-AUTH-016]
     implementation:
       - apps/api/src/modules/session/session.queries.ts
-      - apps/api/src/infrastructure/persistence/ports.ts
-      - packages/db/src/repositories/index.ts
+      - apps/api/src/infrastructure/trpc/routers/session.ts
+      - packages/db/src/repositories/write/workspace.ts
 
   BR-AUTH-009:
     title: Membership management is owner-only and preserves attribution
@@ -1298,7 +1298,9 @@ business_rules:
     tests: [TC-READ-004, TC-READ-008, TC-READ-012]
     implementation:
       - packages/domain-contracts/src/shared/pagination.ts
-      - packages/db/src/repositories/read-queries.ts
+      - packages/db/src/repositories/shared/read-helpers.ts
+      - packages/db/src/repositories/read/customer.ts
+      - packages/db/src/repositories/read/account.ts
       - packages/db/migrations/0005_read_models.sql
 
   BR-READ-002:
