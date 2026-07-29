@@ -8,6 +8,7 @@ describe("TC-WEB-029 — role-aware pilot navigation", () => {
     const sales = navigationFor(permissionsForRole("sales"))
       .flatMap((group) => group.items)
       .map((item) => item.label);
+    expect(sales).toContain("Ghi đơn nhanh");
     expect(sales).toContain("Đơn hàng");
     expect(sales).toContain("Khách hàng");
     expect(sales).not.toContain("Nhận hàng");

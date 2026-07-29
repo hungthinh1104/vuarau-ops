@@ -16,6 +16,7 @@ const DESKTOP_NAVIGATION: readonly NavigationGroup[] = [
   {
     label: "Vận hành",
     items: [
+      { label: "Ghi đơn nhanh", href: "/sales/new", permission: "sale.create" },
       { label: "Đơn hàng", href: "/sales", permission: "sale.read" },
       { label: "Nhận hàng", href: "/purchases", permission: "receiving.read" },
       { label: "Tồn kho", href: "/products", permission: "inventory.read" },
