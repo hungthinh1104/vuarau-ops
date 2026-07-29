@@ -11,6 +11,11 @@ type Bucket = { count: number; resetsAt: number };
 
 export class FixedWindowRateLimiter {
   private readonly buckets = new Map<string, Bucket>();
+  private readonly windowMs: number;
+
+  constructor(windowMs: number) {
+    this.windowMs = windowMs;
+  }
 
   allow(key: string, limit: number, now = Date.now()): boolean {
     if (this.buckets.size >= 10_000) {
@@ -27,8 +32,6 @@ export class FixedWindowRateLimiter {
     current.count += 1;
     return true;
   }
-
-  constructor(private readonly windowMs: number) {}
 }
 
 const sendRefusal = (res: ServerResponse, status: 413 | 429): void => {
