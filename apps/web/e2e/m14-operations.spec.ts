@@ -14,7 +14,7 @@ test.describe("M14 — owner operations", () => {
     for await (const chunk of file) chunks.push(Buffer.from(chunk));
     const text = Buffer.concat(chunks).toString("utf8");
     const backup = JSON.parse(text) as { version: number; digest: string };
-    expect(backup.version).toBe(2);
+    expect(backup.version).toBe(3);
     expect(backup.digest).toMatch(/^[a-f0-9]{64}$/);
     expect(text).not.toMatch(/SUPABASE|bearer|password|jwt/i);
   });
