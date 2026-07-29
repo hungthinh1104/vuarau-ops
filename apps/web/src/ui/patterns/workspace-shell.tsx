@@ -35,9 +35,9 @@ export type WorkspaceShellProps = {
  * glance, which set of books they are writing into. A header that only shows it on
  * a settings page is a header that lets a sale land in the wrong depot.
  *
- * Mobile-first: one column, 16px padding, content max-width for the desk. There is
- * no sidebar yet because there is nothing to navigate to — design.md's web
- * navigation arrives with the screens it points at, not before them.
+ * Mobile-first: one column, 16px padding, content max-width for the desk. The
+ * desktop sidebar and mobile navigation expose only destinations backed by the
+ * current session's server-authored capabilities.
  */
 export function WorkspaceShell({
   workspaceName,

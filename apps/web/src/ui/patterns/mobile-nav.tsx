@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { activeNavigationHref } from "./pilot-navigation.ts";
 
 const ITEMS = [
-  { label: "Hôm nay", href: "/today", matches: ["/today"] },
-  { label: "Đơn hàng", href: "/sales", matches: ["/sales"] },
-  { label: "Khách hàng", href: "/customers", matches: ["/customers"] },
-  { label: "Công việc", href: "/today#work", matches: [] },
-  { label: "Thêm", href: "/today#more", matches: [] },
+  { label: "Hôm nay", href: "/today", activeHref: "/today" },
+  { label: "Đơn hàng", href: "/sales", activeHref: "/sales" },
+  { label: "Khách hàng", href: "/customers", activeHref: "/customers" },
+  { label: "Công việc", href: "/today#work", activeHref: null },
+  { label: "Thêm", href: "/today#more", activeHref: null },
 ] as const;
 
 export function MobileNav() {
   const pathname = usePathname() ?? "";
+  const activeHref = activeNavigationHref(pathname);
   return (
     <nav
       aria-label="Điều hướng di động"
@@ -20,9 +22,7 @@ export function MobileNav() {
     >
       <ul className="mx-auto grid max-w-xl grid-cols-5">
         {ITEMS.map((item) => {
-          const active = item.matches.some(
-            (path) => pathname === path || pathname.startsWith(`${path}/`),
-          );
+          const active = item.activeHref !== null && activeHref === item.activeHref;
           return (
             <li key={item.label}>
               <Link

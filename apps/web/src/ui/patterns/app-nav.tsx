@@ -22,7 +22,7 @@ export function AppNav({ permissions }: { readonly permissions: readonly Permiss
             </h2>
             <ul className="grid gap-1">
               {group.items.map((item) => {
-                const active = navigationItemIsActive(pathname, item.href);
+                const active = navigationItemIsActive(pathname, item);
                 return (
                   <li key={`${group.label}:${item.label}`}>
                     <Link

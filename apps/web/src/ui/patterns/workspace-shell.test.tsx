@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   ownerSession,
@@ -8,7 +8,8 @@ import {
 } from "../../fixtures/session.fixtures.ts";
 import { WorkspaceShell } from "./workspace-shell.tsx";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/today" }));
+const navigationState = vi.hoisted(() => ({ pathname: "/today" }));
+vi.mock("next/navigation", () => ({ usePathname: () => navigationState.pathname }));
 
 describe("Goods Truth workspace navigation", () => {
   it("exposes supplier and Purchase reads to every role with server capabilities", () => {
@@ -88,5 +89,41 @@ describe("Goods Truth workspace navigation", () => {
           ),
       ).not.toBeNull();
     }
+  });
+
+  it.each([
+    ["/sales/new", salesSession, "Ghi đơn nhanh", null],
+    ["/sales", salesSession, "Đơn hàng", "Đơn hàng"],
+    ["/sales/00000000-0000-0000-0000-000000000001", salesSession, "Đơn hàng", "Đơn hàng"],
+    ["/customers", salesSession, "Khách hàng", "Khách hàng"],
+    ["/workspace/operations", ownerSession, "Vận hành", null],
+    ["/today", salesSession, "Hôm nay", "Hôm nay"],
+  ])("exposes one current location for %s", (pathname, session, desktopLabel, mobileLabel) => {
+    navigationState.pathname = pathname;
+    const { unmount } = render(
+      <WorkspaceShell
+        workspaceName={WORKSPACE_NAME}
+        session={session}
+        userLabel="worker@example.com"
+      >
+        <p>Nội dung</p>
+      </WorkspaceShell>,
+    );
+
+    const desktop = within(screen.getByRole("navigation", { name: "Điều hướng chính" }));
+    const desktopCurrent = desktop
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("aria-current") === "page");
+    expect(desktopCurrent).toHaveLength(1);
+    expect(desktopCurrent[0]).toHaveTextContent(desktopLabel);
+
+    const mobile = within(screen.getByRole("navigation", { name: "Điều hướng di động" }));
+    const mobileCurrent = mobile
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("aria-current") === "page");
+    expect(mobileCurrent).toHaveLength(mobileLabel === null ? 0 : 1);
+    if (mobileLabel !== null) expect(mobileCurrent[0]).toHaveTextContent(mobileLabel);
+    unmount();
+    navigationState.pathname = "/today";
   });
 });

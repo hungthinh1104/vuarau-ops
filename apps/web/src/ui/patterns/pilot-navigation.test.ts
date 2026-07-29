@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { permissionsForRole } from "@vuarau/domain-contracts";
-import { navigationFor, navigationItemIsActive } from "./pilot-navigation.ts";
+import { activeNavigationHref, navigationFor } from "./pilot-navigation.ts";
 import { todayActionsFor } from "./today-actions.ts";
 
 describe("TC-WEB-029 — role-aware pilot navigation", () => {
@@ -19,13 +19,33 @@ describe("TC-WEB-029 — role-aware pilot navigation", () => {
       .map((item) => item.label);
     expect(warehouse).toContain("Nhận hàng");
     expect(warehouse).toContain("Tồn kho");
-    expect(warehouse).not.toContain("Thanh toán");
+    expect(warehouse).not.toContain("Thành viên");
+
+    const owner = navigationFor(permissionsForRole("owner"))
+      .flatMap((group) => group.items)
+      .map((item) => item.label);
+    expect(owner).toContain("Vận hành");
+    expect(owner).toContain("Thành viên");
+    expect(owner).toContain("Khách hàng");
   });
 
-  it("matches detail routes to their bounded navigation destination", () => {
-    expect(navigationItemIsActive("/sales/abc", "/sales")).toBe(true);
-    expect(navigationItemIsActive("/suppliers/abc", "/sales")).toBe(false);
-    expect(navigationItemIsActive("/today/other", "/today")).toBe(false);
+  it.each([
+    ["/sales/new", "/sales/new"],
+    ["/sales", "/sales"],
+    ["/sales/abc", "/sales"],
+    ["/customers", "/customers"],
+    ["/workspace/operations", "/workspace/operations"],
+    ["/today", "/today"],
+  ])("resolves %s to one canonical destination", (pathname, expectedHref) => {
+    expect(activeNavigationHref(pathname)).toBe(expectedHref);
+  });
+
+  it("does not expose duplicate destinations under different module names", () => {
+    const items = navigationFor(permissionsForRole("owner")).flatMap((group) => group.items);
+    expect(new Set(items.map((item) => item.href)).size).toBe(items.length);
+    expect(items.map((item) => item.label)).not.toEqual(
+      expect.arrayContaining(["Công nợ", "Thanh toán", "Đối soát"]),
+    );
   });
 
   it("builds Today work from permissions rather than role names", () => {
