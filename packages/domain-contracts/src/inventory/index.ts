@@ -119,6 +119,20 @@ export const purchaseReceiptsInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   purchaseId: purchaseIdSchema,
 });
+export const purchaseReceivingSummaryDtoSchema = z.object({
+  purchaseId: purchaseIdSchema,
+  lines: z.array(
+    z.object({
+      purchaseLineId: purchaseLineIdSchema,
+      productId: productIdSchema,
+      productName: z.string(),
+      ordered: quantitySchema,
+      received: quantitySchema,
+      remaining: quantitySchema,
+    }),
+  ),
+});
+export type PurchaseReceivingSummaryDto = z.infer<typeof purchaseReceivingSummaryDtoSchema>;
 export const inventoryBalanceInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   productId: productIdSchema,

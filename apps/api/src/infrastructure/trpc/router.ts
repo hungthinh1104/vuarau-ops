@@ -174,6 +174,7 @@ import {
   getInventoryAdjustment,
   getReceipt,
   getInventoryReconciliation,
+  getPurchaseReceivingSummary,
   listPurchaseReceipts,
 } from "../../modules/inventory/inventory.queries.ts";
 import { rebuildInventory } from "../../modules/inventory/rebuild-inventory.handler.ts";
@@ -503,6 +504,9 @@ const receivingRouter = router({
   listForPurchase: authenticatedProcedure
     .input(purchaseReceiptsInputSchema)
     .query(async ({ ctx, input }) => unwrap(await listPurchaseReceipts(ctx, input))),
+  summaryForPurchase: authenticatedProcedure
+    .input(purchaseReceiptsInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getPurchaseReceivingSummary(ctx, input))),
 });
 const inventoryRouter = router({
   adjust: commandProcedure

@@ -48,6 +48,48 @@ export const listPurchaseReceipts = (
     permission: "receiving.read",
     execute: ({ repos }) => repos.inventoryReads.receipts(input.workspaceId, input.purchaseId),
   });
+export async function getPurchaseReceivingSummary(
+  ctx: CommandContext,
+  input: { workspaceId: WorkspaceId; purchaseId: PurchaseId },
+) {
+  const result = await runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "receiving.read",
+    execute: async ({ repos }) => ({
+      purchase: await repos.purchases.findById(input.workspaceId, input.purchaseId),
+      receipts: await repos.inventoryReads.receipts(input.workspaceId, input.purchaseId),
+    }),
+  });
+  if (!result.ok) return result;
+  if (result.value.purchase === null) return err("PURCHASE_NOT_FOUND", "No such Purchase.");
+  const received = new Map<string, number>();
+  for (const receipt of result.value.receipts) {
+    if (receipt.reversal !== null) continue;
+    for (const line of receipt.lines)
+      received.set(
+        line.purchaseLineId,
+        (received.get(line.purchaseLineId) ?? 0) + line.quantity.valueScaled,
+      );
+  }
+  return ok({
+    purchaseId: result.value.purchase.id,
+    lines: result.value.purchase.lines.map((line) => {
+      const receivedScaled = received.get(line.lineId) ?? 0;
+      return {
+        purchaseLineId: line.lineId,
+        productId: line.productId,
+        productName: line.productName,
+        ordered: line.quantity,
+        received: { valueScaled: receivedScaled, unit: line.quantity.unit },
+        remaining: {
+          valueScaled: line.quantity.valueScaled - receivedScaled,
+          unit: line.quantity.unit,
+        },
+      };
+    }),
+  });
+}
 export const getInventoryBalances = (
   ctx: CommandContext,
   input: { workspaceId: WorkspaceId; productId: ProductId },

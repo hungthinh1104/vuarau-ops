@@ -55,6 +55,7 @@ test.describe("M16-M18 — Goods Truth", () => {
         button.click();
       });
     await expect(page.getByRole("link", { name: /Phiếu/ })).toHaveCount(2);
+    await expect(page.getByText(/đã nhận 100 kg · còn lại 0 kg/)).toBeVisible();
 
     await page.getByLabel(`${productName} (kg)`).fill("1");
     await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
@@ -109,7 +110,7 @@ test.describe("M16-M18 — Goods Truth", () => {
 
     await signIn(page, "warehouse");
     await page.goto(`/purchases/${purchaseId}`);
-    await expect(page.getByText(productName)).toBeVisible();
+    await expect(page.getByRole("link", { name: productName })).toBeVisible();
     await expect(page.getByRole("button", { name: "Hoàn tác đơn mua" })).toHaveCount(0);
     await page.goto(`/suppliers/${supplierId}`);
     await expect(page.getByRole("heading", { name: supplierName })).toBeVisible();

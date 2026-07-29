@@ -7,6 +7,7 @@ import type {
   PurchaseReceiptDto,
   PurchaseReceiptId,
   PurchaseReceiptReversalId,
+  PurchaseReceivingSummaryDto,
 } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -30,9 +31,12 @@ export default function PurchaseDetailPage() {
   const receipts = useQuery(
     trpc.receiving.listForPurchase.queryOptions({ workspaceId, purchaseId }),
   );
+  const receivingSummary = useQuery(
+    trpc.receiving.summaryForPurchase.queryOptions({ workspaceId, purchaseId }),
+  );
   const refresh = useCallback(() => {
-    void Promise.all([purchase.refetch(), receipts.refetch()]);
-  }, [purchase, receipts]);
+    void Promise.all([purchase.refetch(), receipts.refetch(), receivingSummary.refetch()]);
+  }, [purchase, receipts, receivingSummary]);
   return (
     <QueryStates
       query={purchase}
@@ -43,6 +47,7 @@ export default function PurchaseDetailPage() {
         <PurchaseDetail
           purchase={detail}
           receipts={receipts.data ?? []}
+          receivingSummary={receivingSummary.data?.lines ?? []}
           receiptsLoading={receipts.isPending}
           onChanged={refresh}
         />
@@ -54,6 +59,7 @@ export default function PurchaseDetailPage() {
 function PurchaseDetail(props: {
   purchase: PurchaseDto;
   receipts: readonly PurchaseReceiptDto[];
+  receivingSummary: PurchaseReceivingSummaryDto["lines"];
   receiptsLoading: boolean;
   onChanged: () => void;
 }) {
@@ -277,6 +283,16 @@ function PurchaseDetail(props: {
       ) : null}
       <section className="flex flex-col gap-2">
         <h2 className="text-subheading font-semibold">Phiếu nhận hàng</h2>
+        {props.receivingSummary.length === 0 ? null : (
+          <ul className="rounded-card border border-border bg-surface p-3">
+            {props.receivingSummary.map((line) => (
+              <li key={line.purchaseLineId}>
+                <strong>{line.productName}</strong>: đặt {formatQuantity(line.ordered)} · đã nhận{" "}
+                {formatQuantity(line.received)} · còn lại {formatQuantity(line.remaining)}
+              </li>
+            ))}
+          </ul>
+        )}
         {props.receiptsLoading ? (
           <p>Đang tải…</p>
         ) : props.receipts.length === 0 ? (
