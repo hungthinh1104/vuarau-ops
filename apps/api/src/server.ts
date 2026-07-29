@@ -8,6 +8,8 @@ import { createSupabaseJwtVerifier, type JwtVerifier } from "./infrastructure/au
 import { randomIdGenerator, systemClock } from "./infrastructure/clock.ts";
 import { describeConfig, readServerConfig } from "./infrastructure/config.ts";
 import { log, withRequestId } from "./infrastructure/logging.ts";
+import { renderMetrics } from "./infrastructure/metrics.ts";
+import { createRequestGuard, safeRequestId } from "./infrastructure/request-guard.ts";
 import { checkReadiness } from "./infrastructure/readiness.ts";
 import type { CommandDeps } from "./modules/shared/command-pipeline.ts";
 import { createPublicDocumentHandler } from "./modules/document/public-document.ts";
@@ -99,6 +101,7 @@ const deps: CommandDeps = {
 const health = createHealthHandler(() => checkReadiness(database));
 const publicDocument = createPublicDocumentHandler(deps);
 const trpc = createApiHandler(deps, verifier);
+const guard = createRequestGuard(config.requestLimits);
 
 createServer((req, res) => {
   /*
@@ -106,8 +109,7 @@ createServer((req, res) => {
    * trace survives a proxy, and minted otherwise. Echoed in the response header,
    * because the id a support conversation starts from is the one on the phone.
    */
-  const incoming = req.headers["x-request-id"];
-  const requestId = typeof incoming === "string" && incoming.length > 0 ? incoming : randomUUID();
+  const requestId = safeRequestId(req.headers["x-request-id"], randomUUID());
   res.setHeader("x-request-id", requestId);
 
   const startedAt = Date.now();
@@ -127,7 +129,16 @@ createServer((req, res) => {
   });
 
   void withRequestId(requestId, async () => {
+    if (guard(req, res)) return;
     if (await health(req, res)) return;
+    if ((req.url ?? "").split("?")[0] === "/metrics" && req.method === "GET") {
+      res.writeHead(200, {
+        "content-type": "text/plain; version=0.0.4; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(renderMetrics());
+      return;
+    }
     if (await publicDocument(req, res)) return;
     trpc(req, res);
   });

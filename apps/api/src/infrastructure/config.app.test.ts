@@ -38,6 +38,25 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
     expect(result.config.port).toBe(3000);
   });
 
+  it("rejects unsafe request and rate-limit values together", () => {
+    expect(
+      problemsFor({
+        ...development,
+        MAX_REQUEST_BYTES: "0",
+        RATE_LIMIT_WINDOW_MS: "-1",
+        RATE_LIMIT_AUTHENTICATED: "many",
+        RATE_LIMIT_PUBLIC: "1.5",
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        "MAX_REQUEST_BYTES",
+        "RATE_LIMIT_WINDOW_MS",
+        "RATE_LIMIT_AUTHENTICATED",
+        "RATE_LIMIT_PUBLIC",
+      ]),
+    );
+  });
+
   it("accepts a pilot environment on JWKS", () => {
     expect(readServerConfig(pilot).ok).toBe(true);
   });

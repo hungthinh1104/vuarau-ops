@@ -40,6 +40,12 @@ export type ServerConfig = {
   readonly auth: AuthConfig;
   /** The HTTPS origin a phone actually opens. Required for a pilot. */
   readonly publicAppOrigin: string | null;
+  readonly requestLimits: {
+    readonly maxBodyBytes: number;
+    readonly windowMs: number;
+    readonly authenticatedRequestsPerWindow: number;
+    readonly publicRequestsPerWindow: number;
+  };
 };
 
 export type ConfigProblem = {
@@ -166,6 +172,21 @@ export function readServerConfig(env: Env): ConfigResult {
     fail("PORT", "must be an integer between 1 and 65535");
   }
 
+  const positiveInteger = (name: string, fallback: number): number => {
+    const raw = present(env, name) ?? String(fallback);
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      fail(name, "must be a positive safe integer");
+    }
+    return value;
+  };
+  const requestLimits = {
+    maxBodyBytes: positiveInteger("MAX_REQUEST_BYTES", 1_048_576),
+    windowMs: positiveInteger("RATE_LIMIT_WINDOW_MS", 60_000),
+    authenticatedRequestsPerWindow: positiveInteger("RATE_LIMIT_AUTHENTICATED", 600),
+    publicRequestsPerWindow: positiveInteger("RATE_LIMIT_PUBLIC", 60),
+  };
+
   if (problems.length > 0) {
     return { ok: false, problems };
   }
@@ -178,7 +199,7 @@ export function readServerConfig(env: Env): ConfigResult {
 
   return {
     ok: true,
-    config: { appEnv, databaseUrl: databaseUrl!, port, auth, publicAppOrigin },
+    config: { appEnv, databaseUrl: databaseUrl!, port, auth, publicAppOrigin, requestLimits },
   };
 }
 
@@ -207,5 +228,7 @@ export function describeConfig(config: ServerConfig): readonly string[] {
     `token audience: ${config.auth.audience}`,
     `verification:   ${"jwksUrl" in config.auth ? "JWKS (asymmetric)" : "HS256 shared secret"}`,
     `public origin:  ${config.publicAppOrigin ?? "(not set)"}`,
+    `request bytes:  ${config.requestLimits.maxBodyBytes}`,
+    `rate window:    ${config.requestLimits.windowMs} ms`,
   ];
 }
