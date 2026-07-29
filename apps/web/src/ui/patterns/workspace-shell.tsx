@@ -61,6 +61,16 @@ export function WorkspaceShell({ workspaceName, session, notice, children }: Wor
               Mặt hàng
             </Link>
           ) : null}
+          {session.permissions.includes("supplier.read") ? (
+            <Link href="/suppliers" className="text-info underline">
+              Nhà cung cấp
+            </Link>
+          ) : null}
+          {session.permissions.includes("purchase.read") ? (
+            <Link href="/purchases" className="text-info underline">
+              Đơn mua
+            </Link>
+          ) : null}
           {session.permissions.includes("workspace.manage") ? (
             <Link href="/workspace/operations" className="text-info underline">
               Vận hành

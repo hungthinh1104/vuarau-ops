@@ -6,3 +6,6 @@ export * from "./sale.ts";
 export * from "./payment.ts";
 export * from "./account.ts";
 export * from "./command.ts";
+export * from "./supplier.ts";
+export * from "./purchase.ts";
+export * from "./inventory.ts";

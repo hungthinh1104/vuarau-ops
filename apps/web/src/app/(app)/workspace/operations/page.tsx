@@ -1,8 +1,12 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { WorkspaceBackupV1, WorkspaceRestoreResultDto } from "@vuarau/domain-contracts";
-import { workspaceBackupV1Schema } from "@vuarau/domain-contracts";
+import type {
+  WorkspaceBackup,
+  WorkspaceBackupV2,
+  WorkspaceRestoreResultDto,
+} from "@vuarau/domain-contracts";
+import { workspaceBackupSchema } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "../../../../api/session-gate.tsx";
@@ -19,24 +23,24 @@ export default function OperationsPage() {
   const { workspaceId, session } = useSession();
   const offline = useOffline();
   const trpc = useTRPC();
-  const [backup, setBackup] = useState<WorkspaceBackupV1 | null>(null);
+  const [backup, setBackup] = useState<WorkspaceBackup | null>(null);
   const [restoreReason, setRestoreReason] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
   const integrity = useQuery(trpc.operations.integrity.queryOptions({ workspaceId }));
   const exportMutation = useMutation(trpc.operations.exportBackup.mutationOptions());
-  const exportCommand = useCommand<Record<string, never>, WorkspaceBackupV1>((envelope) =>
+  const exportCommand = useCommand<Record<string, never>, WorkspaceBackupV2>((envelope) =>
     exportMutation.mutateAsync(envelope as never),
   );
   const validation = useQuery({
     ...trpc.operations.validateBackup.queryOptions({
       workspaceId,
-      backup: backup as WorkspaceBackupV1,
+      backup: backup as WorkspaceBackup,
     }),
     enabled: backup !== null,
   });
   const restoreMutation = useMutation(trpc.operations.restoreBackup.mutationOptions());
   const restore = useCommand<
-    { backup: WorkspaceBackupV1; reason: string },
+    { backup: WorkspaceBackup; reason: string },
     WorkspaceRestoreResultDto
   >((envelope) => restoreMutation.mutateAsync(envelope as never));
 
@@ -91,11 +95,15 @@ export default function OperationsPage() {
               Projection drift {result.projectionDrift}; thiếu nguồn {result.missingSources}; trùng
               nguồn {result.duplicateSources}.
             </p>
+            <p className="text-caption text-ink-muted">
+              Nhà cung cấp: {result.healthySuppliers} tốt, {result.anomalousSuppliers} bất thường ·
+              tồn kho bất thường: {result.anomalousInventoryKeys}.
+            </p>
           </section>
         )}
       </QueryStates>
       <section className="rounded-card border border-border bg-surface p-4">
-        <h2 className="text-subheading font-semibold">Bản sao lưu logic V1</h2>
+        <h2 className="text-subheading font-semibold">Bản sao lưu logic V2</h2>
         <p className="text-body-sm">
           File JSON có checksum SHA-256, dữ liệu canonical và lịch sử command để giữ retry-safe.
           Không chứa token, mật khẩu hay khoá Supabase.
@@ -122,10 +130,10 @@ export default function OperationsPage() {
               setFileError(null);
               void file.text().then((text) => {
                 try {
-                  const parsed = workspaceBackupV1Schema.safeParse(JSON.parse(text));
+                  const parsed = workspaceBackupSchema.safeParse(JSON.parse(text));
                   if (!parsed.success) {
                     setBackup(null);
-                    setFileError("File không đúng định dạng WorkspaceBackupV1.");
+                    setFileError("File không đúng định dạng WorkspaceBackup V1 hoặc V2.");
                     return;
                   }
                   setBackup(parsed.data);

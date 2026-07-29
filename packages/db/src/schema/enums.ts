@@ -9,6 +9,9 @@ import {
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
   UNITS,
+  SUPPLIER_ACCOUNT_SOURCE_TYPES,
+  PURCHASE_STATUSES,
+  inventoryMovementSourceTypeSchema,
 } from "@vuarau/domain-contracts";
 
 /**
@@ -30,6 +33,19 @@ export const debtAdjustmentReasonCodeEnum = pgEnum(
 );
 export const workspaceRoleEnum = pgEnum("workspace_role", WORKSPACE_ROLES);
 export const saleVoidReasonCodeEnum = pgEnum("sale_void_reason_code", SALE_VOID_REASON_CODES);
+export const supplierAccountSourceTypeEnum = pgEnum(
+  "supplier_account_source_type",
+  SUPPLIER_ACCOUNT_SOURCE_TYPES,
+);
+export const purchaseStatusEnum = pgEnum("purchase_status", PURCHASE_STATUSES);
+export const inventoryMovementSourceTypeEnum = pgEnum(
+  "inventory_movement_source_type",
+  inventoryMovementSourceTypeSchema.options as [
+    "purchase_receipt",
+    "purchase_receipt_reversal",
+    "inventory_adjustment",
+  ],
+);
 export const commandReceiptStatusEnum = pgEnum("command_receipt_status", [
   "in_progress",
   "completed",

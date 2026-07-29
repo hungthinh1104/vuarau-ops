@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ProductDto, ProductId, Unit } from "@vuarau/domain-contracts";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../../../../api/session-gate.tsx";
 import { useTRPC } from "../../../../api/providers.tsx";
@@ -75,6 +76,9 @@ function ProductEditor(props: {
       <p className="text-caption text-ink-muted">
         Mã {props.product.id.slice(0, 8).toUpperCase()} · phiên bản {props.product.version}
       </p>
+      <Link href={`/products/${props.product.id}/inventory`} className="text-info underline">
+        Xem tồn kho và biến động vật lý
+      </Link>
       <label className="text-label">
         Tên mặt hàng
         <input

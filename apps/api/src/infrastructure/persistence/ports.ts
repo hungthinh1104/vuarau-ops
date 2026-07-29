@@ -9,9 +9,12 @@ import type {
   SaleId,
   PaymentId,
   ProductId,
+  SupplierId,
+  SupplierPaymentId,
+  SupplierAccountEntryDto,
   WorkspaceId,
   WorkspaceRole,
-  WorkspaceBackupV1,
+  WorkspaceBackupV2,
 } from "@vuarau/domain-contracts";
 import type {
   AuditDraft,
@@ -23,6 +26,13 @@ import type {
   PaymentReversalState,
   PaymentState,
   ProductState,
+  SupplierState,
+  SupplierPaymentState,
+  PurchaseState,
+  PurchaseVoidState,
+  PurchaseReceiptState,
+  PurchaseReceiptReversalState,
+  InventoryMovementState,
 } from "@vuarau/domain-kernel";
 import type { ReadRepositories } from "./read-ports.ts";
 
@@ -137,10 +147,120 @@ export type ProductRepository = {
   update(product: ProductState, expectedVersion: number): Promise<boolean>;
 };
 
+export type SupplierRepository = {
+  findById(workspaceId: WorkspaceId, supplierId: SupplierId): Promise<SupplierState | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    supplierId: SupplierId,
+  ): Promise<SupplierState | null>;
+  insert(supplier: SupplierState): Promise<void>;
+  update(supplier: SupplierState, expectedVersion: number): Promise<boolean>;
+};
+
+export type SupplierPaymentRepository = {
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    supplierPaymentId: SupplierPaymentId,
+  ): Promise<SupplierPaymentState | null>;
+  insert(payment: SupplierPaymentState): Promise<void>;
+  update(payment: SupplierPaymentState, expectedVersion: number): Promise<boolean>;
+  insertReversal(reversal: {
+    id: string;
+    workspaceId: WorkspaceId;
+    supplierPaymentId: SupplierPaymentId;
+    amount: SupplierPaymentState["amount"];
+    reason: string;
+    transactionTime: IsoInstant;
+    recordedAt: IsoInstant;
+  }): Promise<void>;
+};
+
+export type SupplierAccountEntryDraft = Omit<SupplierAccountEntryDto, "id">;
+export type SupplierAccountEntryRepository = {
+  append(
+    entries: readonly SupplierAccountEntryDraft[],
+  ): Promise<readonly SupplierAccountEntryDto[]>;
+  listBySupplier(
+    workspaceId: WorkspaceId,
+    supplierId: SupplierId,
+  ): Promise<readonly SupplierAccountEntryDto[]>;
+  findBySource(
+    workspaceId: WorkspaceId,
+    sourceType: SupplierAccountEntryDto["sourceType"],
+    sourceId: string,
+  ): Promise<SupplierAccountEntryDto | null>;
+};
+
+export type SupplierAccountBalanceState = {
+  readonly workspaceId: WorkspaceId;
+  readonly supplierId: SupplierId;
+  readonly balance: SupplierPaymentState["amount"];
+  readonly entryCount: number;
+  readonly lastEntryTransactionTime: IsoInstant | null;
+  readonly updatedAt: IsoInstant;
+};
+export type SupplierAccountBalanceRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    supplierId: SupplierId,
+  ): Promise<SupplierAccountBalanceState | null>;
+  save(balance: SupplierAccountBalanceState): Promise<void>;
+};
+
+export type PurchaseRepository = {
+  findById(workspaceId: WorkspaceId, purchaseId: string): Promise<PurchaseState | null>;
+  findReplacementOf(workspaceId: WorkspaceId, purchaseId: string): Promise<PurchaseState | null>;
+  findByIdForUpdate(workspaceId: WorkspaceId, purchaseId: string): Promise<PurchaseState | null>;
+  insert(purchase: PurchaseState): Promise<void>;
+  updateDraft(
+    purchase: PurchaseState,
+    expectedVersion: number,
+    replaceLines: boolean,
+  ): Promise<boolean>;
+  confirm(purchase: PurchaseState, expectedVersion: number): Promise<boolean>;
+  insertVoid(record: PurchaseVoidState): Promise<boolean>;
+};
+export type ReceiptRepository = {
+  findById(workspaceId: WorkspaceId, receiptId: string): Promise<PurchaseReceiptState | null>;
+  insert(receipt: PurchaseReceiptState): Promise<void>;
+  insertReversal(reversal: PurchaseReceiptReversalState): Promise<boolean>;
+  netReceivedByPurchaseLine(
+    workspaceId: WorkspaceId,
+    purchaseId: string,
+  ): Promise<ReadonlyMap<string, number>>;
+};
+export type InventoryMovementRepository = {
+  append(
+    movements: readonly Omit<InventoryMovementState, "id">[],
+  ): Promise<readonly InventoryMovementState[]>;
+  listByProduct(
+    workspaceId: WorkspaceId,
+    productId: ProductId,
+    unit: InventoryMovementState["quantity"]["unit"] | null,
+  ): Promise<readonly InventoryMovementState[]>;
+};
+export type InventoryBalanceState = {
+  workspaceId: WorkspaceId;
+  productId: ProductId;
+  unit: InventoryMovementState["quantity"]["unit"];
+  quantityScaled: number;
+  movementCount: number;
+  lastMovementTransactionTime: IsoInstant | null;
+  updatedAt: IsoInstant;
+};
+export type InventoryBalanceRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    productId: ProductId,
+    unit: InventoryBalanceState["unit"],
+  ): Promise<InventoryBalanceState | null>;
+  save(balance: InventoryBalanceState): Promise<void>;
+};
+
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV1["payload"],
+    payload: WorkspaceBackupV2["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -268,6 +388,14 @@ export type Repositories = ReadRepositories & {
   readonly actors: ActorRepository;
   readonly customers: CustomerRepository;
   readonly products: ProductRepository;
+  readonly suppliers: SupplierRepository;
+  readonly supplierPayments: SupplierPaymentRepository;
+  readonly supplierAccountEntries: SupplierAccountEntryRepository;
+  readonly supplierAccountBalances: SupplierAccountBalanceRepository;
+  readonly purchases: PurchaseRepository;
+  readonly purchaseReceipts: ReceiptRepository;
+  readonly inventoryMovements: InventoryMovementRepository;
+  readonly inventoryBalances: InventoryBalanceRepository;
   readonly operations: OperationsRepository;
   readonly sales: SaleRepository;
   readonly payments: PaymentRepository;

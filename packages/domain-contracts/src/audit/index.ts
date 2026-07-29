@@ -24,6 +24,12 @@ export const AUDIT_AGGREGATE_TYPES = [
   "membership",
   "product",
   "workspace",
+  "supplier",
+  "supplier_payment",
+  "supplier_account",
+  "purchase",
+  "receipt",
+  "inventory",
 ] as const;
 export const auditAggregateTypeSchema = z.enum(AUDIT_AGGREGATE_TYPES);
 export type AuditAggregateType = z.infer<typeof auditAggregateTypeSchema>;
@@ -52,6 +58,23 @@ export const AUDIT_ACTIONS = [
   "product.reactivated",
   "workspace.backup_exported",
   "workspace.backup_restored",
+  "supplier.created",
+  "supplier.updated",
+  "supplier.deactivated",
+  "supplier.reactivated",
+  "supplier_payment.recorded",
+  "supplier_payment.reversed",
+  "supplier_account.adjusted",
+  "supplier_account.projection_rebuilt",
+  "purchase.draft_created",
+  "purchase.draft_edited",
+  "purchase.discarded",
+  "purchase.confirmed",
+  "purchase.voided",
+  "receipt.recorded",
+  "receipt.reversed",
+  "inventory.adjusted",
+  "inventory.projection_rebuilt",
 ] as const;
 export const auditActionSchema = z.enum(AUDIT_ACTIONS);
 export type AuditAction = z.infer<typeof auditActionSchema>;

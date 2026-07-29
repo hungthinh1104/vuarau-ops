@@ -1,6 +1,7 @@
 import type {
   ActorId,
   CurrencyCode,
+  CommandId,
   CustomerId,
   IsoInstant,
   Money,
@@ -13,6 +14,18 @@ import type {
   PaymentMethod,
   PaymentStatus,
   ProductId,
+  SupplierId,
+  SupplierPaymentId,
+  PurchaseId,
+  PurchaseLineId,
+  PurchaseStatus,
+  PurchaseVoidId,
+  PurchaseVoidReasonCode,
+  PurchaseReceiptId,
+  PurchaseReceiptLineId,
+  InventoryMovementId,
+  InventoryMovementSourceType,
+  PurchaseReceiptReversalId,
   Quantity,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
@@ -63,6 +76,115 @@ export type ProductState = {
   readonly version: number;
   readonly createdAt: IsoInstant;
   readonly updatedAt: IsoInstant;
+};
+
+export type SupplierState = {
+  readonly id: SupplierId;
+  readonly workspaceId: WorkspaceId;
+  readonly displayName: string;
+  readonly phone: string | null;
+  readonly note: string | null;
+  readonly isActive: boolean;
+  readonly version: number;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+};
+
+export type SupplierPaymentState = {
+  readonly id: SupplierPaymentId;
+  readonly workspaceId: WorkspaceId;
+  readonly supplierId: SupplierId;
+  readonly amount: Money;
+  readonly method: PaymentMethod;
+  readonly note: string | null;
+  readonly reversedAmount: Money;
+  readonly version: number;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+};
+
+export type PurchaseLineState = {
+  readonly lineId: PurchaseLineId;
+  readonly productId: ProductId;
+  readonly productName: string;
+  readonly quantity: Quantity;
+  readonly unitPrice: Money;
+  readonly lineTotal: Money;
+};
+
+export type PurchaseVoidState = {
+  readonly id: PurchaseVoidId;
+  readonly workspaceId: WorkspaceId;
+  readonly purchaseId: PurchaseId;
+  readonly reasonCode: PurchaseVoidReasonCode;
+  readonly reason: string;
+  readonly amount: Money;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly actorId: ActorId;
+};
+
+export type PurchaseState = {
+  readonly id: PurchaseId;
+  readonly workspaceId: WorkspaceId;
+  readonly supplierId: SupplierId;
+  readonly status: PurchaseStatus;
+  readonly currency: CurrencyCode;
+  readonly lines: readonly PurchaseLineState[];
+  readonly totalAmount: Money;
+  readonly note: string | null;
+  readonly dueAt: IsoInstant | null;
+  readonly version: number;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly confirmedAt: IsoInstant | null;
+  readonly discardedAt: IsoInstant | null;
+  readonly replacesPurchaseId: PurchaseId | null;
+  readonly voidRecord: PurchaseVoidState | null;
+};
+
+export type PurchaseReceiptLineState = {
+  readonly receiptLineId: PurchaseReceiptLineId;
+  readonly purchaseLineId: PurchaseLineId;
+  readonly productId: ProductId;
+  readonly quantity: Quantity;
+};
+export type PurchaseReceiptReversalState = {
+  readonly id: PurchaseReceiptReversalId;
+  readonly workspaceId: WorkspaceId;
+  readonly receiptId: PurchaseReceiptId;
+  readonly reasonCode: string;
+  readonly reason: string;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly actorId: ActorId;
+};
+export type PurchaseReceiptState = {
+  readonly id: PurchaseReceiptId;
+  readonly workspaceId: WorkspaceId;
+  readonly purchaseId: PurchaseId;
+  readonly lines: readonly PurchaseReceiptLineState[];
+  readonly note: string | null;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly actorId: ActorId;
+  readonly reversal: PurchaseReceiptReversalState | null;
+};
+export type InventoryMovementState = {
+  readonly id: InventoryMovementId;
+  readonly workspaceId: WorkspaceId;
+  readonly productId: ProductId;
+  readonly quantity: Quantity;
+  readonly sourceType: InventoryMovementSourceType;
+  readonly sourceId: string;
+  readonly sourceLineId: string | null;
+  readonly reversalOfMovementId: InventoryMovementId | null;
+  readonly reasonCode: string | null;
+  readonly reason: string | null;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly actorId: ActorId;
+  readonly commandId: CommandId;
 };
 
 export type SaleLineState = {

@@ -44,6 +44,37 @@ import {
   workspaceIntegrityInputSchema,
   restoreWorkspaceBackupCommandSchema,
   exportWorkspaceBackupCommandSchema,
+  createSupplierCommandSchema,
+  updateSupplierCommandSchema,
+  deactivateSupplierCommandSchema,
+  reactivateSupplierCommandSchema,
+  recordSupplierPaymentCommandSchema,
+  reverseSupplierPaymentCommandSchema,
+  adjustSupplierAccountCommandSchema,
+  supplierSearchInputSchema,
+  supplierGetInputSchema,
+  supplierAccountInputSchema,
+  supplierAccountTimelineInputSchema,
+  supplierPaymentGetInputSchema,
+  supplierAdjustmentGetInputSchema,
+  createPurchaseDraftCommandSchema,
+  updatePurchaseDraftCommandSchema,
+  discardPurchaseDraftCommandSchema,
+  confirmPurchaseCommandSchema,
+  voidPurchaseCommandSchema,
+  purchaseGetInputSchema,
+  purchaseListInputSchema,
+  recordPurchaseReceiptCommandSchema,
+  reversePurchaseReceiptCommandSchema,
+  adjustInventoryCommandSchema,
+  receiptGetInputSchema,
+  purchaseReceiptsInputSchema,
+  inventoryBalanceInputSchema,
+  inventoryTimelineInputSchema,
+  inventoryAdjustmentGetInputSchema,
+  rebuildSupplierAccountCommandSchema,
+  inventoryReconciliationInputSchema,
+  rebuildInventoryCommandSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "./trpc.ts";
 import { createCustomer } from "../../modules/customer/create-customer.handler.ts";
@@ -105,6 +136,47 @@ import {
   validateWorkspaceBackup,
 } from "../../modules/operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../../modules/operations/restore-workspace.handler.ts";
+import {
+  adjustSupplierAccount,
+  createSupplier,
+  deactivateSupplier,
+  reactivateSupplier,
+  recordSupplierPayment,
+  reverseSupplierPayment,
+  updateSupplier,
+} from "../../modules/supplier/supplier.handlers.ts";
+import {
+  getSupplier,
+  getSupplierBalance,
+  getSupplierPayment,
+  getSupplierAdjustment,
+  getSupplierTimeline,
+  searchSuppliers,
+  getSupplierReconciliation,
+} from "../../modules/supplier/supplier.queries.ts";
+import { rebuildSupplierAccount } from "../../modules/supplier/rebuild-supplier-account.handler.ts";
+import {
+  confirmPurchase,
+  createPurchaseDraft,
+  discardPurchaseDraft,
+  updatePurchaseDraft,
+  voidPurchase,
+} from "../../modules/purchase/purchase.handlers.ts";
+import { getPurchase, listPurchases } from "../../modules/purchase/purchase.queries.ts";
+import {
+  adjustInventory,
+  recordPurchaseReceipt,
+  reversePurchaseReceipt,
+} from "../../modules/inventory/inventory.handlers.ts";
+import {
+  getInventoryBalances,
+  getInventoryTimeline,
+  getInventoryAdjustment,
+  getReceipt,
+  getInventoryReconciliation,
+  listPurchaseReceipts,
+} from "../../modules/inventory/inventory.queries.ts";
+import { rebuildInventory } from "../../modules/inventory/rebuild-inventory.handler.ts";
 
 /**
  * Twelve mutations, one per business command. No `update`, no `patch`, and no
@@ -343,6 +415,119 @@ const productRouter = router({
     .query(async ({ ctx, input }) => unwrap(await getProduct(ctx, input))),
 });
 
+const supplierRouter = router({
+  create: commandProcedure
+    .input(createSupplierCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await createSupplier(ctx, input))),
+  update: commandProcedure
+    .input(updateSupplierCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await updateSupplier(ctx, input))),
+  deactivate: commandProcedure
+    .input(deactivateSupplierCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await deactivateSupplier(ctx, input))),
+  reactivate: commandProcedure
+    .input(reactivateSupplierCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reactivateSupplier(ctx, input))),
+  search: authenticatedProcedure
+    .input(supplierSearchInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await searchSuppliers(ctx, input))),
+  get: authenticatedProcedure
+    .input(supplierGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSupplier(ctx, input))),
+  getPayment: authenticatedProcedure
+    .input(supplierPaymentGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSupplierPayment(ctx, input))),
+  getAdjustment: authenticatedProcedure
+    .input(supplierAdjustmentGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSupplierAdjustment(ctx, input))),
+  recordPayment: commandProcedure
+    .input(recordSupplierPaymentCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await recordSupplierPayment(ctx, input))),
+  reversePayment: commandProcedure
+    .input(reverseSupplierPaymentCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reverseSupplierPayment(ctx, input))),
+  adjustAccount: commandProcedure
+    .input(adjustSupplierAccountCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await adjustSupplierAccount(ctx, input))),
+  balance: authenticatedProcedure
+    .input(supplierAccountInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSupplierBalance(ctx, input))),
+  timeline: authenticatedProcedure
+    .input(supplierAccountTimelineInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSupplierTimeline(ctx, input))),
+  reconciliation: authenticatedProcedure
+    .input(supplierAccountInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSupplierReconciliation(ctx, input))),
+  evidence: authenticatedProcedure
+    .input(supplierAccountInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSupplierReconciliation(ctx, input))),
+  rebuildAccount: commandProcedure
+    .input(rebuildSupplierAccountCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await rebuildSupplierAccount(ctx, input))),
+});
+
+const purchaseRouter = router({
+  createDraft: commandProcedure
+    .input(createPurchaseDraftCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await createPurchaseDraft(ctx, input))),
+  updateDraft: commandProcedure
+    .input(updatePurchaseDraftCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await updatePurchaseDraft(ctx, input))),
+  discardDraft: commandProcedure
+    .input(discardPurchaseDraftCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await discardPurchaseDraft(ctx, input))),
+  confirm: commandProcedure
+    .input(confirmPurchaseCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await confirmPurchase(ctx, input))),
+  void: commandProcedure
+    .input(voidPurchaseCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await voidPurchase(ctx, input))),
+  get: authenticatedProcedure
+    .input(purchaseGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getPurchase(ctx, input))),
+  list: authenticatedProcedure
+    .input(purchaseListInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await listPurchases(ctx, input))),
+});
+
+const receivingRouter = router({
+  record: commandProcedure
+    .input(recordPurchaseReceiptCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await recordPurchaseReceipt(ctx, input))),
+  reverse: commandProcedure
+    .input(reversePurchaseReceiptCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reversePurchaseReceipt(ctx, input))),
+  get: authenticatedProcedure
+    .input(receiptGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getReceipt(ctx, input))),
+  listForPurchase: authenticatedProcedure
+    .input(purchaseReceiptsInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await listPurchaseReceipts(ctx, input))),
+});
+const inventoryRouter = router({
+  adjust: commandProcedure
+    .input(adjustInventoryCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await adjustInventory(ctx, input))),
+  balances: authenticatedProcedure
+    .input(inventoryBalanceInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getInventoryBalances(ctx, input))),
+  getAdjustment: authenticatedProcedure
+    .input(inventoryAdjustmentGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getInventoryAdjustment(ctx, input))),
+  timeline: authenticatedProcedure
+    .input(inventoryTimelineInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getInventoryTimeline(ctx, input))),
+  reconciliation: authenticatedProcedure
+    .input(inventoryReconciliationInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getInventoryReconciliation(ctx, input))),
+  evidence: authenticatedProcedure
+    .input(inventoryReconciliationInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getInventoryReconciliation(ctx, input))),
+  rebuild: commandProcedure
+    .input(rebuildInventoryCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await rebuildInventory(ctx, input))),
+});
+
 const operationsRouter = router({
   integrity: authenticatedProcedure
     .input(workspaceIntegrityInputSchema)
@@ -369,6 +554,10 @@ export const appRouter = router({
   audit: auditRouter,
   debt: debtRouter,
   product: productRouter,
+  supplier: supplierRouter,
+  purchase: purchaseRouter,
+  receiving: receivingRouter,
+  inventory: inventoryRouter,
   operations: operationsRouter,
 });
 

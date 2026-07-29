@@ -7,3 +7,6 @@ export * from "./audit/index.ts";
 export * from "./session/index.ts";
 export * from "./product/index.ts";
 export * from "./operations/index.ts";
+export * from "./supplier/index.ts";
+export * from "./purchase/index.ts";
+export * from "./inventory/index.ts";

@@ -7,6 +7,7 @@ import type {
   WorkspaceId,
   WorkspaceRole,
   Money,
+  SupplierAccountEntryDto,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import { classifyBalance, money, zeroMoney } from "@vuarau/domain-kernel";
@@ -19,6 +20,13 @@ import type {
   SaleState,
   PaymentState,
   ProductState,
+  SupplierState,
+  SupplierPaymentState,
+  PurchaseState,
+  PurchaseVoidState,
+  PurchaseReceiptState,
+  PurchaseReceiptReversalState,
+  InventoryMovementState,
 } from "@vuarau/domain-kernel";
 
 /**
@@ -40,6 +48,45 @@ type Store = {
   actorNames: Map<string, string>;
   customers: Map<string, CustomerState>;
   products: Map<string, ProductState>;
+  suppliers: Map<string, SupplierState>;
+  supplierPayments: Map<string, SupplierPaymentState>;
+  supplierPaymentReversals: Array<{
+    id: string;
+    workspaceId: WorkspaceId;
+    supplierPaymentId: SupplierPaymentState["id"];
+    amount: Money;
+    reason: string;
+    transactionTime: IsoInstant;
+    recordedAt: IsoInstant;
+  }>;
+  supplierAccountEntries: SupplierAccountEntryDto[];
+  supplierAccountBalances: Map<
+    string,
+    {
+      workspaceId: WorkspaceId;
+      supplierId: SupplierState["id"];
+      balance: Money;
+      entryCount: number;
+      lastEntryTransactionTime: IsoInstant | null;
+      updatedAt: IsoInstant;
+    }
+  >;
+  purchases: Map<string, PurchaseState>;
+  purchaseVoids: PurchaseVoidState[];
+  purchaseReceipts: Map<string, PurchaseReceiptState>;
+  inventoryMovements: InventoryMovementState[];
+  inventoryBalances: Map<
+    string,
+    {
+      workspaceId: WorkspaceId;
+      productId: InventoryMovementState["productId"];
+      unit: InventoryMovementState["quantity"]["unit"];
+      quantityScaled: number;
+      movementCount: number;
+      lastMovementTransactionTime: IsoInstant | null;
+      updatedAt: IsoInstant;
+    }
+  >;
   sales: Map<string, SaleState>;
   payments: Map<string, PaymentState>;
   reversals: PaymentReversalState[];
@@ -58,6 +105,16 @@ function emptyStore(): Store {
     actorNames: new Map(),
     customers: new Map(),
     products: new Map(),
+    suppliers: new Map(),
+    supplierPayments: new Map(),
+    supplierPaymentReversals: [],
+    supplierAccountEntries: [],
+    supplierAccountBalances: new Map(),
+    purchases: new Map(),
+    purchaseVoids: [],
+    purchaseReceipts: new Map(),
+    inventoryMovements: [],
+    inventoryBalances: new Map(),
     sales: new Map(),
     payments: new Map(),
     reversals: [],
@@ -143,6 +200,25 @@ function toPaymentSummaryRow(store: Store, payment: PaymentState) {
     version: payment.version,
     transactionTime: payment.transactionTime,
     recordedAt: payment.recordedAt,
+  };
+}
+
+function toPurchaseDto(purchase: PurchaseState) {
+  return {
+    ...purchase,
+    lines: purchase.lines.map((line) => ({ ...line })),
+    voidRecord:
+      purchase.voidRecord === null
+        ? null
+        : {
+            id: purchase.voidRecord.id,
+            purchaseId: purchase.voidRecord.purchaseId,
+            reasonCode: purchase.voidRecord.reasonCode,
+            reason: purchase.voidRecord.reason,
+            amount: purchase.voidRecord.amount,
+            transactionTime: purchase.voidRecord.transactionTime,
+            recordedAt: purchase.voidRecord.recordedAt,
+          },
   };
 }
 
@@ -417,12 +493,212 @@ export class InMemoryDatabase {
         },
       },
 
+      suppliers: {
+        findById: async (workspaceId, supplierId) =>
+          store.suppliers.get(key(workspaceId, supplierId)) ?? null,
+        findByIdForUpdate: async (workspaceId, supplierId) =>
+          store.suppliers.get(key(workspaceId, supplierId)) ?? null,
+        insert: async (supplier) => {
+          store.suppliers.set(key(supplier.workspaceId, supplier.id), supplier);
+        },
+        update: async (supplier, expectedVersion) => {
+          const current = store.suppliers.get(key(supplier.workspaceId, supplier.id));
+          if (current === undefined || current.version !== expectedVersion) return false;
+          store.suppliers.set(key(supplier.workspaceId, supplier.id), supplier);
+          return true;
+        },
+      },
+
+      supplierPayments: {
+        findByIdForUpdate: async (workspaceId, paymentId) =>
+          store.supplierPayments.get(key(workspaceId, paymentId)) ?? null,
+        insert: async (payment) => {
+          store.supplierPayments.set(key(payment.workspaceId, payment.id), payment);
+        },
+        update: async (payment, expectedVersion) => {
+          const current = store.supplierPayments.get(key(payment.workspaceId, payment.id));
+          if (current === undefined || current.version !== expectedVersion) return false;
+          store.supplierPayments.set(key(payment.workspaceId, payment.id), payment);
+          return true;
+        },
+        insertReversal: async (reversal) => {
+          store.supplierPaymentReversals.push(reversal);
+        },
+      },
+
+      supplierAccountEntries: {
+        append: async (drafts) => {
+          const entries = drafts.map((draft) => ({
+            ...draft,
+            id: ids.newId() as SupplierAccountEntryDto["id"],
+          }));
+          store.supplierAccountEntries.push(...entries);
+          return entries;
+        },
+        listBySupplier: async (workspaceId, supplierId) =>
+          store.supplierAccountEntries
+            .filter((entry) => entry.workspaceId === workspaceId && entry.supplierId === supplierId)
+            .sort((a, b) =>
+              a.transactionTime !== b.transactionTime
+                ? a.transactionTime.localeCompare(b.transactionTime)
+                : a.recordedAt !== b.recordedAt
+                  ? a.recordedAt.localeCompare(b.recordedAt)
+                  : a.id.localeCompare(b.id),
+            ),
+        findBySource: async (workspaceId, sourceType, sourceId) =>
+          store.supplierAccountEntries.find(
+            (entry) =>
+              entry.workspaceId === workspaceId &&
+              entry.sourceType === sourceType &&
+              entry.sourceId === sourceId,
+          ) ?? null,
+      },
+
+      supplierAccountBalances: {
+        get: async (workspaceId, supplierId) =>
+          store.supplierAccountBalances.get(key(workspaceId, supplierId)) ?? null,
+        save: async (balance) => {
+          store.supplierAccountBalances.set(key(balance.workspaceId, balance.supplierId), balance);
+        },
+      },
+
+      purchases: {
+        findById: async (workspaceId, purchaseId) =>
+          store.purchases.get(key(workspaceId, purchaseId)) ?? null,
+        findReplacementOf: async (workspaceId, purchaseId) =>
+          [...store.purchases.values()].find(
+            (purchase) =>
+              purchase.workspaceId === workspaceId && purchase.replacesPurchaseId === purchaseId,
+          ) ?? null,
+        findByIdForUpdate: async (workspaceId, purchaseId) =>
+          store.purchases.get(key(workspaceId, purchaseId)) ?? null,
+        insert: async (purchase) => {
+          store.purchases.set(key(purchase.workspaceId, purchase.id), purchase);
+        },
+        updateDraft: async (purchase, expectedVersion) => {
+          const current = store.purchases.get(key(purchase.workspaceId, purchase.id));
+          if (
+            current === undefined ||
+            current.version !== expectedVersion ||
+            current.status !== "draft"
+          )
+            return false;
+          store.purchases.set(key(purchase.workspaceId, purchase.id), purchase);
+          return true;
+        },
+        confirm: async (purchase, expectedVersion) => {
+          const current = store.purchases.get(key(purchase.workspaceId, purchase.id));
+          if (
+            current === undefined ||
+            current.version !== expectedVersion ||
+            current.status !== "draft"
+          )
+            return false;
+          store.purchases.set(key(purchase.workspaceId, purchase.id), purchase);
+          return true;
+        },
+        insertVoid: async (record) => {
+          if (
+            store.purchaseVoids.some(
+              (row) =>
+                row.workspaceId === record.workspaceId && row.purchaseId === record.purchaseId,
+            )
+          )
+            return false;
+          store.purchaseVoids.push(record);
+          const current = store.purchases.get(key(record.workspaceId, record.purchaseId));
+          if (current !== undefined) {
+            store.purchases.set(key(record.workspaceId, record.purchaseId), {
+              ...current,
+              voidRecord: record,
+            });
+          }
+          return true;
+        },
+      },
+
+      purchaseReceipts: {
+        findById: async (workspaceId, receiptId) =>
+          store.purchaseReceipts.get(key(workspaceId, receiptId)) ?? null,
+        insert: async (receipt) => {
+          store.purchaseReceipts.set(key(receipt.workspaceId, receipt.id), receipt);
+        },
+        insertReversal: async (reversal: PurchaseReceiptReversalState) => {
+          const receipt = store.purchaseReceipts.get(key(reversal.workspaceId, reversal.receiptId));
+          if (receipt === undefined || receipt.reversal !== null) return false;
+          store.purchaseReceipts.set(key(reversal.workspaceId, reversal.receiptId), {
+            ...receipt,
+            reversal,
+          });
+          return true;
+        },
+        netReceivedByPurchaseLine: async (workspaceId, purchaseId) => {
+          const result = new Map<string, number>();
+          for (const receipt of store.purchaseReceipts.values()) {
+            if (
+              receipt.workspaceId !== workspaceId ||
+              receipt.purchaseId !== purchaseId ||
+              receipt.reversal !== null
+            )
+              continue;
+            for (const line of receipt.lines) {
+              result.set(
+                line.purchaseLineId,
+                (result.get(line.purchaseLineId) ?? 0) + line.quantity.valueScaled,
+              );
+            }
+          }
+          return result;
+        },
+      },
+      inventoryMovements: {
+        append: async (movements) => {
+          const appended = movements.map((movement) => ({
+            ...movement,
+            id: ids.newId() as InventoryMovementState["id"],
+          }));
+          store.inventoryMovements.push(...appended);
+          return appended;
+        },
+        listByProduct: async (workspaceId, productId, unit) =>
+          store.inventoryMovements
+            .filter(
+              (movement) =>
+                movement.workspaceId === workspaceId &&
+                movement.productId === productId &&
+                (unit === null || movement.quantity.unit === unit),
+            )
+            .sort((a, b) =>
+              a.transactionTime !== b.transactionTime
+                ? a.transactionTime.localeCompare(b.transactionTime)
+                : a.recordedAt !== b.recordedAt
+                  ? a.recordedAt.localeCompare(b.recordedAt)
+                  : a.id.localeCompare(b.id),
+            ),
+      },
+      inventoryBalances: {
+        get: async (workspaceId, productId, unit) =>
+          store.inventoryBalances.get(`${workspaceId}:${productId}:${unit}`) ?? null,
+        save: async (balance) => {
+          store.inventoryBalances.set(
+            `${balance.workspaceId}:${balance.productId}:${balance.unit}`,
+            balance,
+          );
+        },
+      },
+
       operations: {
         restoreBackup: async (workspaceId, payload) => {
           const occupied =
-            [...store.customers.values(), ...store.products.values(), ...store.sales.values()].some(
-              (row) => row.workspaceId === workspaceId,
-            ) || store.accountEntries.some((row) => row.workspaceId === workspaceId);
+            [
+              ...store.customers.values(),
+              ...store.products.values(),
+              ...store.sales.values(),
+              ...store.suppliers.values(),
+              ...store.purchases.values(),
+            ].some((row) => row.workspaceId === workspaceId) ||
+            store.accountEntries.some((row) => row.workspaceId === workspaceId) ||
+            store.inventoryMovements.some((row) => row.workspaceId === workspaceId);
           if (occupied) {
             return { kind: "unsafe_target" as const, reason: "target contains business data" };
           }
@@ -463,6 +739,36 @@ export class InMemoryDatabase {
               const row = remap(raw) as unknown as CommandReceipt;
               store.receipts.set(key(workspaceId, row.idempotencyKey), row);
             }
+            for (const raw of payload.suppliers) {
+              const row = remap(raw) as unknown as SupplierState;
+              store.suppliers.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.supplierPayments) {
+              const row = remap(raw) as unknown as SupplierPaymentState;
+              store.supplierPayments.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.supplierPaymentReversals) {
+              store.supplierPaymentReversals.push(
+                remap(raw) as unknown as Store["supplierPaymentReversals"][number],
+              );
+            }
+            for (const raw of payload.supplierAccountEntries) {
+              store.supplierAccountEntries.push(remap(raw) as unknown as SupplierAccountEntryDto);
+            }
+            for (const raw of payload.purchases) {
+              const row = remap(raw) as unknown as PurchaseState;
+              store.purchases.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.purchaseVoids) {
+              store.purchaseVoids.push(remap(raw) as unknown as PurchaseVoidState);
+            }
+            for (const raw of payload.receipts) {
+              const row = remap(raw) as unknown as PurchaseReceiptState;
+              store.purchaseReceipts.set(key(workspaceId, row.id), row);
+            }
+            for (const raw of payload.inventoryMovements) {
+              store.inventoryMovements.push(remap(raw) as unknown as InventoryMovementState);
+            }
             for (const customer of [...store.customers.values()].filter(
               (row) => row.workspaceId === workspaceId,
             )) {
@@ -481,6 +787,58 @@ export class InMemoryDatabase {
                 lastEntryTransactionTime:
                   entries
                     .map((entry) => entry.transactionTime)
+                    .sort()
+                    .at(-1) ?? null,
+                updatedAt: new Date().toISOString() as IsoInstant,
+              });
+            }
+            for (const supplier of [...store.suppliers.values()].filter(
+              (row) => row.workspaceId === workspaceId,
+            )) {
+              const entries = store.supplierAccountEntries.filter(
+                (entry) => entry.workspaceId === workspaceId && entry.supplierId === supplier.id,
+              );
+              store.supplierAccountBalances.set(key(workspaceId, supplier.id), {
+                workspaceId,
+                supplierId: supplier.id,
+                balance: money(
+                  entries.reduce((sum, entry) => sum + entry.amount.amountMinor, 0),
+                  "VND",
+                ),
+                entryCount: entries.length,
+                lastEntryTransactionTime:
+                  entries
+                    .map((entry) => entry.transactionTime)
+                    .sort()
+                    .at(-1) ?? null,
+                updatedAt: new Date().toISOString() as IsoInstant,
+              });
+            }
+            const inventoryKeys = new Set(
+              store.inventoryMovements
+                .filter((movement) => movement.workspaceId === workspaceId)
+                .map((movement) => `${movement.productId}:${movement.quantity.unit}`),
+            );
+            for (const inventoryKey of inventoryKeys) {
+              const [productId, unit] = inventoryKey.split(":");
+              const movements = store.inventoryMovements.filter(
+                (movement) =>
+                  movement.workspaceId === workspaceId &&
+                  movement.productId === productId &&
+                  movement.quantity.unit === unit,
+              );
+              store.inventoryBalances.set(`${workspaceId}:${inventoryKey}`, {
+                workspaceId,
+                productId: productId as InventoryMovementState["productId"],
+                unit: unit as InventoryMovementState["quantity"]["unit"],
+                quantityScaled: movements.reduce(
+                  (sum, movement) => sum + movement.quantity.valueScaled,
+                  0,
+                ),
+                movementCount: movements.length,
+                lastMovementTransactionTime:
+                  movements
+                    .map((movement) => movement.transactionTime)
                     .sort()
                     .at(-1) ?? null,
                 updatedAt: new Date().toISOString() as IsoInstant,
@@ -826,6 +1184,326 @@ export class InMemoryDatabase {
         get: async (workspaceId, productId) => {
           const row = store.products.get(key(workspaceId, productId));
           return row === undefined ? null : { ...row, aliases: [...row.aliases] };
+        },
+      },
+
+      supplierReads: {
+        search: async ({ workspaceId, query, isActive, page }) => {
+          const needle = fold(query.trim());
+          const rows = [...store.suppliers.values()]
+            .filter((supplier) => supplier.workspaceId === workspaceId)
+            .filter((supplier) => isActive === null || supplier.isActive === isActive)
+            .filter(
+              (supplier) =>
+                needle.length === 0 ||
+                fold(supplier.displayName).includes(needle) ||
+                (supplier.phone ?? "").includes(query),
+            )
+            .sort(
+              ascendingBy(
+                (supplier) => supplier.displayName,
+                (supplier) => supplier.id,
+              ),
+            )
+            .filter((supplier) =>
+              page.after === null
+                ? true
+                : after([supplier.displayName, supplier.id], [page.after.sortValue, page.after.id]),
+            );
+          return takePage(rows, page, (row) => ({
+            sortValue: row.displayName,
+            id: row.id,
+          }));
+        },
+        get: async (workspaceId, supplierId) =>
+          store.suppliers.get(key(workspaceId, supplierId)) ?? null,
+      },
+
+      supplierAccountReads: {
+        balance: async (workspaceId, supplierId) => {
+          const row = store.supplierAccountBalances.get(key(workspaceId, supplierId));
+          return row === undefined
+            ? null
+            : {
+                ...row,
+                classification:
+                  row.balance.amountMinor > 0
+                    ? "payable"
+                    : row.balance.amountMinor < 0
+                      ? "supplier_credit"
+                      : "settled",
+              };
+        },
+        timeline: async ({ workspaceId, supplierId, page }) => {
+          const rows = store.supplierAccountEntries
+            .filter((entry) => entry.workspaceId === workspaceId && entry.supplierId === supplierId)
+            .sort((a, b) =>
+              a.transactionTime !== b.transactionTime
+                ? b.transactionTime.localeCompare(a.transactionTime)
+                : a.recordedAt !== b.recordedAt
+                  ? b.recordedAt.localeCompare(a.recordedAt)
+                  : b.id.localeCompare(a.id),
+            )
+            .filter((entry) => {
+              if (page.after === null) return true;
+              const sortValue = `${entry.transactionTime}|${entry.recordedAt}`;
+              return (
+                sortValue < page.after.sortValue ||
+                (sortValue === page.after.sortValue && entry.id < page.after.id)
+              );
+            });
+          return takePage(
+            rows.map((row) => {
+              const sourceDocument =
+                row.sourceType === "supplier_payment"
+                  ? { type: "supplier_payment" as const, id: row.sourceId }
+                  : row.sourceType === "supplier_payment_reversal"
+                    ? {
+                        type: "supplier_payment" as const,
+                        id:
+                          store.supplierPaymentReversals.find(
+                            (reversal) => reversal.id === row.sourceId,
+                          )?.supplierPaymentId ?? row.sourceId,
+                      }
+                    : row.sourceType === "purchase_confirmation"
+                      ? { type: "purchase" as const, id: row.sourceId }
+                      : row.sourceType === "purchase_void"
+                        ? {
+                            type: "purchase" as const,
+                            id:
+                              [...store.purchases.values()].find(
+                                (purchase) => purchase.voidRecord?.id === row.sourceId,
+                              )?.id ?? row.sourceId,
+                          }
+                        : { type: "supplier_adjustment" as const, id: row.sourceId };
+              return { ...row, sourceDocument };
+            }),
+            page,
+            (row) => ({
+              sortValue: `${row.transactionTime}|${row.recordedAt}`,
+              id: row.id,
+            }),
+          );
+        },
+        payment: async (workspaceId, paymentId) => {
+          const row = store.supplierPayments.get(key(workspaceId, paymentId));
+          if (row === undefined) return null;
+          return {
+            ...row,
+            status:
+              row.reversedAmount.amountMinor === 0
+                ? "recorded"
+                : row.reversedAmount.amountMinor === row.amount.amountMinor
+                  ? "reversed"
+                  : "partially_reversed",
+          };
+        },
+        integrity: async (workspaceId, supplierId) => {
+          const diagnostics: string[] = [];
+          for (const entry of store.supplierAccountEntries.filter(
+            (row) => row.workspaceId === workspaceId && row.supplierId === supplierId,
+          )) {
+            if (entry.amount.amountMinor === 0) diagnostics.push("zero_amount");
+            if (
+              entry.sourceType === "manual_adjustment" &&
+              (entry.reasonCode === null || (entry.reason ?? "").trim().length === 0)
+            )
+              diagnostics.push("malformed_adjustment");
+            if (entry.sourceType === "supplier_payment") {
+              const payment = store.supplierPayments.get(key(workspaceId, entry.sourceId));
+              if (
+                payment === undefined ||
+                payment.supplierId !== supplierId ||
+                -payment.amount.amountMinor !== entry.amount.amountMinor
+              )
+                diagnostics.push("missing_or_mismatched_supplier_payment");
+            }
+            if (entry.sourceType === "purchase_confirmation") {
+              const purchase = store.purchases.get(key(workspaceId, entry.sourceId));
+              if (
+                purchase === undefined ||
+                purchase.supplierId !== supplierId ||
+                purchase.status !== "confirmed" ||
+                purchase.totalAmount.amountMinor !== entry.amount.amountMinor
+              )
+                diagnostics.push("missing_or_mismatched_purchase");
+            }
+          }
+          return diagnostics;
+        },
+      },
+
+      purchaseReads: {
+        get: async (workspaceId, purchaseId) =>
+          (() => {
+            const row = store.purchases.get(key(workspaceId, purchaseId));
+            return row === undefined ? null : toPurchaseDto(row);
+          })(),
+        list: async ({ workspaceId, supplierId, status, page }) => {
+          const rows = [...store.purchases.values()]
+            .filter((row) => row.workspaceId === workspaceId)
+            .filter((row) => supplierId === null || row.supplierId === supplierId)
+            .filter((row) => status === null || row.status === status)
+            .sort((a, b) =>
+              a.transactionTime !== b.transactionTime
+                ? b.transactionTime.localeCompare(a.transactionTime)
+                : a.recordedAt !== b.recordedAt
+                  ? b.recordedAt.localeCompare(a.recordedAt)
+                  : b.id.localeCompare(a.id),
+            )
+            .filter((row) => {
+              if (page.after === null) return true;
+              const sort = `${row.transactionTime}|${row.recordedAt}`;
+              return (
+                sort < page.after.sortValue ||
+                (sort === page.after.sortValue && row.id < page.after.id)
+              );
+            });
+          return takePage(rows.map(toPurchaseDto), page, (row) => ({
+            sortValue: `${row.transactionTime}|${row.recordedAt}`,
+            id: row.id,
+          }));
+        },
+      },
+
+      inventoryReads: {
+        receipt: async (workspaceId, receiptId) => {
+          const row = store.purchaseReceipts.get(key(workspaceId, receiptId));
+          return row === undefined
+            ? null
+            : {
+                ...row,
+                lines: row.lines.map((line) => ({ ...line })),
+                reversal:
+                  row.reversal === null
+                    ? null
+                    : {
+                        id: row.reversal.id,
+                        reasonCode: row.reversal.reasonCode,
+                        reason: row.reversal.reason,
+                        transactionTime: row.reversal.transactionTime,
+                        recordedAt: row.reversal.recordedAt,
+                      },
+              };
+        },
+        receipts: async (workspaceId, purchaseId) =>
+          [...store.purchaseReceipts.values()]
+            .filter((row) => row.workspaceId === workspaceId && row.purchaseId === purchaseId)
+            .map((row) => ({
+              ...row,
+              lines: row.lines.map((line) => ({ ...line })),
+              reversal:
+                row.reversal === null
+                  ? null
+                  : {
+                      id: row.reversal.id,
+                      reasonCode: row.reversal.reasonCode,
+                      reason: row.reversal.reason,
+                      transactionTime: row.reversal.transactionTime,
+                      recordedAt: row.reversal.recordedAt,
+                    },
+            })),
+        adjustment: async (workspaceId, adjustmentId) => {
+          const row = store.inventoryMovements.find(
+            (movement) =>
+              movement.workspaceId === workspaceId &&
+              movement.sourceType === "inventory_adjustment" &&
+              movement.sourceId === adjustmentId,
+          );
+          return row === undefined
+            ? null
+            : {
+                ...row,
+                sourceDocument: { type: "inventory_adjustment" as const, id: row.sourceId },
+              };
+        },
+        balances: async (workspaceId, productId) =>
+          [...store.inventoryBalances.values()]
+            .filter((row) => row.workspaceId === workspaceId && row.productId === productId)
+            .map((row) => ({
+              ...row,
+              classification:
+                row.quantityScaled > 0
+                  ? ("positive" as const)
+                  : row.quantityScaled < 0
+                    ? ("negative" as const)
+                    : ("zero" as const),
+            })),
+        timeline: async ({ workspaceId, productId, unit, page }) => {
+          const rows = store.inventoryMovements
+            .filter(
+              (row) =>
+                row.workspaceId === workspaceId &&
+                row.productId === productId &&
+                (unit === null || row.quantity.unit === unit),
+            )
+            .sort((a, b) =>
+              a.transactionTime !== b.transactionTime
+                ? b.transactionTime.localeCompare(a.transactionTime)
+                : a.recordedAt !== b.recordedAt
+                  ? b.recordedAt.localeCompare(a.recordedAt)
+                  : b.id.localeCompare(a.id),
+            )
+            .filter((row) => {
+              if (page.after === null) return true;
+              const sort = `${row.transactionTime}|${row.recordedAt}`;
+              return (
+                sort < page.after.sortValue ||
+                (sort === page.after.sortValue && row.id < page.after.id)
+              );
+            });
+          return takePage(
+            rows.map((row) => ({
+              ...row,
+              sourceDocument:
+                row.sourceType === "inventory_adjustment"
+                  ? { type: "inventory_adjustment" as const, id: row.sourceId }
+                  : {
+                      type: "receipt" as const,
+                      id:
+                        row.sourceType === "purchase_receipt"
+                          ? row.sourceId
+                          : ([...store.purchaseReceipts.values()].find(
+                              (receipt) => receipt.reversal?.id === row.sourceId,
+                            )?.id ?? row.sourceId),
+                    },
+            })),
+            page,
+            (row) => ({
+              sortValue: `${row.transactionTime}|${row.recordedAt}`,
+              id: row.id,
+            }),
+          );
+        },
+        integrity: async (workspaceId, productId, unit) => {
+          const diagnostics: string[] = [];
+          for (const movement of store.inventoryMovements.filter(
+            (row) =>
+              row.workspaceId === workspaceId &&
+              row.productId === productId &&
+              row.quantity.unit === unit,
+          )) {
+            if (movement.quantity.valueScaled === 0) diagnostics.push("zero_quantity");
+            if (
+              movement.sourceType === "inventory_adjustment" &&
+              (movement.reasonCode === null || (movement.reason ?? "").trim().length === 0)
+            )
+              diagnostics.push("malformed_adjustment");
+            if (movement.sourceType === "purchase_receipt") {
+              const receipt = store.purchaseReceipts.get(key(workspaceId, movement.sourceId));
+              const line = receipt?.lines.find(
+                (item) => item.receiptLineId === movement.sourceLineId,
+              );
+              if (
+                line === undefined ||
+                line.productId !== productId ||
+                line.quantity.unit !== unit ||
+                line.quantity.valueScaled !== movement.quantity.valueScaled
+              )
+                diagnostics.push("missing_or_mismatched_receipt");
+            }
+          }
+          return diagnostics;
         },
       },
 
@@ -1276,6 +1954,37 @@ export class InMemoryDatabase {
             anomalousCustomerIds.add(source.customerId);
           }
           const anomalousCustomers = anomalousCustomerIds.size;
+          const suppliers = [...store.suppliers.values()].filter(
+            (supplier) => supplier.workspaceId === workspaceId,
+          );
+          const anomalousSupplierIds = new Set(
+            suppliers.flatMap((supplier) => {
+              const ledger = store.supplierAccountEntries
+                .filter(
+                  (entry) => entry.workspaceId === workspaceId && entry.supplierId === supplier.id,
+                )
+                .reduce((sum, entry) => sum + entry.amount.amountMinor, 0);
+              const projected =
+                store.supplierAccountBalances.get(key(workspaceId, supplier.id))?.balance
+                  .amountMinor ?? 0;
+              return ledger === projected ? [] : [supplier.id];
+            }),
+          );
+          const inventoryGroups = new Map<string, number>();
+          for (const movement of store.inventoryMovements.filter(
+            (item) => item.workspaceId === workspaceId,
+          )) {
+            const movementKey = `${movement.productId}:${movement.quantity.unit}`;
+            inventoryGroups.set(
+              movementKey,
+              (inventoryGroups.get(movementKey) ?? 0) + movement.quantity.valueScaled,
+            );
+          }
+          const anomalousInventoryKeys = [...inventoryGroups].filter(
+            ([inventoryKey, quantity]) =>
+              store.inventoryBalances.get(`${workspaceId}:${inventoryKey}`)?.quantityScaled !==
+              quantity,
+          ).length;
           return {
             workspaceId,
             healthyCustomers: customers.length - anomalousCustomers,
@@ -1283,7 +1992,15 @@ export class InMemoryDatabase {
             missingSources,
             duplicateSources,
             projectionDrift,
-            status: anomalousCustomers === 0 ? ("healthy" as const) : ("attention" as const),
+            healthySuppliers: suppliers.length - anomalousSupplierIds.size,
+            anomalousSuppliers: anomalousSupplierIds.size,
+            anomalousInventoryKeys,
+            status:
+              anomalousCustomers === 0 &&
+              anomalousSupplierIds.size === 0 &&
+              anomalousInventoryKeys === 0
+                ? ("healthy" as const)
+                : ("attention" as const),
           };
         },
         backupPayload: async (workspaceId) => {
@@ -1309,6 +2026,23 @@ export class InMemoryDatabase {
             commandReceipts: rows(store.receipts.values()).filter(
               (receipt) => receipt.commandType !== "ExportWorkspaceBackup",
             ),
+            suppliers: rows(store.suppliers.values()),
+            supplierPayments: rows(store.supplierPayments.values()),
+            supplierPaymentReversals: rows(store.supplierPaymentReversals),
+            supplierAccountEntries: rows(store.supplierAccountEntries),
+            purchases: rows(store.purchases.values()),
+            purchaseLines: rows(store.purchases.values()).flatMap((purchase) =>
+              purchase.lines.map((line) => ({ ...line, purchaseId: purchase.id, workspaceId })),
+            ),
+            purchaseVoids: rows(store.purchaseVoids),
+            receipts: rows(store.purchaseReceipts.values()),
+            receiptLines: rows(store.purchaseReceipts.values()).flatMap((receipt) =>
+              receipt.lines.map((line) => ({ ...line, receiptId: receipt.id, workspaceId })),
+            ),
+            receiptReversals: rows(store.purchaseReceipts.values()).flatMap((receipt) =>
+              receipt.reversal === null ? [] : [receipt.reversal],
+            ),
+            inventoryMovements: rows(store.inventoryMovements),
           };
         },
       },

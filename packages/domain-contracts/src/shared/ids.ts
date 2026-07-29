@@ -23,6 +23,39 @@ export type CustomerId = z.infer<typeof customerIdSchema>;
 export const productIdSchema = z.uuid().brand<"ProductId">();
 export type ProductId = z.infer<typeof productIdSchema>;
 
+export const supplierIdSchema = z.uuid().brand<"SupplierId">();
+export type SupplierId = z.infer<typeof supplierIdSchema>;
+
+export const supplierPaymentIdSchema = z.uuid().brand<"SupplierPaymentId">();
+export type SupplierPaymentId = z.infer<typeof supplierPaymentIdSchema>;
+
+export const supplierPaymentReversalIdSchema = z.uuid().brand<"SupplierPaymentReversalId">();
+export type SupplierPaymentReversalId = z.infer<typeof supplierPaymentReversalIdSchema>;
+
+export const supplierAccountEntryIdSchema = z.uuid().brand<"SupplierAccountEntryId">();
+export type SupplierAccountEntryId = z.infer<typeof supplierAccountEntryIdSchema>;
+
+export const purchaseIdSchema = z.uuid().brand<"PurchaseId">();
+export type PurchaseId = z.infer<typeof purchaseIdSchema>;
+
+export const purchaseLineIdSchema = z.uuid().brand<"PurchaseLineId">();
+export type PurchaseLineId = z.infer<typeof purchaseLineIdSchema>;
+
+export const purchaseVoidIdSchema = z.uuid().brand<"PurchaseVoidId">();
+export type PurchaseVoidId = z.infer<typeof purchaseVoidIdSchema>;
+
+export const purchaseReceiptIdSchema = z.uuid().brand<"PurchaseReceiptId">();
+export type PurchaseReceiptId = z.infer<typeof purchaseReceiptIdSchema>;
+
+export const purchaseReceiptLineIdSchema = z.uuid().brand<"PurchaseReceiptLineId">();
+export type PurchaseReceiptLineId = z.infer<typeof purchaseReceiptLineIdSchema>;
+
+export const purchaseReceiptReversalIdSchema = z.uuid().brand<"PurchaseReceiptReversalId">();
+export type PurchaseReceiptReversalId = z.infer<typeof purchaseReceiptReversalIdSchema>;
+
+export const inventoryMovementIdSchema = z.uuid().brand<"InventoryMovementId">();
+export type InventoryMovementId = z.infer<typeof inventoryMovementIdSchema>;
+
 export const saleIdSchema = z.uuid().brand<"SaleId">();
 export type SaleId = z.infer<typeof saleIdSchema>;
 

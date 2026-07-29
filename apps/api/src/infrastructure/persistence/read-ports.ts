@@ -21,8 +21,21 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV1,
+  WorkspaceBackupV2,
   WorkspaceIntegrityDto,
+  SupplierAccountBalanceDto,
+  SupplierAccountEntryDto,
+  SupplierDto,
+  SupplierId,
+  SupplierPaymentDto,
+  PurchaseDto,
+  PurchaseId,
+  PurchaseStatus,
+  PurchaseReceiptDto,
+  InventoryBalanceDto,
+  InventoryMovementDto,
+  ProductId,
+  Unit,
 } from "@vuarau/domain-contracts";
 import type { SaleState } from "@vuarau/domain-kernel";
 
@@ -299,6 +312,56 @@ export type PaymentReadRepository = {
   }): Promise<PageResult<PaymentSummaryRow>>;
 };
 
+export type SupplierReadRepository = {
+  search(args: {
+    workspaceId: WorkspaceId;
+    query: string;
+    isActive: boolean | null;
+    page: PageQuery;
+  }): Promise<PageResult<SupplierDto>>;
+  get(workspaceId: WorkspaceId, supplierId: SupplierId): Promise<SupplierDto | null>;
+};
+
+export type SupplierAccountReadRepository = {
+  balance(
+    workspaceId: WorkspaceId,
+    supplierId: SupplierId,
+  ): Promise<SupplierAccountBalanceDto | null>;
+  timeline(args: {
+    workspaceId: WorkspaceId;
+    supplierId: SupplierId;
+    page: PageQuery;
+  }): Promise<PageResult<SupplierAccountEntryDto>>;
+  payment(workspaceId: WorkspaceId, paymentId: string): Promise<SupplierPaymentDto | null>;
+  integrity(workspaceId: WorkspaceId, supplierId: SupplierId): Promise<readonly string[]>;
+};
+
+export type PurchaseReadRepository = {
+  get(workspaceId: WorkspaceId, purchaseId: PurchaseId): Promise<PurchaseDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    supplierId: SupplierId | null;
+    status: PurchaseStatus | null;
+    page: PageQuery;
+  }): Promise<PageResult<PurchaseDto>>;
+};
+export type InventoryReadRepository = {
+  receipt(workspaceId: WorkspaceId, receiptId: string): Promise<PurchaseReceiptDto | null>;
+  receipts(
+    workspaceId: WorkspaceId,
+    purchaseId: PurchaseId,
+  ): Promise<readonly PurchaseReceiptDto[]>;
+  adjustment(workspaceId: WorkspaceId, adjustmentId: string): Promise<InventoryMovementDto | null>;
+  balances(workspaceId: WorkspaceId, productId: ProductId): Promise<readonly InventoryBalanceDto[]>;
+  timeline(args: {
+    workspaceId: WorkspaceId;
+    productId: ProductId;
+    unit: Unit | null;
+    page: PageQuery;
+  }): Promise<PageResult<InventoryMovementDto>>;
+  integrity(workspaceId: WorkspaceId, productId: ProductId, unit: Unit): Promise<readonly string[]>;
+};
+
 export type AccountReadRepository = {
   adjustmentDetail(args: {
     workspaceId: WorkspaceId;
@@ -331,7 +394,7 @@ export type AuditReadRepository = {
 
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV1["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV2["payload"] | null>;
 };
 
 /**
@@ -343,6 +406,10 @@ export type OperationsReadRepository = {
 export type ReadRepositories = {
   readonly customerReads: CustomerReadRepository;
   readonly productReads: ProductReadRepository;
+  readonly supplierReads: SupplierReadRepository;
+  readonly supplierAccountReads: SupplierAccountReadRepository;
+  readonly purchaseReads: PurchaseReadRepository;
+  readonly inventoryReads: InventoryReadRepository;
   readonly saleReads: SaleReadRepository;
   readonly paymentReads: PaymentReadRepository;
   readonly accountReads: AccountReadRepository;
