@@ -47,7 +47,14 @@ const DESKTOP_NAVIGATION: readonly NavigationGroup[] = [
   },
   {
     label: "Hệ thống",
-    items: [{ label: "Thành viên", href: "/workspace", permission: "workspace.manage" }],
+    items: [
+      {
+        label: "Vận hành",
+        href: "/workspace/operations",
+        permission: "workspace.manage",
+      },
+      { label: "Thành viên", href: "/workspace", permission: "workspace.manage" },
+    ],
   },
 ];
 

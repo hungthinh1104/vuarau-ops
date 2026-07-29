@@ -74,14 +74,27 @@ export function WorkspaceShell({
           </div>
         </div>
       </header>
-      {session.permissions.includes("sale.create") ? (
+      {session.permissions.includes("sale.create") ||
+      session.permissions.includes("workspace.manage") ? (
         <div className="border-b border-border bg-surface px-4 py-2 lg:hidden">
-          <Link
-            href="/sales/new"
-            className="touch-target mx-auto flex max-w-xl items-center justify-center rounded-button bg-leaf text-label font-semibold text-white"
-          >
-            Ghi đơn nhanh
-          </Link>
+          <div className="mx-auto flex max-w-xl gap-2">
+            {session.permissions.includes("sale.create") ? (
+              <Link
+                href="/sales/new"
+                className="touch-target flex flex-1 items-center justify-center rounded-button bg-leaf px-3 text-label font-semibold text-white"
+              >
+                Ghi đơn nhanh
+              </Link>
+            ) : null}
+            {session.permissions.includes("workspace.manage") ? (
+              <Link
+                href="/workspace/operations"
+                className="touch-target flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-3 text-label font-semibold text-ink"
+              >
+                Vận hành
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

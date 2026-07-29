@@ -92,7 +92,6 @@ use_cases:
       - TC-WEB-028
       - TC-WEB-029
       - TC-WEB-030
-      - TC-WEB-031
       - TC-E2E-021
       - TC-E2E-031
     implementation:
@@ -1962,9 +1961,6 @@ contract_tests:
   TC-WEB-030:
     title: Paged list rows and cursors are cleared synchronously on workspace change
     file: apps/web/src/api/workspace-page-state.test.ts
-  TC-WEB-031:
-    title: Explicit workspace selection opens the role-aware operational Today screen
-    file: apps/web/src/app/(app)/select-workspace/page.test.tsx
   TC-E2E-021:
     title: The depot list comes from session.workspaces against a real database
     file: apps/web/e2e/sign-in.spec.ts
