@@ -1,6 +1,7 @@
 import { test as base, type Page } from "@playwright/test";
 import {
   E2E_WORKSPACE_ID,
+  E2E_ACTORS,
   endToEndDisabled,
   mintAccessToken,
   mintAccessTokenForActor,
@@ -25,19 +26,28 @@ import {
  */
 export async function signIn(page: Page, role: E2ERole = "sales"): Promise<void> {
   await injectToken(page, role);
-  await page.addInitScript((workspaceId) => {
-    window.sessionStorage.setItem("vuarau.workspace_id", workspaceId);
-  }, E2E_WORKSPACE_ID);
+  await page.addInitScript(
+    ({ subject, workspaceId }) => {
+      window.sessionStorage.setItem(
+        `vuarau.workspace_id:${encodeURIComponent(subject)}`,
+        workspaceId,
+      );
+    },
+    { subject: E2E_ACTORS[role], workspaceId: E2E_WORKSPACE_ID },
+  );
 }
 
 export async function signInActor(page: Page, actorId: string): Promise<void> {
   const token = await mintAccessTokenForActor(actorId);
   await page.addInitScript(
-    ({ accessToken, workspaceId }) => {
+    ({ accessToken, actorId, workspaceId }) => {
       window.sessionStorage.setItem("vuarau.access_token", accessToken);
-      window.sessionStorage.setItem("vuarau.workspace_id", workspaceId);
+      window.sessionStorage.setItem(
+        `vuarau.workspace_id:${encodeURIComponent(actorId)}`,
+        workspaceId,
+      );
     },
-    { accessToken: token, workspaceId: E2E_WORKSPACE_ID },
+    { accessToken: token, actorId, workspaceId: E2E_WORKSPACE_ID },
   );
 }
 

@@ -1,5 +1,5 @@
 import { expect, test, injectToken } from "./harness/signed-in.ts";
-import { E2E_WORKSPACE_NAME } from "./harness/environment.ts";
+import { E2E_ACTORS, E2E_WORKSPACE_NAME, mintAccessToken } from "./harness/environment.ts";
 
 /**
  * TC-E2E-021 — the depot list comes from the server, over the real stack.
@@ -46,7 +46,56 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await expect(page.getByText("Chưa cấu hình đăng nhập")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeHidden();
     await expect(page.getByRole("heading", { name: "Chọn vựa" })).toBeHidden();
-    // No password field, on any screen, ever.
+    // The deployment is deliberately unconfigured in deterministic E2E, so
+    // credentials are never accepted by a fake identity provider.
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  });
+
+  test("TC-E2E-031 — isolates User A from User B across logout in the same tab", async ({
+    page,
+  }) => {
+    const aToken = await mintAccessToken("owner");
+    await page.goto("/");
+    await page.evaluate((token) => {
+      window.sessionStorage.setItem("vuarau.access_token", token);
+    }, aToken);
+    await page.goto("/customers");
+    await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
+
+    await expect(page.getByText("Chủ vựa")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Vận hành" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Đăng xuất" }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { name: "Đăng nhập" })).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
+
+    const aResidue = await page.evaluate((subject) => {
+      const encoded = encodeURIComponent(subject);
+      return Object.keys(window.sessionStorage).filter(
+        (key) =>
+          key.includes(encoded) ||
+          key === "vuarau.access_token" ||
+          key === "vuarau.workspace_id" ||
+          key.startsWith("vuarau.offline."),
+      );
+    }, E2E_ACTORS.owner);
+    expect(aResidue).toEqual([]);
+
+    const bToken = await mintAccessToken("sales");
+    await page.evaluate((token) => {
+      window.sessionStorage.setItem("vuarau.access_token", token);
+    }, bToken);
+    await page.goto("/customers");
+
+    // B gets server discovery and an explicit choice. A's selected workspace,
+    // role, permissions and cached SessionDto are not renderable.
+    await expect(page.getByRole("heading", { name: "Chọn vựa" })).toBeVisible();
+    await expect(page.getByText("Chủ vựa")).toBeHidden();
+    await expect(page.getByRole("link", { name: "Vận hành" })).toBeHidden();
+    await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
+    await expect(page.getByText("Bán hàng")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
   });
 });
