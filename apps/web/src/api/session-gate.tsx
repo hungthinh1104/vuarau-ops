@@ -247,7 +247,17 @@ function ResolveSession({
   return (
     <SessionContext.Provider value={{ session, workspaceId, workspaceName: choice.name }}>
       <OfflineProvider session={session} workspaceId={workspaceId}>
-        <WorkspaceShell workspaceName={choice.name} session={session} onSignOut={auth.signOut}>
+        <WorkspaceShell
+          workspaceName={choice.name}
+          session={session}
+          userLabel={
+            auth.status === "signed_in" && auth.email !== null
+              ? auth.email
+              : `Người dùng ${session.actorId.slice(0, 8)}`
+          }
+          onChangeWorkspace={onChangeWorkspace}
+          onSignOut={auth.signOut}
+        >
           {children}
         </WorkspaceShell>
         <SyncIndicator />

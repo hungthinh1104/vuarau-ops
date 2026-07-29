@@ -136,7 +136,11 @@ export const Shell: Story = {
   name: "WorkspaceShell — luôn thấy đang ghi vào vựa nào",
   parameters: { layout: "fullscreen" },
   render: () => (
-    <WorkspaceShell workspaceName={WORKSPACE_NAME} session={salesSession}>
+    <WorkspaceShell
+      workspaceName={WORKSPACE_NAME}
+      session={salesSession}
+      userLabel="sales@example.com"
+    >
       <p className="text-body">Nội dung màn hình nằm ở đây.</p>
     </WorkspaceShell>
   ),

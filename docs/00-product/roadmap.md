@@ -245,12 +245,19 @@ source-backed reports.
   candidates and replay deterministic real commands without demo seeding;
 - the disposable dry-run composes existing real browser/API/PostgreSQL workflows
   with request/readiness failures instead of duplicating their scenarios;
+- the application exposes password-only Supabase login without overstating the
+  hosted provider's unobservable passwordless capability; a real two-account
+  same-tab smoke remains external evidence;
+- the role-aware desktop/mobile shell, explicit workspace/user context, Sale and
+  Delivery entry lists and permission-backed Today actions close the bounded
+  navigation gaps needed for a real worker;
 - H2–H6 criteria, P0–P3 stop rules, deployment/recovery evidence and support
   runbooks are frozen.
 
 Repository readiness may pass. Pilot readiness remains **BLOCKED/PENDING** until
-ASM-023/024/025, ASM-017/018, ASM-030, real-phone deployment and provider
-PITR/RPO/RTO/restore evidence are actually recorded. M24 is not authorized.
+the real Supabase A→B smoke, ASM-023/024/025, ASM-017/018, ASM-030, real-phone
+deployment and provider PITR/RPO/RTO/restore evidence are actually recorded. M24
+is not authorized.
 
 | Horizon                               | Milestones                                                                | Gate                                                                                   |
 | ------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |

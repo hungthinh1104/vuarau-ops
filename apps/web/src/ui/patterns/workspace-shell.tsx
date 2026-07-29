@@ -1,8 +1,9 @@
 import type { SessionDto, WorkspaceRole } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { Badge } from "../primitives/badge.tsx";
 import { Button } from "../primitives/button.tsx";
+import { AppNav } from "./app-nav.tsx";
+import { MobileNav } from "./mobile-nav.tsx";
 
 const ROLE_COPY: Readonly<Record<WorkspaceRole, string>> = {
   owner: "Chủ vựa",
@@ -16,8 +17,10 @@ export type WorkspaceShellProps = {
   /** Named, never inferred. See the note below on why. */
   readonly workspaceName: string;
   readonly session: SessionDto;
+  readonly userLabel: string;
   /** A standing message about the page itself, not about a command. */
   readonly notice?: string;
+  readonly onChangeWorkspace?: () => void;
   readonly onSignOut?: () => void | Promise<void>;
   readonly children: ReactNode;
 };
@@ -38,7 +41,9 @@ export type WorkspaceShellProps = {
 export function WorkspaceShell({
   workspaceName,
   session,
+  userLabel,
   notice,
+  onChangeWorkspace,
   onSignOut,
   children,
 }: WorkspaceShellProps) {
@@ -50,8 +55,16 @@ export function WorkspaceShell({
             <p className="text-caption text-ink-muted">Đang ghi vào</p>
             <p className="text-subheading font-semibold text-ink">{workspaceName}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="max-w-48 truncate text-body-sm text-ink-muted" title={userLabel}>
+              {userLabel}
+            </span>
             <Badge tone="info">{ROLE_COPY[session.role]}</Badge>
+            {onChangeWorkspace === undefined ? null : (
+              <Button tone="secondary" onClick={onChangeWorkspace}>
+                Đổi vựa
+              </Button>
+            )}
             {onSignOut !== undefined ? (
               <Button tone="secondary" onClick={() => void onSignOut()}>
                 Đăng xuất
@@ -60,44 +73,6 @@ export function WorkspaceShell({
           </div>
         </div>
       </header>
-      <nav
-        aria-label="Điều hướng chính"
-        className="border-b border-border bg-surface px-4 py-2 text-body-sm"
-      >
-        <div className="mx-auto flex max-w-[1440px] flex-wrap gap-4">
-          <Link href="/customers" className="text-info underline">
-            Khách hàng
-          </Link>
-          <Link href="/sales/new" className="text-info underline">
-            Ghi đơn nhanh
-          </Link>
-          {session.permissions.includes("product.read") ? (
-            <Link href="/products" className="text-info underline">
-              Mặt hàng
-            </Link>
-          ) : null}
-          {session.permissions.includes("supplier.read") ? (
-            <Link href="/suppliers" className="text-info underline">
-              Nhà cung cấp
-            </Link>
-          ) : null}
-          {session.permissions.includes("purchase.read") ? (
-            <Link href="/purchases" className="text-info underline">
-              Đơn mua
-            </Link>
-          ) : null}
-          {session.permissions.includes("workspace.manage") ? (
-            <Link href="/workspace/operations" className="text-info underline">
-              Vận hành
-            </Link>
-          ) : null}
-          {session.permissions.includes("report.read") ? (
-            <Link href="/reports" className="text-info underline">
-              Báo cáo
-            </Link>
-          ) : null}
-        </div>
-      </nav>
 
       {notice !== undefined ? (
         <p className="border-b border-warning/30 bg-warning-soft px-4 py-2 text-center text-body-sm text-warning lg:px-8">
@@ -105,7 +80,11 @@ export function WorkspaceShell({
         </p>
       ) : null}
 
-      <main className="mx-auto max-w-[1440px] px-4 py-6 lg:px-8">{children}</main>
+      <div className="mx-auto flex max-w-[1440px] gap-8 px-4 lg:px-8">
+        <AppNav permissions={session.permissions} />
+        <main className="min-w-0 flex-1 py-6 pb-24 lg:pb-8">{children}</main>
+      </div>
+      <MobileNav />
     </div>
   );
 }

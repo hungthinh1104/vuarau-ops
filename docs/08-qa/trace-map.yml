@@ -90,6 +90,9 @@ use_cases:
       - TC-WEB-026
       - TC-WEB-027
       - TC-WEB-028
+      - TC-WEB-029
+      - TC-WEB-030
+      - TC-WEB-031
       - TC-E2E-021
       - TC-E2E-031
     implementation:
@@ -101,8 +104,11 @@ use_cases:
       - apps/web/src/api/session-gate.tsx
       - apps/web/src/api/identity-lifecycle.ts
       - apps/web/src/api/workspace.ts
+      - apps/web/src/api/workspace-page-state.ts
       - apps/web/src/offline/session-cache.ts
       - apps/web/src/ui/patterns/sign-in.tsx
+      - apps/web/src/ui/patterns/pilot-navigation.ts
+      - apps/web/src/ui/patterns/today-actions.ts
 
   UC-AUTH-005:
     title: Manage workspace members and roles
@@ -1040,7 +1046,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/operations-rules.md
     cases: []
-    tests: [TC-OPS-012, TC-OPS-013, TC-CUSTOMER-013]
+    tests: [TC-OPS-012, TC-OPS-013, TC-OPS-014, TC-CUSTOMER-013]
     implementation:
       - packages/db/src/provisioning.ts
       - packages/db/src/pilot-inspection.ts
@@ -1950,6 +1956,15 @@ contract_tests:
   TC-WEB-028:
     title: Token refresh stays live while expiry and logout clear the previous subject
     file: apps/web/src/api/auth-session.test.tsx
+  TC-WEB-029:
+    title: Pilot navigation and Today actions render only server-authored capabilities
+    file: apps/web/src/ui/patterns/pilot-navigation.test.ts
+  TC-WEB-030:
+    title: Paged list rows and cursors are cleared synchronously on workspace change
+    file: apps/web/src/api/workspace-page-state.test.ts
+  TC-WEB-031:
+    title: Explicit workspace selection opens the role-aware operational Today screen
+    file: apps/web/src/app/(app)/select-workspace/page.test.tsx
   TC-E2E-021:
     title: The depot list comes from session.workspaces against a real database
     file: apps/web/e2e/sign-in.spec.ts
@@ -1998,6 +2013,9 @@ contract_tests:
   TC-OPS-013:
     title: Pilot declaration requires exact release and explicit external gates
     file: apps/api/src/operations/pilot-config.app.test.ts
+  TC-OPS-014:
+    title: Public Supabase settings never overstate the hosted passwordless policy
+    file: apps/api/src/operations/supabase-auth-settings.app.test.ts
   TC-CUSTOMER-013:
     title: Customer and Product pilot imports replay real commands without crossing workspaces
     file: apps/api/src/infrastructure/persistence/drizzle/pilot-onboarding.db.test.ts

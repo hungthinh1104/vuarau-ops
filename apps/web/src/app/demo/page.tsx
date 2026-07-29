@@ -42,6 +42,7 @@ export default function DemoPage() {
     <WorkspaceShell
       workspaceName={WORKSPACE_NAME}
       session={salesSession}
+      userLabel="sales@example.com"
       notice="Bản dựng thử — mọi số liệu là dữ liệu mẫu, không kết nối máy chủ."
     >
       <div className="flex flex-col gap-6">
