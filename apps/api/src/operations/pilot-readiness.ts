@@ -195,13 +195,68 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
   }
 
   checks.push(
-    config.recoveryEvidence.status === "passed"
-      ? pass(
-          "provider recovery evidence attached",
-          `provider: ${config.recoveryEvidence.providerEvidenceReference}; ` +
-            `drill: ${config.recoveryEvidence.restoreDrillReference}`,
+    config.authenticationSmoke.status === "passed"
+      ? config.authenticationSmoke.releaseSha === config.releaseSha
+        ? pass(
+            "real Supabase authentication smoke attached",
+            `release: ${config.authenticationSmoke.releaseSha}; ` +
+              `evidence: ${config.authenticationSmoke.evidenceReference}`,
+            "external",
+          )
+        : fail(
+            "real Supabase authentication smoke attached",
+            `evidence belongs to ${config.authenticationSmoke.releaseSha}, not frozen ` +
+              `${config.releaseSha}`,
+            "external",
+          )
+      : fail(
+          "real Supabase authentication smoke attached",
+          `pending — owner: ${config.authenticationSmoke.owner}; ` +
+            `trigger: ${config.authenticationSmoke.trigger}`,
           "external",
-        )
+        ),
+  );
+
+  checks.push(
+    config.deploymentEvidence.status === "passed"
+      ? config.deploymentEvidence.releaseSha === config.releaseSha
+        ? pass(
+            "real deployment and phone smoke attached",
+            `release: ${config.deploymentEvidence.releaseSha}; ` +
+              `evidence: ${config.deploymentEvidence.evidenceReference}`,
+            "external",
+          )
+        : fail(
+            "real deployment and phone smoke attached",
+            `evidence belongs to ${config.deploymentEvidence.releaseSha}, not frozen ` +
+              `${config.releaseSha}`,
+            "external",
+          )
+      : fail(
+          "real deployment and phone smoke attached",
+          `pending — owner: ${config.deploymentEvidence.owner}; ` +
+            `trigger: ${config.deploymentEvidence.trigger}`,
+          "external",
+        ),
+  );
+
+  checks.push(
+    config.recoveryEvidence.status === "passed"
+      ? config.recoveryEvidence.releaseSha === config.releaseSha
+        ? pass(
+            "provider recovery evidence attached",
+            `provider: ${config.recoveryEvidence.provider}; ` +
+              `RPO ${config.recoveryEvidence.measuredRpoMinutes}m; ` +
+              `RTO ${config.recoveryEvidence.measuredRtoMinutes}m; ` +
+              `drill: ${config.recoveryEvidence.restoreDrillReference}`,
+            "external",
+          )
+        : fail(
+            "provider recovery evidence attached",
+            `drill belongs to ${config.recoveryEvidence.releaseSha}, not frozen ` +
+              `${config.releaseSha}`,
+            "external",
+          )
       : fail(
           "provider recovery evidence attached",
           `pending — owner: ${config.recoveryEvidence.owner}; ` +

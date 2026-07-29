@@ -44,9 +44,11 @@ Both are public by design. The JWT **signing** material verifies tokens and live
 in the API process — never in a `NEXT_PUBLIC_*` variable, which is a bundle a
 phone downloads.
 
-Public sign-up, email OTP/Magic Link, anonymous signup and recovery email are off.
-Email/password is on. Email confirmation is off while SMTP is unavailable. A
-pilot participant and their password are provisioned by the operator beforehand.
+Public and anonymous signup are off. Email/password is on and the application
+exposes no OTP/Magic Link or recovery action. The hosted provider's public settings
+do not reveal whether its passwordless email endpoint is independently disabled,
+so the repository does not claim that it is. Email confirmation is off while SMTP
+is unavailable. A pilot participant and password are provisioned by the operator.
 
 Without both variables the app shows "chưa cấu hình đăng nhập" and names them,
 rather than a client that throws on first use.

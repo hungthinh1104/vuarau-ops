@@ -80,9 +80,10 @@ publishable key. The JWT signing material and the database credentials never lea
 the server side.
 
 The pilot Supabase project enables email/password, disables public and anonymous
-signup, disables email confirmation while SMTP is unavailable, and does not offer
-OTP/Magic Link or recovery email. Password reset is operator-assisted. The exact
-dashboard checklist and real-login smoke are in
+signup, and disables email confirmation while SMTP is unavailable. The application
+offers only password login and operator-assisted reset. Hosted passwordless email
+capability is not observable through public Auth settings, so it is not described
+as disabled. The exact provider boundary and real-login smoke are in
 [pilot-authentication.md](pilot-authentication.md).
 
 **`SUPABASE_SECRET_KEY` is not part of this contract at all.** Supabase's secret

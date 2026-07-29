@@ -1,4 +1,8 @@
 import { createSupabaseJwtVerifier } from "../infrastructure/auth/jwt-verifier.ts";
+import {
+  observeSupabaseAuthPolicy,
+  type PublicSupabaseAuthSettings,
+} from "./supabase-auth-settings.ts";
 
 /**
  * Talks to a **real** Supabase project and reports whether sign-in would work.
@@ -23,6 +27,11 @@ import { createSupabaseJwtVerifier } from "../infrastructure/auth/jwt-verifier.t
 type Check = { readonly name: string; readonly ok: boolean; readonly detail: string };
 const results: Check[] = [];
 const record = (name: string, ok: boolean, detail: string) => results.push({ name, ok, detail });
+const notes: readonly string[] = [
+  "The application exposes signInWithPassword only. The public Supabase settings " +
+    "endpoint does not expose magic_link_enabled, so this checker cannot prove that " +
+    "hosted OTP/Magic Link capability is disabled.",
+];
 
 function flag(name: string): string | null {
   const index = process.argv.indexOf(`--${name}`);
@@ -118,14 +127,11 @@ if (!canCheckKey) {
     if (!response.ok) {
       record("anon key accepted", false, `settings → ${response.status} (key rejected)`);
     } else {
-      const settings = (await response.json()) as {
-        external?: Record<string, boolean>;
-        disable_signup?: boolean;
-        mailer_autoconfirm?: boolean;
-      };
-      const emailEnabled = settings.external?.["email"] ?? false;
-      signupDisabled = settings.disable_signup ?? null;
-      const emailConfirmationDisabled = settings.mailer_autoconfirm ?? null;
+      const settings = (await response.json()) as PublicSupabaseAuthSettings;
+      const observation = observeSupabaseAuthPolicy(settings);
+      const emailEnabled = observation.emailProviderEnabled;
+      signupDisabled = observation.signupDisabled;
+      const emailConfirmationDisabled = observation.emailConfirmationDisabled;
 
       record("anon key accepted", true, "settings answered");
       record(
@@ -232,6 +238,7 @@ for (const check of results) {
   console.warn(`  ${check.ok ? "✓" : "✗"} ${check.name}`);
   console.warn(`      ${check.detail}`);
 }
+for (const note of notes) console.warn(`  • provider boundary\n      ${note}`);
 
 const failed = results.filter((check) => !check.ok);
 console.warn(`\n${results.length - failed.length}/${results.length} checks passed.`);

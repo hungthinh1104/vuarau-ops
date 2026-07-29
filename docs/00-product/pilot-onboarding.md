@@ -105,10 +105,16 @@ APP_RELEASE_SHA=<40-character-deployed-sha> \
   pnpm --filter @vuarau/api ops:pilot-readiness --config /secure/pilot.json
 ```
 
-The declaration includes ASM-023/024/025, ASM-017/018, ASM-030 and provider
-recovery evidence. A repository may be technically healthy while the final line
-still says `pilot readiness: BLOCKED/PENDING`; that is the correct result until
-human/provider evidence exists.
+The declaration includes ASM-023/024/025, ASM-017/018, ASM-030, the real two-user
+Supabase smoke, deployment/phone evidence and provider recovery evidence. Passed
+deployment evidence confirms the clean PostgreSQL 17 deployment, private
+API/database, trusted proxy, global edge limiter, health, safe observability and
+absence of server secrets from the browser/runtime. Passed recovery evidence records
+the provider/recovery point/backup identifier, start/end, measured RPO/RTO,
+migration state, integrity and three reconciliations. A repository may be
+technically healthy while the final line still says
+`pilot readiness: BLOCKED/PENDING`; that is the correct result until human and
+provider evidence exists.
 
 Then complete the real-phone smoke check and the frozen H2–H6 field protocol.
 Never commit the filled declaration, customer/Product CSVs, signed worksheets or

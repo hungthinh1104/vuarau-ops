@@ -38,6 +38,12 @@ operator / date:
 result / deviations / incident IDs:
 ```
 
+Copy only the external evidence reference and pass/fail declarations into
+`deploymentEvidence` in the private pilot declaration. Every boolean remains
+false/pending until the corresponding line above was observed on the frozen
+release. In particular, the API's per-instance limiter does not prove the
+deployment-wide edge limiter.
+
 The private evidence store may contain provider screenshots/links; this repository
 must not contain credentials, JWTs, database URLs or real customer data.
 
@@ -63,9 +69,11 @@ provider:
 backup/PITR identifier:
 encrypted logical backup identifier:
 recovery point:
-restore start / service ready / verification end:
+restore start:
+restore end:
 measured RPO:
 measured RTO:
+migration state:
 workspace integrity result:
 customer reconciliation result:
 supplier reconciliation result:

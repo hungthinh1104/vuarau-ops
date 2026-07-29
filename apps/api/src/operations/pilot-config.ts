@@ -49,9 +49,69 @@ const reviewSchema = z.object({
   notes: z.string().trim().default(""),
 });
 
+const authenticationSmokeSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("passed"),
+    releaseSha: z.string().regex(/^[0-9a-f]{40}$/),
+    evidenceReference: z.string().trim().min(1),
+    sameTabUserIsolation: z.literal(true),
+    tokenRefresh: z.literal(true),
+    sessionExpiry: z.literal(true),
+    remoteSignOut: z.literal(true),
+    unknownSubjectRejected: z.literal(true),
+    revokedMembershipRejected: z.literal(true),
+  }),
+  z.object({
+    status: z.literal("pending"),
+    owner: z.string().trim().min(1),
+    trigger: z.string().trim().min(1),
+  }),
+]);
+
+const deploymentEvidenceSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("passed"),
+    releaseSha: z.string().regex(/^[0-9a-f]{40}$/),
+    evidenceReference: z.string().trim().min(1),
+    realPhoneSmoke: z.literal(true),
+    managedPostgres17: z.literal(true),
+    cleanDatabaseDeployment: z.literal(true),
+    noDemoOrFixtureData: z.literal(true),
+    privateApi: z.literal(true),
+    privateDatabase: z.literal(true),
+    trustedProxyConfigured: z.literal(true),
+    globalEdgeRateLimitConfigured: z.literal(true),
+    healthAndReadinessPassed: z.literal(true),
+    safeMetricsAndLogging: z.literal(true),
+    noPublicServerSecrets: z.literal(true),
+    noJwtSecret: z.literal(true),
+    noSupabaseServiceRoleKey: z.literal(true),
+  }),
+  z.object({
+    status: z.literal("pending"),
+    owner: z.string().trim().min(1),
+    trigger: z.string().trim().min(1),
+  }),
+]);
+
 const recoveryEvidenceSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("passed"),
+    releaseSha: z.string().regex(/^[0-9a-f]{40}$/),
+    provider: z.string().trim().min(1),
+    recoveryPoint: z.string().trim().min(1),
+    pitrOrBackupIdentifier: z.string().trim().min(1),
+    restoreStartedAt: z.iso.datetime(),
+    restoreCompletedAt: z.iso.datetime(),
+    measuredRpoMinutes: z.number().nonnegative().max(15),
+    measuredRtoMinutes: z.number().positive().max(60),
+    migrationState: z.literal("current"),
+    integrityResult: z.literal("healthy"),
+    customerReconciliation: z.literal("consistent"),
+    supplierReconciliation: z.literal("consistent"),
+    inventoryReconciliation: z.literal("consistent"),
+    operator: z.string().trim().min(1),
+    incidentOrDeviationNotes: z.string().trim(),
     providerEvidenceReference: z.string().trim().min(1),
     restoreDrillReference: z.string().trim().min(1),
   }),
@@ -103,6 +163,8 @@ export const pilotConfigSchema = z.object({
   rolePermissionReview: reviewSchema,
   ownerMembershipReview: reviewSchema,
   dataSharingRetentionReview: reviewSchema,
+  authenticationSmoke: authenticationSmokeSchema,
+  deploymentEvidence: deploymentEvidenceSchema,
   recoveryEvidence: recoveryEvidenceSchema,
 });
 export type PilotConfig = z.infer<typeof pilotConfigSchema>;
@@ -160,6 +222,16 @@ export const EXAMPLE_PILOT_CONFIG = {
     decision: "accepted",
     worksheetReference: "",
     notes: "",
+  },
+  authenticationSmoke: {
+    status: "pending",
+    owner: "",
+    trigger: "",
+  },
+  deploymentEvidence: {
+    status: "pending",
+    owner: "",
+    trigger: "",
   },
   recoveryEvidence: {
     status: "pending",

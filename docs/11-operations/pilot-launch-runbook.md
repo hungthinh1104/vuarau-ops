@@ -59,9 +59,10 @@ must stay out of logs shared with the project.
 
    Expected: project reachable, publishable key accepted, email/password enabled,
    public sign-up disabled, email confirmation disabled while SMTP is unavailable,
-   JWKS keys present, and issuer matching. Manually confirm anonymous signup,
-   OTP/Magic Link and recovery email are unused/disabled. A later run with a real
-   device token must also pass verifier validation. See
+   JWKS keys present, and issuer matching. Confirm anonymous signup is disabled.
+   The application exposes password login only; do not claim hosted OTP/Magic Link
+   capability is disabled because the public settings endpoint cannot prove it.
+   A later run with a real device token must also pass verifier validation. See
    [pilot-authentication.md](pilot-authentication.md).
 
 4. Create the isolated workspace and provision the real Supabase subject. Use the
@@ -100,9 +101,11 @@ must stay out of logs shared with the project.
    rehearsal touches the pilot workspace, discard that workspace and repeat the
    clean bootstrap before observation.
 
-6. Ask the depot owner the ASM-023 questions using the worksheet. Record their
-   name, date, accepted/rejected answer, notes, worksheet reference, and recorder
-   in the private `pilot.json`; do not commit the signed material.
+6. Complete ASM-023/024/025 and the ASM-017/018/030 reviews. Record each
+   accepted/rejected answer, date, notes and worksheet reference in the private
+   `pilot.json`; do not commit the signed material. Also keep
+   `authenticationSmoke` and `recoveryEvidence` pending until the real checks have
+   actually run.
 
    ```bash
    pnpm --filter @vuarau/api ops:pilot-readiness --config /secure/path/pilot.json
@@ -137,8 +140,9 @@ restore rehearsal without a dated execution record.
 
 ## Human gates still requiring an operator
 
-- Create/configure the Supabase project, disable public/anonymous signup and email
-  recovery, then verify a real pre-provisioned password account on a device.
+- Create/configure the Supabase project, disable public/anonymous signup, expose no
+  application recovery/passwordless action, then verify two real pre-provisioned
+  password accounts in one browser tab.
 - Create the real user, collect their Supabase subject, and choose roles with the
   depot owner.
 - Obtain and retain the ASM-023 worksheet outside Git.

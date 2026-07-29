@@ -16,6 +16,16 @@ describe("M23 — pilot declaration is fail-closed", () => {
     rolePermissionReview: review("Chủ vựa"),
     ownerMembershipReview: review("Chủ vựa"),
     dataSharingRetentionReview: review("Chủ vựa"),
+    authenticationSmoke: {
+      status: "pending" as const,
+      owner: "platform owner",
+      trigger: "two real Supabase accounts are provisioned",
+    },
+    deploymentEvidence: {
+      status: "pending" as const,
+      owner: "platform owner",
+      trigger: "pilot infrastructure is deployed",
+    },
     recoveryEvidence: {
       status: "pending" as const,
       owner: "platform owner",
@@ -55,6 +65,88 @@ describe("M23 — pilot declaration is fail-closed", () => {
       }),
     );
     expect(result.ok).toBe(false);
+  });
+
+  it("requires every real authentication boundary before smoke evidence can pass", () => {
+    const result = readPilotConfig(
+      JSON.stringify({
+        ...filled,
+        authenticationSmoke: {
+          status: "passed",
+          releaseSha: "6".repeat(40),
+          evidenceReference: "external://auth-smoke",
+          sameTabUserIsolation: true,
+          tokenRefresh: true,
+          sessionExpiry: true,
+          remoteSignOut: true,
+          unknownSubjectRejected: true,
+          revokedMembershipRejected: false,
+        },
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("revokedMembershipRejected");
+  });
+
+  it("enforces the production RPO and RTO policy on declared recovery evidence", () => {
+    const result = readPilotConfig(
+      JSON.stringify({
+        ...filled,
+        recoveryEvidence: {
+          status: "passed",
+          releaseSha: "6".repeat(40),
+          provider: "managed PostgreSQL",
+          recoveryPoint: "external://recovery-point",
+          pitrOrBackupIdentifier: "external://pitr-id",
+          restoreStartedAt: "2026-07-29T01:00:00.000Z",
+          restoreCompletedAt: "2026-07-29T02:01:00.000Z",
+          measuredRpoMinutes: 16,
+          measuredRtoMinutes: 61,
+          migrationState: "current",
+          integrityResult: "healthy",
+          customerReconciliation: "consistent",
+          supplierReconciliation: "consistent",
+          inventoryReconciliation: "consistent",
+          operator: "platform owner",
+          incidentOrDeviationNotes: "",
+          providerEvidenceReference: "external://provider",
+          restoreDrillReference: "external://drill",
+        },
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.problems.join("\n")).toContain("measuredRpoMinutes");
+      expect(result.problems.join("\n")).toContain("measuredRtoMinutes");
+    }
+  });
+
+  it("does not accept a deployment declaration with a missing global edge limiter", () => {
+    const result = readPilotConfig(
+      JSON.stringify({
+        ...filled,
+        deploymentEvidence: {
+          status: "passed",
+          releaseSha: "6".repeat(40),
+          evidenceReference: "external://deployment",
+          realPhoneSmoke: true,
+          managedPostgres17: true,
+          cleanDatabaseDeployment: true,
+          noDemoOrFixtureData: true,
+          privateApi: true,
+          privateDatabase: true,
+          trustedProxyConfigured: true,
+          globalEdgeRateLimitConfigured: false,
+          healthAndReadinessPassed: true,
+          safeMetricsAndLogging: true,
+          noPublicServerSecrets: true,
+          noJwtSecret: true,
+          noSupabaseServiceRoleKey: true,
+        },
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("globalEdgeRateLimitConfigured");
   });
 });
 

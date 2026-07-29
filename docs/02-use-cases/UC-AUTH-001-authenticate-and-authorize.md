@@ -17,6 +17,12 @@ Credentials never pass through this API and are never stored in the business
 database. Pilot users are provisioned explicitly; authentication never creates an
 Actor, workspace or membership.
 
+The application exposes `signInWithPassword` only. Hosted Supabase's public Auth
+settings do not expose the independent Magic Link flag, so the application does
+not claim the provider's passwordless email capability is disabled. Regardless of
+how Supabase issued a JWT, no business access exists until `sub` resolves to an
+Actor and an active workspace membership.
+
 ## Main flow
 
 1. The client sends `Authorization: Bearer <supabase access token>`.
