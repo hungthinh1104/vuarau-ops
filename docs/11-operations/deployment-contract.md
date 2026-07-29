@@ -49,6 +49,10 @@ a configuration the API would refuse (BR-OPS-002).
 | `PUBLIC_APP_ORIGIN`           | yes, in a pilot | The https origin a phone opens. Must be https                  |
 | `NEXT_PUBLIC_E2E_AUTH_BRIDGE` | **refused**     | A Playwright-only bridge; `ops:check-env` rejects it in pilot  |
 | `PORT`                        | no              | Defaults to 3000                                               |
+| `MAX_REQUEST_BYTES`           | no              | Defaults to 1 MiB; positive integer                            |
+| `RATE_LIMIT_WINDOW_MS`        | no              | Defaults to 60 seconds                                         |
+| `RATE_LIMIT_AUTHENTICATED`    | no              | Defaults to 600 requests/window per connection address         |
+| `RATE_LIMIT_PUBLIC`           | no              | Defaults to 60 public document reads/window per address        |
 
 ### Next application
 
@@ -146,10 +150,17 @@ where the business detail lives, behind `audit.read`.
 Ship stdout wherever the environment ships stdout. Nothing here needs a log agent
 configured with a redaction rule, because there is nothing to redact.
 
+`/metrics` is available on the private API origin and contains bounded
+operation/result counters and latency summaries without tenant or business labels.
+Do not route it through the public Next origin. Alert definitions and correlation
+steps are in
+[observability-and-incidents.md](observability-and-incidents.md).
+
 ## Data ownership, backup and retention
 
-**This must be filled in by whoever operates the pilot. It is not filled in here,
-and the blanks are the point.**
+The minimum release requirements and rehearsal record are in
+[recovery-rehearsal.md](recovery-rehearsal.md). Provider and operator evidence
+must still be filled in; repository tests cannot assert a provider's PITR.
 
 ```text
 Backup owner:                 ____________________
@@ -184,9 +195,9 @@ reason to skip the table above.
 
 - **A hosting vendor, a container runtime, or a CI deployment pipeline.** Choosing
   one before a depot has used the product is choosing it on no evidence.
-- **TLS termination, rate limiting, graceful shutdown.** All three belong to the
-  environment. They are listed as the environment's job rather than half-built in
-  the application.
+- **TLS termination and graceful shutdown.** Both belong to the environment.
+- **Global/shared rate limiting.** The application enforces a per-instance limit;
+  the edge must enforce the shared deployment limit.
 - **Horizontal scaling.** One depot, one worker, one phone.
 
 ## Related
@@ -196,3 +207,6 @@ reason to skip the table above.
 - [../00-product/pilot-mode.md](../00-product/pilot-mode.md) — what this environment is for
 - [../00-product/pilot-onboarding.md](../00-product/pilot-onboarding.md) — preparing the depot inside it
 - [../09-decisions/ADR-0010-supabase-jwt-verification.md](../09-decisions/ADR-0010-supabase-jwt-verification.md)
+- [threat-model.md](threat-model.md)
+- [m22-performance-evidence.md](m22-performance-evidence.md)
+- [recovery-rehearsal.md](recovery-rehearsal.md)

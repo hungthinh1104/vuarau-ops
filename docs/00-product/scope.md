@@ -1,8 +1,8 @@
 # Current scope — depot transaction operating system
 
-This is the delivered technical boundary through M21.6. M8–M21.5 have automated
-implementation evidence; M21.6 aligns policy, vision and traceability without
-changing runtime behavior. M22 remains unopened.
+This is the delivered technical boundary through M22. M8–M22 have automated
+implementation evidence; provider PITR and owner acceptance remain deployment
+gates. M23 remains unopened.
 
 Technical completion is not field validation. The distinction is defined in the
 [product invariants](product-invariants.md) and measured by the
@@ -40,17 +40,17 @@ no UI or report supplies a second implementation of that policy.
 
 ## Deliberately out of scope
 
-| Excluded                                                         | Boundary                                                                                                              |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| AI/LLM transaction entry                                         | AI may propose in a future milestone but may never bypass deterministic commands                                      |
-| Pricing intelligence and automatic recommendations               | Last-price recall is explicit, customer/unit scoped and never auto-applied                                            |
-| Demand forecasting, supplier scoring and customer health scoring | Require field evidence and enough history to justify a model                                                          |
-| Tax invoicing, allocation and inventory valuation                | Current documents make no tax claim; Payments are not allocated to Sales                                              |
-| Delivery route optimization                                      | Delivery truth exists; routing is a separate product problem                                                          |
-| Offline mutation beyond Quick Sale                               | Payment, correction, catalog, goods and control commands remain online-only                                           |
-| General rule builders, microservices, Kafka and Kubernetes       | The modular monolith and explicit rules remain sufficient                                                             |
-| Full event sourcing or double-entry accounting                   | Append-only account ledgers and inventory movements are canonical for their bounded purposes, not a general ledger    |
-| Production policy invented by software                           | RPO/RTO, retention, encryption, public-read policy and restore-drill ownership remain ASM-030/031 operational actions |
+| Excluded                                                         | Boundary                                                                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| AI/LLM transaction entry                                         | AI may propose in a future milestone but may never bypass deterministic commands                                          |
+| Pricing intelligence and automatic recommendations               | Last-price recall is explicit, customer/unit scoped and never auto-applied                                                |
+| Demand forecasting, supplier scoring and customer health scoring | Require field evidence and enough history to justify a model                                                              |
+| Tax invoicing, allocation and inventory valuation                | Current documents make no tax claim; Payments are not allocated to Sales                                                  |
+| Delivery route optimization                                      | Delivery truth exists; routing is a separate product problem                                                              |
+| Offline mutation beyond Quick Sale                               | Payment, correction, catalog, goods and control commands remain online-only                                               |
+| General rule builders, microservices, Kafka and Kubernetes       | The modular monolith and explicit rules remain sufficient                                                                 |
+| Full event sourcing or double-entry accounting                   | Append-only account ledgers and inventory movements are canonical for their bounded purposes, not a general ledger        |
+| Production policy invented by software                           | M22 defines minimum recovery targets; provider evidence/acceptance and public-read/retention policy remain explicit gates |
 
 ## Open policy boundary
 
@@ -60,8 +60,9 @@ Every known policy question is classified in the
 - ASM-024 and ASM-025 require depot-owner validation before real Sale or Purchase
   recognition;
 - ASM-026–029 have explicit temporary defaults and triggers;
-- ASM-030/031 block real-data sharing or production readiness until named owners
-  record the policy.
+- ASM-030 blocks real-data sharing until the named owners record policy;
+- ASM-031 defines minimum recovery requirements, while provider drill evidence and
+  owner acceptance still block production readiness.
 
 ## Related
 

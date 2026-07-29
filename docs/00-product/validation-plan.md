@@ -277,8 +277,8 @@ repeating the Restore command creates no duplicate canonical rows
 the owner can say what is backed up, retained, encrypted and recoverable
 ```
 
-The final criterion cannot pass until ASM-031 has owned production RPO/RTO,
-retention, encryption and restore-drill requirements.
+The final criterion cannot pass until the deployment's ASM-031 targets have
+provider evidence and owner acceptance.
 
 ---
 
@@ -287,13 +287,13 @@ retention, encryption and restore-drill requirements.
 Recorded rather than worked around, because a gap a pilot rediscovers is a wasted
 session.
 
-| Gap or gate                                                                  | Effect                                                                                  |
-| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Reads are not audited (ASM-022)                                              | “Who looked at this balance?” remains unanswerable                                      |
-| Role mapping and migrated owners need confirmation (ASM-017/018)             | A field session may expose a capability mismatch; roles must be assigned before go-live |
-| Sale and supplier recognition need owner signatures (ASM-024/025)            | Real money entries must not be created until the owner confirms the business event      |
-| Delivery cash handling is undefined (ASM-029)                                | Do not pilot driver cash collection before the trigger is resolved                      |
-| Sharing/retention and production recovery policy are unwritten (ASM-030/031) | Real-data public sharing and production readiness remain blocked                        |
+| Gap or gate                                                                                | Effect                                                                                  |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Reads are not audited (ASM-022)                                                            | “Who looked at this balance?” remains unanswerable                                      |
+| Role mapping and migrated owners need confirmation (ASM-017/018)                           | A field session may expose a capability mismatch; roles must be assigned before go-live |
+| Sale and supplier recognition need owner signatures (ASM-024/025)                          | Real money entries must not be created until the owner confirms the business event      |
+| Delivery cash handling is undefined (ASM-029)                                              | Do not pilot driver cash collection before the trigger is resolved                      |
+| Sharing/retention policy is unwritten (ASM-030); ASM-031 provider drill evidence is absent | Real-data public sharing and production readiness remain blocked                        |
 
 ## Related
 

@@ -220,15 +220,31 @@ source-backed reports.
 - traceability points through bounded-context implementations after M21.5
   modularization.
 
-| Horizon                               | Milestones                                                                      | Gate                                                                                      |
-| ------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 2 — self-service and field resilience | M11–M14 technically complete                                                    | Onboard, authorize, operate on weak networks, back up and recover without a developer.    |
-| 3 — goods and inputs                  | M15–M18 technically complete                                                    | Supplier money and inbound goods flows are source-traceable.                              |
-| 4 — depot operations                  | M19–M21.6 technically complete; M22 performance/security/scale remains separate | Operational views drill down to reliable sources and open policy has an owner or trigger. |
-| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                        | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.               |
+### M22 — Production hardening (technical evidence complete; deployment gate remains)
 
-The depot-operations batch and M21.5/M21.6 hardening close M19–M21.6 with
-technical evidence. M22 remains unopened and requires its own authorization.
+- production-shape PostgreSQL evidence covers 10k customers/products, 100k
+  Sales/Purchases and one million ledger/movement rows against fixed p95 budgets;
+- workspace-wide report pages now use database keyset pagination and measured
+  indexes rather than loading a tenant into application memory;
+- authenticated/public request limits, CSV formula protection, encrypted backup
+  envelopes, authorization-surface checking and ADR-0020 close repository-owned
+  trust boundaries;
+- health, safe query/command/integrity metrics, alerts and request→receipt→audit→
+  source correlation make incidents diagnosable;
+- fresh migration, production-shape migration and logical restore/failure drills
+  are recorded. Provider PITR and owner acceptance remain hard deployment gates,
+  not claimed repository evidence.
+
+| Horizon                               | Milestones                                                                | Gate                                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2 — self-service and field resilience | M11–M14 technically complete                                              | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
+| 3 — goods and inputs                  | M15–M18 technically complete                                              | Supplier money and inbound goods flows are source-traceable.                           |
+| 4 — depot operations                  | M19–M22 technically complete; provider recovery evidence gates deployment | Operational views meet measured budgets and production trust boundaries fail closed.   |
+| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                  | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+
+The depot-operations batch and M21.5–M22 hardening close repository-owned
+technical evidence through M22. M23 remains unopened. Provider PITR and owner
+acceptance are deployment blockers, not reasons to invent evidence in this book.
 
 ## Maturity stages
 

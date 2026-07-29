@@ -154,14 +154,17 @@ new `TC-*` id and linked to the rule it protects. Weakening or deleting a test t
 make a suite pass is forbidden — see
 [../10-ai-coding/CHANGE_PROTOCOL.md](../10-ai-coding/CHANGE_PROTOCOL.md).
 
-## Not yet in place
+## Deliberately not in the default suite
 
 - **Property-based tests.** The obvious candidate is "balance always equals the sum
   of entries, for any sequence of commands". Worth doing; would need `fast-check`.
   Not added in this phase — the invariant is covered by example-based tests today.
 - **Playwright end-to-end.** Reserved for when a UI exists.
-- **Load and concurrency-under-contention tests.** Version conflicts are tested
-  deterministically, not under real parallel load.
+- **Production-shape load evidence.** `pnpm perf:m22` is an explicit PostgreSQL
+  rehearsal rather than part of every unit run: it creates 10k customers/products,
+  100k Sales/Purchases and one million ledger/movement rows, checks p95 budgets
+  and fails on unexplained sequential scans. CI/release runs it with a disposable
+  PostgreSQL database.
 
 ## Related
 

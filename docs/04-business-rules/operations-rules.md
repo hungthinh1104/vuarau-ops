@@ -20,6 +20,8 @@ startup   appEnv · port · verification
 request   requestId · procedure · status · durationMs
 command   requestId · commandId · commandType · workspaceId · actorId
           outcome · code · durationMs
+query     requestId · queryType · workspaceId · actorId · outcome · code · durationMs
+integrity requestId · workspaceId · checkType · status
 health    probe · status · failing
 ```
 
@@ -162,8 +164,44 @@ returns its original receipt and does not insert another copy.
 This is application-level logical recovery. Physical database restore and PITR
 remain deployment infrastructure.
 
+---
+
+### BR-OPS-005 — Public/export inputs fail closed
+
+**Risk:** P0 · **Tests:** TC-OPS-007, TC-OPS-008
+
+The API refuses declared or streamed request bodies above the configured limit and
+rate-limits authenticated and public-document surfaces independently. Correlation
+ids have a bounded printable shape. CSV fields that spreadsheet applications could
+execute as formulae are emitted as literal cells. Public document reads remain
+no-store, digest-verified and free of driver/stack detail.
+
+### BR-OPS-006 — Operational signals carry enough correlation and no business payload
+
+**Risk:** P0 · **Tests:** TC-OPS-009
+
+Requests, commands, reads, replays, rejections, integrity and health emit a closed
+structured vocabulary. Metrics aggregate bounded operation/result labels and
+latency; they never label by workspace, actor, request, command, token, amount,
+note, source body or share secret. A request id leads to command receipt, audit and
+canonical source without copying the source into telemetry.
+
+### BR-OPS-007 — Scale claims require a measured plan and cursor evidence
+
+**Risk:** P1 · **Tests:** TC-OPS-010, TC-OPS-011
+
+Production-scale query budgets are fixed before optimization. `EXPLAIN (ANALYZE,
+BUFFERS)` must show no unexplained sequential scan of the million-row canonical
+tables for page reads. Date/cursor filters and `LIMIT` execute in PostgreSQL before
+mapping. Same-time rows use the canonical total order and never disappear or
+repeat across pages. A cache may not be added without measured evidence.
+
 ## Related
 
 - [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — what an environment must satisfy
+- [../11-operations/threat-model.md](../11-operations/threat-model.md)
+- [../11-operations/m22-performance-evidence.md](../11-operations/m22-performance-evidence.md)
+- [../11-operations/observability-and-incidents.md](../11-operations/observability-and-incidents.md)
+- [../11-operations/recovery-rehearsal.md](../11-operations/recovery-rehearsal.md)
 - [../09-decisions/ADR-0010-supabase-jwt-verification.md](../09-decisions/ADR-0010-supabase-jwt-verification.md) — why JWKS is preferred
 - [read-rules.md](read-rules.md), [authorization-rules.md](authorization-rules.md)
