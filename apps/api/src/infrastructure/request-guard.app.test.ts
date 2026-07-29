@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createServer } from "node:http";
+import { createServer, request as sendHttpRequest } from "node:http";
 import { createRequestGuard, FixedWindowRateLimiter, safeRequestId } from "./request-guard.ts";
 
 describe("M22 request trust boundary", () => {
@@ -33,6 +33,12 @@ describe("M22 request trust boundary", () => {
     });
     const server = createServer((request, response) => {
       if (guard(request, response)) return;
+      if (request.method === "POST") {
+        request.on("end", () => {
+          if (!response.headersSent) response.writeHead(200).end("ok");
+        });
+        return;
+      }
       response.writeHead(200).end("ok");
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -46,6 +52,30 @@ describe("M22 request trust boundary", () => {
       });
       expect(oversized.status).toBe(413);
       expect(await oversized.json()).toEqual({ error: "request_too_large" });
+
+      const chunked = await new Promise<{ status: number | undefined; body: string }>(
+        (resolve, reject) => {
+          const request = sendHttpRequest(
+            `${origin}/trpc/sale.post`,
+            { method: "POST", headers: { "transfer-encoding": "chunked" } },
+            (response) => {
+              const chunks: Buffer[] = [];
+              response.on("data", (chunk: Buffer) => chunks.push(chunk));
+              response.on("end", () =>
+                resolve({
+                  status: response.statusCode,
+                  body: Buffer.concat(chunks).toString("utf8"),
+                }),
+              );
+            },
+          );
+          request.on("error", reject);
+          request.write("1234");
+          request.end("56789");
+        },
+      );
+      expect(chunked.status).toBe(413);
+      expect(JSON.parse(chunked.body)).toEqual({ error: "request_too_large" });
 
       expect((await fetch(`${origin}/public/documents/${"x".repeat(32)}`)).status).toBe(200);
       const limited = await fetch(`${origin}/public/documents/${"x".repeat(32)}`);

@@ -34,13 +34,16 @@ export class FixedWindowRateLimiter {
   }
 }
 
-const sendRefusal = (res: ServerResponse, status: 413 | 429): void => {
+const sendRefusal = (res: ServerResponse, status: 413 | 429, afterSend?: () => void): void => {
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
     ...(status === 429 ? { "retry-after": "60" } : {}),
   });
-  res.end(JSON.stringify({ error: status === 413 ? "request_too_large" : "rate_limited" }));
+  res.end(
+    JSON.stringify({ error: status === 413 ? "request_too_large" : "rate_limited" }),
+    afterSend,
+  );
 };
 
 export function safeRequestId(value: string | string[] | undefined, fallback: string): string {
@@ -76,13 +79,14 @@ export function createRequestGuard(limits: RequestLimits) {
       return true;
     }
 
-    let received = 0;
-    req.on("data", (chunk: Buffer | string) => {
-      received += Buffer.byteLength(chunk);
-      if (received > limits.maxBodyBytes && !res.headersSent) {
-        req.pause();
-        sendRefusal(res, 413);
-      }
+    queueMicrotask(() => {
+      let received = 0;
+      req.on("data", (chunk: Buffer | string) => {
+        received += Buffer.byteLength(chunk);
+        if (received > limits.maxBodyBytes && !res.headersSent) {
+          sendRefusal(res, 413, () => req.destroy());
+        }
+      });
     });
     return false;
   };
