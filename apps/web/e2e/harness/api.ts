@@ -386,6 +386,113 @@ export const api = {
       }[];
     };
   },
+
+  async createPostedSale(input: {
+    customerId: string;
+    productId: string;
+    productName: string;
+    quantityScaled: number;
+  }): Promise<{ saleId: string; saleLineId: string }> {
+    const saleId = crypto.randomUUID();
+    const saleLineId = crypto.randomUUID();
+    await call(
+      "sale.createDraft",
+      "mutation",
+      {
+        ...envelope({ actorId: actorFor("owner") }),
+        payload: {
+          saleId,
+          customerId: input.customerId,
+          currency: "VND",
+          lines: [
+            {
+              lineId: saleLineId,
+              productId: input.productId,
+              productName: input.productName,
+              quantity: { valueScaled: input.quantityScaled, unit: "kg" },
+              unitPrice: { amountMinor: 10_000, currency: "VND" },
+            },
+          ],
+          note: null,
+          dueAt: null,
+          replacesSaleId: null,
+        },
+      },
+      "owner",
+    );
+    await call(
+      "sale.post",
+      "mutation",
+      {
+        ...envelope({ actorId: actorFor("owner"), expectedVersion: 1 }),
+        payload: { saleId },
+      },
+      "owner",
+    );
+    return { saleId, saleLineId };
+  },
+
+  async deliveryTruth(input: { saleId: string; productId: string }): Promise<{
+    outboundSources: number;
+    returnSources: number;
+    inventoryQuantityScaled: number;
+    netFulfilledScaled: number;
+  }> {
+    const database = createDatabase(requiredDatabaseUrl(), { max: 1 });
+    try {
+      const rows = await database.sql<
+        readonly {
+          outbound_sources: number;
+          return_sources: number;
+          inventory_quantity_scaled: number;
+          net_fulfilled_scaled: number;
+        }[]
+      >`
+        select
+          count(distinct im.source_id) filter (
+            where im.source_type = 'delivery_dispatch'
+          )::int outbound_sources,
+          count(distinct im.source_id) filter (
+            where im.source_type = 'delivery_return'
+          )::int return_sources,
+          coalesce(sum(im.quantity_scaled), 0)::bigint::int inventory_quantity_scaled,
+          (
+            coalesce((
+              select sum(dl.quantity_scaled)
+              from delivery_lines dl
+              join deliveries d
+                on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
+              where d.workspace_id = ${E2E_WORKSPACE_ID}::uuid
+                and d.sale_id = ${input.saleId}::uuid
+                and d.status in ('dispatched', 'delivered')
+            ), 0)
+            -
+            coalesce((
+              select sum(drl.quantity_scaled)
+              from delivery_return_lines drl
+              join delivery_returns dr on dr.id = drl.return_id
+              join deliveries d
+                on d.workspace_id = dr.workspace_id and d.id = dr.delivery_id
+              where d.workspace_id = ${E2E_WORKSPACE_ID}::uuid
+                and d.sale_id = ${input.saleId}::uuid
+            ), 0)
+          )::bigint::int net_fulfilled_scaled
+        from inventory_movements im
+        where im.workspace_id = ${E2E_WORKSPACE_ID}::uuid
+          and im.product_id = ${input.productId}::uuid
+          and im.source_type in ('delivery_dispatch', 'delivery_return')
+      `;
+      const row = rows[0]!;
+      return {
+        outboundSources: row.outbound_sources,
+        returnSources: row.return_sources,
+        inventoryQuantityScaled: row.inventory_quantity_scaled,
+        netFulfilledScaled: row.net_fulfilled_scaled,
+      };
+    } finally {
+      await database.sql.end();
+    }
+  },
 };
 
 function requiredDatabaseUrl(): string {

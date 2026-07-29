@@ -102,10 +102,10 @@ describe("M14 logical operations evidence", () => {
     expect(harness.db.balanceFor(target, restoredCustomerId)).toBeDefined();
   });
 
-  it("keeps WorkspaceBackupV1 restore-compatible while exporting V2", async () => {
+  it("keeps WorkspaceBackupV1 restore-compatible while exporting V3", async () => {
     const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
     if (!exported.ok) return;
-    expect(exported.value.version).toBe(2);
+    expect(exported.value.version).toBe(3);
     const {
       suppliers: _suppliers,
       supplierPayments: _supplierPayments,
@@ -118,6 +118,12 @@ describe("M14 logical operations evidence", () => {
       receiptLines: _receiptLines,
       receiptReversals: _receiptReversals,
       inventoryMovements: _inventoryMovements,
+      deliveries: _deliveries,
+      deliveryLines: _deliveryLines,
+      deliveryReturns: _deliveryReturns,
+      deliveryReturnLines: _deliveryReturnLines,
+      documents: _documents,
+      documentShares: _documentShares,
       ...payload
     } = exported.value.payload;
     const legacy: WorkspaceBackupV1 = {

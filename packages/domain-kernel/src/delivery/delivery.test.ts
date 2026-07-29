@@ -1,0 +1,118 @@
+import { describe, expect, it } from "vitest";
+import type {
+  CreateDeliveryDraftCommand,
+  DeliveryId,
+  DeliveryLineId,
+  ProductId,
+  SaleId,
+  SaleLineId,
+} from "@vuarau/domain-contracts";
+import type { SaleState } from "../shared/state.ts";
+import { decideCreateDeliveryDraft, decideRecordDeliveryReturn } from "./index.ts";
+
+const sale = {
+  id: crypto.randomUUID() as SaleId,
+  workspaceId: crypto.randomUUID(),
+  customerId: crypto.randomUUID(),
+  status: "posted",
+  currency: "VND",
+  lines: [
+    {
+      lineId: crypto.randomUUID() as SaleLineId,
+      productId: crypto.randomUUID() as ProductId,
+      productName: "Cải ngọt",
+      quantity: { valueScaled: 100_000, unit: "kg" },
+      unitPrice: { amountMinor: 20_000, currency: "VND" },
+      lineTotal: { amountMinor: 2_000_000, currency: "VND" },
+    },
+  ],
+  totalAmount: { amountMinor: 2_000_000, currency: "VND" },
+  note: null,
+  version: 2,
+  transactionTime: "2026-07-28T01:00:00.000Z",
+  recordedAt: "2026-07-28T01:00:01.000Z",
+  postedAt: "2026-07-28T01:00:01.000Z",
+  discardedAt: null,
+  dueAt: null,
+  replacesSaleId: null,
+  voidRecord: null,
+} as unknown as SaleState;
+
+const command = (quantity: number): CreateDeliveryDraftCommand =>
+  ({
+    commandId: crypto.randomUUID(),
+    idempotencyKey: crypto.randomUUID(),
+    workspaceId: sale.workspaceId,
+    actorId: crypto.randomUUID(),
+    occurredAt: "2026-07-28T02:00:00.000Z",
+    payload: {
+      deliveryId: crypto.randomUUID() as DeliveryId,
+      saleId: sale.id,
+      lines: [
+        {
+          deliveryLineId: crypto.randomUUID() as DeliveryLineId,
+          saleLineId: sale.lines[0]!.lineId,
+          productId: sale.lines[0]!.productId!,
+          quantity: { valueScaled: quantity, unit: "kg" },
+        },
+      ],
+      note: null,
+    },
+  }) as unknown as CreateDeliveryDraftCommand;
+
+describe("Delivery physical truth (TC-DELIVERY-001)", () => {
+  it("caps a partial Delivery against already fulfilled Sale quantity", () => {
+    const result = decideCreateDeliveryDraft({
+      command: command(41_000),
+      sale,
+      fulfilled: new Map([[sale.lines[0]!.lineId, 60_000]]),
+      predecessorHasFulfilment: false,
+      recordedAt: "2026-07-28T02:00:01.000Z",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("DELIVERY_QUANTITY_EXCEEDS_SALE");
+  });
+
+  it("blocks replacement fulfilment after predecessor physical activity", () => {
+    const result = decideCreateDeliveryDraft({
+      command: command(10_000),
+      sale: { ...sale, replacesSaleId: crypto.randomUUID() as SaleId },
+      fulfilled: new Map(),
+      predecessorHasFulfilment: true,
+      recordedAt: "2026-07-28T02:00:01.000Z",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED");
+  });
+
+  it("refuses returns beyond the dispatched line", () => {
+    const draft = decideCreateDeliveryDraft({
+      command: command(60_000),
+      sale,
+      fulfilled: new Map(),
+      predecessorHasFulfilment: false,
+      recordedAt: "2026-07-28T02:00:01.000Z",
+    });
+    if (!draft.ok) throw new Error("fixture failed");
+    const result = decideRecordDeliveryReturn(
+      { ...draft.value, status: "dispatched" },
+      {
+        ...command(60_000),
+        payload: {
+          returnId: crypto.randomUUID(),
+          deliveryId: draft.value.id,
+          lines: [
+            {
+              deliveryLineId: draft.value.lines[0]!.deliveryLineId,
+              quantity: { valueScaled: 61_000, unit: "kg" },
+            },
+          ],
+          reason: "Khách trả",
+        },
+      } as never,
+      "2026-07-28T03:00:00.000Z",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("DELIVERY_RETURN_EXCEEDS_DISPATCH");
+  });
+});
