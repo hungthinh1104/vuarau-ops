@@ -118,6 +118,17 @@ quantity: { valueScaled: 12500, unit: "kg" }              // 12,5 kg
 Integers only. A client that sends `875000.0` is sending a float and will be
 rejected by the schema. See [ADR-0006](../09-decisions/ADR-0006-integer-minor-units-for-money.md).
 
+## Depot operations additions
+
+M19 adds `CreateDeliveryDraft`, `UpdateDeliveryDraft`, `CancelDeliveryDraft`,
+`DispatchDelivery`, `MarkDeliveryDelivered`, and `RecordDeliveryReturn`. Only
+dispatch and return move inventory; none move customer debt.
+
+M20 adds `GenerateDocument`, `CreateDocumentShare`, and
+`RevokeDocumentShare`. Generated ids and share ids are client-supplied for
+duplicate-safe replay. The public token is returned once; only its hash is
+stored.
+
 ## Execution pipeline
 
 Every state-changing command runs the same eleven steps

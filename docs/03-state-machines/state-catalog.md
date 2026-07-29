@@ -93,6 +93,18 @@ Supplier balance is `payable` above zero, `settled` at zero and
 `supplier_credit` below zero. Inventory per Product/unit is `positive`, `zero` or
 `negative`. Negative values are retained facts, not invalid states.
 
+## Delivery status — `DeliveryStatus` (stored)
+
+| Value        | Meaning                               | Terminal | Inventory effect      |
+| ------------ | ------------------------------------- | -------- | --------------------- |
+| `draft`      | Editable physical fulfilment proposal | no       | none                  |
+| `cancelled`  | Abandoned before dispatch             | yes      | none                  |
+| `dispatched` | Goods left inventory                  | no       | one negative per line |
+| `delivered`  | Completion was acknowledged           | yes      | none beyond dispatch  |
+
+Returns are immutable adjacent records with positive compensating movements;
+they do not rewrite Delivery status or Sale financial history.
+
 ## Values that are NOT states
 
 Recorded here so nobody adds them later thinking they were forgotten.
@@ -104,8 +116,8 @@ Recorded here so nobody adds them later thinking they were forgotten.
 | `overdue` customer          | Derived per sale from `dueAt` at read time | Time-dependent conditions must not be frozen into a column a cron job has to keep true             |
 | `has_debt` customer         | `SUM(account entries) ≠ 0`                 | Derived; storing it creates a second source of truth for the one number that must be unambiguous   |
 | `cancelled` sale            | Nowhere — the concept was removed          | A posted sale is voided, a draft is discarded. "Cancelled" collapsed two different events into one |
-| `delivered` sale            | A future Delivery aggregate                | A separate lifecycle dimension, on a separate document (`CustomerOrder`)                           |
-| `returned` sale             | A future Return aggregate                  | Out of scope; a full return is currently expressed as a void with `goods_returned`                 |
+| `delivered` sale            | The separate Delivery aggregate            | Physical fulfilment is a separate lifecycle and never a Sale status                                |
+| `returned` sale             | Immutable Delivery return records          | Returns compensate inventory; they do not become a Sale status or silently change customer debt    |
 | `synced` / `pending_upload` | Client-side only                           | The server has no concept of a half-arrived command; a command either committed or did not         |
 
 ## Aggregate version

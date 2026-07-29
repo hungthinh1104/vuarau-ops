@@ -22,6 +22,15 @@ that has not been built.
 | `customer_account_balances` | Rebuildable projection                                                    | recomputable                              |
 | `command_receipts`          | Idempotency records                                                       | insert + one status update                |
 | `audit_logs`                | Business action history                                                   | **append-only**                           |
+| `suppliers`, `purchases`    | Supplier master data and immutable confirmed Purchase snapshots           | master/draft mutable; confirmed immutable |
+| `supplier_account_entries`  | Source of truth for supplier payable                                      | **append-only**                           |
+| `purchase_receipts`         | Physical inbound source documents and explicit reversals                  | **append-only**                           |
+| `inventory_movements`       | Canonical per-Product/unit physical ledger                                | **append-only**                           |
+| `inventory_balances`        | Rebuildable per-Product/unit projection                                   | recomputable                              |
+| `deliveries`                | Sale-linked physical fulfilment lifecycle                                 | draft/status/version only                 |
+| `delivery_returns`          | Explicit physical return compensations                                    | **append-only**                           |
+| `documents`                 | Immutable versioned source snapshots and deterministic digests            | **append-only**                           |
+| `document_shares`           | Hashed public capability tokens with expiry/revocation                    | revocation fields only                    |
 
 ## Conventions applied to every table
 
@@ -80,7 +89,8 @@ unrepresentable.
 - No `customers.balance` column. Debt lives in the ledger ([ADR-0004](../09-decisions/ADR-0004-append-only-debt-ledger.md)).
 - No `sales.paid` / `sales.payment_status`. Payments are not allocated (ASM-004).
 - No `deleted_at` on financial tables. Nothing is deleted.
-- No inventory, delivery, invoice, or supplier tables.
+- No tax-invoice, inventory-valuation, allocation, routing, forecasting, or AI
+  tables. M20 documents are operational snapshots and make no tax claim.
 - No row-level security yet — isolation is enforced in the application layer
   (ASM-009). Milestone 1 added authentication and role-based authorization above
   it; RLS remains the defence in depth that is still missing.

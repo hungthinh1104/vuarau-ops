@@ -82,12 +82,13 @@ implemented; no P0 rule is planned. The full surface is in
 
 ### What is complete, and what that does not mean
 
-The browser now closes the technical workflows through M18: Quick Sale,
+The browser now closes the technical workflows through M21: Quick Sale,
 void/replacement correction, payment/reversal, debt adjustment, explainable
 account reconciliation, member/role administration, and customer lifecycle.
 These flows use the typed API and PostgreSQL in automated end-to-end tests.
 Supplier payment, Purchase correction, Receiving/reversal and per-unit inventory
-movement are included; Sale fulfilment remains the M19 boundary.
+movement, Sale fulfilment/return, immutable operational documents, secure
+sharing, and source-backed reports are included.
 
 **Nobody has recorded a real sale in this software.** Every claim in "What good
 looks like" above — ten seconds, no lost writes, a correction anybody can follow —

@@ -1,18 +1,26 @@
 # Transition catalog
 
-M16–M18 add these explicit transitions:
+M16–M19 add these explicit transitions:
 
-| ID             | Aggregate | From      | Command                | To / adjacent record |
-| -------------- | --------- | --------- | ---------------------- | -------------------- |
-| T-PURCHASE-001 | Purchase  | creation  | CreatePurchaseDraft    | `draft`              |
-| T-PURCHASE-002 | Purchase  | `draft`   | ConfirmPurchase        | `confirmed`          |
-| T-PURCHASE-003 | Purchase  | `draft`   | DiscardPurchaseDraft   | `discarded`          |
-| T-PURCHASE-004 | Purchase  | confirmed | VoidPurchase           | append void record   |
-| T-RECEIPT-001  | Receipt   | creation  | RecordPurchaseReceipt  | active Receipt       |
-| T-RECEIPT-002  | Receipt   | active    | ReversePurchaseReceipt | append reversal      |
+| ID             | Aggregate | From       | Command                | To / adjacent record |
+| -------------- | --------- | ---------- | ---------------------- | -------------------- |
+| T-PURCHASE-001 | Purchase  | creation   | CreatePurchaseDraft    | `draft`              |
+| T-PURCHASE-002 | Purchase  | `draft`    | ConfirmPurchase        | `confirmed`          |
+| T-PURCHASE-003 | Purchase  | `draft`    | DiscardPurchaseDraft   | `discarded`          |
+| T-PURCHASE-004 | Purchase  | confirmed  | VoidPurchase           | append void record   |
+| T-RECEIPT-001  | Receipt   | creation   | RecordPurchaseReceipt  | active Receipt       |
+| T-RECEIPT-002  | Receipt   | active     | ReversePurchaseReceipt | append reversal      |
+| T-DELIVERY-001 | Delivery  | creation   | CreateDeliveryDraft    | `draft`              |
+| T-DELIVERY-002 | Delivery  | `draft`    | UpdateDeliveryDraft    | `draft`              |
+| T-DELIVERY-003 | Delivery  | `draft`    | CancelDeliveryDraft    | `cancelled`          |
+| T-DELIVERY-004 | Delivery  | `draft`    | DispatchDelivery       | `dispatched`         |
+| T-DELIVERY-005 | Delivery  | dispatched | MarkDeliveryDelivered  | `delivered`          |
+| T-DELIVERY-006 | Return    | creation   | RecordDeliveryReturn   | append return        |
 
-Purchase and Receipt terminal history is never rewritten. Details and guards are
-in [purchase-state-machine.md](purchase-state-machine.md).
+Purchase, Receipt, Delivery, and Return terminal history is never rewritten.
+Details and guards are in
+[purchase-state-machine.md](purchase-state-machine.md) and
+[depot operations rules](../04-business-rules/depot-operations-rules.md).
 
 Every state change in the system, in one table. A command that is not listed here
 cannot change a lifecycle value.

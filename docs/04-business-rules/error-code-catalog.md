@@ -128,6 +128,23 @@ Postgres, and returned by a command that a test exercises.
 | `RECEIPT_REVERSAL_REASON_REQUIRED`                   | Receipt reversal lacks explanation                          |
 | `INVENTORY_ADJUSTMENT_REASON_REQUIRED`               | Inventory adjustment lacks explanation                      |
 | `INVENTORY_RECONCILIATION_INTEGRITY_FAILURE`         | Canonical movement source is corrupt                        |
+| `DELIVERY_NOT_FOUND`                                 | Delivery does not resolve in this workspace                 |
+| `DELIVERY_LINE_INVALID`                              | Delivery line does not match its immutable Sale line        |
+| `DELIVERY_VERSION_CONFLICT`                          | Delivery draft version is stale                             |
+| `DELIVERY_ALREADY_DISPATCHED`                        | Draft-only operation targeted a dispatched Delivery         |
+| `DELIVERY_ALREADY_CANCELLED`                         | Operation targeted a cancelled Delivery                     |
+| `DELIVERY_ALREADY_DELIVERED`                         | Completion targeted an already delivered Delivery           |
+| `DELIVERY_QUANTITY_EXCEEDS_SALE`                     | Dispatch exceeds remaining Sale quantity                    |
+| `DELIVERY_RETURN_EXCEEDS_DISPATCH`                   | Return exceeds dispatched quantity                          |
+| `DELIVERY_PRODUCT_REQUIRED`                          | Sale line lacks Product identity for inventory movement     |
+| `DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED`            | Replacement predecessor has active physical fulfilment      |
+| `DELIVERY_REASON_REQUIRED`                           | Cancellation or return lacks explanation                    |
+| `DOCUMENT_NOT_FOUND`                                 | Immutable document does not resolve                         |
+| `DOCUMENT_SOURCE_INVALID`                            | Document type/source pair is missing or incompatible        |
+| `DOCUMENT_SHARE_NOT_FOUND`                           | Share identity or public token does not resolve             |
+| `DOCUMENT_SHARE_REVOKED`                             | Public share was explicitly revoked                         |
+| `DOCUMENT_SHARE_EXPIRED`                             | Public share passed its expiry                              |
+| `REPORT_INTEGRITY_FAILURE`                           | Canonical source or projection is inconsistent              |
 
 ## Rules for changing this catalog
 

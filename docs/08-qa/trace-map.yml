@@ -545,6 +545,50 @@ use_cases:
       - packages/db/src/repositories/read-queries.ts
       - apps/web/src/app/(app)/products/[productId]/inventory/page.tsx
 
+  UC-DELIVERY-001:
+    title: Fulfil a posted Sale and record explicit returns
+    risk: P0
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules:
+      - BR-DELIVERY-001
+      - BR-DELIVERY-002
+      - BR-DELIVERY-003
+      - BR-DELIVERY-004
+      - BR-DELIVERY-005
+      - BR-DELIVERY-006
+    cases: []
+    tests: [TC-DELIVERY-001, TC-DELIVERY-002, TC-DELIVERY-003, TC-E2E-030]
+    implementation:
+      - packages/domain-kernel/src/delivery/index.ts
+      - apps/api/src/modules/delivery/delivery.handlers.ts
+      - apps/api/src/modules/delivery/delivery.queries.ts
+      - packages/db/src/repositories/index.ts
+
+  UC-DOCUMENT-001:
+    title: Generate and securely share an immutable snapshot
+    risk: P0
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules: [BR-DOCUMENT-001, BR-DOCUMENT-002, BR-DOCUMENT-003, BR-DOCUMENT-004]
+    cases: []
+    tests: [TC-DOCUMENT-001, TC-DOCUMENT-002]
+    implementation:
+      - apps/api/src/modules/document/document.handlers.ts
+      - apps/api/src/modules/document/document.queries.ts
+      - apps/api/src/modules/document/public-document.ts
+      - packages/db/src/repositories/index.ts
+
+  UC-REPORT-001:
+    title: Inspect source-backed operational reports
+    risk: P1
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules: [BR-REPORT-001, BR-REPORT-002, BR-REPORT-003, BR-REPORT-004]
+    cases: []
+    tests: [TC-REPORT-001, TC-E2E-030]
+    implementation:
+      - apps/api/src/modules/report/report.queries.ts
+      - packages/db/src/repositories/read-queries.ts
+      - apps/web/src/app/(app)/reports/page.tsx
+
 business_rules:
   BR-SUPPLIER-001:
     title: Supplier lifecycle is workspace scoped and versioned
@@ -1336,6 +1380,77 @@ business_rules:
       - packages/domain-kernel/src/customer/update-customer.ts
       - apps/api/src/modules/customer/customer.queries.ts
 
+  BR-DELIVERY-001:
+    title: Delivery is separate physical fulfilment of immutable Sale lines
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DELIVERY-001, TC-DELIVERY-003]
+  BR-DELIVERY-002:
+    title: Delivery Product and unit exactly match the Sale snapshot
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DELIVERY-001, TC-DELIVERY-002]
+  BR-DELIVERY-003:
+    title: Dispatch and return append exact signed inventory movements
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DELIVERY-002, TC-DELIVERY-003, TC-E2E-030]
+  BR-DELIVERY-004:
+    title: Delivery completion never changes inventory or customer debt
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DELIVERY-002, TC-DELIVERY-003]
+  BR-DELIVERY-005:
+    title: Delivery retry and concurrency cannot duplicate or over-fulfil
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DELIVERY-002, TC-DELIVERY-003]
+  BR-DELIVERY-006:
+    title: Financial correction never guesses a physical compensation
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DELIVERY-001]
+  BR-DOCUMENT-001:
+    title: Document generations are immutable source snapshots and versions
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DOCUMENT-001, TC-DOCUMENT-002]
+  BR-DOCUMENT-002:
+    title: Document totals and deterministic digest are server-owned
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DOCUMENT-001, TC-DOCUMENT-002]
+  BR-DOCUMENT-003:
+    title: Public sharing stores only token hashes and fails closed
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DOCUMENT-001, TC-DOCUMENT-002]
+  BR-DOCUMENT-004:
+    title: Snapshot documents make no compliance claim
+    risk: P2
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DOCUMENT-001]
+  BR-REPORT-001:
+    title: Operational reports are derived from canonical sources
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-REPORT-001]
+  BR-REPORT-002:
+    title: Daily reports group transaction time in Vietnam business time
+    risk: P1
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-REPORT-001]
+  BR-REPORT-003:
+    title: Report totals reconcile without combining incompatible units
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-REPORT-001, TC-E2E-030]
+  BR-REPORT-004:
+    title: Report cursors are deterministic and integrity is explicit
+    risk: P1
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-REPORT-001]
+
 cases:
   CASE-SALE-001:
     title: A valid multi-line sale
@@ -1519,6 +1634,27 @@ cases:
 # Tests that exercise the API contract rather than a single rule. Declared here so
 # `trace-check` recognises them; they still name their rules in the test titles.
 contract_tests:
+  TC-DELIVERY-001:
+    title: Domain decisions enforce Sale line, quantity, state, and replacement boundaries
+    file: packages/domain-kernel/src/delivery/delivery.test.ts
+  TC-DELIVERY-002:
+    title: Application commands prove exact movements, retry safety, permissions and no debt effect
+    file: apps/api/src/modules/delivery/delivery.app.test.ts
+  TC-DELIVERY-003:
+    title: PostgreSQL proves partial fulfilment, returns, retries and dispatch concurrency
+    file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
+  TC-DOCUMENT-001:
+    title: Application proves immutable versions, digest, token hashing, expiry, revoke and tamper refusal
+    file: apps/api/src/modules/document/document.app.test.ts
+  TC-DOCUMENT-002:
+    title: PostgreSQL proves document concurrency, secure sharing and backup
+    file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
+  TC-REPORT-001:
+    title: PostgreSQL proves report totals, source links, pagination, dates and per-unit truth
+    file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
+  TC-E2E-030:
+    title: Browser API and PostgreSQL prove partial delivery completion and explicit return
+    file: apps/web/e2e/m19-m21-depot-operations.spec.ts
   TC-GOODS-001:
     title: PostgreSQL proves payable, receipt, reversal, void and retry truth
     file: apps/api/src/infrastructure/persistence/drizzle/goods-truth.db.test.ts

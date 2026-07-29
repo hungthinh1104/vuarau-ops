@@ -89,6 +89,13 @@ the caller's membership, using the static table in
 | `CreateProduct`, `UpdateProduct`      | `product.create`, `product.update`                         | owner, sales                                  | implemented |
 | Product deactivate/reactivate         | `product.deactivate`, `product.reactivate`                 | **owner**                                     | implemented |
 | Operations integrity/export/restore   | `workspace.manage`                                         | **owner**                                     | implemented |
+| Delivery draft/update/cancel          | `delivery.create/update/cancel`                            | owner, sales, warehouse                       | implemented |
+| `DispatchDelivery`                    | `delivery.dispatch`                                        | owner, warehouse                              | implemented |
+| `MarkDeliveryDelivered`               | `delivery.complete`                                        | owner, delivery                               | implemented |
+| `RecordDeliveryReturn`                | `delivery.return`                                          | owner, warehouse, delivery                    | implemented |
+| Document read/generate                | `document.read/generate`                                   | operational roles                             | implemented |
+| Document share/revoke                 | `document.share`                                           | owner, accountant, sales                      | implemented |
+| Operational reports                   | `report.read`                                              | all operational roles                         | implemented |
 | `session.me`                          | — (identity only)                                          | all roles                                     | implemented |
 | `session.workspaces`                  | — (identity only)                                          | all roles                                     | implemented |
 

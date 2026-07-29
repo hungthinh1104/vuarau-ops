@@ -9,6 +9,14 @@ Source of truth in code: `packages/domain-contracts/src/*/index.ts` for the DTOs
 
 ## The surface
 
+M19–M21 extend this established read pipeline with `delivery.get`,
+`delivery.list`, `delivery.fulfilment`, `document.get`, `document.listForSource`,
+`report.operational`, and `report.csv`. These reads use the same workspace authorization,
+server-derived totals, deterministic cursors, and source navigation described
+below. Public document lookup is the single deliberate exception: it is
+token-scoped, read-only, non-enumerable, and fails closed on digest, expiry, or
+revocation.
+
 | Procedure            | Permission      | Returns                           | Use case        |
 | -------------------- | --------------- | --------------------------------- | --------------- |
 | `session.me`         | — (identity)    | `SessionDto`                      | UC-AUTH-003     |

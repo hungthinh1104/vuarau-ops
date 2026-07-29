@@ -1,7 +1,8 @@
 # Goods Truth rules
 
-These rules close M16–M18 technically. They do not claim that a depot has
-validated the workflow in live operations.
+These rules establish M16–M18 and are extended by
+[depot-operations-rules.md](depot-operations-rules.md) for M19–M21. They do not
+claim that a depot has validated the workflow in live operations.
 
 ## Supplier and payable
 
@@ -54,12 +55,14 @@ validated the workflow in live operations.
 - **BR-INVENTORY-008** — All Goods Truth timelines use
   `transactionTime → recordedAt → id`, and cursor predicates use the same total
   order.
-- **BR-INVENTORY-009** — M18 records inbound and explicit adjustment events
-  only. Sale fulfilment and outbound physical truth begin at M19.
+- **BR-INVENTORY-009** — M18 established inbound and explicit adjustment
+  events. M19 adds outbound dispatch and explicit return sources without
+  changing the canonical per-Product/unit movement model.
 
 ## Backup and operations
 
-WorkspaceBackupV2 includes Supplier, Purchase, Receipt and movement canonical
-rows but no derived projections. Restore accepts V1, restores V2 transactionally
-into an empty target, rebuilds projections, then requires customer, supplier and
-inventory reconciliation to be healthy.
+WorkspaceBackupV3 includes Supplier, Purchase, Receipt, movement, Delivery,
+return, document, and document-share canonical rows but no derived projections.
+Restore accepts V1/V2, restores V3 transactionally into an empty target, rebuilds
+projections, then requires customer, supplier, and inventory reconciliation to
+be healthy.

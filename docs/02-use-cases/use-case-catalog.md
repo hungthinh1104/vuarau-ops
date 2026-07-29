@@ -47,6 +47,9 @@ command refuses source or ledger corruption rather than hiding it.
 | UC-PURCHASE-001  | Record and correct a Purchase           | purchase permissions         | implemented | [goods](goods-flow-use-cases.md)                             |
 | UC-RECEIVING-001 | Receive and reverse physical goods      | receiving permissions        | implemented | [goods](goods-flow-use-cases.md)                             |
 | UC-INVENTORY-001 | Explain and reconcile physical quantity | inventory permissions        | implemented | [goods](goods-flow-use-cases.md)                             |
+| UC-DELIVERY-001  | Fulfil a posted Sale and record returns | delivery permissions         | implemented | [depot operations](depot-operations-use-cases.md)            |
+| UC-DOCUMENT-001  | Generate and securely share snapshots   | document permissions         | implemented | [depot operations](depot-operations-use-cases.md)            |
+| UC-REPORT-001    | Inspect source-backed reports           | `report.read`                | implemented | [depot operations](depot-operations-use-cases.md)            |
 
 ## The template every use case answers
 

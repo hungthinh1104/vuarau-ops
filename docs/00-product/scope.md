@@ -2,9 +2,10 @@
 
 This document records the currently delivered boundary. The product direction
 and the only authorized near-term sequence are in [roadmap.md](roadmap.md):
-M8–M18 now have technical implementation evidence, including versioned logical
-restore and inbound Goods Truth. M19 delivery/outbound fulfilment and later
-modules are not approved by this batch.
+M8–M21 now have technical implementation evidence, including versioned logical
+restore, inbound/outbound Goods Truth, immutable documents, secure sharing, and
+source-backed operational reports. M22 and later modules are not approved by
+this batch.
 
 ## In scope
 
@@ -45,13 +46,13 @@ Building any of these now would commit the product to a shape it has not earned.
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Pricing intelligence                                          | Product catalog exists, but a typed sale-line snapshot remains truth and no pricing engine is justified                                                              |
 | Customer-local history recall                                 | Delivered as explicit historical recall; it never auto-applies a price                                                                                               |
-| Dashboards, reporting                                         | No accumulated ledger data to report on, and design.md says workflows come first                                                                                     |
+| Decorative dashboards, forecasting and recommendations        | M21 provides source-backed operational reports only; speculative metrics remain excluded                                                                             |
 | AI / LLM parsing of free-text entry                           | The deterministic write path must be trustworthy before anything writes to it automatically                                                                          |
 | Demand forecasting, supplier scoring, customer health scoring | Require months of ledger history                                                                                                                                     |
 | Advanced pricing recommendations                              | Requires a pricing model that does not exist                                                                                                                         |
-| Delivery route optimisation                                   | No delivery module                                                                                                                                                   |
+| Delivery route optimisation                                   | Delivery truth exists, but routing and optimisation are a separate unproven workflow                                                                                 |
 | Generalised rule builders                                     | A rule engine before six hard-coded rules is speculation                                                                                                             |
-| Delivery, allocation, invoicing and inventory valuation       | M18 records inbound physical quantity; outbound fulfilment is M19 and valuation remains excluded                                                                     |
+| Allocation, tax invoicing and inventory valuation             | M19 records outbound fulfilment; M20 snapshots make no tax claim and valuation remains excluded                                                                      |
 | Offline mutation queues beyond Quick Sale                     | M13 is deliberately limited to its customer/sale chain; payment, correction and catalog mutations stay online                                                        |
 | Microservices, Kafka, Kubernetes                              | See [ADR-0001](../09-decisions/ADR-0001-modular-monolith.md)                                                                                                         |
 | Full event sourcing                                           | The customer account ledger is append-only; the rest of the system is not, and does not need to be ([ADR-0004](../09-decisions/ADR-0004-append-only-debt-ledger.md)) |

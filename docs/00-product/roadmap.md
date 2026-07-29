@@ -174,16 +174,34 @@ per-line movements, per-Product/unit projections, adjustments and reconciliation
 are implemented. Inbound Goods Truth is proven; outbound Sale fulfilment remains
 the explicit M19 boundary.
 
-| Horizon                               | Milestones                                                                       | Gate                                                                                   |
-| ------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 2 — self-service and field resilience | M11–M14 technically complete                                                     | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
-| 3 — goods and inputs                  | M15–M18 technically complete                                                     | Supplier money and inbound goods flows are source-traceable.                           |
-| 4 — depot operations                  | M19 delivery; M20 documents/sharing; M21 reports; M22 performance/security/scale | Operational views drill down to reliable sources.                                      |
-| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                         | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+### M19 — Sale fulfilment and delivery (technical evidence complete)
 
-The explicit Goods Truth batch closes M16–M18 with technical evidence. M19
-delivery/outbound fulfilment is the next unstarted scope and is not authorized by
-this batch.
+Delivery models physical fulfilment separately from Sale financial status.
+Partial dispatches and explicit returns create attributable outbound and
+compensating inventory movements without changing customer debt. PostgreSQL
+concurrency evidence prevents over-fulfilment.
+
+### M20 — Immutable documents and secure sharing (technical evidence complete)
+
+Sale receipt, customer statement, purchase order, and delivery note are frozen,
+versioned source snapshots with deterministic digests. Public sharing stores
+only token hashes and fails closed on expiry, revocation, or tampering.
+
+### M21 — Source-backed operational reports (technical evidence complete)
+
+Daily operations, receivables, payables, per-unit inventory, inventory movement,
+and outstanding-delivery reads reconcile to canonical sources, expose integrity
+state, paginate deterministically, link to source detail, and export CSV.
+
+| Horizon                               | Milestones                                                                    | Gate                                                                                   |
+| ------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2 — self-service and field resilience | M11–M14 technically complete                                                  | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
+| 3 — goods and inputs                  | M15–M18 technically complete                                                  | Supplier money and inbound goods flows are source-traceable.                           |
+| 4 — depot operations                  | M19–M21 technically complete; M22 performance/security/scale remains separate | Operational views drill down to reliable sources.                                      |
+| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                      | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+
+The depot-operations batch closes M19–M21 with technical evidence. M22 remains
+unopened and requires its own authorization.
 
 ## Maturity stages
 
