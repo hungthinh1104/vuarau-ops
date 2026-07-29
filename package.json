@@ -19,7 +19,7 @@
     "test:db": "vitest run --project db",
     "test:watch": "vitest",
     "boundary:check": "node scripts/boundary-check.ts",
-    "source:check": "node scripts/source-boundary-check.ts",
+    "source:check": "node --test scripts/source-boundary-check.test.ts && node scripts/source-boundary-check.ts",
     "trace:check": "node scripts/trace-check.ts",
     "docs:check": "node scripts/docs-check.ts",
     "db:generate": "pnpm --filter @vuarau/db db:generate",

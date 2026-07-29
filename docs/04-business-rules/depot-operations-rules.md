@@ -18,14 +18,20 @@ not real-worker adoption.
   concurrency is serialized against the Sale/Delivery canonical state.
 - **BR-DELIVERY-006** — Sale void/replacement never silently reverses physical
   goods. A replacement is not fulfillable when its predecessor already has
-  active net fulfilment without an explicit allocation model.
+  active net fulfilment without an explicit allocation model. Once a Sale is
+  voided, new Delivery creation, editing, and dispatch are rejected; an existing
+  dispatched Delivery remains historical truth and may receive an explicit
+  return.
 
 ## Documents
 
 - **BR-DOCUMENT-001** — A document is an immutable, versioned snapshot of a
   canonical source; regeneration never mutates source or prior versions.
+  PostgreSQL structurally rejects update and delete of stored snapshots.
 - **BR-DOCUMENT-002** — Snapshot totals are server-derived and its SHA-256
-  digest is deterministic over the canonical representation.
+  digest is deterministic over the canonical representation. Authenticated
+  reads verify that digest, and logical restore rejects a mismatched document
+  without committing any canonical row.
 - **BR-DOCUMENT-003** — Sharing uses a random token while storage retains only
   its hash. Expired, revoked, unknown, or digest-invalid shares fail closed.
 - **BR-DOCUMENT-004** — Documents are print-ready business snapshots only. They
@@ -35,6 +41,8 @@ not real-worker adoption.
 
 - **BR-REPORT-001** — Reports are derived reads over canonical ledgers and
   movements. They never become a second source of truth.
+  `customer_account_activity` reads customer ledger activity only; receiving,
+  inventory, and Delivery events are represented by separate report types.
 - **BR-REPORT-002** — Business-date grouping uses `transactionTime` in
   `Asia/Ho_Chi_Minh`; recorded time does not move a transaction to another day.
 - **BR-REPORT-003** — Units are never converted or combined. Report totals

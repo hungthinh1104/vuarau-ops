@@ -51,6 +51,20 @@ docs/traceability update. A bug fix includes a regression test. A milestone is
 not complete from docs, component coverage or a green build alone: its stated
 invariants and real-stack paths must be evidenced by the appropriate tests.
 
+## 7. Source boundaries
+
+`pnpm source:check` applies two explicit size policies:
+
+- ordinary hand-written source warns above 450 lines and fails above 700;
+- composition entry points fail above 250 lines or when they contain raw SQL.
+
+Composition is an architectural role, not a filename heuristic. The authoritative
+list is `scripts/source-boundary-manifest.ts`; adding a new composition entry
+requires one obvious repository-relative path there. A generic `index.ts` is not
+classified unless it is deliberately declared. Migrations, generated output,
+fixtures, tests, and integrated E2E scenarios are excluded. Checker fixtures
+protect the thresholds, SQL prohibition, valid composition, and exclusions.
+
 ## Reviewer prompts
 
 - Where is the canonical rule, and is any layer recomputing it?

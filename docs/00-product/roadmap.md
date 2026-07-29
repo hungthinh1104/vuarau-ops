@@ -189,19 +189,33 @@ only token hashes and fails closed on expiry, revocation, or tampering.
 
 ### M21 — Source-backed operational reports (technical evidence complete)
 
-Daily operations, receivables, payables, per-unit inventory, inventory movement,
-and outstanding-delivery reads reconcile to canonical sources, expose integrity
-state, paginate deterministically, link to source detail, and export CSV.
+`customer_account_activity`, receivables, payables, per-unit inventory, inventory
+movement, and outstanding-delivery reads reconcile to canonical sources, expose
+integrity state, paginate deterministically, link to source detail, and export
+CSV. `customer_account_activity` is deliberately limited to customer ledger
+activity; receiving, inventory, and Delivery events belong to their separate
+source-backed reports.
 
-| Horizon                               | Milestones                                                                    | Gate                                                                                   |
-| ------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 2 — self-service and field resilience | M11–M14 technically complete                                                  | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
-| 3 — goods and inputs                  | M15–M18 technically complete                                                  | Supplier money and inbound goods flows are source-traceable.                           |
-| 4 — depot operations                  | M19–M21 technically complete; M22 performance/security/scale remains separate | Operational views drill down to reliable sources.                                      |
-| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                      | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+### M21.5 — Integrity and maintainability hardening (technical evidence complete)
 
-The depot-operations batch closes M19–M21 with technical evidence. M22 remains
-unopened and requires its own authorization.
+- a voided Sale rejects new Delivery creation, editing, and dispatch while
+  preserving explicit returns against already-dispatched Deliveries;
+- PostgreSQL makes document snapshots append-only, authenticated reads verify
+  their digest, and restore rejects a mismatched snapshot atomically;
+- DB read/write repositories, in-memory persistence, tRPC routers, and the Quick
+  Sale screen are split by bounded context behind their existing exports;
+- `source:check` enforces declared composition entry points at 250 lines with no
+  raw SQL, warns ordinary source files above 450 lines, and fails them above 700.
+
+| Horizon                               | Milestones                                                                      | Gate                                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2 — self-service and field resilience | M11–M14 technically complete                                                    | Onboard, authorize, operate on weak networks, back up and recover without a developer. |
+| 3 — goods and inputs                  | M15–M18 technically complete                                                    | Supplier money and inbound goods flows are source-traceable.                           |
+| 4 — depot operations                  | M19–M21.5 technically complete; M22 performance/security/scale remains separate | Operational views drill down to reliable sources.                                      |
+| 5 — intelligence                      | assisted capture, matching, recommendations, forecasting                        | Vocabulary, catalog, deterministic workflows, policy and corpus are mature.            |
+
+The depot-operations batch and its M21.5 hardening close M19–M21.5 with technical
+evidence. M22 remains unopened and requires its own authorization.
 
 ## Maturity stages
 

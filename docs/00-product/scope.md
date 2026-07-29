@@ -2,7 +2,7 @@
 
 This document records the currently delivered boundary. The product direction
 and the only authorized near-term sequence are in [roadmap.md](roadmap.md):
-M8–M21 now have technical implementation evidence, including versioned logical
+M8–M21.5 now have technical implementation evidence, including versioned logical
 restore, inbound/outbound Goods Truth, immutable documents, secure sharing, and
 source-backed operational reports. M22 and later modules are not approved by
 this batch.

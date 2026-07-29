@@ -82,7 +82,8 @@ implemented; no P0 rule is planned. The full surface is in
 
 ### What is complete, and what that does not mean
 
-The browser now closes the technical workflows through M21: Quick Sale,
+The browser now closes the technical workflows through M21, with M21.5 integrity
+and maintainability hardening: Quick Sale,
 void/replacement correction, payment/reversal, debt adjustment, explainable
 account reconciliation, member/role administration, and customer lifecycle.
 These flows use the typed API and PostgreSQL in automated end-to-end tests.

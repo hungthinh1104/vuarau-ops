@@ -4,18 +4,22 @@ The query side of the API: nine procedures a first UI needs, added in the same
 router as the commands.
 
 Source of truth in code: `packages/domain-contracts/src/*/index.ts` for the DTOs,
-`packages/db/src/repositories/read-queries.ts` for the SQL,
+`packages/db/src/repositories/read/` for context-specific SQL, with
+`packages/db/src/repositories/read-queries.ts` only composing those exports, and
 `apps/api/src/modules/shared/read-pipeline.ts` for the guard every read runs.
 
 ## The surface
 
 M19–M21 extend this established read pipeline with `delivery.get`,
 `delivery.list`, `delivery.fulfilment`, `document.get`, `document.listForSource`,
-`report.operational`, and `report.csv`. These reads use the same workspace authorization,
-server-derived totals, deterministic cursors, and source navigation described
-below. Public document lookup is the single deliberate exception: it is
-token-scoped, read-only, non-enumerable, and fails closed on digest, expiry, or
-revocation.
+`report.operational`, and `report.csv`. The
+`customer_account_activity` report type contains customer ledger activity only;
+receiving, inventory, and Delivery events stay in their own report types. These
+reads use the same workspace authorization, server-derived totals, deterministic
+cursors, and source navigation described below. Public document lookup is the
+single deliberate exception: it is token-scoped, read-only, non-enumerable, and
+fails closed on digest, expiry, or revocation. Authenticated document reads also
+verify the frozen snapshot against its stored digest.
 
 | Procedure            | Permission      | Returns                           | Use case        |
 | -------------------- | --------------- | --------------------------------- | --------------- |

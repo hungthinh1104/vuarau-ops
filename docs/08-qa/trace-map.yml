@@ -562,7 +562,8 @@ use_cases:
       - packages/domain-kernel/src/delivery/index.ts
       - apps/api/src/modules/delivery/delivery.handlers.ts
       - apps/api/src/modules/delivery/delivery.queries.ts
-      - packages/db/src/repositories/index.ts
+      - packages/db/src/repositories/write/delivery.ts
+      - packages/db/src/repositories/read/delivery.ts
 
   UC-DOCUMENT-001:
     title: Generate and securely share an immutable snapshot
@@ -575,7 +576,8 @@ use_cases:
       - apps/api/src/modules/document/document.handlers.ts
       - apps/api/src/modules/document/document.queries.ts
       - apps/api/src/modules/document/public-document.ts
-      - packages/db/src/repositories/index.ts
+      - packages/db/src/repositories/write/document.ts
+      - packages/db/src/repositories/read/document.ts
 
   UC-REPORT-001:
     title: Inspect source-backed operational reports
@@ -586,7 +588,7 @@ use_cases:
     tests: [TC-REPORT-001, TC-E2E-030]
     implementation:
       - apps/api/src/modules/report/report.queries.ts
-      - packages/db/src/repositories/read-queries.ts
+      - packages/db/src/repositories/read/report.ts
       - apps/web/src/app/(app)/reports/page.tsx
 
 business_rules:
@@ -1436,7 +1438,7 @@ business_rules:
     doc: docs/04-business-rules/depot-operations-rules.md
     tests: [TC-REPORT-001]
   BR-REPORT-002:
-    title: Daily reports group transaction time in Vietnam business time
+    title: Business-date reports group transaction time in Vietnam business time
     risk: P1
     doc: docs/04-business-rules/depot-operations-rules.md
     tests: [TC-REPORT-001]
@@ -1641,16 +1643,16 @@ contract_tests:
     title: Application commands prove exact movements, retry safety, permissions and no debt effect
     file: apps/api/src/modules/delivery/delivery.app.test.ts
   TC-DELIVERY-003:
-    title: PostgreSQL proves partial fulfilment, returns, retries and dispatch concurrency
+    title: PostgreSQL proves partial fulfilment, void protection, returns, retries and dispatch concurrency
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
   TC-DOCUMENT-001:
     title: Application proves immutable versions, digest, token hashing, expiry, revoke and tamper refusal
     file: apps/api/src/modules/document/document.app.test.ts
   TC-DOCUMENT-002:
-    title: PostgreSQL proves document concurrency, secure sharing and backup
+    title: PostgreSQL proves append-only documents, digest validation, secure sharing and backup
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
   TC-REPORT-001:
-    title: PostgreSQL proves report totals, source links, pagination, dates and per-unit truth
+    title: PostgreSQL proves customer-ledger report scope, totals, source links, pagination, dates and per-unit truth
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
   TC-E2E-030:
     title: Browser API and PostgreSQL prove partial delivery completion and explicit return
