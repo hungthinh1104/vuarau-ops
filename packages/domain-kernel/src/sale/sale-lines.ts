@@ -3,6 +3,7 @@ import type {
   Money,
   SaleLineId,
   ProductId,
+  QualityGradeId,
   Quantity,
 } from "@vuarau/domain-contracts";
 import type { SaleLineState } from "../shared/state.ts";
@@ -20,6 +21,8 @@ export type SaleLineLike = {
   readonly lineId: SaleLineId;
   readonly productId: ProductId | null;
   readonly productName: string;
+  readonly qualityGradeId: QualityGradeId | null;
+  readonly qualityGradeName: string | null;
   readonly quantity: Quantity;
   readonly unitPrice: Money;
 };
@@ -80,6 +83,8 @@ export function validateSaleLines(
       lineId: line.lineId,
       productId: line.productId,
       productName: line.productName,
+      qualityGradeId: line.qualityGradeId,
+      qualityGradeName: line.qualityGradeName,
       quantity: line.quantity,
       unitPrice: line.unitPrice,
       lineTotal,

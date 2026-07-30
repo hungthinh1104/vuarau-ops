@@ -21,7 +21,7 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV3,
+  WorkspaceBackupV4,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
@@ -35,6 +35,8 @@ import type {
   InventoryBalanceDto,
   InventoryMovementDto,
   ProductId,
+  QualityGradeDto,
+  QualityGradeId,
   Unit,
   DeliveryDto,
   DeliveryId,
@@ -277,6 +279,16 @@ export type ProductReadRepository = {
   get(workspaceId: WorkspaceId, productId: string): Promise<ProductDto | null>;
 };
 
+export type QualityGradeReadRepository = {
+  list(args: {
+    workspaceId: WorkspaceId;
+    query: string;
+    isActive: boolean | null;
+    page: PageQuery;
+  }): Promise<PageResult<QualityGradeDto>>;
+  get(workspaceId: WorkspaceId, qualityGradeId: QualityGradeId): Promise<QualityGradeDto | null>;
+};
+
 export type SaleReadRepository = {
   /**
    * The full sale, lines and void record included, **without** a row lock. The
@@ -363,10 +375,16 @@ export type InventoryReadRepository = {
   timeline(args: {
     workspaceId: WorkspaceId;
     productId: ProductId;
+    qualityGradeId: QualityGradeId | null | undefined;
     unit: Unit | null;
     page: PageQuery;
   }): Promise<PageResult<InventoryMovementDto>>;
-  integrity(workspaceId: WorkspaceId, productId: ProductId, unit: Unit): Promise<readonly string[]>;
+  integrity(
+    workspaceId: WorkspaceId,
+    productId: ProductId,
+    qualityGradeId: QualityGradeId | null,
+    unit: Unit,
+  ): Promise<readonly string[]>;
 };
 
 export type DeliveryReadRepository = {
@@ -438,7 +456,7 @@ export type AuditReadRepository = {
 
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV3["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV4["payload"] | null>;
 };
 
 /**
@@ -450,6 +468,7 @@ export type OperationsReadRepository = {
 export type ReadRepositories = {
   readonly customerReads: CustomerReadRepository;
   readonly productReads: ProductReadRepository;
+  readonly qualityGradeReads: QualityGradeReadRepository;
   readonly supplierReads: SupplierReadRepository;
   readonly supplierAccountReads: SupplierAccountReadRepository;
   readonly purchaseReads: PurchaseReadRepository;

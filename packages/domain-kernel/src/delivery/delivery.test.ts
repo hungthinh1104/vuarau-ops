@@ -4,6 +4,7 @@ import type {
   DeliveryId,
   DeliveryLineId,
   ProductId,
+  QualityGradeId,
   SaleId,
   SaleLineId,
 } from "@vuarau/domain-contracts";
@@ -26,6 +27,8 @@ const sale = {
       lineId: crypto.randomUUID() as SaleLineId,
       productId: crypto.randomUUID() as ProductId,
       productName: "Cải ngọt",
+      qualityGradeId: crypto.randomUUID() as QualityGradeId,
+      qualityGradeName: "Loại 1",
       quantity: { valueScaled: 100_000, unit: "kg" },
       unitPrice: { amountMinor: 20_000, currency: "VND" },
       lineTotal: { amountMinor: 2_000_000, currency: "VND" },
@@ -58,6 +61,7 @@ const command = (quantity: number): CreateDeliveryDraftCommand =>
           deliveryLineId: crypto.randomUUID() as DeliveryLineId,
           saleLineId: sale.lines[0]!.lineId,
           productId: sale.lines[0]!.productId!,
+          qualityGradeId: sale.lines[0]!.qualityGradeId!,
           quantity: { valueScaled: quantity, unit: "kg" },
         },
       ],
@@ -76,6 +80,20 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("DELIVERY_QUANTITY_EXCEEDS_SALE");
+  });
+
+  it("refuses to fulfil a Sale from another quality grade", () => {
+    const mismatched = command(10_000);
+    mismatched.payload.lines[0]!.qualityGradeId = crypto.randomUUID() as QualityGradeId;
+    const result = decideCreateDeliveryDraft({
+      command: mismatched,
+      sale,
+      fulfilled: new Map(),
+      predecessorHasFulfilment: false,
+      recordedAt: "2026-07-28T02:00:01.000Z",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("DELIVERY_LINE_INVALID");
   });
 
   it("blocks replacement fulfilment after predecessor physical activity", () => {

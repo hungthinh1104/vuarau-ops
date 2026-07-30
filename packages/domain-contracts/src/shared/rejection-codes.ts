@@ -53,6 +53,9 @@ export const DOMAIN_REJECTION_CODES = [
   // --- product --------------------------------------------------------------
   "PRODUCT_NOT_FOUND",
   "PRODUCT_VERSION_CONFLICT",
+  "QUALITY_GRADE_NOT_FOUND",
+  "QUALITY_GRADE_INACTIVE",
+  "QUALITY_GRADE_VERSION_CONFLICT",
 
   // --- supplier -------------------------------------------------------------
   "SUPPLIER_NOT_FOUND",
@@ -86,6 +89,8 @@ export const DOMAIN_REJECTION_CODES = [
   "RECEIPT_UNIT_MISMATCH",
   "RECEIPT_REVERSAL_REASON_REQUIRED",
   "INVENTORY_ADJUSTMENT_REASON_REQUIRED",
+  "INVENTORY_RECLASSIFICATION_INVALID",
+  "INVENTORY_RECLASSIFICATION_REASON_REQUIRED",
   "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
   "DELIVERY_NOT_FOUND",
   "DELIVERY_LINE_INVALID",
@@ -109,6 +114,18 @@ export const DOMAIN_REJECTION_CODES = [
   "SALE_NOT_FOUND",
   "SALE_EMPTY",
   "SALE_LINE_INVALID",
+  /** A draft line may be unresolved while typing; posting never may be. */
+  "SALE_PRODUCT_REQUIRED",
+  /** The referenced catalogue product is absent from the command workspace. */
+  "SALE_PRODUCT_NOT_FOUND",
+  /** An inactive catalogue product cannot become new posted goods truth. */
+  "SALE_PRODUCT_INACTIVE",
+  /** Draft snapshot name/unit no longer agrees with the referenced Product. */
+  "SALE_PRODUCT_SNAPSHOT_MISMATCH",
+  "SALE_QUALITY_GRADE_REQUIRED",
+  "SALE_QUALITY_GRADE_NOT_FOUND",
+  "SALE_QUALITY_GRADE_INACTIVE",
+  "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
   /** Also covers editing or discarding a sale that has already been posted. */
   "SALE_ALREADY_POSTED",
   "SALE_VERSION_CONFLICT",

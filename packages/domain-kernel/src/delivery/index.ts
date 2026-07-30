@@ -27,11 +27,20 @@ function deliveryLines(
       return err("DELIVERY_LINE_INVALID", "Delivery line does not belong to the Sale.");
     if (saleLine.productId === null)
       return err("DELIVERY_PRODUCT_REQUIRED", "Free-text Sale line cannot move inventory.");
+    if (saleLine.qualityGradeId === null || saleLine.qualityGradeName === null)
+      return err(
+        "DELIVERY_LINE_INVALID",
+        "Legacy Sale line without a quality grade cannot move graded inventory.",
+      );
     if (
       saleLine.productId !== inputLine.productId ||
+      saleLine.qualityGradeId !== inputLine.qualityGradeId ||
       saleLine.quantity.unit !== inputLine.quantity.unit
     )
-      return err("DELIVERY_LINE_INVALID", "Product and unit must match the Sale snapshot.");
+      return err(
+        "DELIVERY_LINE_INVALID",
+        "Product, quality grade and unit must match the Sale snapshot.",
+      );
     if (inputLine.quantity.valueScaled <= 0 || !Number.isInteger(inputLine.quantity.valueScaled))
       return err("DELIVERY_LINE_INVALID", "Delivery quantity must be positive.");
     const remaining = saleLine.quantity.valueScaled - (fulfilled.get(saleLine.lineId) ?? 0);
@@ -42,6 +51,8 @@ function deliveryLines(
       saleLineId: saleLine.lineId,
       productId: saleLine.productId,
       productName: saleLine.productName,
+      qualityGradeId: saleLine.qualityGradeId,
+      qualityGradeName: saleLine.qualityGradeName,
       quantity: inputLine.quantity,
     });
   }

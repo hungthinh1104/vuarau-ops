@@ -1,6 +1,7 @@
 import type { Tx } from "./shared/types.ts";
 import { createCustomerReadRepositories } from "./read/customer.ts";
 import { createProductReadRepositories } from "./read/product.ts";
+import { createQualityGradeReadRepositories } from "./read/quality.ts";
 import { createSupplierReadRepositories } from "./read/supplier.ts";
 import { createPurchaseReadRepositories } from "./read/purchase.ts";
 import { createInventoryReadRepositories } from "./read/inventory.ts";
@@ -17,6 +18,7 @@ export function createReadRepositories(tx: Tx) {
   return {
     ...createCustomerReadRepositories(tx),
     ...createProductReadRepositories(tx),
+    ...createQualityGradeReadRepositories(tx),
     ...createSupplierReadRepositories(tx),
     ...createPurchaseReadRepositories(tx),
     ...createInventoryReadRepositories(tx),

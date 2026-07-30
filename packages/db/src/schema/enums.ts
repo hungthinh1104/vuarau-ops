@@ -46,6 +46,7 @@ export const inventoryMovementSourceTypeEnum = pgEnum(
     "inventory_adjustment",
     "delivery_dispatch",
     "delivery_return",
+    "inventory_reclassification",
   ],
 );
 export const deliveryStatusEnum = pgEnum("delivery_status", [

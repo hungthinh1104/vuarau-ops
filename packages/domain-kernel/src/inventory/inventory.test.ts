@@ -5,10 +5,17 @@ import type {
   PurchaseId,
   PurchaseLineId,
   PurchaseReceiptId,
+  PurchaseReceiptLineId,
+  QualityGradeId,
   RecordPurchaseReceiptCommand,
+  ReclassifyInventoryCommand,
 } from "@vuarau/domain-contracts";
 import type { PurchaseState } from "../shared/state.ts";
-import { decideRecordPurchaseReceipt, validateInventoryAdjustment } from "./index.ts";
+import {
+  decideRecordPurchaseReceipt,
+  validateInventoryAdjustment,
+  validateInventoryReclassification,
+} from "./index.ts";
 
 const purchase = {
   id: crypto.randomUUID() as PurchaseId,
@@ -79,6 +86,25 @@ describe("Receiving and inventory decisions", () => {
     if (!over.ok) expect(over.error.code).toBe("RECEIPT_QUANTITY_EXCEEDS_PURCHASE");
   });
 
+  it("counts a split-grade receipt against one purchased quantity", () => {
+    const input = receipt(70_000);
+    input.payload.lines.push({
+      ...input.payload.lines[0]!,
+      receiptLineId: crypto.randomUUID() as PurchaseReceiptLineId,
+      qualityGradeId: crypto.randomUUID() as QualityGradeId,
+      qualityGradeName: "Loại 2",
+      quantity: { valueScaled: 31_000, unit: "kg" },
+    });
+    const result = decideRecordPurchaseReceipt({
+      command: input,
+      purchase,
+      existingNetByLine: new Map(),
+      recordedAt: "2026-07-29T02:00:01.000Z",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("RECEIPT_QUANTITY_EXCEEDS_PURCHASE");
+  });
+
   it("keeps a physical decrease signed and allows negative projected inventory", () => {
     const result = validateInventoryAdjustment({
       commandId: crypto.randomUUID(),
@@ -96,5 +122,26 @@ describe("Receiving and inventory decisions", () => {
       },
     } as unknown as AdjustInventoryCommand);
     expect(result.ok && result.value).toBe(-5_000);
+  });
+
+  it("requires a reason and distinct grades for quantity-conserving reclassification", () => {
+    const command = {
+      payload: {
+        fromQualityGradeId: crypto.randomUUID(),
+        toQualityGradeId: crypto.randomUUID(),
+        quantity: { valueScaled: 10_000 },
+        reason: "Hạ phẩm cấp sau phân loại lại",
+      },
+    } as ReclassifyInventoryCommand;
+    expect(validateInventoryReclassification(command)).toEqual({ ok: true, value: 10_000 });
+    expect(
+      validateInventoryReclassification({
+        ...command,
+        payload: {
+          ...command.payload,
+          toQualityGradeId: command.payload.fromQualityGradeId,
+        },
+      }),
+    ).toMatchObject({ ok: false, error: { code: "INVENTORY_RECLASSIFICATION_INVALID" } });
   });
 });

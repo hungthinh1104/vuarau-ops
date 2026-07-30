@@ -17,6 +17,7 @@ import type {
   SaleState,
   PaymentState,
   ProductState,
+  QualityGradeState,
   InventoryMovementState,
   DeliveryState,
 } from "@vuarau/domain-kernel";
@@ -25,6 +26,7 @@ import { emptyStore, key } from "./store.ts";
 import { createWorkspaceRepositories } from "./repositories/workspace.ts";
 import { createCustomerRepositories } from "./repositories/customer.ts";
 import { createProductRepositories } from "./repositories/product.ts";
+import { createQualityGradeRepositories } from "./repositories/quality.ts";
 import { createSupplierRepositories } from "./repositories/supplier.ts";
 import { createPurchaseRepositories } from "./repositories/purchase.ts";
 import { createInventoryRepositories } from "./repositories/inventory.ts";
@@ -38,6 +40,7 @@ import { createAuditRepositories } from "./repositories/audit.ts";
 import { createReceiptRepositories } from "./repositories/receipt.ts";
 import { createCustomerReads } from "./reads/customer.ts";
 import { createProductReads } from "./reads/product.ts";
+import { createQualityGradeReads } from "./reads/quality.ts";
 import { createSupplierReads } from "./reads/supplier.ts";
 import { createPurchaseReads } from "./reads/purchase.ts";
 import { createInventoryReads } from "./reads/inventory.ts";
@@ -102,6 +105,10 @@ export class InMemoryDatabase {
 
   seedProduct(product: ProductState): void {
     this.store.products.set(key(product.workspaceId, product.id), product);
+  }
+
+  seedQualityGrade(grade: QualityGradeState): void {
+    this.store.qualityGrades.set(key(grade.workspaceId, grade.id), grade);
   }
 
   seedSale(sale: SaleState): void {
@@ -202,6 +209,7 @@ export class InMemoryDatabase {
       ...createWorkspaceRepositories(this.store),
       ...createCustomerRepositories(this.store),
       ...createProductRepositories(this.store),
+      ...createQualityGradeRepositories(this.store),
       ...createSupplierRepositories(this.store, this.ids),
       ...createPurchaseRepositories(this.store),
       ...createInventoryRepositories(this.store, this.ids),
@@ -215,6 +223,7 @@ export class InMemoryDatabase {
       ...createReceiptRepositories(this.store),
       ...createCustomerReads(this.store),
       ...createProductReads(this.store),
+      ...createQualityGradeReads(this.store),
       ...createSupplierReads(this.store),
       ...createPurchaseReads(this.store),
       ...createInventoryReads(this.store),

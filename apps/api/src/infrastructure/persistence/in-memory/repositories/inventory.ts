@@ -46,14 +46,17 @@ export const createInventoryRepositories = (
         ),
   },
   inventoryBalances: {
-    get: async (workspaceId, productId, unit) =>
-      store.inventoryBalances.get(`${workspaceId}:${productId}:${unit}`) ?? null,
+    get: async (workspaceId, productId, qualityGradeId, unit) =>
+      store.inventoryBalances.get(
+        `${workspaceId}:${productId}:${qualityGradeId ?? "legacy"}:${unit}`,
+      ) ?? null,
     applyDelta: async (delta) => {
-      const balanceKey = `${delta.workspaceId}:${delta.productId}:${delta.unit}`;
+      const balanceKey = `${delta.workspaceId}:${delta.productId}:${delta.qualityGradeId ?? "legacy"}:${delta.unit}`;
       const current = store.inventoryBalances.get(balanceKey);
       store.inventoryBalances.set(balanceKey, {
         workspaceId: delta.workspaceId,
         productId: delta.productId,
+        qualityGradeId: delta.qualityGradeId,
         unit: delta.unit,
         quantityScaled: (current?.quantityScaled ?? 0) + delta.quantityScaled,
         movementCount: (current?.movementCount ?? 0) + delta.movementCount,
@@ -71,7 +74,7 @@ export const createInventoryRepositories = (
     },
     save: async (balance) => {
       store.inventoryBalances.set(
-        `${balance.workspaceId}:${balance.productId}:${balance.unit}`,
+        `${balance.workspaceId}:${balance.productId}:${balance.qualityGradeId ?? "legacy"}:${balance.unit}`,
         balance,
       );
     },

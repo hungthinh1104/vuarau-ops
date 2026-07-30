@@ -64,6 +64,26 @@ export function decidePostSale({
     });
   }
 
+  const unresolvedLine = sale.lines.find((line) => line.productId === null);
+  if (unresolvedLine !== undefined) {
+    return err(
+      "SALE_PRODUCT_REQUIRED",
+      "Every Sale line must select a catalogue Product before posting.",
+      { saleId: sale.id, lineId: unresolvedLine.lineId },
+    );
+  }
+
+  const ungradedLine = sale.lines.find(
+    (line) => line.qualityGradeId === null || line.qualityGradeName === null,
+  );
+  if (ungradedLine !== undefined) {
+    return err(
+      "SALE_QUALITY_GRADE_REQUIRED",
+      "Every Sale line must select a quality grade before posting.",
+      { saleId: sale.id, lineId: ungradedLine.lineId },
+    );
+  }
+
   // Re-validated and re-totalled at posting: these rows have been sitting in the
   // database, and this is the step that turns them into a receivable (BR-SALE-001).
   const lines = validateSaleLines(sale.lines, sale.currency);

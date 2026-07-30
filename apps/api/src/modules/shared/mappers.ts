@@ -60,6 +60,8 @@ export function toSaleDto(sale: SaleState, asOf: IsoInstant): SaleDto {
       lineId: line.lineId,
       productId: line.productId,
       productName: line.productName,
+      qualityGradeId: line.qualityGradeId,
+      qualityGradeName: line.qualityGradeName,
       quantity: line.quantity,
       unitPrice: line.unitPrice,
       lineTotal: line.lineTotal,

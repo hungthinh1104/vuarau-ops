@@ -23,6 +23,12 @@ export type CustomerId = z.infer<typeof customerIdSchema>;
 export const productIdSchema = z.uuid().brand<"ProductId">();
 export type ProductId = z.infer<typeof productIdSchema>;
 
+export const qualityGradeIdSchema = z.uuid().brand<"QualityGradeId">();
+export type QualityGradeId = z.infer<typeof qualityGradeIdSchema>;
+
+export const inventoryReclassificationIdSchema = z.uuid().brand<"InventoryReclassificationId">();
+export type InventoryReclassificationId = z.infer<typeof inventoryReclassificationIdSchema>;
+
 export const supplierIdSchema = z.uuid().brand<"SupplierId">();
 export type SupplierId = z.infer<typeof supplierIdSchema>;
 

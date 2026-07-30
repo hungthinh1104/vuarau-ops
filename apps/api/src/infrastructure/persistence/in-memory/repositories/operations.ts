@@ -23,6 +23,7 @@ import type {
   PurchaseVoidState,
   PurchaseReceiptState,
   InventoryMovementState,
+  QualityGradeState,
   DeliveryState,
   DeliveryReturnState,
 } from "@vuarau/domain-kernel";
@@ -36,6 +37,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         [
           ...store.customers.values(),
           ...store.products.values(),
+          ...store.qualityGrades.values(),
           ...store.sales.values(),
           ...store.suppliers.values(),
           ...store.purchases.values(),
@@ -59,6 +61,10 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         for (const raw of payload.products) {
           const row = remap(raw) as unknown as ProductState;
           store.products.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.qualityGrades) {
+          const row = remap(raw) as unknown as QualityGradeState;
+          store.qualityGrades.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.sales) {
           const row = remap(raw) as unknown as SaleState;
@@ -187,19 +193,27 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         const inventoryKeys = new Set(
           store.inventoryMovements
             .filter((movement) => movement.workspaceId === workspaceId)
-            .map((movement) => `${movement.productId}:${movement.quantity.unit}`),
+            .map(
+              (movement) =>
+                `${movement.productId}:${movement.qualityGradeId ?? "legacy"}:${movement.quantity.unit}`,
+            ),
         );
         for (const inventoryKey of inventoryKeys) {
-          const [productId, unit] = inventoryKey.split(":");
+          const [productId, qualityGradeId, unit] = inventoryKey.split(":");
           const movements = store.inventoryMovements.filter(
             (movement) =>
               movement.workspaceId === workspaceId &&
               movement.productId === productId &&
+              (movement.qualityGradeId ?? "legacy") === qualityGradeId &&
               movement.quantity.unit === unit,
           );
           store.inventoryBalances.set(`${workspaceId}:${inventoryKey}`, {
             workspaceId,
             productId: productId as InventoryMovementState["productId"],
+            qualityGradeId:
+              qualityGradeId === "legacy"
+                ? null
+                : (qualityGradeId as InventoryMovementState["qualityGradeId"]),
             unit: unit as InventoryMovementState["quantity"]["unit"],
             quantityScaled: movements.reduce(
               (sum, movement) => sum + movement.quantity.valueScaled,

@@ -6,6 +6,8 @@ import {
   commandIdSchema,
   inventoryMovementIdSchema,
   productIdSchema,
+  qualityGradeIdSchema,
+  inventoryReclassificationIdSchema,
   purchaseIdSchema,
   purchaseLineIdSchema,
   purchaseReceiptIdSchema,
@@ -20,6 +22,8 @@ export const receiptLineInputSchema = z.object({
   receiptLineId: purchaseReceiptLineIdSchema,
   purchaseLineId: purchaseLineIdSchema,
   productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema,
+  qualityGradeName: z.string().trim().min(1).max(100),
   quantity: quantitySchema,
 });
 export const recordPurchaseReceiptCommandSchema = defineCommand(
@@ -52,6 +56,8 @@ export const adjustInventoryCommandSchema = defineCommand(
   z.object({
     adjustmentId: z.uuid(),
     productId: productIdSchema,
+    qualityGradeId: qualityGradeIdSchema,
+    qualityGradeName: z.string().trim().min(1).max(100),
     quantity: quantitySchema,
     direction: z.enum(["increase", "decrease"]),
     reasonCode: inventoryAdjustmentReasonCodeSchema,
@@ -60,18 +66,35 @@ export const adjustInventoryCommandSchema = defineCommand(
 );
 export type AdjustInventoryCommand = z.infer<typeof adjustInventoryCommandSchema>;
 
+export const reclassifyInventoryCommandSchema = defineCommand(
+  z.object({
+    reclassificationId: inventoryReclassificationIdSchema,
+    productId: productIdSchema,
+    fromQualityGradeId: qualityGradeIdSchema,
+    fromQualityGradeName: z.string().trim().min(1).max(100),
+    toQualityGradeId: qualityGradeIdSchema,
+    toQualityGradeName: z.string().trim().min(1).max(100),
+    quantity: quantitySchema,
+    reason: z.string().trim().max(500),
+  }),
+);
+export type ReclassifyInventoryCommand = z.infer<typeof reclassifyInventoryCommandSchema>;
+
 export const inventoryMovementSourceTypeSchema = z.enum([
   "purchase_receipt",
   "purchase_receipt_reversal",
   "inventory_adjustment",
   "delivery_dispatch",
   "delivery_return",
+  "inventory_reclassification",
 ]);
 export type InventoryMovementSourceType = z.infer<typeof inventoryMovementSourceTypeSchema>;
 export const inventoryMovementDtoSchema = z.object({
   id: inventoryMovementIdSchema,
   workspaceId: workspaceIdSchema,
   productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable(),
+  qualityGradeName: z.string().nullable(),
   quantity: quantitySchema,
   sourceType: inventoryMovementSourceTypeSchema,
   sourceId: z.uuid(),
@@ -85,7 +108,7 @@ export const inventoryMovementDtoSchema = z.object({
   commandId: commandIdSchema,
   sourceDocument: z
     .object({
-      type: z.enum(["receipt", "inventory_adjustment", "delivery"]),
+      type: z.enum(["receipt", "inventory_adjustment", "inventory_reclassification", "delivery"]),
       id: z.uuid(),
     })
     .optional(),
@@ -138,6 +161,7 @@ export type PurchaseReceivingSummaryDto = z.infer<typeof purchaseReceivingSummar
 export const inventoryBalanceInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable().optional(),
 });
 export const inventoryAdjustmentGetInputSchema = z.object({
   workspaceId: workspaceIdSchema,
@@ -146,6 +170,8 @@ export const inventoryAdjustmentGetInputSchema = z.object({
 export const inventoryBalanceDtoSchema = z.object({
   workspaceId: workspaceIdSchema,
   productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable(),
+  qualityGradeName: z.string().nullable(),
   unit: unitSchema,
   quantityScaled: z.int(),
   classification: z.enum(["positive", "zero", "negative"]),
@@ -157,6 +183,7 @@ export type InventoryBalanceDto = z.infer<typeof inventoryBalanceDtoSchema>;
 export const inventoryTimelineInputSchema = pageRequestSchema.extend({
   workspaceId: workspaceIdSchema,
   productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable().optional(),
   unit: unitSchema.nullable().default(null),
 });
 export type InventoryTimelineInput = z.infer<typeof inventoryTimelineInputSchema>;
@@ -164,6 +191,7 @@ export const inventoryTimelinePageSchema = pageOf(inventoryMovementDtoSchema);
 export const inventoryReconciliationDtoSchema = z.object({
   status: z.enum(["consistent", "inconsistent", "not_found", "integrity_failure"]),
   productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable().default(null),
   unit: unitSchema,
   projected: inventoryBalanceDtoSchema.nullable(),
   canonical: inventoryBalanceDtoSchema.nullable(),
@@ -173,11 +201,13 @@ export type InventoryReconciliationDto = z.infer<typeof inventoryReconciliationD
 export const inventoryReconciliationInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable().default(null),
   unit: unitSchema,
 });
 export const rebuildInventoryCommandSchema = defineCommand(
   z.object({
     productId: productIdSchema,
+    qualityGradeId: qualityGradeIdSchema.nullable().default(null),
     unit: unitSchema,
   }),
 );

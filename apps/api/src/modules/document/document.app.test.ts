@@ -4,6 +4,7 @@ import {
   CUSTOMER_ID,
   LATER_TRANSACTION_TIME,
   PRODUCT_CA_CHUA_ID,
+  QUALITY_GRADE_1_ID,
   WORKSPACE_ID,
 } from "@vuarau/test-fixtures";
 import type { DocumentId, DocumentShareId, SaleId, SaleLineId } from "@vuarau/domain-contracts";
@@ -36,7 +37,9 @@ beforeEach(async () => {
         {
           lineId: "00000000-0000-4000-8000-000000000e02" as SaleLineId,
           productId: PRODUCT_CA_CHUA_ID,
-          productName: "Cà chua snapshot",
+          productName: "Cà chua",
+          qualityGradeId: QUALITY_GRADE_1_ID,
+          qualityGradeName: "Loại 1",
           quantity: { valueScaled: 10_000, unit: "kg" },
           unitPrice: { amountMinor: 25_000, currency: "VND" },
         },

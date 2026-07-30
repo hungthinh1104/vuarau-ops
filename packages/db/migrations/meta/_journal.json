@@ -148,6 +148,20 @@
       "when": 1786436800000,
       "tag": "0020_white_black_crow",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786436800001,
+      "tag": "0021_melodic_wolverine",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1786436800002,
+      "tag": "0022_harsh_alex_power",
+      "breakpoints": true
     }
   ]
 }

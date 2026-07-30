@@ -152,6 +152,8 @@ export async function readReceiptDto(tx: Tx, workspaceId: string, receiptId: str
       receiptLineId: line.id,
       purchaseLineId: line.purchaseLineId,
       productId: line.productId,
+      qualityGradeId: line.qualityGradeId,
+      qualityGradeName: line.qualityGradeName,
       quantity: { valueScaled: line.quantityScaled, unit: line.unit },
     })),
     note: row.note,
@@ -224,6 +226,8 @@ export async function readDeliveryDto(tx: Tx, workspaceId: string, deliveryId: s
         saleLineId: line.saleLineId,
         productId: line.productId,
         productName: line.productName,
+        qualityGradeId: line.qualityGradeId,
+        qualityGradeName: line.qualityGradeName,
         quantity: { valueScaled: line.quantityScaled, unit: line.unit },
         returnedQuantity: { valueScaled: returnedQuantity, unit: line.unit },
       };

@@ -64,6 +64,84 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
         }
       }
 
+      for (const line of sale.lines) {
+        if (line.productId === null) {
+          return err(
+            "SALE_PRODUCT_REQUIRED",
+            "Every Sale line must select a catalogue Product before posting.",
+            { saleId: sale.id, lineId: line.lineId },
+          );
+        }
+        const product = await repos.products.findById(command.workspaceId, line.productId);
+        if (product === null) {
+          return err(
+            "SALE_PRODUCT_NOT_FOUND",
+            "A Sale line references a Product outside this workspace or no longer present.",
+            { saleId: sale.id, lineId: line.lineId, productId: line.productId },
+          );
+        }
+        if (!product.isActive) {
+          return err("SALE_PRODUCT_INACTIVE", "An inactive Product cannot be posted.", {
+            saleId: sale.id,
+            lineId: line.lineId,
+            productId: line.productId,
+          });
+        }
+        if (
+          product.displayName !== line.productName ||
+          (product.preferredUnit !== null && product.preferredUnit !== line.quantity.unit)
+        ) {
+          return err(
+            "SALE_PRODUCT_SNAPSHOT_MISMATCH",
+            "The Sale line no longer matches the selected Product name or unit.",
+            {
+              saleId: sale.id,
+              lineId: line.lineId,
+              productId: line.productId,
+              productName: line.productName,
+              unit: line.quantity.unit,
+            },
+          );
+        }
+        if (line.qualityGradeId === null || line.qualityGradeName === null) {
+          return err(
+            "SALE_QUALITY_GRADE_REQUIRED",
+            "Every Sale line must select a quality grade before posting.",
+            { saleId: sale.id, lineId: line.lineId },
+          );
+        }
+        const grade = await repos.qualityGrades.findById(command.workspaceId, line.qualityGradeId);
+        if (grade === null) {
+          return err(
+            "SALE_QUALITY_GRADE_NOT_FOUND",
+            "A Sale line references a quality grade outside this workspace or no longer present.",
+            {
+              saleId: sale.id,
+              lineId: line.lineId,
+              qualityGradeId: line.qualityGradeId,
+            },
+          );
+        }
+        if (!grade.isActive) {
+          return err("SALE_QUALITY_GRADE_INACTIVE", "An inactive grade cannot be posted.", {
+            saleId: sale.id,
+            lineId: line.lineId,
+            qualityGradeId: line.qualityGradeId,
+          });
+        }
+        if (grade.name !== line.qualityGradeName) {
+          return err(
+            "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
+            "The Sale line no longer matches the selected quality grade.",
+            {
+              saleId: sale.id,
+              lineId: line.lineId,
+              qualityGradeId: line.qualityGradeId,
+            },
+          );
+        }
+      }
+
       const decision = decidePostSale({ command, sale, recordedAt });
       if (!decision.ok) {
         return decision;

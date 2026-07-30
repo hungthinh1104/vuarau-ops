@@ -124,6 +124,26 @@ describe("BR-SALE-004 / TC-SALE-002", () => {
 });
 
 describe("BR-SALE-007 / TC-SALE-003", () => {
+  it("refuses an unresolved Product before producing a customer account effect", () => {
+    const result = decidePostSale({
+      command: postSaleCommand(validDraftSale.version),
+      sale: {
+        ...validDraftSale,
+        lines: [
+          {
+            ...validDraftSale.lines[0]!,
+            productId: null,
+          },
+        ],
+      },
+      recordedAt: RECORDED_AT,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("SALE_PRODUCT_REQUIRED");
+  });
+
   it("produces exactly one account effect when a valid sale is posted", () => {
     const result = decidePostSale({
       command: postSaleCommand(validDraftSale.version),

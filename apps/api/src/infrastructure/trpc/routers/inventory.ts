@@ -9,12 +9,14 @@ import {
   inventoryAdjustmentGetInputSchema,
   inventoryReconciliationInputSchema,
   rebuildInventoryCommandSchema,
+  reclassifyInventoryCommandSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import {
   adjustInventory,
   recordPurchaseReceipt,
   reversePurchaseReceipt,
+  reclassifyInventory,
 } from "../../../modules/inventory/inventory.handlers.ts";
 import {
   getInventoryBalances,
@@ -49,6 +51,9 @@ export const inventoryRouter = router({
   adjust: commandProcedure
     .input(adjustInventoryCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await adjustInventory(ctx, input))),
+  reclassify: commandProcedure
+    .input(reclassifyInventoryCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reclassifyInventory(ctx, input))),
   balances: authenticatedProcedure
     .input(inventoryBalanceInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getInventoryBalances(ctx, input))),

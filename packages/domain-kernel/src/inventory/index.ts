@@ -21,6 +21,7 @@ export function decideRecordPurchaseReceipt(args: {
   const { command, purchase, existingNetByLine, recordedAt } = args;
   if (purchase.status !== "confirmed" || purchase.voidRecord !== null)
     return err("PURCHASE_NOT_FOUND", "Receipt requires an active confirmed Purchase.");
+  const pendingByLine = new Map(existingNetByLine);
   for (const line of command.payload.lines) {
     const purchased = purchase.lines.find((item) => item.lineId === line.purchaseLineId);
     if (purchased === undefined || purchased.productId !== line.productId)
@@ -29,9 +30,10 @@ export function decideRecordPurchaseReceipt(args: {
       return err("RECEIPT_UNIT_MISMATCH", "Receipt unit differs from Purchase.");
     if (line.quantity.valueScaled <= 0 || !Number.isInteger(line.quantity.valueScaled))
       return err("PURCHASE_LINE_INVALID", "Receipt quantity must be positive.");
-    const existing = existingNetByLine.get(line.purchaseLineId) ?? 0;
+    const existing = pendingByLine.get(line.purchaseLineId) ?? 0;
     if (existing + line.quantity.valueScaled > purchased.quantity.valueScaled)
       return err("RECEIPT_QUANTITY_EXCEEDS_PURCHASE", "Receipt exceeds Purchase quantity.");
+    pendingByLine.set(line.purchaseLineId, existing + line.quantity.valueScaled);
   }
   return ok({
     id: command.payload.receiptId,
@@ -78,6 +80,31 @@ export function validateInventoryAdjustment(command: AdjustInventoryCommand): Do
       ? command.payload.quantity.valueScaled
       : -command.payload.quantity.valueScaled,
   );
+}
+
+export function validateInventoryReclassification(command: {
+  payload: {
+    fromQualityGradeId: string;
+    toQualityGradeId: string;
+    quantity: { valueScaled: number };
+    reason: string;
+  };
+}): DomainResult<number> {
+  if (command.payload.reason.trim().length === 0)
+    return err(
+      "INVENTORY_RECLASSIFICATION_REASON_REQUIRED",
+      "Inventory reclassification needs a reason.",
+    );
+  if (
+    command.payload.fromQualityGradeId === command.payload.toQualityGradeId ||
+    !Number.isInteger(command.payload.quantity.valueScaled) ||
+    command.payload.quantity.valueScaled <= 0
+  )
+    return err(
+      "INVENTORY_RECLASSIFICATION_INVALID",
+      "Reclassification requires distinct grades and a positive exact quantity.",
+    );
+  return ok(command.payload.quantity.valueScaled);
 }
 
 export const classifyInventory = (quantityScaled: number) =>

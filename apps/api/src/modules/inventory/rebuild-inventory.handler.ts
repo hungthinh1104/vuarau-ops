@@ -17,6 +17,7 @@ export const rebuildInventory = (ctx: CommandContext, input: unknown) =>
       const diagnostics = await repos.inventoryReads.integrity(
         command.workspaceId,
         command.payload.productId,
+        command.payload.qualityGradeId,
         command.payload.unit,
       );
       if (diagnostics.length > 0)
@@ -31,10 +32,16 @@ export const rebuildInventory = (ctx: CommandContext, input: unknown) =>
         command.payload.unit,
       );
       const quantityScaled = movements.reduce(
-        (total, movement) => total + movement.quantity.valueScaled,
+        (total, movement) =>
+          movement.qualityGradeId === command.payload.qualityGradeId
+            ? total + movement.quantity.valueScaled
+            : total,
         0,
       );
-      const last = movements.reduce<null | typeof command.occurredAt>(
+      const gradedMovements = movements.filter(
+        (movement) => movement.qualityGradeId === command.payload.qualityGradeId,
+      );
+      const last = gradedMovements.reduce<null | typeof command.occurredAt>(
         (current, movement) =>
           current === null || movement.transactionTime > current
             ? movement.transactionTime
@@ -44,9 +51,10 @@ export const rebuildInventory = (ctx: CommandContext, input: unknown) =>
       await repos.inventoryBalances.save({
         workspaceId: command.workspaceId,
         productId: command.payload.productId,
+        qualityGradeId: command.payload.qualityGradeId,
         unit: command.payload.unit,
         quantityScaled,
-        movementCount: movements.length,
+        movementCount: gradedMovements.length,
         lastMovementTransactionTime: last,
         updatedAt: recordedAt,
       });
@@ -60,16 +68,30 @@ export const rebuildInventory = (ctx: CommandContext, input: unknown) =>
         transactionTime: command.occurredAt,
         recordedAt,
         before: null,
-        after: { unit: command.payload.unit, movementCount: movements.length },
+        after: {
+          qualityGradeId: command.payload.qualityGradeId,
+          unit: command.payload.unit,
+          movementCount: gradedMovements.length,
+        },
         reason: null,
       });
       return ok({
         workspaceId: command.workspaceId,
         productId: command.payload.productId,
+        qualityGradeId: command.payload.qualityGradeId,
+        qualityGradeName:
+          command.payload.qualityGradeId === null
+            ? null
+            : ((
+                await repos.qualityGrades.findById(
+                  command.workspaceId,
+                  command.payload.qualityGradeId,
+                )
+              )?.name ?? null),
         unit: command.payload.unit,
         quantityScaled,
         classification: classifyInventory(quantityScaled),
-        movementCount: movements.length,
+        movementCount: gradedMovements.length,
         lastMovementTransactionTime: last,
         updatedAt: recordedAt,
       });

@@ -15,6 +15,7 @@ import {
   PRODUCT_CA_CHUA_ID,
   PRODUCT_OT_ID,
   PRODUCT_RAU_MUONG_ID,
+  QUALITY_GRADE_1_ID,
   activeCustomer,
   subjectFor,
 } from "@vuarau/test-fixtures";
@@ -102,6 +103,16 @@ export function createHarness(): Harness {
       updatedAt: LATEST_RECORDED_AT,
     });
   }
+  db.seedQualityGrade({
+    id: QUALITY_GRADE_1_ID,
+    workspaceId: WORKSPACE_ID,
+    name: "Loại 1",
+    sortOrder: 10,
+    isActive: true,
+    version: 1,
+    createdAt: LATEST_RECORDED_AT,
+    updatedAt: LATEST_RECORDED_AT,
+  });
 
   const clock = mutableClock();
   const deps: CommandDeps = { uow: db.unitOfWork(), clock };

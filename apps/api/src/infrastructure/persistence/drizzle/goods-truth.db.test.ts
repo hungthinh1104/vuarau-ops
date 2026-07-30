@@ -9,6 +9,8 @@ import type {
   PurchaseId,
   PurchaseLineId,
   PurchaseReceiptId,
+  QualityGradeId,
+  InventoryReclassificationId,
   SupplierId,
   SupplierPaymentId,
 } from "@vuarau/domain-contracts";
@@ -30,6 +32,7 @@ import {
 import { getPurchase } from "../../../modules/purchase/purchase.queries.ts";
 import {
   adjustInventory,
+  reclassifyInventory,
   recordPurchaseReceipt,
   reversePurchaseReceipt,
 } from "../../../modules/inventory/inventory.handlers.ts";
@@ -37,6 +40,7 @@ import {
   getInventoryBalances,
   getInventoryTimeline,
 } from "../../../modules/inventory/inventory.queries.ts";
+import { createQualityGrade } from "../../../modules/quality/quality.handlers.ts";
 
 describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", () => {
   let ctx: DbTestContext;
@@ -69,6 +73,19 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
   afterAll(async () => ctx?.close());
 
   it("keeps payable and physical truth separate, attributable, and duplicate-safe", async () => {
+    const secondGradeId = crypto.randomUUID() as QualityGradeId;
+    expect(
+      (
+        await createQualityGrade(context(), {
+          ...command("goods-grade-two"),
+          payload: {
+            qualityGradeId: secondGradeId,
+            name: "Loại 2",
+            sortOrder: 20,
+          },
+        })
+      ).ok,
+    ).toBe(true);
     expect(
       (
         await createSupplier(context(), {
@@ -131,7 +148,13 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
       ).ok,
     ).toBe(true);
 
-    const receipt = (receiptId: PurchaseReceiptId, quantity: number, label: string) => ({
+    const receipt = (
+      receiptId: PurchaseReceiptId,
+      quantity: number,
+      label: string,
+      qualityGradeId: QualityGradeId,
+      qualityGradeName: string,
+    ) => ({
       ...command(label),
       payload: {
         receiptId,
@@ -141,14 +164,22 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
             receiptLineId: crypto.randomUUID(),
             purchaseLineId,
             productId: ctx.productIds[0],
+            qualityGradeId,
+            qualityGradeName,
             quantity: { valueScaled: quantity, unit: "kg" as const },
           },
         ],
         note: null,
       },
     });
-    const receiptACommand = receipt(receiptA, 60_000, "goods-receipt-a");
-    const receiptBCommand = receipt(receiptB, 40_000, "goods-receipt-b");
+    const receiptACommand = receipt(
+      receiptA,
+      60_000,
+      "goods-receipt-a",
+      ctx.qualityGradeId,
+      "Loại 1",
+    );
+    const receiptBCommand = receipt(receiptB, 40_000, "goods-receipt-b", secondGradeId, "Loại 2");
     expect((await recordPurchaseReceipt(context(), receiptACommand)).ok).toBe(true);
     expect((await recordPurchaseReceipt(context(), receiptBCommand)).ok).toBe(true);
     expect((await recordPurchaseReceipt(context(), receiptBCommand)).ok).toBe(true);
@@ -162,19 +193,34 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
       workspaceId: ctx.workspaceId,
       productId: ctx.productIds[0],
     });
-    expect(stock.ok && stock.value).toContainEqual(
-      expect.objectContaining({
-        unit: "kg",
-        quantityScaled: 100_000,
-        movementCount: 2,
-      }),
+    expect(stock.ok && stock.value).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          qualityGradeId: ctx.qualityGradeId,
+          unit: "kg",
+          quantityScaled: 60_000,
+          movementCount: 1,
+        }),
+        expect.objectContaining({
+          qualityGradeId: secondGradeId,
+          unit: "kg",
+          quantityScaled: 40_000,
+          movementCount: 1,
+        }),
+      ]),
     );
     const purchase = await getPurchase(context(), { workspaceId: ctx.workspaceId, purchaseId });
     expect(purchase.ok && purchase.value?.totalAmount.amountMinor).toBe(1_000_000);
 
     const over = await recordPurchaseReceipt(
       context(),
-      receipt(crypto.randomUUID() as PurchaseReceiptId, 1_000, "goods-over"),
+      receipt(
+        crypto.randomUUID() as PurchaseReceiptId,
+        1_000,
+        "goods-over",
+        ctx.qualityGradeId,
+        "Loại 1",
+      ),
     );
     expect(over.ok).toBe(false);
     if (!over.ok) expect(over.error.code).toBe("RECEIPT_QUANTITY_EXCEEDS_PURCHASE");
@@ -231,7 +277,7 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
       workspaceId: ctx.workspaceId,
       productId: ctx.productIds[0],
     });
-    expect(finalStock.ok && finalStock.value[0]?.quantityScaled).toBe(0);
+    expect(finalStock.ok && finalStock.value.every((row) => row.quantityScaled === 0)).toBe(true);
 
     const supplierTimeline = await getSupplierTimeline(context(), {
       workspaceId: ctx.workspaceId,
@@ -243,11 +289,12 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
     const inventoryTimeline = await getInventoryTimeline(context(), {
       workspaceId: ctx.workspaceId,
       productId: ctx.productIds[0],
+      qualityGradeId: ctx.qualityGradeId,
       unit: "kg",
       cursor: null,
       limit: 20,
     });
-    expect(inventoryTimeline.ok && inventoryTimeline.value.items).toHaveLength(4);
+    expect(inventoryTimeline.ok && inventoryTimeline.value.items).toHaveLength(2);
 
     const counts = await ctx.database.sql<
       readonly {
@@ -324,6 +371,8 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
           payload: {
             adjustmentId: crypto.randomUUID(),
             productId: ctx.productIds[0],
+            qualityGradeId: ctx.qualityGradeId,
+            qualityGradeName: "Loại 1",
             quantity: { valueScaled, unit: "thung" as const },
             direction: "increase" as const,
             reasonCode: "count_correction" as const,
@@ -368,6 +417,8 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
     const payload = {
       adjustmentId,
       productId: ctx.productIds[0],
+      qualityGradeId: ctx.qualityGradeId,
+      qualityGradeName: "Loại 1",
       quantity: { valueScaled: 25_000, unit: "kien" as const },
       direction: "increase" as const,
       reasonCode: "count_correction" as const,
@@ -408,6 +459,103 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
     });
   });
 
+  it("separates grades, conserves reclassification, attributes spoilage, and leaves money alone", async () => {
+    const secondGradeId = crypto.randomUUID() as QualityGradeId;
+    const createdGrade = await createQualityGrade(context(), {
+      ...command("quality-grade-two"),
+      payload: {
+        qualityGradeId: secondGradeId,
+        name: "Dạt",
+        sortOrder: 20,
+      },
+    });
+    expect(createdGrade.ok).toBe(true);
+    const productId = ctx.productIds[1];
+    const debtBefore = await ctx.accountEntryRows();
+    expect(
+      (
+        await adjustInventory(context(), {
+          ...command("graded-opening"),
+          payload: {
+            adjustmentId: crypto.randomUUID(),
+            productId,
+            qualityGradeId: ctx.qualityGradeId,
+            qualityGradeName: "Loại 1",
+            quantity: { valueScaled: 100_000, unit: "kg" },
+            direction: "increase",
+            reasonCode: "opening_balance",
+            reason: "Tồn đầu theo phẩm cấp",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const reclassification = {
+      ...command("graded-reclassification"),
+      payload: {
+        reclassificationId: crypto.randomUUID() as InventoryReclassificationId,
+        productId,
+        fromQualityGradeId: ctx.qualityGradeId,
+        fromQualityGradeName: "Loại 1",
+        toQualityGradeId: secondGradeId,
+        toQualityGradeName: "Dạt",
+        quantity: { valueScaled: 30_000, unit: "kg" as const },
+        reason: "Phân loại lại cuối ngày",
+      },
+    };
+    const first = await reclassifyInventory(context(), reclassification);
+    expect(first.ok).toBe(true);
+    expect(await reclassifyInventory(context(), reclassification)).toEqual(first);
+    expect(
+      (
+        await adjustInventory(context(), {
+          ...command("graded-spoilage"),
+          payload: {
+            adjustmentId: crypto.randomUUID(),
+            productId,
+            qualityGradeId: secondGradeId,
+            qualityGradeName: "Dạt",
+            quantity: { valueScaled: 4_000, unit: "kg" },
+            direction: "decrease",
+            reasonCode: "spoilage",
+            reason: "Dập sau một ngày",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const balances = await getInventoryBalances(context(), {
+      workspaceId: ctx.workspaceId,
+      productId,
+    });
+    expect(balances.ok && balances.value).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          qualityGradeId: ctx.qualityGradeId,
+          unit: "kg",
+          quantityScaled: 70_000,
+        }),
+        expect.objectContaining({
+          qualityGradeId: secondGradeId,
+          unit: "kg",
+          quantityScaled: 26_000,
+        }),
+      ]),
+    );
+    const movements = await deps.uow.transaction((repos) =>
+      repos.inventoryMovements.listByProduct(ctx.workspaceId, productId, "kg"),
+    );
+    expect(movements).toHaveLength(4);
+    expect(
+      movements
+        .filter((movement) => movement.sourceType === "inventory_reclassification")
+        .reduce((sum, movement) => sum + movement.quantity.valueScaled, 0),
+    ).toBe(0);
+    expect(movements.find((movement) => movement.reasonCode === "spoilage")).toMatchObject({
+      quantity: { valueScaled: -4_000, unit: "kg" },
+      qualityGradeId: secondGradeId,
+    });
+    expect(await ctx.accountEntryRows()).toEqual(debtBefore);
+  });
+
   it("uses the full inventory order at equal timestamps across cursor boundaries", async () => {
     const ids = Array.from({ length: 3 }, () => crypto.randomUUID());
     const at = "2026-07-29T04:00:00.000Z";
@@ -437,6 +585,7 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
     const first = await getInventoryTimeline(context(), {
       workspaceId: ctx.workspaceId,
       productId: ctx.productIds[0],
+      qualityGradeId: null,
       unit: "bo",
       cursor: null,
       limit: 2,
@@ -446,6 +595,7 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
     const second = await getInventoryTimeline(context(), {
       workspaceId: ctx.workspaceId,
       productId: ctx.productIds[0],
+      qualityGradeId: null,
       unit: "bo",
       cursor: first.value.nextCursor,
       limit: 2,

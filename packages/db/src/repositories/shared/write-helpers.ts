@@ -185,6 +185,8 @@ export async function loadDelivery(tx: Tx, workspaceId: WorkspaceId, deliveryId:
       saleLineId: line.saleLineId,
       productId: line.productId,
       productName: line.productName,
+      qualityGradeId: line.qualityGradeId,
+      qualityGradeName: line.qualityGradeName,
       quantity: { valueScaled: line.quantityScaled, unit: line.unit },
     })),
     note: row.note,

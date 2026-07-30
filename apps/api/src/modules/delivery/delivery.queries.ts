@@ -48,25 +48,56 @@ export async function getSaleFulfilment(ctx: CommandContext, input: SaleFulfilme
         input.workspaceId,
         input.saleId,
       );
+      const lines: SaleFulfilmentDto["lines"] = sale.lines.map((line) => {
+        const amounts = fulfilment.get(line.lineId) ?? { dispatched: 0, returned: 0 };
+        const net = amounts.dispatched - amounts.returned;
+        const remaining = line.quantity.valueScaled - net;
+        const invalid =
+          line.productId === null ||
+          line.qualityGradeId === null ||
+          line.qualityGradeName === null ||
+          amounts.dispatched < 0 ||
+          amounts.returned < 0 ||
+          amounts.returned > amounts.dispatched ||
+          net < 0 ||
+          net > line.quantity.valueScaled;
+        const fulfilmentState = invalid
+          ? ("attention" as const)
+          : remaining === 0
+            ? ("fulfilled" as const)
+            : amounts.returned > 0
+              ? ("returned_partial" as const)
+              : net > 0
+                ? ("partially_fulfilled" as const)
+                : ("unfulfilled" as const);
+        return {
+          saleLineId: line.lineId,
+          productId: line.productId,
+          productName: line.productName,
+          qualityGradeId: line.qualityGradeId,
+          qualityGradeName: line.qualityGradeName,
+          ordered: line.quantity,
+          dispatched: { valueScaled: amounts.dispatched, unit: line.quantity.unit },
+          returned: { valueScaled: amounts.returned, unit: line.quantity.unit },
+          netFulfilled: { valueScaled: net, unit: line.quantity.unit },
+          remaining: { valueScaled: remaining, unit: line.quantity.unit },
+          fulfilmentState,
+          blockedReason:
+            line.productId === null
+              ? "legacy_product_unresolved"
+              : line.qualityGradeId === null || line.qualityGradeName === null
+                ? "legacy_quality_unclassified"
+                : invalid
+                  ? "fulfilment_integrity_error"
+                  : null,
+        };
+      });
       return {
         saleId: input.saleId,
-        integrity: "healthy",
-        lines: sale.lines.map((line) => {
-          const amounts = fulfilment.get(line.lineId) ?? { dispatched: 0, returned: 0 };
-          const net = amounts.dispatched - amounts.returned;
-          return {
-            saleLineId: line.lineId,
-            productId: line.productId,
-            productName: line.productName,
-            ordered: line.quantity,
-            dispatched: { valueScaled: amounts.dispatched, unit: line.quantity.unit },
-            returned: { valueScaled: amounts.returned, unit: line.quantity.unit },
-            remaining: {
-              valueScaled: line.quantity.valueScaled - net,
-              unit: line.quantity.unit,
-            },
-          };
-        }),
+        integrity: lines.some((line) => line.fulfilmentState === "attention")
+          ? "attention"
+          : "healthy",
+        lines,
       };
     },
   });

@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   customerIdSchema,
   productIdSchema,
+  qualityGradeIdSchema,
   saleIdSchema,
   saleLineIdSchema,
   saleVoidIdSchema,
@@ -71,20 +72,16 @@ export type SaleDueState = z.infer<typeof saleDueStateSchema>;
 export const saleLineInputSchema = z.object({
   lineId: saleLineIdSchema,
   /**
-   * Optional link to the product catalogue, **not** the identity of what was
-   * sold. `productName` is (BR-SALE-011).
-   *
-   * It was required until a client tried to post a sale: a worker types "cà
-   * chua" at a market, there is no product master command to create a row in, and
-   * the foreign key refused every line. Making it nullable is the smaller change
-   * — the catalogue is a source of suggestions, and its own schema comment says
-   * the snapshot is what a customer owes.
-   *
-   * A line that names a catalogue product still carries the id, so a future
-   * price-recall feature has the link it needs.
+   * Nullable only while a worker is typing a draft. Posting requires an active
+   * workspace Product and re-affirms this canonical identity before any debt is
+   * created. `productName` remains the immutable human-readable snapshot.
    */
   productId: productIdSchema.nullable().default(null),
   productName: z.string().trim().min(1).max(200),
+  /** Canonical physical grade; nullable only for drafts and legacy posted history. */
+  qualityGradeId: qualityGradeIdSchema.nullable().default(null),
+  /** Immutable label snapshot so later grade renaming does not rewrite history. */
+  qualityGradeName: z.string().trim().min(1).max(100).nullable().default(null),
   quantity: quantitySchema,
   /**
    * Price for one whole unit (one kg, one bó, one thùng). Zero is allowed —

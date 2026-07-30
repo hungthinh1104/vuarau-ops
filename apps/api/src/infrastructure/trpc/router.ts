@@ -4,6 +4,7 @@ import { customerRouter, accountRouter, debtRouter } from "./routers/customer.ts
 import { saleRouter } from "./routers/sale.ts";
 import { paymentRouter } from "./routers/payment.ts";
 import { productRouter } from "./routers/product.ts";
+import { qualityRouter } from "./routers/quality.ts";
 import { supplierRouter } from "./routers/supplier.ts";
 import { purchaseRouter } from "./routers/purchase.ts";
 import { receivingRouter, inventoryRouter } from "./routers/inventory.ts";
@@ -21,6 +22,7 @@ export const appRouter = router({
   audit: auditRouter,
   debt: debtRouter,
   product: productRouter,
+  quality: qualityRouter,
   supplier: supplierRouter,
   purchase: purchaseRouter,
   receiving: receivingRouter,

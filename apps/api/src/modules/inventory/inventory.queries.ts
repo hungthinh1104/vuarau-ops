@@ -2,6 +2,7 @@ import type {
   InventoryTimelineInput,
   IsoInstant,
   ProductId,
+  QualityGradeId,
   PurchaseId,
   WorkspaceId,
   Unit,
@@ -92,13 +93,22 @@ export async function getPurchaseReceivingSummary(
 }
 export const getInventoryBalances = (
   ctx: CommandContext,
-  input: { workspaceId: WorkspaceId; productId: ProductId },
+  input: {
+    workspaceId: WorkspaceId;
+    productId: ProductId;
+    qualityGradeId?: QualityGradeId | null | undefined;
+  },
 ) =>
   runQuery({
     ctx,
     workspaceId: input.workspaceId,
     permission: "inventory.read",
-    execute: ({ repos }) => repos.inventoryReads.balances(input.workspaceId, input.productId),
+    execute: async ({ repos }) => {
+      const rows = await repos.inventoryReads.balances(input.workspaceId, input.productId);
+      return input.qualityGradeId === undefined
+        ? rows
+        : rows.filter((row) => row.qualityGradeId === input.qualityGradeId);
+    },
   });
 export const getInventoryTimeline = (ctx: CommandContext, input: InventoryTimelineInput) =>
   runQuery({
@@ -110,6 +120,7 @@ export const getInventoryTimeline = (ctx: CommandContext, input: InventoryTimeli
         await repos.inventoryReads.timeline({
           workspaceId: input.workspaceId,
           productId: input.productId,
+          qualityGradeId: input.qualityGradeId,
           unit: input.unit,
           page: toPageQuery(input),
         }),
@@ -119,7 +130,12 @@ export const getInventoryTimeline = (ctx: CommandContext, input: InventoryTimeli
 
 export const getInventoryReconciliation = (
   ctx: CommandContext,
-  input: { workspaceId: WorkspaceId; productId: ProductId; unit: Unit },
+  input: {
+    workspaceId: WorkspaceId;
+    productId: ProductId;
+    qualityGradeId: QualityGradeId | null;
+    unit: Unit;
+  },
 ) =>
   runQuery({
     ctx,
@@ -131,6 +147,7 @@ export const getInventoryReconciliation = (
         return {
           status: "not_found" as const,
           productId: input.productId,
+          qualityGradeId: input.qualityGradeId,
           unit: input.unit,
           projected: null,
           canonical: null,
@@ -139,23 +156,36 @@ export const getInventoryReconciliation = (
       const [movements, projections, integrity] = await Promise.all([
         repos.inventoryMovements.listByProduct(input.workspaceId, input.productId, input.unit),
         repos.inventoryReads.balances(input.workspaceId, input.productId),
-        repos.inventoryReads.integrity(input.workspaceId, input.productId, input.unit),
+        repos.inventoryReads.integrity(
+          input.workspaceId,
+          input.productId,
+          input.qualityGradeId,
+          input.unit,
+        ),
       ]);
-      const quantityScaled = movements.reduce(
+      const gradedMovements = movements.filter(
+        (movement) => movement.qualityGradeId === input.qualityGradeId,
+      );
+      const quantityScaled = gradedMovements.reduce(
         (total, movement) => total + movement.quantity.valueScaled,
         0,
       );
-      const last = movements.reduce<null | string>(
+      const last = gradedMovements.reduce<null | string>(
         (current, movement) =>
           current === null || movement.transactionTime > current
             ? movement.transactionTime
             : current,
         null,
       ) as IsoInstant | null;
-      const projected = projections.find((row) => row.unit === input.unit) ?? null;
+      const projected =
+        projections.find(
+          (row) => row.unit === input.unit && row.qualityGradeId === input.qualityGradeId,
+        ) ?? null;
       const canonical = {
         workspaceId: input.workspaceId,
         productId: input.productId,
+        qualityGradeId: input.qualityGradeId,
+        qualityGradeName: projected?.qualityGradeName ?? null,
         unit: input.unit,
         quantityScaled,
         classification:
@@ -164,14 +194,15 @@ export const getInventoryReconciliation = (
             : quantityScaled < 0
               ? ("negative" as const)
               : ("zero" as const),
-        movementCount: movements.length,
+        movementCount: gradedMovements.length,
         lastMovementTransactionTime: last,
-        updatedAt: movements[movements.length - 1]?.recordedAt ?? product.updatedAt,
+        updatedAt: gradedMovements[gradedMovements.length - 1]?.recordedAt ?? product.updatedAt,
       };
       if (integrity.length > 0)
         return {
           status: "integrity_failure" as const,
           productId: input.productId,
+          qualityGradeId: input.qualityGradeId,
           unit: input.unit,
           projected,
           canonical,
@@ -182,7 +213,7 @@ export const getInventoryReconciliation = (
         ...(projected !== null && projected.quantityScaled !== quantityScaled
           ? ["quantity_drift"]
           : []),
-        ...(projected !== null && projected.movementCount !== movements.length
+        ...(projected !== null && projected.movementCount !== gradedMovements.length
           ? ["movement_count_drift"]
           : []),
         ...(projected !== null && projected.lastMovementTransactionTime !== last
@@ -192,6 +223,7 @@ export const getInventoryReconciliation = (
       return {
         status: diagnostics.length === 0 ? ("consistent" as const) : ("inconsistent" as const),
         productId: input.productId,
+        qualityGradeId: input.qualityGradeId,
         unit: input.unit,
         projected,
         canonical,

@@ -14,6 +14,7 @@ import { actors } from "./workspace.ts";
 import { products } from "./customer.ts";
 import { sales, saleLines } from "./sale.ts";
 import { deliveryStatusEnum, unitEnum } from "./enums.ts";
+import { qualityGrades } from "./quality.ts";
 
 export const deliveries = pgTable(
   "deliveries",
@@ -66,6 +67,8 @@ export const deliveryLines = pgTable(
     saleLineId: uuid("sale_line_id").notNull(),
     productId: uuid("product_id").notNull(),
     productName: text("product_name").notNull(),
+    qualityGradeId: uuid("quality_grade_id"),
+    qualityGradeName: text("quality_grade_name"),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
   },
@@ -85,6 +88,11 @@ export const deliveryLines = pgTable(
       columns: [table.workspaceId, table.productId],
       foreignColumns: [products.workspaceId, products.id],
       name: "delivery_lines_workspace_product_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.qualityGradeId],
+      foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
+      name: "delivery_lines_workspace_quality_grade_fk",
     }),
   ],
 );

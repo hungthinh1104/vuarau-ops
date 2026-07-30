@@ -91,6 +91,8 @@ export type SaleLineRow = {
   id: string;
   productId: string | null;
   productName: string;
+  qualityGradeId: string | null;
+  qualityGradeName: string | null;
   quantityScaled: number;
   unit: SaleLineState["quantity"]["unit"];
   unitPriceMinor: number;
@@ -145,6 +147,8 @@ export function toSaleState(
       lineId: line.id as SaleLineState["lineId"],
       productId: line.productId as SaleLineState["productId"],
       productName: line.productName,
+      qualityGradeId: line.qualityGradeId as SaleLineState["qualityGradeId"],
+      qualityGradeName: line.qualityGradeName,
       quantity: { valueScaled: line.quantityScaled, unit: line.unit },
       unitPrice: money(line.unitPriceMinor, line.currency),
       lineTotal: money(line.lineTotalMinor, line.currency),

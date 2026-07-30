@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   purchaseReceipts,
   purchaseReceiptLines,
@@ -7,6 +7,7 @@ import {
   inventoryMovements,
   inventoryBalances,
   deliveryReturns,
+  qualityGrades,
 } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
 import { toIso, toIsoOrNull } from "../row-mappers.ts";
@@ -69,6 +70,8 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
               receiptLineId: line.id,
               purchaseLineId: line.purchaseLineId,
               productId: line.productId,
+              qualityGradeId: line.qualityGradeId,
+              qualityGradeName: line.qualityGradeName,
               quantity: { valueScaled: line.quantityScaled, unit: line.unit },
             })),
           note: row.note,
@@ -107,6 +110,8 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
             id: row.id,
             workspaceId: row.workspaceId,
             productId: row.productId,
+            qualityGradeId: row.qualityGradeId,
+            qualityGradeName: row.qualityGradeName,
             quantity: { valueScaled: row.quantityScaled, unit: row.unit },
             sourceType: row.sourceType,
             sourceId: row.sourceId,
@@ -123,18 +128,34 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
     },
     async balances(workspaceId: string, productId: string) {
       const rows = await tx
-        .select()
+        .select({
+          balance: inventoryBalances,
+          qualityGradeName: qualityGrades.name,
+        })
         .from(inventoryBalances)
+        .leftJoin(
+          qualityGrades,
+          and(
+            eq(qualityGrades.workspaceId, inventoryBalances.workspaceId),
+            eq(qualityGrades.id, inventoryBalances.qualityGradeId),
+          ),
+        )
         .where(
           and(
             eq(inventoryBalances.workspaceId, workspaceId),
             eq(inventoryBalances.productId, productId),
           ),
         )
-        .orderBy(asc(inventoryBalances.unit));
-      return rows.map((row) => ({
+        .orderBy(
+          asc(qualityGrades.sortOrder),
+          asc(qualityGrades.name),
+          asc(inventoryBalances.unit),
+        );
+      return rows.map(({ balance: row, qualityGradeName }) => ({
         workspaceId: row.workspaceId,
         productId: row.productId,
+        qualityGradeId: row.qualityGradeId,
+        qualityGradeName,
         unit: row.unit,
         quantityScaled: row.quantityScaled,
         classification: classifyInventory(row.quantityScaled),
@@ -146,6 +167,7 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
     async timeline(args: {
       workspaceId: string;
       productId: string;
+      qualityGradeId: typeof inventoryMovements.$inferSelect.qualityGradeId | undefined;
       unit: typeof inventoryMovements.$inferSelect.unit | null;
       page: Page;
     }) {
@@ -153,6 +175,12 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
         eq(inventoryMovements.workspaceId, args.workspaceId),
         eq(inventoryMovements.productId, args.productId),
       ];
+      if (args.qualityGradeId !== undefined)
+        filters.push(
+          args.qualityGradeId === null
+            ? isNull(inventoryMovements.qualityGradeId)
+            : eq(inventoryMovements.qualityGradeId, args.qualityGradeId),
+        );
       if (args.unit !== null) filters.push(eq(inventoryMovements.unit, args.unit));
       if (args.page.after !== null) {
         const [transactionTime, recordedAt] = args.page.after.sortValue.split("|");
@@ -210,6 +238,8 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
           id: row.id,
           workspaceId: row.workspaceId,
           productId: row.productId,
+          qualityGradeId: row.qualityGradeId,
+          qualityGradeName: row.qualityGradeName,
           quantity: { valueScaled: row.quantityScaled, unit: row.unit },
           sourceType: row.sourceType,
           sourceId: row.sourceId,
@@ -224,23 +254,25 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
           sourceDocument:
             row.sourceType === "inventory_adjustment"
               ? { type: "inventory_adjustment" as const, id: row.sourceId }
-              : row.sourceType === "delivery_dispatch"
-                ? { type: "delivery" as const, id: row.sourceId }
-                : row.sourceType === "delivery_return"
-                  ? {
-                      type: "delivery" as const,
-                      id:
-                        deliveryReturnSources.find((source) => source.returnId === row.sourceId)
-                          ?.deliveryId ?? row.sourceId,
-                    }
-                  : {
-                      type: "receipt" as const,
-                      id:
-                        row.sourceType === "purchase_receipt"
-                          ? row.sourceId
-                          : (reversalSources.find((source) => source.reversalId === row.sourceId)
-                              ?.receiptId ?? row.sourceId),
-                    },
+              : row.sourceType === "inventory_reclassification"
+                ? { type: "inventory_reclassification" as const, id: row.sourceId }
+                : row.sourceType === "delivery_dispatch"
+                  ? { type: "delivery" as const, id: row.sourceId }
+                  : row.sourceType === "delivery_return"
+                    ? {
+                        type: "delivery" as const,
+                        id:
+                          deliveryReturnSources.find((source) => source.returnId === row.sourceId)
+                            ?.deliveryId ?? row.sourceId,
+                      }
+                    : {
+                        type: "receipt" as const,
+                        id:
+                          row.sourceType === "purchase_receipt"
+                            ? row.sourceId
+                            : (reversalSources.find((source) => source.reversalId === row.sourceId)
+                                ?.receiptId ?? row.sourceId),
+                      },
         })),
         args.page,
         (row) => ({
@@ -252,17 +284,20 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
     async integrity(
       workspaceId: string,
       productId: string,
+      qualityGradeId: typeof inventoryMovements.$inferSelect.qualityGradeId,
       unit: typeof inventoryMovements.$inferSelect.unit,
     ) {
       const rows = await tx.execute(sql`
           select case
             when im.quantity_scaled = 0 then 'zero_quantity'
+            when im.quality_grade_id is not null and qg.id is null then 'missing_quality_grade'
             when im.source_type = 'inventory_adjustment'
               and (im.reason_code is null or length(btrim(coalesce(im.reason, ''))) = 0)
               then 'malformed_adjustment'
             when im.source_type = 'purchase_receipt'
               and (prl.id is null or prl.workspace_id <> im.workspace_id
                 or prl.product_id <> im.product_id or prl.unit <> im.unit
+                or prl.quality_grade_id is distinct from im.quality_grade_id
                 or prl.quantity_scaled <> im.quantity_scaled)
               then 'missing_or_mismatched_receipt'
             when im.source_type = 'purchase_receipt_reversal'
@@ -273,11 +308,13 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
             when im.source_type = 'delivery_dispatch'
               and (dl.id is null or d.id is null
                 or dl.product_id <> im.product_id or dl.unit <> im.unit
+                or dl.quality_grade_id is distinct from im.quality_grade_id
                 or -dl.quantity_scaled <> im.quantity_scaled)
               then 'missing_or_mismatched_delivery_dispatch'
             when im.source_type = 'delivery_return'
               and (dr.id is null or drl.delivery_line_id is null or return_dl.id is null
                 or return_dl.product_id <> im.product_id or return_dl.unit <> im.unit
+                or return_dl.quality_grade_id is distinct from im.quality_grade_id
                 or drl.quantity_scaled <> im.quantity_scaled
                 or original.id is null
                 or original.source_type <> 'delivery_dispatch'
@@ -305,8 +342,12 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
             on drl.return_id = dr.id and drl.delivery_line_id = im.source_line_id
           left join delivery_lines return_dl
             on return_dl.workspace_id = im.workspace_id and return_dl.id = drl.delivery_line_id
+          left join quality_grades qg
+            on qg.workspace_id = im.workspace_id and qg.id = im.quality_grade_id
           where im.workspace_id = ${workspaceId}::uuid
-            and im.product_id = ${productId}::uuid and im.unit = ${unit}::unit
+            and im.product_id = ${productId}::uuid
+            and im.quality_grade_id is not distinct from ${qualityGradeId}::uuid
+            and im.unit = ${unit}::unit
         `);
       return (rows as unknown as Array<{ diagnostic: string | null }>).flatMap((row) =>
         row.diagnostic === null ? [] : [row.diagnostic],

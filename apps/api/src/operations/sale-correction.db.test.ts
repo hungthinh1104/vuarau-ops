@@ -59,8 +59,10 @@ describe.skipIf(skipWithoutDatabase())("correcting a posted sale against Postgre
 
   const line = (name: string, milliUnits: number, priceMinor: number) => ({
     lineId: crypto.randomUUID() as SaleLineId,
-    productId: null,
+    productId: ctx.productIds[2],
     productName: name,
+    qualityGradeId: ctx.qualityGradeId,
+    qualityGradeName: "Loại 1",
     quantity: { valueScaled: milliUnits, unit: "thung" as const },
     unitPrice: { amountMinor: priceMinor, currency: "VND" as const },
   });

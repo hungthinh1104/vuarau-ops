@@ -8,6 +8,9 @@ import {
   OTHER_IDEMPOTENCY_KEY,
   RECORDED_AT,
   FOREIGN_ACTOR_ID,
+  LATEST_RECORDED_AT,
+  PRODUCT_CA_CHUA_ID,
+  QUALITY_GRADE_1_ID,
   SECOND_COMMAND_ID,
   TRANSACTION_TIME,
   WORKSPACE_ID,
@@ -159,6 +162,97 @@ describe("BR-SALE-007 / TC-SALE-003", () => {
 
     expect(harness.db.accountEntries()).toHaveLength(0);
     expect(harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID)).toBeNull();
+  });
+});
+
+describe("BR-SALE-011 — canonical Product posting boundary", () => {
+  it("allows an unresolved draft but refuses posting without creating debt", async () => {
+    await createSaleDraft(harness.ctx, {
+      ...createInput(),
+      payload: {
+        ...createInput().payload,
+        lines: [{ ...saleLineInputs[0]!, productId: null }],
+      },
+    });
+
+    const result = await postSale(harness.ctx, postInput());
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("SALE_PRODUCT_REQUIRED");
+    expect(harness.db.accountEntries()).toHaveLength(0);
+  });
+
+  it("refuses an inactive Product before creating debt", async () => {
+    harness.db.seedProduct({
+      id: PRODUCT_CA_CHUA_ID,
+      workspaceId: WORKSPACE_ID,
+      displayName: "Cà chua",
+      aliases: [],
+      preferredUnit: "kg",
+      isActive: false,
+      version: 2,
+      createdAt: LATEST_RECORDED_AT,
+      updatedAt: LATEST_RECORDED_AT,
+    });
+    await createSaleDraft(harness.ctx, {
+      ...createInput(),
+      payload: { ...createInput().payload, lines: [saleLineInputs[0]!] },
+    });
+
+    const result = await postSale(harness.ctx, postInput());
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("SALE_PRODUCT_INACTIVE");
+    expect(harness.db.accountEntries()).toHaveLength(0);
+  });
+
+  it("refuses a stale Product snapshot before creating debt", async () => {
+    await createSaleDraft(harness.ctx, {
+      ...createInput(),
+      payload: {
+        ...createInput().payload,
+        lines: [{ ...saleLineInputs[0]!, productName: "Tên cũ" }],
+      },
+    });
+
+    const result = await postSale(harness.ctx, postInput());
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("SALE_PRODUCT_SNAPSHOT_MISMATCH");
+    expect(harness.db.accountEntries()).toHaveLength(0);
+  });
+
+  it("refuses an inactive quality grade before creating debt", async () => {
+    harness.db.seedQualityGrade({
+      id: QUALITY_GRADE_1_ID,
+      workspaceId: WORKSPACE_ID,
+      name: "Loại 1",
+      sortOrder: 10,
+      isActive: false,
+      version: 2,
+      createdAt: LATEST_RECORDED_AT,
+      updatedAt: LATEST_RECORDED_AT,
+    });
+    await createSaleDraft(harness.ctx, createInput());
+    const result = await postSale(harness.ctx, postInput());
+    expect(result).toMatchObject({ ok: false, error: { code: "SALE_QUALITY_GRADE_INACTIVE" } });
+    expect(harness.db.accountEntries()).toHaveLength(0);
+  });
+
+  it("refuses a stale quality-grade snapshot before creating debt", async () => {
+    await createSaleDraft(harness.ctx, {
+      ...createInput(),
+      payload: {
+        ...createInput().payload,
+        lines: [{ ...saleLineInputs[0]!, qualityGradeName: "Tên phẩm cấp cũ" }],
+      },
+    });
+    const result = await postSale(harness.ctx, postInput());
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH" },
+    });
+    expect(harness.db.accountEntries()).toHaveLength(0);
   });
 });
 

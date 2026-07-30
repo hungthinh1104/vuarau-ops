@@ -4,6 +4,7 @@ import type {
   CustomerId,
   CustomerAccountEntryDto,
   ProductId,
+  QualityGradeId,
   WorkspaceId,
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
@@ -17,6 +18,7 @@ import {
   customers,
   customerAccountEntries,
   products,
+  qualityGrades,
   workspaces,
   workspaceMemberships,
 } from "../schema/index.ts";
@@ -67,6 +69,8 @@ export type DbTestContext = {
   readonly customerId: CustomerId;
   /** Cà chua, rau muống, ớt — the three products CASE-SALE-001 sells. */
   readonly productIds: readonly [ProductId, ProductId, ProductId];
+  /** Default active commercial grade used by tests that do not exercise splitting. */
+  readonly qualityGradeId: QualityGradeId;
   /** The verified JWT subject that resolves to `actorId` (BR-AUTH-005). */
   readonly subject: string;
   /**
@@ -191,6 +195,17 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
       isActive: true,
     })),
   );
+  const qualityGradeId = crypto.randomUUID() as QualityGradeId;
+  await database.db.insert(qualityGrades).values({
+    id: qualityGradeId,
+    workspaceId,
+    name: "Loại 1",
+    sortOrder: 10,
+    isActive: true,
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+  });
 
   return {
     database,
@@ -198,6 +213,7 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
     actorId,
     customerId,
     productIds,
+    qualityGradeId,
     subject: subjectOf(actorId),
     roleActors,
     revokedActorId,

@@ -227,6 +227,8 @@ export function dispatchDelivery(ctx: CommandContext, input: unknown) {
         current.lines.map((line) => ({
           workspaceId: command.workspaceId,
           productId: line.productId,
+          qualityGradeId: line.qualityGradeId,
+          qualityGradeName: line.qualityGradeName,
           quantity: {
             valueScaled: -line.quantity.valueScaled,
             unit: line.quantity.unit,
@@ -334,6 +336,8 @@ export function recordDeliveryReturn(ctx: CommandContext, input: unknown) {
           return {
             workspaceId: command.workspaceId,
             productId: deliveryLine.productId,
+            qualityGradeId: deliveryLine.qualityGradeId,
+            qualityGradeName: deliveryLine.qualityGradeName,
             quantity: returnLine.quantity,
             sourceType: "delivery_return" as const,
             sourceId: decision.value.id,

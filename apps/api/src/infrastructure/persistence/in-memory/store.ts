@@ -19,6 +19,7 @@ import type {
   SaleState,
   PaymentState,
   ProductState,
+  QualityGradeState,
   SupplierState,
   SupplierPaymentState,
   PurchaseState,
@@ -39,6 +40,7 @@ export type Store = {
   actorNames: Map<string, string>;
   customers: Map<string, CustomerState>;
   products: Map<string, ProductState>;
+  qualityGrades: Map<string, QualityGradeState>;
   suppliers: Map<string, SupplierState>;
   supplierPayments: Map<string, SupplierPaymentState>;
   supplierPaymentReversals: Array<{
@@ -71,6 +73,7 @@ export type Store = {
     {
       workspaceId: WorkspaceId;
       productId: InventoryMovementState["productId"];
+      qualityGradeId: InventoryMovementState["qualityGradeId"];
       unit: InventoryMovementState["quantity"]["unit"];
       quantityScaled: number;
       movementCount: number;
@@ -114,6 +117,7 @@ export function emptyStore(): Store {
     actorNames: new Map(),
     customers: new Map(),
     products: new Map(),
+    qualityGrades: new Map(),
     suppliers: new Map(),
     supplierPayments: new Map(),
     supplierPaymentReversals: [],
@@ -237,6 +241,8 @@ export function toDeliveryDto(delivery: DeliveryState): DeliveryDto {
       saleLineId: line.saleLineId,
       productId: line.productId,
       productName: line.productName,
+      qualityGradeId: line.qualityGradeId,
+      qualityGradeName: line.qualityGradeName,
       quantity: line.quantity,
       returnedQuantity: {
         valueScaled: delivery.returns

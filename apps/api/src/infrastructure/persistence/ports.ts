@@ -9,12 +9,13 @@ import type {
   SaleId,
   PaymentId,
   ProductId,
+  QualityGradeId,
   SupplierId,
   SupplierPaymentId,
   SupplierAccountEntryDto,
   WorkspaceId,
   WorkspaceRole,
-  WorkspaceBackupV3,
+  WorkspaceBackupV4,
   DeliveryId,
   DocumentDto,
   DocumentShareId,
@@ -31,6 +32,7 @@ import type {
   PaymentReversalState,
   PaymentState,
   ProductState,
+  QualityGradeState,
   SupplierState,
   SupplierPaymentState,
   PurchaseState,
@@ -154,6 +156,19 @@ export type ProductRepository = {
   update(product: ProductState, expectedVersion: number): Promise<boolean>;
 };
 
+export type QualityGradeRepository = {
+  findById(
+    workspaceId: WorkspaceId,
+    qualityGradeId: QualityGradeId,
+  ): Promise<QualityGradeState | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    qualityGradeId: QualityGradeId,
+  ): Promise<QualityGradeState | null>;
+  insert(grade: QualityGradeState): Promise<void>;
+  update(grade: QualityGradeState, expectedVersion: number): Promise<boolean>;
+};
+
 export type SupplierRepository = {
   findById(workspaceId: WorkspaceId, supplierId: SupplierId): Promise<SupplierState | null>;
   findByIdForUpdate(
@@ -257,6 +272,7 @@ export type InventoryMovementRepository = {
 export type InventoryBalanceState = {
   workspaceId: WorkspaceId;
   productId: ProductId;
+  qualityGradeId: QualityGradeId | null;
   unit: InventoryMovementState["quantity"]["unit"];
   quantityScaled: number;
   movementCount: number;
@@ -267,11 +283,13 @@ export type InventoryBalanceRepository = {
   get(
     workspaceId: WorkspaceId,
     productId: ProductId,
+    qualityGradeId: QualityGradeId | null,
     unit: InventoryBalanceState["unit"],
   ): Promise<InventoryBalanceState | null>;
   applyDelta(delta: {
     readonly workspaceId: WorkspaceId;
     readonly productId: ProductId;
+    readonly qualityGradeId: QualityGradeId | null;
     readonly unit: InventoryBalanceState["unit"];
     readonly quantityScaled: number;
     readonly movementCount: number;
@@ -331,7 +349,7 @@ export type DocumentRepository = {
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV3["payload"],
+    payload: WorkspaceBackupV4["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -459,6 +477,7 @@ export type Repositories = ReadRepositories & {
   readonly actors: ActorRepository;
   readonly customers: CustomerRepository;
   readonly products: ProductRepository;
+  readonly qualityGrades: QualityGradeRepository;
   readonly suppliers: SupplierRepository;
   readonly supplierPayments: SupplierPaymentRepository;
   readonly supplierAccountEntries: SupplierAccountEntryRepository;

@@ -14,6 +14,7 @@ import type {
   PaymentMethod,
   PaymentStatus,
   ProductId,
+  QualityGradeId,
   SupplierId,
   SupplierPaymentId,
   PurchaseId,
@@ -76,6 +77,17 @@ export type ProductState = {
   readonly displayName: string;
   readonly aliases: readonly string[];
   readonly preferredUnit: Quantity["unit"] | null;
+  readonly isActive: boolean;
+  readonly version: number;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+};
+
+export type QualityGradeState = {
+  readonly id: QualityGradeId;
+  readonly workspaceId: WorkspaceId;
+  readonly name: string;
+  readonly sortOrder: number;
   readonly isActive: boolean;
   readonly version: number;
   readonly createdAt: IsoInstant;
@@ -151,6 +163,8 @@ export type PurchaseReceiptLineState = {
   readonly receiptLineId: PurchaseReceiptLineId;
   readonly purchaseLineId: PurchaseLineId;
   readonly productId: ProductId;
+  readonly qualityGradeId: QualityGradeId;
+  readonly qualityGradeName: string;
   readonly quantity: Quantity;
 };
 export type PurchaseReceiptReversalState = {
@@ -178,6 +192,8 @@ export type InventoryMovementState = {
   readonly id: InventoryMovementId;
   readonly workspaceId: WorkspaceId;
   readonly productId: ProductId;
+  readonly qualityGradeId: QualityGradeId | null;
+  readonly qualityGradeName: string | null;
   readonly quantity: Quantity;
   readonly sourceType: InventoryMovementSourceType;
   readonly sourceId: string;
@@ -215,6 +231,8 @@ export type DeliveryState = {
     readonly saleLineId: SaleLineId;
     readonly productId: ProductId;
     readonly productName: string;
+    readonly qualityGradeId: QualityGradeId | null;
+    readonly qualityGradeName: string | null;
     readonly quantity: Quantity;
   }[];
   readonly note: string | null;
@@ -233,6 +251,8 @@ export type SaleLineState = {
   readonly productId: ProductId | null;
   /** Snapshot taken at entry time; later catalogue edits must not change it (ASM-008). */
   readonly productName: string;
+  readonly qualityGradeId: QualityGradeId | null;
+  readonly qualityGradeName: string | null;
   readonly quantity: Quantity;
   readonly unitPrice: Money;
   readonly lineTotal: Money;

@@ -1,0 +1,2 @@
+DROP INDEX "purchase_receipt_lines_receipt_line_uq";--> statement-breakpoint
+ALTER TABLE "purchase_receipt_lines" ADD CONSTRAINT "purchase_receipt_lines_receipt_line_grade_uq" UNIQUE NULLS NOT DISTINCT("receipt_id","purchase_line_id","quality_grade_id");

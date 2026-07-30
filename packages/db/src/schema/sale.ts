@@ -1,5 +1,6 @@
 import {
   bigint,
+  foreignKey,
   index,
   integer,
   pgTable,
@@ -13,6 +14,7 @@ import { currencyCodeEnum, saleStatusEnum, saleVoidReasonCodeEnum, unitEnum } fr
 import { customers } from "./customer.ts";
 import { products } from "./customer.ts";
 import { actors, workspaces } from "./workspace.ts";
+import { qualityGrades } from "./quality.ts";
 
 /**
  * A completed sale. `status` and `version` are the only mutable columns, and only
@@ -87,6 +89,8 @@ export const saleLines = pgTable(
     productId: uuid("product_id").references(() => products.id),
     /** Snapshot: later catalogue edits must not change a posted sale (BR-SALE-011). */
     productName: text("product_name").notNull(),
+    qualityGradeId: uuid("quality_grade_id"),
+    qualityGradeName: text("quality_grade_name"),
     /** Integer milli-units, scale 1000: 1,5 kg is 1500 (BR-SALE-004). */
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
@@ -96,7 +100,14 @@ export const saleLines = pgTable(
     /** Preserves the order the worker typed them in. */
     position: integer("position").notNull(),
   },
-  (table) => [index("sale_lines_sale_idx").on(table.saleId, table.position)],
+  (table) => [
+    index("sale_lines_sale_idx").on(table.saleId, table.position),
+    foreignKey({
+      columns: [table.workspaceId, table.qualityGradeId],
+      foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
+      name: "sale_lines_workspace_quality_grade_fk",
+    }),
+  ],
 );
 
 /**

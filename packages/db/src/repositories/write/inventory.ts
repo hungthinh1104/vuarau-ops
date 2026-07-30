@@ -1,5 +1,5 @@
-import { and, asc, eq, sql } from "drizzle-orm";
-import type { IsoInstant, ProductId, WorkspaceId } from "@vuarau/domain-contracts";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import type { IsoInstant, ProductId, QualityGradeId, WorkspaceId } from "@vuarau/domain-contracts";
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
 import { inventoryMovements, inventoryBalances } from "../../schema/index.ts";
 import { fromIso, fromIsoOrNull, toIso, toIsoOrNull } from "../row-mappers.ts";
@@ -16,6 +16,8 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
             id: ids.newId(),
             workspaceId: movement.workspaceId,
             productId: movement.productId,
+            qualityGradeId: movement.qualityGradeId,
+            qualityGradeName: movement.qualityGradeName,
             quantityScaled: movement.quantity.valueScaled,
             unit: movement.quantity.unit,
             sourceType: movement.sourceType,
@@ -36,6 +38,8 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         id: row.id,
         workspaceId: row.workspaceId,
         productId: row.productId,
+        qualityGradeId: row.qualityGradeId,
+        qualityGradeName: row.qualityGradeName,
         quantity: { valueScaled: row.quantityScaled, unit: row.unit },
         sourceType: row.sourceType,
         sourceId: row.sourceId,
@@ -72,6 +76,8 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         id: row.id,
         workspaceId: row.workspaceId,
         productId: row.productId,
+        qualityGradeId: row.qualityGradeId,
+        qualityGradeName: row.qualityGradeName,
         quantity: { valueScaled: row.quantityScaled, unit: row.unit },
         sourceType: row.sourceType,
         sourceId: row.sourceId,
@@ -90,6 +96,7 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
     async get(
       workspaceId: WorkspaceId,
       productId: ProductId,
+      qualityGradeId: QualityGradeId | null,
       unit: InventoryMovementState["quantity"]["unit"],
     ) {
       const rows = await tx
@@ -99,6 +106,9 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
           and(
             eq(inventoryBalances.workspaceId, workspaceId),
             eq(inventoryBalances.productId, productId),
+            qualityGradeId === null
+              ? isNull(inventoryBalances.qualityGradeId)
+              : eq(inventoryBalances.qualityGradeId, qualityGradeId),
             eq(inventoryBalances.unit, unit),
           ),
         )
@@ -109,6 +119,7 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         : {
             workspaceId: row.workspaceId as WorkspaceId,
             productId: row.productId as ProductId,
+            qualityGradeId: row.qualityGradeId as QualityGradeId | null,
             unit: row.unit,
             quantityScaled: row.quantityScaled,
             movementCount: row.movementCount,
@@ -119,6 +130,7 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
     async applyDelta(delta: {
       workspaceId: WorkspaceId;
       productId: ProductId;
+      qualityGradeId: QualityGradeId | null;
       unit: InventoryMovementState["quantity"]["unit"];
       quantityScaled: number;
       movementCount: number;
@@ -130,6 +142,7 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         .values({
           workspaceId: delta.workspaceId,
           productId: delta.productId,
+          qualityGradeId: delta.qualityGradeId,
           unit: delta.unit,
           quantityScaled: delta.quantityScaled,
           movementCount: delta.movementCount,
@@ -140,6 +153,7 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
           target: [
             inventoryBalances.workspaceId,
             inventoryBalances.productId,
+            inventoryBalances.qualityGradeId,
             inventoryBalances.unit,
           ],
           set: {
@@ -156,6 +170,7 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
     async save(balance: {
       workspaceId: WorkspaceId;
       productId: ProductId;
+      qualityGradeId: QualityGradeId | null;
       unit: InventoryMovementState["quantity"]["unit"];
       quantityScaled: number;
       movementCount: number;
@@ -173,6 +188,7 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
           target: [
             inventoryBalances.workspaceId,
             inventoryBalances.productId,
+            inventoryBalances.qualityGradeId,
             inventoryBalances.unit,
           ],
           set: {

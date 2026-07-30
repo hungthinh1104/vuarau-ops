@@ -4,8 +4,10 @@ import {
   CUSTOMER_ID,
   LATER_TRANSACTION_TIME,
   PRODUCT_CA_CHUA_ID,
+  QUALITY_GRADE_1_ID,
   SALES_ACTOR_ID,
   WORKSPACE_ID,
+  postedSale,
 } from "@vuarau/test-fixtures";
 import type {
   DeliveryId,
@@ -52,6 +54,8 @@ beforeEach(async () => {
           lineId: saleLineId,
           productId: PRODUCT_CA_CHUA_ID,
           productName: "Cà chua",
+          qualityGradeId: QUALITY_GRADE_1_ID,
+          qualityGradeName: "Loại 1",
           quantity: { valueScaled: 100_000, unit: "kg" },
           unitPrice: { amountMinor: 10_000, currency: "VND" },
         },
@@ -83,6 +87,7 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
             deliveryLineId,
             saleLineId,
             productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: QUALITY_GRADE_1_ID,
             quantity: { valueScaled: 60_000, unit: "kg" },
           },
         ],
@@ -130,7 +135,10 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
     expect(fulfilment.ok && fulfilment.value.lines[0]).toMatchObject({
       dispatched: { valueScaled: 60_000, unit: "kg" },
       returned: { valueScaled: 10_000, unit: "kg" },
+      netFulfilled: { valueScaled: 50_000, unit: "kg" },
       remaining: { valueScaled: 50_000, unit: "kg" },
+      fulfilmentState: "returned_partial",
+      blockedReason: null,
     });
     const inventoryReport = await getOperationalReport(harness.ctx, {
       workspaceId: WORKSPACE_ID,
@@ -159,6 +167,34 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
     });
   });
 
+  it("surfaces immutable legacy posted lines as attention instead of inventing identity", async () => {
+    const legacySaleId = crypto.randomUUID() as SaleId;
+    harness.db.seedSale({
+      ...postedSale,
+      id: legacySaleId,
+      workspaceId: WORKSPACE_ID,
+      lines: postedSale.lines.map((line) => ({
+        ...line,
+        productId: null,
+        qualityGradeId: null,
+        qualityGradeName: null,
+      })),
+    });
+    const result = await getSaleFulfilment(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      saleId: legacySaleId,
+    });
+    expect(result.ok && result.value).toMatchObject({
+      integrity: "attention",
+      lines: expect.arrayContaining([
+        expect.objectContaining({
+          fulfilmentState: "attention",
+          blockedReason: "legacy_product_unresolved",
+        }),
+      ]),
+    });
+  });
+
   it("lets sales prepare a draft but refuses warehouse-only dispatch authority to sales", async () => {
     const created = await createDeliveryDraft(harness.contextFor(SALES_ACTOR_ID), {
       ...base("d16"),
@@ -171,6 +207,7 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
             deliveryLineId,
             saleLineId,
             productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: QUALITY_GRADE_1_ID,
             quantity: { valueScaled: 10_000, unit: "kg" },
           },
         ],

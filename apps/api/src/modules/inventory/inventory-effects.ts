@@ -11,21 +11,27 @@ export async function applyInventoryMovements(
     {
       workspaceId: InventoryMovementState["workspaceId"];
       productId: InventoryMovementState["productId"];
+      qualityGradeId: InventoryMovementState["qualityGradeId"];
       unit: InventoryMovementState["quantity"]["unit"];
     }
   >();
   for (const movement of appended) {
-    keys.set(`${movement.workspaceId}:${movement.productId}:${movement.quantity.unit}`, {
-      workspaceId: movement.workspaceId,
-      productId: movement.productId,
-      unit: movement.quantity.unit,
-    });
+    keys.set(
+      `${movement.workspaceId}:${movement.productId}:${movement.qualityGradeId ?? "legacy"}:${movement.quantity.unit}`,
+      {
+        workspaceId: movement.workspaceId,
+        productId: movement.productId,
+        qualityGradeId: movement.qualityGradeId,
+        unit: movement.quantity.unit,
+      },
+    );
   }
   for (const target of keys.values()) {
     const movements = appended.filter(
       (movement) =>
         movement.workspaceId === target.workspaceId &&
         movement.productId === target.productId &&
+        movement.qualityGradeId === target.qualityGradeId &&
         movement.quantity.unit === target.unit,
     );
     let quantityScaled = 0;
@@ -37,6 +43,7 @@ export async function applyInventoryMovements(
     await repos.inventoryBalances.applyDelta({
       workspaceId: target.workspaceId,
       productId: target.productId,
+      qualityGradeId: target.qualityGradeId,
       unit: target.unit,
       quantityScaled,
       movementCount: movements.length,

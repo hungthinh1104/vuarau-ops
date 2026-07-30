@@ -1,6 +1,13 @@
 import { createDatabase } from "../client.ts";
 import { runMigrations } from "../migrate.ts";
-import { actors, customers, products, workspaces, workspaceMemberships } from "../schema/index.ts";
+import {
+  actors,
+  customers,
+  products,
+  qualityGrades,
+  workspaces,
+  workspaceMemberships,
+} from "../schema/index.ts";
 
 /**
  * Minimal development seed: one depot, one actor per role, three customers,
@@ -86,6 +93,13 @@ const PRODUCTS = [
   { id: "44444444-4444-4444-8444-444444444402", name: "Rau muống", price: 5_000 },
   { id: "44444444-4444-4444-8444-444444444403", name: "Ớt hiểm", price: 250_000 },
 ];
+const QUALITY_GRADES = [
+  {
+    id: "55555555-5555-4555-8555-555555555501",
+    name: "Loại 1",
+    sortOrder: 10,
+  },
+];
 
 export async function seed(connectionString: string): Promise<void> {
   await runMigrations(connectionString);
@@ -148,6 +162,21 @@ export async function seed(connectionString: string): Promise<void> {
           defaultUnitPriceMinor: product.price,
           currency: "VND" as const,
           isActive: true,
+        })),
+      )
+      .onConflictDoNothing();
+    await db
+      .insert(qualityGrades)
+      .values(
+        QUALITY_GRADES.map((grade) => ({
+          id: grade.id,
+          workspaceId: WORKSPACE_ID,
+          name: grade.name,
+          sortOrder: grade.sortOrder,
+          isActive: true,
+          version: 1,
+          createdAt: now,
+          updatedAt: now,
         })),
       )
       .onConflictDoNothing();

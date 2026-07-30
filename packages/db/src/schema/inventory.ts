@@ -1,13 +1,14 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  foreignKey,
   index,
   integer,
   pgTable,
-  primaryKey,
   text,
   timestamp,
   uniqueIndex,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 import { actors, workspaces } from "./workspace.ts";
@@ -15,6 +16,7 @@ import { products } from "./customer.ts";
 import { purchases, purchaseLines } from "./purchase.ts";
 import { commandReceipts } from "./command.ts";
 import { inventoryMovementSourceTypeEnum, unitEnum } from "./enums.ts";
+import { qualityGrades } from "./quality.ts";
 
 export const purchaseReceipts = pgTable(
   "purchase_receipts",
@@ -56,11 +58,20 @@ export const purchaseReceiptLines = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => products.id),
+    qualityGradeId: uuid("quality_grade_id"),
+    qualityGradeName: text("quality_grade_name"),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
   },
   (table) => [
-    uniqueIndex("purchase_receipt_lines_receipt_line_uq").on(table.receiptId, table.purchaseLineId),
+    unique("purchase_receipt_lines_receipt_line_grade_uq")
+      .on(table.receiptId, table.purchaseLineId, table.qualityGradeId)
+      .nullsNotDistinct(),
+    foreignKey({
+      columns: [table.workspaceId, table.qualityGradeId],
+      foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
+      name: "purchase_receipt_lines_workspace_quality_grade_fk",
+    }),
   ],
 );
 export const purchaseReceiptReversals = pgTable(
@@ -91,6 +102,8 @@ export const inventoryMovements = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => products.id),
+    qualityGradeId: uuid("quality_grade_id"),
+    qualityGradeName: text("quality_grade_name"),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
     sourceType: inventoryMovementSourceTypeEnum("source_type").notNull(),
@@ -118,6 +131,7 @@ export const inventoryMovements = pgTable(
     index("inventory_movements_timeline_idx").on(
       table.workspaceId,
       table.productId,
+      table.qualityGradeId,
       table.unit,
       table.transactionTime,
       table.recordedAt,
@@ -129,6 +143,11 @@ export const inventoryMovements = pgTable(
       table.recordedAt,
       table.id,
     ),
+    foreignKey({
+      columns: [table.workspaceId, table.qualityGradeId],
+      foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
+      name: "inventory_movements_workspace_quality_grade_fk",
+    }),
   ],
 );
 export const inventoryBalances = pgTable(
@@ -136,6 +155,7 @@ export const inventoryBalances = pgTable(
   {
     workspaceId: uuid("workspace_id").notNull(),
     productId: uuid("product_id").notNull(),
+    qualityGradeId: uuid("quality_grade_id"),
     unit: unitEnum("unit").notNull(),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     movementCount: integer("movement_count").notNull(),
@@ -144,5 +164,14 @@ export const inventoryBalances = pgTable(
     }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [primaryKey({ columns: [table.workspaceId, table.productId, table.unit] })],
+  (table) => [
+    unique("inventory_balances_workspace_product_grade_unit_uq")
+      .on(table.workspaceId, table.productId, table.qualityGradeId, table.unit)
+      .nullsNotDistinct(),
+    foreignKey({
+      columns: [table.workspaceId, table.qualityGradeId],
+      foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
+      name: "inventory_balances_workspace_quality_grade_fk",
+    }),
+  ],
 );

@@ -128,6 +128,8 @@ describe.skipIf(skipWithoutDatabase())("M14 and M15 against Postgres", () => {
             lineId: crypto.randomUUID(),
             productId,
             productName: "Bí đỏ nguyên trái",
+            qualityGradeId: ctx.qualityGradeId,
+            qualityGradeName: "Loại 1",
             quantity: { valueScaled: 2_000, unit: "kg" },
             unitPrice: { amountMinor: 20_000, currency: "VND" },
           },

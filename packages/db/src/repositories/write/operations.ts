@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV3 } from "@vuarau/domain-contracts";
+import type { WorkspaceId, WorkspaceBackupV4 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -13,6 +13,7 @@ import {
   paymentReversals,
   payments,
   products,
+  qualityGrades,
   suppliers,
   supplierPayments,
   supplierPaymentReversals,
@@ -38,10 +39,11 @@ import type { Tx } from "../shared/types.ts";
 
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV3["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV4["payload"]) {
       const [
         customerRows,
         productRows,
+        qualityGradeRows,
         saleRows,
         paymentRows,
         entryRows,
@@ -60,6 +62,11 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           .select({ id: products.id })
           .from(products)
           .where(eq(products.workspaceId, workspaceId))
+          .limit(1),
+        tx
+          .select({ id: qualityGrades.id })
+          .from(qualityGrades)
+          .where(eq(qualityGrades.workspaceId, workspaceId))
           .limit(1),
         tx.select({ id: sales.id }).from(sales).where(eq(sales.workspaceId, workspaceId)).limit(1),
         tx
@@ -102,6 +109,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         [
           customerRows,
           productRows,
+          qualityGradeRows,
           saleRows,
           paymentRows,
           entryRows,
@@ -192,6 +200,18 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
               updatedAt: date(row["updatedAt"]),
             };
           }) as unknown as (typeof products.$inferInsert)[],
+        );
+      }
+      if (payload.qualityGrades.length > 0) {
+        await tx.insert(qualityGrades).values(
+          payload.qualityGrades.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              createdAt: date(row["createdAt"]),
+              updatedAt: date(row["updatedAt"]),
+            };
+          }) as unknown as (typeof qualityGrades.$inferInsert)[],
         );
       }
       if (payload.suppliers.length > 0) {
@@ -485,13 +505,13 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         `);
       await tx.execute(sql`
           INSERT INTO ${inventoryBalances}
-            (workspace_id, product_id, unit, quantity_scaled, movement_count,
+            (workspace_id, product_id, quality_grade_id, unit, quantity_scaled, movement_count,
              last_movement_transaction_time, updated_at)
-          SELECT ${workspaceId}::uuid, product_id, unit, sum(quantity_scaled),
+          SELECT ${workspaceId}::uuid, product_id, quality_grade_id, unit, sum(quantity_scaled),
                  count(*)::int, max(transaction_time), now()
           FROM ${inventoryMovements}
           WHERE workspace_id = ${workspaceId}::uuid
-          GROUP BY product_id, unit
+          GROUP BY product_id, quality_grade_id, unit
         `);
       return {
         kind: "restored" as const,

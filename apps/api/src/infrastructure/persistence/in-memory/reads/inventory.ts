@@ -59,6 +59,10 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         .filter((row) => row.workspaceId === workspaceId && row.productId === productId)
         .map((row) => ({
           ...row,
+          qualityGradeName:
+            row.qualityGradeId === null
+              ? null
+              : (store.qualityGrades.get(key(workspaceId, row.qualityGradeId))?.name ?? null),
           classification:
             row.quantityScaled > 0
               ? ("positive" as const)
@@ -66,12 +70,13 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
                 ? ("negative" as const)
                 : ("zero" as const),
         })),
-    timeline: async ({ workspaceId, productId, unit, page }) => {
+    timeline: async ({ workspaceId, productId, qualityGradeId, unit, page }) => {
       const rows = store.inventoryMovements
         .filter(
           (row) =>
             row.workspaceId === workspaceId &&
             row.productId === productId &&
+            (qualityGradeId === undefined || row.qualityGradeId === qualityGradeId) &&
             (unit === null || row.quantity.unit === unit),
         )
         .sort((a, b) =>
@@ -94,24 +99,26 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           sourceDocument:
             row.sourceType === "inventory_adjustment"
               ? { type: "inventory_adjustment" as const, id: row.sourceId }
-              : row.sourceType === "delivery_dispatch"
-                ? { type: "delivery" as const, id: row.sourceId }
-                : row.sourceType === "delivery_return"
-                  ? {
-                      type: "delivery" as const,
-                      id:
-                        store.deliveryReturns.find((returned) => returned.id === row.sourceId)
-                          ?.deliveryId ?? row.sourceId,
-                    }
-                  : {
-                      type: "receipt" as const,
-                      id:
-                        row.sourceType === "purchase_receipt"
-                          ? row.sourceId
-                          : ([...store.purchaseReceipts.values()].find(
-                              (receipt) => receipt.reversal?.id === row.sourceId,
-                            )?.id ?? row.sourceId),
-                    },
+              : row.sourceType === "inventory_reclassification"
+                ? { type: "inventory_reclassification" as const, id: row.sourceId }
+                : row.sourceType === "delivery_dispatch"
+                  ? { type: "delivery" as const, id: row.sourceId }
+                  : row.sourceType === "delivery_return"
+                    ? {
+                        type: "delivery" as const,
+                        id:
+                          store.deliveryReturns.find((returned) => returned.id === row.sourceId)
+                            ?.deliveryId ?? row.sourceId,
+                      }
+                    : {
+                        type: "receipt" as const,
+                        id:
+                          row.sourceType === "purchase_receipt"
+                            ? row.sourceId
+                            : ([...store.purchaseReceipts.values()].find(
+                                (receipt) => receipt.reversal?.id === row.sourceId,
+                              )?.id ?? row.sourceId),
+                      },
         })),
         page,
         (row) => ({
@@ -120,15 +127,21 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         }),
       );
     },
-    integrity: async (workspaceId, productId, unit) => {
+    integrity: async (workspaceId, productId, qualityGradeId, unit) => {
       const diagnostics: string[] = [];
       for (const movement of store.inventoryMovements.filter(
         (row) =>
           row.workspaceId === workspaceId &&
           row.productId === productId &&
+          row.qualityGradeId === qualityGradeId &&
           row.quantity.unit === unit,
       )) {
         if (movement.quantity.valueScaled === 0) diagnostics.push("zero_quantity");
+        if (
+          movement.qualityGradeId !== null &&
+          !store.qualityGrades.has(key(workspaceId, movement.qualityGradeId))
+        )
+          diagnostics.push("missing_quality_grade");
         if (
           movement.sourceType === "inventory_adjustment" &&
           (movement.reasonCode === null || (movement.reason ?? "").trim().length === 0)
@@ -140,6 +153,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           if (
             line === undefined ||
             line.productId !== productId ||
+            line.qualityGradeId !== qualityGradeId ||
             line.quantity.unit !== unit ||
             line.quantity.valueScaled !== movement.quantity.valueScaled
           )
@@ -153,6 +167,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           if (
             line === undefined ||
             line.productId !== productId ||
+            line.qualityGradeId !== qualityGradeId ||
             line.quantity.unit !== unit ||
             -line.quantity.valueScaled !== movement.quantity.valueScaled
           )
@@ -178,6 +193,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
             returnLine === undefined ||
             deliveryLine === undefined ||
             deliveryLine.productId !== productId ||
+            deliveryLine.qualityGradeId !== qualityGradeId ||
             returnLine.quantity.unit !== unit ||
             returnLine.quantity.valueScaled !== movement.quantity.valueScaled ||
             original?.sourceType !== "delivery_dispatch" ||

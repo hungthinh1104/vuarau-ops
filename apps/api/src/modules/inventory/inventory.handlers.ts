@@ -3,11 +3,13 @@ import type {
   PurchaseReceiptDto,
   RecordPurchaseReceiptCommand,
   ReversePurchaseReceiptCommand,
+  ReclassifyInventoryCommand,
 } from "@vuarau/domain-contracts";
 import {
   adjustInventoryCommandSchema,
   recordPurchaseReceiptCommandSchema,
   reversePurchaseReceiptCommandSchema,
+  reclassifyInventoryCommandSchema,
 } from "@vuarau/domain-contracts";
 import {
   decideRecordPurchaseReceipt,
@@ -15,6 +17,7 @@ import {
   err,
   ok,
   validateInventoryAdjustment,
+  validateInventoryReclassification,
 } from "@vuarau/domain-kernel";
 import type { PurchaseReceiptState } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -49,6 +52,16 @@ export function recordPurchaseReceipt(ctx: CommandContext, input: unknown) {
         command.payload.purchaseId,
       );
       if (purchase === null) return err("PURCHASE_NOT_FOUND", "No such Purchase.");
+      for (const line of command.payload.lines) {
+        const grade = await repos.qualityGrades.findById(command.workspaceId, line.qualityGradeId);
+        if (grade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
+        if (!grade.isActive) return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
+        if (grade.name !== line.qualityGradeName)
+          return err(
+            "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
+            "Receipt grade snapshot does not match the selected grade.",
+          );
+      }
       const net = await repos.purchaseReceipts.netReceivedByPurchaseLine(
         command.workspaceId,
         purchase.id,
@@ -66,6 +79,8 @@ export function recordPurchaseReceipt(ctx: CommandContext, input: unknown) {
         decision.value.lines.map((line) => ({
           workspaceId: command.workspaceId,
           productId: line.productId,
+          qualityGradeId: line.qualityGradeId,
+          qualityGradeName: line.qualityGradeName,
           quantity: line.quantity,
           sourceType: "purchase_receipt",
           sourceId: decision.value.id,
@@ -138,6 +153,8 @@ export function reversePurchaseReceipt(ctx: CommandContext, input: unknown) {
         receipt.lines.map((line, index) => ({
           workspaceId: command.workspaceId,
           productId: line.productId,
+          qualityGradeId: line.qualityGradeId,
+          qualityGradeName: line.qualityGradeName,
           quantity: { valueScaled: -line.quantity.valueScaled, unit: line.quantity.unit },
           sourceType: "purchase_receipt_reversal",
           sourceId: decision.value.id,
@@ -179,12 +196,25 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
     execute: async ({ command, repos, recordedAt }) => {
       if ((await repos.products.findById(command.workspaceId, command.payload.productId)) === null)
         return err("PRODUCT_NOT_FOUND", "No such Product.");
+      const grade = await repos.qualityGrades.findById(
+        command.workspaceId,
+        command.payload.qualityGradeId,
+      );
+      if (grade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
+      if (!grade.isActive) return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
+      if (grade.name !== command.payload.qualityGradeName)
+        return err(
+          "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
+          "Inventory grade snapshot does not match the selected grade.",
+        );
       const decision = validateInventoryAdjustment(command);
       if (!decision.ok) return decision;
       await applyInventoryMovements(repos, [
         {
           workspaceId: command.workspaceId,
           productId: command.payload.productId,
+          qualityGradeId: grade.id,
+          qualityGradeName: grade.name,
           quantity: { valueScaled: decision.value, unit: command.payload.quantity.unit },
           sourceType: "inventory_adjustment",
           sourceId: command.payload.adjustmentId,
@@ -212,6 +242,99 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
         reason: command.payload.reason.trim(),
       });
       return ok({ adjustmentId: command.payload.adjustmentId });
+    },
+  });
+}
+
+export function reclassifyInventory(ctx: CommandContext, input: unknown) {
+  return runCommand<ReclassifyInventoryCommand, { reclassificationId: string }>({
+    commandType: "ReclassifyInventory",
+    schema: reclassifyInventoryCommandSchema,
+    input,
+    ctx,
+    requiredPermission: "inventory.reclassify",
+    execute: async ({ command, repos, recordedAt }) => {
+      if ((await repos.products.findById(command.workspaceId, command.payload.productId)) === null)
+        return err("PRODUCT_NOT_FOUND", "No such Product.");
+      const [fromGrade, toGrade] = await Promise.all([
+        repos.qualityGrades.findById(command.workspaceId, command.payload.fromQualityGradeId),
+        repos.qualityGrades.findById(command.workspaceId, command.payload.toQualityGradeId),
+      ]);
+      if (fromGrade === null || toGrade === null)
+        return err("QUALITY_GRADE_NOT_FOUND", "Reclassification grade is missing.");
+      if (!fromGrade.isActive || !toGrade.isActive)
+        return err("QUALITY_GRADE_INACTIVE", "Reclassification requires active grades.");
+      if (
+        fromGrade.name !== command.payload.fromQualityGradeName ||
+        toGrade.name !== command.payload.toQualityGradeName
+      )
+        return err(
+          "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
+          "Reclassification grade snapshot is stale.",
+        );
+      const decision = validateInventoryReclassification(command);
+      if (!decision.ok) return decision;
+      await applyInventoryMovements(repos, [
+        {
+          workspaceId: command.workspaceId,
+          productId: command.payload.productId,
+          qualityGradeId: fromGrade.id,
+          qualityGradeName: fromGrade.name,
+          quantity: {
+            valueScaled: -decision.value,
+            unit: command.payload.quantity.unit,
+          },
+          sourceType: "inventory_reclassification",
+          sourceId: command.payload.reclassificationId,
+          sourceLineId: fromGrade.id,
+          reversalOfMovementId: null,
+          reasonCode: "reclassification_out",
+          reason: command.payload.reason.trim(),
+          transactionTime: command.occurredAt,
+          recordedAt,
+          actorId: command.actorId,
+          commandId: command.commandId,
+        },
+        {
+          workspaceId: command.workspaceId,
+          productId: command.payload.productId,
+          qualityGradeId: toGrade.id,
+          qualityGradeName: toGrade.name,
+          quantity: command.payload.quantity,
+          sourceType: "inventory_reclassification",
+          sourceId: command.payload.reclassificationId,
+          sourceLineId: toGrade.id,
+          reversalOfMovementId: null,
+          reasonCode: "reclassification_in",
+          reason: command.payload.reason.trim(),
+          transactionTime: command.occurredAt,
+          recordedAt,
+          actorId: command.actorId,
+          commandId: command.commandId,
+        },
+      ]);
+      await repos.audit.append({
+        workspaceId: command.workspaceId,
+        actorId: command.actorId,
+        commandId: command.commandId,
+        aggregateType: "inventory",
+        aggregateId: command.payload.reclassificationId,
+        action: "inventory.reclassified",
+        transactionTime: command.occurredAt,
+        recordedAt,
+        before: {
+          qualityGradeId: fromGrade.id,
+          quantityScaled: decision.value,
+          unit: command.payload.quantity.unit,
+        },
+        after: {
+          qualityGradeId: toGrade.id,
+          quantityScaled: decision.value,
+          unit: command.payload.quantity.unit,
+        },
+        reason: command.payload.reason.trim(),
+      });
+      return ok({ reclassificationId: command.payload.reclassificationId });
     },
   });
 }

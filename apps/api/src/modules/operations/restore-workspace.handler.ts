@@ -1,7 +1,7 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV3,
+  WorkspaceBackupV4,
 } from "@vuarau/domain-contracts";
 import { restoreWorkspaceBackupCommandSchema } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
@@ -28,6 +28,10 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     return false;
   const customers = new Set(payload.customers.map((row) => row["id"]));
   const products = new Set(payload.products.map((row) => row["id"]));
+  const qualityGrades = new Set(
+    "qualityGrades" in payload ? payload.qualityGrades.map((row) => row["id"]) : [],
+  );
+  const hasGrade = (value: unknown) => value == null || qualityGrades.has(value);
   const sales = new Set(payload.sales.map((row) => row["id"]));
   const suppliers = new Set(
     "suppliers" in payload ? payload.suppliers.map((row) => row["id"]) : [],
@@ -69,7 +73,9 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     payload.sales.every((row) => customers.has(row["customerId"])) &&
     payload.saleLines.every(
       (row) =>
-        sales.has(row["saleId"]) && (row["productId"] == null || products.has(row["productId"])),
+        sales.has(row["saleId"]) &&
+        (row["productId"] == null || products.has(row["productId"])) &&
+        hasGrade(row["qualityGradeId"]),
     ) &&
     payload.accountEntries.every((row) => customers.has(row["customerId"])) &&
     (!("purchases" in payload) ||
@@ -93,7 +99,8 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
         (row) =>
           receipts.has(row["receiptId"]) &&
           purchaseLines.has(row["purchaseLineId"]) &&
-          products.has(row["productId"]),
+          products.has(row["productId"]) &&
+          hasGrade(row["qualityGradeId"]),
       )) &&
     (!("receiptReversals" in payload) ||
       payload.receiptReversals.every((row) => receipts.has(row["receiptId"]))) &&
@@ -109,7 +116,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
       })) &&
     (!("inventoryMovements" in payload) ||
       payload.inventoryMovements.every((row) => {
-        if (!products.has(row["productId"])) return false;
+        if (!products.has(row["productId"]) || !hasGrade(row["qualityGradeId"])) return false;
         if (row["sourceType"] === "purchase_receipt") return receipts.has(row["sourceId"]);
         if (row["sourceType"] === "purchase_receipt_reversal")
           return receiptReversals.has(row["sourceId"]);
@@ -117,7 +124,10 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
           return deliveries.has(row["sourceId"]) && deliveryLines.has(row["sourceLineId"]);
         if (row["sourceType"] === "delivery_return")
           return deliveryReturns.has(row["sourceId"]) && deliveryLines.has(row["sourceLineId"]);
-        return row["sourceType"] === "inventory_adjustment";
+        return (
+          row["sourceType"] === "inventory_adjustment" ||
+          row["sourceType"] === "inventory_reclassification"
+        );
       })) &&
     (!("deliveries" in payload) || payload.deliveries.every((row) => sales.has(row["saleId"]))) &&
     (!("deliveryLines" in payload) ||
@@ -125,6 +135,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
         (row) =>
           deliveries.has(row["deliveryId"]) &&
           products.has(row["productId"]) &&
+          hasGrade(row["qualityGradeId"]) &&
           payload.saleLines.some((saleLine) => saleLine["id"] === row["saleLineId"]),
       )) &&
     (!("deliveryReturns" in payload) ||
@@ -147,10 +158,11 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
 }
 
-function v3Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV3["payload"] {
+function v4Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV4["payload"] {
   const payload = command.payload.backup.payload;
   return {
     ...payload,
+    qualityGrades: "qualityGrades" in payload ? payload.qualityGrades : [],
     suppliers: "suppliers" in payload ? payload.suppliers : [],
     supplierPayments: "supplierPayments" in payload ? payload.supplierPayments : [],
     supplierPaymentReversals:
@@ -193,7 +205,7 @@ export function restoreWorkspaceBackup(
       }
       const restored = await repos.operations.restoreBackup(
         command.workspaceId,
-        v3Payload(command),
+        v4Payload(command),
       );
       if (restored.kind === "unsafe_target") {
         return err("BACKUP_UNSAFE_TARGET", "Restore requires an empty recovery workspace.", {
@@ -213,7 +225,7 @@ export function restoreWorkspaceBackup(
       }
       const supplierDiagnostics = (
         await Promise.all(
-          v3Payload(command).suppliers.map((row) =>
+          v4Payload(command).suppliers.map((row) =>
             repos.supplierAccountReads.integrity(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.supplierAccountReads.integrity>[1],
@@ -221,20 +233,32 @@ export function restoreWorkspaceBackup(
           ),
         )
       ).flat();
-      const inventoryKeys = new Map<string, { productId: string; unit: string }>();
-      for (const movement of v3Payload(command).inventoryMovements) {
-        inventoryKeys.set(`${String(movement["productId"])}:${String(movement["unit"])}`, {
-          productId: String(movement["productId"]),
-          unit: String(movement["unit"]),
-        });
+      const inventoryKeys = new Map<
+        string,
+        { productId: string; qualityGradeId: string | null; unit: string }
+      >();
+      for (const movement of v4Payload(command).inventoryMovements) {
+        const qualityGradeId =
+          movement["qualityGradeId"] === null || movement["qualityGradeId"] === undefined
+            ? null
+            : String(movement["qualityGradeId"]);
+        inventoryKeys.set(
+          `${String(movement["productId"])}:${qualityGradeId ?? "legacy"}:${String(movement["unit"])}`,
+          {
+            productId: String(movement["productId"]),
+            qualityGradeId,
+            unit: String(movement["unit"]),
+          },
+        );
       }
       const inventoryDiagnostics = (
         await Promise.all(
-          [...inventoryKeys.values()].map(({ productId, unit }) =>
+          [...inventoryKeys.values()].map(({ productId, qualityGradeId, unit }) =>
             repos.inventoryReads.integrity(
               command.workspaceId,
               productId as Parameters<typeof repos.inventoryReads.integrity>[1],
-              unit as Parameters<typeof repos.inventoryReads.integrity>[2],
+              qualityGradeId as Parameters<typeof repos.inventoryReads.integrity>[2],
+              unit as Parameters<typeof repos.inventoryReads.integrity>[3],
             ),
           ),
         )
