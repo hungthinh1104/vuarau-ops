@@ -1,0 +1,41 @@
+"use client";
+
+import { Toaster as SonnerToaster } from "sonner";
+
+/**
+ * The single application-level toast provider.
+ *
+ * Sonner is ONLY for ephemeral command feedback:
+ * - saved
+ * - updated
+ * - retried
+ * - copied
+ * - undo available
+ *
+ * Do not use Sonner for persistent business state such as overdue debt,
+ * sync conflicts, or permissions.
+ */
+export function Toaster() {
+  return (
+    <SonnerToaster
+      position="bottom-center"
+      toastOptions={{
+        className:
+          "group flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3 text-body-sm text-ink shadow-md",
+        classNames: {
+          toast:
+            "group flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3 text-body-sm text-ink shadow-md",
+          description: "text-ink-muted",
+          actionButton:
+            "ml-auto rounded-button bg-leaf px-3 py-1.5 text-label font-semibold text-surface hover:bg-leaf-strong",
+          cancelButton:
+            "ml-auto rounded-button bg-canvas px-3 py-1.5 text-label font-semibold text-ink hover:bg-border",
+          error: "border-danger/30 bg-danger-soft text-danger-strong",
+          success: "border-leaf/30 bg-leaf-soft text-leaf-strong",
+          warning: "border-warning/30 bg-warning-soft text-warning-strong",
+          info: "border-info/30 bg-info-soft text-info-strong",
+        },
+      }}
+    />
+  );
+}

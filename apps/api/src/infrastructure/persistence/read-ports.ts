@@ -128,6 +128,7 @@ export type DuplicateCustomerCandidateRow = {
 };
 
 export type CaptureHistoryRow = {
+  readonly productId: ProductId | null;
   readonly productName: string;
   readonly unit: string;
   readonly lastUnitPrice: Money;
@@ -136,6 +137,7 @@ export type CaptureHistoryRow = {
 };
 
 export type WorkspaceProductHistoryRow = {
+  readonly productId: ProductId | null;
   readonly productName: string;
   readonly unit: string;
 };

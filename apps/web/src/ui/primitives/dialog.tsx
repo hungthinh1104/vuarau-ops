@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { X } from "lucide-react";
+import { Dialog as BaseDialog } from "@base-ui/react";
 import { IconButton } from "./icon-button.tsx";
 
 export type DialogProps = {
@@ -13,58 +15,46 @@ export type DialogProps = {
 };
 
 /**
- * The native `<dialog>` element, not a div pretending to be one.
+ * A modal dialog for consequential confirmations.
  *
- * `showModal()` gives focus trapping, `Escape`, inertness of the page behind, and
- * the correct role — four accessibility behaviours that a hand-rolled overlay
- * gets wrong one at a time. jsdom implements it, so the behaviour is testable
- * rather than merely claimed.
- *
- * Used for consequential confirmations. design.md routes payment reversal, debt
- * adjustment and conflict resolution to a full-screen flow instead: a dialog
- * says "quick decision", and those are not.
+ * Powered by Base UI to ensure robust focus trapping, portal management, and
+ * accessibility (Escape key, ARIA roles). It preserves the existing API and
+ * Vựa Rau visual semantics.
  */
 export function Dialog({ open, title, onClose, children, actions }: DialogProps) {
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const element = ref.current;
-    if (element === null) return;
-    if (open && !element.open) element.showModal();
-    if (!open && element.open) element.close();
-  }, [open]);
-
   return (
-    <dialog
-      ref={ref}
-      onCancel={(event) => {
-        // Escape closes; letting the browser do it directly would skip the
-        // caller's state update and leave `open` true.
-        event.preventDefault();
-        onClose();
-      }}
-      aria-labelledby="dialog-title"
-      className={[
-        "m-auto w-[min(32rem,calc(100vw-2rem))] rounded-panel bg-surface p-0 text-ink",
-        "shadow-md backdrop:bg-ink/40",
-      ].join(" ")}
-    >
-      <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
-        <h2 id="dialog-title" className="text-subheading font-semibold">
-          {title}
-        </h2>
-        <IconButton label="Đóng" onClick={onClose}>
-          ✕
-        </IconButton>
-      </div>
+    <BaseDialog.Root open={open} onOpenChange={(isOpen: boolean) => !isOpen && onClose()}>
+      <BaseDialog.Portal>
+        <BaseDialog.Backdrop className="fixed inset-0 bg-ink/40" />
+        <BaseDialog.Popup
+          className={[
+            "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+            "w-[min(32rem,calc(100vw-2rem))] rounded-panel bg-surface p-0 text-ink shadow-md",
+            "outline-none",
+          ].join(" ")}
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
+            <BaseDialog.Title id="dialog-title" className="text-subheading font-semibold">
+              {title}
+            </BaseDialog.Title>
+            <BaseDialog.Close
+              render={
+                <IconButton label="Đóng">
+                  <X size={20} />
+                </IconButton>
+              }
+            />
+          </div>
 
-      <div className="px-4 py-4">{children}</div>
+          <div className="px-4 py-4">{children}</div>
 
-      {actions !== undefined ? (
-        <div className="flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3">
-          {actions}
-        </div>
-      ) : null}
-    </dialog>
+          {actions !== undefined ? (
+            <div className="flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3">
+              {actions}
+            </div>
+          ) : null}
+        </BaseDialog.Popup>
+      </BaseDialog.Portal>
+    </BaseDialog.Root>
   );
 }

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Toaster } from "sonner";
 import "./globals.css";
-import { AuthProvider } from "../api/auth.tsx";
+import { AuthProvider } from "@/api/auth.tsx";
 
 export const metadata: Metadata = {
   title: "Vựa Rau — sổ vựa",
@@ -18,6 +19,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="vi">
       <body className="min-h-screen bg-canvas text-ink antialiased">
         <AuthProvider>{children}</AuthProvider>
+        {/*
+         * Sonner Toaster: renders ephemeral feedback toasts (success only).
+         * Positioned bottom-right to avoid colliding with the fixed mobile nav bar.
+         * CommandOutcome remains authoritative for errors and sync state.
+         */}
+        <Toaster position="bottom-right" richColors closeButton />
       </body>
     </html>
   );

@@ -265,6 +265,7 @@ export const saleCaptureContextInputSchema = z.object({
 export type SaleCaptureContextInput = z.infer<typeof saleCaptureContextInputSchema>;
 
 export const customerPriceHistoryDtoSchema = z.object({
+  productId: productIdSchema.nullable(),
   productName: z.string(),
   unit: z.string(),
   lastUnitPrice: moneySchema,
@@ -274,6 +275,7 @@ export const customerPriceHistoryDtoSchema = z.object({
 export type CustomerPriceHistoryDto = z.infer<typeof customerPriceHistoryDtoSchema>;
 
 export const workspaceProductHistoryDtoSchema = z.object({
+  productId: productIdSchema.nullable(),
   productName: z.string(),
   unit: z.string(),
   lastUnitPrice: z.null(),

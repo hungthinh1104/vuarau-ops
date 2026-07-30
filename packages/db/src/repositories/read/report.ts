@@ -6,6 +6,7 @@ import {
   suppliers,
   supplierAccountBalances,
   inventoryBalances,
+  qualityGrades,
 } from "../../schema/index.ts";
 import type { inventoryMovements } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
@@ -108,7 +109,7 @@ export const createReportReadRepositories = (tx: Tx) => ({
         if (args.productId !== null) filters.push(eq(inventoryBalances.productId, args.productId));
         if (args.unit !== null) filters.push(eq(inventoryBalances.unit, args.unit));
         const values = await tx
-          .select({ balance: inventoryBalances, product: products })
+          .select({ balance: inventoryBalances, product: products, grade: qualityGrades })
           .from(inventoryBalances)
           .innerJoin(
             products,
@@ -117,10 +118,21 @@ export const createReportReadRepositories = (tx: Tx) => ({
               eq(products.id, inventoryBalances.productId),
             ),
           )
+          .leftJoin(
+            qualityGrades,
+            and(
+              eq(qualityGrades.workspaceId, inventoryBalances.workspaceId),
+              eq(qualityGrades.id, inventoryBalances.qualityGradeId),
+            ),
+          )
           .where(and(...filters));
-        rows = values.map(({ balance, product }) => ({
-          id: `${product.id}:${balance.unit}`,
-          label: `${product.name} · ${balance.unit}`,
+        rows = values.map(({ balance, product, grade }) => ({
+          id: `${product.id}:${balance.qualityGradeId ?? "legacy"}:${balance.unit}`,
+          label: `${product.name} · ${grade?.name ?? "Chưa phân hạng"} · ${balance.unit}`,
+          productId: product.id,
+          productName: product.name,
+          qualityGradeId: balance.qualityGradeId,
+          qualityGradeName: grade?.name ?? null,
           sourceType: "product",
           sourceId: product.id,
           documentHref: `/products/${product.id}/inventory`,

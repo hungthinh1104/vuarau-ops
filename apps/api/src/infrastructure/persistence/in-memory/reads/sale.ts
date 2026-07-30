@@ -1,5 +1,5 @@
 import type { Repositories } from "../../ports.ts";
-import type { SaleId, Money } from "@vuarau/domain-contracts";
+import type { SaleId, Money, ProductId } from "@vuarau/domain-contracts";
 import { key, descendingBy, before, takePage, fold } from "../store.ts";
 import type { Store } from "../store.ts";
 
@@ -76,13 +76,18 @@ export const createSaleReads = (store: Store): Pick<Repositories, "saleReads"> =
           ),
         );
       const customerHistory = [] as Array<{
+        productId: ProductId | null;
         productName: string;
         unit: string;
         lastUnitPrice: Money;
         lastTransactionTime: string;
         sourceSaleId: SaleId;
       }>;
-      const workspaceHistory = [] as Array<{ productName: string; unit: string }>;
+      const workspaceHistory = [] as Array<{
+        productId: ProductId | null;
+        productName: string;
+        unit: string;
+      }>;
       const customerSeen = new Set<string>();
       const workspaceSeen = new Set<string>();
       for (const sale of eligible)
@@ -91,7 +96,11 @@ export const createSaleReads = (store: Store): Pick<Repositories, "saleReads"> =
           const identity = `${line.productName}\u0000${line.quantity.unit}`;
           if (!workspaceSeen.has(identity) && workspaceHistory.length < limit) {
             workspaceSeen.add(identity);
-            workspaceHistory.push({ productName: line.productName, unit: line.quantity.unit });
+            workspaceHistory.push({
+              productId: line.productId ?? null,
+              productName: line.productName,
+              unit: line.quantity.unit,
+            });
           }
           if (
             sale.customerId === customerId &&
@@ -100,6 +109,7 @@ export const createSaleReads = (store: Store): Pick<Repositories, "saleReads"> =
           ) {
             customerSeen.add(identity);
             customerHistory.push({
+              productId: line.productId ?? null,
               productName: line.productName,
               unit: line.quantity.unit,
               lastUnitPrice: line.unitPrice,

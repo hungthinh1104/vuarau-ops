@@ -163,6 +163,7 @@ export const createSaleReadRepositories = (tx: Tx) => ({
           customerId: sales.customerId,
           saleId: sales.id,
           transactionTime: sales.transactionTime,
+          productId: saleLines.productId,
           productName: saleLines.productName,
           unit: saleLines.unit,
           unitPriceMinor: saleLines.unitPriceMinor,
@@ -176,20 +177,31 @@ export const createSaleReadRepositories = (tx: Tx) => ({
         .orderBy(desc(sales.transactionTime), desc(sales.id), asc(saleLines.position));
 
       const customerHistory = [] as Array<{
+        productId: string | null;
         productName: string;
         unit: string;
         lastUnitPrice: ReturnType<typeof money>;
         lastTransactionTime: string;
         sourceSaleId: string;
       }>;
-      const workspaceHistory = [] as Array<{ productName: string; unit: string }>;
+      const workspaceHistory = [] as Array<{
+        productId: string | null;
+        productName: string;
+        unit: string;
+      }>;
       const customerSeen = new Set<string>();
       const workspaceSeen = new Set<string>();
       for (const row of rows) {
+        // Identity of the history row is just the name and unit, since different product IDs
+        // with the same name/unit historically would just clutter the list.
         const identity = `${row.productName}\u0000${row.unit}`;
         if (!workspaceSeen.has(identity) && workspaceHistory.length < limit) {
           workspaceSeen.add(identity);
-          workspaceHistory.push({ productName: row.productName, unit: row.unit });
+          workspaceHistory.push({
+            productId: row.productId,
+            productName: row.productName,
+            unit: row.unit,
+          });
         }
         if (
           row.customerId === customerId &&
@@ -198,6 +210,7 @@ export const createSaleReadRepositories = (tx: Tx) => ({
         ) {
           customerSeen.add(identity);
           customerHistory.push({
+            productId: row.productId,
             productName: row.productName,
             unit: row.unit,
             lastUnitPrice: money(row.unitPriceMinor, row.currency),

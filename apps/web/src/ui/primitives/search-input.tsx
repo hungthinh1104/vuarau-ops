@@ -3,6 +3,7 @@
 import type { InputHTMLAttributes } from "react";
 import { useId } from "react";
 import { IconButton } from "./icon-button.tsx";
+import { X } from "lucide-react";
 
 export type SearchInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "type"> & {
   readonly label: string;
@@ -44,7 +45,7 @@ export function SearchInput({ label, onClear, value, className, ...rest }: Searc
         />
         {onClear !== undefined && hasValue ? (
           <IconButton label="Xoá tìm kiếm" onClick={onClear}>
-            ✕
+            <X size={16} />
           </IconButton>
         ) : null}
       </div>

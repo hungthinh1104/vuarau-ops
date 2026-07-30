@@ -27,6 +27,10 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
           .map((entry) => ({
             id: entry.id,
             label: entry.sourceType.replaceAll("_", " "),
+            productId: null,
+            productName: null,
+            qualityGradeId: null,
+            qualityGradeName: null,
             sourceType: entry.sourceType,
             sourceId: entry.sourceId,
             documentHref:
@@ -55,6 +59,10 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
                   {
                     id: customer.id,
                     label: customer.displayName,
+                    productId: null,
+                    productName: null,
+                    qualityGradeId: null,
+                    qualityGradeName: null,
                     sourceType: "customer",
                     sourceId: customer.id,
                     documentHref: `/customers/${customer.id}`,
@@ -76,6 +84,10 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
                   {
                     id: supplier.id,
                     label: supplier.displayName,
+                    productId: null,
+                    productName: null,
+                    qualityGradeId: null,
+                    qualityGradeName: null,
                     sourceType: "supplier",
                     sourceId: supplier.id,
                     documentHref: `/suppliers/${supplier.id}`,
@@ -93,12 +105,19 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
           .filter((balance) => unit === null || balance.unit === unit)
           .flatMap((balance) => {
             const product = store.products.get(key(workspaceId, balance.productId));
+            const qualityGradeName = balance.qualityGradeId
+              ? (store.qualityGrades.get(key(workspaceId, balance.qualityGradeId))?.name ?? null)
+              : null;
             return product === undefined
               ? []
               : [
                   {
-                    id: `${product.id}:${balance.unit}`,
-                    label: `${product.displayName} · ${balance.unit}`,
+                    id: `${product.id}:${balance.qualityGradeId ?? "legacy"}:${balance.unit}`,
+                    label: `${product.displayName} · ${qualityGradeName ?? "Chưa phân hạng"} · ${balance.unit}`,
+                    productId: product.id,
+                    productName: product.displayName,
+                    qualityGradeId: balance.qualityGradeId,
+                    qualityGradeName: qualityGradeName,
                     sourceType: "product",
                     sourceId: product.id,
                     documentHref: `/products/${product.id}/inventory`,
@@ -119,32 +138,39 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
           .filter((movement) => movement.workspaceId === workspaceId)
           .filter((movement) => productId === null || movement.productId === productId)
           .filter((movement) => unit === null || movement.quantity.unit === unit)
-          .map((movement) => ({
-            id: movement.id,
-            label: movement.sourceType.replaceAll("_", " "),
-            sourceType: movement.sourceType,
-            sourceId: movement.sourceId,
-            documentHref:
-              movement.sourceType === "delivery_dispatch"
-                ? `/deliveries/${movement.sourceId}`
-                : movement.sourceType === "delivery_return"
-                  ? `/deliveries/${store.deliveryReturns.find((row) => row.id === movement.sourceId)?.deliveryId ?? movement.sourceId}`
-                  : movement.sourceType === "purchase_receipt"
-                    ? `/receipts/${movement.sourceId}`
-                    : movement.sourceType === "purchase_receipt_reversal"
-                      ? `/receipts/${
-                          [...store.purchaseReceipts.values()].find(
-                            (receipt) => receipt.reversal?.id === movement.sourceId,
-                          )?.id ?? movement.sourceId
-                        }`
-                      : movement.sourceType === "inventory_adjustment"
-                        ? `/inventory-adjustments/${movement.sourceId}`
-                        : null,
-            transactionTime: movement.transactionTime,
-            amount: null,
-            quantity: movement.quantity,
-            status: "canonical",
-          }));
+          .map((movement) => {
+            const product = store.products.get(key(workspaceId, movement.productId));
+            return {
+              id: movement.id,
+              label: movement.sourceType.replaceAll("_", " "),
+              productId: movement.productId,
+              productName: product?.displayName ?? "",
+              qualityGradeId: movement.qualityGradeId,
+              qualityGradeName: movement.qualityGradeName,
+              sourceType: movement.sourceType,
+              sourceId: movement.sourceId,
+              documentHref:
+                movement.sourceType === "delivery_dispatch"
+                  ? `/deliveries/${movement.sourceId}`
+                  : movement.sourceType === "delivery_return"
+                    ? `/deliveries/${store.deliveryReturns.find((row) => row.id === movement.sourceId)?.deliveryId ?? movement.sourceId}`
+                    : movement.sourceType === "purchase_receipt"
+                      ? `/receipts/${movement.sourceId}`
+                      : movement.sourceType === "purchase_receipt_reversal"
+                        ? `/receipts/${
+                            [...store.purchaseReceipts.values()].find(
+                              (receipt) => receipt.reversal?.id === movement.sourceId,
+                            )?.id ?? movement.sourceId
+                          }`
+                        : movement.sourceType === "inventory_adjustment"
+                          ? `/inventory-adjustments/${movement.sourceId}`
+                          : null,
+              transactionTime: movement.transactionTime,
+              amount: null,
+              quantity: movement.quantity,
+              status: "canonical",
+            };
+          });
       } else {
         for (const sale of store.sales.values()) {
           if (sale.workspaceId !== workspaceId || sale.status !== "posted") continue;
@@ -179,6 +205,10 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
               rows.push({
                 id: line.lineId,
                 label: line.productName,
+                productId: line.productId ?? null,
+                productName: line.productName,
+                qualityGradeId: line.qualityGradeId ?? null,
+                qualityGradeName: line.qualityGradeName ?? null,
                 sourceType: "sale",
                 sourceId: sale.id,
                 documentHref: `/sales/${sale.id}`,

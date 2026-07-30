@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
+import { X } from "lucide-react";
 import { Button } from "./button.tsx";
 import { IconButton } from "./icon-button.tsx";
 import { TextInput } from "./text-input.tsx";
@@ -15,7 +16,7 @@ import { Skeleton } from "./skeleton.tsx";
 import { EmptyState } from "./empty-state.tsx";
 import { ErrorSummary } from "./error-summary.tsx";
 import { parseMoneyText } from "./numeric-text.ts";
-import { coversState } from "../catalog-state.ts";
+import { coversState } from "@/ui/patterns/sale/catalog-state.ts";
 
 const meta = { title: "Primitives" } satisfies Meta;
 export default meta;
@@ -40,7 +41,9 @@ export const IconButtons: Story = {
   name: "IconButton — luôn có tên đọc được",
   render: () => (
     <div className="flex gap-3">
-      <IconButton label="Đóng">✕</IconButton>
+      <IconButton label="Đóng">
+        <X size={16} />
+      </IconButton>
       <IconButton label="Xoá tìm kiếm">⌫</IconButton>
     </div>
   ),

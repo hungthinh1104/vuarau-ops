@@ -120,6 +120,7 @@ export async function inventoryMovementReportAtScale(tx: Tx, args: ScaleReportAr
   const date = businessDateRange(args.businessDate);
   const values = await tx.execute(sql`
     select m.*,
+      p.name as product_name,
       case
         when m.source_type='delivery_dispatch' then '/deliveries/' || m.source_id::text
         when m.source_type='delivery_return' then '/deliveries/' ||
@@ -132,6 +133,7 @@ export async function inventoryMovementReportAtScale(tx: Tx, args: ScaleReportAr
         else '/inventory-adjustments/' || m.source_id::text
       end document_href
     from inventory_movements m
+    join products p on p.id=m.product_id
     where m.workspace_id=${args.workspaceId}::uuid
       and (${args.productId}::uuid is null or m.product_id=${args.productId}::uuid)
       and (${args.unit}::unit is null or m.unit=${args.unit}::unit)
@@ -172,6 +174,10 @@ export async function inventoryMovementReportAtScale(tx: Tx, args: ScaleReportAr
       items: values.slice(0, args.page.limit).map((row) => ({
         id: String(row["id"]),
         label: String(row["source_type"]).replaceAll("_", " "),
+        productId: String(row["product_id"]),
+        productName: String(row["product_name"]),
+        qualityGradeId: row["quality_grade_id"] ? String(row["quality_grade_id"]) : null,
+        qualityGradeName: row["quality_grade_name"] ? String(row["quality_grade_name"]) : null,
         sourceType: String(row["source_type"]),
         sourceId: String(row["source_id"]),
         documentHref: String(row["document_href"]),

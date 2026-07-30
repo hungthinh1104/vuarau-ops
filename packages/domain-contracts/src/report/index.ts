@@ -25,6 +25,10 @@ export type ReportInput = z.infer<typeof reportInputSchema>;
 export const reportRowDtoSchema = z.object({
   id: z.string(),
   label: z.string(),
+  productId: z.string().nullable().default(null),
+  productName: z.string().nullable().default(null),
+  qualityGradeId: z.string().nullable().default(null),
+  qualityGradeName: z.string().nullable().default(null),
   sourceType: z.string(),
   sourceId: z.string(),
   documentHref: z.string().nullable(),

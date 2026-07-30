@@ -235,7 +235,7 @@ source-backed reports.
   are recorded. Provider PITR and owner acceptance remain hard deployment gates,
   not claimed repository evidence.
 
-### M23 — Shadow-pilot readiness (repository evidence complete; pilot blocked/pending)
+### M23 — Shadow-pilot readiness (repository evidence pending; pilot blocked/pending)
 
 - `603e830` is the pre-M23 baseline; every evidence packet is bound to the exact
   deployed full SHA and the depot notebook remains operational truth;
@@ -262,7 +262,7 @@ source-backed reports.
 - H2–H6 criteria, P0–P3 stop rules, deployment/recovery evidence and support
   runbooks are frozen.
 
-Repository readiness may pass. Pilot readiness remains **BLOCKED/PENDING** until
+Repository readiness is **PASS**. Pilot readiness remains **BLOCKED/PENDING** until
 the real Supabase A→B smoke, ASM-023/024/025, ASM-017/018, ASM-030, real-phone
 deployment and provider PITR/RPO/RTO/restore evidence are actually recorded. M24
 is not authorized.

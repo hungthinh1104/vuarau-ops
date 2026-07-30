@@ -8,6 +8,7 @@ import {
   listMembers,
   migrationState,
   productCensus,
+  qualityGradeCensus,
 } from "@vuarau/db";
 import { roleHasPermission } from "@vuarau/domain-contracts";
 import { randomIdGenerator, systemClock } from "../infrastructure/clock.ts";
@@ -391,6 +392,24 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
       : fail(
           "no fixture Products",
           `${catalog.suspicious.length} fixture-shaped Product name(s) found`,
+        ),
+  );
+
+  const grades = await qualityGradeCensus(database, config.workspaceId);
+  checks.push(
+    grades.active > 0
+      ? pass("QualityGrades defined", `${grades.active} active QualityGrade(s)`)
+      : fail(
+          "QualityGrades defined",
+          "none — QualityGrade enforcement requires at least one active grade",
+        ),
+  );
+  checks.push(
+    grades.suspicious.length === 0
+      ? pass("no fixture QualityGrades", "none found")
+      : fail(
+          "no fixture QualityGrades",
+          `${grades.suspicious.length} fixture-shaped QualityGrade name(s) found`,
         ),
   );
 

@@ -5,7 +5,14 @@ import { fileURLToPath } from "node:url";
 import { and, eq } from "drizzle-orm";
 import type { ActorId, WorkspaceId, WorkspaceRole } from "@vuarau/domain-contracts";
 import type { Database } from "./client.ts";
-import { actors, customers, products, workspaces, workspaceMemberships } from "./schema/index.ts";
+import {
+  actors,
+  customers,
+  products,
+  qualityGrades,
+  workspaces,
+  workspaceMemberships,
+} from "./schema/index.ts";
 
 /**
  * Read-only queries for `ops:pilot-readiness`, which asks questions no procedure
@@ -151,6 +158,11 @@ export type ProductCensus = {
   readonly suspicious: readonly string[];
 };
 
+export type QualityGradeCensus = {
+  readonly active: number;
+  readonly suspicious: readonly string[];
+};
+
 /**
  * The seed's three customers, and the prefix every end-to-end spec uses.
  *
@@ -190,6 +202,22 @@ export async function productCensus(
     .select({ displayName: products.name })
     .from(products)
     .where(and(eq(products.workspaceId, workspaceId), eq(products.isActive, true)));
+  return {
+    active: rows.length,
+    suspicious: rows
+      .map((row) => row.displayName)
+      .filter((name) => FIXTURE_PREFIXES.some((prefix) => name.startsWith(prefix))),
+  };
+}
+
+export async function qualityGradeCensus(
+  database: Database,
+  workspaceId: WorkspaceId,
+): Promise<QualityGradeCensus> {
+  const rows = await database.db
+    .select({ displayName: qualityGrades.name })
+    .from(qualityGrades)
+    .where(and(eq(qualityGrades.workspaceId, workspaceId), eq(qualityGrades.isActive, true)));
   return {
     active: rows.length,
     suspicious: rows
