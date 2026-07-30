@@ -104,7 +104,7 @@ const BOUNDARIES: readonly Boundary[] = [
        * both run in Node. They live beside the UI because that is what they are
        * about, not because they ship with it.
        */
-      "apps/web/src/ui/catalog-coverage.test.ts",
+      "apps/web/src/ui/patterns/sale/catalog-coverage.test.ts",
       "apps/web/src/app/production-routes.test.ts",
     ],
   },

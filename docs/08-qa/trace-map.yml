@@ -105,8 +105,8 @@ use_cases:
       - apps/web/src/api/workspace.ts
       - apps/web/src/api/workspace-page-state.ts
       - apps/web/src/offline/session-cache.ts
-      - apps/web/src/ui/patterns/sign-in.tsx
-      - apps/web/src/ui/patterns/pilot-navigation.ts
+      - apps/web/src/ui/patterns/auth/sign-in.tsx
+      - apps/web/src/ui/patterns/layout/pilot-navigation.ts
       - apps/web/src/ui/patterns/today-actions.ts
 
   UC-AUTH-005:
@@ -122,7 +122,7 @@ use_cases:
       - apps/api/src/modules/session/session.queries.ts
       - apps/web/src/api/session-gate.tsx
       - apps/web/src/api/auth.tsx
-      - apps/web/src/ui/patterns/sign-in.tsx
+      - apps/web/src/ui/patterns/auth/sign-in.tsx
 
   UC-CUSTOMER-001:
     title: Create customer
