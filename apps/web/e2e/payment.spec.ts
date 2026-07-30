@@ -26,11 +26,18 @@ test.describe("TC-E2E-001 — find and open a customer", () => {
     await page.goto("/customers");
 
     await page.getByLabel("Tìm khách hàng").fill(name);
-    const row = page.getByRole("link", { name: new RegExp(name) });
+    const desktop = (page.viewportSize()?.width ?? 0) >= 1024;
+    const row = desktop
+      ? page.getByRole("row", { name: new RegExp(name) })
+      : page.getByRole("link", { name: new RegExp(name) });
     await expect(row).toBeVisible();
     await expect(row).toContainText("1.200.000 ₫");
 
-    await row.click();
+    if (desktop) {
+      await row.getByRole("link", { name: "Mở hồ sơ" }).click();
+    } else {
+      await row.click();
+    }
     await expect(page.getByRole("heading", { name })).toBeVisible();
     await expect(page.getByText("Còn nợ", { exact: true })).toBeVisible();
   });

@@ -22,7 +22,11 @@ test.describe("M15 — Product catalog", () => {
 
     await page.goto("/products");
     await page.getByLabel("Tìm mặt hàng").fill(alias);
-    await expect(page.getByText(name).first()).toBeVisible();
+    const catalogName =
+      (page.viewportSize()?.width ?? 0) >= 1024
+        ? page.getByRole("cell", { name, exact: true })
+        : page.getByRole("link", { name: new RegExp(name) });
+    await expect(catalogName).toBeVisible();
 
     const customerId = await api.createCustomer(uniqueCustomerName("product-sale"));
     await page.goto(`/customers/${customerId}/sales/new`);

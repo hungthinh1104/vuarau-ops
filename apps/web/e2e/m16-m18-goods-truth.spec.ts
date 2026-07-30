@@ -13,7 +13,7 @@ test.describe("M16-M18 — Goods Truth", () => {
     await page.getByRole("button", { name: "Thêm phân hạng" }).click();
     await expect(page.getByText("Loại 2", { exact: true })).toBeVisible();
 
-    const productName = `Cải Goods ${Date.now()}`;
+    const productName = `${String(Number.MAX_SAFE_INTEGER - Date.now()).padStart(16, "0")} Cải Goods`;
     await page.goto("/products/new");
     await page.getByLabel("Tên mặt hàng").fill(productName);
     await page.getByLabel("Đơn vị gợi ý").selectOption("kg");
