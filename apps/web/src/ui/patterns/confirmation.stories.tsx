@@ -1,15 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ConfirmationSummary } from "./confirmation-summary.tsx";
-import { MoneyImpact } from "./money-impact.tsx";
+import { MoneyImpact } from "@/ui/patterns/finance/money-impact.tsx";
 import { CapabilityAction } from "./capability-action.tsx";
 import { TimelineItem } from "./timeline-item.tsx";
-import { WorkspaceShell } from "./workspace-shell.tsx";
+import { WorkspaceShell } from "@/ui/patterns/layout/workspace-shell.tsx";
 import { Textarea } from "../primitives/textarea.tsx";
 import { formatMoney, formatQuantity } from "../format.ts";
-import { accountTimeline } from "../../fixtures/account.fixtures.ts";
-import { ownerSession, salesSession, WORKSPACE_NAME } from "../../fixtures/session.fixtures.ts";
-import { saleLines, salePosted, saleVoided } from "../../fixtures/sale.fixtures.ts";
-import { vnd } from "../../fixtures/session.fixtures.ts";
+import { accountTimeline } from "@/fixtures/account.fixtures.ts";
+import { ownerSession, salesSession, WORKSPACE_NAME } from "@/fixtures/session.fixtures.ts";
+import { saleLines, salePosted, saleVoided } from "@/fixtures/sale.fixtures.ts";
+import { vnd } from "@/fixtures/session.fixtures.ts";
 
 const meta = { title: "Patterns/Confirmation and impact" } satisfies Meta;
 export default meta;

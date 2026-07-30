@@ -8,9 +8,10 @@ import { MoneyInput } from "./primitives/money-input.tsx";
 import { Select } from "./primitives/select.tsx";
 import { Textarea } from "./primitives/textarea.tsx";
 import { ErrorSummary } from "./primitives/error-summary.tsx";
-import { BalanceCard } from "./patterns/balance-card.tsx";
-import { expectNoAccessibilityViolations } from "../testing/accessibility.ts";
-import { balanceReceivable } from "../fixtures/account.fixtures.ts";
+import { BalanceCard } from "@/ui/patterns/finance/balance-card.tsx";
+import { expectNoAccessibilityViolations } from "@/testing/accessibility.ts";
+import { balanceReceivable } from "@/fixtures/account.fixtures.ts";
+import { X } from "lucide-react";
 
 /**
  * TC-WEB-013 — the interactive primitives are usable without a mouse or a screen.
@@ -31,7 +32,9 @@ describe("TC-WEB-013 — accessibility of interactive primitives", () => {
         />
         <Textarea label="Giải thích" />
         <Button>Ghi nhận thanh toán</Button>
-        <IconButton label="Đóng">✕</IconButton>
+        <IconButton label="Đóng">
+          <X size={16} />
+        </IconButton>
       </form>,
     );
 
@@ -45,7 +48,11 @@ describe("TC-WEB-013 — accessibility of interactive primitives", () => {
   });
 
   it("an icon-only control has an accessible name", () => {
-    render(<IconButton label="Xoá tìm kiếm">✕</IconButton>);
+    render(
+      <IconButton label="Xoá tìm kiếm">
+        <X size={16} />
+      </IconButton>,
+    );
     expect(screen.getByRole("button", { name: "Xoá tìm kiếm" })).toBeInTheDocument();
   });
 
