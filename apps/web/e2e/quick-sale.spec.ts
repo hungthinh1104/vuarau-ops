@@ -98,11 +98,12 @@ test.describe("TC-E2E-013 — an empty sale is refused", () => {
   test("posting with no lines filled in says what to fix and writes nothing", async ({ page }) => {
     const customerId = await startSale(page, "S3");
 
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
-
-    await expect(page.getByText("Nhập tên mặt hàng.")).toBeVisible();
-    await expect(page.getByText("Nhập số lượng.")).toBeVisible();
-    await expect(page.getByText("Nhập đơn giá.")).toBeVisible();
+    const postButton = page.getByRole("button", { name: "Chốt đơn" });
+    await expect(postButton).toBeDisabled();
+    await expect(postButton).toHaveAttribute(
+      "title",
+      "Chọn mặt hàng trong danh mục và phân hạng chất lượng cho mọi dòng.",
+    );
 
     // Nothing reached the server: no draft, no sale, no account entry.
     const sales = await api.sales(customerId);
