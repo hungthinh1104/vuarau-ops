@@ -37,9 +37,9 @@ vi.mock("./supabase.ts", () => ({
 import { AuthProvider, useAuth } from "./auth.tsx";
 import { ApiProvider } from "./providers.tsx";
 import { browserAccessToken } from "./access-token.ts";
-import { cacheSession, cachedSession } from "../offline/session-cache.ts";
+import { cacheSession, cachedSession } from "@/offline/session-cache.ts";
 import { storeWorkspaceId, storedWorkspaceId } from "./workspace.ts";
-import { salesSession } from "../fixtures/session.fixtures.ts";
+import { salesSession } from "@/fixtures/session.fixtures.ts";
 import { WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
 
 const SUBJECT = "supabase-subject-a";

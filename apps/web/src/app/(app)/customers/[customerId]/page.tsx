@@ -11,16 +11,17 @@ import type {
 } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { BalanceCard } from "../../../../ui/patterns/balance-card.tsx";
-import { TimelineItem } from "../../../../ui/patterns/timeline-item.tsx";
-import { Badge } from "../../../../ui/primitives/badge.tsx";
-import { EmptyState } from "../../../../ui/primitives/empty-state.tsx";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { formatDate, formatMoney } from "../../../../ui/format.ts";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { BalanceCard } from "@/ui/patterns/finance/balance-card.tsx";
+import { TimelineItem } from "@/ui/patterns/timeline-item.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { formatDate, formatMoney } from "@/ui/format.ts";
 
 /**
  * One customer: what they owe, how it got that way, and what can be done next.
@@ -120,12 +121,11 @@ export default function CustomerDetailPage() {
       >
         {(detail) => (
           <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-baseline gap-2">
-              <h1 className="text-heading font-bold">{detail.customer.displayName}</h1>
-              {/* Deactivated and still owing is a real, ordinary state
-                  (BR-CUSTOMER-003) — greyed, labelled, never hidden. */}
-              {detail.customer.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
-            </div>
+            <PageHeader
+              title={detail.customer.displayName}
+              back={{ href: "/customers", label: "Khách hàng" }}
+              status={detail.customer.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
+            />
 
             {detail.customer.phone !== null ? (
               <a
@@ -326,10 +326,6 @@ export default function CustomerDetailPage() {
           )}
         </div>
       </section>
-
-      <Link href="/customers" className="text-body-sm text-info underline underline-offset-2">
-        ← Danh sách khách hàng
-      </Link>
     </div>
   );
 }

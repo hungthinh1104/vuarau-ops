@@ -6,15 +6,15 @@ import type {
   CustomerId,
   RebuildAccountProjectionResultDto,
 } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useSession } from "../../../../../../api/session-gate.tsx";
-import { useCommand } from "../../../../../../api/use-command.ts";
-import { useTRPC } from "../../../../../../api/providers.tsx";
-import { formatInstant, formatMoney, formatSignedMoney } from "../../../../../../ui/format.ts";
-import { CommandOutcome } from "../../../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../../../ui/patterns/query-states.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { useTRPC } from "@/api/providers.tsx";
+import { formatInstant, formatMoney, formatSignedMoney } from "@/ui/format.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 const DIAGNOSTIC_COPY: Readonly<Record<AccountReconciliationDiagnosticCode, string>> = {
   projection_missing: "Thiếu bảng tổng hợp số dư.",
@@ -81,12 +81,11 @@ export default function AccountReconciliationPage() {
           return (
             <>
               <section className="flex flex-col gap-4">
-                <div>
-                  <h1 className="text-heading font-bold">Giải thích công nợ</h1>
-                  <p className="text-body-sm text-ink-muted">
-                    {result.customer.displayName} · {result.workspace.name}
-                  </p>
-                </div>
+                <PageHeader
+                  title="Giải thích công nợ"
+                  description={`${result.customer.displayName} · ${result.workspace.name}`}
+                  back={{ href: `/customers/${customerId}`, label: "Khách hàng" }}
+                />
 
                 <dl className="grid gap-3 rounded-card border border-border bg-surface p-4 md:grid-cols-2">
                   <Summary label="Số dư đang hiển thị">
@@ -171,9 +170,6 @@ export default function AccountReconciliationPage() {
           >
             {evidence.isFetching ? "Đang tạo bằng chứng" : "Xuất bằng chứng JSON"}
           </button>
-          <Link href={`/customers/${customerId}`} className="self-center text-info underline">
-            ← Quay lại khách hàng
-          </Link>
         </div>
         {evidence.data ? (
           <details className="rounded-card border border-border p-4">

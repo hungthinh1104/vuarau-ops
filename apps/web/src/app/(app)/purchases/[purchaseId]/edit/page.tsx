@@ -10,17 +10,17 @@ import type {
   Unit,
 } from "@vuarau/domain-contracts";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTRPC } from "../../../../../api/providers.tsx";
-import { useSession } from "../../../../../api/session-gate.tsx";
-import { useCommand } from "../../../../../api/use-command.ts";
-import { CommandOutcome } from "../../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../../ui/patterns/query-states.tsx";
-import { Button } from "../../../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../../../ui/primitives/field.tsx";
-import { Select } from "../../../../../ui/primitives/select.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
 
 type EditableLine = {
   lineId: PurchaseLineId;
@@ -130,10 +130,11 @@ function PurchaseDraftEditor(props: {
     );
   return (
     <div className="flex max-w-4xl flex-col gap-4">
-      <h1 className="text-heading font-bold">Sửa đơn mua nháp</h1>
-      <p className="text-caption text-ink-muted">
-        Nhà cung cấp không đổi trong lần sửa này. Tạo đơn khác nếu chọn sai nhà cung cấp.
-      </p>
+      <PageHeader
+        title="Sửa đơn mua nháp"
+        description="Nhà cung cấp không đổi trong lần sửa này. Tạo đơn khác nếu chọn sai nhà cung cấp."
+        back={{ href: `/purchases/${props.purchase.id}`, label: "Chi tiết đơn mua" }}
+      />
       {lines.map((line, index) => (
         <fieldset
           key={line.lineId}
@@ -259,9 +260,6 @@ function PurchaseDraftEditor(props: {
         attemptedAction="Sửa đơn mua"
         onReload={() => router.refresh()}
       />
-      <Link href={`/purchases/${props.purchase.id}`} className="text-info underline">
-        ← Chi tiết đơn mua
-      </Link>
     </div>
   );
 }

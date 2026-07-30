@@ -2,18 +2,18 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { SupplierPaymentDto, SupplierPaymentId } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { formatInstant, formatMoney } from "../../../../ui/format.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../../ui/primitives/badge.tsx";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../../ui/primitives/field.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { formatInstant, formatMoney } from "@/ui/format.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 
 export default function SupplierPaymentPage() {
   const paymentId = useParams<{ paymentId: string }>().paymentId as SupplierPaymentId;
@@ -33,12 +33,15 @@ export default function SupplierPaymentPage() {
     >
       {(detail) => (
         <div className="flex max-w-2xl flex-col gap-4">
-          <header>
-            <h1 className="text-heading font-bold">Thanh toán nhà cung cấp</h1>
-            <Badge tone={detail.status === "recorded" ? "positive" : "warning"}>
-              {detail.status}
-            </Badge>
-          </header>
+          <PageHeader
+            title="Thanh toán nhà cung cấp"
+            back={{ href: `/suppliers/${detail.supplierId}`, label: "Mở nhà cung cấp" }}
+            status={
+              <Badge tone={detail.status === "recorded" ? "positive" : "warning"}>
+                {detail.status}
+              </Badge>
+            }
+          />
           <dl className="grid grid-cols-2 gap-2 rounded-card border border-border bg-surface p-4">
             <dt>Số tiền</dt>
             <dd className="text-right font-bold">{formatMoney(detail.amount)}</dd>
@@ -52,9 +55,6 @@ export default function SupplierPaymentPage() {
             <dd className="text-right">{formatInstant(detail.recordedAt)}</dd>
           </dl>
           {detail.note === null ? null : <p>{detail.note}</p>}
-          <Link href={`/suppliers/${detail.supplierId}`} className="text-info underline">
-            Mở nhà cung cấp
-          </Link>
           {session.permissions.includes("supplier.payment.reverse") &&
           detail.status !== "reversed" ? (
             <ReversePayment payment={detail} onChanged={() => void payment.refetch()} />

@@ -6,14 +6,15 @@ import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import { Select } from "../../../../ui/primitives/select.tsx";
-import { INPUT_CLASS } from "../../../../ui/primitives/field.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 
 export default function ProductDetailPage() {
   const { workspaceId, session } = useSession();
@@ -72,10 +73,11 @@ function ProductEditor(props: {
   }, [lifecycle.result, props.onChanged, update.result]);
   return (
     <div className="flex max-w-xl flex-col gap-4">
-      <h1 className="text-heading font-bold">Mặt hàng</h1>
-      <p className="text-caption text-ink-muted">
-        Mã {props.product.id.slice(0, 8).toUpperCase()} · phiên bản {props.product.version}
-      </p>
+      <PageHeader
+        title="Mặt hàng"
+        description={`Mã ${props.product.id.slice(0, 8).toUpperCase()} · phiên bản ${props.product.version}`}
+        back={{ href: "/products", label: "Danh mục mặt hàng" }}
+      />
       <Link href={`/products/${props.product.id}/inventory`} className="text-info underline">
         Xem tồn kho và biến động vật lý
       </Link>

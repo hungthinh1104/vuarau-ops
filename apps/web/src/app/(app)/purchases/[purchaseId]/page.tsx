@@ -12,16 +12,17 @@ import type {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { formatInstant, formatMoney, formatQuantity } from "../../../../ui/format.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../../ui/primitives/badge.tsx";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../../ui/primitives/field.tsx";
-import { Select } from "../../../../ui/primitives/select.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
 
 export default function PurchaseDetailPage() {
   const purchaseId = useParams<{ purchaseId: string }>().purchaseId as PurchaseId;
@@ -148,30 +149,28 @@ function PurchaseDetail(props: {
   );
   return (
     <div className="flex max-w-4xl flex-col gap-5">
-      <header className="flex flex-wrap justify-between gap-3">
-        <div>
-          <h1 className="text-heading font-bold">
-            Đơn mua {purchase.id.slice(0, 8).toUpperCase()}
-          </h1>
-          <p className="text-caption text-ink-muted">
-            {formatInstant(purchase.transactionTime)}
-            {purchase.recordedAt === purchase.transactionTime
-              ? ""
-              : ` · ghi ${formatInstant(purchase.recordedAt)}`}
-          </p>
-        </div>
-        <Badge
-          tone={
-            purchase.voidRecord !== null
-              ? "warning"
-              : purchase.status === "confirmed"
-                ? "positive"
-                : "neutral"
-          }
-        >
-          {purchase.voidRecord !== null ? "Đã hoàn tác" : purchase.status}
-        </Badge>
-      </header>
+      <PageHeader
+        title={`Đơn mua ${purchase.id.slice(0, 8).toUpperCase()}`}
+        description={`${formatInstant(purchase.transactionTime)}${
+          purchase.recordedAt === purchase.transactionTime
+            ? ""
+            : ` · ghi ${formatInstant(purchase.recordedAt)}`
+        }`}
+        back={{ href: "/purchases", label: "Đơn mua" }}
+        status={
+          <Badge
+            tone={
+              purchase.voidRecord !== null
+                ? "warning"
+                : purchase.status === "confirmed"
+                  ? "positive"
+                  : "neutral"
+            }
+          >
+            {purchase.voidRecord !== null ? "Đã hoàn tác" : purchase.status}
+          </Badge>
+        }
+      />
       <Link href={`/suppliers/${purchase.supplierId}`} className="text-info underline">
         Mở nhà cung cấp
       </Link>
@@ -442,9 +441,6 @@ function PurchaseDetail(props: {
         onReload={props.onChanged}
       />
       <CommandOutcome command={discard} attemptedAction="Bỏ đơn mua" onReload={props.onChanged} />
-      <Link href="/purchases" className="text-info underline">
-        ← Đơn mua
-      </Link>
     </div>
   );
 }

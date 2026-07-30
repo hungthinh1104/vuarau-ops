@@ -1,9 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ApiProvider } from "../../api/providers.tsx";
-import { SessionGate } from "../../api/session-gate.tsx";
-import { ServiceWorkerRegistration } from "../../offline/service-worker-registration.tsx";
+import { ApiProvider } from "@/api/providers.tsx";
+import { SessionGate } from "@/api/session-gate.tsx";
+import { ServiceWorkerRegistration } from "@/offline/service-worker-registration.tsx";
+
+import { Toaster } from "@/ui/primitives/toaster.tsx";
 
 /**
  * Every production route sits behind this, and nothing else does.
@@ -24,6 +26,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <ApiProvider>
       <ServiceWorkerRegistration />
       <SessionGate>{children}</SessionGate>
+      <Toaster />
     </ApiProvider>
   );
 }

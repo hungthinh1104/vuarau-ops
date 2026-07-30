@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "../../../api/session-gate.tsx";
-import { Skeleton } from "../../../ui/primitives/skeleton.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { Skeleton } from "@/ui/primitives/skeleton.tsx";
 
 export default function SelectWorkspacePage() {
   useSession();

@@ -4,11 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { PurchaseReceiptId } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { formatInstant, formatQuantity } from "../../../../ui/format.ts";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../../ui/primitives/badge.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { formatInstant, formatQuantity } from "@/ui/format.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
 
 export default function ReceiptDetailPage() {
   const receiptId = useParams<{ receiptId: string }>().receiptId as PurchaseReceiptId;
@@ -23,20 +24,15 @@ export default function ReceiptDetailPage() {
     >
       {(detail) => (
         <div className="flex max-w-3xl flex-col gap-4">
-          <header>
-            <h1 className="text-heading font-bold">
-              Phiếu nhận {detail.id.slice(0, 8).toUpperCase()}
-            </h1>
-            <p className="text-caption text-ink-muted">
-              {formatInstant(detail.transactionTime)}
-              {detail.recordedAt === detail.transactionTime
+          <PageHeader
+            title={`Phiếu nhận ${detail.id.slice(0, 8).toUpperCase()}`}
+            description={`${formatInstant(detail.transactionTime)}${
+              detail.recordedAt === detail.transactionTime
                 ? ""
-                : ` · ghi ${formatInstant(detail.recordedAt)}`}
-            </p>
-          </header>
-          <Link href={`/purchases/${detail.purchaseId}`} className="text-info underline">
-            Mở đơn mua nguồn
-          </Link>
+                : ` · ghi ${formatInstant(detail.recordedAt)}`
+            }`}
+            back={{ href: `/purchases/${detail.purchaseId}`, label: "Mở đơn mua nguồn" }}
+          />
           <ul className="flex flex-col gap-2">
             {detail.lines.map((line) => (
               <li

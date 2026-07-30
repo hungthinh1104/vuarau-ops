@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import type { Cursor, Page, ProductDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSession } from "../../../api/session-gate.tsx";
-import { useTRPC } from "../../../api/providers.tsx";
-import { useDebounced } from "../../../api/use-debounced.ts";
-import { QueryStates } from "../../../ui/patterns/query-states.tsx";
-import { SearchInput } from "../../../ui/primitives/search-input.tsx";
-import { Badge } from "../../../ui/primitives/badge.tsx";
-import { Button } from "../../../ui/primitives/button.tsx";
-import { useOffline } from "../../../offline/provider.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useDebounced } from "@/api/use-debounced.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { useOffline } from "@/offline/provider.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export default function ProductsPage() {
   const { workspaceId, session } = useSession();
@@ -49,21 +50,23 @@ export default function ProductsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-heading font-bold">Danh mục mặt hàng</h1>
-        <div className="flex gap-3">
-          {session.permissions.includes("quality.read") ? (
-            <Link href="/quality-grades" className="text-info underline">
-              Phân hạng chất lượng
-            </Link>
-          ) : null}
-          {session.permissions.includes("product.create") ? (
-            <Link href="/products/new" className="text-info underline">
-              Thêm mặt hàng
-            </Link>
-          ) : null}
-        </div>
-      </div>
+      <PageHeader
+        title="Danh mục mặt hàng"
+        actions={
+          <div className="flex gap-3">
+            {session.permissions.includes("quality.read") ? (
+              <Link href="/quality-grades" className="text-info underline">
+                Phân hạng chất lượng
+              </Link>
+            ) : null}
+            {session.permissions.includes("product.create") ? (
+              <Link href="/products/new" className="text-info underline">
+                Thêm mặt hàng
+              </Link>
+            ) : null}
+          </div>
+        }
+      />
       <SearchInput
         label="Tìm mặt hàng"
         placeholder="Tên hoặc tên gọi khác"

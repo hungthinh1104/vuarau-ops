@@ -11,15 +11,16 @@ import type {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { formatInstant, formatQuantity } from "../../../../ui/format.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../../ui/primitives/badge.tsx";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../../ui/primitives/field.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { formatInstant, formatQuantity } from "@/ui/format.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 
 export default function DeliveryDetailPage() {
   const deliveryId = useParams<{ deliveryId: string }>().deliveryId as DeliveryId;
@@ -64,22 +65,16 @@ export default function DeliveryDetailPage() {
     >
       {(delivery) => (
         <div className="flex max-w-4xl flex-col gap-5">
-          <header className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-heading font-bold">
-                Phiếu giao {delivery.id.slice(0, 8).toUpperCase()}
-              </h1>
-              <p className="text-caption text-ink-muted">
-                {formatInstant(delivery.transactionTime)}
-              </p>
-            </div>
-            <Badge tone={delivery.status === "delivered" ? "positive" : "neutral"}>
-              {delivery.status}
-            </Badge>
-          </header>
-          <Link href={`/sales/${delivery.saleId}`} className="text-info underline">
-            Mở đơn bán nguồn
-          </Link>
+          <PageHeader
+            title={`Phiếu giao ${delivery.id.slice(0, 8).toUpperCase()}`}
+            description={formatInstant(delivery.transactionTime)}
+            back={{ href: `/sales/${delivery.saleId}`, label: "Mở đơn bán nguồn" }}
+            status={
+              <Badge tone={delivery.status === "delivered" ? "positive" : "neutral"}>
+                {delivery.status}
+              </Badge>
+            }
+          />
           <section className="rounded-card border border-border bg-surface p-4">
             <h2 className="font-semibold">Hàng giao</h2>
             <ul className="divide-y divide-border">

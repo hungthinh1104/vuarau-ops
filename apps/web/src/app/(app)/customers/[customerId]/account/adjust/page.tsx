@@ -4,14 +4,15 @@ import { useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CustomerId, CustomerAccountBalanceDto } from "@vuarau/domain-contracts";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "../../../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../../../api/providers.tsx";
-import { useCommand } from "../../../../../../api/use-command.ts";
-import { hasPermission } from "../../../../../../api/session.ts";
-import { QueryStates } from "../../../../../../ui/patterns/query-states.tsx";
-import { CommandOutcome } from "../../../../../../ui/patterns/command-outcome.tsx";
-import { PermissionDenied } from "../../../../../../ui/patterns/permission-denied.tsx";
-import { DebtAdjustmentForm } from "../../../../../../ui/patterns/debt-adjustment-form.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { hasPermission } from "@/api/session.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
+import { DebtAdjustmentForm } from "@/ui/patterns/customer/debt-adjustment-form.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export default function AdjustCustomerAccountPage() {
   const { workspaceId, session } = useSession();
@@ -36,7 +37,10 @@ export default function AdjustCustomerAccountPage() {
   }, [adjustmentId, command.phase.kind, router]);
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-heading font-bold">Điều chỉnh công nợ</h1>
+      <PageHeader
+        title="Điều chỉnh công nợ"
+        back={{ href: `/customers/${customerId}`, label: "Khách hàng" }}
+      />
       <QueryStates
         query={customer}
         loadingLabel="Đang tải công nợ"

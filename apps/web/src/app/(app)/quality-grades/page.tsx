@@ -3,14 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QualityGradeDto } from "@vuarau/domain-contracts";
 import { useRef, useState } from "react";
-import { useSession } from "../../../api/session-gate.tsx";
-import { useTRPC } from "../../../api/providers.tsx";
-import { useCommand } from "../../../api/use-command.ts";
-import { CommandOutcome } from "../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../ui/primitives/badge.tsx";
-import { Button } from "../../../ui/primitives/button.tsx";
-import { TextInput } from "../../../ui/primitives/text-input.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export default function QualityGradesPage() {
   const { workspaceId, session } = useSession();
@@ -52,12 +53,10 @@ export default function QualityGradesPage() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
-      <div>
-        <h1 className="text-heading font-bold">Phân hạng chất lượng</h1>
-        <p className="text-body-sm text-ink-muted">
-          Phân hạng thuộc từng lượng hàng. Đổi tên sau này không sửa lại chứng từ đã ghi.
-        </p>
-      </div>
+      <PageHeader
+        title="Phân hạng chất lượng"
+        description="Phân hạng thuộc từng lượng hàng. Đổi tên sau này không sửa lại chứng từ đã ghi."
+      />
       {mayManage ? (
         <section className="grid gap-3 rounded-card border border-border bg-surface p-4 sm:grid-cols-[1fr_10rem_auto]">
           <TextInput

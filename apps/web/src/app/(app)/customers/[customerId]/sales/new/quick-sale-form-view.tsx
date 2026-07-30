@@ -1,16 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { QueryStates } from "../../../../../../ui/patterns/query-states.tsx";
-import { BalancePreview } from "../../../../../../ui/patterns/balance-preview.tsx";
-import { CommandOutcome } from "../../../../../../ui/patterns/command-outcome.tsx";
-import { PermissionDenied } from "../../../../../../ui/patterns/permission-denied.tsx";
-import { SaleLineEditor } from "../../../../../../ui/patterns/sale-line-editor.tsx";
-import type { SaleLineDraft } from "../../../../../../ui/patterns/sale-line-editor.tsx";
-import { Badge } from "../../../../../../ui/primitives/badge.tsx";
-import { Button } from "../../../../../../ui/primitives/button.tsx";
-import { Textarea } from "../../../../../../ui/primitives/textarea.tsx";
-import { formatDate, formatMoney } from "../../../../../../ui/format.ts";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { BalancePreview } from "@/ui/patterns/finance/balance-preview.tsx";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
+import { SaleLineEditor } from "@/ui/patterns/sale/sale-line-editor.tsx";
+import { ProductPicker } from "@/ui/patterns/sale/product-picker.tsx";
+import { Dialog } from "@/ui/primitives/dialog.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { formatDate, formatMoney } from "@/ui/format.ts";
 import type { QuickSaleFormModel } from "./quick-sale-form-model.ts";
 
 export function QuickSaleFormView(model: QuickSaleFormModel) {
@@ -61,27 +64,53 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     unitNotice,
     visibleProducts,
   } = model;
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [posting, setPosting] = useState(false);
+
+  // Show a success toast exactly once after a definitive server confirmation.
+  // CommandOutcome stays authoritative for errors and unknown-network states.
+  const toastedRef = useRef(false);
+  useEffect(() => {
+    if (postCommand.phase.kind === "succeeded" && !toastedRef.current) {
+      toastedRef.current = true;
+      toast.success("Đã chốt đơn thành công");
+    }
+  }, [postCommand.phase.kind]);
+
+  async function handleConfirmedPost(): Promise<void> {
+    setPosting(true);
+    try {
+      await post();
+    } finally {
+      setPosting(false);
+      setConfirmOpen(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-5 pb-28">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-heading font-bold">Đơn hàng mới</h1>
-        {/* The state, said in words rather than implied by a colour. Until the
-            sale is posted no debt exists (BR-SALE-010). */}
-        <Badge tone={locallyQueued ? "warning" : draft === null || dirty ? "neutral" : "info"}>
-          {locallyQueued
-            ? offline.blockedCount > 0
-              ? "Cần xử lý đồng bộ"
-              : "Đã lưu trên thiết bị · chờ máy chủ"
-            : draft === null
-              ? "Chưa lưu"
-              : dirty
-                ? "Có thay đổi chưa lưu"
-                : "Đã lưu nháp"}
-        </Badge>
-      </div>
+      <PageHeader
+        title="Đơn hàng mới"
+        back={{ href: `/customers/${customerId}`, label: "Khách hàng" }}
+        status={
+          <Badge tone={locallyQueued ? "warning" : draft === null || dirty ? "neutral" : "info"}>
+            {locallyQueued
+              ? offline.blockedCount > 0
+                ? "Cần xử lý đồng bộ"
+                : "Đã lưu trên thiết bị · chờ máy chủ"
+              : draft === null
+                ? "Chưa lưu"
+                : dirty
+                  ? "Có thay đổi chưa lưu"
+                  : "Đã lưu nháp"}
+          </Badge>
+        }
+      />
 
       <p className="rounded-card border border-info/30 bg-info-soft px-3 py-2 text-body-sm text-info">
-        Đơn nháp <strong>chưa tính vào công nợ</strong>. Công nợ chỉ phát sinh khi bấm “Chốt đơn”.
+        Đơn nháp <strong>chưa tính vào công nợ</strong>. Công nợ chỉ phát sinh khi bấm "Chốt đơn".
       </p>
 
       {locallyQueued ? (
@@ -183,6 +212,14 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   disabled={locallyQueued}
                   qualityGradeOptions={qualityGradeOptions}
                   onFocus={() => setActiveLineId(line.lineId)}
+                  {...(!locallyQueued
+                    ? {
+                        onOpenProductPicker: () => {
+                          setActiveLineId(line.lineId);
+                          setPickerOpen(true);
+                        },
+                      }
+                    : {})}
                   onChange={(incoming, field) =>
                     editLines((current) =>
                       current.map((existing, at) => {
@@ -267,41 +304,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                 chốt đơn.
               </p>
             ) : null}
-            {visibleProducts.length > 0 ? (
-              <section className="rounded-card border border-border bg-surface p-3">
-                <h2 className="text-label font-semibold">Danh mục mặt hàng</h2>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {visibleProducts.map((product) => (
-                    <Button
-                      key={product.id}
-                      tone="secondary"
-                      disabled={locallyQueued}
-                      onClick={() =>
-                        editLines((current) =>
-                          current.map((line) =>
-                            line.lineId === activeLine.lineId
-                              ? {
-                                  ...line,
-                                  productId: product.id,
-                                  productName: product.displayName,
-                                  unit: product.preferredUnit ?? line.unit,
-                                }
-                              : line,
-                          ),
-                        )
-                      }
-                    >
-                      {product.displayName}
-                      {product.preferredUnit === null ? "" : ` · ${product.preferredUnit}`}
-                    </Button>
-                  ))}
-                </div>
-                <p className="mt-2 text-caption text-ink-muted">
-                  Chọn mặt hàng chỉ điền tên và đơn vị; đơn giá vẫn do bạn nhập hoặc chủ động dùng
-                  giá lần trước.
-                </p>
-              </section>
-            ) : null}
+
             {noProductMatch ? (
               <section
                 role="status"
@@ -317,7 +320,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   >
                     {productCreateCommand.phase.kind === "sending"
                       ? "Đang tạo…"
-                      : `Tạo mặt hàng “${activeLine.productName.trim()}”`}
+                      : `Tạo mặt hàng "${activeLine.productName.trim()}"`}
                   </Button>
                 ) : (
                   <p className="mt-1 text-ink-muted">
@@ -331,125 +334,6 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               attemptedAction="Tạo mặt hàng trong đơn"
               onReload={() => window.location.reload()}
             />
-            <QueryStates
-              query={capture}
-              loadingLabel="Đang tải giá gần đây"
-              attemptedAction="Xem giá gần đây"
-            >
-              {(context) =>
-                context.customerHistory.length === 0 &&
-                context.workspaceHistory.length === 0 ? null : (
-                  <section className="rounded-card border border-border bg-surface p-3">
-                    <h2 className="text-label font-semibold">Gần đây với khách này</h2>
-                    {context.workspaceHistory.map((history) => (
-                      <Button
-                        key={`workspace-${history.productName}-${history.unit}`}
-                        tone="secondary"
-                        disabled={locallyQueued}
-                        onClick={() => {
-                          editLines((current) =>
-                            current.map((line) =>
-                              line.lineId === activeLine.lineId
-                                ? {
-                                    ...line,
-                                    productId:
-                                      visibleProducts.find(
-                                        (product) =>
-                                          product.displayName.localeCompare(
-                                            history.productName,
-                                            "vi",
-                                            { sensitivity: "base" },
-                                          ) === 0,
-                                      )?.id ?? null,
-                                    productName: history.productName,
-                                    unit: history.unit as SaleLineDraft["unit"],
-                                  }
-                                : line,
-                            ),
-                          );
-                          metrics.count("historical_product_selected");
-                        }}
-                      >
-                        {history.productName} · {history.unit}
-                      </Button>
-                    ))}
-                    {context.customerHistory.map((history) => (
-                      <div
-                        key={`${history.productName}-${history.unit}`}
-                        className="mt-2 flex items-center justify-between gap-2 text-body-sm"
-                      >
-                        <span>
-                          {history.productName} · {history.unit}
-                          <br />
-                          <span className="text-caption text-ink-muted">
-                            Giá lần trước: {formatMoney(history.lastUnitPrice)} ·{" "}
-                            {formatDate(history.lastTransactionTime)}
-                          </span>
-                        </span>
-                        {activeLine.productName.trim() === history.productName &&
-                        activeLine.unit === history.unit ? (
-                          <Button
-                            tone="secondary"
-                            disabled={locallyQueued}
-                            onClick={() => {
-                              editLines((current) =>
-                                current.map((line) =>
-                                  line.lineId === activeLine.lineId
-                                    ? {
-                                        ...line,
-                                        unitPriceText: String(history.lastUnitPrice.amountMinor),
-                                        priceOrigin: {
-                                          kind: "recalled",
-                                          sourceSaleId: history.sourceSaleId,
-                                          productName: history.productName,
-                                          unit: history.unit as SaleLineDraft["unit"],
-                                        },
-                                      }
-                                    : line,
-                                ),
-                              );
-                              metrics.count("historical_price_applied");
-                            }}
-                          >
-                            Dùng giá này
-                          </Button>
-                        ) : (
-                          <Button
-                            tone="secondary"
-                            disabled={locallyQueued}
-                            onClick={() => {
-                              editLines((current) =>
-                                current.map((line) =>
-                                  line.lineId === activeLine.lineId
-                                    ? {
-                                        ...line,
-                                        productId:
-                                          visibleProducts.find(
-                                            (product) =>
-                                              product.displayName.localeCompare(
-                                                history.productName,
-                                                "vi",
-                                                { sensitivity: "base" },
-                                              ) === 0,
-                                          )?.id ?? null,
-                                        productName: history.productName,
-                                        unit: history.unit as SaleLineDraft["unit"],
-                                      }
-                                    : line,
-                                ),
-                              );
-                              metrics.count("historical_product_selected");
-                            }}
-                          >
-                            Chọn mặt hàng
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </section>
-                )
-              }
-            </QueryStates>
 
             {/* `type="button"`, like every control here: adding a line must never
                 be one mis-tap away from posting a sale. */}
@@ -501,6 +385,123 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               onReload={() => window.location.reload()}
             />
 
+            {/*
+             * ProductPicker Drawer — replaces the two inline catalog/history
+             * sections. History context is still visible; historical price still
+             * requires an explicit "Dùng giá này" tap inside the drawer.
+             */}
+            <QueryStates
+              query={capture}
+              loadingLabel="Đang tải giá gần đây"
+              attemptedAction="Xem giá gần đây"
+            >
+              {(context) => (
+                <ProductPicker
+                  open={pickerOpen}
+                  onClose={() => setPickerOpen(false)}
+                  visibleProducts={visibleProducts}
+                  customerHistory={context.customerHistory}
+                  workspaceHistory={context.workspaceHistory}
+                  onSelectProduct={(productId, productName, unit) => {
+                    editLines((current) =>
+                      current.map((line) =>
+                        line.lineId === activeLine.lineId
+                          ? {
+                              ...line,
+                              productId: productId ?? null,
+                              productName,
+                              unit,
+                            }
+                          : line,
+                      ),
+                    );
+                    metrics.count("historical_product_selected");
+                  }}
+                  onApplyHistoricalPrice={(
+                    productId,
+                    productName,
+                    unit,
+                    sourceSaleId,
+                    lastUnitPrice,
+                  ) => {
+                    editLines((current) =>
+                      current.map((line) =>
+                        line.lineId === activeLine.lineId
+                          ? {
+                              ...line,
+                              productId: productId ?? null,
+                              productName,
+                              unit,
+                              unitPriceText: String(lastUnitPrice.amountMinor),
+                              priceOrigin: {
+                                kind: "recalled",
+                                sourceSaleId,
+                                productName,
+                                unit,
+                              },
+                            }
+                          : line,
+                      ),
+                    );
+                    metrics.count("historical_price_applied");
+                  }}
+                />
+              )}
+            </QueryStates>
+
+            {/*
+             * Transaction confirmation dialog (P2.5).
+             *
+             * Opened when the worker taps "Chốt đơn". The dialog shows the
+             * BalancePreview (existing component) so the debt consequence is
+             * explicit before the command is sent. All existing posting guards
+             * remain in `post()` — nothing here bypasses them.
+             */}
+            {confirmOpen ? (
+              <Dialog
+                open={confirmOpen}
+                title="Xác nhận chốt đơn"
+                onClose={() => setConfirmOpen(false)}
+                actions={
+                  <>
+                    <Button tone="secondary" onClick={() => setConfirmOpen(false)}>
+                      Quay lại
+                    </Button>
+                    <Button
+                      onClick={() => void handleConfirmedPost()}
+                      {...(posting ? { disabledReason: "Đang gửi…" } : {})}
+                    >
+                      Chốt đơn
+                    </Button>
+                  </>
+                }
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-subheading font-semibold">Tổng đơn</span>
+                    <span className="tabular text-display font-bold">{formatMoney(total)}</span>
+                  </div>
+                  {total.amountMinor > 0 && pendingCustomerCreate === null ? (
+                    <BalancePreview
+                      currentBalance={detail.balance}
+                      currentClassification={detail.classification}
+                      change={total}
+                      changeLabel="Đơn này"
+                    />
+                  ) : pendingCustomerCreate !== null ? (
+                    <p className="text-caption text-ink-muted">
+                      Công nợ hiện tại chưa có trên máy chủ; ứng dụng không tự suy ra số dư.
+                    </p>
+                  ) : null}
+                  <p className="text-caption text-ink-muted">
+                    Sau khi chốt, đơn sẽ tính vào công nợ của{" "}
+                    <strong>{detail.customer.displayName}</strong>. Thao tác này không thể hoàn tác
+                    trực tiếp.
+                  </p>
+                </div>
+              </Dialog>
+            ) : null}
+
             <div className="fixed inset-x-0 bottom-16 z-20 border-t border-border bg-surface px-4 py-3 lg:bottom-0">
               <div className="mx-auto flex max-w-[1440px] gap-2">
                 <Button
@@ -523,7 +524,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                 </Button>
                 <Button
                   fullWidth
-                  onClick={() => void post()}
+                  onClick={() => setConfirmOpen(true)}
                   {...(!mayPost
                     ? { disabledReason: "Bạn không có quyền chốt đơn." }
                     : !fulfilmentReady
@@ -546,13 +547,6 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                 </Button>
               </div>
             </div>
-
-            <Link
-              href={`/customers/${customerId}`}
-              className="text-body-sm text-info underline underline-offset-2"
-            >
-              ← Quay lại khách hàng
-            </Link>
           </>
         )}
       </QueryStates>

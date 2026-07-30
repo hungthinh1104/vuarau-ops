@@ -4,12 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import type { Cursor, Page, PurchaseDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSession } from "../../../api/session-gate.tsx";
-import { useTRPC } from "../../../api/providers.tsx";
-import { formatDate, formatMoney } from "../../../ui/format.ts";
-import { QueryStates } from "../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../ui/primitives/badge.tsx";
-import { Button } from "../../../ui/primitives/button.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { formatDate, formatMoney } from "@/ui/format.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
 
 export default function PurchasesPage() {
   const { workspaceId, session } = useSession();
@@ -33,14 +34,16 @@ export default function PurchasesPage() {
   const next = pages.at(-1)?.nextCursor ?? null;
   return (
     <div className="flex flex-col gap-4">
-      <header className="flex items-center justify-between">
-        <h1 className="text-heading font-bold">Đơn mua</h1>
-        {session.permissions.includes("purchase.create") ? (
-          <Link href="/purchases/new" className="text-info underline">
-            Tạo đơn mua
-          </Link>
-        ) : null}
-      </header>
+      <PageHeader
+        title="Đơn mua"
+        actions={
+          session.permissions.includes("purchase.create") ? (
+            <Link href="/purchases/new" className="text-info underline">
+              Tạo đơn mua
+            </Link>
+          ) : null
+        }
+      />
       <QueryStates
         query={purchases}
         loadingLabel="Đang tải đơn mua"

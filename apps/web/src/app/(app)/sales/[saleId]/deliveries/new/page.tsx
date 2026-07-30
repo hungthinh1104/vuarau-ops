@@ -4,14 +4,15 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { DeliveryDto, DeliveryId, DeliveryLineId, SaleId } from "@vuarau/domain-contracts";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "../../../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../../../api/providers.tsx";
-import { useCommand } from "../../../../../../api/use-command.ts";
-import { CommandOutcome } from "../../../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../../../ui/patterns/query-states.tsx";
-import { Button } from "../../../../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../../../../ui/primitives/field.tsx";
-import { formatQuantity } from "../../../../../../ui/format.ts";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { formatQuantity } from "@/ui/format.ts";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export default function NewDeliveryPage() {
   const saleId = useParams<{ saleId: string }>().saleId as SaleId;
@@ -40,7 +41,11 @@ export default function NewDeliveryPage() {
     <QueryStates query={sale} loadingLabel="Đang tải đơn bán" onRetry={() => void sale.refetch()}>
       {(detail) => (
         <div className="flex max-w-3xl flex-col gap-5">
-          <h1 className="text-heading font-bold">Tạo phiếu giao · {detail.displayReference}</h1>
+          <PageHeader
+            title="Tạo phiếu giao"
+            description={detail.displayReference}
+            back={{ href: `/sales/${saleId}`, label: "Đơn bán" }}
+          />
           <section className="rounded-card border border-border bg-surface p-4">
             <h2 className="font-semibold">Số lượng xuất kho</h2>
             {fulfilment.data?.lines.map((summary) => {

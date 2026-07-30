@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import type { Cursor, CustomerSummaryDto, Page } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSession } from "../../../api/session-gate.tsx";
-import { useTRPC } from "../../../api/providers.tsx";
-import { useDebounced } from "../../../api/use-debounced.ts";
-import { QueryStates } from "../../../ui/patterns/query-states.tsx";
-import { SearchInput } from "../../../ui/primitives/search-input.tsx";
-import { Badge } from "../../../ui/primitives/badge.tsx";
-import { EmptyState } from "../../../ui/primitives/empty-state.tsx";
-import { describeBalance } from "../../../ui/format.ts";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useDebounced } from "@/api/use-debounced.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { describeBalance } from "@/ui/format.ts";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 /**
  * The first screen of every workflow: find the person.
@@ -59,19 +60,23 @@ export default function CustomersPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-heading font-bold">Khách hàng</h1>
-        {session.permissions.includes("workspace.manage") ? (
-          <Link href="/workspace" className="text-body-sm text-info underline">
-            Quản lý vựa
-          </Link>
-        ) : null}
-        {session.permissions.includes("customer.create") ? (
-          <Link href="/customers/new" className="text-body-sm text-info underline">
-            Thêm khách hàng
-          </Link>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Khách hàng"
+        actions={
+          <div className="flex gap-3">
+            {session.permissions.includes("workspace.manage") ? (
+              <Link href="/workspace" className="text-body-sm text-info underline">
+                Quản lý vựa
+              </Link>
+            ) : null}
+            {session.permissions.includes("customer.create") ? (
+              <Link href="/customers/new" className="text-body-sm text-info underline">
+                Thêm khách hàng
+              </Link>
+            ) : null}
+          </div>
+        }
+      />
 
       <SearchInput
         label="Tìm khách hàng"

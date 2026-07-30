@@ -1,4 +1,4 @@
-import { EmptyState } from "../../../ui/primitives/empty-state.tsx";
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 
 /** Reserved for a future Supabase PKCE exchange. No OAuth provider is enabled yet. */
 export default function AuthCallbackPage() {

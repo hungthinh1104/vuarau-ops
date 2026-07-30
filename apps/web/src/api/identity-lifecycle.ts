@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { clearOfflineSessionCache } from "../offline/session-cache.ts";
+import { clearOfflineSessionCache } from "@/offline/session-cache.ts";
 import { clearWorkspaceSelection } from "./workspace.ts";
 
 let activeQueryClient: QueryClient | null = null;

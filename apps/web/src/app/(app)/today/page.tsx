@@ -1,11 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { useSession } from "../../../api/session-gate.tsx";
-import { useTRPC } from "../../../api/providers.tsx";
-import { LinkButton, PageHeader, Section } from "../../../ui/patterns/page-layout.tsx";
-import { todayActionsFor } from "../../../ui/patterns/today-actions.ts";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { LinkButton, PageHeader, Section } from "@/ui/patterns/layout/page-layout.tsx";
+import { todayActionsFor } from "@/ui/patterns/today-actions.ts";
 
 export default function TodayPage() {
   const { session, workspaceId } = useSession();
@@ -51,76 +50,78 @@ export default function TodayPage() {
     <div className="grid gap-5">
       <PageHeader
         title="Hôm nay"
-        description="Bắt đầu từ công việc vai trò hiện tại được phép thực hiện. Không có số liệu ước đoán trên màn hình này."
+        description="Bắt đầu từ công việc vai trò hiện tại được phép thực hiện."
       />
 
-      {primary.map((action) => (
-        <Section key={action.label} title={action.label} description={action.description}>
-          <LinkButton href={action.href}>Bắt đầu</LinkButton>
-        </Section>
-      ))}
+      {primary.length > 0 && (
+        <div className="grid gap-3">
+          {primary.map((action) => (
+            <Section key={action.label} title={action.label} description={action.description}>
+              <LinkButton href={action.href}>Bắt đầu</LinkButton>
+            </Section>
+          ))}
+        </div>
+      )}
 
       {(mayReadDeliveries || mayReadPurchases) && (
-        <Section
-          id="queue"
-          title="Việc đang chờ"
-          description="Danh sách dưới đây đọc trực tiếp từ phiếu nghiệp vụ; số hiển thị chỉ là số dòng đã tải, không phải KPI ước tính."
-        >
-          <div className="grid gap-3 lg:grid-cols-3">
-            {mayReadDeliveries ? (
-              <>
-                <WorkQueue
-                  title="Phiếu cần xuất hàng"
-                  href="/deliveries"
-                  loading={draftDeliveries.isLoading}
-                  error={draftDeliveries.isError}
-                  labels={
-                    draftDeliveries.data?.items.map(
-                      (delivery) => `Phiếu ${delivery.id.slice(0, 8).toUpperCase()}`,
-                    ) ?? []
-                  }
-                />
-                <WorkQueue
-                  title="Phiếu đang giao"
-                  href="/deliveries"
-                  loading={dispatchedDeliveries.isLoading}
-                  error={dispatchedDeliveries.isError}
-                  labels={
-                    dispatchedDeliveries.data?.items.map(
-                      (delivery) => `Phiếu ${delivery.id.slice(0, 8).toUpperCase()}`,
-                    ) ?? []
-                  }
-                />
-              </>
-            ) : null}
-            {mayReadPurchases ? (
+        <div className="grid gap-3 lg:grid-cols-3">
+          {mayReadDeliveries && (
+            <>
               <WorkQueue
-                title="Đơn mua đã xác nhận"
-                href="/purchases"
-                loading={openPurchases.isLoading}
-                error={openPurchases.isError}
+                title="Phiếu cần xuất hàng"
+                href="/deliveries"
+                loading={draftDeliveries.isLoading}
+                error={draftDeliveries.isError}
                 labels={
-                  openPurchases.data?.items.map(
-                    (purchase) => `Đơn ${purchase.id.slice(0, 8).toUpperCase()}`,
+                  draftDeliveries.data?.items.map(
+                    (delivery) => `Phiếu ${delivery.id.slice(0, 8).toUpperCase()}`,
                   ) ?? []
                 }
               />
-            ) : null}
-          </div>
+              <WorkQueue
+                title="Phiếu đang giao"
+                href="/deliveries"
+                loading={dispatchedDeliveries.isLoading}
+                error={dispatchedDeliveries.isError}
+                labels={
+                  dispatchedDeliveries.data?.items.map(
+                    (delivery) => `Phiếu ${delivery.id.slice(0, 8).toUpperCase()}`,
+                  ) ?? []
+                }
+              />
+            </>
+          )}
+          {mayReadPurchases && (
+            <WorkQueue
+              title="Đơn mua đã xác nhận"
+              href="/purchases"
+              loading={openPurchases.isLoading}
+              error={openPurchases.isError}
+              labels={
+                openPurchases.data?.items.map(
+                  (purchase) => `Đơn ${purchase.id.slice(0, 8).toUpperCase()}`,
+                ) ?? []
+              }
+            />
+          )}
+        </div>
+      )}
+
+      {work.length > 0 && (
+        <Section
+          id="work"
+          title="Công việc"
+          description="Các lối vào dưới đây đến từ quyền server trả cho phiên hiện tại."
+        >
+          <ActionGrid actions={work} />
         </Section>
       )}
 
-      <Section
-        id="work"
-        title="Công việc"
-        description="Các lối vào dưới đây đến từ quyền server trả cho phiên hiện tại."
-      >
-        <ActionGrid actions={work} />
-      </Section>
-
-      <Section id="more" title="Thêm">
-        <ActionGrid actions={more} />
-      </Section>
+      {more.length > 0 && (
+        <Section id="more" title="Thêm">
+          <ActionGrid actions={more} />
+        </Section>
+      )}
     </div>
   );
 }
@@ -133,41 +134,43 @@ function WorkQueue(props: {
   labels: readonly string[];
 }) {
   return (
-    <section className="rounded-card border border-border bg-surface p-3">
+    <section className="rounded-card border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold">{props.title}</h3>
-        <strong className="tabular">
+        <h3 className="text-subheading font-semibold">{props.title}</h3>
+        <strong className="tabular text-heading">
           {props.loading || props.error ? "—" : props.labels.length}
         </strong>
       </div>
-      {props.loading ? (
-        <p className="text-body-sm text-ink-muted">Đang tải…</p>
-      ) : props.error ? (
-        <p role="alert" className="text-body-sm text-warning">
-          Chưa tải được dữ liệu.
-        </p>
-      ) : props.labels.length === 0 ? (
-        <p className="text-body-sm text-ink-muted">Không có phiếu trong trang hiện tại.</p>
-      ) : (
-        <ul className="mt-2 text-body-sm">
-          {props.labels.slice(0, 3).map((label) => (
-            <li key={label}>{label}</li>
-          ))}
-        </ul>
-      )}
-      <Link href={props.href} className="mt-2 inline-block text-info underline">
-        Mở danh sách nguồn
-      </Link>
+      <div className="mt-3">
+        {props.loading ? (
+          <p className="text-body-sm text-ink-muted">Đang tải…</p>
+        ) : props.error ? (
+          <p role="alert" className="text-body-sm text-warning">
+            Chưa tải được dữ liệu.
+          </p>
+        ) : props.labels.length === 0 ? (
+          <p className="text-body-sm text-ink-muted">Không có phiếu trong trang hiện tại.</p>
+        ) : (
+          <ul className="text-body-sm flex flex-col gap-1">
+            {props.labels.slice(0, 3).map((label) => (
+              <li key={label}>{label}</li>
+            ))}
+            {props.labels.length > 3 && (
+              <li className="text-ink-muted">+{props.labels.length - 3} phiếu nữa</li>
+            )}
+          </ul>
+        )}
+      </div>
+      <div className="mt-4">
+        <LinkButton href={props.href} secondary>
+          Mở danh sách
+        </LinkButton>
+      </div>
     </section>
   );
 }
 
 function ActionGrid({ actions }: { readonly actions: ReturnType<typeof todayActionsFor> }) {
-  if (actions.length === 0) {
-    return (
-      <p className="text-body-sm text-ink-muted">Không có công việc phù hợp với vai trò này.</p>
-    );
-  }
   return (
     <ul className="grid gap-3 md:grid-cols-2">
       {actions.map((action) => (

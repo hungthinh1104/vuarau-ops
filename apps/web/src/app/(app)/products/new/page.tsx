@@ -6,14 +6,15 @@ import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useDebounced } from "../../../../api/use-debounced.ts";
-import { useCommand } from "../../../../api/use-command.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import { Select } from "../../../../ui/primitives/select.tsx";
-import { INPUT_CLASS } from "../../../../ui/primitives/field.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useDebounced } from "@/api/use-debounced.ts";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 
 export default function NewProductPage() {
   const trpc = useTRPC();
@@ -42,7 +43,7 @@ export default function NewProductPage() {
   }, [command.result, router]);
   return (
     <div className="flex max-w-xl flex-col gap-4">
-      <h1 className="text-heading font-bold">Thêm mặt hàng</h1>
+      <PageHeader title="Thêm mặt hàng" back={{ href: "/products", label: "Hủy" }} />
       <label className="text-label">
         Tên mặt hàng
         <input
@@ -101,9 +102,6 @@ export default function NewProductPage() {
         Tạo mặt hàng
       </Button>
       <CommandOutcome command={command} attemptedAction="Tạo mặt hàng" onReload={() => undefined} />
-      <Link href="/products" className="text-info underline">
-        ← Hủy
-      </Link>
     </div>
   );
 }

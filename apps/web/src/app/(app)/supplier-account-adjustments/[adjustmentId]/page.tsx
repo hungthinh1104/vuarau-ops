@@ -1,12 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { formatInstant, formatSignedMoney } from "../../../../ui/format.ts";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { formatInstant, formatSignedMoney } from "@/ui/format.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export default function SupplierAdjustmentPage() {
   const adjustmentId = useParams<{ adjustmentId: string }>().adjustmentId;
@@ -21,7 +21,10 @@ export default function SupplierAdjustmentPage() {
     >
       {(entry) => (
         <div className="flex max-w-2xl flex-col gap-4">
-          <h1 className="text-heading font-bold">Điều chỉnh công nợ nhà cung cấp</h1>
+          <PageHeader
+            title="Điều chỉnh công nợ nhà cung cấp"
+            back={{ href: `/suppliers/${entry.supplierId}`, label: "Mở nhà cung cấp" }}
+          />
           <dl className="grid grid-cols-2 gap-2 rounded-card border border-border bg-surface p-4">
             <dt>Thay đổi</dt>
             <dd className="text-right font-bold">{formatSignedMoney(entry.amount)}</dd>
@@ -36,9 +39,6 @@ export default function SupplierAdjustmentPage() {
             <dt>Command</dt>
             <dd className="break-all text-right">{entry.commandId}</dd>
           </dl>
-          <Link href={`/suppliers/${entry.supplierId}`} className="text-info underline">
-            Mở nhà cung cấp
-          </Link>
         </div>
       )}
     </QueryStates>

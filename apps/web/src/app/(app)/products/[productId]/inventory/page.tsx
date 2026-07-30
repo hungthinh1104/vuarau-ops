@@ -14,16 +14,17 @@ import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "../../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../../api/providers.tsx";
-import { useCommand } from "../../../../../api/use-command.ts";
-import { formatInstant, formatQuantity } from "../../../../../ui/format.ts";
-import { CommandOutcome } from "../../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../../../ui/primitives/badge.tsx";
-import { Button } from "../../../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../../../ui/primitives/field.tsx";
-import { Select } from "../../../../../ui/primitives/select.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { formatInstant, formatQuantity } from "@/ui/format.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
 
 const movementHref = (movement: InventoryMovementDto) =>
   movement.sourceDocument?.type === "receipt"
@@ -75,7 +76,13 @@ export default function ProductInventoryPage() {
         loadingLabel="Đang tải mặt hàng"
         onRetry={() => void product.refetch()}
       >
-        {(detail) => <h1 className="text-heading font-bold">Tồn kho · {detail.displayName}</h1>}
+        {(detail) => (
+          <PageHeader
+            title="Tồn kho"
+            description={detail.displayName}
+            back={{ href: `/products/${productId}`, label: "Mặt hàng" }}
+          />
+        )}
       </QueryStates>
       <QueryStates
         query={balances}
@@ -215,9 +222,6 @@ export default function ProductInventoryPage() {
           }}
         />
       ) : null}
-      <Link href={`/products/${productId}`} className="text-info underline">
-        ← Mặt hàng
-      </Link>
     </div>
   );
 }

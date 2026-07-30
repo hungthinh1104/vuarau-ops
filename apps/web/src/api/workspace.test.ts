@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { actorWorkspacesDtoSchema } from "@vuarau/domain-contracts";
 import { clearWorkspaceSelection, storeWorkspaceId, storedWorkspaceId } from "./workspace.ts";
 import { setAccessToken, browserAccessToken, TOKEN_KEY } from "./access-token.ts";
-import { ownerWorkspaces } from "../fixtures/session.fixtures.ts";
+import { ownerWorkspaces } from "@/fixtures/session.fixtures.ts";
 import { WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
 
 const SUBJECT_A = "supabase-user-a";

@@ -4,23 +4,24 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useDebounced } from "../../../../api/use-debounced.ts";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { SearchInput } from "../../../../ui/primitives/search-input.tsx";
-import { EmptyState } from "../../../../ui/primitives/empty-state.tsx";
-import { describeBalance } from "../../../../ui/format.ts";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import { TextInput } from "../../../../ui/primitives/text-input.tsx";
-import { Textarea } from "../../../../ui/primitives/textarea.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { useWorkflowMetrics } from "../../../../api/workflow-metrics.ts";
-import { hasPermission } from "../../../../api/session.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { useOffline } from "../../../../offline/provider.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useDebounced } from "@/api/use-debounced.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { describeBalance } from "@/ui/format.ts";
+import { Button } from "@/ui/primitives/button.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { useWorkflowMetrics } from "@/api/workflow-metrics.ts";
+import { hasPermission } from "@/api/session.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { useOffline } from "@/offline/provider.tsx";
 import type { CustomerDetailDto, CustomerId } from "@vuarau/domain-contracts";
 import { QuickSaleForm } from "../../customers/[customerId]/sales/new/page.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 /** The direct entry door: select a person, then reuse the one sale command workflow. */
 export default function QuickSaleStartPage() {
@@ -132,10 +133,7 @@ export default function QuickSaleStartPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-heading font-bold">Ghi đơn nhanh</h1>
-        <p className="text-body-sm text-ink-muted">Chọn khách để bắt đầu ghi hàng.</p>
-      </div>
+      <PageHeader title="Ghi đơn nhanh" description="Chọn khách để bắt đầu ghi hàng." />
       <SearchInput
         label="Tìm khách hàng"
         placeholder="Tên hoặc số điện thoại"
@@ -210,9 +208,14 @@ export default function QuickSaleStartPage() {
                     <Link
                       href={`/customers/${customer.id}/sales/new`}
                       onClick={() => metrics.count("customer_selected_from_search")}
-                      className="flex min-h-[64px] items-center rounded-card border border-border bg-surface px-4 py-3 text-body font-medium hover:border-border-strong"
+                      className="flex min-h-[64px] items-center rounded-card border border-border bg-surface px-4 py-3 hover:border-border-strong"
                     >
-                      {customer.displayName}
+                      <span>
+                        <span className="block text-body font-medium">{customer.displayName}</span>
+                        <span className="block text-caption text-ink-muted">
+                          {customer.phone ?? "Không có số điện thoại"}
+                        </span>
+                      </span>
                     </Link>
                   </li>
                 ))}

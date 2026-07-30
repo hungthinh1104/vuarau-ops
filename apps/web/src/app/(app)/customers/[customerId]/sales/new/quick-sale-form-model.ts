@@ -12,17 +12,17 @@ import type {
 } from "@vuarau/domain-contracts";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "../../../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../../../api/providers.tsx";
-import { useCommand } from "../../../../../../api/use-command.ts";
-import { hasPermission } from "../../../../../../api/session.ts";
-import { useWorkflowMetrics } from "../../../../../../api/workflow-metrics.ts";
-import { useDebounced } from "../../../../../../api/use-debounced.ts";
-import { useOffline } from "../../../../../../offline/provider.tsx";
-import type { CachedProduct, CachedQualityGrade } from "../../../../../../offline/types.ts";
-import { emptyLine, resolveLine } from "../../../../../../ui/patterns/sale-line-editor.tsx";
-import type { SaleLineDraft } from "../../../../../../ui/patterns/sale-line-editor.tsx";
-import { replacementDraftFrom } from "../../../../../../ui/patterns/replacement-sale-draft.ts";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { hasPermission } from "@/api/session.ts";
+import { useWorkflowMetrics } from "@/api/workflow-metrics.ts";
+import { useDebounced } from "@/api/use-debounced.ts";
+import { useOffline } from "@/offline/provider.tsx";
+import type { CachedProduct, CachedQualityGrade } from "@/offline/types.ts";
+import { emptyLine, resolveLine } from "@/ui/patterns/sale/sale-line-editor.tsx";
+import type { SaleLineDraft } from "@/ui/patterns/sale/sale-line-editor.tsx";
+import { replacementDraftFrom } from "@/ui/patterns/sale/replacement-sale-draft.ts";
 
 export function useQuickSaleFormModel(props: { readonly customerIdOverride?: CustomerId }) {
   const { session, workspaceId } = useSession();
@@ -385,16 +385,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     value: grade.id,
     label: grade.name,
   }));
-  const exactProductMatch = visibleProducts.find(
-    (product) =>
-      product.displayName.localeCompare(activeLine.productName.trim(), "vi", {
-        sensitivity: "base",
-      }) === 0,
-  );
-  const noProductMatch =
-    activeLine.productName.trim().length > 0 &&
-    activeLine.productId == null &&
-    exactProductMatch === undefined;
+  const noProductMatch = activeLine.productName.trim().length > 0 && activeLine.productId == null;
   const mayCreateProduct = hasPermission(session, "product.create");
 
   const total: Money = {

@@ -2,15 +2,15 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CustomerDto, CustomerId } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTRPC } from "../../../../../api/providers.tsx";
-import { useSession } from "../../../../../api/session-gate.tsx";
-import { useCommand } from "../../../../../api/use-command.ts";
-import { CommandOutcome } from "../../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../../ui/patterns/query-states.tsx";
-import { CustomerFields } from "../../../../../ui/patterns/customer-fields.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { CustomerFields } from "@/ui/patterns/customer/customer-fields.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export default function EditCustomerPage() {
   const { workspaceId } = useSession();
@@ -58,7 +58,10 @@ export default function EditCustomerPage() {
     >
       {() => (
         <div className="flex max-w-2xl flex-col gap-5">
-          <h1 className="text-heading font-bold">Sửa khách hàng</h1>
+          <PageHeader
+            title="Sửa khách hàng"
+            back={{ href: `/customers/${customerId}`, label: "Hủy" }}
+          />
           <CustomerFields
             displayName={displayName}
             phone={phone}
@@ -101,9 +104,6 @@ export default function EditCustomerPage() {
             onReload={() => void detail.refetch()}
             onCancel={() => router.push(`/customers/${customerId}`)}
           />
-          <Link href={`/customers/${customerId}`} className="text-info underline">
-            ← Hủy
-          </Link>
         </div>
       )}
     </QueryStates>

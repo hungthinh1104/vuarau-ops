@@ -5,11 +5,12 @@ import type { CustomerDto, CustomerId } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { CustomerFields } from "../../../../ui/patterns/customer-fields.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { CustomerFields } from "@/ui/patterns/customer/customer-fields.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export default function NewCustomerPage() {
   const { workspaceId } = useSession();
@@ -40,7 +41,7 @@ export default function NewCustomerPage() {
 
   return (
     <div className="flex max-w-2xl flex-col gap-5">
-      <h1 className="text-heading font-bold">Thêm khách hàng</h1>
+      <PageHeader title="Thêm khách hàng" back={{ href: "/customers", label: "Hủy" }} />
       <CustomerFields
         displayName={displayName}
         phone={phone}
@@ -73,9 +74,6 @@ export default function NewCustomerPage() {
         onReload={() => void duplicates.refetch()}
         onCancel={() => router.push("/customers")}
       />
-      <Link href="/customers" className="text-info underline">
-        ← Hủy
-      </Link>
     </div>
   );
 }

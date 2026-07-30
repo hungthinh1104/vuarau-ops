@@ -2,16 +2,16 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { SupplierDto, SupplierId } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useSession } from "../../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../../api/providers.tsx";
-import { useCommand } from "../../../../../api/use-command.ts";
-import { CommandOutcome } from "../../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../../ui/patterns/query-states.tsx";
-import { Button } from "../../../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../../../ui/primitives/field.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 
 export default function EditSupplierPage() {
   const supplierId = useParams<{ supplierId: string }>().supplierId as SupplierId;
@@ -56,7 +56,10 @@ function SupplierEditForm({ supplier }: { supplier: SupplierDto }) {
   }, [lifecycle.result, router, supplier.id, update.result]);
   return (
     <div className="flex max-w-xl flex-col gap-4">
-      <h1 className="text-heading font-bold">Sửa nhà cung cấp</h1>
+      <PageHeader
+        title="Sửa nhà cung cấp"
+        back={{ href: `/suppliers/${supplier.id}`, label: "Quay lại" }}
+      />
       <label className="text-label">
         Tên
         <input
@@ -130,9 +133,6 @@ function SupplierEditForm({ supplier }: { supplier: SupplierDto }) {
         attemptedAction="Đổi trạng thái nhà cung cấp"
         onReload={() => undefined}
       />
-      <Link href={`/suppliers/${supplier.id}`} className="text-info underline">
-        ← Quay lại
-      </Link>
     </div>
   );
 }

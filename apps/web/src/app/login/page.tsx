@@ -2,9 +2,9 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../api/auth.tsx";
-import { SignIn, SignInUnconfigured } from "../../ui/patterns/sign-in.tsx";
-import { Skeleton } from "../../ui/primitives/skeleton.tsx";
+import { useAuth } from "@/api/auth.tsx";
+import { SignIn, SignInUnconfigured } from "@/ui/patterns/auth/sign-in.tsx";
+import { Skeleton } from "@/ui/primitives/skeleton.tsx";
 
 export default function LoginPage() {
   const auth = useAuth();

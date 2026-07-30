@@ -26,7 +26,7 @@ export function SyncIndicatorView(props: {
   return (
     <aside
       aria-label="Đồng bộ"
-      className="fixed right-3 bottom-20 z-30 rounded-card border border-border bg-surface px-3 py-2 text-caption shadow-lg"
+      className="fixed right-3 bottom-20 z-30 rounded-card border border-border bg-surface px-3 py-2 text-caption shadow-md"
     >
       <p>
         Chờ đồng bộ: <strong>{props.queuedCount}</strong> · Cần xử lý:{" "}

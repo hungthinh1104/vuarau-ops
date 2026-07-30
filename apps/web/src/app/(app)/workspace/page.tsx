@@ -10,13 +10,14 @@ import type {
 import { WORKSPACE_ROLES, actorIdSchema } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useTRPC } from "../../../api/providers.tsx";
-import { useSession } from "../../../api/session-gate.tsx";
-import { useCommand } from "../../../api/use-command.ts";
-import { CommandOutcome } from "../../../ui/patterns/command-outcome.tsx";
-import { PermissionDenied } from "../../../ui/patterns/permission-denied.tsx";
-import { QueryStates } from "../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../ui/primitives/badge.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
 
 export default function WorkspacePage() {
   const { workspaceId, session } = useSession();
@@ -50,10 +51,7 @@ export default function WorkspacePage() {
       >
         {(detail) => (
           <>
-            <header>
-              <h1 className="text-heading font-bold">{detail.name}</h1>
-              <p className="text-body-sm text-ink-muted">Thành viên và vai trò</p>
-            </header>
+            <PageHeader title={detail.name} description="Thành viên và vai trò" />
 
             <AddMemberForm onChanged={refresh} />
 
@@ -69,9 +67,6 @@ export default function WorkspacePage() {
       </QueryStates>
       <Link href="/workspace/operations" className="text-info underline">
         Vận hành, kiểm tra và sao lưu →
-      </Link>
-      <Link href="/customers" className="text-info underline">
-        ← Quay lại khách hàng
       </Link>
     </div>
   );

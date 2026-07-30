@@ -1,13 +1,13 @@
 "use client";
 
-import { WorkspaceShell } from "../../ui/patterns/workspace-shell.tsx";
-import { BalanceCard } from "../../ui/patterns/balance-card.tsx";
-import { SaleStatus } from "../../ui/patterns/sale-status.tsx";
-import { PaymentStatus } from "../../ui/patterns/payment-status.tsx";
-import { TimelineItem } from "../../ui/patterns/timeline-item.tsx";
-import { CapabilityAction } from "../../ui/patterns/capability-action.tsx";
-import { Badge } from "../../ui/primitives/badge.tsx";
-import { formatMoney } from "../../ui/format.ts";
+import { WorkspaceShell } from "@/ui/patterns/layout/workspace-shell.tsx";
+import { BalanceCard } from "@/ui/patterns/finance/balance-card.tsx";
+import { SaleStatus } from "@/ui/patterns/sale/sale-status.tsx";
+import { PaymentStatus } from "@/ui/patterns/payment/payment-status.tsx";
+import { TimelineItem } from "@/ui/patterns/timeline-item.tsx";
+import { CapabilityAction } from "@/ui/patterns/capability-action.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { formatMoney } from "@/ui/format.ts";
 import {
   accountTimeline,
   balanceReceivable,
@@ -17,7 +17,7 @@ import {
   salesSession,
   saleVoided,
   WORKSPACE_NAME,
-} from "../../fixtures/index.ts";
+} from "@/fixtures/index.ts";
 
 /**
  * A composition proof, not a workflow.

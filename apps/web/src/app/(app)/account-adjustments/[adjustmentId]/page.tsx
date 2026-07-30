@@ -2,12 +2,12 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { AccountAdjustmentGetInput } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { formatInstant, formatSignedMoney } from "../../../../ui/format.ts";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { formatInstant, formatSignedMoney } from "@/ui/format.ts";
 
 export default function AccountAdjustmentDetailPage() {
   const { workspaceId } = useSession();
@@ -28,8 +28,11 @@ export default function AccountAdjustmentDetailPage() {
     >
       {(item) => (
         <section className="flex flex-col gap-4">
-          <h1 className="text-heading font-bold">Điều chỉnh công nợ</h1>
-          <p className="text-caption text-ink-muted">{item.displayReference}</p>
+          <PageHeader
+            title="Điều chỉnh công nợ"
+            description={item.displayReference}
+            back={{ href: `/customers/${item.customer.id}`, label: item.customer.displayName }}
+          />
           <dl className="grid gap-2 rounded-card border border-border p-4 text-body">
             <div>
               <dt>Loại điều chỉnh</dt>
@@ -78,9 +81,6 @@ export default function AccountAdjustmentDetailPage() {
               <dd>{item.workspace.name}</dd>
             </div>
           </dl>
-          <Link href={`/customers/${item.customer.id}`} className="text-info underline">
-            ← {item.customer.displayName}
-          </Link>
         </section>
       )}
     </QueryStates>

@@ -7,17 +7,17 @@ import type {
   WorkspaceRestoreResultDto,
 } from "@vuarau/domain-contracts";
 import { workspaceBackupSchema } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useOffline } from "../../../../offline/provider.tsx";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import { Badge } from "../../../../ui/primitives/badge.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { INPUT_CLASS } from "../../../../ui/primitives/field.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useOffline } from "@/offline/provider.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 
 export default function OperationsPage() {
   const { workspaceId, session } = useSession();
@@ -62,7 +62,10 @@ export default function OperationsPage() {
   }
   return (
     <div className="flex max-w-3xl flex-col gap-5">
-      <h1 className="text-heading font-bold">Vận hành và bảo toàn dữ liệu</h1>
+      <PageHeader
+        title="Vận hành và bảo toàn dữ liệu"
+        back={{ href: "/workspace", label: "Quản lý vựa" }}
+      />
       <section className="rounded-card border border-border bg-surface p-4">
         <h2 className="text-subheading font-semibold">Đồng bộ thiết bị</h2>
         <p>
@@ -183,9 +186,6 @@ export default function OperationsPage() {
           đang hoạt động.
         </p>
       </section>
-      <Link href="/workspace" className="text-info underline">
-        ← Quản lý vựa
-      </Link>
     </div>
   );
 }

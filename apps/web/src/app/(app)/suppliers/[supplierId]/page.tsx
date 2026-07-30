@@ -12,16 +12,17 @@ import type {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { formatInstant, formatMoney, formatSignedMoney } from "../../../../ui/format.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../../ui/primitives/badge.tsx";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../../ui/primitives/field.tsx";
-import { Select } from "../../../../ui/primitives/select.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { formatInstant, formatMoney, formatSignedMoney } from "@/ui/format.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
 
 const sourceHref = (entry: SupplierAccountEntryDto): string | null => {
   if (entry.sourceDocument?.type === "purchase") return `/purchases/${entry.sourceDocument.id}`;
@@ -74,17 +75,16 @@ export default function SupplierDetailPage() {
     >
       {(record) => (
         <div className="flex max-w-4xl flex-col gap-5">
-          <header className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-heading font-bold">{record.displayName}</h1>
-              <p className="text-caption text-ink-muted">
-                {record.phone ?? "Không có số điện thoại"} · phiên bản {record.version}
-              </p>
-            </div>
-            <Badge tone={record.isActive ? "positive" : "neutral"}>
-              {record.isActive ? "Đang hoạt động" : "Đã ngưng"}
-            </Badge>
-          </header>
+          <PageHeader
+            title={record.displayName}
+            description={`${record.phone ?? "Không có số điện thoại"} · phiên bản ${record.version}`}
+            back={{ href: "/suppliers", label: "Nhà cung cấp" }}
+            status={
+              <Badge tone={record.isActive ? "positive" : "neutral"}>
+                {record.isActive ? "Đang hoạt động" : "Đã ngưng"}
+              </Badge>
+            }
+          />
           {record.note === null ? null : <p>{record.note}</p>}
           <div className="flex flex-wrap gap-3">
             {session.permissions.includes("supplier.update") ? (
@@ -190,9 +190,6 @@ export default function SupplierDetailPage() {
               </section>
             </>
           ) : null}
-          <Link href="/suppliers" className="text-info underline">
-            ← Nhà cung cấp
-          </Link>
         </div>
       )}
     </QueryStates>

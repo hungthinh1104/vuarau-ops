@@ -2,18 +2,18 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { PaymentDto, PaymentId } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { hasPermission } from "../../../../api/session.ts";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { PaymentReversalPanel } from "../../../../ui/patterns/payment-reversal-panel.tsx";
-import { PaymentStatus } from "../../../../ui/patterns/payment-status.tsx";
-import { BalanceCard } from "../../../../ui/patterns/balance-card.tsx";
-import { formatInstant, formatRecordedGap } from "../../../../ui/format.ts";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { hasPermission } from "@/api/session.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { PaymentReversalPanel } from "@/ui/patterns/payment/payment-reversal-panel.tsx";
+import { PaymentStatus } from "@/ui/patterns/payment/payment-status.tsx";
+import { BalanceCard } from "@/ui/patterns/finance/balance-card.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { formatInstant, formatRecordedGap } from "@/ui/format.ts";
 
 const METHOD_COPY = {
   cash: "Tiền mặt",
@@ -61,10 +61,14 @@ export default function PaymentDetailPage() {
       >
         {(recorded) => (
           <>
-            <div>
-              <h1 className="text-heading font-bold">Đã ghi nhận thanh toán</h1>
-              <p className="mt-1 text-body text-ink-muted">{recorded.customerDisplayName}</p>
-            </div>
+            <PageHeader
+              title="Đã ghi nhận thanh toán"
+              description={recorded.customerDisplayName}
+              back={{
+                href: `/customers/${recorded.customerId}`,
+                label: "Xem sổ công nợ khách hàng",
+              }}
+            />
 
             <section className="rounded-card border border-border bg-surface p-4">
               <PaymentStatus
@@ -138,13 +142,6 @@ export default function PaymentDetailPage() {
                 />
               </>
             ) : null}
-
-            <Link
-              href={`/customers/${recorded.customerId}`}
-              className="touch-target inline-flex items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Xem sổ công nợ khách hàng
-            </Link>
           </>
         )}
       </QueryStates>

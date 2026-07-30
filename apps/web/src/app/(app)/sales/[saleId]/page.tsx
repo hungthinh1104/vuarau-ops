@@ -5,28 +5,24 @@ import type { DocumentDto, DocumentId, SaleDto, SaleId } from "@vuarau/domain-co
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { useWorkflowMetrics } from "../../../../api/workflow-metrics.ts";
-import { hasPermission } from "../../../../api/session.ts";
-import { useDebounced } from "../../../../api/use-debounced.ts";
-import { messageForCode } from "../../../../ui/copy.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { CorrectionTimeline } from "../../../../ui/patterns/correction-timeline.tsx";
-import { QueryStates } from "../../../../ui/patterns/query-states.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { useWorkflowMetrics } from "@/api/workflow-metrics.ts";
+import { hasPermission } from "@/api/session.ts";
+import { useDebounced } from "@/api/use-debounced.ts";
+import { messageForCode } from "@/ui/copy.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { CorrectionTimeline } from "@/ui/patterns/sale/correction-timeline.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import {
   SaleCorrectionPanel,
   type SaleCorrectionSubmission,
-} from "../../../../ui/patterns/sale-correction-panel.tsx";
-import { SaleStatus } from "../../../../ui/patterns/sale-status.tsx";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import {
-  formatInstant,
-  formatMoney,
-  formatQuantity,
-  formatRecordedGap,
-} from "../../../../ui/format.ts";
+} from "@/ui/patterns/sale/sale-correction-panel.tsx";
+import { SaleStatus } from "@/ui/patterns/sale/sale-status.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { formatInstant, formatMoney, formatQuantity, formatRecordedGap } from "@/ui/format.ts";
 
 /**
  * A posted sale, read back from the server, beside the account entry it created.
@@ -158,7 +154,14 @@ export default function SaleDetailPage() {
         {(detail) => (
           <>
             <div className="flex flex-col gap-2">
-              <h1 className="text-heading font-bold">CHI TIẾT ĐƠN · {detail.displayReference}</h1>
+              <PageHeader
+                title="CHI TIẾT ĐƠN"
+                description={detail.displayReference}
+                back={{
+                  href: `/customers/${detail.sale.customerId}`,
+                  label: "Xem sổ công nợ khách hàng",
+                }}
+              />
               <SaleStatus
                 status={detail.sale.status}
                 financialState={detail.sale.financialState}
@@ -428,13 +431,6 @@ export default function SaleDetailPage() {
                 </Button>
               </section>
             ) : null}
-
-            <Link
-              href={`/customers/${detail.sale.customerId}`}
-              className="touch-target inline-flex items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Xem sổ công nợ khách hàng
-            </Link>
           </>
         )}
       </QueryStates>

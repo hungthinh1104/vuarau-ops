@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import type { Cursor, ReportType } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useSession } from "../../../api/session-gate.tsx";
-import { useTRPC } from "../../../api/providers.tsx";
-import { formatInstant, formatMoney, formatQuantity } from "../../../ui/format.ts";
-import { QueryStates } from "../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../ui/primitives/badge.tsx";
-import { Button } from "../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../ui/primitives/field.tsx";
-import { Select } from "../../../ui/primitives/select.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 const TYPES: readonly { value: ReportType; label: string }[] = [
   { value: "customer_account_activity", label: "Biến động công nợ khách hàng" },
@@ -61,7 +62,7 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-heading font-bold">Báo cáo từ dữ liệu nguồn</h1>
+      <PageHeader title="Báo cáo từ dữ liệu nguồn" />
       <div className="grid gap-3 rounded-card border border-border bg-surface p-4 md:grid-cols-3">
         <Select
           label="Loại báo cáo"

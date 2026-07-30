@@ -5,21 +5,21 @@ import type { CustomerId, Money, PaymentMethod } from "@vuarau/domain-contracts"
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import Link from "next/link";
-import { useSession } from "../../../../../../api/session-gate.tsx";
-import { useTRPC } from "../../../../../../api/providers.tsx";
-import { useCommand } from "../../../../../../api/use-command.ts";
-import { hasPermission } from "../../../../../../api/session.ts";
-import { QueryStates } from "../../../../../../ui/patterns/query-states.tsx";
-import { BalancePreview } from "../../../../../../ui/patterns/balance-preview.tsx";
-import { CommandOutcome } from "../../../../../../ui/patterns/command-outcome.tsx";
-import { PermissionDenied } from "../../../../../../ui/patterns/permission-denied.tsx";
-import { Button } from "../../../../../../ui/primitives/button.tsx";
-import { MoneyInput } from "../../../../../../ui/primitives/money-input.tsx";
-import { Select } from "../../../../../../ui/primitives/select.tsx";
-import { TextInput } from "../../../../../../ui/primitives/text-input.tsx";
-import { Textarea } from "../../../../../../ui/primitives/textarea.tsx";
-import { parseMoneyText } from "../../../../../../ui/primitives/numeric-text.ts";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { hasPermission } from "@/api/session.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { BalancePreview } from "@/ui/patterns/finance/balance-preview.tsx";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { MoneyInput } from "@/ui/primitives/money-input.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { parseMoneyText } from "@/ui/primitives/numeric-text.ts";
 
 const METHOD_OPTIONS = [
   { value: "cash", label: "Tiền mặt" },
@@ -102,7 +102,10 @@ export default function NewPaymentPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-heading font-bold">Ghi nhận thanh toán</h1>
+      <PageHeader
+        title="Ghi nhận thanh toán"
+        back={{ href: `/customers/${customerId}`, label: "Khách hàng" }}
+      />
 
       <QueryStates
         query={customer}
@@ -198,13 +201,6 @@ export default function NewPaymentPage() {
                 Ghi nhận thanh toán
               </Button>
             </div>
-
-            <Link
-              href={`/customers/${customerId}`}
-              className="text-body-sm text-info underline underline-offset-2"
-            >
-              ← Quay lại khách hàng
-            </Link>
           </>
         )}
       </QueryStates>

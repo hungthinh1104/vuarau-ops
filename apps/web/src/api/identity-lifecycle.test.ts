@@ -7,8 +7,8 @@ import {
   registerIdentityQueryClient,
 } from "./identity-lifecycle.ts";
 import { storeWorkspaceId, storedWorkspaceId } from "./workspace.ts";
-import { cacheSession, cachedSession } from "../offline/session-cache.ts";
-import { salesSession } from "../fixtures/session.fixtures.ts";
+import { cacheSession, cachedSession } from "@/offline/session-cache.ts";
+import { salesSession } from "@/fixtures/session.fixtures.ts";
 
 const SUBJECT_A = "supabase-user-a";
 const SUBJECT_B = "supabase-user-b";

@@ -7,11 +7,11 @@ import {
   salesSession,
   warehouseSession,
   workspaceChoices,
-} from "../fixtures/session.fixtures.ts";
+} from "@/fixtures/session.fixtures.ts";
 import {
   rejectionCommandInProgress,
   rejectionStaleVersion,
-} from "../fixtures/rejection.fixtures.ts";
+} from "@/fixtures/rejection.fixtures.ts";
 import { OTHER_WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
 
 describe("TC-WEB-014 — the session bootstrap", () => {

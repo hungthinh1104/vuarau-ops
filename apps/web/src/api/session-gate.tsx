@@ -9,20 +9,20 @@ import { useAuth } from "./auth.tsx";
 import { domainErrorOf } from "./domain-error.ts";
 import type { WorkspaceChoice } from "./session.ts";
 import { storeWorkspaceId, storedWorkspaceId } from "./workspace.ts";
-import { Button } from "../ui/primitives/button.tsx";
-import { EmptyState } from "../ui/primitives/empty-state.tsx";
-import { Skeleton } from "../ui/primitives/skeleton.tsx";
-import { BusinessRejection } from "../ui/patterns/business-rejection.tsx";
-import { SignInUnconfigured } from "../ui/patterns/sign-in.tsx";
-import { WorkspaceShell } from "../ui/patterns/workspace-shell.tsx";
-import { OfflineProvider } from "../offline/provider.tsx";
-import { SyncIndicator } from "../offline/sync-indicator.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { Skeleton } from "@/ui/primitives/skeleton.tsx";
+import { BusinessRejection } from "@/ui/patterns/feedback/business-rejection.tsx";
+import { SignInUnconfigured } from "@/ui/patterns/auth/sign-in.tsx";
+import { WorkspaceShell } from "@/ui/patterns/layout/workspace-shell.tsx";
+import { OfflineProvider } from "@/offline/provider.tsx";
+import { SyncIndicator } from "@/offline/sync-indicator.tsx";
 import {
   cacheSession,
   cacheWorkspaces,
   cachedSession,
   cachedWorkspaces,
-} from "../offline/session-cache.ts";
+} from "@/offline/session-cache.ts";
 
 /**
  * What every production route sits behind: a verified identity, an explicitly

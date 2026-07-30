@@ -4,17 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { SaleSummaryDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useTRPC } from "../../../api/providers.tsx";
-import { useSession } from "../../../api/session-gate.tsx";
-import {
-  pageStateForWorkspace,
-  type WorkspacePageState,
-} from "../../../api/workspace-page-state.ts";
-import { formatInstant, formatMoney } from "../../../ui/format.ts";
-import { PageActions, PageHeader, LinkButton } from "../../../ui/patterns/page-layout.tsx";
-import { QueryStates } from "../../../ui/patterns/query-states.tsx";
-import { Badge } from "../../../ui/primitives/badge.tsx";
-import { Button } from "../../../ui/primitives/button.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { pageStateForWorkspace, type WorkspacePageState } from "@/api/workspace-page-state.ts";
+import { formatInstant, formatMoney } from "@/ui/format.ts";
+import { PageActions, PageHeader, LinkButton } from "@/ui/patterns/layout/page-layout.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
 
 export default function SalesPage() {
   const { workspaceId, session } = useSession();

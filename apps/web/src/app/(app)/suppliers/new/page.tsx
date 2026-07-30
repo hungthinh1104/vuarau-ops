@@ -2,14 +2,14 @@
 
 import { useMutation } from "@tanstack/react-query";
 import type { SupplierDto, SupplierId } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useTRPC } from "../../../../api/providers.tsx";
-import { useCommand } from "../../../../api/use-command.ts";
-import { CommandOutcome } from "../../../../ui/patterns/command-outcome.tsx";
-import { Button } from "../../../../ui/primitives/button.tsx";
-import { INPUT_CLASS } from "../../../../ui/primitives/field.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useCommand } from "@/api/use-command.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 
 export default function NewSupplierPage() {
   const trpc = useTRPC();
@@ -27,7 +27,7 @@ export default function NewSupplierPage() {
   }, [command.result, router]);
   return (
     <div className="flex max-w-xl flex-col gap-4">
-      <h1 className="text-heading font-bold">Thêm nhà cung cấp</h1>
+      <PageHeader title="Thêm nhà cung cấp" back={{ href: "/suppliers", label: "Hủy" }} />
       <label className="text-label">
         Tên nhà cung cấp
         <input
@@ -70,9 +70,6 @@ export default function NewSupplierPage() {
         attemptedAction="Tạo nhà cung cấp"
         onReload={() => undefined}
       />
-      <Link href="/suppliers" className="text-info underline">
-        ← Hủy
-      </Link>
     </div>
   );
 }

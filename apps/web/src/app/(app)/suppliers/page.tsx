@@ -4,13 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { Cursor, Page, SupplierDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSession } from "../../../api/session-gate.tsx";
-import { useTRPC } from "../../../api/providers.tsx";
-import { useDebounced } from "../../../api/use-debounced.ts";
-import { QueryStates } from "../../../ui/patterns/query-states.tsx";
-import { SearchInput } from "../../../ui/primitives/search-input.tsx";
-import { Badge } from "../../../ui/primitives/badge.tsx";
-import { Button } from "../../../ui/primitives/button.tsx";
+import { useSession } from "@/api/session-gate.tsx";
+import { useTRPC } from "@/api/providers.tsx";
+import { useDebounced } from "@/api/use-debounced.ts";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export default function SuppliersPage() {
   const { workspaceId, session } = useSession();
@@ -35,14 +36,16 @@ export default function SuppliersPage() {
   const next = pages.at(-1)?.nextCursor ?? null;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-heading font-bold">Nhà cung cấp</h1>
-        {session.permissions.includes("supplier.create") ? (
-          <Link href="/suppliers/new" className="text-info underline">
-            Thêm nhà cung cấp
-          </Link>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Nhà cung cấp"
+        actions={
+          session.permissions.includes("supplier.create") ? (
+            <Link href="/suppliers/new" className="text-info underline">
+              Thêm nhà cung cấp
+            </Link>
+          ) : null
+        }
+      />
       <SearchInput
         label="Tìm nhà cung cấp"
         placeholder="Tên hoặc số điện thoại"
