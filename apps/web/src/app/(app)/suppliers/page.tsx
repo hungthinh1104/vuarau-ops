@@ -63,24 +63,54 @@ export default function SuppliersPage() {
           suppliers.length === 0 ? (
             <p>Chưa có nhà cung cấp phù hợp.</p>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {suppliers.map((supplier) => (
-                <li key={supplier.id}>
-                  <Link
-                    href={`/suppliers/${supplier.id}`}
-                    className="flex justify-between rounded-card border border-border bg-surface p-4"
-                  >
-                    <span>
-                      <strong>{supplier.displayName}</strong>
-                      <span className="block text-caption text-ink-muted">
-                        {supplier.phone ?? "Không có số điện thoại"}
+            <>
+              <ul className="flex flex-col gap-2 lg:hidden">
+                {suppliers.map((supplier) => (
+                  <li key={supplier.id}>
+                    <Link
+                      href={`/suppliers/${supplier.id}`}
+                      className="flex justify-between rounded-card border border-border bg-surface p-4"
+                    >
+                      <span>
+                        <strong>{supplier.displayName}</strong>
+                        <span className="block text-caption text-ink-muted">
+                          {supplier.phone ?? "Không có số điện thoại"}
+                        </span>
                       </span>
-                    </span>
-                    {supplier.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                      {supplier.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
+                <table className="w-full text-left text-body-sm">
+                  <thead className="sticky top-0 bg-surface-muted text-label">
+                    <tr>
+                      <th className="px-3 py-2">Nhà cung cấp</th>
+                      <th className="px-3 py-2">Điện thoại</th>
+                      <th className="px-3 py-2">Trạng thái</th>
+                      <th className="px-3 py-2">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {suppliers.map((supplier) => (
+                      <tr key={supplier.id} className="hover:bg-surface-muted">
+                        <td className="px-3 py-2 font-medium">{supplier.displayName}</td>
+                        <td className="px-3 py-2">{supplier.phone ?? "—"}</td>
+                        <td className="px-3 py-2">
+                          {supplier.isActive ? "Đang hoạt động" : "Đã ngưng"}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Link href={`/suppliers/${supplier.id}`} className="text-info underline">
+                            Mở chi tiết
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )
         }
       </QueryStates>

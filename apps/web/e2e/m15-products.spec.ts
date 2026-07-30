@@ -3,7 +3,7 @@ import { api } from "./harness/api.ts";
 import { uniqueCustomerName } from "./harness/environment.ts";
 
 test.describe("M15 — Product catalog", () => {
-  test("catalog changes never rewrite a posted Sale snapshot or block free text", async ({
+  test("catalog changes never rewrite a posted Sale snapshot and unresolved text must be resolved", async ({
     page,
   }) => {
     await signIn(page, "owner");
@@ -22,7 +22,7 @@ test.describe("M15 — Product catalog", () => {
 
     await page.goto("/products");
     await page.getByLabel("Tìm mặt hàng").fill(alias);
-    await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(name).first()).toBeVisible();
 
     const customerId = await api.createCustomer(uniqueCustomerName("product-sale"));
     await page.goto(`/customers/${customerId}/sales/new`);
@@ -32,11 +32,12 @@ test.describe("M15 — Product catalog", () => {
     await expect(line.getByLabel("Mặt hàng")).toHaveValue(name);
     await expect(line.getByLabel("Đơn vị")).toHaveValue("kg");
     await expect(line.getByLabel("Đơn giá")).toHaveValue("");
+    await line.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
     await line.getByLabel("Số lượng").fill("2");
     await line.getByLabel("Đơn giá").fill("20.000");
     await page.getByRole("button", { name: "Chốt đơn" }).click();
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
-    await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(name).first()).toBeVisible();
     await expect(page.getByText("2 kg × 20.000 ₫")).toBeVisible();
     const saleUrl = page.url();
 
@@ -50,7 +51,7 @@ test.describe("M15 — Product catalog", () => {
     await expect(page.getByRole("button", { name: "Dùng lại mặt hàng" })).toBeVisible();
 
     await page.goto(saleUrl);
-    await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(name).first()).toBeVisible();
     await expect(page.getByText("2 kg × 20.000 ₫")).toBeVisible();
     await expect(page.getByText(renamed)).toHaveCount(0);
 
@@ -61,11 +62,21 @@ test.describe("M15 — Product catalog", () => {
     await expect(page.getByRole("button", { name: `${renamed} · cái`, exact: true })).toHaveCount(
       0,
     );
+    await expect(page.getByText("Mặt hàng chưa có trong danh mục")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Chốt đơn" })).toBeDisabled();
+
+    const replacementName = `${renamed} mới`;
+    await freeTextLine.getByLabel("Mặt hàng").fill(replacementName);
+    await page.getByRole("button", { name: `Tạo mặt hàng “${replacementName}”` }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Tạo mặt hàng trong đơn" }),
+    ).toBeVisible();
+    await freeTextLine.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
     await freeTextLine.getByLabel("Số lượng").fill("1");
     await freeTextLine.getByLabel("Đơn giá").fill("10.000");
     await page.getByRole("button", { name: "Chốt đơn" }).click();
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
-    await expect(page.getByText(renamed, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(replacementName).first()).toBeVisible();
     await expect(page.getByText("1 kg × 10.000 ₫")).toBeVisible();
   });
 });

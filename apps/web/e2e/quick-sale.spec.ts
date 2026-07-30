@@ -16,6 +16,13 @@ type Line = { product: string; quantity: string; unit?: string; price: string };
 async function fillLine(page: Page, index: number, line: Line): Promise<void> {
   const row = page.getByTestId(`sale-line-${index}`);
   await row.getByLabel("Mặt hàng").fill(line.product);
+  const catalog = page.getByRole("heading", { name: "Danh mục mặt hàng" }).locator("..");
+  await catalog
+    .getByRole("button", {
+      name: new RegExp(`^${line.product.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}(?: · .+)?$`),
+    })
+    .click();
+  await row.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
   await row.getByLabel("Số lượng").fill(line.quantity);
   if (line.unit !== undefined) await row.getByLabel("Đơn vị").selectOption(line.unit);
   await row.getByLabel("Đơn giá").fill(line.price);
@@ -304,7 +311,7 @@ test.describe("TC-E2E-020 — analytics carry no business data", () => {
       if (message.text().startsWith("[workflow]")) events.push(message.text());
     });
 
-    await fillLine(page, 0, { product: "Ớt hiểm rất đắt", quantity: "12,5", price: "18.000" });
+    await fillLine(page, 0, { product: "Ớt hiểm", quantity: "12,5", price: "18.000" });
     await page.getByRole("button", { name: "Chốt đơn" }).click();
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 

@@ -1,6 +1,6 @@
 import type { CustomerDetailDto, DomainError } from "@vuarau/domain-contracts";
 
-export const OFFLINE_DATABASE_VERSION = 2;
+export const OFFLINE_DATABASE_VERSION = 3;
 
 export type OfflineCommandKind = "customer.create" | "sale.createDraft" | "sale.post";
 export type OfflineCommandState =
@@ -69,6 +69,15 @@ export type CachedProduct = {
   readonly displayName: string;
   readonly aliases: readonly string[];
   readonly preferredUnit: string | null;
+  readonly fetchedAt: string;
+};
+
+export type CachedQualityGrade = {
+  readonly qualityGradeId: string;
+  readonly actorId: string;
+  readonly workspaceId: string;
+  readonly name: string;
+  readonly sortOrder: number;
   readonly fetchedAt: string;
 };
 

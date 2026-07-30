@@ -1,6 +1,6 @@
 "use client";
 
-import type { Money, ProductId, Quantity, Unit } from "@vuarau/domain-contracts";
+import type { Money, ProductId, QualityGradeId, Quantity, Unit } from "@vuarau/domain-contracts";
 import { UNITS, UNIT_LABEL_VI, calculateLineTotal } from "@vuarau/domain-contracts";
 import { IconButton } from "../primitives/icon-button.tsx";
 import { MoneyInput } from "../primitives/money-input.tsx";
@@ -22,6 +22,8 @@ export type SaleLineDraft = {
   readonly lineId: string;
   readonly productId?: ProductId | null;
   readonly productName: string;
+  readonly qualityGradeId?: QualityGradeId | null;
+  readonly qualityGradeName?: string | null;
   readonly quantityText: string;
   readonly unit: Unit;
   readonly unitPriceText: string;
@@ -42,6 +44,8 @@ export function emptyLine(lineId: string): SaleLineDraft {
     lineId,
     productId: null,
     productName: "",
+    qualityGradeId: null,
+    qualityGradeName: null,
     quantityText: "",
     unit: "kg",
     unitPriceText: "",
@@ -121,12 +125,19 @@ export type SaleLineEditorProps = {
   readonly issues: SaleLineIssue;
   /** Server-side line refusal for this row, e.g. `SALE_LINE_INVALID`. */
   readonly serverIssue?: string;
-  readonly onChange: (line: SaleLineDraft) => void;
+  readonly onChange: (
+    line: SaleLineDraft,
+    field: "product" | "qualityGrade" | "quantity" | "unit" | "unitPrice",
+  ) => void;
   readonly onRemove: () => void;
   readonly canRemove: boolean;
   readonly onFocus?: () => void;
   /** A durably queued offline snapshot is immutable until server confirmation. */
   readonly disabled?: boolean;
+  readonly qualityGradeOptions?: readonly {
+    readonly value: string;
+    readonly label: string;
+  }[];
 };
 
 /**
@@ -150,6 +161,7 @@ export function SaleLineEditor({
   canRemove,
   onFocus,
   disabled = false,
+  qualityGradeOptions = [],
 }: SaleLineEditorProps) {
   const { total } = resolveLine(line);
 
@@ -171,10 +183,33 @@ export function SaleLineEditor({
       <TextInput
         label="Mặt hàng"
         required
+        placeholder="Nhập hoặc chọn mặt hàng"
         disabled={disabled}
         value={line.productName}
-        onChange={(event) => onChange({ ...line, productName: event.target.value })}
+        onChange={(event) => onChange({ ...line, productName: event.target.value }, "product")}
         {...(issues.productName !== undefined ? { error: issues.productName } : {})}
+      />
+
+      <Select
+        label="Phân hạng chất lượng"
+        required
+        disabled={disabled}
+        value={line.qualityGradeId ?? ""}
+        placeholder="Chọn phân hạng"
+        onChange={(event) => {
+          const option = qualityGradeOptions.find(
+            (candidate) => candidate.value === event.target.value,
+          );
+          onChange(
+            {
+              ...line,
+              qualityGradeId: (event.target.value || null) as QualityGradeId | null,
+              qualityGradeName: option?.label ?? null,
+            },
+            "qualityGrade",
+          );
+        }}
+        options={qualityGradeOptions}
       />
 
       <div className="grid grid-cols-2 gap-3">
@@ -184,14 +219,14 @@ export function SaleLineEditor({
           disabled={disabled}
           unit={line.unit}
           value={line.quantityText}
-          onChange={(event) => onChange({ ...line, quantityText: event.target.value })}
+          onChange={(event) => onChange({ ...line, quantityText: event.target.value }, "quantity")}
           {...(issues.quantity !== undefined ? { error: issues.quantity } : {})}
         />
         <Select
           label="Đơn vị"
           disabled={disabled}
           value={line.unit}
-          onChange={(event) => onChange({ ...line, unit: event.target.value as Unit })}
+          onChange={(event) => onChange({ ...line, unit: event.target.value as Unit }, "unit")}
           options={UNIT_OPTIONS}
         />
       </div>
@@ -202,7 +237,7 @@ export function SaleLineEditor({
         disabled={disabled}
         currency="VND"
         value={line.unitPriceText}
-        onChange={(event) => onChange({ ...line, unitPriceText: event.target.value })}
+        onChange={(event) => onChange({ ...line, unitPriceText: event.target.value }, "unitPrice")}
         {...(issues.unitPrice !== undefined ? { error: issues.unitPrice } : {})}
       />
 

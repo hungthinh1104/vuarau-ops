@@ -84,13 +84,14 @@ export default function DeliveryDetailPage() {
             <h2 className="font-semibold">Hàng giao</h2>
             <ul className="divide-y divide-border">
               {delivery.lines.map((line) => (
-                <li key={line.deliveryLineId} className="grid gap-2 py-3 md:grid-cols-3">
+                <li key={line.deliveryLineId} className="grid gap-2 py-3 md:grid-cols-4">
                   <Link
                     href={`/products/${line.productId}/inventory`}
                     className="text-info underline"
                   >
                     {line.productName}
                   </Link>
+                  <span>{line.qualityGradeName ?? "Chưa phân loại (lịch sử)"}</span>
                   <span>Giao {formatQuantity(line.quantity)}</span>
                   <span>Trả {formatQuantity(line.returnedQuantity)}</span>
                 </li>
@@ -105,7 +106,7 @@ export default function DeliveryDetailPage() {
                   void dispatch.submit({ deliveryId }, { expectedVersion: delivery.version })
                 }
               >
-                Xuất kho
+                Xuất hàng / Bắt đầu giao
               </Button>
             ) : null}
             {delivery.status === "dispatched" &&
@@ -115,7 +116,7 @@ export default function DeliveryDetailPage() {
                   void delivered.submit({ deliveryId }, { expectedVersion: delivery.version })
                 }
               >
-                Xác nhận đã giao
+                Đã giao khách
               </Button>
             ) : null}
             {session.permissions.includes("document.generate") ? (
@@ -192,12 +193,12 @@ export default function DeliveryDetailPage() {
           ) : null}
           <CommandOutcome
             command={dispatch}
-            attemptedAction="Xuất kho"
+            attemptedAction="Xuất hàng / Bắt đầu giao"
             onReload={() => void query.refetch()}
           />
           <CommandOutcome
             command={delivered}
-            attemptedAction="Xác nhận đã giao"
+            attemptedAction="Đã giao khách"
             onReload={() => void query.refetch()}
           />
           <CommandOutcome

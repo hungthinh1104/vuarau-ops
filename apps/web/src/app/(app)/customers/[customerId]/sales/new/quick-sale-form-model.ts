@@ -6,6 +6,8 @@ import type {
   CustomerId,
   Money,
   ProductId,
+  ProductDto,
+  QualityGradeId,
   SaleDto,
 } from "@vuarau/domain-contracts";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -17,7 +19,7 @@ import { hasPermission } from "../../../../../../api/session.ts";
 import { useWorkflowMetrics } from "../../../../../../api/workflow-metrics.ts";
 import { useDebounced } from "../../../../../../api/use-debounced.ts";
 import { useOffline } from "../../../../../../offline/provider.tsx";
-import type { CachedProduct } from "../../../../../../offline/types.ts";
+import type { CachedProduct, CachedQualityGrade } from "../../../../../../offline/types.ts";
 import { emptyLine, resolveLine } from "../../../../../../ui/patterns/sale-line-editor.tsx";
 import type { SaleLineDraft } from "../../../../../../ui/patterns/sale-line-editor.tsx";
 import { replacementDraftFrom } from "../../../../../../ui/patterns/replacement-sale-draft.ts";
@@ -61,6 +63,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   const [cacheFetchedAt, setCacheFetchedAt] = useState<string | null>(null);
 
   const [cachedProducts, setCachedProducts] = useState<readonly CachedProduct[]>([]);
+  const [cachedQualityGrades, setCachedQualityGrades] = useState<readonly CachedQualityGrade[]>([]);
 
   const customer = useQuery(trpc.customer.get.queryOptions({ workspaceId, customerId }));
 
@@ -118,6 +121,34 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
       limit: 8,
     }),
   );
+  const qualityGrades = useQuery(
+    trpc.quality.list.queryOptions({
+      workspaceId,
+      query: "",
+      isActive: true,
+      cursor: null,
+      limit: 100,
+    }),
+  );
+
+  useEffect(() => {
+    if (qualityGrades.data === undefined) return;
+    const fetchedAt = new Date().toISOString();
+    const rows = qualityGrades.data.items.map((grade) => ({
+      ...offline.partition,
+      qualityGradeId: grade.id,
+      name: grade.name,
+      sortOrder: grade.sortOrder,
+      fetchedAt,
+    }));
+    setCachedQualityGrades(rows);
+    void offline.cacheQualityGrades(rows);
+  }, [offline, qualityGrades.data]);
+
+  useEffect(() => {
+    if (qualityGrades.data !== undefined) return;
+    void offline.cachedQualityGrades().then(setCachedQualityGrades);
+  }, [offline, qualityGrades.data]);
 
   useEffect(() => {
     if (productSuggestions.data === undefined) return;
@@ -289,6 +320,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   }, [activeLine.lineId, activeLine.productName, activeLine.unit, capture.data, metrics]);
 
   const createDraft = useMutation(trpc.sale.createDraft.mutationOptions());
+  const createProductMutation = useMutation(trpc.product.create.mutationOptions());
 
   const updateDraft = useMutation(trpc.sale.updateDraft.mutationOptions());
 
@@ -313,10 +345,57 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   const discardCommand = useCommand<{ saleId: string; reason: string | null }, SaleDto>(
     async (envelope) => (await discardDraft.mutateAsync(envelope as never)) as SaleDto,
   );
+  const productCreateCommand = useCommand<
+    {
+      productId: string;
+      displayName: string;
+      aliases: readonly string[];
+      preferredUnit: SaleLineDraft["unit"];
+    },
+    ProductDto
+  >(async (envelope) => (await createProductMutation.mutateAsync(envelope as never)) as ProductDto);
+  const pendingProductRef = useRef<{
+    readonly context: string;
+    readonly productId: string;
+  } | null>(null);
 
   const resolved = lines.map(resolveLine);
 
   const allValid = resolved.every((line) => line.total !== null);
+  const fulfilmentReady = lines.every(
+    (line) =>
+      line.productId !== null &&
+      line.productId !== undefined &&
+      line.qualityGradeId !== null &&
+      line.qualityGradeId !== undefined &&
+      line.qualityGradeName !== null &&
+      line.qualityGradeName !== undefined,
+  );
+  const qualityGradeOptions = (
+    qualityGrades.data?.items ??
+    [...cachedQualityGrades]
+      .sort(
+        (left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name),
+      )
+      .map((grade) => ({
+        id: grade.qualityGradeId as QualityGradeId,
+        name: grade.name,
+      }))
+  ).map((grade) => ({
+    value: grade.id,
+    label: grade.name,
+  }));
+  const exactProductMatch = visibleProducts.find(
+    (product) =>
+      product.displayName.localeCompare(activeLine.productName.trim(), "vi", {
+        sensitivity: "base",
+      }) === 0,
+  );
+  const noProductMatch =
+    activeLine.productName.trim().length > 0 &&
+    activeLine.productId == null &&
+    exactProductMatch === undefined;
+  const mayCreateProduct = hasPermission(session, "product.create");
 
   const total: Money = {
     amountMinor: resolved.reduce((sum, line) => sum + (line.total?.amountMinor ?? 0), 0),
@@ -338,8 +417,11 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     draftCommand.error?.details ?? postCommand.error?.details ?? null,
   );
 
-  function editLines(next: readonly SaleLineDraft[]): void {
-    setLines(next);
+  function editLines(
+    next:
+      readonly SaleLineDraft[] | ((current: readonly SaleLineDraft[]) => readonly SaleLineDraft[]),
+  ): void {
+    setLines((current) => (typeof next === "function" ? next(current) : next));
     setDirty(true);
     // Editing after a successful save is a new intention, and `useCommand`
     // refuses a second submit until it is reset.
@@ -351,6 +433,36 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     const line = emptyLine(crypto.randomUUID());
     editLines([...lines, line]);
     setActiveLineId(line.lineId);
+  }
+
+  async function createActiveProduct(): Promise<void> {
+    const displayName = activeLine.productName.trim();
+    if (!mayCreateProduct || displayName.length === 0 || locallyQueued) return;
+    const context = `${activeLine.lineId}\u0000${displayName}\u0000${activeLine.unit}`;
+    if (pendingProductRef.current?.context !== context) {
+      pendingProductRef.current = { context, productId: crypto.randomUUID() };
+      productCreateCommand.reset();
+    }
+    const created = await productCreateCommand.submit({
+      productId: pendingProductRef.current.productId,
+      displayName,
+      aliases: [],
+      preferredUnit: activeLine.unit,
+    });
+    if (created === null) return;
+    editLines((current) =>
+      current.map((line) =>
+        line.lineId === activeLine.lineId
+          ? {
+              ...line,
+              productId: created.id,
+              productName: created.displayName,
+              unit: created.preferredUnit ?? line.unit,
+            }
+          : line,
+      ),
+    );
+    metrics.count("product_created_inline");
   }
 
   function toPayload() {
@@ -366,6 +478,8 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
          */
         productId: line.productId ?? null,
         productName: line.productName.trim(),
+        qualityGradeId: (line.qualityGradeId ?? null) as QualityGradeId | null,
+        qualityGradeName: line.qualityGradeName ?? null,
         quantity: resolved[index]!.quantity,
         unitPrice: resolved[index]!.unitPrice,
       })),
@@ -427,7 +541,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   async function post(): Promise<void> {
     if (replacementPending) return;
     setSubmitted(true);
-    if (!allValid) {
+    if (!allValid || !fulfilmentReady) {
       metrics.count("validation_error_count");
       return;
     }
@@ -497,6 +611,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     cachedCatalogFetchedAt,
     cachedCustomer,
     capture,
+    createActiveProduct,
     customer,
     customerId,
     dirty,
@@ -506,7 +621,9 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     editLines,
     lines,
     locallyQueued,
+    fulfilmentReady,
     mayCreate,
+    mayCreateProduct,
     mayPost,
     metrics,
     note,
@@ -514,6 +631,10 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     pendingCustomerCreate,
     post,
     postCommand,
+    productCreateCommand,
+    noProductMatch,
+    qualityGrades,
+    qualityGradeOptions,
     replacementPending,
     replacementSource,
     replacesSaleId,

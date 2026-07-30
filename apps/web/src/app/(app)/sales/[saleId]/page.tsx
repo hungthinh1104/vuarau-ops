@@ -243,7 +243,10 @@ export default function SaleDetailPage() {
                   <h2 className="text-subheading font-semibold">Thực hiện giao hàng</h2>
                   {hasPermission(session, "delivery.create") &&
                   detail.sale.status === "posted" &&
-                  fulfilment.data.lines.some((line) => line.remaining.valueScaled > 0) ? (
+                  fulfilment.data.lines.some(
+                    (line) =>
+                      line.fulfilmentState !== "attention" && line.remaining.valueScaled > 0,
+                  ) ? (
                     <Link href={`/sales/${saleId}/deliveries/new`} className="text-info underline">
                       Tạo phiếu giao
                     </Link>
@@ -251,12 +254,22 @@ export default function SaleDetailPage() {
                 </div>
                 <ul className="mt-3 divide-y divide-border">
                   {fulfilment.data.lines.map((line) => (
-                    <li key={line.saleLineId} className="grid gap-1 py-2 md:grid-cols-5">
-                      <strong>{line.productName}</strong>
+                    <li key={line.saleLineId} className="grid gap-1 py-2 md:grid-cols-7">
+                      <strong>
+                        {line.productName} · {line.qualityGradeName ?? "Chưa phân loại"}
+                      </strong>
                       <span>Đặt {formatQuantity(line.ordered)}</span>
                       <span>Đã xuất {formatQuantity(line.dispatched)}</span>
                       <span>Đã trả {formatQuantity(line.returned)}</span>
+                      <span>Thực giao {formatQuantity(line.netFulfilled)}</span>
                       <span>Còn {formatQuantity(line.remaining)}</span>
+                      <span>
+                        {line.fulfilmentState === "fulfilled"
+                          ? "Đã giao đủ"
+                          : line.fulfilmentState === "attention"
+                            ? `Cần xử lý: ${line.blockedReason ?? "dữ liệu không toàn vẹn"}`
+                            : line.fulfilmentState.replaceAll("_", " ")}
+                      </span>
                     </li>
                   ))}
                 </ul>

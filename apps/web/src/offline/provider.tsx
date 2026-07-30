@@ -12,6 +12,7 @@ import { OfflineSyncEngine } from "./sync-engine.ts";
 import type {
   CachedCustomer,
   CachedProduct,
+  CachedQualityGrade,
   OfflinePartition,
   OfflineSaleDraft,
   OutboxRecord,
@@ -34,6 +35,8 @@ type OfflineContextValue = {
   readonly cachedCustomers: () => Promise<readonly CachedCustomer[]>;
   readonly cacheProducts: (products: readonly CachedProduct[]) => Promise<void>;
   readonly cachedProducts: () => Promise<readonly CachedProduct[]>;
+  readonly cacheQualityGrades: (grades: readonly CachedQualityGrade[]) => Promise<void>;
+  readonly cachedQualityGrades: () => Promise<readonly CachedQualityGrade[]>;
   readonly retry: () => Promise<void>;
 };
 
@@ -133,6 +136,14 @@ export function OfflineProvider(props: {
     [database, partition],
   );
   const cachedProducts = useCallback(() => database.products(partition), [database, partition]);
+  const cacheQualityGrades = useCallback(
+    (grades: readonly CachedQualityGrade[]) => database.cacheQualityGrades(partition, grades),
+    [database, partition],
+  );
+  const cachedQualityGrades = useCallback(
+    () => database.qualityGrades(partition),
+    [database, partition],
+  );
 
   const value: OfflineContextValue = useMemo(
     () => ({
@@ -151,6 +162,8 @@ export function OfflineProvider(props: {
       cachedCustomers,
       cacheProducts,
       cachedProducts,
+      cacheQualityGrades,
+      cachedQualityGrades,
       retry,
     }),
     [
@@ -158,6 +171,8 @@ export function OfflineProvider(props: {
       cacheProducts,
       cachedCustomers,
       cachedProducts,
+      cacheQualityGrades,
+      cachedQualityGrades,
       commands,
       lastSuccessfulSync,
       loadDraft,

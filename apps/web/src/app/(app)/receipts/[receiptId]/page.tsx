@@ -49,7 +49,9 @@ export default function ReceiptDetailPage() {
                 >
                   Mặt hàng {line.productId.slice(0, 8).toUpperCase()}
                 </Link>
-                <p>{formatQuantity(line.quantity)}</p>
+                <p>
+                  {line.qualityGradeName} · {formatQuantity(line.quantity)}
+                </p>
               </li>
             ))}
           </ul>

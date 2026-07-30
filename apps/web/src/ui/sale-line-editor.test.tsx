@@ -124,6 +124,28 @@ describe("TC-WEB-022 — the line editor", () => {
     expect(screen.queryByRole("button", { name: /Xoá dòng/ })).toBeNull();
   });
 
+  it("does not visually preselect a grade before the worker chooses one", async () => {
+    const onChange = vi.fn();
+    render(
+      <SaleLineEditor
+        {...base}
+        line={{ ...base.line, qualityGradeId: null, qualityGradeName: null }}
+        qualityGradeOptions={[{ value: "grade-1", label: "Loại 1" }]}
+        onChange={onChange}
+        onRemove={() => undefined}
+      />,
+    );
+    expect(screen.getByLabelText(/Phân hạng chất lượng/)).toHaveValue("");
+    await userEvent.selectOptions(screen.getByLabelText(/Phân hạng chất lượng/), "grade-1");
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        qualityGradeId: "grade-1",
+        qualityGradeName: "Loại 1",
+      }),
+      "qualityGrade",
+    );
+  });
+
   /**
    * Every control is `type="button"`. On a phone with a numeric keypad, an
    * implicit form submit is one mis-tap away from posting a sale.
@@ -162,6 +184,7 @@ describe("TC-WEB-023 — workflow metrics", () => {
       "recent_customer_selected",
       "customer_selected_from_search",
       "customer_created_inline",
+      "product_created_inline",
       "historical_product_selected",
       "historical_price_offered",
       "historical_price_applied",

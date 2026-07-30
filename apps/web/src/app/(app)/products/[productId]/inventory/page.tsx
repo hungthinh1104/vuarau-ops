@@ -1,7 +1,15 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { Cursor, InventoryMovementDto, Page, ProductId, Unit } from "@vuarau/domain-contracts";
+import type {
+  Cursor,
+  InventoryMovementDto,
+  Page,
+  ProductId,
+  QualityGradeDto,
+  QualityGradeId,
+  Unit,
+} from "@vuarau/domain-contracts";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -24,19 +32,31 @@ const movementHref = (movement: InventoryMovementDto) =>
       ? `/inventory-adjustments/${movement.sourceDocument.id}`
       : null;
 
+const gradeLabel = (gradeName: string | null) => gradeName ?? "Chưa phân loại (lịch sử)";
+
 export default function ProductInventoryPage() {
   const productId = useParams<{ productId: string }>().productId as ProductId;
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const product = useQuery(trpc.product.get.queryOptions({ workspaceId, productId }));
   const balances = useQuery(trpc.inventory.balances.queryOptions({ workspaceId, productId }));
+  const grades = useQuery(
+    trpc.quality.list.queryOptions({
+      workspaceId,
+      isActive: true,
+      cursor: null,
+      limit: 100,
+    }),
+  );
   const [unitFilter, setUnitFilter] = useState<Unit | null>(null);
+  const [gradeFilter, setGradeFilter] = useState<QualityGradeId | null | undefined>(undefined);
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const [pages, setPages] = useState<readonly Page<InventoryMovementDto>[]>([]);
   const timeline = useQuery(
     trpc.inventory.timeline.queryOptions({
       workspaceId,
       productId,
+      qualityGradeId: gradeFilter,
       unit: unitFilter,
       cursor,
       limit: 25,
@@ -69,9 +89,12 @@ export default function ProductInventoryPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((balance) => (
                 <section
-                  key={balance.unit}
+                  key={`${balance.qualityGradeId ?? "legacy"}:${balance.unit}`}
                   className="rounded-card border border-border bg-surface p-4"
                 >
+                  <p className="text-label text-ink-muted">
+                    {gradeLabel(balance.qualityGradeName)}
+                  </p>
                   <p className="text-heading font-bold">
                     {formatQuantity({ valueScaled: balance.quantityScaled, unit: balance.unit })}
                   </p>
@@ -92,6 +115,28 @@ export default function ProductInventoryPage() {
           )
         }
       </QueryStates>
+      <Select
+        label="Lọc theo phẩm cấp"
+        value={gradeFilter === undefined ? "" : (gradeFilter ?? "legacy")}
+        onChange={(event) => {
+          setGradeFilter(
+            event.target.value === ""
+              ? undefined
+              : event.target.value === "legacy"
+                ? null
+                : (event.target.value as QualityGradeId),
+          );
+          setCursor(null);
+          setPages([]);
+        }}
+        placeholder="Tất cả phẩm cấp, không cộng gộp"
+        options={[
+          ...(balances.data?.some((row) => row.qualityGradeId === null)
+            ? [{ value: "legacy", label: "Chưa phân loại (lịch sử)" }]
+            : []),
+          ...(grades.data?.items.map((grade) => ({ value: grade.id, label: grade.name })) ?? []),
+        ]}
+      />
       <Select
         label="Lọc theo đơn vị"
         value={unitFilter ?? ""}
@@ -121,7 +166,10 @@ export default function ProductInventoryPage() {
                     className="rounded-card border border-border bg-surface p-3"
                   >
                     <div className="flex justify-between">
-                      <span>{movement.sourceType.replaceAll("_", " ")}</span>
+                      <span>
+                        {movement.sourceType.replaceAll("_", " ")} ·{" "}
+                        {gradeLabel(movement.qualityGradeName)}
+                      </span>
                       <strong>{formatQuantity(movement.quantity)}</strong>
                     </div>
                     <p className="text-caption text-ink-muted">
@@ -148,6 +196,18 @@ export default function ProductInventoryPage() {
       {session.permissions.includes("inventory.adjust") ? (
         <InventoryAdjustment
           productId={productId}
+          grades={grades.data?.items ?? []}
+          onChanged={() => {
+            setCursor(null);
+            setPages([]);
+            void Promise.all([balances.refetch(), timeline.refetch()]);
+          }}
+        />
+      ) : null}
+      {session.permissions.includes("inventory.reclassify") ? (
+        <InventoryReclassification
+          productId={productId}
+          grades={grades.data?.items ?? []}
           onChanged={() => {
             setCursor(null);
             setPages([]);
@@ -162,12 +222,17 @@ export default function ProductInventoryPage() {
   );
 }
 
-function InventoryAdjustment(props: { productId: ProductId; onChanged: () => void }) {
+function InventoryAdjustment(props: {
+  productId: ProductId;
+  grades: readonly QualityGradeDto[];
+  onChanged: () => void;
+}) {
   const trpc = useTRPC();
   const adjustmentId = useRef(crypto.randomUUID()).current;
   const [direction, setDirection] = useState<"increase" | "decrease">("increase");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState<Unit>("kg");
+  const [qualityGradeId, setQualityGradeId] = useState<QualityGradeId | null>(null);
   const [reasonCode, setReasonCode] = useState<
     "opening_balance" | "count_correction" | "spoilage" | "shrinkage" | "other"
   >("count_correction");
@@ -176,9 +241,13 @@ function InventoryAdjustment(props: { productId: ProductId; onChanged: () => voi
   const command = useCommand<unknown, { adjustmentId: string }>((envelope) =>
     mutation.mutateAsync(envelope as never),
   );
+  const refreshedAdjustmentId = useRef<string | null>(null);
   useEffect(() => {
-    if (command.result !== null) props.onChanged();
-  }, [command.result, props]);
+    if (command.result === null || refreshedAdjustmentId.current === command.result.adjustmentId)
+      return;
+    refreshedAdjustmentId.current = command.result.adjustmentId;
+    props.onChanged();
+  }, [command.result, props.onChanged]);
   const quantityScaled = Math.round(Number(quantity) * 1000);
   return (
     <section className="rounded-card border border-border bg-surface p-4">
@@ -210,6 +279,13 @@ function InventoryAdjustment(props: { productId: ProductId; onChanged: () => voi
         />
       </div>
       <Select
+        label="Phẩm cấp"
+        value={qualityGradeId ?? ""}
+        onChange={(event) => setQualityGradeId(event.target.value as QualityGradeId)}
+        placeholder="Chọn phẩm cấp"
+        options={props.grades.map((grade) => ({ value: grade.id, label: grade.name }))}
+      />
+      <Select
         label="Mã lý do"
         value={reasonCode}
         onChange={(event) => setReasonCode(event.target.value as typeof reasonCode)}
@@ -231,12 +307,17 @@ function InventoryAdjustment(props: { productId: ProductId; onChanged: () => voi
       </label>
       <Button
         disabled={
-          !Number.isSafeInteger(quantityScaled) || quantityScaled <= 0 || reason.trim().length === 0
+          !Number.isSafeInteger(quantityScaled) ||
+          quantityScaled <= 0 ||
+          reason.trim().length === 0 ||
+          qualityGradeId === null
         }
         onClick={() =>
           void command.submit({
             adjustmentId,
             productId: props.productId,
+            qualityGradeId,
+            qualityGradeName: props.grades.find((grade) => grade.id === qualityGradeId)?.name ?? "",
             quantity: { valueScaled: quantityScaled, unit },
             direction,
             reasonCode,
@@ -249,6 +330,114 @@ function InventoryAdjustment(props: { productId: ProductId; onChanged: () => voi
       <CommandOutcome
         command={command}
         attemptedAction="Điều chỉnh tồn kho"
+        onReload={props.onChanged}
+      />
+    </section>
+  );
+}
+
+function InventoryReclassification(props: {
+  productId: ProductId;
+  grades: readonly QualityGradeDto[];
+  onChanged: () => void;
+}) {
+  const trpc = useTRPC();
+  const reclassificationId = useRef(crypto.randomUUID()).current;
+  const [fromGradeId, setFromGradeId] = useState<QualityGradeId | null>(null);
+  const [toGradeId, setToGradeId] = useState<QualityGradeId | null>(null);
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState<Unit>("kg");
+  const [reason, setReason] = useState("");
+  const mutation = useMutation(trpc.inventory.reclassify.mutationOptions());
+  const command = useCommand<unknown, { reclassificationId: string }>((envelope) =>
+    mutation.mutateAsync(envelope as never),
+  );
+  const refreshedReclassificationId = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      command.result === null ||
+      refreshedReclassificationId.current === command.result.reclassificationId
+    )
+      return;
+    refreshedReclassificationId.current = command.result.reclassificationId;
+    props.onChanged();
+  }, [command.result, props.onChanged]);
+  const quantityScaled = Math.round(Number(quantity) * 1000);
+  const fromGrade = props.grades.find((grade) => grade.id === fromGradeId);
+  const toGrade = props.grades.find((grade) => grade.id === toGradeId);
+  return (
+    <section className="rounded-card border border-border bg-surface p-4">
+      <h2 className="text-subheading font-semibold">Chuyển phẩm cấp</h2>
+      <p className="text-body-sm text-ink-muted">
+        Ghi hai biến động bù trừ trong cùng giao dịch; tổng số lượng không đổi.
+      </p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Select
+          label="Từ phẩm cấp"
+          value={fromGradeId ?? ""}
+          onChange={(event) => setFromGradeId(event.target.value as QualityGradeId)}
+          placeholder="Chọn phẩm cấp nguồn"
+          options={props.grades.map((grade) => ({ value: grade.id, label: grade.name }))}
+        />
+        <Select
+          label="Sang phẩm cấp"
+          value={toGradeId ?? ""}
+          onChange={(event) => setToGradeId(event.target.value as QualityGradeId)}
+          placeholder="Chọn phẩm cấp đích"
+          options={props.grades.map((grade) => ({ value: grade.id, label: grade.name }))}
+        />
+        <label className="text-label">
+          Số lượng
+          <input
+            className={INPUT_CLASS}
+            inputMode="decimal"
+            value={quantity}
+            onChange={(event) => setQuantity(event.target.value)}
+          />
+        </label>
+        <Select
+          label="Đơn vị"
+          value={unit}
+          onChange={(event) => setUnit(event.target.value as Unit)}
+          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
+        />
+      </div>
+      <label className="text-label">
+        Lý do
+        <textarea
+          className={INPUT_CLASS}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+        />
+      </label>
+      <Button
+        disabled={
+          fromGrade === undefined ||
+          toGrade === undefined ||
+          fromGrade.id === toGrade.id ||
+          !Number.isSafeInteger(quantityScaled) ||
+          quantityScaled <= 0 ||
+          reason.trim().length === 0
+        }
+        onClick={() => {
+          if (fromGrade === undefined || toGrade === undefined) return;
+          void command.submit({
+            reclassificationId,
+            productId: props.productId,
+            fromQualityGradeId: fromGrade.id,
+            fromQualityGradeName: fromGrade.name,
+            toQualityGradeId: toGrade.id,
+            toQualityGradeName: toGrade.name,
+            quantity: { valueScaled: quantityScaled, unit },
+            reason: reason.trim(),
+          });
+        }}
+      >
+        Ghi chuyển phẩm cấp
+      </Button>
+      <CommandOutcome
+        command={command}
+        attemptedAction="Chuyển phẩm cấp"
         onReload={props.onChanged}
       />
     </section>

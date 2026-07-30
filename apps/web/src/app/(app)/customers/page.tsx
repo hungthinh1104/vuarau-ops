@@ -113,13 +113,53 @@ export default function CustomersPage() {
               }
             />
           ) : (
-            <ul className="flex flex-col gap-2">
-              {items.map((customer) => (
-                <li key={customer.id}>
-                  <CustomerRow customer={customer} />
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="flex flex-col gap-2 lg:hidden">
+                {items.map((customer) => (
+                  <li key={customer.id}>
+                    <CustomerRow customer={customer} />
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
+                <table className="w-full text-left text-body-sm">
+                  <thead className="sticky top-0 bg-surface-muted text-label">
+                    <tr>
+                      <th className="px-3 py-2">Khách hàng</th>
+                      <th className="px-3 py-2">Điện thoại</th>
+                      <th className="px-3 py-2">Trạng thái</th>
+                      <th className="px-3 py-2 text-right">Công nợ</th>
+                      <th className="px-3 py-2">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {items.map((customer) => {
+                      const balance = describeBalance(customer.balance, customer.classification);
+                      return (
+                        <tr key={customer.id} className="hover:bg-surface-muted">
+                          <td className="px-3 py-2 font-medium">{customer.displayName}</td>
+                          <td className="px-3 py-2">{customer.phone ?? "—"}</td>
+                          <td className="px-3 py-2">
+                            {customer.isActive ? "Đang hoạt động" : "Đã ngưng"}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {balance.label} {balance.amount ?? "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Link
+                              href={`/customers/${customer.id}`}
+                              className="text-info underline"
+                            >
+                              Mở hồ sơ
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )
         }
       </QueryStates>

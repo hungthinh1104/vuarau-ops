@@ -19,6 +19,7 @@ export const E2E_WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
  * (BR-AUTH-008), which is why a spec can assert on it at all.
  */
 export const E2E_WORKSPACE_NAME = "Vựa rau Bình Điền";
+export const E2E_QUALITY_GRADE_ID = "55555555-5555-4555-8555-555555555501";
 
 /** From the development seed: one actor per role, fixed uuids. */
 export const E2E_ACTORS = {

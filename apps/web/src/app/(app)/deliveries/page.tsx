@@ -70,36 +70,76 @@ export default function DeliveriesPage() {
           rows.length === 0 ? (
             <p>Chưa có phiếu giao hàng.</p>
           ) : (
-            <ul className="grid gap-2">
-              {rows.map((delivery) => (
-                <li key={delivery.id}>
-                  <Link
-                    href={`/deliveries/${delivery.id}`}
-                    className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-4"
-                  >
-                    <span>
-                      <strong>Phiếu {delivery.id.slice(0, 8)}</strong>
-                      <span className="block text-caption text-ink-muted">
-                        {formatInstant(delivery.transactionTime)} · {delivery.lines.length} dòng
-                      </span>
-                    </span>
-                    <Badge
-                      tone={
-                        delivery.status === "dispatched"
-                          ? "info"
-                          : delivery.status === "cancelled"
-                            ? "warning"
-                            : delivery.status === "delivered"
-                              ? "positive"
-                              : "neutral"
-                      }
+            <>
+              <ul className="grid gap-2 lg:hidden">
+                {rows.map((delivery) => (
+                  <li key={delivery.id}>
+                    <Link
+                      href={`/deliveries/${delivery.id}`}
+                      className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-4"
                     >
-                      {STATUS[delivery.status]}
-                    </Badge>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                      <span>
+                        <strong>Phiếu {delivery.id.slice(0, 8)}</strong>
+                        <span className="block text-caption text-ink-muted">
+                          {formatInstant(delivery.transactionTime)} · {delivery.lines.length} dòng
+                        </span>
+                      </span>
+                      <Badge
+                        tone={
+                          delivery.status === "dispatched"
+                            ? "info"
+                            : delivery.status === "cancelled"
+                              ? "warning"
+                              : delivery.status === "delivered"
+                                ? "positive"
+                                : "neutral"
+                        }
+                      >
+                        {STATUS[delivery.status]}
+                      </Badge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
+                <table className="w-full text-left text-body-sm">
+                  <thead className="sticky top-0 bg-surface-muted text-label">
+                    <tr>
+                      <th className="px-3 py-2">Phiếu</th>
+                      <th className="px-3 py-2">Đơn bán</th>
+                      <th className="px-3 py-2">Thời điểm</th>
+                      <th className="px-3 py-2">Số dòng</th>
+                      <th className="px-3 py-2">Trạng thái</th>
+                      <th className="px-3 py-2">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {rows.map((delivery) => (
+                      <tr key={delivery.id} className="hover:bg-surface-muted">
+                        <td className="px-3 py-2 font-medium">
+                          {delivery.id.slice(0, 8).toUpperCase()}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Link href={`/sales/${delivery.saleId}`} className="text-info underline">
+                            {delivery.saleId.slice(0, 8).toUpperCase()}
+                          </Link>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          {formatInstant(delivery.transactionTime)}
+                        </td>
+                        <td className="px-3 py-2">{delivery.lines.length}</td>
+                        <td className="px-3 py-2">{STATUS[delivery.status]}</td>
+                        <td className="px-3 py-2">
+                          <Link href={`/deliveries/${delivery.id}`} className="text-info underline">
+                            Mở phiếu
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )
         }
       </QueryStates>

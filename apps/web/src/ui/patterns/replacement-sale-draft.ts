@@ -15,7 +15,10 @@ export function replacementDraftFrom(
   return {
     lines: sale.lines.map((line) => ({
       lineId: newLineId(),
+      productId: line.productId,
       productName: line.productName,
+      qualityGradeId: line.qualityGradeId,
+      qualityGradeName: line.qualityGradeName,
       quantityText: String(line.quantity.valueScaled / 1_000),
       unit: line.quantity.unit,
       unitPriceText: String(line.unitPrice.amountMinor),

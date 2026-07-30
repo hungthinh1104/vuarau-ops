@@ -1,6 +1,7 @@
 import {
   E2E_ACTORS,
   E2E_API_PORT,
+  E2E_QUALITY_GRADE_ID,
   E2E_WORKSPACE_ID,
   mintAccessToken,
   type E2ERole,
@@ -81,6 +82,7 @@ export const api = {
 
   async inventoryBalances(productId: string): Promise<
     {
+      qualityGradeName: string | null;
       unit: string;
       quantityScaled: number;
       movementCount: number;
@@ -91,7 +93,41 @@ export const api = {
       "query",
       { workspaceId: E2E_WORKSPACE_ID, productId },
       "owner",
-    )) as { unit: string; quantityScaled: number; movementCount: number }[];
+    )) as {
+      qualityGradeName: string | null;
+      unit: string;
+      quantityScaled: number;
+      movementCount: number;
+    }[];
+  },
+
+  async qualityGradeIdByName(name: string): Promise<string> {
+    const database = createDatabase(requiredDatabaseUrl(), { max: 1 });
+    try {
+      const rows = await database.sql<readonly { id: string }[]>`
+        select id::text
+        from quality_grades
+        where workspace_id = ${E2E_WORKSPACE_ID}::uuid
+          and name = ${name}
+      `;
+      if (rows[0] === undefined) throw new Error(`QualityGrade not found: ${name}`);
+      return rows[0].id;
+    } finally {
+      await database.sql.end();
+    }
+  },
+
+  async inventoryReconciliation(
+    productId: string,
+    qualityGradeId: string,
+    unit: string,
+  ): Promise<{ status: string; diagnostics: readonly string[] }> {
+    return (await call(
+      "inventory.reconciliation",
+      "query",
+      { workspaceId: E2E_WORKSPACE_ID, productId, qualityGradeId, unit },
+      "owner",
+    )) as { status: string; diagnostics: readonly string[] };
   },
 
   async goodsCounts(ids: { supplierId: string; purchaseId: string; productId: string }): Promise<{
@@ -312,8 +348,8 @@ export const api = {
           lines: [
             {
               lineId: crypto.randomUUID(),
-              // Null, like a line a worker types: there is no product master
-              // (BR-SALE-019).
+              // An unresolved line remains legal while the Sale is a draft.
+              // PostSale rejects it until the worker selects or creates a Product.
               productId: null,
               productName: "Sửa từ máy khác",
               quantity: { valueScaled: 1_000, unit: "kg" },
@@ -409,6 +445,8 @@ export const api = {
               lineId: saleLineId,
               productId: input.productId,
               productName: input.productName,
+              qualityGradeId: E2E_QUALITY_GRADE_ID,
+              qualityGradeName: "Loại 1",
               quantity: { valueScaled: input.quantityScaled, unit: "kg" },
               unitPrice: { amountMinor: 10_000, currency: "VND" },
             },

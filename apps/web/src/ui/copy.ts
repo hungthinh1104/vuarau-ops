@@ -41,6 +41,9 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   CUSTOMER_ALREADY_ACTIVE: "Khách hàng này đang hoạt động.",
   PRODUCT_NOT_FOUND: "Không tìm thấy mặt hàng trong vựa này.",
   PRODUCT_VERSION_CONFLICT: "Mặt hàng đã được người khác cập nhật.",
+  QUALITY_GRADE_NOT_FOUND: "Không tìm thấy phân hạng chất lượng trong vựa này.",
+  QUALITY_GRADE_INACTIVE: "Phân hạng chất lượng này đang ngưng sử dụng.",
+  QUALITY_GRADE_VERSION_CONFLICT: "Phân hạng chất lượng đã được người khác cập nhật.",
   BACKUP_DIGEST_INVALID: "Checksum bản sao lưu không hợp lệ.",
   BACKUP_UNSAFE_TARGET: "Chỉ có thể phục hồi vào vựa trống.",
   BACKUP_INTEGRITY_ERROR: "Bản sao lưu có tham chiếu hoặc dữ liệu không hợp lệ.",
@@ -76,11 +79,23 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   RECEIPT_UNIT_MISMATCH: "Đơn vị nhận hàng không khớp dòng mua.",
   RECEIPT_REVERSAL_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tác nhận hàng.",
   INVENTORY_ADJUSTMENT_REASON_REQUIRED: "Điều chỉnh tồn kho phải có lý do.",
+  INVENTORY_RECLASSIFICATION_INVALID: "Chuyển hạng cần hai hạng khác nhau và số lượng lớn hơn 0.",
+  INVENTORY_RECLASSIFICATION_REASON_REQUIRED: "Chuyển hạng tồn kho phải có lý do.",
   INVENTORY_RECONCILIATION_INTEGRITY_FAILURE: "Sổ chuyển động tồn kho có dữ liệu không toàn vẹn.",
 
   SALE_NOT_FOUND: "Không tìm thấy đơn hàng này.",
   SALE_EMPTY: "Đơn chưa có mặt hàng nào. Hãy thêm ít nhất một dòng trước khi chốt.",
   SALE_LINE_INVALID: "Có dòng hàng chưa hợp lệ. Kiểm tra số lượng và đơn giá.",
+  SALE_PRODUCT_REQUIRED: "Mỗi dòng phải chọn một mặt hàng trong danh mục trước khi chốt.",
+  SALE_PRODUCT_NOT_FOUND: "Mặt hàng đã chọn không còn tồn tại trong vựa này. Hãy chọn lại.",
+  SALE_PRODUCT_INACTIVE: "Mặt hàng đã chọn đang ngưng hoạt động. Hãy chọn mặt hàng khác.",
+  SALE_PRODUCT_SNAPSHOT_MISMATCH:
+    "Tên hoặc đơn vị dòng hàng không còn khớp mặt hàng đã chọn. Hãy chọn lại mặt hàng.",
+  SALE_QUALITY_GRADE_REQUIRED: "Mỗi dòng phải chọn phân hạng chất lượng trước khi chốt.",
+  SALE_QUALITY_GRADE_NOT_FOUND: "Phân hạng đã chọn không còn tồn tại trong vựa này.",
+  SALE_QUALITY_GRADE_INACTIVE: "Phân hạng đã chọn đang ngưng sử dụng.",
+  SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH:
+    "Tên phân hạng trên dòng hàng đã thay đổi. Hãy chọn lại phân hạng.",
   SALE_ALREADY_POSTED:
     "Đơn đã chốt nên không sửa được nữa. Muốn sửa thì hoàn tác rồi tạo đơn thay thế.",
   SALE_VERSION_CONFLICT: "Người khác vừa sửa đơn này. Hãy tải lại để xem thay đổi.",

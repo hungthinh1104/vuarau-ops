@@ -11,7 +11,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "../../../../api/session-gate.tsx";
 import { useTRPC } from "../../../../api/providers.tsx";
 import { useCommand } from "../../../../api/use-command.ts";
@@ -63,13 +63,22 @@ function PurchaseDetail(props: {
   receiptsLoading: boolean;
   onChanged: () => void;
 }) {
-  const { session } = useSession();
+  const { session, workspaceId } = useSession();
   const trpc = useTRPC();
   const confirmMutation = useMutation(trpc.purchase.confirm.mutationOptions());
   const discardMutation = useMutation(trpc.purchase.discardDraft.mutationOptions());
   const voidMutation = useMutation(trpc.purchase.void.mutationOptions());
   const receiptMutation = useMutation(trpc.receiving.record.mutationOptions());
   const reverseMutation = useMutation(trpc.receiving.reverse.mutationOptions());
+  const qualityGrades = useQuery(
+    trpc.quality.list.queryOptions({
+      workspaceId,
+      query: "",
+      isActive: true,
+      cursor: null,
+      limit: 100,
+    }),
+  );
   const confirm = useCommand<unknown, PurchaseDto>((envelope) =>
     confirmMutation.mutateAsync(envelope as never),
   );
@@ -93,6 +102,7 @@ function PurchaseDetail(props: {
   const [reasonCode, setReasonCode] = useState("other");
   const [receiptQuantities, setReceiptQuantities] = useState<Record<string, string>>({});
   const [reverseTarget, setReverseTarget] = useState<PurchaseReceiptId | null>(null);
+  const receiptLineIds = useRef(new Map<string, string>());
   useEffect(() => {
     if (confirm.result !== null || discard.result !== null || voidCommand.result !== null)
       props.onChanged();
@@ -101,6 +111,7 @@ function PurchaseDetail(props: {
     if (receipt.result === null) return;
     props.onChanged();
     setReceiptQuantities({});
+    receiptLineIds.current.clear();
     setReceiptId(crypto.randomUUID() as PurchaseReceiptId);
     receipt.reset();
   }, [props, receipt]);
@@ -113,19 +124,28 @@ function PurchaseDetail(props: {
     reverse.reset();
   }, [props, reverse]);
   const purchase = props.purchase;
-  const receiptLines = purchase.lines.flatMap((line) => {
-    const value = Math.round(Number(receiptQuantities[line.lineId] ?? "0") * 1000);
-    return value > 0 && Number.isSafeInteger(value)
-      ? [
-          {
-            receiptLineId: crypto.randomUUID(),
-            purchaseLineId: line.lineId,
-            productId: line.productId,
-            quantity: { valueScaled: value, unit: line.quantity.unit },
-          },
-        ]
-      : [];
-  });
+  const receiptLines = purchase.lines.flatMap((line) =>
+    (qualityGrades.data?.items ?? []).flatMap((grade) => {
+      const key = `${line.lineId}:${grade.id}`;
+      const value = Math.round(Number(receiptQuantities[key] ?? "0") * 1000);
+      if (value <= 0 || !Number.isSafeInteger(value)) return [];
+      let receiptLineId = receiptLineIds.current.get(key);
+      if (receiptLineId === undefined) {
+        receiptLineId = crypto.randomUUID();
+        receiptLineIds.current.set(key, receiptLineId);
+      }
+      return [
+        {
+          receiptLineId,
+          purchaseLineId: line.lineId,
+          productId: line.productId,
+          qualityGradeId: grade.id,
+          qualityGradeName: grade.name,
+          quantity: { valueScaled: value, unit: line.quantity.unit },
+        },
+      ];
+    }),
+  );
   return (
     <div className="flex max-w-4xl flex-col gap-5">
       <header className="flex flex-wrap justify-between gap-3">
@@ -246,21 +266,39 @@ function PurchaseDetail(props: {
         <section className="rounded-card border border-border bg-surface p-4">
           <h2 className="text-subheading font-semibold">Ghi nhận hàng về</h2>
           {purchase.lines.map((line) => (
-            <label key={line.lineId} className="text-label">
-              {line.productName} ({line.quantity.unit})
-              <input
-                className={INPUT_CLASS}
-                inputMode="decimal"
-                value={receiptQuantities[line.lineId] ?? ""}
-                onChange={(event) =>
-                  setReceiptQuantities((current) => ({
-                    ...current,
-                    [line.lineId]: event.target.value,
-                  }))
-                }
-              />
-            </label>
+            <fieldset
+              key={line.lineId}
+              className="grid gap-2 rounded-card border border-border p-3"
+            >
+              <legend className="px-1 text-label font-semibold">
+                {line.productName} ({line.quantity.unit})
+              </legend>
+              {(qualityGrades.data?.items ?? []).map((grade) => {
+                const key = `${line.lineId}:${grade.id}`;
+                return (
+                  <label key={key} className="text-label">
+                    {grade.name}
+                    <input
+                      className={INPUT_CLASS}
+                      inputMode="decimal"
+                      value={receiptQuantities[key] ?? ""}
+                      onChange={(event) =>
+                        setReceiptQuantities((current) => ({
+                          ...current,
+                          [key]: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                );
+              })}
+            </fieldset>
           ))}
+          {qualityGrades.isPending ? (
+            <p>Đang tải phân hạng chất lượng…</p>
+          ) : qualityGrades.data?.items.length === 0 ? (
+            <p role="alert">Chưa có phân hạng chất lượng để ghi nhận hàng.</p>
+          ) : null}
           <Button
             disabled={receiptLines.length === 0 || receipt.phase.kind === "sending"}
             onClick={() =>

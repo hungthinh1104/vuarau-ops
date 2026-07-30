@@ -7,6 +7,12 @@ test.describe("M16-M18 — Goods Truth", () => {
   }) => {
     await signIn(page, "owner");
 
+    await page.goto("/quality-grades");
+    await page.getByLabel("Tên phân hạng").fill("Loại 2");
+    await page.getByLabel("Thứ tự").fill("20");
+    await page.getByRole("button", { name: "Thêm phân hạng" }).click();
+    await expect(page.getByText("Loại 2", { exact: true })).toBeVisible();
+
     const productName = `Cải Goods ${Date.now()}`;
     await page.goto("/products/new");
     await page.getByLabel("Tên mặt hàng").fill(productName);
@@ -43,11 +49,11 @@ test.describe("M16-M18 — Goods Truth", () => {
     await expect(page.getByText("600.000 ₫")).toBeVisible();
 
     await page.goto(`/purchases/${purchaseId}`);
-    await page.getByLabel(`${productName} (kg)`).fill("60");
+    await page.getByLabel("Loại 1").fill("60");
     await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
     await expect(page.getByRole("link", { name: /Phiếu/ })).toHaveCount(1);
 
-    await page.getByLabel(`${productName} (kg)`).fill("40");
+    await page.getByLabel("Loại 2").fill("40");
     await page
       .getByRole("button", { name: "Ghi phiếu nhận hàng" })
       .evaluate((button: HTMLButtonElement) => {
@@ -57,7 +63,7 @@ test.describe("M16-M18 — Goods Truth", () => {
     await expect(page.getByRole("link", { name: /Phiếu/ })).toHaveCount(2);
     await expect(page.getByText(/đã nhận 100 kg · còn lại 0 kg/)).toBeVisible();
 
-    await page.getByLabel(`${productName} (kg)`).fill("1");
+    await page.getByLabel("Loại 1").fill("1");
     await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
     await expect(
       page.getByRole("alert").filter({ hasText: "Số lượng nhận vượt số lượng đã mua" }),
@@ -89,12 +95,21 @@ test.describe("M16-M18 — Goods Truth", () => {
     expect(supplier.balance.amountMinor).toBe(-400_000);
     expect(supplier.entryCount).toBe(3);
     const inventory = await api.inventoryBalances(productId);
-    expect(inventory).toContainEqual(
-      expect.objectContaining({
-        unit: "kg",
-        quantityScaled: 0,
-        movementCount: 4,
-      }),
+    expect(inventory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          qualityGradeName: "Loại 1",
+          unit: "kg",
+          quantityScaled: 0,
+          movementCount: 2,
+        }),
+        expect.objectContaining({
+          qualityGradeName: "Loại 2",
+          unit: "kg",
+          quantityScaled: 0,
+          movementCount: 2,
+        }),
+      ]),
     );
     expect(await api.goodsCounts({ supplierId, purchaseId, productId })).toEqual({
       purchases: 1,

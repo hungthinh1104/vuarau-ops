@@ -6,7 +6,10 @@ import { uniqueCustomerName } from "./harness/environment.ts";
 async function postSale(page: Page, customerId: string): Promise<void> {
   await page.goto(`/customers/${customerId}/sales/new`);
   const line = page.getByTestId("sale-line-0");
-  await line.getByLabel("Mặt hàng").fill("M9 rau kiểm thử");
+  await line.getByLabel("Mặt hàng").fill("Cà chua");
+  const catalog = page.getByRole("heading", { name: "Danh mục mặt hàng" }).locator("..");
+  await catalog.getByRole("button", { name: "Cà chua", exact: true }).click();
+  await line.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
   await line.getByLabel("Số lượng").fill("1");
   await line.getByLabel("Đơn giá").fill("500.000");
   await page.getByRole("button", { name: "Chốt đơn" }).click();

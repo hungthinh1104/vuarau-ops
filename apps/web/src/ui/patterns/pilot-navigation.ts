@@ -35,6 +35,12 @@ const DESKTOP_NAVIGATION: readonly NavigationGroup[] = [
       },
       { label: "Tồn kho", href: "/products", activeMode: "section", permission: "inventory.read" },
       {
+        label: "Phân hạng",
+        href: "/quality-grades",
+        activeMode: "section",
+        permission: "quality.read",
+      },
+      {
         label: "Giao hàng",
         href: "/deliveries",
         activeMode: "section",

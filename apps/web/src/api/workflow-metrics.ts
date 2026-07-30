@@ -32,6 +32,7 @@ export const WORKFLOW_METRICS = [
   "recent_customer_selected",
   "customer_selected_from_search",
   "customer_created_inline",
+  "product_created_inline",
   "historical_product_selected",
   "historical_price_offered",
   "historical_price_applied",

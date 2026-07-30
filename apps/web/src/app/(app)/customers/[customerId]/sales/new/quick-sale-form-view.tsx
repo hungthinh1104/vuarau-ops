@@ -21,6 +21,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     cachedCatalogFetchedAt,
     cachedCustomer,
     capture,
+    createActiveProduct,
     customer,
     customerId,
     dirty,
@@ -30,7 +31,9 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     editLines,
     lines,
     locallyQueued,
+    fulfilmentReady,
     mayCreate,
+    mayCreateProduct,
     mayPost,
     metrics,
     note,
@@ -38,6 +41,10 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     pendingCustomerCreate,
     post,
     postCommand,
+    productCreateCommand,
+    noProductMatch,
+    qualityGrades,
+    qualityGradeOptions,
     replacementPending,
     replacementSource,
     replacesSaleId,
@@ -174,11 +181,26 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                     : {})}
                   canRemove={lines.length > 1}
                   disabled={locallyQueued}
+                  qualityGradeOptions={qualityGradeOptions}
                   onFocus={() => setActiveLineId(line.lineId)}
-                  onChange={(next) =>
-                    editLines(
-                      lines.map((existing, at) => {
+                  onChange={(incoming, field) =>
+                    editLines((current) =>
+                      current.map((existing, at) => {
                         if (at !== index) return existing;
+                        const next =
+                          field === "product"
+                            ? { ...existing, productName: incoming.productName }
+                            : field === "qualityGrade"
+                              ? {
+                                  ...existing,
+                                  qualityGradeId: incoming.qualityGradeId ?? null,
+                                  qualityGradeName: incoming.qualityGradeName ?? null,
+                                }
+                              : field === "quantity"
+                                ? { ...existing, quantityText: incoming.quantityText }
+                                : field === "unit"
+                                  ? { ...existing, unit: incoming.unit }
+                                  : { ...existing, unitPriceText: incoming.unitPriceText };
                         const recalled = existing.priceOrigin?.kind === "recalled";
                         const productChanged = existing.productName !== next.productName;
                         const unitChanged = existing.unit !== next.unit;
@@ -209,7 +231,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                       }),
                     )
                   }
-                  onRemove={() => editLines(lines.filter((_, at) => at !== index))}
+                  onRemove={() => editLines((current) => current.filter((_, at) => at !== index))}
                 />
               ))}
             </ul>
@@ -228,6 +250,23 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                 có mạng; tên và đơn vị này chỉ là gợi ý nhập liệu.
               </p>
             ) : null}
+            {qualityGrades.isPending && qualityGradeOptions.length === 0 ? (
+              <p role="status" className="text-caption text-ink-muted">
+                Đang tải phân hạng chất lượng…
+              </p>
+            ) : qualityGrades.isError && qualityGradeOptions.length === 0 ? (
+              <p role="alert" className="text-caption text-danger">
+                Không tải được phân hạng chất lượng. Chưa thể chốt đơn.
+              </p>
+            ) : qualityGradeOptions.length === 0 ? (
+              <p
+                role="alert"
+                className="rounded-card border border-warning/30 bg-warning-soft p-3 text-body-sm"
+              >
+                Vựa chưa cấu hình phân hạng chất lượng. Hãy nhờ chủ vựa hoặc kho cấu hình trước khi
+                chốt đơn.
+              </p>
+            ) : null}
             {visibleProducts.length > 0 ? (
               <section className="rounded-card border border-border bg-surface p-3">
                 <h2 className="text-label font-semibold">Danh mục mặt hàng</h2>
@@ -238,8 +277,8 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                       tone="secondary"
                       disabled={locallyQueued}
                       onClick={() =>
-                        editLines(
-                          lines.map((line) =>
+                        editLines((current) =>
+                          current.map((line) =>
                             line.lineId === activeLine.lineId
                               ? {
                                   ...line,
@@ -263,6 +302,35 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                 </p>
               </section>
             ) : null}
+            {noProductMatch ? (
+              <section
+                role="status"
+                className="rounded-card border border-warning/30 bg-warning-soft p-3 text-body-sm"
+              >
+                <p className="font-semibold">Mặt hàng chưa có trong danh mục</p>
+                {mayCreateProduct ? (
+                  <Button
+                    className="mt-2"
+                    tone="secondary"
+                    disabled={locallyQueued || productCreateCommand.phase.kind === "sending"}
+                    onClick={() => void createActiveProduct()}
+                  >
+                    {productCreateCommand.phase.kind === "sending"
+                      ? "Đang tạo…"
+                      : `Tạo mặt hàng “${activeLine.productName.trim()}”`}
+                  </Button>
+                ) : (
+                  <p className="mt-1 text-ink-muted">
+                    Bạn không có quyền tạo mặt hàng. Hãy chọn mặt hàng có sẵn hoặc nhờ chủ vựa.
+                  </p>
+                )}
+              </section>
+            ) : null}
+            <CommandOutcome
+              command={productCreateCommand}
+              attemptedAction="Tạo mặt hàng trong đơn"
+              onReload={() => window.location.reload()}
+            />
             <QueryStates
               query={capture}
               loadingLabel="Đang tải giá gần đây"
@@ -279,11 +347,20 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                         tone="secondary"
                         disabled={locallyQueued}
                         onClick={() => {
-                          editLines(
-                            lines.map((line) =>
+                          editLines((current) =>
+                            current.map((line) =>
                               line.lineId === activeLine.lineId
                                 ? {
                                     ...line,
+                                    productId:
+                                      visibleProducts.find(
+                                        (product) =>
+                                          product.displayName.localeCompare(
+                                            history.productName,
+                                            "vi",
+                                            { sensitivity: "base" },
+                                          ) === 0,
+                                      )?.id ?? null,
                                     productName: history.productName,
                                     unit: history.unit as SaleLineDraft["unit"],
                                   }
@@ -315,8 +392,8 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                             tone="secondary"
                             disabled={locallyQueued}
                             onClick={() => {
-                              editLines(
-                                lines.map((line) =>
+                              editLines((current) =>
+                                current.map((line) =>
                                   line.lineId === activeLine.lineId
                                     ? {
                                         ...line,
@@ -341,11 +418,20 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                             tone="secondary"
                             disabled={locallyQueued}
                             onClick={() => {
-                              editLines(
-                                lines.map((line) =>
+                              editLines((current) =>
+                                current.map((line) =>
                                   line.lineId === activeLine.lineId
                                     ? {
                                         ...line,
+                                        productId:
+                                          visibleProducts.find(
+                                            (product) =>
+                                              product.displayName.localeCompare(
+                                                history.productName,
+                                                "vi",
+                                                { sensitivity: "base" },
+                                              ) === 0,
+                                          )?.id ?? null,
                                         productName: history.productName,
                                         unit: history.unit as SaleLineDraft["unit"],
                                       }
@@ -440,16 +526,21 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   onClick={() => void post()}
                   {...(!mayPost
                     ? { disabledReason: "Bạn không có quyền chốt đơn." }
-                    : replacementPending
-                      ? { disabledReason: "Đang tải đơn cần thay thế…" }
-                      : locallyQueued
-                        ? { disabledReason: "Đơn đã được lưu an toàn trên thiết bị." }
-                        : postCommand.phase.kind === "sending" ||
-                            draftCommand.phase.kind === "sending"
-                          ? { disabledReason: "Đang gửi…" }
-                          : postCommand.phase.kind === "succeeded"
-                            ? { disabledReason: "Đã chốt." }
-                            : {})}
+                    : !fulfilmentReady
+                      ? {
+                          disabledReason:
+                            "Chọn mặt hàng trong danh mục và phân hạng chất lượng cho mọi dòng.",
+                        }
+                      : replacementPending
+                        ? { disabledReason: "Đang tải đơn cần thay thế…" }
+                        : locallyQueued
+                          ? { disabledReason: "Đơn đã được lưu an toàn trên thiết bị." }
+                          : postCommand.phase.kind === "sending" ||
+                              draftCommand.phase.kind === "sending"
+                            ? { disabledReason: "Đang gửi…" }
+                            : postCommand.phase.kind === "succeeded"
+                              ? { disabledReason: "Đã chốt." }
+                              : {})}
                 >
                   Chốt đơn
                 </Button>

@@ -51,11 +51,18 @@ export default function ProductsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-heading font-bold">Danh mục mặt hàng</h1>
-        {session.permissions.includes("product.create") ? (
-          <Link href="/products/new" className="text-info underline">
-            Thêm mặt hàng
-          </Link>
-        ) : null}
+        <div className="flex gap-3">
+          {session.permissions.includes("quality.read") ? (
+            <Link href="/quality-grades" className="text-info underline">
+              Phân hạng chất lượng
+            </Link>
+          ) : null}
+          {session.permissions.includes("product.create") ? (
+            <Link href="/products/new" className="text-info underline">
+              Thêm mặt hàng
+            </Link>
+          ) : null}
+        </div>
       </div>
       <SearchInput
         label="Tìm mặt hàng"
@@ -74,25 +81,62 @@ export default function ProductsPage() {
         onRetry={() => void search.refetch()}
       >
         {() => (
-          <ul className="flex flex-col gap-2">
-            {products.map((product) => (
-              <li key={product.id}>
-                <Link
-                  href={`/products/${product.id}`}
-                  className="flex justify-between rounded-card border border-border bg-surface p-4"
-                >
-                  <span>
-                    <strong>{product.displayName}</strong>
-                    <span className="block text-caption text-ink-muted">
-                      {product.aliases.join(", ") || "Không có tên gọi khác"} ·{" "}
-                      {product.preferredUnit ?? "chưa chọn đơn vị"}
+          <>
+            <ul className="flex flex-col gap-2 lg:hidden">
+              {products.map((product) => (
+                <li key={product.id}>
+                  <Link
+                    href={`/products/${product.id}`}
+                    className="flex justify-between rounded-card border border-border bg-surface p-4"
+                  >
+                    <span>
+                      <strong>{product.displayName}</strong>
+                      <span className="block text-caption text-ink-muted">
+                        {product.aliases.join(", ") || "Không có tên gọi khác"} ·{" "}
+                        {product.preferredUnit ?? "chưa chọn đơn vị"}
+                      </span>
                     </span>
-                  </span>
-                  {product.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    {product.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
+              <table className="w-full text-left text-body-sm">
+                <thead className="sticky top-0 bg-surface-muted text-label">
+                  <tr>
+                    <th className="px-3 py-2">Mặt hàng</th>
+                    <th className="px-3 py-2">Tên gọi khác</th>
+                    <th className="px-3 py-2">Đơn vị ưu tiên</th>
+                    <th className="px-3 py-2">Trạng thái</th>
+                    <th className="px-3 py-2">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {products.map((product) => (
+                    <tr key={product.id} className="hover:bg-surface-muted">
+                      <td className="px-3 py-2 font-medium">{product.displayName}</td>
+                      <td className="px-3 py-2">{product.aliases.join(", ") || "—"}</td>
+                      <td className="px-3 py-2">{product.preferredUnit ?? "—"}</td>
+                      <td className="px-3 py-2">{product.isActive ? "Đang dùng" : "Đã ngưng"}</td>
+                      <td className="px-3 py-2">
+                        <Link href={`/products/${product.id}`} className="text-info underline">
+                          Mở
+                        </Link>
+                        {" · "}
+                        <Link
+                          href={`/products/${product.id}/inventory`}
+                          className="text-info underline"
+                        >
+                          Tồn kho
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </QueryStates>
       {next !== null ? (

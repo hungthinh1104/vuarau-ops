@@ -50,34 +50,72 @@ export default function PurchasesPage() {
           rows.length === 0 ? (
             <p>Chưa có đơn mua.</p>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {rows.map((purchase) => (
-                <li key={purchase.id}>
-                  <Link
-                    href={`/purchases/${purchase.id}`}
-                    className="flex justify-between rounded-card border border-border bg-surface p-4"
-                  >
-                    <span>
-                      <strong>{formatMoney(purchase.totalAmount)}</strong>
-                      <span className="block text-caption text-ink-muted">
-                        {formatDate(purchase.transactionTime)} · {purchase.lines.length} dòng
-                      </span>
-                    </span>
-                    <Badge
-                      tone={
-                        purchase.voidRecord !== null
-                          ? "warning"
-                          : purchase.status === "confirmed"
-                            ? "positive"
-                            : "neutral"
-                      }
+            <>
+              <ul className="flex flex-col gap-2 lg:hidden">
+                {rows.map((purchase) => (
+                  <li key={purchase.id}>
+                    <Link
+                      href={`/purchases/${purchase.id}`}
+                      className="flex justify-between rounded-card border border-border bg-surface p-4"
                     >
-                      {purchase.voidRecord !== null ? "Đã hoàn tác" : purchase.status}
-                    </Badge>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                      <span>
+                        <strong>{formatMoney(purchase.totalAmount)}</strong>
+                        <span className="block text-caption text-ink-muted">
+                          {formatDate(purchase.transactionTime)} · {purchase.lines.length} dòng
+                        </span>
+                      </span>
+                      <Badge
+                        tone={
+                          purchase.voidRecord !== null
+                            ? "warning"
+                            : purchase.status === "confirmed"
+                              ? "positive"
+                              : "neutral"
+                        }
+                      >
+                        {purchase.voidRecord !== null ? "Đã hoàn tác" : purchase.status}
+                      </Badge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
+                <table className="w-full text-left text-body-sm">
+                  <thead className="sticky top-0 bg-surface-muted text-label">
+                    <tr>
+                      <th className="px-3 py-2">Ngày</th>
+                      <th className="px-3 py-2">Nhà cung cấp</th>
+                      <th className="px-3 py-2">Số dòng</th>
+                      <th className="px-3 py-2 text-right">Tổng mua</th>
+                      <th className="px-3 py-2">Trạng thái</th>
+                      <th className="px-3 py-2">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {rows.map((purchase) => (
+                      <tr key={purchase.id} className="hover:bg-surface-muted">
+                        <td className="px-3 py-2">{formatDate(purchase.transactionTime)}</td>
+                        <td className="px-3 py-2">
+                          {purchase.supplierId.slice(0, 8).toUpperCase()}
+                        </td>
+                        <td className="px-3 py-2">{purchase.lines.length}</td>
+                        <td className="px-3 py-2 text-right font-semibold">
+                          {formatMoney(purchase.totalAmount)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {purchase.voidRecord !== null ? "Đã hoàn tác" : purchase.status}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Link href={`/purchases/${purchase.id}`} className="text-info underline">
+                            Mở chi tiết
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )
         }
       </QueryStates>

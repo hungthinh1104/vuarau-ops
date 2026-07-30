@@ -45,16 +45,35 @@ export default function NewDeliveryPage() {
             <h2 className="font-semibold">Số lượng xuất kho</h2>
             {fulfilment.data?.lines.map((summary) => {
               const saleLine = detail.sale.lines.find((line) => line.lineId === summary.saleLineId);
-              if (saleLine?.productId == null) return null;
+              if (
+                saleLine?.productId == null ||
+                saleLine.qualityGradeId == null ||
+                summary.fulfilmentState === "attention"
+              )
+                return (
+                  <p key={summary.saleLineId} role="alert" className="py-3 text-warning">
+                    {summary.productName}: không thể soạn phiếu —{" "}
+                    {summary.blockedReason ?? "dữ liệu thực hiện không toàn vẹn"}.
+                  </p>
+                );
+              if (summary.remaining.valueScaled === 0)
+                return (
+                  <p key={summary.saleLineId} className="py-3">
+                    {summary.productName} · {summary.qualityGradeName}: Đã giao đủ
+                  </p>
+                );
+              const proposed =
+                quantities[summary.saleLineId] ?? String(summary.remaining.valueScaled / 1_000);
               return (
                 <label key={summary.saleLineId} className="grid gap-2 border-b border-border py-3">
                   <span>
-                    {summary.productName} · còn {formatQuantity(summary.remaining)}
+                    {summary.productName} · {summary.qualityGradeName} · còn{" "}
+                    {formatQuantity(summary.remaining)}
                   </span>
                   <input
                     className={INPUT_CLASS}
                     inputMode="decimal"
-                    value={quantities[summary.saleLineId] ?? ""}
+                    value={proposed}
                     onChange={(event) =>
                       setQuantities((current) => ({
                         ...current,
@@ -76,12 +95,50 @@ export default function NewDeliveryPage() {
             </label>
           </section>
           <Button
-            disabled={command.phase.kind === "sending" || fulfilment.data === undefined}
+            disabled={
+              command.phase.kind === "sending" ||
+              fulfilment.data === undefined ||
+              fulfilment.data.lines.every(
+                (line) => line.fulfilmentState === "attention" || line.remaining.valueScaled === 0,
+              ) ||
+              fulfilment.data.lines.some((line) => {
+                const valueScaled = Math.round(
+                  Number(
+                    quantities[line.saleLineId] ?? String(line.remaining.valueScaled / 1_000),
+                  ) * 1_000,
+                );
+                return (
+                  line.fulfilmentState !== "attention" &&
+                  line.remaining.valueScaled > 0 &&
+                  (!Number.isSafeInteger(valueScaled) ||
+                    valueScaled <= 0 ||
+                    valueScaled > line.remaining.valueScaled)
+                );
+              })
+            }
             onClick={() => {
               const lines = detail.sale.lines.flatMap((line) => {
-                if (line.productId === null) return [];
-                const valueScaled = Math.round(Number(quantities[line.lineId] ?? "0") * 1000);
-                if (!Number.isSafeInteger(valueScaled) || valueScaled <= 0) return [];
+                const summary = fulfilment.data?.lines.find(
+                  (candidate) => candidate.saleLineId === line.lineId,
+                );
+                if (
+                  line.productId === null ||
+                  line.qualityGradeId === null ||
+                  summary === undefined ||
+                  summary.fulfilmentState === "attention" ||
+                  summary.remaining.valueScaled === 0
+                )
+                  return [];
+                const valueScaled = Math.round(
+                  Number(quantities[line.lineId] ?? String(summary.remaining.valueScaled / 1_000)) *
+                    1_000,
+                );
+                if (
+                  !Number.isSafeInteger(valueScaled) ||
+                  valueScaled <= 0 ||
+                  valueScaled > summary.remaining.valueScaled
+                )
+                  return [];
                 return [
                   {
                     deliveryLineId:
@@ -93,6 +150,7 @@ export default function NewDeliveryPage() {
                       })(),
                     saleLineId: line.lineId,
                     productId: line.productId,
+                    qualityGradeId: line.qualityGradeId,
                     quantity: { valueScaled, unit: line.quantity.unit },
                   },
                 ];
@@ -100,7 +158,7 @@ export default function NewDeliveryPage() {
               void command.submit({ deliveryId, saleId, lines, note: note.trim() || null });
             }}
           >
-            Lưu phiếu giao
+            Soạn phiếu giao
           </Button>
           <CommandOutcome
             command={command}

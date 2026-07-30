@@ -1,6 +1,7 @@
 import type {
   CachedCustomer,
   CachedProduct,
+  CachedQualityGrade,
   OfflinePartition,
   OfflineSaleDraft,
   OutboxRecord,
@@ -12,6 +13,7 @@ const OUTBOX = "outbox";
 const DRAFTS = "drafts";
 const CUSTOMERS = "customers";
 const PRODUCTS = "products";
+const QUALITY_GRADES = "quality-grades";
 const META = "meta";
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -60,6 +62,10 @@ function openDatabase(): Promise<IDBDatabase> {
       }
       if (!database.objectStoreNames.contains(PRODUCTS)) {
         const store = database.createObjectStore(PRODUCTS, { keyPath: "storageKey" });
+        store.createIndex("partition", "partition");
+      }
+      if (!database.objectStoreNames.contains(QUALITY_GRADES)) {
+        const store = database.createObjectStore(QUALITY_GRADES, { keyPath: "storageKey" });
         store.createIndex("partition", "partition");
       }
       if (!database.objectStoreNames.contains(META)) {
@@ -200,6 +206,31 @@ export class OfflineDatabase {
     );
     database.close();
     return (rows as Stored<CachedProduct>[]).map(stripStorage);
+  }
+
+  async cacheQualityGrades(
+    partition: OfflinePartition,
+    grades: readonly CachedQualityGrade[],
+  ): Promise<void> {
+    const database = await openDatabase();
+    const transaction = database.transaction(QUALITY_GRADES, "readwrite");
+    const store = transaction.objectStore(QUALITY_GRADES);
+    for (const grade of grades) store.put(stored(partition, grade.qualityGradeId, grade));
+    await transactionDone(transaction);
+    database.close();
+  }
+
+  async qualityGrades(partition: OfflinePartition): Promise<readonly CachedQualityGrade[]> {
+    const database = await openDatabase();
+    const rows = await requestResult(
+      database
+        .transaction(QUALITY_GRADES)
+        .objectStore(QUALITY_GRADES)
+        .index("partition")
+        .getAll(partitionKey(partition)),
+    );
+    database.close();
+    return (rows as Stored<CachedQualityGrade>[]).map(stripStorage);
   }
 
   async lastSuccessfulSync(partition: OfflinePartition): Promise<string | null> {
