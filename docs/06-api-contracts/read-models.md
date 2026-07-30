@@ -21,6 +21,13 @@ single deliberate exception: it is token-scoped, read-only, non-enumerable, and
 fails closed on digest, expiry, or revocation. Authenticated document reads also
 verify the frozen snapshot against its stored digest.
 
+M23.8 extends `inventory.balances` and `inventory.timeline` with optional
+QualityGrade scoping. Omitting the grade returns separate rows for every grade;
+passing an id selects that exact grade; explicit `null` addresses immutable
+legacy/unclassified history. `delivery.fulfilment` returns ordered, dispatched,
+returned, net fulfilled, remaining, derived state and any integrity block reason
+for each Sale line. Browsers render these server-derived quantities.
+
 | Procedure            | Permission      | Returns                           | Use case        |
 | -------------------- | --------------- | --------------------------------- | --------------- |
 | `session.me`         | — (identity)    | `SessionDto`                      | UC-AUTH-003     |

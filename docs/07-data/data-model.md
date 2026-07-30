@@ -14,6 +14,7 @@ that has not been built.
 | `workspace_memberships`     | Which actor may act in which workspace                                    | mutable                                   |
 | `customers`                 | Buyers                                                                    | mutable master data                       |
 | `products`                  | Catalogue for sale lines                                                  | mutable master data                       |
+| `quality_grades`            | Workspace commercial grade vocabulary                                     | mutable master data                       |
 | `sales`                     | Completed sales, `draft` → `posted`                                       | status/version only, until posted         |
 | `sale_lines`                | Lines of a sale, with price snapshots                                     | replaced while `draft`                    |
 | `payments`                  | Money received                                                            | `reversed_amount`/`status`/`version` only |
@@ -25,8 +26,8 @@ that has not been built.
 | `suppliers`, `purchases`    | Supplier master data and immutable confirmed Purchase snapshots           | master/draft mutable; confirmed immutable |
 | `supplier_account_entries`  | Source of truth for supplier payable                                      | **append-only**                           |
 | `purchase_receipts`         | Physical inbound source documents and explicit reversals                  | **append-only**                           |
-| `inventory_movements`       | Canonical per-Product/unit physical ledger                                | **append-only**                           |
-| `inventory_balances`        | Rebuildable per-Product/unit projection                                   | recomputable                              |
+| `inventory_movements`       | Canonical per-Product/grade/unit physical ledger                          | **append-only**                           |
+| `inventory_balances`        | Rebuildable per-Product/grade/unit projection                             | recomputable                              |
 | `deliveries`                | Sale-linked physical fulfilment lifecycle                                 | draft/status/version only                 |
 | `delivery_returns`          | Explicit physical return compensations                                    | **append-only**                           |
 | `documents`                 | Immutable versioned source snapshots and deterministic digests            | **append-only**                           |
@@ -83,6 +84,13 @@ guard rather than the full one.
 The `UNIQUE (source_type, source_id)` constraint deserves emphasis: it means the
 "post twice creates two receivables" bug is not merely tested against — it is
 unrepresentable.
+
+Grade-aware movement and projection keys use workspace-safe composite foreign
+keys. New rows preserve a QualityGrade id plus document snapshot name. Nullable
+grade columns are retained only for immutable pre-M23.8 history; migrations do
+not invent a classification for those rows. Inventory balance uniqueness uses
+`NULLS NOT DISTINCT (workspace_id, product_id, quality_grade_id, unit)` so even
+the legacy/unclassified projection has one deterministic row.
 
 ## What is deliberately absent
 

@@ -22,16 +22,23 @@ supplier adjustment is not a correction path.
 ## UC-RECEIVING-001 — Receive and correct physical goods
 
 Owner/warehouse record one or more partial Receipts against confirmed Purchase
-lines. A Receipt creates immutable per-line movements. A wrong Receipt is fully
-reversed, leaving both records visible. Over-receiving, unit mismatch,
-cross-workspace references and duplicate effects are refused.
+lines, splitting one purchased quantity across configured grades when needed. A
+Receipt creates immutable Product/grade/unit movements. A wrong Receipt is fully
+reversed, leaving both records visible. Total over-receiving across grades, unit
+or Product mismatch, cross-workspace references and duplicate effects are
+refused.
 
 ## UC-INVENTORY-001 — Explain and reconcile quantity
 
-Authorized users inspect balances independently by Product and unit, then drill
+Authorized users inspect balances independently by Product, grade and unit, then drill
 from each movement to its Receipt or adjustment document. Owner/warehouse may
 record explained physical adjustments. Owner may rebuild a projection only when
 canonical sources are healthy.
+
+Owner/warehouse may also reclassify quantity between two active grades. The
+command appends equal opposite movements atomically and requires an explanation.
+Spoilage is a named negative adjustment. Neither operation changes customer or
+supplier money.
 
 No use case in M16–M18 allocates supplier payments to Purchases, values stock,
 computes COGS, converts units, or infers outbound movement from a Sale.

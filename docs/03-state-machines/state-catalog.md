@@ -13,6 +13,7 @@ command that changes its mutable state.
 | --------------- | ----------------------------------------------- | --------------------------------------------------- | ------------------- |
 | Customer        | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
 | Product         | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
+| QualityGrade    | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
 | Supplier        | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
 | Sale            | `draft`, `posted`, `discarded`                  | update draft, post, discard                         | posted/discarded    |
 | Payment         | `recorded`, `partially_reversed`, `reversed`    | reverse remaining amount                            | reversed            |
@@ -70,22 +71,22 @@ Delivery, Sale, or customer money.
 
 These are read-time views of canonical facts, never independent truth.
 
-| State family               | Values or condition                                            | Canonical derivation                                                                |
-| -------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Sale financial             | `active`, `voided`                                             | posted Sale plus absence/presence of `sale_voids`                                   |
-| Sale due                   | `no_due_date`, `due`, `overdue`                                | nullable `dueAt` compared with the reading clock                                    |
-| Purchase financial         | active/voided condition                                        | confirmed Purchase plus absence/presence of `purchase_voids`; no public stored enum |
-| Purchase receiving         | remaining/complete quantities per line                         | Purchase line quantity minus active Receipts plus reversals; no stored status       |
-| Receipt                    | active/reversed condition                                      | Receipt plus absence/presence of its immutable reversal; no stored status           |
-| Delivery fulfilment        | dispatched, returned and net quantities                        | Delivery lines plus immutable return lines                                          |
-| Document share             | available, expired or revoked condition                        | token digest, `expiresAt` and `revokedAt`; no stored public-read status             |
-| Customer balance           | `receivable`, `settled`, `customer_credit`                     | sign of canonical customer account sum                                              |
-| Supplier balance           | `payable`, `settled`, `supplier_credit`                        | sign of canonical supplier account sum                                              |
-| Inventory                  | `positive`, `zero`, `negative`                                 | sign of canonical Product/unit movement sum                                         |
-| Customer reconciliation    | `consistent`, `inconsistent`, `not_found`, `integrity_failure` | canonical customer ledger versus projection and source integrity                    |
-| Supplier reconciliation    | `consistent`, `inconsistent`, `not_found`, `integrity_failure` | canonical supplier ledger versus projection and source integrity                    |
-| Inventory reconciliation   | `consistent`, `inconsistent`, `not_found`, `integrity_failure` | canonical movements versus projection and source integrity                          |
-| Workspace/report integrity | `healthy`, `attention`                                         | source, projection, reference and digest checks                                     |
+| State family               | Values or condition                                                                | Canonical derivation                                                                |
+| -------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Sale financial             | `active`, `voided`                                                                 | posted Sale plus absence/presence of `sale_voids`                                   |
+| Sale due                   | `no_due_date`, `due`, `overdue`                                                    | nullable `dueAt` compared with the reading clock                                    |
+| Purchase financial         | active/voided condition                                                            | confirmed Purchase plus absence/presence of `purchase_voids`; no public stored enum |
+| Purchase receiving         | remaining/complete quantities per line                                             | Purchase line quantity minus active Receipts plus reversals; no stored status       |
+| Receipt                    | active/reversed condition                                                          | Receipt plus absence/presence of its immutable reversal; no stored status           |
+| Delivery fulfilment        | `unfulfilled`, `partially_fulfilled`, `fulfilled`, `returned_partial`, `attention` | ordered Sale line minus exact-grade dispatch plus return facts                      |
+| Document share             | available, expired or revoked condition                                            | token digest, `expiresAt` and `revokedAt`; no stored public-read status             |
+| Customer balance           | `receivable`, `settled`, `customer_credit`                                         | sign of canonical customer account sum                                              |
+| Supplier balance           | `payable`, `settled`, `supplier_credit`                                            | sign of canonical supplier account sum                                              |
+| Inventory                  | `positive`, `zero`, `negative`                                                     | sign of canonical Product/QualityGrade/unit movement sum                            |
+| Customer reconciliation    | `consistent`, `inconsistent`, `not_found`, `integrity_failure`                     | canonical customer ledger versus projection and source integrity                    |
+| Supplier reconciliation    | `consistent`, `inconsistent`, `not_found`, `integrity_failure`                     | canonical supplier ledger versus projection and source integrity                    |
+| Inventory reconciliation   | `consistent`, `inconsistent`, `not_found`, `integrity_failure`                     | canonical movements versus projection and source integrity                          |
+| Workspace/report integrity | `healthy`, `attention`                                                             | source, projection, reference and digest checks                                     |
 
 Negative customer, supplier or inventory values are retained facts with explicit
 classifications. They are not silently clamped or rejected.

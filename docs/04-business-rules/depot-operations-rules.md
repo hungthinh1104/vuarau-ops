@@ -7,8 +7,9 @@ not real-worker adoption.
 
 - **BR-DELIVERY-001** — Delivery is a separate physical aggregate referencing
   immutable lines of one posted Sale. Multiple partial Deliveries are allowed.
-- **BR-DELIVERY-002** — Product and unit must exactly match the Sale snapshot.
-  A Sale line without Product identity cannot create an outbound movement.
+- **BR-DELIVERY-002** — Product, QualityGrade and unit must exactly match the
+  Sale snapshot. A legacy line without Product or grade identity cannot create
+  an outbound movement and is surfaced as integrity attention.
 - **BR-DELIVERY-003** — Dispatch creates exactly one negative inventory
   movement per line and cannot exceed the Sale line's remaining quantity.
   Return appends one positive movement referencing the original dispatch.
@@ -22,6 +23,10 @@ not real-worker adoption.
   voided, new Delivery creation, editing, and dispatch are rejected; an existing
   dispatched Delivery remains historical truth and may receive an explicit
   return.
+- **BR-DELIVERY-007** — Fulfilment derives ordered, dispatched, returned,
+  net fulfilled and remaining quantities using
+  `remaining = ordered - dispatched + returned`. Invalid negative/over-fulfilled
+  histories are not clamped; they return `attention`.
 
 ## Documents
 

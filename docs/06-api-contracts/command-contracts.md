@@ -124,6 +124,14 @@ M19 adds `CreateDeliveryDraft`, `UpdateDeliveryDraft`, `CancelDeliveryDraft`,
 `DispatchDelivery`, `MarkDeliveryDelivered`, and `RecordDeliveryReturn`. Only
 dispatch and return move inventory; none move customer debt.
 
+M23.8 adds workspace QualityGrade lifecycle commands and
+`ReclassifyInventory`. Receipt, inventory-adjustment, Sale and Delivery lines
+carry canonical grade identity plus a name snapshot. `PostSale` reads the stored
+draft and validates active Product and grade server truth before its existing
+customer account effect. Reclassification carries source/destination grade,
+exact quantity/unit and required reason; it appends a conserving movement pair
+and no money effect.
+
 M20 adds `GenerateDocument`, `CreateDocumentShare`, and
 `RevokeDocumentShare`. Generated ids and share ids are client-supplied for
 duplicate-safe replay. The public token is returned once; only its hash is

@@ -18,10 +18,13 @@ Quick Sale may copy Product id, current display name and preferred unit into an
 editable line. It never fills or overwrites a price. Posting continues to persist
 the name, unit, quantity and price snapshot; later Product rename, unit change or
 deactivation cannot change historical Sales. Free text with `productId = null`
-remains valid.
+remains valid only while the Sale is a draft. Since M23.7, `PostSale` requires an
+active canonical Product and matching snapshot before creating customer debt.
 
 A non-null Product reference must exist in the same workspace. Deactivation
-removes it from discovery but does not invalidate existing Sale snapshots.
+removes it from discovery, blocks a new posting that still references it, and
+does not invalidate or rewrite existing posted Sale snapshots. Legacy posted
+free-text history remains immutable and is surfaced as fulfilment attention.
 
 Search is workspace-scoped, cursor-paged, diacritic tolerant and ordered by
 display name then Product id. The offline catalog cache reuses ADR-0015 and carries

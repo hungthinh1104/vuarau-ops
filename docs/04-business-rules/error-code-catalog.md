@@ -34,6 +34,14 @@ two handlers cannot disagree about whether the same failure is worth retrying.
 | `SALE_NOT_FOUND`                                | No such sale in this workspace                                                                                         | `saleId`                                 | no        | —                        | `NOT_FOUND`             |
 | `SALE_EMPTY`                                    | Posting a sale with no lines                                                                                           | `saleId`                                 | no        | BR-SALE-002              | `BAD_REQUEST`           |
 | `SALE_LINE_INVALID`                             | A line failed validation                                                                                               | `lineIndex`, `lineId`, `problem`         | no        | BR-SALE-003              | `BAD_REQUEST`           |
+| `SALE_PRODUCT_REQUIRED`                         | Posted line has no canonical Product                                                                                   | `saleId`, `lineId`                       | no        | BR-SALE-019              | `BAD_REQUEST`           |
+| `SALE_PRODUCT_NOT_FOUND`                        | Product does not resolve inside the Sale workspace                                                                     | `saleId`, `lineId`, `productId`          | no        | BR-SALE-019              | `NOT_FOUND`             |
+| `SALE_PRODUCT_INACTIVE`                         | Selected Product is no longer active                                                                                   | `saleId`, `lineId`, `productId`          | no        | BR-SALE-019              | `CONFLICT`              |
+| `SALE_PRODUCT_SNAPSHOT_MISMATCH`                | Draft Product name/unit no longer matches server policy                                                                | `saleId`, `lineId`, `productId`          | no        | BR-SALE-019              | `CONFLICT`              |
+| `SALE_QUALITY_GRADE_REQUIRED`                   | Posted line has no canonical QualityGrade                                                                              | `saleId`, `lineId`                       | no        | BR-SALE-019              | `BAD_REQUEST`           |
+| `SALE_QUALITY_GRADE_NOT_FOUND`                  | QualityGrade does not resolve inside the workspace                                                                     | `saleId`, `lineId`, `qualityGradeId`     | no        | BR-SALE-019              | `NOT_FOUND`             |
+| `SALE_QUALITY_GRADE_INACTIVE`                   | Selected QualityGrade is no longer active                                                                              | `saleId`, `lineId`, `qualityGradeId`     | no        | BR-SALE-019              | `CONFLICT`              |
+| `SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH`          | Draft grade name no longer matches the canonical grade                                                                 | `saleId`, `lineId`, `qualityGradeId`     | no        | BR-SALE-019              | `CONFLICT`              |
 | `SALE_ALREADY_POSTED`                           | Sale is already `posted`; drafts only from here                                                                        | `saleId`, `status`                       | no        | BR-SALE-005, BR-SALE-018 | `CONFLICT`              |
 | `SALE_VERSION_CONFLICT`                         | `expectedVersion` ≠ stored version                                                                                     | `expectedVersion`, `actualVersion`       | no¹       | BR-SALE-006              | `CONFLICT`              |
 | `SALE_CURRENCY_MISMATCH`                        | A line's currency differs from the sale's                                                                              | `lineId`, `expected`, `actual`           | no        | BR-SALE-009              | `BAD_REQUEST`           |
@@ -126,7 +134,12 @@ Postgres, and returned by a command that a test exercises.
 | `RECEIPT_QUANTITY_EXCEEDS_PURCHASE`                  | Net received quantity exceeds purchased quantity            |
 | `RECEIPT_UNIT_MISMATCH`                              | Receipt unit differs from immutable Purchase line           |
 | `RECEIPT_REVERSAL_REASON_REQUIRED`                   | Receipt reversal lacks explanation                          |
+| `QUALITY_GRADE_NOT_FOUND`                            | QualityGrade does not resolve in this workspace             |
+| `QUALITY_GRADE_INACTIVE`                             | Inactive QualityGrade cannot receive new physical quantity  |
+| `QUALITY_GRADE_VERSION_CONFLICT`                     | QualityGrade lifecycle version is stale                     |
 | `INVENTORY_ADJUSTMENT_REASON_REQUIRED`               | Inventory adjustment lacks explanation                      |
+| `INVENTORY_RECLASSIFICATION_INVALID`                 | Grade reclassification identity or quantity is invalid      |
+| `INVENTORY_RECLASSIFICATION_REASON_REQUIRED`         | Grade reclassification lacks explanation                    |
 | `INVENTORY_RECONCILIATION_INTEGRITY_FAILURE`         | Canonical movement source is corrupt                        |
 | `DELIVERY_NOT_FOUND`                                 | Delivery does not resolve in this workspace                 |
 | `DELIVERY_LINE_INVALID`                              | Delivery line does not match its immutable Sale line        |

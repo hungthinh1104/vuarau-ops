@@ -11,7 +11,8 @@ immutable Sale lines, dispatches exact Product/unit quantities, marks the
 delivery complete, and records explicit returns.
 
 - **Preconditions:** the Sale is posted and not voided for Delivery creation,
-  editing, or dispatch; every outbound line has a Product; a replacement whose
+  editing, or dispatch; every outbound line has an exact Product, QualityGrade
+  and unit; a replacement whose
   predecessor has active net fulfilment is rejected. A Delivery dispatched
   before its Sale was voided remains historical truth and may receive an
   explicit return.
@@ -26,6 +27,12 @@ delivery complete, and records explicit returns.
 - **Offline:** not supported in M19.
 - **UI states:** loading, permission denied, rejected command, unknown outcome,
   retry, and source-detail navigation.
+
+Sale fulfilment is a derived read over all Delivery and Return facts. It exposes
+ordered, dispatched, returned, net fulfilled and remaining quantities per line;
+only the exact remaining Product/grade/unit quantity can be proposed for another
+Delivery. Legacy unresolved history is visible as `attention`, not silently
+backfilled.
 
 ## UC-DOCUMENT-001 — Generate and securely share a snapshot
 

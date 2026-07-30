@@ -54,17 +54,18 @@ Share expiry is derived from time and is not a command transition.
 
 ## Append-only effects and corrections
 
-| ID                     | Command                  | Canonical fact appended          | Cross-dimension effect                                  |
-| ---------------------- | ------------------------ | -------------------------------- | ------------------------------------------------------- |
-| T-SALE-VOID-001        | `VoidSale`               | Sale void                        | customer `-original total`; no goods effect             |
-| T-CUSTOMER-ADJUST-001  | `AdjustCustomerDebt`     | manual customer account entry    | signed customer amount; never a Sale correction         |
-| T-PURCHASE-VOID-001    | `VoidPurchase`           | Purchase void                    | supplier `-original total`; no goods effect             |
-| T-SUPPLIER-ADJUST-001  | `AdjustSupplierAccount`  | manual supplier account entry    | signed supplier amount                                  |
-| T-RECEIPT-001          | `RecordPurchaseReceipt`  | Purchase Receipt                 | positive inventory movement per line; no payable effect |
-| T-RECEIPT-002          | `ReversePurchaseReceipt` | Receipt reversal                 | negative inventory compensation; no payable effect      |
-| T-INVENTORY-ADJUST-001 | `AdjustInventory`        | manual inventory movement        | signed Product/unit quantity                            |
-| T-RETURN-001           | `RecordDeliveryReturn`   | Delivery return                  | positive inventory movement; no customer-money effect   |
-| T-DOCUMENT-001         | `GenerateDocument`       | immutable next document snapshot | none                                                    |
+| ID                      | Command                  | Canonical fact appended          | Cross-dimension effect                                      |
+| ----------------------- | ------------------------ | -------------------------------- | ----------------------------------------------------------- |
+| T-SALE-VOID-001         | `VoidSale`               | Sale void                        | customer `-original total`; no goods effect                 |
+| T-CUSTOMER-ADJUST-001   | `AdjustCustomerDebt`     | manual customer account entry    | signed customer amount; never a Sale correction             |
+| T-PURCHASE-VOID-001     | `VoidPurchase`           | Purchase void                    | supplier `-original total`; no goods effect                 |
+| T-SUPPLIER-ADJUST-001   | `AdjustSupplierAccount`  | manual supplier account entry    | signed supplier amount                                      |
+| T-RECEIPT-001           | `RecordPurchaseReceipt`  | Purchase Receipt                 | positive inventory movement per line; no payable effect     |
+| T-RECEIPT-002           | `ReversePurchaseReceipt` | Receipt reversal                 | negative inventory compensation; no payable effect          |
+| T-INVENTORY-ADJUST-001  | `AdjustInventory`        | manual inventory movement        | signed Product/unit quantity                                |
+| T-INVENTORY-RECLASS-001 | `ReclassifyInventory`    | two linked inventory movements   | equal negative/positive Product/unit quantity across grades |
+| T-RETURN-001            | `RecordDeliveryReturn`   | Delivery return                  | positive inventory movement; no customer-money effect       |
+| T-DOCUMENT-001          | `GenerateDocument`       | immutable next document snapshot | none                                                        |
 
 Replacement Sale and Purchase drafts use the ordinary create transition plus a
 stable `replaces…Id`; the original must already be voided and structural
@@ -76,7 +77,7 @@ uniqueness permits one replacement.
 | ---------------- | ---------------------------------- | -------------------------------------------------------------------------------- |
 | T-PROJECTION-001 | `RebuildAccountProjection`         | replace disposable customer projection from canonical ledger                     |
 | T-PROJECTION-002 | `RebuildSupplierAccountProjection` | replace disposable supplier projection from canonical ledger                     |
-| T-PROJECTION-003 | `RebuildInventoryProjection`       | replace disposable Product/unit projection from movements                        |
+| T-PROJECTION-003 | `RebuildInventoryProjection`       | replace disposable Product/QualityGrade/unit projection from movements           |
 | T-BACKUP-001     | `ExportWorkspaceBackup`            | no business mutation; creates attributable export evidence                       |
 | T-BACKUP-002     | `RestoreWorkspaceBackup`           | transactionally import validated canonical rows into an empty recovery workspace |
 

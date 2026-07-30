@@ -547,9 +547,10 @@ use_cases:
     title: Receive and reverse physical goods
     risk: P0
     doc: docs/02-use-cases/goods-flow-use-cases.md
-    rules: [BR-INVENTORY-001, BR-INVENTORY-002, BR-INVENTORY-003, BR-INVENTORY-004]
+    rules:
+      [BR-INVENTORY-001, BR-INVENTORY-002, BR-INVENTORY-003, BR-INVENTORY-004, BR-INVENTORY-010]
     cases: []
-    tests: [TC-GOODS-001, TC-GOODS-004, TC-E2E-029]
+    tests: [TC-GOODS-001, TC-GOODS-004, TC-E2E-029, TC-E2E-032]
     implementation:
       - packages/domain-kernel/src/inventory/index.ts
       - apps/api/src/modules/inventory/inventory.handlers.ts
@@ -560,9 +561,18 @@ use_cases:
     risk: P0
     doc: docs/02-use-cases/goods-flow-use-cases.md
     rules:
-      [BR-INVENTORY-005, BR-INVENTORY-006, BR-INVENTORY-007, BR-INVENTORY-008, BR-INVENTORY-009]
+      [
+        BR-INVENTORY-005,
+        BR-INVENTORY-006,
+        BR-INVENTORY-007,
+        BR-INVENTORY-008,
+        BR-INVENTORY-009,
+        BR-INVENTORY-010,
+        BR-INVENTORY-011,
+        BR-INVENTORY-012,
+      ]
     cases: []
-    tests: [TC-GOODS-001, TC-GOODS-004, TC-GOODS-005, TC-E2E-029]
+    tests: [TC-GOODS-001, TC-GOODS-004, TC-GOODS-005, TC-E2E-029, TC-E2E-032]
     implementation:
       - apps/api/src/modules/inventory/inventory.queries.ts
       - packages/db/src/repositories/read/inventory.ts
@@ -579,8 +589,9 @@ use_cases:
       - BR-DELIVERY-004
       - BR-DELIVERY-005
       - BR-DELIVERY-006
+      - BR-DELIVERY-007
     cases: []
-    tests: [TC-DELIVERY-001, TC-DELIVERY-002, TC-DELIVERY-003, TC-E2E-030]
+    tests: [TC-DELIVERY-001, TC-DELIVERY-002, TC-DELIVERY-003, TC-E2E-030, TC-E2E-032]
     implementation:
       - packages/domain-kernel/src/delivery/index.ts
       - apps/api/src/modules/delivery/delivery.handlers.ts
@@ -721,7 +732,7 @@ business_rules:
     tests: [TC-GOODS-001]
     implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
   BR-INVENTORY-005:
-    title: Inventory projection is keyed by Product and unit
+    title: Inventory projection is keyed by Product, QualityGrade and unit
     risk: P0
     doc: docs/04-business-rules/goods-flow-rules.md
     cases: []
@@ -750,6 +761,33 @@ business_rules:
     implementation: [packages/db/src/repositories/read/inventory.ts]
   BR-INVENTORY-009:
     title: M18 does not infer outbound movement from Sale
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001]
+    implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
+  BR-INVENTORY-010:
+    title: QualityGrade is workspace scoped and physical quantities preserve it
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-QUALITY-001, TC-GOODS-001, TC-E2E-029]
+    implementation:
+      - packages/domain-kernel/src/quality/index.ts
+      - apps/api/src/modules/quality/quality.handlers.ts
+      - packages/db/src/schema/quality.ts
+      - packages/db/src/schema/inventory.ts
+  BR-INVENTORY-011:
+    title: Reclassification conserves quantity across exact grades
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-004]
+    implementation:
+      - packages/domain-kernel/src/inventory/index.ts
+      - apps/api/src/modules/inventory/inventory.handlers.ts
+  BR-INVENTORY-012:
+    title: Spoilage is an attributable negative inventory adjustment
     risk: P0
     doc: docs/04-business-rules/goods-flow-rules.md
     cases: []
@@ -926,14 +964,16 @@ business_rules:
       - packages/db/migrations/0006_customer_and_draft_lifecycle.sql
 
   BR-SALE-019:
-    title: A sale line's product link is optional; its name is not
-    risk: P1
+    title: Draft text may be unresolved but PostSale requires canonical Product and grade
+    risk: P0
     doc: docs/04-business-rules/sale-rules.md
     cases: []
-    tests: [TC-WEB-021, TC-E2E-011]
+    tests: [TC-SALE-006, TC-E2E-028]
     implementation:
       - packages/domain-contracts/src/sale/index.ts
-      - packages/db/migrations/0007_sale_line_product_optional.sql
+      - packages/domain-kernel/src/sale/post-sale.ts
+      - apps/api/src/modules/sale/post-sale.handler.ts
+      - apps/web/src/app/(app)/customers/[customerId]/sales/new/quick-sale-form-model.ts
 
   BR-SALE-020:
     title: The receivable arises at posting, and at no other event
@@ -1484,7 +1524,7 @@ business_rules:
     doc: docs/04-business-rules/depot-operations-rules.md
     tests: [TC-DELIVERY-001, TC-DELIVERY-003]
   BR-DELIVERY-002:
-    title: Delivery Product and unit exactly match the Sale snapshot
+    title: Delivery Product, QualityGrade and unit exactly match the Sale snapshot
     risk: P0
     doc: docs/04-business-rules/depot-operations-rules.md
     tests: [TC-DELIVERY-001, TC-DELIVERY-002]
@@ -1508,6 +1548,14 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/depot-operations-rules.md
     tests: [TC-DELIVERY-001]
+  BR-DELIVERY-007:
+    title: Fulfilment quantities and attention state are server-derived without clamping
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DELIVERY-002, TC-DELIVERY-003, TC-E2E-030]
+    implementation:
+      - apps/api/src/modules/delivery/delivery.queries.ts
+      - packages/db/src/repositories/read/delivery.ts
   BR-DOCUMENT-001:
     title: Document generations are immutable source snapshots and versions
     risk: P0
@@ -1753,6 +1801,9 @@ contract_tests:
   TC-E2E-030:
     title: Browser API and PostgreSQL prove partial delivery completion and explicit return
     file: apps/web/e2e/m19-m21-depot-operations.spec.ts
+  TC-E2E-032:
+    title: Browser API and PostgreSQL prove split-grade receipt through Sale Delivery Return regrade spoilage and reconciliation
+    file: apps/web/e2e/m23-operational-correctness.spec.ts
   TC-GOODS-001:
     title: PostgreSQL proves payable, receipt, reversal, void and retry truth
     file: apps/api/src/infrastructure/persistence/drizzle/goods-truth.db.test.ts
@@ -1768,6 +1819,9 @@ contract_tests:
   TC-GOODS-005:
     title: PostgreSQL cursor tests prove equal-time Goods ordering
     file: apps/api/src/infrastructure/persistence/drizzle/goods-truth.db.test.ts
+  TC-QUALITY-001:
+    title: QualityGrade lifecycle, permissions and workspace isolation
+    file: apps/api/src/modules/quality/quality.app.test.ts
   TC-E2E-029:
     title: Browser API and PostgreSQL prove complete Goods Truth and source navigation
     file: apps/web/e2e/m16-m18-goods-truth.spec.ts
@@ -2025,7 +2079,7 @@ contract_tests:
     title: Owner inspects integrity and exports a checksummed backup
     file: apps/web/e2e/m14-operations.spec.ts
   TC-E2E-028:
-    title: Owner creates and finds a catalog Product
+    title: Owner resolves or creates canonical Product inline and inactive Product cannot be posted
     file: apps/web/e2e/m15-products.spec.ts
 
   # --- running the thing ------------------------------------------------------

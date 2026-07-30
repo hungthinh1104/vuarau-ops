@@ -88,6 +88,9 @@ the caller's membership, using the static table in
 | Product search/get                    | `product.read`                                             | all operational roles                         | implemented |
 | `CreateProduct`, `UpdateProduct`      | `product.create`, `product.update`                         | owner, sales                                  | implemented |
 | Product deactivate/reactivate         | `product.deactivate`, `product.reactivate`                 | **owner**                                     | implemented |
+| QualityGrade search/get               | `quality.read`                                             | all operational roles                         | implemented |
+| QualityGrade lifecycle                | `quality.manage`                                           | owner, warehouse                              | implemented |
+| Inventory reclassification            | `inventory.reclassify`                                     | owner, warehouse                              | implemented |
 | Operations integrity/export/restore   | `workspace.manage`                                         | **owner**                                     | implemented |
 | Delivery draft/update/cancel          | `delivery.create/update/cancel`                            | owner, sales, warehouse                       | implemented |
 | `DispatchDelivery`                    | `delivery.dispatch`                                        | owner, warehouse                              | implemented |

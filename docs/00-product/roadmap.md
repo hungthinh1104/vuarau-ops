@@ -251,6 +251,14 @@ source-backed reports.
 - the role-aware desktop/mobile shell, explicit workspace/user context, Sale and
   Delivery entry lists and permission-backed Today actions close the bounded
   navigation gaps needed for a real worker;
+- M23.7–M23.9 close the pre-pilot Sale→Delivery integrity defect: PostSale now
+  requires current canonical Product and QualityGrade identity before debt,
+  Quick Sale resolves/creates Product inline, fulfilment exposes exact remaining
+  quantities, and Delivery consumes the exact Product/grade/unit;
+- configurable workspace grades, split-grade Receiving, grade-separated
+  inventory, conserving reclassification, attributable spoilage, BackupV4
+  compatibility and responsive source-backed management queues are technically
+  proven without rewriting legacy unclassified history;
 - H2–H6 criteria, P0–P3 stop rules, deployment/recovery evidence and support
   runbooks are frozen.
 

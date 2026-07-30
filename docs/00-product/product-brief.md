@@ -32,9 +32,11 @@ supplier accounts. Every total must resolve to canonical, attributable sources.
 
 ### Goods Flow
 
-Products and units anchor Purchase Receiving, receipt reversal, inventory
-adjustment, Sale Delivery, dispatch and return. Physical movement remains separate
-from the commercial agreement and from customer or supplier money.
+Products, workspace QualityGrades and units anchor Purchase Receiving, receipt
+reversal, inventory adjustment/reclassification, Sale Delivery, dispatch and
+return. Grade belongs to physical quantity rather than Product identity. Physical
+movement remains separate from the commercial agreement and from customer or
+supplier money.
 
 ### Operational Control
 

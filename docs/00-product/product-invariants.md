@@ -27,6 +27,14 @@ rules refine them but may not weaken them.
 7. **Automated verification is not field validation.** Tests can prove the
    implemented contract and integrity properties. Only observed depot use can
    validate recognition semantics, usability and operational fit.
+8. **A posted Sale has a fulfilment identity.** Draft text may be unresolved
+   while a worker is typing, but posting requires an active workspace Product
+   and active workspace QualityGrade for every line. The immutable line keeps
+   both ids and human-readable snapshots.
+9. **Physical quality belongs to quantity, not Product identity.** Inventory,
+   Receiving, Sale fulfilment, Delivery and Return preserve the exact
+   `Product + QualityGrade + unit`. Grade changes append a conserving pair of
+   movements; they never rewrite history.
 
 ## Evidence vocabulary
 

@@ -37,16 +37,18 @@ claim that a depot has validated the workflow in live operations.
 ## Receiving and inventory
 
 - **BR-INVENTORY-001** — A Receipt references an active confirmed Purchase.
-  Product and unit must exactly match the immutable Purchase line.
+  Product and unit must exactly match the immutable Purchase line. Each received
+  quantity also names an active workspace QualityGrade.
 - **BR-INVENTORY-002** — Net received quantity per Purchase line cannot exceed
-  purchased quantity. Multiple partial Receipts are allowed.
+  purchased quantity across all grades. Multiple partial and split-grade
+  Receipts are allowed.
 - **BR-INVENTORY-003** — Each Receipt line creates exactly one positive
   inventory movement. Retry cannot append a second movement.
 - **BR-INVENTORY-004** — Receipt reversal is append-only and creates one inverse
   movement referencing each original movement.
 - **BR-INVENTORY-005** — Inventory truth is the movement ledger. The disposable
-  projection is keyed by workspace, Product and unit; incompatible units are
-  never summed or converted.
+  projection is keyed by workspace, Product, QualityGrade and unit; grades and
+  incompatible units are never silently merged or converted.
 - **BR-INVENTORY-006** — Negative inventory is retained and classified as an
   anomaly, never clamped to zero.
 - **BR-INVENTORY-007** — Inventory adjustment requires explicit direction,
@@ -57,12 +59,21 @@ claim that a depot has validated the workflow in live operations.
   order.
 - **BR-INVENTORY-009** — M18 established inbound and explicit adjustment
   events. M19 adds outbound dispatch and explicit return sources without
-  changing the canonical per-Product/unit movement model.
+  changing the canonical movement model.
+- **BR-INVENTORY-010** — QualityGrade is configurable workspace master data.
+  It is commercial classification of a physical quantity, not an attribute that
+  splits Product identity. Grade names are snapshotted on physical documents.
+- **BR-INVENTORY-011** — Reclassification appends one negative source-grade and
+  one equal positive destination-grade movement atomically. Reason and actor
+  are required, total quantity is conserved, and customer/supplier money is
+  unchanged.
+- **BR-INVENTORY-012** — Spoilage/loss is an attributable negative inventory
+  adjustment with an explicit reason; it is not a Sale, Receipt or Delivery.
 
 ## Backup and operations
 
-WorkspaceBackupV3 includes Supplier, Purchase, Receipt, movement, Delivery,
-return, document, and document-share canonical rows but no derived projections.
-Restore accepts V1/V2, restores V3 transactionally into an empty target, rebuilds
-projections, then requires customer, supplier, and inventory reconciliation to
-be healthy.
+WorkspaceBackupV4 adds QualityGrade and grade snapshots to the V3 canonical
+boundary but no derived projections. Restore continues to accept V1–V3; missing
+historical grades remain explicitly unclassified and are never assigned an
+arbitrary grade. V4 restore is transactional and rebuilds grade-aware
+projections before customer, supplier and inventory reconciliation.
