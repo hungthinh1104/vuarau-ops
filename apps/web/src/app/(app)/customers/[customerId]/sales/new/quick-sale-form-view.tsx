@@ -8,6 +8,7 @@ import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import { SaleLineEditor } from "@/ui/patterns/sale/sale-line-editor.tsx";
 import { ProductPicker } from "@/ui/patterns/sale/product-picker.tsx";
+import { TransactionPreview } from "@/ui/patterns/sale/transaction-preview.tsx";
 import { Dialog } from "@/ui/primitives/dialog.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -45,6 +46,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     post,
     postCommand,
     productCreateCommand,
+    productSearchLoading,
     noProductMatch,
     qualityGrades,
     qualityGradeOptions,
@@ -56,6 +58,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     serverLineIndex,
     session,
     setActiveLineId,
+    setPickerProductQuery,
     setDirty,
     setNote,
     setUnitNotice,
@@ -68,6 +71,16 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [posting, setPosting] = useState(false);
+
+  function openProductPicker(): void {
+    setPickerProductQuery("");
+    setPickerOpen(true);
+  }
+
+  function closeProductPicker(): void {
+    setPickerOpen(false);
+    setPickerProductQuery(null);
+  }
 
   // Show a success toast exactly once after a definitive server confirmation.
   // CommandOutcome stays authoritative for errors and unknown-network states.
@@ -87,6 +100,22 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
       setPosting(false);
       setConfirmOpen(false);
     }
+  }
+
+  function advanceFromLine(index: number): void {
+    if (resolved[index]?.total === null) return;
+    const focusProductAt = (at: number) => {
+      requestAnimationFrame(() => {
+        const products = document.querySelectorAll<HTMLElement>("[data-sale-field='product']");
+        products[at]?.focus();
+      });
+    };
+    if (index < lines.length - 1) {
+      focusProductAt(index + 1);
+      return;
+    }
+    addLine();
+    requestAnimationFrame(() => focusProductAt(index + 1));
   }
 
   return (
@@ -109,8 +138,8 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
         }
       />
 
-      <p className="rounded-card border border-info/30 bg-info-soft px-3 py-2 text-body-sm text-info">
-        Đơn nháp <strong>chưa tính vào công nợ</strong>. Công nợ chỉ phát sinh khi bấm "Chốt đơn".
+      <p className="text-body-sm text-info">
+        Đơn nháp <strong>chưa tính vào công nợ</strong>; công nợ chỉ phát sinh khi chốt đơn.
       </p>
 
       {locallyQueued ? (
@@ -216,7 +245,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                     ? {
                         onOpenProductPicker: () => {
                           setActiveLineId(line.lineId);
-                          setPickerOpen(true);
+                          openProductPicker();
                         },
                       }
                     : {})}
@@ -269,6 +298,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                     )
                   }
                   onRemove={() => editLines((current) => current.filter((_, at) => at !== index))}
+                  onAdvance={() => advanceFromLine(index)}
                 />
               ))}
             </ul>
@@ -279,12 +309,9 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               </p>
             ) : null}
             {cachedCatalogFetchedAt !== null ? (
-              <p
-                role="status"
-                className="rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-body-sm"
-              >
-                Đang dùng danh mục đã lưu lúc {formatDate(cachedCatalogFetchedAt)}. Kiểm tra lại khi
-                có mạng; tên và đơn vị này chỉ là gợi ý nhập liệu.
+              <p role="status" className="text-caption text-warning">
+                Danh mục đang dùng bản lưu lúc {formatDate(cachedCatalogFetchedAt)}; kiểm tra lại
+                khi có mạng.
               </p>
             ) : null}
             {qualityGrades.isPending && qualityGradeOptions.length === 0 ? (
@@ -351,6 +378,14 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                 setDirty(true);
               }}
             />
+            <Button
+              tone="secondary"
+              className="self-start sm:hidden"
+              onClick={() => void discard()}
+              {...(locallyQueued ? { disabledReason: "Đơn đang chờ máy chủ xác nhận." } : {})}
+            >
+              {draft === null ? "Huỷ đơn" : "Bỏ đơn"}
+            </Button>
 
             <section className="rounded-card border border-border bg-surface p-4">
               <div className="flex items-baseline justify-between">
@@ -398,7 +433,9 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               {(context) => (
                 <ProductPicker
                   open={pickerOpen}
-                  onClose={() => setPickerOpen(false)}
+                  onClose={closeProductPicker}
+                  onSearchChange={setPickerProductQuery}
+                  searching={productSearchLoading}
                   visibleProducts={visibleProducts}
                   customerHistory={context.customerHistory}
                   workspaceHistory={context.workspaceHistory}
@@ -476,36 +513,30 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   </>
                 }
               >
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-subheading font-semibold">Tổng đơn</span>
-                    <span className="tabular text-display font-bold">{formatMoney(total)}</span>
-                  </div>
-                  {total.amountMinor > 0 && pendingCustomerCreate === null ? (
-                    <BalancePreview
-                      currentBalance={detail.balance}
-                      currentClassification={detail.classification}
-                      change={total}
-                      changeLabel="Đơn này"
-                    />
-                  ) : pendingCustomerCreate !== null ? (
-                    <p className="text-caption text-ink-muted">
-                      Công nợ hiện tại chưa có trên máy chủ; ứng dụng không tự suy ra số dư.
-                    </p>
-                  ) : null}
-                  <p className="text-caption text-ink-muted">
-                    Sau khi chốt, đơn sẽ tính vào công nợ của{" "}
-                    <strong>{detail.customer.displayName}</strong>. Thao tác này không thể hoàn tác
-                    trực tiếp.
-                  </p>
-                </div>
+                <TransactionPreview
+                  customerName={detail.customer.displayName}
+                  lines={lines}
+                  resolved={resolved}
+                  total={total}
+                  currentBalance={pendingCustomerCreate === null ? detail.balance : null}
+                  currentClassification={
+                    pendingCustomerCreate === null ? detail.classification : null
+                  }
+                />
               </Dialog>
             ) : null}
 
-            <div className="fixed inset-x-0 bottom-16 z-20 border-t border-border bg-surface px-4 py-3 lg:bottom-0">
-              <div className="mx-auto flex max-w-[1440px] gap-2">
+            <div className="fixed inset-x-0 bottom-16 z-20 border-t border-border bg-surface/95 px-4 py-2.5 shadow-md backdrop-blur lg:bottom-0">
+              <div className="mx-auto flex max-w-[1440px] items-center gap-2 lg:justify-end lg:pl-[312px] lg:pr-8">
+                <div className="mr-auto min-w-0">
+                  <p className="text-caption text-ink-muted">Tổng đơn</p>
+                  <p className="tabular truncate text-subheading font-bold text-ink">
+                    {formatMoney(total)}
+                  </p>
+                </div>
                 <Button
                   tone="secondary"
+                  className="hidden sm:inline-flex"
                   onClick={() => void discard()}
                   {...(locallyQueued ? { disabledReason: "Đơn đang chờ máy chủ xác nhận." } : {})}
                 >
@@ -513,6 +544,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                 </Button>
                 <Button
                   tone="secondary"
+                  className="hidden sm:inline-flex"
                   onClick={() => void saveDraft()}
                   {...(locallyQueued
                     ? { disabledReason: "Đơn đã được lưu an toàn trên thiết bị." }
@@ -523,7 +555,19 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   Lưu nháp
                 </Button>
                 <Button
-                  fullWidth
+                  tone="secondary"
+                  className="sm:hidden"
+                  onClick={() => void saveDraft()}
+                  {...(locallyQueued
+                    ? { disabledReason: "Đơn đã được lưu an toàn trên thiết bị." }
+                    : replacementPending
+                      ? { disabledReason: "Đang tải đơn cần thay thế…" }
+                      : {})}
+                >
+                  Lưu nháp
+                </Button>
+                <Button
+                  className="min-w-32 sm:min-w-40"
                   onClick={() => setConfirmOpen(true)}
                   {...(!mayPost
                     ? { disabledReason: "Bạn không có quyền chốt đơn." }

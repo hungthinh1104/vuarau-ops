@@ -123,6 +123,9 @@ describe("Goods Truth workspace navigation", () => {
       .filter((link) => link.getAttribute("aria-current") === "page");
     expect(mobileCurrent).toHaveLength(mobileLabel === null ? 0 : 1);
     if (mobileLabel !== null) expect(mobileCurrent[0]).toHaveTextContent(mobileLabel);
+    if (pathname === "/sales/new") {
+      expect(screen.getAllByRole("link", { name: "Ghi đơn nhanh" })).toHaveLength(1);
+    }
     unmount();
     navigationState.pathname = "/today";
   });

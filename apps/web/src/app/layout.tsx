@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Toaster } from "sonner";
+import { Toaster } from "@/ui/primitives/toaster.tsx";
 import "./globals.css";
 import { AuthProvider } from "@/api/auth.tsx";
 
@@ -19,12 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="vi">
       <body className="min-h-screen bg-canvas text-ink antialiased">
         <AuthProvider>{children}</AuthProvider>
-        {/*
-         * Sonner Toaster: renders ephemeral feedback toasts (success only).
-         * Positioned bottom-right to avoid colliding with the fixed mobile nav bar.
-         * CommandOutcome remains authoritative for errors and sync state.
-         */}
-        <Toaster position="bottom-right" richColors closeButton />
+        <Toaster />
       </body>
     </html>
   );

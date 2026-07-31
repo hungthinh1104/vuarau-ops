@@ -12,20 +12,22 @@ import { SearchInput } from "@/ui/primitives/search-input.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { useOffline } from "@/offline/provider.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { LinkButton, PageActions, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
 
 export default function ProductsPage() {
   const { workspaceId, session } = useSession();
   const offline = useOffline();
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<boolean | null>(null);
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const [pages, setPages] = useState<readonly Page<ProductDto>[]>([]);
   const search = useQuery(
     trpc.product.search.queryOptions({
       workspaceId,
       query: useDebounced(query, 250),
-      isActive: null,
+      isActive: activeFilter,
       cursor,
       limit: 25,
     }),
@@ -53,31 +55,49 @@ export default function ProductsPage() {
       <PageHeader
         title="Danh mục mặt hàng"
         actions={
-          <div className="flex gap-3">
+          <PageActions>
             {session.permissions.includes("quality.read") ? (
-              <Link href="/quality-grades" className="text-info underline">
+              <LinkButton href="/quality-grades" secondary>
                 Phân hạng chất lượng
-              </Link>
+              </LinkButton>
             ) : null}
             {session.permissions.includes("product.create") ? (
-              <Link href="/products/new" className="text-info underline">
-                Thêm mặt hàng
-              </Link>
+              <LinkButton href="/products/new">Thêm mặt hàng</LinkButton>
             ) : null}
-          </div>
+          </PageActions>
         }
       />
-      <SearchInput
-        label="Tìm mặt hàng"
-        placeholder="Tên hoặc tên gọi khác"
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setCursor(null);
-          setPages([]);
-        }}
-        onClear={() => setQuery("")}
-      />
+      <div className="grid gap-3 rounded-card border border-border bg-surface-muted/60 p-3">
+        <SearchInput
+          label="Tìm mặt hàng"
+          placeholder="Tên hoặc tên gọi khác"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setCursor(null);
+            setPages([]);
+          }}
+          onClear={() => {
+            setQuery("");
+            setCursor(null);
+            setPages([]);
+          }}
+        />
+        <FilterChipGroup
+          label="Lọc trạng thái mặt hàng"
+          value={activeFilter === null ? "all" : activeFilter ? "active" : "inactive"}
+          options={[
+            { value: "all", label: "Tất cả" },
+            { value: "active", label: "Đang dùng" },
+            { value: "inactive", label: "Đã ngưng" },
+          ]}
+          onChange={(value) => {
+            setActiveFilter(value === "all" ? null : value === "active");
+            setCursor(null);
+            setPages([]);
+          }}
+        />
+      </div>
       <QueryStates
         query={search}
         loadingLabel="Đang tải mặt hàng"

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import type { StorybookConfig } from "@storybook/react-vite";
 
 /**
@@ -18,6 +19,18 @@ const config: StorybookConfig = {
   addons: [],
   core: { disableTelemetry: true },
   viteFinal: async (viteConfig) => {
+    const sourceAlias = {
+      find: "@",
+      replacement: fileURLToPath(new URL("../src", import.meta.url)),
+    };
+    const existingAlias = viteConfig.resolve?.alias;
+    viteConfig.resolve = {
+      ...viteConfig.resolve,
+      alias: Array.isArray(existingAlias)
+        ? [...existingAlias, sourceAlias]
+        : { ...(existingAlias ?? {}), "@": sourceAlias.replacement },
+    };
+
     // The contracts package is workspace TypeScript source, so Vite has to
     // pre-bundle it like application code rather than treat it as a built dep.
     viteConfig.optimizeDeps = {

@@ -1,10 +1,35 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowRight,
+  BarChart3,
+  ClipboardList,
+  PackageCheck,
+  PackageOpen,
+  Settings2,
+  ShoppingCart,
+  Truck,
+  UsersRound,
+  WalletCards,
+  type LucideIcon,
+} from "lucide-react";
+import Link from "next/link";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
-import { LinkButton, PageHeader, Section } from "@/ui/patterns/layout/page-layout.tsx";
-import { todayActionsFor } from "@/ui/patterns/today-actions.ts";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { todayActionsFor, type TodayAction } from "@/ui/patterns/today-actions.ts";
+import { formatMoney, formatQuantity } from "@/ui/format.ts";
+
+const ACTION_ICONS: Readonly<Record<string, LucideIcon>> = {
+  "/sales/new": ShoppingCart,
+  "/sales": ClipboardList,
+  "/purchases": PackageCheck,
+  "/deliveries": Truck,
+  "/customers": WalletCards,
+  "/workspace/operations": Settings2,
+  "/reports": BarChart3,
+};
 
 export default function TodayPage() {
   const { session, workspaceId } = useSession();
@@ -15,6 +40,7 @@ export default function TodayPage() {
   const more = actions.filter((action) => action.area === "more");
   const mayReadDeliveries = session.permissions.includes("delivery.read");
   const mayReadPurchases = session.permissions.includes("purchase.read");
+
   const draftDeliveries = useQuery({
     ...trpc.delivery.list.queryOptions({
       workspaceId,
@@ -47,82 +73,257 @@ export default function TodayPage() {
   });
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-6">
       <PageHeader
         title="Hôm nay"
-        description="Bắt đầu từ công việc vai trò hiện tại được phép thực hiện."
+        description="Việc cần làm, lối vào nhanh và trạng thái vận hành của ca hiện tại."
       />
 
-      {primary.length > 0 && (
-        <div className="grid gap-3">
-          {primary.map((action) => (
-            <Section key={action.label} title={action.label} description={action.description}>
-              <LinkButton href={action.href}>Bắt đầu</LinkButton>
-            </Section>
-          ))}
-        </div>
-      )}
+      {primary.length > 0 ? (
+        <section aria-labelledby="quick-actions-title">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 id="quick-actions-title" className="text-label font-semibold text-ink-muted">
+              Làm nhanh
+            </h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {primary.map((action) => (
+              <QuickAction key={action.label} action={action} primary />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
-      {(mayReadDeliveries || mayReadPurchases) && (
-        <div className="grid gap-3 lg:grid-cols-3">
-          {mayReadDeliveries && (
-            <>
+      {mayReadDeliveries || mayReadPurchases ? (
+        <section aria-labelledby="attention-title" className="grid gap-3">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-caption font-semibold uppercase tracking-wide text-warning">
+                Cần xử lý
+              </p>
+              <h2 id="attention-title" className="text-heading font-bold text-ink">
+                Công việc đang mở
+              </h2>
+            </div>
+            <p className="hidden text-body-sm text-ink-muted md:block">
+              Mở thẳng vào nghiệp vụ thay vì tìm lại trong menu.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {mayReadDeliveries ? (
+              <>
+                <QueueSummary
+                  icon={PackageOpen}
+                  label="Phiếu cần xuất"
+                  value={
+                    draftDeliveries.isLoading || draftDeliveries.isError
+                      ? null
+                      : (draftDeliveries.data?.items.length ?? 0)
+                  }
+                  href="/deliveries"
+                  tone="warning"
+                />
+                <QueueSummary
+                  icon={Truck}
+                  label="Đang giao"
+                  value={
+                    dispatchedDeliveries.isLoading || dispatchedDeliveries.isError
+                      ? null
+                      : (dispatchedDeliveries.data?.items.length ?? 0)
+                  }
+                  href="/deliveries"
+                  tone="info"
+                />
+              </>
+            ) : null}
+            {mayReadPurchases ? (
+              <QueueSummary
+                icon={PackageCheck}
+                label="Đơn mua đã xác nhận"
+                value={
+                  openPurchases.isLoading || openPurchases.isError
+                    ? null
+                    : (openPurchases.data?.items.length ?? 0)
+                }
+                href="/purchases"
+                tone="neutral"
+              />
+            ) : null}
+          </div>
+
+          <div className="grid gap-3 xl:grid-cols-3">
+            {mayReadDeliveries ? (
+              <>
+                <WorkQueue
+                  title="Phiếu cần xuất hàng"
+                  href="/deliveries"
+                  loading={draftDeliveries.isLoading}
+                  error={draftDeliveries.isError}
+                  items={
+                    draftDeliveries.data?.items.map((delivery) =>
+                      deliveryQueueItem(delivery, "Cần xuất"),
+                    ) ?? []
+                  }
+                />
+                <WorkQueue
+                  title="Phiếu đang giao"
+                  href="/deliveries"
+                  loading={dispatchedDeliveries.isLoading}
+                  error={dispatchedDeliveries.isError}
+                  items={
+                    dispatchedDeliveries.data?.items.map((delivery) =>
+                      deliveryQueueItem(delivery, "Đang giao"),
+                    ) ?? []
+                  }
+                />
+              </>
+            ) : null}
+            {mayReadPurchases ? (
               <WorkQueue
-                title="Phiếu cần xuất hàng"
-                href="/deliveries"
-                loading={draftDeliveries.isLoading}
-                error={draftDeliveries.isError}
-                labels={
-                  draftDeliveries.data?.items.map(
-                    (delivery) => `Phiếu ${delivery.id.slice(0, 8).toUpperCase()}`,
-                  ) ?? []
+                title="Đơn mua đã xác nhận"
+                href="/purchases"
+                loading={openPurchases.isLoading}
+                error={openPurchases.isError}
+                items={
+                  openPurchases.data?.items.map((purchase) => ({
+                    id: purchase.id,
+                    href: `/purchases/${purchase.id}`,
+                    primary:
+                      purchase.lines.length === 0
+                        ? "Đơn mua đã xác nhận"
+                        : `${purchase.lines[0]!.productName} · ${formatQuantity(purchase.lines[0]!.quantity)}`,
+                    secondary: `${formatMoney(purchase.totalAmount)}${purchase.lines.length > 1 ? ` · +${purchase.lines.length - 1} mặt hàng` : ""}`,
+                  })) ?? []
                 }
               />
-              <WorkQueue
-                title="Phiếu đang giao"
-                href="/deliveries"
-                loading={dispatchedDeliveries.isLoading}
-                error={dispatchedDeliveries.isError}
-                labels={
-                  dispatchedDeliveries.data?.items.map(
-                    (delivery) => `Phiếu ${delivery.id.slice(0, 8).toUpperCase()}`,
-                  ) ?? []
-                }
-              />
-            </>
-          )}
-          {mayReadPurchases && (
-            <WorkQueue
-              title="Đơn mua đã xác nhận"
-              href="/purchases"
-              loading={openPurchases.isLoading}
-              error={openPurchases.isError}
-              labels={
-                openPurchases.data?.items.map(
-                  (purchase) => `Đơn ${purchase.id.slice(0, 8).toUpperCase()}`,
-                ) ?? []
-              }
-            />
-          )}
-        </div>
-      )}
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
-      {work.length > 0 && (
-        <Section
-          id="work"
-          title="Công việc"
-          description="Các lối vào dưới đây đến từ quyền server trả cho phiên hiện tại."
-        >
+      {work.length > 0 ? (
+        <section id="work" aria-labelledby="work-title" className="grid gap-3">
+          <div>
+            <p className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
+              Theo vai trò
+            </p>
+            <h2 id="work-title" className="text-subheading font-semibold">
+              Công việc
+            </h2>
+          </div>
           <ActionGrid actions={work} />
-        </Section>
-      )}
+        </section>
+      ) : null}
 
-      {more.length > 0 && (
-        <Section id="more" title="Thêm">
+      {more.length > 0 ? (
+        <section
+          id="more"
+          aria-labelledby="more-title"
+          className="grid gap-3 border-t border-border pt-5"
+        >
+          <h2 id="more-title" className="text-subheading font-semibold">
+            Thêm
+          </h2>
           <ActionGrid actions={more} />
-        </Section>
-      )}
+        </section>
+      ) : null}
     </div>
+  );
+}
+
+type QueueItem = {
+  readonly id: string;
+  readonly href: string;
+  readonly primary: string;
+  readonly secondary: string;
+};
+
+function deliveryQueueItem(
+  delivery: {
+    readonly id: string;
+    readonly lines: readonly {
+      readonly productName: string;
+      readonly quantity: Parameters<typeof formatQuantity>[0];
+    }[];
+  },
+  stateLabel: string,
+): QueueItem {
+  const first = delivery.lines[0];
+  return {
+    id: delivery.id,
+    href: `/deliveries/${delivery.id}`,
+    primary:
+      first === undefined ? stateLabel : `${first.productName} · ${formatQuantity(first.quantity)}`,
+    secondary: `${stateLabel}${delivery.lines.length > 1 ? ` · +${delivery.lines.length - 1} mặt hàng` : ""}`,
+  };
+}
+
+function QuickAction({ action, primary = false }: { action: TodayAction; primary?: boolean }) {
+  const Icon = ACTION_ICONS[action.href] ?? UsersRound;
+  return (
+    <Link
+      href={action.href}
+      className={[
+        "group flex min-h-24 items-center gap-4 rounded-panel border p-4 transition-colors",
+        primary
+          ? "border-leaf/25 bg-leaf text-white hover:bg-leaf-hover"
+          : "border-border bg-surface hover:border-border-strong",
+      ].join(" ")}
+    >
+      <span
+        className={[
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-card",
+          primary ? "bg-white/15 text-white" : "bg-surface-muted text-ink",
+        ].join(" ")}
+      >
+        <Icon aria-hidden="true" className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-subheading font-semibold">{action.label}</span>
+        <span className={primary ? "text-body-sm text-white/80" : "text-body-sm text-ink-muted"}>
+          {action.description}
+        </span>
+      </span>
+      <ArrowRight
+        aria-hidden="true"
+        className="h-5 w-5 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5"
+      />
+    </Link>
+  );
+}
+
+function QueueSummary(props: {
+  readonly icon: LucideIcon;
+  readonly label: string;
+  readonly value: number | null;
+  readonly href: string;
+  readonly tone: "warning" | "info" | "neutral";
+}) {
+  const Icon = props.icon;
+  const tone =
+    props.tone === "warning"
+      ? "bg-warning-soft text-warning"
+      : props.tone === "info"
+        ? "bg-info-soft text-info"
+        : "bg-surface-muted text-ink";
+  return (
+    <Link
+      href={props.href}
+      className="group flex items-center gap-3 rounded-card border border-border bg-surface p-4 hover:border-border-strong"
+    >
+      <span className={`flex h-10 w-10 items-center justify-center rounded-card ${tone}`}>
+        <Icon aria-hidden="true" className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-body-sm text-ink-muted">{props.label}</span>
+        <strong className="tabular text-heading text-ink">{props.value ?? "—"}</strong>
+      </span>
+      <ArrowRight
+        aria-hidden="true"
+        className="h-4 w-4 text-ink-muted transition-transform group-hover:translate-x-0.5"
+      />
+    </Link>
   );
 }
 
@@ -131,15 +332,15 @@ function WorkQueue(props: {
   href: string;
   loading: boolean;
   error: boolean;
-  labels: readonly string[];
+  items: readonly QueueItem[];
 }) {
   return (
     <section className="rounded-card border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-subheading font-semibold">{props.title}</h3>
-        <strong className="tabular text-heading">
-          {props.loading || props.error ? "—" : props.labels.length}
-        </strong>
+        <span className="tabular rounded-pill bg-surface-muted px-2 py-1 text-caption font-semibold text-ink-muted">
+          {props.loading || props.error ? "—" : props.items.length}
+        </span>
       </div>
       <div className="mt-3">
         {props.loading ? (
@@ -148,40 +349,50 @@ function WorkQueue(props: {
           <p role="alert" className="text-body-sm text-warning">
             Chưa tải được dữ liệu.
           </p>
-        ) : props.labels.length === 0 ? (
-          <p className="text-body-sm text-ink-muted">Không có phiếu trong trang hiện tại.</p>
+        ) : props.items.length === 0 ? (
+          <p className="text-body-sm text-ink-muted">Không có việc trong trang hiện tại.</p>
         ) : (
-          <ul className="text-body-sm flex flex-col gap-1">
-            {props.labels.slice(0, 3).map((label) => (
-              <li key={label}>{label}</li>
+          <ul className="flex flex-col divide-y divide-border">
+            {props.items.slice(0, 3).map((item) => (
+              <li key={item.id}>
+                <Link
+                  href={item.href}
+                  className="touch-target group flex items-center gap-2 py-2 text-body-sm"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-ink group-hover:text-leaf">
+                      {item.primary}
+                    </span>
+                    <span className="block text-caption text-ink-muted">{item.secondary}</span>
+                  </span>
+                  <ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-muted" />
+                </Link>
+              </li>
             ))}
-            {props.labels.length > 3 && (
-              <li className="text-ink-muted">+{props.labels.length - 3} phiếu nữa</li>
-            )}
+            {props.items.length > 3 ? (
+              <li className="pt-2 text-body-sm text-ink-muted">
+                +{props.items.length - 3} việc nữa
+              </li>
+            ) : null}
           </ul>
         )}
       </div>
-      <div className="mt-4">
-        <LinkButton href={props.href} secondary>
-          Mở danh sách
-        </LinkButton>
-      </div>
+      <Link
+        href={props.href}
+        className="mt-3 inline-flex min-h-10 items-center gap-1 text-body-sm font-semibold text-info hover:underline"
+      >
+        Mở danh sách <ArrowRight aria-hidden="true" className="h-4 w-4" />
+      </Link>
     </section>
   );
 }
 
-function ActionGrid({ actions }: { readonly actions: ReturnType<typeof todayActionsFor> }) {
+function ActionGrid({ actions }: { readonly actions: readonly TodayAction[] }) {
   return (
-    <ul className="grid gap-3 md:grid-cols-2">
+    <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {actions.map((action) => (
-        <li key={action.label} className="rounded-card border border-border p-3">
-          <h3 className="font-semibold">{action.label}</h3>
-          <p className="mt-1 text-body-sm text-ink-muted">{action.description}</p>
-          <div className="mt-3">
-            <LinkButton href={action.href} secondary>
-              Mở
-            </LinkButton>
-          </div>
+        <li key={action.label}>
+          <QuickAction action={action} primary={false} />
         </li>
       ))}
     </ul>

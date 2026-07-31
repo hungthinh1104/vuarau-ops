@@ -16,16 +16,32 @@ type Line = { product: string; quantity: string; unit?: string; price: string };
 async function fillLine(page: Page, index: number, line: Line): Promise<void> {
   const row = page.getByTestId(`sale-line-${index}`);
   await row.getByLabel("Mặt hàng").fill(line.product);
-  const catalog = page.getByRole("heading", { name: "Danh mục mặt hàng" }).locator("..");
+  await row.getByRole("button", { name: "Chọn" }).click();
+  const picker = page.getByRole("dialog", { name: "Chọn mặt hàng" });
+  await expect(picker).toBeVisible();
+  const catalog = picker.getByRole("heading", { name: "Danh mục chung" }).locator("..");
   await catalog
     .getByRole("button", {
       name: new RegExp(`^${line.product.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}(?: · .+)?$`),
     })
     .click();
+  await expect(picker).toBeHidden();
   await row.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
   await row.getByLabel("Số lượng").fill(line.quantity);
   if (line.unit !== undefined) await row.getByLabel("Đơn vị").selectOption(line.unit);
   await row.getByLabel("Đơn giá").fill(line.price);
+}
+
+async function openPostConfirmation(page: Page) {
+  await page.getByRole("button", { name: "Chốt đơn", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Xác nhận chốt đơn" });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function confirmPost(page: Page): Promise<void> {
+  const dialog = await openPostConfirmation(page);
+  await dialog.getByRole("button", { name: "Chốt đơn", exact: true }).click();
 }
 
 async function startSale(page: Page, label: string): Promise<string> {
@@ -45,7 +61,7 @@ test.describe("TC-E2E-011 — a one-line sale", () => {
     await fillLine(page, 0, { product: "Cà chua", quantity: "12,5", price: "18.000" });
     await expect(page.getByTestId("sale-total")).toHaveText("225.000 ₫");
 
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
 
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
     await expect(page.getByTestId("posted-total")).toHaveText("225.000 ₫");
@@ -79,7 +95,7 @@ test.describe("TC-E2E-012 — a three-line sale", () => {
 
     await expect(page.getByTestId("sale-total")).toHaveText("875.000 ₫");
 
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     // Units are displayed exactly as entered; nothing is converted (ASM-011).
@@ -122,7 +138,7 @@ test.describe("TC-E2E-014 — an invalid line is flagged on its own row", () => 
     // Second row: a quantity of zero, which BR-SALE-003 refuses.
     await fillLine(page, 1, { product: "Rau muống", quantity: "0", price: "5.000" });
 
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
 
     const secondRow = page.getByTestId("sale-line-1");
     await expect(secondRow.getByText(/Số lượng phải lớn hơn 0/)).toBeVisible();
@@ -190,10 +206,13 @@ test.describe("TC-E2E-016 — a duplicate post does not duplicate the receivable
     const customerId = await startSale(page, "S7");
     await fillLine(page, 0, { product: "Cà chua", quantity: "10", price: "18.000" });
 
-    await page.getByRole("button", { name: "Chốt đơn" }).evaluate((button: HTMLButtonElement) => {
-      button.click();
-      button.click();
-    });
+    const confirmation = await openPostConfirmation(page);
+    await confirmation
+      .getByRole("button", { name: "Chốt đơn", exact: true })
+      .evaluate((button: HTMLButtonElement) => {
+        button.click();
+        button.click();
+      });
 
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
@@ -227,7 +246,7 @@ test.describe("TC-E2E-017 — an unknown outcome on posting", () => {
       await route.continue();
     });
 
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
 
     await expect(page.getByText("Chưa rõ kết quả")).toBeVisible();
     // Unconfirmed, never failed. "Thất bại" is what makes somebody try again with
@@ -284,7 +303,7 @@ test.describe("TC-E2E-019 — the posted sale and ledger agree", () => {
   test("the sale screen renders the server-projected account effect", async ({ page }) => {
     const customerId = await startSale(page, "S11");
     await fillLine(page, 0, { product: "Cà chua", quantity: "12,5", price: "18.000" });
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
 
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
@@ -313,7 +332,7 @@ test.describe("TC-E2E-020 — analytics carry no business data", () => {
     });
 
     await fillLine(page, 0, { product: "Ớt hiểm", quantity: "12,5", price: "18.000" });
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     expect(events.length).toBeGreaterThan(0);
@@ -340,7 +359,7 @@ test.describe("TC-E2E-021 — an owner corrects a posted sale", () => {
     await page.goto(`/customers/${customerId}/sales/new`);
 
     await fillLine(page, 0, { product: "Ớt hiểm", quantity: "10", price: "12.000" });
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     await page.getByRole("combobox", { name: "Loại điều chỉnh" }).selectOption("wrong_amount");
@@ -360,7 +379,7 @@ test.describe("TC-E2E-021 — an owner corrects a posted sale", () => {
     await expect(page.getByTestId("sale-line-0").getByLabel("Đơn giá")).toHaveValue("12000");
 
     await page.getByTestId("sale-line-0").getByLabel("Đơn giá").fill("13.000");
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
     await expect(page.getByTestId("posted-total")).toHaveText("130.000 ₫");
     await expect(page.getByText(/− Void: Nhập sai đơn giá/)).toBeVisible();
@@ -378,7 +397,7 @@ test.describe("TC-E2E-021 — an owner corrects a posted sale", () => {
     await page.goto(`/customers/${customerId}/sales/new`);
 
     await fillLine(page, 0, { product: "Rau muống", quantity: "10", price: "5.000" });
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     let dropped = false;
@@ -412,7 +431,7 @@ test.describe("TC-E2E-021 — an owner corrects a posted sale", () => {
     await page.goto(`/customers/${wrongCustomerId}/sales/new`);
 
     await fillLine(page, 0, { product: "Cà chua", quantity: "4", price: "20.000" });
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     await page.getByRole("combobox", { name: "Loại điều chỉnh" }).selectOption("wrong_customer");
@@ -424,7 +443,7 @@ test.describe("TC-E2E-021 — an owner corrects a posted sale", () => {
 
     await expect(page).toHaveURL(new RegExp(`/customers/${correctCustomerId}/sales/new\\?`));
     await expect(page.getByText(correctCustomerName)).toBeVisible();
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     expect((await api.balance(wrongCustomerId)).balance.amountMinor).toBe(0);
@@ -438,7 +457,7 @@ test.describe("TC-E2E-021 — an owner corrects a posted sale", () => {
     await signIn(page, "owner");
     await page.goto(`/customers/${customerId}/sales/new`);
     await fillLine(page, 0, { product: "Rau muống", quantity: "2", price: "8.000" });
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await confirmPost(page);
     await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
 
     await page.route("**/trpc/sale.void**", async (route) => {

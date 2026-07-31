@@ -9,6 +9,7 @@ import { useSession } from "@/api/session-gate.tsx";
 import { pageStateForWorkspace, type WorkspacePageState } from "@/api/workspace-page-state.ts";
 import { formatInstant, formatMoney } from "@/ui/format.ts";
 import { PageActions, PageHeader, LinkButton } from "@/ui/patterns/layout/page-layout.tsx";
+import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -16,6 +17,7 @@ import { Button } from "@/ui/primitives/button.tsx";
 export default function SalesPage() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const [filter, setFilter] = useState<"all" | "draft" | "posted" | "voided">("all");
   const [pageState, setPageState] = useState<WorkspacePageState<SaleSummaryDto>>({
     workspaceId,
     cursor: null,
@@ -26,8 +28,9 @@ export default function SalesPage() {
     trpc.sale.list.queryOptions({
       workspaceId,
       customerId: null,
-      status: null,
-      financialState: null,
+      status:
+        filter === "draft" ? "draft" : filter === "posted" || filter === "voided" ? "posted" : null,
+      financialState: filter === "voided" ? "voided" : filter === "posted" ? "active" : null,
       from: null,
       to: null,
       cursor: visible.cursor,
@@ -61,6 +64,22 @@ export default function SalesPage() {
           ) : undefined
         }
       />
+      <div className="rounded-card border border-border bg-surface-muted/60 p-3">
+        <FilterChipGroup
+          label="Lọc trạng thái đơn hàng"
+          value={filter}
+          options={[
+            { value: "all", label: "Tất cả" },
+            { value: "draft", label: "Nháp" },
+            { value: "posted", label: "Đã chốt" },
+            { value: "voided", label: "Đã hoàn tác" },
+          ]}
+          onChange={(value) => {
+            setFilter(value);
+            setPageState({ workspaceId, cursor: null, pages: [] });
+          }}
+        />
+      </div>
       <QueryStates
         query={sales}
         loadingLabel="Đang tải đơn hàng"
@@ -86,8 +105,22 @@ export default function SalesPage() {
                       </span>
                       <span className="text-right">
                         <strong className="block">{formatMoney(sale.totalAmount)}</strong>
-                        <Badge tone={sale.financialState === "voided" ? "warning" : "neutral"}>
-                          {sale.financialState === "voided" ? "Đã hoàn tác" : sale.status}
+                        <Badge
+                          tone={
+                            sale.financialState === "voided"
+                              ? "warning"
+                              : sale.status === "posted"
+                                ? "positive"
+                                : "neutral"
+                          }
+                        >
+                          {sale.financialState === "voided"
+                            ? "Đã hoàn tác"
+                            : sale.status === "posted"
+                              ? "Đã chốt"
+                              : sale.status === "draft"
+                                ? "Nháp"
+                                : "Đã bỏ"}
                         </Badge>
                       </span>
                     </Link>
@@ -118,8 +151,30 @@ export default function SalesPage() {
                         <td className="whitespace-nowrap px-3 py-2 text-right font-semibold">
                           {formatMoney(sale.totalAmount)}
                         </td>
-                        <td className="px-3 py-2">{sale.financialState}</td>
-                        <td className="px-3 py-2">{sale.status}</td>
+                        <td className="px-3 py-2">
+                          {sale.financialState === "voided"
+                            ? "Đã hoàn tác"
+                            : sale.financialState === "active"
+                              ? "Còn hiệu lực"
+                              : "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge
+                            tone={
+                              sale.status === "posted"
+                                ? "positive"
+                                : sale.status === "draft"
+                                  ? "info"
+                                  : "neutral"
+                            }
+                          >
+                            {sale.status === "posted"
+                              ? "Đã chốt"
+                              : sale.status === "draft"
+                                ? "Nháp"
+                                : "Đã bỏ"}
+                          </Badge>
+                        </td>
                         <td className="px-3 py-2">
                           <Link href={`/sales/${sale.id}`} className="text-info underline">
                             Mở chi tiết

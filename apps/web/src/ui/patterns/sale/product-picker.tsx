@@ -1,10 +1,19 @@
 "use client";
 
-import { Sheet } from "@/ui/primitives/sheet.tsx";
+import { useEffect, useState } from "react";
+import { UNIT_LABEL_VI } from "@vuarau/domain-contracts";
+import type {
+  CustomerPriceHistoryDto,
+  Money,
+  ProductId,
+  Unit,
+  WorkspaceProductHistoryDto,
+} from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
-import { formatMoney, formatDate } from "@/ui/format.ts";
-import type { CustomerPriceHistoryDto, WorkspaceProductHistoryDto } from "@vuarau/domain-contracts";
-import type { ProductId, Unit, Money } from "@vuarau/domain-contracts";
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
+import { Sheet } from "@/ui/primitives/sheet.tsx";
+import { formatDate, formatMoney } from "@/ui/format.ts";
 
 export type VisibleProduct = {
   readonly id: ProductId;
@@ -15,6 +24,8 @@ export type VisibleProduct = {
 export type ProductPickerProps = {
   readonly open: boolean;
   readonly onClose: () => void;
+  readonly onSearchChange?: (query: string) => void;
+  readonly searching?: boolean;
   readonly visibleProducts: readonly VisibleProduct[];
   readonly customerHistory: readonly CustomerPriceHistoryDto[];
   readonly workspaceHistory: readonly WorkspaceProductHistoryDto[];
@@ -28,121 +39,188 @@ export type ProductPickerProps = {
   ) => void;
 };
 
+type Ranked<T> = { readonly item: T; readonly rank: number; readonly index: number };
+
+function foldVietnamese(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[đĐ]/g, "d")
+    .toLocaleLowerCase("vi")
+    .trim();
+}
+
+function matchRank(value: string, query: string): number {
+  const foldedQuery = foldVietnamese(query);
+  if (foldedQuery.length === 0) return 1;
+  const foldedValue = foldVietnamese(value);
+  if (foldedValue === foldedQuery) return 3;
+  if (foldedValue.startsWith(foldedQuery)) return 2;
+  return foldedValue.includes(foldedQuery) ? 1 : 0;
+}
+
+function filterAndRank<T>(items: readonly T[], query: string, labelOf: (item: T) => string): T[] {
+  return items
+    .map<Ranked<T>>((item, index) => ({ item, index, rank: matchRank(labelOf(item), query) }))
+    .filter((entry) => entry.rank > 0)
+    .sort((left, right) => right.rank - left.rank || left.index - right.index)
+    .map((entry) => entry.item);
+}
+
+function displayUnit(unit: string): string {
+  return UNIT_LABEL_VI[unit as Unit] ?? unit;
+}
+
 /**
- * A bottom-sheet picker that combines the workspace product catalog with
- * customer price history. Product selection (name + unit) is always one tap.
- * Historical price requires an explicit secondary "Dùng giá này" tap — it is
- * never applied silently as part of a product selection.
+ * Mobile product choice surface for quick sale.
+ *
+ * Search is local and Vietnamese diacritic-insensitive. Customer history stays
+ * above workspace history, which stays above the general catalog. Inside each
+ * section exact matches rank before prefix matches, then substring matches.
+ * Historical price is never applied as a side effect of choosing a product.
  */
 export function ProductPicker({
   open,
   onClose,
+  onSearchChange,
+  searching = false,
   visibleProducts,
   customerHistory,
   workspaceHistory,
   onSelectProduct,
   onApplyHistoricalPrice,
 }: ProductPickerProps) {
-  const hasContext = customerHistory.length > 0 || workspaceHistory.length > 0;
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (open) setQuery("");
+  }, [open]);
+
+  const customerMatches = filterAndRank(customerHistory, query, (item) => item.productName);
+  const workspaceMatches = filterAndRank(workspaceHistory, query, (item) => item.productName);
+  const productMatches = filterAndRank(visibleProducts, query, (item) => item.displayName);
+  const hasResults =
+    customerMatches.length > 0 || workspaceMatches.length > 0 || productMatches.length > 0;
 
   return (
     <Sheet open={open} onClose={onClose} title="Chọn mặt hàng">
-      <div className="flex flex-col gap-6">
-        {hasContext && (
+      <div className="flex flex-col gap-5">
+        <SearchInput
+          autoFocus
+          label="Tìm mặt hàng"
+          placeholder="Tên mặt hàng"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            onSearchChange?.(event.target.value);
+          }}
+          onClear={() => {
+            setQuery("");
+            onSearchChange?.("");
+          }}
+        />
+
+        {customerMatches.length > 0 ? (
           <section className="flex flex-col gap-3">
-            <h2 className="text-label font-semibold text-ink-muted">Gần đây</h2>
-
-            {/* Workspace history: product + unit only, no price */}
-            {workspaceHistory.map((history) => (
-              <div
-                key={`workspace-${history.productName}-${history.unit}`}
-                className="flex items-center justify-between gap-3 rounded-card border border-border p-3"
-              >
-                <span className="text-body font-medium">
-                  {history.productName}
-                  <span className="ml-1 text-caption text-ink-muted">· {history.unit}</span>
-                </span>
-                <Button
-                  tone="secondary"
-                  onClick={() => {
-                    onSelectProduct(
-                      history.productId as ProductId | null,
-                      history.productName,
-                      history.unit as Unit,
-                    );
-                    onClose();
-                  }}
+            <h2 className="text-label font-semibold text-ink-muted">Gần đây với khách này</h2>
+            {customerMatches.map((history) => {
+              const unitLabel = displayUnit(history.unit);
+              return (
+                <div
+                  key={`customer-${history.productName}-${history.unit}-${history.sourceSaleId}`}
+                  className="flex flex-col gap-2 rounded-card border border-border p-3"
                 >
-                  Chọn
-                </Button>
-              </div>
-            ))}
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-body font-medium">
+                      {history.productName}
+                      <span className="ml-1 text-caption text-ink-muted">· {unitLabel}</span>
+                    </span>
+                    <Button
+                      aria-label={`Chọn ${history.productName} · ${unitLabel}`}
+                      tone="secondary"
+                      onClick={() => {
+                        onSelectProduct(
+                          history.productId,
+                          history.productName,
+                          history.unit as Unit,
+                        );
+                        onClose();
+                      }}
+                    >
+                      Chọn
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-input bg-surface-muted px-2 py-2">
+                    <span className="text-caption text-ink-muted">
+                      Giá lần trước:{" "}
+                      <strong className="tabular text-ink">
+                        {formatMoney(history.lastUnitPrice)}
+                      </strong>
+                      {" · "}
+                      {formatDate(history.lastTransactionTime)}
+                    </span>
+                    <Button
+                      aria-label={`Dùng giá lần trước cho ${history.productName}`}
+                      tone="secondary"
+                      onClick={() => {
+                        onApplyHistoricalPrice(
+                          history.productId,
+                          history.productName,
+                          history.unit as Unit,
+                          history.sourceSaleId,
+                          history.lastUnitPrice,
+                        );
+                        onClose();
+                      }}
+                    >
+                      Dùng giá này
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+        ) : null}
 
-            {/* Customer history: product + unit + last price (price is explicit-apply only) */}
-            {customerHistory.map((history) => (
-              <div
-                key={`customer-${history.productName}-${history.unit}`}
-                className="flex flex-col gap-2 rounded-card border border-border p-3"
-              >
-                <div className="flex items-center justify-between gap-3">
+        {workspaceMatches.length > 0 ? (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-label font-semibold text-ink-muted">Gần đây trong vựa</h2>
+            {workspaceMatches.map((history) => {
+              const unitLabel = displayUnit(history.unit);
+              return (
+                <div
+                  key={`workspace-${history.productName}-${history.unit}-${history.productId ?? "legacy"}`}
+                  className="flex items-center justify-between gap-3 rounded-card border border-border p-3"
+                >
                   <span className="text-body font-medium">
                     {history.productName}
-                    <span className="ml-1 text-caption text-ink-muted">· {history.unit}</span>
+                    <span className="ml-1 text-caption text-ink-muted">· {unitLabel}</span>
                   </span>
                   <Button
+                    aria-label={`Chọn ${history.productName} · ${unitLabel}`}
                     tone="secondary"
                     onClick={() => {
-                      onSelectProduct(
-                        history.productId as ProductId | null,
-                        history.productName,
-                        history.unit as Unit,
-                      );
+                      onSelectProduct(history.productId, history.productName, history.unit as Unit);
                       onClose();
                     }}
                   >
                     Chọn
                   </Button>
                 </div>
-                {/* Historical price — requires a second explicit tap. Never auto-applied. */}
-                <div className="flex items-center justify-between rounded bg-surface-muted px-2 py-1.5">
-                  <span className="text-caption text-ink-muted">
-                    Giá lần trước:{" "}
-                    <strong className="tabular text-ink">
-                      {formatMoney(history.lastUnitPrice)}
-                    </strong>
-                    {" · "}
-                    {formatDate(history.lastTransactionTime)}
-                  </span>
-                  <Button
-                    tone="secondary"
-                    onClick={() => {
-                      onApplyHistoricalPrice(
-                        history.productId as ProductId | null,
-                        history.productName,
-                        history.unit as Unit,
-                        history.sourceSaleId,
-                        history.lastUnitPrice,
-                      );
-                      onClose();
-                    }}
-                  >
-                    Dùng giá này
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </section>
-        )}
+        ) : null}
 
-        {visibleProducts.length > 0 && (
+        {productMatches.length > 0 ? (
           <section className="flex flex-col gap-3">
             <h2 className="text-label font-semibold text-ink-muted">Danh mục chung</h2>
             <p className="text-caption text-ink-muted">
-              Chọn mặt hàng chỉ điền tên và đơn vị; đơn giá vẫn do bạn nhập hoặc chủ động dùng giá
+              Chọn mặt hàng chỉ điền tên và đơn vị. Đơn giá vẫn do bạn nhập hoặc chủ động dùng giá
               lần trước.
             </p>
             <div className="flex flex-wrap gap-2">
-              {visibleProducts.map((product) => (
+              {productMatches.map((product) => (
                 <Button
                   key={product.id}
                   tone="secondary"
@@ -152,16 +230,23 @@ export function ProductPicker({
                   }}
                 >
                   {product.displayName}
-                  {product.preferredUnit === null ? "" : ` · ${product.preferredUnit}`}
+                  {product.preferredUnit === null ? "" : ` · ${displayUnit(product.preferredUnit)}`}
                 </Button>
               ))}
             </div>
           </section>
-        )}
+        ) : null}
 
-        {!hasContext && visibleProducts.length === 0 && (
-          <p className="text-body-sm text-ink-muted">Chưa có mặt hàng để gợi ý.</p>
-        )}
+        {!hasResults && searching ? (
+          <p role="status" className="text-body-sm text-ink-muted">
+            Đang tìm mặt hàng…
+          </p>
+        ) : !hasResults ? (
+          <EmptyState
+            title="Không tìm thấy mặt hàng"
+            description="Thử tên khác hoặc đóng bảng chọn để nhập mặt hàng mới."
+          />
+        ) : null}
       </div>
     </Sheet>
   );

@@ -22,7 +22,7 @@ describe("Select", () => {
     await user.click(trigger);
 
     // Select Option 2
-    await user.click(screen.getByRole("option", { name: "Option 2" }));
+    await user.click(await screen.findByRole("option", { name: "Option 2" }));
 
     expect(onChange).toHaveBeenCalledOnce();
     const eventArg = onChange.mock.calls[0]?.[0] as { target: { value: string } };
@@ -50,7 +50,7 @@ describe("Select", () => {
     expect(trigger).toHaveTextContent("Option 1");
 
     await user.click(trigger);
-    await user.click(screen.getByRole("option", { name: "Option 2" }));
+    await user.click(await screen.findByRole("option", { name: "Option 2" }));
 
     expect(trigger).toHaveTextContent("Option 2");
   });

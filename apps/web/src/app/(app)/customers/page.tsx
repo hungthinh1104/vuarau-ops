@@ -12,7 +12,8 @@ import { SearchInput } from "@/ui/primitives/search-input.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { describeBalance } from "@/ui/format.ts";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { LinkButton, PageActions, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
 
 /**
  * The first screen of every workflow: find the person.
@@ -63,44 +64,39 @@ export default function CustomersPage() {
       <PageHeader
         title="Khách hàng"
         actions={
-          <div className="flex gap-3">
+          <PageActions>
             {session.permissions.includes("workspace.manage") ? (
-              <Link href="/workspace" className="text-body-sm text-info underline">
+              <LinkButton href="/workspace" secondary>
                 Quản lý vựa
-              </Link>
+              </LinkButton>
             ) : null}
             {session.permissions.includes("customer.create") ? (
-              <Link href="/customers/new" className="text-body-sm text-info underline">
-                Thêm khách hàng
-              </Link>
+              <LinkButton href="/customers/new">Thêm khách hàng</LinkButton>
             ) : null}
-          </div>
+          </PageActions>
         }
       />
 
-      <SearchInput
-        label="Tìm khách hàng"
-        placeholder="Tên hoặc số điện thoại"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        onClear={() => setQuery("")}
-        autoFocus
-      />
-
-      <label className="text-label">
-        Trạng thái
-        <select
+      <div className="grid gap-3 rounded-card border border-border bg-surface-muted/60 p-3">
+        <SearchInput
+          label="Tìm khách hàng"
+          placeholder="Tên hoặc số điện thoại"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onClear={() => setQuery("")}
+          autoFocus
+        />
+        <FilterChipGroup
+          label="Lọc trạng thái khách hàng"
           value={activeFilter === null ? "all" : activeFilter ? "active" : "inactive"}
-          onChange={(event) =>
-            setActiveFilter(event.target.value === "all" ? null : event.target.value === "active")
-          }
-          className="ml-2 rounded-button border border-border px-3 py-2"
-        >
-          <option value="all">Tất cả</option>
-          <option value="active">Đang hoạt động</option>
-          <option value="inactive">Đã ngưng</option>
-        </select>
-      </label>
+          options={[
+            { value: "all", label: "Tất cả" },
+            { value: "active", label: "Đang hoạt động" },
+            { value: "inactive", label: "Đã ngưng" },
+          ]}
+          onChange={(value) => setActiveFilter(value === "all" ? null : value === "active")}
+        />
+      </div>
 
       <QueryStates
         query={customers}

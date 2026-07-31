@@ -1,10 +1,24 @@
+"use client";
+
 import type { SessionDto, WorkspaceRole } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
+import {
+  CloudAlert,
+  CloudCheck,
+  CloudUpload,
+  LogOut,
+  Settings2,
+  ShoppingCart,
+  Store,
+  SwitchCamera,
+} from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useOffline } from "@/offline/provider.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { AppNav } from "./app-nav.tsx";
-import { MobileNav } from "./mobile-nav.tsx";
+import { AppNavView } from "./app-nav.tsx";
+import { MobileNavView } from "./mobile-nav.tsx";
 
 const ROLE_COPY: Readonly<Record<WorkspaceRole, string>> = {
   owner: "Chủ vựa",
@@ -15,82 +29,160 @@ const ROLE_COPY: Readonly<Record<WorkspaceRole, string>> = {
 };
 
 export type WorkspaceShellProps = {
-  /** Named, never inferred. See the note below on why. */
   readonly workspaceName: string;
   readonly session: SessionDto;
   readonly userLabel: string;
-  /** A standing message about the page itself, not about a command. */
   readonly notice?: string;
   readonly onChangeWorkspace?: () => void;
   readonly onSignOut?: () => void | Promise<void>;
+  readonly sync?: {
+    readonly queuedCount: number;
+    readonly blockedCount: number;
+    readonly lastSuccessfulSync: string | null;
+    readonly onRetry: () => Promise<void>;
+  };
   readonly children: ReactNode;
 };
 
-/**
- * The frame every screen sits in: which depot, who you are, what you are.
- *
- * The workspace name is always visible, and that is a product decision rather
- * than a layout one. Every command and every read is scoped by `workspaceId`
- * (BR-CUSTOMER-002), so somebody who keeps two depots must be able to see, at a
- * glance, which set of books they are writing into. A header that only shows it on
- * a settings page is a header that lets a sale land in the wrong depot.
- *
- * Mobile-first: one column, 16px padding, content max-width for the desk. The
- * desktop sidebar and mobile navigation expose only destinations backed by the
- * current session's server-authored capabilities.
- */
-export function WorkspaceShell({
+function SyncStatus({ sync }: { readonly sync: NonNullable<WorkspaceShellProps["sync"]> }) {
+  if (sync.blockedCount > 0) {
+    return (
+      <button
+        type="button"
+        onClick={() => void sync.onRetry()}
+        className="touch-target inline-flex min-h-10 items-center gap-2 rounded-pill border border-warning/30 bg-warning-soft px-3 text-caption font-semibold text-warning"
+        aria-label={`Cần xử lý ${sync.blockedCount} lệnh đồng bộ. Thử đồng bộ lại.`}
+      >
+        <CloudAlert aria-hidden="true" className="h-4 w-4" />
+        <span className="sm:hidden">{sync.blockedCount}</span>
+        <span className="hidden sm:inline">Cần xử lý · {sync.blockedCount}</span>
+      </button>
+    );
+  }
+  if (sync.queuedCount > 0) {
+    return (
+      <button
+        type="button"
+        onClick={() => void sync.onRetry()}
+        className="touch-target inline-flex min-h-10 items-center gap-2 rounded-pill border border-offline/25 bg-offline-soft px-3 text-caption font-semibold text-offline"
+        aria-label={`Có ${sync.queuedCount} lệnh chờ đồng bộ. Thử đồng bộ.`}
+      >
+        <CloudUpload aria-hidden="true" className="h-4 w-4" />
+        <span className="sm:hidden">{sync.queuedCount}</span>
+        <span className="hidden sm:inline">Chờ đồng bộ · {sync.queuedCount}</span>
+      </button>
+    );
+  }
+  return (
+    <span
+      className="inline-flex min-h-10 items-center gap-2 rounded-pill border border-border bg-surface-muted px-3 text-caption font-medium text-ink-muted"
+      title={
+        sync.lastSuccessfulSync === null
+          ? "Chưa có giao dịch cần đồng bộ"
+          : `Đồng bộ gần nhất ${new Date(sync.lastSuccessfulSync).toLocaleTimeString("vi-VN")}`
+      }
+    >
+      <CloudCheck aria-hidden="true" className="h-4 w-4 text-leaf" />
+      <span className="hidden sm:inline">
+        {sync.lastSuccessfulSync === null ? "Sẵn sàng" : "Đã đồng bộ"}
+      </span>
+    </span>
+  );
+}
+
+export function WorkspaceShell(props: WorkspaceShellProps) {
+  return <WorkspaceShellView {...props} pathname={usePathname() ?? ""} />;
+}
+
+export function WorkspaceShellView({
   workspaceName,
   session,
   userLabel,
   notice,
   onChangeWorkspace,
   onSignOut,
+  sync,
   children,
-}: WorkspaceShellProps) {
+  pathname,
+}: WorkspaceShellProps & { readonly pathname: string }) {
+  const isQuickSaleRoute =
+    pathname === "/sales/new" || /^\/customers\/[^/]+\/sales\/new$/.test(pathname);
+
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 px-4 py-3 lg:px-8">
-          <div>
-            <p className="text-caption text-ink-muted">Đang ghi vào</p>
-            <p className="text-subheading font-semibold text-ink">{workspaceName}</p>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <span className="max-w-48 truncate text-body-sm text-ink-muted" title={userLabel}>
-              {userLabel}
+      <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-4 py-2.5 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-card bg-leaf-soft text-leaf sm:flex">
+              <Store aria-hidden="true" className="h-5 w-5" />
             </span>
-            <Badge tone="info">{ROLE_COPY[session.role]}</Badge>
+            <div className="min-w-0">
+              <p className="hidden text-caption font-medium text-ink-muted sm:block">
+                Vựa đang làm việc
+              </p>
+              <p className="truncate text-body font-semibold text-ink sm:text-subheading">
+                {workspaceName}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {sync === undefined ? null : <SyncStatus sync={sync} />}
+            <div className="hidden items-center gap-2 border-l border-border pl-2 md:flex">
+              <div className="max-w-44 text-right">
+                <p className="truncate text-body-sm font-medium text-ink" title={userLabel}>
+                  {userLabel}
+                </p>
+              </div>
+              <Badge tone="info">{ROLE_COPY[session.role]}</Badge>
+            </div>
             {onChangeWorkspace === undefined ? null : (
-              <Button tone="secondary" onClick={onChangeWorkspace}>
-                Đổi vựa
+              <Button
+                tone="secondary"
+                className="px-3"
+                onClick={onChangeWorkspace}
+                title="Đổi vựa"
+                aria-label="Đổi vựa"
+              >
+                <SwitchCamera aria-hidden="true" className="h-4 w-4" />
+                <span className="hidden xl:inline">Đổi vựa</span>
               </Button>
             )}
             {onSignOut !== undefined ? (
-              <Button tone="secondary" onClick={() => void onSignOut()}>
-                Đăng xuất
+              <Button
+                tone="secondary"
+                className="px-3"
+                onClick={() => void onSignOut()}
+                title="Đăng xuất"
+                aria-label="Đăng xuất"
+              >
+                <LogOut aria-hidden="true" className="h-4 w-4" />
+                <span className="hidden xl:inline">Đăng xuất</span>
               </Button>
             ) : null}
           </div>
         </div>
       </header>
-      {session.permissions.includes("sale.create") ||
-      session.permissions.includes("workspace.manage") ? (
+
+      {!isQuickSaleRoute &&
+      (session.permissions.includes("sale.create") ||
+        session.permissions.includes("workspace.manage")) ? (
         <div className="border-b border-border bg-surface px-4 py-2 lg:hidden">
           <div className="mx-auto flex max-w-xl gap-2">
             {session.permissions.includes("sale.create") ? (
               <Link
                 href="/sales/new"
-                className="touch-target flex flex-1 items-center justify-center rounded-button bg-leaf px-3 text-label font-semibold text-white"
+                className="touch-target flex flex-1 items-center justify-center gap-2 rounded-button bg-leaf px-3 text-label font-semibold text-white"
               >
+                <ShoppingCart aria-hidden="true" className="h-4 w-4" />
                 Ghi đơn nhanh
               </Link>
             ) : null}
             {session.permissions.includes("workspace.manage") ? (
               <Link
                 href="/workspace/operations"
-                className="touch-target flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-3 text-label font-semibold text-ink"
+                className="touch-target flex flex-1 items-center justify-center gap-2 rounded-button border border-border bg-surface px-3 text-label font-semibold text-ink"
               >
+                <Settings2 aria-hidden="true" className="h-4 w-4" />
                 Vận hành
               </Link>
             ) : null}
@@ -104,11 +196,26 @@ export function WorkspaceShell({
         </p>
       ) : null}
 
-      <div className="mx-auto flex max-w-[1440px] gap-8 px-4 lg:px-8">
-        <AppNav permissions={session.permissions} />
-        <main className="min-w-0 flex-1 py-6 pb-24 lg:pb-8">{children}</main>
+      <div className="mx-auto flex max-w-[1440px] gap-6 px-4 lg:px-8">
+        <AppNavView permissions={session.permissions} pathname={pathname} />
+        <main className="min-w-0 flex-1 py-6 pb-24 lg:pb-10">{children}</main>
       </div>
-      <MobileNav permissions={session.permissions} />
+      <MobileNavView permissions={session.permissions} pathname={pathname} />
     </div>
+  );
+}
+
+export function ConnectedWorkspaceShell(props: Omit<WorkspaceShellProps, "sync">) {
+  const offline = useOffline();
+  return (
+    <WorkspaceShell
+      {...props}
+      sync={{
+        queuedCount: offline.queuedCount,
+        blockedCount: offline.blockedCount,
+        lastSuccessfulSync: offline.lastSuccessfulSync,
+        onRetry: offline.retry,
+      }}
+    />
   );
 }

@@ -15,6 +15,7 @@ describe("PageHeader", () => {
     );
     const link = screen.getByRole("link", { name: "Quay lại hồ sơ" });
     expect(link).toHaveAttribute("href", "/customers/123");
+    expect(link).toHaveClass("touch-target");
     // ArrowLeft SVG is decorative for screen readers when nested inside link with label text
     // We just verify the link has the correct text and href.
     expect(link).toBeInTheDocument();

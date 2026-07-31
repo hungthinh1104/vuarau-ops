@@ -9,7 +9,8 @@ import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { parseMoneyText, parseQuantityText } from "@/ui/primitives/numeric-text.ts";
-import { X } from "lucide-react";
+import { Search, X } from "lucide-react";
+import type { KeyboardEvent } from "react";
 import { formatMoney } from "@/ui/format.ts";
 
 /**
@@ -166,17 +167,32 @@ export function SaleLineEditor({
   disabled = false,
   qualityGradeOptions = [],
   onOpenProductPicker,
-}: SaleLineEditorProps) {
+  onAdvance,
+}: SaleLineEditorProps & { readonly onAdvance?: () => void }) {
   const { total } = resolveLine(line);
+
+  function focusField(event: KeyboardEvent<HTMLElement>, field: string): void {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    const row = event.currentTarget.closest("li");
+    row?.querySelector<HTMLElement>(`[data-sale-field="${field}"]`)?.focus();
+  }
 
   return (
     <li
       data-testid={`sale-line-${index}`}
-      className="flex flex-col gap-3 rounded-card border border-border bg-surface p-3"
+      className="rounded-card border border-border bg-surface p-3 shadow-sm sm:p-4"
       onFocus={onFocus}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-caption font-semibold text-ink-muted">Dòng {index + 1}</span>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <span className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
+            Dòng {index + 1}
+          </span>
+          <p className="tabular mt-0.5 text-subheading font-semibold text-ink">
+            {total === null ? "Chưa đủ dữ liệu" : formatMoney(total)}
+          </p>
+        </div>
         {canRemove ? (
           <IconButton label={`Xoá dòng ${index + 1}`} onClick={onRemove} disabled={disabled}>
             <X size={16} />
@@ -184,90 +200,112 @@ export function SaleLineEditor({
         ) : null}
       </div>
 
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
-          <TextInput
-            label="Mặt hàng"
-            required
-            placeholder="Nhập hoặc chọn mặt hàng"
-            disabled={disabled}
-            value={line.productName}
-            onChange={(event) => onChange({ ...line, productName: event.target.value }, "product")}
-            {...(issues.productName !== undefined ? { error: issues.productName } : {})}
-          />
+      <div className="grid gap-3">
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1">
+            <TextInput
+              label="Mặt hàng"
+              required
+              placeholder="Nhập hoặc chọn mặt hàng"
+              disabled={disabled}
+              value={line.productName}
+              data-sale-field="product"
+              onKeyDown={(event) => focusField(event, "quantity")}
+              onChange={(event) =>
+                onChange({ ...line, productName: event.target.value }, "product")
+              }
+              {...(issues.productName !== undefined ? { error: issues.productName } : {})}
+            />
+          </div>
+          {onOpenProductPicker !== undefined ? (
+            <Button
+              tone="secondary"
+              className="shrink-0 px-3"
+              disabled={disabled}
+              onClick={onOpenProductPicker}
+              type="button"
+              aria-label="Mở bảng chọn mặt hàng và giá gần đây"
+              title="Chọn mặt hàng"
+            >
+              <Search aria-hidden="true" className="h-4 w-4" />
+              <span className="hidden sm:inline">Chọn</span>
+            </Button>
+          ) : null}
         </div>
-        {onOpenProductPicker !== undefined ? (
-          <Button tone="secondary" disabled={disabled} onClick={onOpenProductPicker} type="button">
-            Chọn
-          </Button>
-        ) : null}
+
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="col-span-2 md:col-span-1">
+            <Select
+              label="Phân hạng chất lượng"
+              required
+              disabled={disabled}
+              value={line.qualityGradeId ?? ""}
+              placeholder="Chọn hạng"
+              onChange={(event) => {
+                const option = qualityGradeOptions.find(
+                  (candidate) => candidate.value === event.target.value,
+                );
+                onChange(
+                  {
+                    ...line,
+                    qualityGradeId: (event.target.value || null) as QualityGradeId | null,
+                    qualityGradeName: option?.label ?? null,
+                  },
+                  "qualityGrade",
+                );
+              }}
+              options={qualityGradeOptions}
+            />
+          </div>
+          <QuantityInput
+            label="Số lượng"
+            required
+            disabled={disabled}
+            unit={line.unit}
+            showUnitSuffix={false}
+            value={line.quantityText}
+            data-sale-field="quantity"
+            onKeyDown={(event) => focusField(event, "price")}
+            onChange={(event) =>
+              onChange({ ...line, quantityText: event.target.value }, "quantity")
+            }
+            {...(issues.quantity !== undefined ? { error: issues.quantity } : {})}
+          />
+          <Select
+            label="Đơn vị"
+            disabled={disabled}
+            value={line.unit}
+            onChange={(event) => onChange({ ...line, unit: event.target.value as Unit }, "unit")}
+            options={UNIT_OPTIONS}
+          />
+          <div className="col-span-2 md:col-span-1">
+            <MoneyInput
+              label="Đơn giá"
+              required
+              disabled={disabled}
+              currency="VND"
+              value={line.unitPriceText}
+              data-sale-field="price"
+              enterKeyHint="next"
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                event.preventDefault();
+                onAdvance?.();
+              }}
+              onChange={(event) =>
+                onChange({ ...line, unitPriceText: event.target.value }, "unitPrice")
+              }
+              {...(issues.unitPrice !== undefined ? { error: issues.unitPrice } : {})}
+            />
+          </div>
+        </div>
       </div>
-
-      <Select
-        label="Phân hạng chất lượng"
-        required
-        disabled={disabled}
-        value={line.qualityGradeId ?? ""}
-        placeholder="Chọn phân hạng"
-        onChange={(event) => {
-          const option = qualityGradeOptions.find(
-            (candidate) => candidate.value === event.target.value,
-          );
-          onChange(
-            {
-              ...line,
-              qualityGradeId: (event.target.value || null) as QualityGradeId | null,
-              qualityGradeName: option?.label ?? null,
-            },
-            "qualityGrade",
-          );
-        }}
-        options={qualityGradeOptions}
-      />
-
-      <div className="grid grid-cols-2 gap-3">
-        <QuantityInput
-          label="Số lượng"
-          required
-          disabled={disabled}
-          unit={line.unit}
-          value={line.quantityText}
-          onChange={(event) => onChange({ ...line, quantityText: event.target.value }, "quantity")}
-          {...(issues.quantity !== undefined ? { error: issues.quantity } : {})}
-        />
-        <Select
-          label="Đơn vị"
-          disabled={disabled}
-          value={line.unit}
-          onChange={(event) => onChange({ ...line, unit: event.target.value as Unit }, "unit")}
-          options={UNIT_OPTIONS}
-        />
-      </div>
-
-      <MoneyInput
-        label="Đơn giá"
-        required
-        disabled={disabled}
-        currency="VND"
-        value={line.unitPriceText}
-        onChange={(event) => onChange({ ...line, unitPriceText: event.target.value }, "unitPrice")}
-        {...(issues.unitPrice !== undefined ? { error: issues.unitPrice } : {})}
-      />
 
       {serverIssue !== undefined ? (
-        // The server refused *this* row. `SALE_LINE_INVALID` carries `lineIndex`,
-        // so the message belongs here and nowhere else.
-        <p role="alert" className="text-caption text-danger">
+        <p role="alert" className="mt-3 text-caption text-danger">
           {serverIssue}
         </p>
       ) : null}
-
-      <div className="flex items-baseline justify-between border-t border-border pt-2">
-        <span className="text-body-sm text-ink-muted">Thành tiền</span>
-        <span className="tabular text-subheading font-semibold text-ink">
-          {total === null ? "—" : formatMoney(total)}
-        </span>
-      </div>
     </li>
   );
 }

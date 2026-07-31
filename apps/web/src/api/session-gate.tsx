@@ -14,9 +14,8 @@ import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Skeleton } from "@/ui/primitives/skeleton.tsx";
 import { BusinessRejection } from "@/ui/patterns/feedback/business-rejection.tsx";
 import { SignInUnconfigured } from "@/ui/patterns/auth/sign-in.tsx";
-import { WorkspaceShell } from "@/ui/patterns/layout/workspace-shell.tsx";
+import { ConnectedWorkspaceShell } from "@/ui/patterns/layout/workspace-shell.tsx";
 import { OfflineProvider } from "@/offline/provider.tsx";
-import { SyncIndicator } from "@/offline/sync-indicator.tsx";
 import {
   cacheSession,
   cacheWorkspaces,
@@ -247,7 +246,7 @@ function ResolveSession({
   return (
     <SessionContext.Provider value={{ session, workspaceId, workspaceName: choice.name }}>
       <OfflineProvider session={session} workspaceId={workspaceId}>
-        <WorkspaceShell
+        <ConnectedWorkspaceShell
           workspaceName={choice.name}
           session={session}
           userLabel={
@@ -259,8 +258,7 @@ function ResolveSession({
           onSignOut={auth.signOut}
         >
           {children}
-        </WorkspaceShell>
-        <SyncIndicator />
+        </ConnectedWorkspaceShell>
       </OfflineProvider>
     </SessionContext.Provider>
   );

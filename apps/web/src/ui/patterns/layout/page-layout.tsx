@@ -21,9 +21,9 @@ export function PageHeader({
         <div>
           <Link
             href={back.href}
-            className="inline-flex items-center gap-1.5 text-body-sm font-medium text-ink-muted transition-colors hover:text-ink"
+            className="touch-target -ml-2 inline-flex items-center gap-1.5 rounded-button px-2 text-body-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
             {back.label}
           </Link>
         </div>

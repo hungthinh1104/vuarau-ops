@@ -13,6 +13,8 @@ export type QuantityInputProps = Omit<
   readonly hint?: string;
   readonly error?: string;
   readonly unit: Unit;
+  /** Hide the suffix when a separate adjacent unit selector already names it. */
+  readonly showUnitSuffix?: boolean;
   /** Raw text, exactly as typed. See `MoneyInput` for why. */
   readonly value: string;
 };
@@ -27,6 +29,7 @@ export function QuantityInput({
   hint,
   error,
   unit,
+  showUnitSuffix = true,
   required,
   className,
   ...rest
@@ -49,7 +52,9 @@ export function QuantityInput({
             {...(describedBy !== undefined ? { "aria-describedby": describedBy } : {})}
             className={[INPUT_CLASS, "tabular text-right", className].filter(Boolean).join(" ")}
           />
-          <span className="text-body text-ink-muted">{UNIT_LABEL_VI[unit]}</span>
+          {showUnitSuffix ? (
+            <span className="text-body text-ink-muted">{UNIT_LABEL_VI[unit]}</span>
+          ) : null}
         </div>
       )}
     </Field>

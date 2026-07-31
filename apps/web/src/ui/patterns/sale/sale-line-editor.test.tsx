@@ -77,6 +77,11 @@ describe("TC-WEB-022 — the line editor", () => {
     expect(screen.getByText("225.000 ₫")).toBeInTheDocument();
   });
 
+  it("shows the selected unit once when quantity and unit selector sit together", () => {
+    render(<SaleLineEditor {...base} onChange={() => undefined} onRemove={() => undefined} />);
+    expect(screen.getAllByText("kg")).toHaveLength(1);
+  });
+
   it("attaches a server refusal to this row, as an alert", () => {
     render(
       <SaleLineEditor

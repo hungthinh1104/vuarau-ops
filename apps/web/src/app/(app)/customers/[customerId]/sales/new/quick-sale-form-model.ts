@@ -101,7 +101,8 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
 
   const activeLine = lines.find((line) => line.lineId === activeLineId) ?? lines[0]!;
 
-  const activeProductQuery = useDebounced(activeLine.productName, 200);
+  const [pickerProductQuery, setPickerProductQuery] = useState<string | null>(null);
+  const activeProductQuery = useDebounced(pickerProductQuery ?? activeLine.productName, 200);
 
   const capture = useQuery(
     trpc.sale.captureContext.queryOptions({
@@ -118,7 +119,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
       query: activeProductQuery,
       isActive: true,
       cursor: null,
-      limit: 8,
+      limit: pickerProductQuery === null ? 8 : 12,
     }),
   );
   const qualityGrades = useQuery(
@@ -623,6 +624,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     post,
     postCommand,
     productCreateCommand,
+    productSearchLoading: productSuggestions.isFetching || capture.isFetching,
     noProductMatch,
     qualityGrades,
     qualityGradeOptions,
@@ -634,6 +636,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     serverLineIndex,
     session,
     setActiveLineId,
+    setPickerProductQuery,
     setDirty,
     setNote,
     setUnitNotice,
