@@ -10,14 +10,10 @@ import { workspaceBackupSchema } from "@vuarau/domain-contracts";
 import { useEffect, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
-import { useOffline } from "@/offline/provider.tsx";
-import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { Button } from "@/ui/primitives/button.tsx";
-import { Badge } from "@/ui/primitives/badge.tsx";
 import { useCommand } from "@/api/use-command.ts";
+import { useOffline } from "@/offline/provider.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { OperationsView } from "@/ui/screens/operations-view.tsx";
 
 export default function OperationsPage() {
   const { workspaceId, session } = useSession();
@@ -26,6 +22,7 @@ export default function OperationsPage() {
   const [backup, setBackup] = useState<WorkspaceBackup | null>(null);
   const [restoreReason, setRestoreReason] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
+
   const integrity = useQuery(trpc.operations.integrity.queryOptions({ workspaceId }));
   const exportMutation = useMutation(trpc.operations.exportBackup.mutationOptions());
   const exportCommand = useCommand<Record<string, never>, WorkspaceBackupV4>((envelope) =>
@@ -57,131 +54,71 @@ export default function OperationsPage() {
     URL.revokeObjectURL(url);
   }, [exportCommand.result, workspaceId]);
 
-  if (!session.permissions.includes("workspace.manage")) {
-    return <p role="alert">Chỉ chủ vựa được mở khu vực vận hành.</p>;
+  useEffect(() => {
+    if (restore.result === null) return;
+    void integrity.refetch();
+  }, [integrity.refetch, restore.result]);
+
+  async function readBackupFile(file: File): Promise<void> {
+    setFileError(null);
+    try {
+      const parsed = workspaceBackupSchema.safeParse(JSON.parse(await file.text()));
+      if (!parsed.success) {
+        setBackup(null);
+        setFileError("File sao lưu không đúng định dạng.");
+        return;
+      }
+      setBackup(parsed.data);
+    } catch {
+      setBackup(null);
+      setFileError("File không phải JSON hợp lệ.");
+    }
   }
+
+  const exportLocked =
+    exportCommand.phase.kind === "sending" || exportCommand.phase.kind === "unknown";
+  const restoreLocked = restore.phase.kind === "sending" || restore.phase.kind === "unknown";
+
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <PageHeader title="Vận hành hệ thống" back={{ href: "/workspace", label: "Quản lý vựa" }} />
-      <section className="rounded-card border border-border bg-surface p-4">
-        <h2 className="text-subheading font-semibold">Đồng bộ thiết bị</h2>
-        <p>
-          {offline.queuedCount} thay đổi đang chờ · {offline.blockedCount} thay đổi cần xử lý
-        </p>
-        <p className="text-caption text-ink-muted">
-          Lần đồng bộ thành công: {offline.lastSuccessfulSync ?? "chưa có"}
-        </p>
-        <Button tone="secondary" onClick={() => void offline.retry()}>
-          Thử đồng bộ
-        </Button>
-      </section>
-      <QueryStates
-        query={integrity}
-        loadingLabel="Đang kiểm tra toàn vẹn"
-        onRetry={() => void integrity.refetch()}
-      >
-        {(result) => (
-          <section className="rounded-card border border-border bg-surface p-4">
-            <div className="flex justify-between">
-              <h2 className="text-subheading font-semibold">Toàn vẹn sổ</h2>
-              <Badge tone={result.status === "healthy" ? "positive" : "warning"}>
-                {result.status === "healthy" ? "Nhất quán" : "Cần kiểm tra"}
-              </Badge>
-            </div>
-            <p>
-              {result.healthyCustomers} tài khoản tốt · {result.anomalousCustomers} bất thường
-            </p>
-            <p className="text-caption text-ink-muted">
-              Sai lệch số dư tổng hợp: {result.projectionDrift} · thiếu chứng từ nguồn:{" "}
-              {result.missingSources} · chứng từ nguồn bị lặp: {result.duplicateSources}.
-            </p>
-            <p className="text-caption text-ink-muted">
-              Nhà cung cấp: {result.healthySuppliers} tốt, {result.anomalousSuppliers} bất thường ·
-              tồn kho bất thường: {result.anomalousInventoryKeys}.
-            </p>
-          </section>
-        )}
-      </QueryStates>
-      <section className="rounded-card border border-border bg-surface p-4">
-        <h2 className="text-subheading font-semibold">Sao lưu dữ liệu</h2>
-        <p className="text-body-sm">
-          Tạo file sao lưu để kiểm tra và phục hồi vựa khi cần. File không chứa mật khẩu hoặc khóa
-          truy cập.
-        </p>
-        <Button
-          onClick={() => void exportCommand.submit({})}
-          disabled={exportCommand.phase.kind === "sending"}
-        >
-          {exportCommand.phase.kind === "sending" ? "Đang tạo" : "Xuất bản sao lưu"}
-        </Button>
+    <OperationsView
+      canManage={session.permissions.includes("workspace.manage")}
+      queuedCount={offline.queuedCount}
+      blockedCount={offline.blockedCount}
+      lastSuccessfulSync={offline.lastSuccessfulSync}
+      integrityState={integrity.isPending ? "loading" : integrity.isError ? "error" : "ready"}
+      integrity={integrity.data ?? null}
+      exportLocked={exportLocked}
+      exportCompleted={exportCommand.phase.kind === "succeeded"}
+      backupSelected={backup !== null}
+      validation={validation.data ?? null}
+      validationPending={validation.isFetching}
+      fileError={fileError}
+      restoreReason={restoreReason}
+      restoreLocked={restoreLocked}
+      restoreCompleted={restore.phase.kind === "succeeded"}
+      onRetrySync={() => void offline.retry()}
+      onRetryIntegrity={() => void integrity.refetch()}
+      onExport={() => void exportCommand.submit({})}
+      onResetExport={() => exportCommand.reset()}
+      onBackupFileSelected={(file) => void readBackupFile(file)}
+      onRestoreReasonChange={setRestoreReason}
+      onRestore={() => {
+        if (backup !== null) void restore.submit({ backup, reason: restoreReason.trim() });
+      }}
+      exportOutcome={
         <CommandOutcome
           command={exportCommand}
           attemptedAction="Xuất bản sao lưu"
           onReload={() => undefined}
         />
-        <label className="mt-3 block text-label">
-          Chọn file sao lưu để kiểm tra
-          <input
-            type="file"
-            accept="application/json"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) return;
-              setFileError(null);
-              void file.text().then((text) => {
-                try {
-                  const parsed = workspaceBackupSchema.safeParse(JSON.parse(text));
-                  if (!parsed.success) {
-                    setBackup(null);
-                    setFileError("File sao lưu không đúng định dạng.");
-                    return;
-                  }
-                  setBackup(parsed.data);
-                } catch {
-                  setBackup(null);
-                  setFileError("File không phải JSON hợp lệ.");
-                }
-              });
-            }}
-          />
-        </label>
-        {fileError === null ? null : <p role="alert">{fileError}</p>}
-        {validation.data ? (
-          <p role="status">
-            {validation.data.valid
-              ? "File sao lưu hợp lệ và đúng vựa."
-              : `Không hợp lệ: ${validation.data.diagnostics.join(", ")}`}
-          </p>
-        ) : null}
-        {validation.data?.valid === true && backup !== null ? (
-          <div className="mt-3 flex flex-col gap-2 rounded-card border border-warning/40 bg-warning-soft p-3">
-            <label className="text-label">
-              Lý do phục hồi
-              <input
-                className={INPUT_CLASS}
-                value={restoreReason}
-                onChange={(event) => setRestoreReason(event.target.value)}
-              />
-            </label>
-            <Button
-              tone="secondary"
-              disabled={restoreReason.trim().length === 0 || restore.phase.kind === "sending"}
-              onClick={() => void restore.submit({ backup, reason: restoreReason.trim() })}
-            >
-              Phục hồi vào vựa trống này
-            </Button>
-            <CommandOutcome
-              command={restore}
-              attemptedAction="Phục hồi bản sao lưu"
-              onReload={() => void integrity.refetch()}
-            />
-          </div>
-        ) : null}
-        <p className="mt-3 text-caption text-ink-muted">
-          Chỉ phục hồi vào vựa chưa có dữ liệu. Hệ thống không gộp file sao lưu vào sổ đang hoạt
-          động; việc khôi phục hạ tầng máy chủ được xử lý riêng.
-        </p>
-      </section>
-    </div>
+      }
+      restoreOutcome={
+        <CommandOutcome
+          command={restore}
+          attemptedAction="Phục hồi bản sao lưu"
+          onReload={() => void integrity.refetch()}
+        />
+      }
+    />
   );
 }
