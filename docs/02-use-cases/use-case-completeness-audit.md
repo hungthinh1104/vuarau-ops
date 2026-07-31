@@ -78,11 +78,15 @@ answer all five questions below or explicitly say why one does not apply:
 | Bank/cash reconciliation | Match Payments to cash drawer/bank deposits                                      | none to customer debt if only reconciliation       | none                                                                            | Payment method exists but settlement reconciliation does not                                          | **deliberately out-of-scope until a depot requests it**                                           |
 | Unit conversion          | Convert one commercial unit to another                                           | none                                               | could alter quantity meaning                                                    | explicitly forbidden today                                                                            | **deliberately out-of-scope until ASM-011 trigger**                                               |
 
-## Umbrella use cases that must be decomposed in traceability
+## Umbrella use-case decomposition — technically closed in M23.14b
 
-The current catalog is asymmetric: Sale/Account are split by user goal, while the
-rows below bundle several independently risky actions. M23.14b should create trace
-entries for the **implemented** slices without changing runtime behavior:
+The catalog was asymmetric: Sale/Account were split by user goal while Goods and
+Operations bundled independently risky actions. M23.14b now traces the implemented
+slices separately without changing runtime behavior. `pnpm trace:check` also scans
+normative definitions in reverse, so an unregistered UC/BR or a business rule owned
+by no use case fails the build.
+
+The decomposed surface includes:
 
 - Supplier master lifecycle; supplier payment/reversal; supplier adjustment;
   supplier account read/reconciliation/rebuild.
@@ -94,8 +98,10 @@ entries for the **implemented** slices without changing runtime behavior:
 - Document generation; sharing/revocation; authenticated/public validation reads.
 - Operations integrity; logical export; backup validation; logical restore.
 
-Do not mechanically create one use case per procedure. A new ID is justified when
-the actor goal, risk, effect boundary or correction semantics differ.
+The resulting map has distinct Product/Quality, Supplier money, Purchase,
+Receiving, Inventory, Delivery, Document and Operations goals. It still does **not**
+mechanically create one use case per procedure: a new ID is justified when actor
+goal, risk, effect boundary or correction semantics differ.
 
 ## Cross-dimension blockers before a real shadow pilot
 

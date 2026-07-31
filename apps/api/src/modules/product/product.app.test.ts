@@ -39,7 +39,7 @@ const createInput = () => ({
   },
 });
 
-describe("M15 Product catalog", () => {
+describe("BR-PRODUCT-001 / BR-PRODUCT-003 / BR-PRODUCT-004 / TC-PRODUCT-001 — Product catalog lifecycle", () => {
   it("creates, finds by a diacritic-insensitive alias, and versions named updates", async () => {
     expect((await createProduct(harness.ctx, createInput())).ok).toBe(true);
     const searched = await searchProducts(harness.ctx, {

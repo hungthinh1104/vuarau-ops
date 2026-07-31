@@ -210,6 +210,7 @@ use_cases:
       - BR-SALE-016
       - BR-SALE-017
       - BR-SALE-018
+      - BR-SALE-021
     cases: [CASE-SALE-001, CASE-SALE-009]
     tests: [TC-SALE-001, TC-SALE-002, TC-SALE-014, TC-SALE-019, TC-SALE-020]
     implementation:
@@ -235,6 +236,7 @@ use_cases:
       - BR-SALE-009
       - BR-SALE-011
       - BR-SALE-020
+      - BR-SALE-019
       - BR-COMMAND-001
       - BR-COMMAND-003
       - BR-COMMAND-004
@@ -280,6 +282,7 @@ use_cases:
       - BR-CUSTOMER-002
       - BR-SALE-016
       - BR-SALE-017
+      - BR-SALE-022
       - BR-READ-001
       - BR-READ-002
       - BR-READ-003
@@ -511,44 +514,124 @@ use_cases:
       - apps/api/src/modules/audit/audit.queries.ts
       - packages/db/src/repositories/read/audit.ts
 
-  UC-SUPPLIER-001:
-    title: Manage and explain supplier payable
+  UC-PRODUCT-001:
+    title: Manage and identify Product catalogue
     risk: P0
     doc: docs/02-use-cases/goods-flow-use-cases.md
-    rules: [BR-SUPPLIER-001, BR-SUPPLIER-002, BR-SUPPLIER-003, BR-SUPPLIER-004, BR-SUPPLIER-005]
+    rules: [BR-PRODUCT-001, BR-PRODUCT-002, BR-PRODUCT-003, BR-PRODUCT-004, BR-PRODUCT-005]
+    cases: []
+    tests: [TC-PRODUCT-001, TC-PRODUCT-002, TC-PRODUCT-003, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/product/product.handlers.ts
+      - apps/api/src/modules/product/product.queries.ts
+      - apps/api/src/modules/sale/sale.queries.ts
+
+  UC-QUALITY-001:
+    title: Manage commercial grade vocabulary
+    risk: P1
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-INVENTORY-010]
+    cases: []
+    tests: [TC-QUALITY-001, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/quality/quality.handlers.ts
+      - apps/api/src/modules/quality/quality.queries.ts
+
+  UC-SUPPLIER-001:
+    title: Manage Supplier master data
+    risk: P1
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-SUPPLIER-001]
+    cases: []
+    tests: [TC-GOODS-002, TC-E2E-029]
+    implementation:
+      - apps/api/src/modules/supplier/supplier.handlers.ts
+      - apps/api/src/modules/supplier/supplier.queries.ts
+      - packages/db/src/schema/supplier.ts
+
+  UC-SUPPLIER-002:
+    title: Record and reverse Supplier payment
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-SUPPLIER-002, BR-SUPPLIER-003]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-002]
+    implementation:
+      - apps/api/src/modules/supplier/supplier.handlers.ts
+      - apps/api/src/modules/supplier/supplier-account-effects.ts
+
+  UC-SUPPLIER-003:
+    title: Adjust Supplier account without a Purchase
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-SUPPLIER-002, BR-SUPPLIER-004]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-002]
+    implementation:
+      - apps/api/src/modules/supplier/supplier.handlers.ts
+      - apps/api/src/modules/supplier/supplier-account-effects.ts
+
+  UC-SUPPLIER-004:
+    title: Explain reconcile and rebuild Supplier payable
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-SUPPLIER-002, BR-SUPPLIER-005]
     cases: []
     tests: [TC-GOODS-001, TC-GOODS-002, TC-E2E-029]
     implementation:
-      - packages/domain-kernel/src/supplier/index.ts
-      - apps/api/src/modules/supplier/supplier.handlers.ts
-      - packages/db/src/schema/supplier.ts
+      - apps/api/src/modules/supplier/supplier.queries.ts
+      - apps/api/src/modules/supplier/rebuild-supplier-account.handler.ts
 
   UC-PURCHASE-001:
-    title: Record and correct a Purchase
+    title: Draft edit and discard a Purchase
+    risk: P1
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-PURCHASE-001, BR-PURCHASE-002]
+    cases: []
+    tests: [TC-GOODS-003, TC-E2E-029]
+    implementation:
+      - packages/domain-kernel/src/purchase/index.ts
+      - apps/api/src/modules/purchase/purchase.handlers.ts
+
+  UC-PURCHASE-002:
+    title: Confirm a Purchase
     risk: P0
     doc: docs/02-use-cases/goods-flow-use-cases.md
-    rules:
-      [
-        BR-PURCHASE-001,
-        BR-PURCHASE-002,
-        BR-PURCHASE-003,
-        BR-PURCHASE-004,
-        BR-PURCHASE-005,
-        BR-PURCHASE-006,
-      ]
+    rules: [BR-PURCHASE-001, BR-PURCHASE-002, BR-PURCHASE-003]
     cases: []
     tests: [TC-GOODS-001, TC-GOODS-003, TC-E2E-029]
     implementation:
       - packages/domain-kernel/src/purchase/index.ts
       - apps/api/src/modules/purchase/purchase.handlers.ts
-      - packages/db/src/schema/purchase.ts
+      - apps/api/src/modules/supplier/supplier-account-effects.ts
 
-  UC-RECEIVING-001:
-    title: Receive and reverse physical goods
+  UC-PURCHASE-003:
+    title: View Purchase and Receiving progress
+    risk: P1
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-PURCHASE-001, BR-INVENTORY-002, BR-READ-001, BR-READ-002]
+    cases: []
+    tests: [TC-GOODS-001, TC-E2E-029, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/purchase/purchase.queries.ts
+      - apps/api/src/modules/inventory/inventory.queries.ts
+
+  UC-PURCHASE-004:
+    title: Void and optionally replace a confirmed Purchase
     risk: P0
     doc: docs/02-use-cases/goods-flow-use-cases.md
-    rules:
-      [BR-INVENTORY-001, BR-INVENTORY-002, BR-INVENTORY-003, BR-INVENTORY-004, BR-INVENTORY-010]
+    rules: [BR-PURCHASE-004, BR-PURCHASE-005, BR-PURCHASE-006]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-003, TC-E2E-029]
+    implementation:
+      - apps/api/src/modules/purchase/purchase.handlers.ts
+      - apps/api/src/modules/supplier/supplier-account-effects.ts
+
+  UC-RECEIVING-001:
+    title: Record accepted physical goods
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-INVENTORY-001, BR-INVENTORY-002, BR-INVENTORY-003, BR-INVENTORY-010]
     cases: []
     tests: [TC-GOODS-001, TC-GOODS-004, TC-E2E-029, TC-E2E-032]
     implementation:
@@ -556,76 +639,285 @@ use_cases:
       - apps/api/src/modules/inventory/inventory.handlers.ts
       - packages/db/src/schema/inventory.ts
 
-  UC-INVENTORY-001:
-    title: Explain and reconcile physical quantity
+  UC-RECEIVING-002:
+    title: Reverse a wrongly recorded Receipt
     risk: P0
     doc: docs/02-use-cases/goods-flow-use-cases.md
-    rules:
-      [
-        BR-INVENTORY-005,
-        BR-INVENTORY-006,
-        BR-INVENTORY-007,
-        BR-INVENTORY-008,
-        BR-INVENTORY-009,
-        BR-INVENTORY-010,
-        BR-INVENTORY-011,
-        BR-INVENTORY-012,
-      ]
+    rules: [BR-INVENTORY-003, BR-INVENTORY-004]
     cases: []
-    tests: [TC-GOODS-001, TC-GOODS-004, TC-GOODS-005, TC-E2E-029, TC-E2E-032]
+    tests: [TC-GOODS-001, TC-GOODS-004, TC-E2E-029]
+    implementation:
+      - packages/domain-kernel/src/inventory/index.ts
+      - apps/api/src/modules/inventory/inventory.handlers.ts
+
+  UC-RECEIVING-003:
+    title: Inspect Receiving progress
+    risk: P1
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-INVENTORY-002, BR-INVENTORY-004, BR-INVENTORY-005]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-004, TC-E2E-029, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/inventory/inventory.queries.ts
+      - packages/db/src/repositories/read/inventory.ts
+
+  UC-INVENTORY-001:
+    title: Inspect inventory balance and movement history
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-INVENTORY-005, BR-INVENTORY-006, BR-INVENTORY-008, BR-INVENTORY-009]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-005, TC-E2E-029, TC-E2E-032]
     implementation:
       - apps/api/src/modules/inventory/inventory.queries.ts
       - packages/db/src/repositories/read/inventory.ts
       - apps/web/src/app/(app)/products/[productId]/inventory/page.tsx
 
+  UC-INVENTORY-002:
+    title: Record explained physical adjustment
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-INVENTORY-007, BR-INVENTORY-012]
+    cases: []
+    tests: [TC-GOODS-004, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/inventory/inventory.handlers.ts
+      - packages/db/src/repositories/write/inventory.ts
+
+  UC-INVENTORY-003:
+    title: Reclassify accepted stock between grades
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-INVENTORY-005, BR-INVENTORY-010, BR-INVENTORY-011]
+    cases: []
+    tests: [TC-QUALITY-001, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/inventory/inventory.handlers.ts
+      - packages/db/src/repositories/write/inventory.ts
+
+  UC-INVENTORY-004:
+    title: Reconcile and rebuild inventory projection
+    risk: P0
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-INVENTORY-005, BR-INVENTORY-006, BR-INVENTORY-008]
+    cases: []
+    tests: [TC-GOODS-001, TC-GOODS-004, TC-E2E-029, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/inventory/inventory.queries.ts
+      - apps/api/src/modules/inventory/rebuild-inventory.handler.ts
+
   UC-DELIVERY-001:
-    title: Fulfil a posted Sale and record explicit returns
+    title: Draft edit or cancel Sale fulfilment
     risk: P0
     doc: docs/02-use-cases/depot-operations-use-cases.md
-    rules:
-      - BR-DELIVERY-001
-      - BR-DELIVERY-002
-      - BR-DELIVERY-003
-      - BR-DELIVERY-004
-      - BR-DELIVERY-005
-      - BR-DELIVERY-006
-      - BR-DELIVERY-007
+    rules: [BR-DELIVERY-001, BR-DELIVERY-002, BR-DELIVERY-006, BR-DELIVERY-007]
     cases: []
     tests: [TC-DELIVERY-001, TC-DELIVERY-002, TC-DELIVERY-003, TC-E2E-030, TC-E2E-032]
     implementation:
-      - packages/domain-kernel/src/delivery/index.ts
       - apps/api/src/modules/delivery/delivery.handlers.ts
       - apps/api/src/modules/delivery/delivery.queries.ts
+
+  UC-DELIVERY-002:
+    title: Dispatch goods
+    risk: P0
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules: [BR-DELIVERY-002, BR-DELIVERY-003, BR-DELIVERY-005, BR-DELIVERY-006, BR-DELIVERY-007]
+    cases: []
+    tests: [TC-DELIVERY-001, TC-DELIVERY-002, TC-DELIVERY-003, TC-E2E-030, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/delivery/delivery.handlers.ts
       - packages/db/src/repositories/write/delivery.ts
+
+  UC-DELIVERY-003:
+    title: Acknowledge delivered handover
+    risk: P1
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules: [BR-DELIVERY-004, BR-DELIVERY-005]
+    cases: []
+    tests: [TC-DELIVERY-001, TC-DELIVERY-002, TC-DELIVERY-003, TC-E2E-030]
+    implementation:
+      - apps/api/src/modules/delivery/delivery.handlers.ts
+
+  UC-DELIVERY-004:
+    title: Record physical customer return
+    risk: P0
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules: [BR-DELIVERY-003, BR-DELIVERY-004, BR-DELIVERY-005, BR-DELIVERY-006, BR-DELIVERY-007]
+    cases: []
+    tests: [TC-DELIVERY-001, TC-DELIVERY-002, TC-DELIVERY-003, TC-E2E-030, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/delivery/delivery.handlers.ts
+      - packages/db/src/repositories/write/delivery.ts
+
+  UC-DELIVERY-005:
+    title: Inspect Sale fulfilment
+    risk: P0
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules: [BR-DELIVERY-001, BR-DELIVERY-002, BR-DELIVERY-006, BR-DELIVERY-007]
+    cases: []
+    tests: [TC-DELIVERY-001, TC-DELIVERY-003, TC-E2E-030, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/delivery/delivery.queries.ts
       - packages/db/src/repositories/read/delivery.ts
 
   UC-DOCUMENT-001:
-    title: Generate and securely share an immutable snapshot
+    title: Generate immutable source snapshot
     risk: P0
     doc: docs/02-use-cases/depot-operations-use-cases.md
-    rules: [BR-DOCUMENT-001, BR-DOCUMENT-002, BR-DOCUMENT-003, BR-DOCUMENT-004]
+    rules: [BR-DOCUMENT-001, BR-DOCUMENT-002, BR-DOCUMENT-004]
     cases: []
     tests: [TC-DOCUMENT-001, TC-DOCUMENT-002]
     implementation:
       - apps/api/src/modules/document/document.handlers.ts
       - apps/api/src/modules/document/document.queries.ts
-      - apps/api/src/modules/document/public-document.ts
       - packages/db/src/repositories/write/document.ts
-      - packages/db/src/repositories/read/document.ts
+
+  UC-DOCUMENT-002:
+    title: Share and revoke document snapshot
+    risk: P0
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules: [BR-DOCUMENT-002, BR-DOCUMENT-003, BR-DOCUMENT-004, BR-OPS-005]
+    cases: []
+    tests: [TC-DOCUMENT-001, TC-DOCUMENT-002, TC-OPS-007, TC-OPS-008]
+    implementation:
+      - apps/api/src/modules/document/document.handlers.ts
+      - apps/api/src/modules/document/public-document.ts
+
+  UC-DOCUMENT-003:
+    title: Read and validate document snapshot
+    risk: P0
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules: [BR-DOCUMENT-002, BR-DOCUMENT-003, BR-DOCUMENT-004, BR-OPS-005]
+    cases: []
+    tests: [TC-DOCUMENT-001, TC-DOCUMENT-002, TC-OPS-007, TC-OPS-008]
+    implementation:
+      - apps/api/src/modules/document/document.queries.ts
+      - apps/api/src/modules/document/public-document.ts
 
   UC-REPORT-001:
     title: Inspect source-backed operational reports
     risk: P1
     doc: docs/02-use-cases/depot-operations-use-cases.md
-    rules: [BR-REPORT-001, BR-REPORT-002, BR-REPORT-003, BR-REPORT-004]
+    rules: [BR-REPORT-001, BR-REPORT-002, BR-REPORT-003, BR-REPORT-004, BR-OPS-005, BR-OPS-007]
     cases: []
-    tests: [TC-REPORT-001, TC-E2E-030]
+    tests: [TC-REPORT-001, TC-OPS-007, TC-OPS-010, TC-OPS-011, TC-E2E-030]
     implementation:
       - apps/api/src/modules/report/report.queries.ts
+      - apps/api/src/modules/report/csv.ts
       - packages/db/src/repositories/read/report.ts
       - apps/web/src/app/(app)/reports/page.tsx
 
+  UC-OPERATIONS-001:
+    title: Run and observe service under trusted configuration
+    risk: P0
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules: [BR-OPS-001, BR-OPS-002, BR-OPS-006, BR-OPS-007]
+    cases: []
+    tests: [TC-OPS-001, TC-OPS-002, TC-OPS-003, TC-OPS-004, TC-OPS-009, TC-OPS-010, TC-OPS-011]
+    implementation:
+      - apps/api/src/infrastructure/config.ts
+      - apps/api/src/infrastructure/logging.ts
+      - apps/api/src/infrastructure/metrics.ts
+      - apps/api/src/infrastructure/readiness.ts
+
+  UC-OPERATIONS-002:
+    title: Export validate and restore logical recovery data
+    risk: P0
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules: [BR-OPS-004, BR-OPS-005]
+    cases: []
+    tests: [TC-OPS-006, TC-OPS-007, TC-OPS-008]
+    implementation:
+      - apps/api/src/modules/operations/restore-workspace.handler.ts
+      - apps/api/src/modules/operations/operations.queries.ts
+      - packages/db/src/repositories/write/operations.ts
+
+  UC-OPERATIONS-003:
+    title: Prepare a shadow pilot fail closed
+    risk: P0
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules: [BR-OPS-008, BR-CUSTOMER-005]
+    cases: []
+    tests: [TC-OPS-012, TC-OPS-013, TC-OPS-014, TC-CUSTOMER-013]
+    implementation:
+      - apps/api/src/operations/pilot-onboarding.ts
+      - apps/api/src/operations/pilot-csv.ts
+      - apps/api/src/operations/pilot-config.ts
+      - apps/api/src/operations/pilot-readiness.ts
+      - scripts/m23-pilot-dry-run.ts
+
+  UC-OPERATIONS-004:
+    title: Correct a posted Sale through supported command paths
+    risk: P0
+    doc: docs/02-use-cases/platform-use-cases.md
+    rules: [BR-OPS-003, BR-SALE-012, BR-SALE-013, BR-SALE-014, BR-SALE-015, BR-SALE-016]
+    cases: [CASE-SALE-007]
+    tests:
+      [
+        TC-OPS-005,
+        TC-SALE-021,
+        TC-SALE-022,
+        TC-SALE-023,
+        TC-SALE-024,
+        TC-SALE-025,
+        TC-SALE-026,
+        TC-SALE-027,
+      ]
+    implementation:
+      - apps/api/src/operations/sale-correction.ts
+      - apps/api/src/operations/correct-sale.ts
+      - apps/api/src/modules/sale/void-sale.handler.ts
+
 business_rules:
+  BR-PRODUCT-001:
+    title: Product is catalogue identity never monetary authority
+    risk: P1
+    doc: docs/04-business-rules/product-rules.md
+    cases: []
+    tests: [TC-PRODUCT-001]
+    implementation:
+      - apps/api/src/modules/product/product.handlers.ts
+      - apps/api/src/modules/product/product.queries.ts
+
+  BR-PRODUCT-002:
+    title: Sale snapshots do not follow catalogue edits
+    risk: P0
+    doc: docs/04-business-rules/product-rules.md
+    cases: []
+    tests: [TC-PRODUCT-002]
+    implementation:
+      - apps/api/src/modules/product/product.handlers.ts
+      - packages/db/src/repositories/write/product.ts
+
+  BR-PRODUCT-003:
+    title: Product references are workspace safe and posting identity is canonical
+    risk: P0
+    doc: docs/04-business-rules/product-rules.md
+    cases: []
+    tests: [TC-PRODUCT-001, TC-E2E-032]
+    implementation:
+      - apps/api/src/modules/product/product.queries.ts
+      - apps/api/src/modules/sale/post-sale.handler.ts
+
+  BR-PRODUCT-004:
+    title: Product lifecycle is named versioned and never hard deleted
+    risk: P1
+    doc: docs/04-business-rules/product-rules.md
+    cases: []
+    tests: [TC-PRODUCT-001]
+    implementation:
+      - apps/api/src/modules/product/product.handlers.ts
+
+  BR-PRODUCT-005:
+    title: Historical Product snapshots are never guessed or backfilled from text
+    risk: P0
+    doc: docs/04-business-rules/product-rules.md
+    cases: []
+    tests: [TC-PRODUCT-003]
+    implementation:
+      - apps/api/src/modules/sale/sale.queries.ts
+      - packages/db/src/repositories/read/sale.ts
+
   BR-SUPPLIER-001:
     title: Supplier lifecycle is workspace scoped and versioned
     risk: P1
@@ -1819,6 +2111,15 @@ contract_tests:
   TC-GOODS-005:
     title: PostgreSQL cursor tests prove equal-time Goods ordering
     file: apps/api/src/infrastructure/persistence/drizzle/goods-truth.db.test.ts
+  TC-PRODUCT-001:
+    title: Product application tests prove lifecycle search duplicate identity and workspace authority
+    file: apps/api/src/modules/product/product.app.test.ts
+  TC-PRODUCT-002:
+    title: PostgreSQL proves catalogue mutation never rewrites posted Sale snapshot or ledger
+    file: apps/api/src/infrastructure/persistence/drizzle/catalog-operations.db.test.ts
+  TC-PRODUCT-003:
+    title: Sale history recall preserves exact Product identity and legacy null remains unresolved
+    file: apps/api/src/modules/sale/capture-reads.app.test.ts
   TC-QUALITY-001:
     title: QualityGrade lifecycle, permissions and workspace isolation
     file: apps/api/src/modules/quality/quality.app.test.ts
@@ -2069,9 +2370,6 @@ contract_tests:
   TC-CUSTOMER-013:
     title: Customer and Product pilot imports replay real commands without crossing workspaces
     file: apps/api/src/infrastructure/persistence/drizzle/pilot-onboarding.db.test.ts
-  TC-PRODUCT-001:
-    title: Product search, lifecycle, versioning, permissions and workspace isolation
-    file: apps/api/src/modules/product/product.app.test.ts
   TC-E2E-026:
     title: Offline Quick Sale survives reload and synchronizes one posting
     file: apps/web/e2e/m13-offline-quick-sale.spec.ts

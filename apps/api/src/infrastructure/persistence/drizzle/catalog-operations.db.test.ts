@@ -101,7 +101,7 @@ describe.skipIf(skipWithoutDatabase())("M14 and M15 against Postgres", () => {
     expect(new Set(pagedIds).size).toBe(3);
   });
 
-  it("keeps the posted Sale snapshot and ledger unchanged after catalog mutation", async () => {
+  it("BR-PRODUCT-002 / TC-PRODUCT-002 — keeps the posted Sale snapshot and ledger unchanged after catalog mutation", async () => {
     const productId = crypto.randomUUID() as ProductId;
     const saleId = crypto.randomUUID() as SaleId;
     expect(
