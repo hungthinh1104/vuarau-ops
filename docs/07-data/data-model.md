@@ -1,113 +1,182 @@
 # Data model
 
-Schema in code: `packages/db/src/schema/`. Migration: `packages/db/migrations/`.
+Executable persistence truth lives in `packages/db/src/schema/` plus ordered
+migrations in `packages/db/migrations/`. This document explains the business role
+and mutability of the current schema; it is a mirror, not a replacement for the
+Drizzle definitions and database constraints.
 
-This is the human-readable persistence model for the currently implemented
-transaction system. The executable schema and migrations are authoritative; this
-document must be updated when their business meaning changes.
+## Tables by bounded context
 
-## Tables
+### Identity and workspace
 
-| Table                       | Purpose                                                                   | Mutability                                |
-| --------------------------- | ------------------------------------------------------------------------- | ----------------------------------------- |
-| `workspaces`                | One depot = one tenant                                                    | mutable master data                       |
-| `actors`                    | Users who issue commands; `supabase_user_id` links a verified JWT subject | mutable master data                       |
-| `workspace_memberships`     | Which actor may act in which workspace                                    | mutable                                   |
-| `customers`                 | Buyers                                                                    | mutable master data                       |
-| `products`                  | Catalogue for sale lines                                                  | mutable master data                       |
-| `quality_grades`            | Workspace commercial grade vocabulary                                     | mutable master data                       |
-| `sales`                     | Completed sales, `draft` → `posted`                                       | status/version only, until posted         |
-| `sale_lines`                | Lines of a sale, with price snapshots                                     | replaced while `draft`                    |
-| `payments`                  | Money received                                                            | `reversed_amount`/`status`/`version` only |
-| `payment_reversals`         | Compensating records                                                      | **append-only**                           |
-| `customer_account_entries`  | Source of truth for debt                                                  | **append-only**                           |
-| `customer_account_balances` | Rebuildable projection                                                    | recomputable                              |
-| `command_receipts`          | Idempotency records                                                       | insert + one status update                |
-| `audit_logs`                | Business action history                                                   | **append-only**                           |
-| `suppliers`, `purchases`    | Supplier master data and immutable confirmed Purchase snapshots           | master/draft mutable; confirmed immutable |
-| `supplier_account_entries`  | Source of truth for supplier payable                                      | **append-only**                           |
-| `purchase_receipts`         | Physical inbound source documents and explicit reversals                  | **append-only**                           |
-| `inventory_movements`       | Canonical per-Product/grade/unit physical ledger                          | **append-only**                           |
-| `inventory_balances`        | Rebuildable per-Product/grade/unit projection                             | recomputable                              |
-| `deliveries`                | Sale-linked physical fulfilment lifecycle                                 | draft/status/version only                 |
-| `delivery_returns`          | Explicit physical return compensations                                    | **append-only**                           |
-| `documents`                 | Immutable versioned source snapshots and deterministic digests            | **append-only**                           |
-| `document_shares`           | Hashed public capability tokens with expiry/revocation                    | revocation fields only                    |
+| Table                   | Purpose                                                   | Mutability          |
+| ----------------------- | --------------------------------------------------------- | ------------------- |
+| `workspaces`            | Depot/tenant identity                                     | mutable master data |
+| `actors`                | Attributed command actors; optional Supabase subject link | mutable master data |
+| `workspace_memberships` | Actor role and active membership per workspace            | mutable lifecycle   |
 
-## Conventions applied to every table
+### Customer, Sale and customer money
 
-1. **Workspace isolation.** Every business table has `workspace_id NOT NULL` with a
-   foreign key. Every repository method takes it as a required parameter, so a
-   query cannot forget the filter. P0 (BR-CUSTOMER-002).
-2. **Integer money.** `bigint` columns holding minor units, plus an explicit
-   `currency` column beside every amount. Never `numeric`, never `float`.
-3. **Explicit time.** `transaction_time` and `recorded_at` on every business event
-   row; `created_at`/`updated_at` only where they mean something.
-4. **Versions.** `sales`, `payments`, `customers` carry `version integer NOT NULL`
-   for optimistic concurrency.
-5. **No hard delete of finalized records.** Enforced by triggers, not convention.
+| Table                       | Purpose                                         | Mutability                                                     |
+| --------------------------- | ----------------------------------------------- | -------------------------------------------------------------- |
+| `customers`                 | Buyer master data                               | mutable lifecycle                                              |
+| `sales`                     | Sale aggregate (`draft → posted/discarded`)     | draft/status/version only; posted commercial content immutable |
+| `sale_lines`                | Product/grade/quantity/price snapshots for Sale | replaceable while draft; finalized snapshots preserved         |
+| `sale_voids`                | Posted-Sale compensation/reason                 | append-only adjacent fact                                      |
+| `payments`                  | Customer money received and reversal summary    | constrained lifecycle/version fields                           |
+| `payment_reversals`         | Customer-payment compensation facts             | append-only                                                    |
+| `customer_account_entries`  | Canonical customer debt ledger                  | append-only                                                    |
+| `customer_account_balances` | Rebuildable customer balance projection         | recomputable                                                   |
 
-## Append-only enforcement
+### Product, supplier and Purchase
 
-`packages/db/migrations/` installs a trigger function on
-`customer_account_entries`, `payment_reversals`, and `audit_logs`:
+| Table                        | Purpose                                            | Mutability                                                        |
+| ---------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| `products`                   | Workspace product catalog                          | mutable lifecycle                                                 |
+| `quality_grades`             | Workspace commercial-grade vocabulary              | mutable lifecycle; historical snapshots remain immutable          |
+| `suppliers`                  | Supplier master data                               | mutable lifecycle                                                 |
+| `supplier_payments`          | Supplier payment aggregate                         | constrained lifecycle/version fields                              |
+| `supplier_payment_reversals` | Supplier-payment compensation facts                | append-only                                                       |
+| `supplier_account_entries`   | Canonical supplier payable ledger                  | append-only                                                       |
+| `supplier_account_balances`  | Rebuildable supplier balance projection            | recomputable                                                      |
+| `purchases`                  | Purchase aggregate (`draft → confirmed/discarded`) | draft/status/version only; confirmed commercial content immutable |
+| `purchase_lines`             | Purchase quantity/price snapshots                  | replaceable while draft; finalized snapshots preserved            |
+| `purchase_voids`             | Confirmed-Purchase compensation/reason             | append-only adjacent fact                                         |
 
-```sql
-CREATE TRIGGER … BEFORE UPDATE OR DELETE ON customer_account_entries
-  FOR EACH ROW EXECUTE FUNCTION vuanha_forbid_mutation();
+### Receiving and inventory
+
+| Table                        | Purpose                                                | Mutability                  |
+| ---------------------------- | ------------------------------------------------------ | --------------------------- |
+| `purchase_receipts`          | Physical inbound source document                       | append-only business source |
+| `purchase_receipt_lines`     | Received Product/grade/unit quantities                 | append-only                 |
+| `purchase_receipt_reversals` | Explicit Receipt reversal facts                        | append-only                 |
+| `inventory_movements`        | Canonical physical ledger by Product/QualityGrade/unit | append-only                 |
+| `inventory_balances`         | Rebuildable Product/QualityGrade/unit projection       | recomputable                |
+
+### Delivery
+
+| Table                   | Purpose                                                 | Mutability                                                 |
+| ----------------------- | ------------------------------------------------------- | ---------------------------------------------------------- |
+| `deliveries`            | Sale-linked fulfilment lifecycle                        | draft/status/version only                                  |
+| `delivery_lines`        | Exact Sale-line Product/grade/unit quantities to fulfil | mutable only with draft workflow; preserved after dispatch |
+| `delivery_returns`      | Return source facts against dispatched Delivery         | append-only                                                |
+| `delivery_return_lines` | Exact returned physical quantities                      | append-only                                                |
+
+### Documents and control
+
+| Table              | Purpose                                                | Mutability                                |
+| ------------------ | ------------------------------------------------------ | ----------------------------------------- |
+| `documents`        | Immutable versioned source snapshots and digest        | append-only                               |
+| `document_shares`  | Hashed capability-token records                        | revocation/expiry lifecycle fields only   |
+| `command_receipts` | Idempotency coordination and committed result identity | insert plus constrained completion update |
+| `audit_logs`       | Attributed business-action history                     | append-only                               |
+
+## Cross-cutting conventions
+
+### Workspace isolation
+
+Business rows carry workspace identity and repositories accept workspace context as
+a required boundary. Composite keys/foreign keys are used where an id alone would
+allow a cross-workspace reference. Application authorization is the primary
+isolation layer under ADR-0020; provider/database defence-in-depth must not be
+confused with permission to omit workspace checks in repositories.
+
+### Exact money and quantity
+
+Money is stored as integer minor units with explicit currency. Physical quantities
+use integer scaled values plus explicit unit. No canonical ledger or movement uses
+floating-point arithmetic, and incompatible units are never silently converted.
+
+### Time
+
+Business events preserve `transaction_time` separately from recording/system
+timestamps. Back-dated entry changes when the business event occurred, not when the
+system learned it.
+
+### Optimistic concurrency
+
+Mutable aggregates expose integer versions where a stale edit can overwrite another
+worker's intent. Append-only facts and operations whose concurrency guarantee is a
+row lock/uniqueness constraint do not gain a version merely to look uniform.
+
+### Immutable history and compensation
+
+Finalized money/goods facts are corrected by adjacent or inverse facts: Sale void,
+Payment reversal, Purchase void, Receipt reversal, Delivery return, inventory
+adjustment/reclassification. Historical transaction meaning is not rewritten to
+make a projection look right.
+
+Database triggers/constraints in migrations enforce the high-risk append-only and
+no-delete boundaries in addition to application code. The migration definitions,
+not this paragraph, are authoritative about the exact trigger set.
+
+## Grade-aware physical identity
+
+Current inventory projection identity is:
+
+```text
+workspace + Product + QualityGrade + unit
 ```
 
-and a delete-only guard on `sales`, `sale_lines`, and `payments`.
+New physical workflows preserve canonical grade id plus human-readable snapshots
+where documents/history require them. Nullable grade columns exist only to retain
+immutable history created before grade tracking; migrations do not assign an
+arbitrary grade to old facts. Projection uniqueness treats the legacy/unclassified
+bucket deterministically rather than allowing duplicate null-key balances.
 
-The application already has no code path that updates or deletes these rows. The
-trigger is there for the paths the application does not control: a migration
-written in haste, a hand-typed `psql` statement at 2 a.m., an ORM upgrade that
-changes an upsert's meaning. Money tables should refuse, not rely on everyone
-remembering.
+QualityGrade is commercial classification master data. It is not Product identity,
+condition/defect inspection, batch/lot tracking or supplier-claim state.
 
-`payments.reversed_amount`, `payments.status`, and `payments.version` are the only
-mutable columns on a financial row, which is why `payments` gets the delete-only
-guard rather than the full one.
+## Canonical truth versus projections
 
-## Keys, uniqueness, and indexes
+Canonical sources include customer/supplier account entries and inventory
+movements plus the immutable business documents/events that explain them.
+`customer_account_balances`, `supplier_account_balances` and
+`inventory_balances` are rebuildable projections. Reports are read models over
+those canonical sources/projections and are never a second source of truth.
 
-| Constraint                                                 | Table                       | Why                                                                                                         |
-| ---------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `UNIQUE (workspace_id, idempotency_key)`                   | `command_receipts`          | The mechanism behind BR-COMMAND-001 — two concurrent replays cannot both proceed                            |
-| `UNIQUE (command_id)`                                      | `command_receipts`          | Detects `DUPLICATE_COMMAND`                                                                                 |
-| `UNIQUE (supabase_user_id)`                                | `actors`                    | One verified subject resolves to exactly one actor (BR-AUTH-005)                                            |
-| `UNIQUE (source_type, source_id)`                          | `customer_account_entries`  | A second entry for the same sale posting or payment is impossible at the storage layer, not merely unlikely |
-| `PRIMARY KEY (workspace_id, customer_id)`                  | `customer_account_balances` | One row per customer per workspace                                                                          |
-| `INDEX (workspace_id, customer_id, transaction_time DESC)` | `customer_account_entries`  | The customer debt-history screen, and every aging query                                                     |
-| `INDEX (workspace_id, status, transaction_time DESC)`      | `sales`                     | "Today's sales", "unposted drafts"                                                                          |
-| `INDEX (workspace_id, customer_id, transaction_time DESC)` | `payments`                  | Customer payment history                                                                                    |
+A reconciliation may rebuild a healthy-but-drifted projection. It must not repair a
+missing, duplicated or corrupted canonical fact by mutating history.
 
-The `UNIQUE (source_type, source_id)` constraint deserves emphasis: it means the
-"post twice creates two receivables" bug is not merely tested against — it is
-unrepresentable.
+## Key constraints and indexes
 
-Grade-aware movement and projection keys use workspace-safe composite foreign
-keys. New rows preserve a QualityGrade id plus document snapshot name. Nullable
-grade columns are retained only for immutable pre-M23.8 history; migrations do
-not invent a classification for those rows. Inventory balance uniqueness uses
-`NULLS NOT DISTINCT (workspace_id, product_id, quality_grade_id, unit)` so even
-the legacy/unclassified projection has one deterministic row.
+The schema/migrations contain the exact current constraint/index names. The
+business-critical categories are:
 
-## What is deliberately absent
+- workspace-safe composite references;
+- unique Supabase subject → Actor mapping where a subject is present;
+- command/idempotency uniqueness preventing duplicate command effects;
+- source uniqueness preventing a second ledger effect for the same business source;
+- one rebuildable balance row per canonical projection key;
+- keyset/timeline indexes aligned with bounded read ordering;
+- Product/QualityGrade/unit inventory projection uniqueness including the explicit
+  legacy/unclassified bucket.
 
-- No `customers.balance` column. Debt lives in the ledger ([ADR-0004](../09-decisions/ADR-0004-append-only-debt-ledger.md)).
-- No `sales.paid` / `sales.payment_status`. Payments are not allocated (ASM-004).
-- No `deleted_at` on financial tables. Nothing is deleted.
-- No tax-invoice, inventory-valuation, allocation, routing, forecasting, or AI
-  tables. M20 documents are operational snapshots and make no tax claim.
-- No row-level security yet — isolation is enforced in the application layer
-  (ASM-009). Milestone 1 added authentication and role-based authorization above
-  it; RLS remains the defence in depth that is still missing.
-- `actors.supabase_user_id` is `text`, not `uuid`: a JWT `sub` is a string by
-  specification, and typing the column to what Supabase happens to emit today
-  would reject any other issuer tomorrow.
+Avoid copying every physical index into this document: query/performance evidence is
+maintained with the repository implementation, where it can be tested.
+
+## Deliberately absent or unresolved
+
+- no `customers.balance` or `suppliers.balance` source-of-truth columns;
+- no Sale `paid/unpaid` status: Payments are not allocated to individual Sales;
+- no hard delete of finalized financial/physical history;
+- no unit conversion engine;
+- no tax-invoice or inventory-valuation subsystem;
+- no delivery routing/optimization;
+- no full event-sourcing or general double-entry accounting platform;
+- no lot/batch, expiry, quarantine, defect/photo or supplier-quality-claim model;
+- no AI-owned write path;
+- row-level security is not the primary authorization mechanism; see ADR-0020.
+
+The boundary around QualityGrade is intentionally narrower than "quality
+management". Whether grade is required/optional/not-applicable for different goods,
+and how receiving rejection/damage affects supplier obligations, remains a policy
+question to close before expanding the schema.
 
 ## Related
 
-- [ledger-model.md](ledger-model.md), [time-semantics.md](time-semantics.md)
-- [../03-state-machines/state-catalog.md](../03-state-machines/state-catalog.md)
+- [ledger-model.md](ledger-model.md)
+- [time-semantics.md](time-semantics.md)
+- [../00-product/product-invariants.md](../00-product/product-invariants.md)
+- [../04-business-rules/goods-flow-rules.md](../04-business-rules/goods-flow-rules.md)
+- [../09-decisions/ADR-0020-application-workspace-isolation.md](../09-decisions/ADR-0020-application-workspace-isolation.md)

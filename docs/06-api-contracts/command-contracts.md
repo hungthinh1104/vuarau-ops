@@ -1,166 +1,153 @@
 # Command contracts
 
-Source of truth in code: `packages/domain-contracts/src/*/index.ts`.
-Transport: tRPC v11, `apps/api/src/infrastructure/trpc/router.ts`.
+The executable command schemas live in `packages/domain-contracts/src/*/index.ts`.
+The authenticated tRPC surface is composed in
+`apps/api/src/infrastructure/trpc/router.ts`; handlers run through the shared
+command pipeline. This document records the stable cross-command rules and the
+current bounded-context surface. Payload field definitions belong to the schemas,
+not duplicated prose.
 
-## Envelope
+## Command envelope
 
-Every write carries the same envelope. There is no generic `update` mutation, no
-`patch`, and no endpoint that takes a status as an argument ([ADR-0002](../09-decisions/ADR-0002-command-based-writes.md)).
+Every state-changing business command carries the same envelope:
 
 ```ts
 {
-  commandId: string;          // uuid — identity of this attempt
-  idempotencyKey: string;     // 8–200 chars — retry token, client-supplied
-  expectedVersion?: number;   // required for commands that change an aggregate
-  workspaceId: string;        // uuid — tenant boundary, checked before any read
-  actorId: string;            // uuid — who is accountable
-  occurredAt: string;         // ISO-8601 with offset — when it actually happened
-  payload: { … };             // per-command
+  commandId: string;
+  idempotencyKey: string;
+  expectedVersion?: number;
+  workspaceId: string;
+  actorId: string;
+  occurredAt: string;
+  payload: { /* command-specific schema */ };
 }
 ```
 
-`actorId` is **checked**, not trusted: it must equal the actor the bearer token
-resolved to, or the command is refused with `ACTOR_IMPERSONATION_DENIED`
-(BR-AUTH-002). Every request carries `Authorization: Bearer <token>`, and the
-required permission per command is listed in
-[authorization-rules.md](../04-business-rules/authorization-rules.md).
+`actorId` is checked against the verified bearer-token principal, never trusted as
+identity. `workspaceId` is an authorization boundary. `occurredAt` is business
+time and is distinct from server recording time. `expectedVersion` is present on
+commands that protect a mutable aggregate from lost updates; commands whose
+correct concurrency rule is a row lock or append-only uniqueness do not gain a
+version merely for uniformity.
 
-`expectedVersion` is mandatory on every command that changes an aggregate somebody
-else may be looking at — `PostSale`, `UpdateSaleDraft`, `DiscardSaleDraft`,
-`ReverseCustomerPayment`, `UpdateCustomer`, `DeactivateCustomer` — and absent from
-the creation commands.
+Creation identifiers are supplied by the client where retry/offline identity must
+remain stable. Replaying an identical command with the same idempotency key returns
+the original committed result; reusing an identity for different intent is
+rejected.
 
-It is absent from **`RevokeWorkspaceMembership`** too. A membership has no
-user-editable content to lose an update of, and two concurrent revocations of the
-same person want the same end state. The race that does matter — two owners
-revoking each other at once — touches different rows, so a version would not catch
-it; the active-owner count is read under a row lock instead (BR-AUTH-007).
+See [authorization-rules.md](../04-business-rules/authorization-rules.md) for the
+current permission matrix and [error-contract.md](error-contract.md) for stable
+rejection codes.
 
-It is also absent from **`VoidSale`**, which is the interesting case: a posted sale
-is immutable, so its version never moves again, and there is no lost update to
-guard against. Demanding a token the caller cannot affect would be theatre.
-Concurrent voids are serialised by a row lock and refused by `UNIQUE (sale_id)` on
-`sale_voids` (BR-SALE-013).
+## Current command surface
 
-## The seven money commands
+The table is a navigation catalog, not a second payload specification. When a
+command changes, update its schema and tests first, then keep this catalog aligned.
 
-These are the ones that move a balance, or could be mistaken for a command that
-does. Everything about the system's caution is aimed here.
+| Namespace    | Commands                                                                                                             |
+| ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `session`    | `revokeMembership`, `addMember`, `changeMemberRole`, `reactivateMember`                                              |
+| `customer`   | `create`, `update`, `deactivate`, `reactivate`                                                                       |
+| `account`    | `rebuildProjection`                                                                                                  |
+| `debt`       | `adjust`                                                                                                             |
+| `sale`       | `createDraft`, `updateDraft`, `discardDraft`, `post`, `void`                                                         |
+| `payment`    | `record`, `reverse`                                                                                                  |
+| `product`    | `create`, `update`, `deactivate`, `reactivate`                                                                       |
+| `quality`    | `create`, `update`, `deactivate`, `reactivate`                                                                       |
+| `supplier`   | `create`, `update`, `deactivate`, `reactivate`, `recordPayment`, `reversePayment`, `adjustAccount`, `rebuildAccount` |
+| `purchase`   | `createDraft`, `updateDraft`, `discardDraft`, `confirm`, `void`                                                      |
+| `receiving`  | `record`, `reverse`                                                                                                  |
+| `inventory`  | `adjust`, `reclassify`, `rebuild`                                                                                    |
+| `delivery`   | `createDraft`, `updateDraft`, `cancelDraft`, `dispatch`, `markDelivered`, `recordReturn`                             |
+| `document`   | `generate`, `share`, `revokeShare`                                                                                   |
+| `operations` | `exportBackup`, `restoreBackup`                                                                                      |
 
-| Command                  | tRPC procedure     | Payload                                                                             | Versioned | Returns                     | Account effect |
-| ------------------------ | ------------------ | ----------------------------------------------------------------------------------- | --------- | --------------------------- | -------------- |
-| `CreateCustomer`         | `customer.create`  | `customerId`, `displayName`, `phone?`, `note?`                                      | no        | `CustomerDto`               | none           |
-| `CreateSaleDraft`        | `sale.createDraft` | `saleId`, `customerId`, `currency`, `lines[]`, `note?`, `dueAt?`, `replacesSaleId?` | no        | `SaleDto`                   | **none**       |
-| `PostSale`               | `sale.post`        | `saleId`                                                                            | **yes**   | `SaleDto`                   | `+total`       |
-| `VoidSale`               | `sale.void`        | `saleVoidId`, `saleId`, `reasonCode`, `reason`                                      | no        | `SaleDto`                   | `−total`       |
-| `RecordCustomerPayment`  | `payment.record`   | `paymentId`, `customerId`, `amount`, `method`, `payerName?`, `note?`                | no        | `PaymentDto`                | `−amount`      |
-| `ReverseCustomerPayment` | `payment.reverse`  | `paymentId`, `reversalId`, `amount`, `reason`                                       | **yes**   | `PaymentDto`                | `+amount`      |
-| `AdjustCustomerDebt`     | `debt.adjust`      | `adjustmentId`, `customerId`, `direction`, `amount`, `reasonCode`, `reason`         | no        | `CustomerAccountBalanceDto` | `±amount`      |
+The router source is authoritative for procedure names. Domain-contract modules are
+authoritative for payload and result shapes.
 
-## The five lifecycle commands
+## Cross-context effect boundaries
 
-Same envelope, same idempotency, same audit record — and **no account effect at
-all**, which is the property each of their tests asserts directly rather than
-assuming. A draft that is edited five times and then thrown away must leave the
-customer's balance exactly where it found it (BR-SALE-010).
+Commands are named for the business event whose consequences they own. A command
+must not borrow the meaning of a neighbouring context.
 
-| Command                     | tRPC procedure             | Payload                                        | Versioned | Returns                  |
-| --------------------------- | -------------------------- | ---------------------------------------------- | --------- | ------------------------ |
-| `UpdateCustomer`            | `customer.update`          | `customerId`, `displayName`, `phone?`, `note?` | **yes**   | `CustomerDto`            |
-| `DeactivateCustomer`        | `customer.deactivate`      | `customerId`, `reason?`                        | **yes**   | `CustomerDto`            |
-| `UpdateSaleDraft`           | `sale.updateDraft`         | `saleId`, `lines[]`, `note?`, `dueAt?`         | **yes**   | `SaleDto`                |
-| `DiscardSaleDraft`          | `sale.discardDraft`        | `saleId`, `reason?`                            | **yes**   | `SaleDto`                |
-| `RevokeWorkspaceMembership` | `session.revokeMembership` | `actorId`, `reason?`                           | no        | `WorkspaceMembershipDto` |
+| Command/event                            | Commercial / account effect                                         | Physical effect                                          |
+| ---------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------- |
+| `sale.post`                              | freezes the Sale and creates the configured customer-account effect | none                                                     |
+| `sale.void`                              | appends the Sale compensation                                       | none                                                     |
+| `payment.record` / `payment.reverse`     | changes customer account only                                       | none                                                     |
+| `purchase.confirm` / `purchase.void`     | changes supplier account according to current policy                | none                                                     |
+| `receiving.record` / `receiving.reverse` | none                                                                | appends inbound/inverse movements                        |
+| `inventory.adjust`                       | none                                                                | explicit attributable quantity adjustment                |
+| `inventory.reclassify`                   | none                                                                | equal source-grade decrease + destination-grade increase |
+| `delivery.dispatch`                      | none                                                                | appends outbound movements                               |
+| `delivery.recordReturn`                  | none                                                                | appends compensating inbound movements                   |
+| `delivery.markDelivered`                 | none                                                                | acknowledgement only; dispatch already moved stock       |
 
-There is no `updateEntity`, no `updateSaleStatus`, no `patchCustomerDebt`, and no
-`setPaymentStatus`. There is also no `CancelSale`: a draft is discarded and a
-posted sale is voided, and those are different events with different money
-([ADR-0012](../09-decisions/ADR-0012-sale-void-and-replacement.md)).
+The recognition moments for Sale and Purchase are technically implemented but
+remain subject to the owner-validation gates recorded in the decision backlog.
 
-Queries: `session.me`, `customer.search`, `customer.get`, `sale.get`, `sale.list`,
-`payment.get`, `payment.list`, `account.balance`, `account.timeline`,
-`audit.timeline`. Reads are authorized exactly like commands (BR-AUTH-001), and
-every list is cursor-paged — there is no unbounded read
-([read models](read-models.md)).
+### Posted Sale fulfilment identity
 
-### Notable payload absences
+A draft line may be unresolved while a worker is typing. `sale.post` validates the
+stored draft against current server truth before its financial effect: every line
+must reference an active workspace Product and an active workspace QualityGrade,
+with the immutable snapshots remaining human-readable history. Delivery then
+consumes the exact Product/QualityGrade/unit identity; it must never infer Product
+identity from display text.
 
-| Command    | What it does **not** take | Why                                                                      |
-| ---------- | ------------------------- | ------------------------------------------------------------------------ |
-| `PostSale` | lines, total              | Posting commits what is stored; a stale screen must not set the total    |
-| `VoidSale` | amount                    | Compensation comes from the stored posted total, so it cannot be steered |
-| `VoidSale` | `expectedVersion`         | A posted sale's version never moves                                      |
+### Quality and inventory commands
 
-## Client-supplied identifiers
+QualityGrade is workspace master data for commercial classification. Grade changes
+to physical stock use `inventory.reclassify`; they do not rewrite historical
+Receipt, Sale, Delivery or inventory facts. Spoilage/loss is an explicit negative
+inventory adjustment, not a Sale or Receipt.
 
-Every command that creates something carries the new id in its payload:
-`customerId`, `saleId`, `lineId`, `paymentId`, `reversalId`, `saleVoidId`,
-`adjustmentId`.
-
-Three reasons, in order of importance:
-
-1. **Offline capture.** A worker with no signal must be able to create a customer
-   and immediately attach a sale to them. That requires an id before the server
-   has seen either.
-2. **Retry safety.** A replay carries the same ids, so a duplicate is
-   structurally impossible rather than merely detected.
-3. **A pure domain kernel.** Decision functions generate nothing — no UUIDs, no
-   timestamps. Same input, same output, always ([ADR-0003](../09-decisions/ADR-0003-backend-owns-business-rules.md)).
+This is the implemented grade boundary, not a claim that full quality inspection,
+defect capture, supplier claims or quarantine exist.
 
 ## Money and quantity on the wire
 
 ```ts
-amount:   { amountMinor: 875000, currency: "VND" }        // 875.000 ₫
-quantity: { valueScaled: 12500, unit: "kg" }              // 12,5 kg
+amount:   { amountMinor: 875000, currency: "VND" }
+quantity: { valueScaled: 12500, unit: "kg" }
 ```
 
-Integers only. A client that sends `875000.0` is sending a float and will be
-rejected by the schema. See [ADR-0006](../09-decisions/ADR-0006-integer-minor-units-for-money.md).
-
-## Depot operations additions
-
-M19 adds `CreateDeliveryDraft`, `UpdateDeliveryDraft`, `CancelDeliveryDraft`,
-`DispatchDelivery`, `MarkDeliveryDelivered`, and `RecordDeliveryReturn`. Only
-dispatch and return move inventory; none move customer debt.
-
-M23.8 adds workspace QualityGrade lifecycle commands and
-`ReclassifyInventory`. Receipt, inventory-adjustment, Sale and Delivery lines
-carry canonical grade identity plus a name snapshot. `PostSale` reads the stored
-draft and validates active Product and grade server truth before its existing
-customer account effect. Reclassification carries source/destination grade,
-exact quantity/unit and required reason; it appends a conserving movement pair
-and no money effect.
-
-M20 adds `GenerateDocument`, `CreateDocumentShare`, and
-`RevokeDocumentShare`. Generated ids and share ids are client-supplied for
-duplicate-safe replay. The public token is returned once; only its hash is
-stored.
+Money uses integer minor units. Quantity uses integer scaled units. No transport
+float is accepted as canonical transactional truth, and incompatible units are not
+silently converted.
 
 ## Execution pipeline
 
-Every state-changing command runs the same eleven steps
-(`apps/api/src/modules/shared/command-pipeline.ts`):
+Business commands use the shared command pipeline in
+`apps/api/src/modules/shared/command-pipeline.ts`. In outline it:
 
-1. validate the payload schema → `INVALID_COMMAND_PAYLOAD`
-2. authorize: identity, membership, activity, permission → `ACTOR_IMPERSONATION_DENIED`,
-   `WORKSPACE_ACCESS_DENIED`, `WORKSPACE_MEMBERSHIP_INACTIVE`, `PERMISSION_DENIED`
-   (see [UC-AUTH-001](../02-use-cases/UC-AUTH-001-authenticate-and-authorize.md))
-3. reject a future `occurredAt` → `TRANSACTION_TIME_IN_FUTURE`
-4. check the idempotency record → replay returns the original result
-5. **open the transaction**
-6. load the aggregate (`SELECT … FOR UPDATE`)
-7. check `expectedVersion` → `*_VERSION_CONFLICT`
-8. call the pure domain decision function
-9. persist: aggregate, account entries, balance, audit record
-10. write the command receipt
-11. **commit**, then map to a DTO
+1. validates the published command schema;
+2. resolves and verifies authenticated actor/workspace authority;
+3. validates business time;
+4. coordinates idempotency/duplicate-safe replay;
+5. opens one database transaction;
+6. loads and locks the required aggregate/source facts;
+7. applies optimistic-concurrency checks where the command contract requires them;
+8. executes the domain decision;
+9. persists the aggregate plus attributable ledger/movement/audit effects;
+10. stores the command receipt/result;
+11. commits atomically and maps the result DTO.
 
-Steps 5–11 are one database transaction (BR-COMMAND-005). A failure anywhere
-leaves no partial effect.
+A failure before commit leaves no partial business effect. Read-side projections
+may be rebuilt, but canonical ledger/movement history is never repaired by silent
+mutation.
+
+## Public surface exception
+
+The authenticated tRPC router deliberately exports no `publicProcedure`. Public
+shared documents are exposed only through the dedicated token-scoped read-only
+handler under `/public/documents/<token>`. The token is a capability, only its hash
+is stored, and expiry/revocation/digest checks fail closed.
 
 ## Related
 
+- [read-models.md](read-models.md)
 - [error-contract.md](error-contract.md)
 - [capabilities.md](capabilities.md)
-- [../04-business-rules/customer-account-rules.md](../04-business-rules/customer-account-rules.md)
+- [../04-business-rules/authorization-rules.md](../04-business-rules/authorization-rules.md)
+- [../00-product/product-invariants.md](../00-product/product-invariants.md)

@@ -1,191 +1,143 @@
 # Read models
 
-The query side of the API spans the current bounded contexts. This document
-records the shared read pipeline and published read-model rules; executable DTOs and
-router procedures remain the source of truth as the surface grows.
+Executable DTO schemas live in `packages/domain-contracts/src/*/index.ts` and the
+current authenticated tRPC surface is composed in
+`apps/api/src/infrastructure/trpc/router.ts`. PostgreSQL query implementations live
+under `packages/db/src/repositories/read/`; application handlers apply the shared
+read/authorization pipeline. This document records read-side invariants and the
+current procedure catalog without duplicating every DTO field.
 
-Source of truth in code: `packages/domain-contracts/src/*/index.ts` for the DTOs,
-`packages/db/src/repositories/read/` for context-specific SQL, with
-`packages/db/src/repositories/read-queries.ts` only composing those exports, and
-`apps/api/src/modules/shared/read-pipeline.ts` for the guard every read runs.
+## Current read surface
 
-## The surface
+| Namespace    | Reads                                                                                               |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| `session`    | `me`, `workspaces`, `workspace`                                                                     |
+| `customer`   | `search`, `get`, `recent`, `duplicates`                                                             |
+| `account`    | `adjustment`, `balance`, `timeline`, `reconciliation`, `reconciliationEvidence`                     |
+| `sale`       | `get`, `list`, `captureContext`, `detail`                                                           |
+| `payment`    | `get`, `list`                                                                                       |
+| `audit`      | `timeline`                                                                                          |
+| `product`    | `search`, `get`                                                                                     |
+| `quality`    | `list`, `get`                                                                                       |
+| `supplier`   | `search`, `get`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence` |
+| `purchase`   | `get`, `list`                                                                                       |
+| `receiving`  | `get`, `listForPurchase`, `summaryForPurchase`                                                      |
+| `inventory`  | `balances`, `getAdjustment`, `timeline`, `reconciliation`, `evidence`                               |
+| `delivery`   | `get`, `list`, `fulfilment`                                                                         |
+| `document`   | `get`, `listForSource`                                                                              |
+| `report`     | `operational`, `csv`                                                                                |
+| `operations` | `integrity`, `validateBackup`                                                                       |
 
-M19–M21 extend this established read pipeline with `delivery.get`,
-`delivery.list`, `delivery.fulfilment`, `document.get`, `document.listForSource`,
-`report.operational`, and `report.csv`. The
-`customer_account_activity` report type contains customer ledger activity only;
-receiving, inventory, and Delivery events stay in their own report types. These
-reads use the same workspace authorization, server-derived totals, deterministic
-cursors, and source navigation described below. Public document lookup is the
-single deliberate exception: it is token-scoped, read-only, non-enumerable, and
-fails closed on digest, expiry, or revocation. Authenticated document reads also
-verify the frozen snapshot against its stored digest.
+The router source is authoritative for procedure names. Permission policy belongs
+to [authorization-rules.md](../04-business-rules/authorization-rules.md), and DTO
+field shapes belong to domain contracts.
 
-M23.8 extends `inventory.balances` and `inventory.timeline` with optional
-QualityGrade scoping. Omitting the grade returns separate rows for every grade;
-passing an id selects that exact grade; explicit `null` addresses immutable
-legacy/unclassified history. `delivery.fulfilment` returns ordered, dispatched,
-returned, net fulfilled, remaining, derived state and any integrity block reason
-for each Sale line. Browsers render these server-derived quantities.
+## Identity and authorization
 
-| Procedure            | Permission      | Returns                           | Use case        |
-| -------------------- | --------------- | --------------------------------- | --------------- |
-| `session.me`         | — (identity)    | `SessionDto`                      | UC-AUTH-003     |
-| `session.workspaces` | — (identity)    | `ActorWorkspacesDto`              | UC-AUTH-004     |
-| `customer.search`    | `customer.read` | page of `CustomerSummaryDto`      | UC-CUSTOMER-002 |
-| `customer.get`       | `customer.read` | `CustomerDetailDto`               | UC-CUSTOMER-003 |
-| `sale.get`           | `sale.read`     | `SaleDto` + `replacedBySaleId`    | UC-SALE-003     |
-| `sale.list`          | `sale.read`     | page of `SaleSummaryDto`          | UC-SALE-003     |
-| `payment.get`        | `payment.read`  | `PaymentSummaryDto`               | UC-PAYMENT-003  |
-| `payment.list`       | `payment.read`  | page of `PaymentSummaryDto`       | UC-PAYMENT-003  |
-| `account.timeline`   | `debt.read`     | page of `AccountTimelineEntryDto` | UC-ACCOUNT-001  |
-| `audit.timeline`     | `audit.read`    | page of `AuditTimelineEntryDto`   | UC-AUDIT-001    |
+All private business reads require a verified Supabase bearer token. Workspace
+reads resolve the local Actor and active membership before returning business
+data. `session.workspaces` is special because it runs before a workspace can be
+selected and therefore derives the actor entirely from the verified subject;
+`session.me`/`session.workspace` then operate in explicit workspace context.
 
-The two `session.*` reads are the only ones that require no permission, and
-neither could. `session.me`'s answer _is_ the permission list, so demanding one to
-read it would be circular. `session.workspaces` is asked before a workspace is
-known, so there is nothing to hold a permission in.
+A revoked or missing membership is not papered over by a client filter. The server
+is authoritative on every request, so role/membership changes take effect without
+waiting for a browser session cache to expire.
 
-They are also the only two that skip `runQuery`, for the same reason: it takes a
-workspace id and a permission held within it, and neither read has one to give.
-What stands in for the check on `session.workspaces` is that **it has no input at
-all** — the actor comes from the verified token, and there is no field a request
-can influence (BR-AUTH-008). `session.me` still requires an active membership in
-the workspace it is asked about.
+Public document lookup is the sole deliberate unauthenticated business-data
+exception. It is token scoped, non-enumerable and read-only, with digest, expiry
+and revocation validation.
 
-## Authorization
+## Published read invariants
 
-Every read runs `authorizeWorkspaceAccess` — the same four steps a command runs
-(BR-AUTH-001). Reads are where this was missed once already: before Milestone 1,
-`debt.summary` and `debt.ledger` answered for **any** workspace id handed to them,
-because isolation had been enforced on the write path only. That is the shape of
-mistake one query at a time produces, which is why `runQuery` exists rather than a
-convention.
+A read model is an explicit projection, never a raw database row:
 
-The check runs **inside the transaction** with the read it guards, so a membership
-revoked while a query is running cannot let that query finish.
+- DTOs are field-by-field published contracts;
+- money and quantity remain integer representations;
+- business time and recorded time stay distinct where both are meaningful;
+- derived classifications come from server/domain rules rather than client sign or
+  status guessing;
+- capabilities are advisory views of the same permission/business rules that the
+  command will re-check;
+- workspace/source identifiers necessary for traceability are preserved;
+- projections and reports are disposable views over canonical sources.
 
-## Pagination
+## Goods and fulfilment identity
 
-Keyset, never `OFFSET`.
+Current physical truth is keyed by `Product + QualityGrade + unit` within a
+workspace. `inventory.balances` returns separate rows for each grade/unit bucket;
+legacy immutable rows that predate grade tracking remain explicitly unclassified
+rather than being assigned an invented grade.
 
-```
-WHERE (sort_column, id) < (:sortValue, :id)     -- descending lists
+`inventory.timeline` can scope by Product, grade and unit and preserves movement
+source attribution. Reclassification remains two canonical movements, not a
+rewritten balance.
+
+`sale.captureContext` carries canonical historical `productId` when the historical
+line has one. Legacy history with no Product id remains an unresolved suggestion;
+display name is never promoted to canonical identity implicitly.
+
+`delivery.fulfilment` is derived from Sale, Dispatch and Return facts and exposes
+ordered, dispatched, returned, net-fulfilled and remaining quantities plus an
+attention/integrity condition when the facts cannot support a normal fulfilment
+path. Clients do not recompute this model.
+
+## Reports
+
+`report.operational` and `report.csv` are two representations of the same
+source-backed report model. Current report families cover customer account
+activity, receivables, payables, grade-aware inventory, inventory movements and
+outstanding delivery work.
+
+Inventory report rows preserve Product/QualityGrade/unit identity. An aggregate
+across grades, when shown for information, must be labelled as an aggregate rather
+than presented as one canonical inventory balance. CSV does not introduce a
+second calculation path.
+
+## Pagination and ordering
+
+Unbounded browser reads are not part of the public contract. Lists/timelines use
+bounded requests and deterministic keyset cursors appropriate to their business
+sort key. The cursor is opaque to clients; both the sort value and stable id are
+part of ordering so equal timestamps/names cannot skip or duplicate rows at a page
+boundary.
+
+Common patterns include:
+
+```text
+WHERE (sort_column, id) < (:sortValue, :id)
 ORDER BY sort_column DESC, id DESC
-LIMIT :limit + 1                                 -- the extra row answers "is there more"
+LIMIT :limit + 1
 ```
 
-Both halves of the key are load-bearing. A sort value alone is not unique — a
-depot posting a morning's load produces sales sharing a `transactionTime` to the
-millisecond — so a boundary that knew only the timestamp would repeat rows or skip
-them.
+Ascending catalogs/searches use the corresponding ascending predicate/order.
+Business timelines generally order by `transactionTime`; audit answers when the
+system recorded actions and therefore uses recording order where specified by its
+contract.
 
-`OFFSET` is excluded for two reasons: it re-reads the rows it skips, and it shifts
-under concurrent inserts. A sale posted while somebody is paging pushes a row they
-have already seen onto the next page. When the list is money, a page boundary that
-silently duplicates a row is a support call. TC-READ-004 asserts exactly this: a
-sale inserted mid-walk does not shift the boundary.
+## Read performance rules
 
-| List               | Sort key                 | Direction  |
-| ------------------ | ------------------------ | ---------- |
-| `customer.search`  | `(display_name, id)`     | ascending  |
-| `sale.list`        | `(transaction_time, id)` | descending |
-| `payment.list`     | `(transaction_time, id)` | descending |
-| `account.timeline` | `(transaction_time, id)` | descending |
-| `audit.timeline`   | `(recorded_at, id)`      | descending |
+List pages fetch the facts needed to render a row without per-row browser
+round-trips. PostgreSQL joins/aggregates and bounded repository queries are the
+place for source-backed row state; the client must not issue an N+1 fan-out to
+reconstruct debt, fulfilment or stock identity.
 
-The audit timeline is the odd one, deliberately. It orders by **recording** time
-because an audit trail answers "in what order did this system learn things", and a
-back-dated sale belongs where it was written down. The account timeline orders by
-**business** time, because aging is a question about when money moved
-([time-semantics](../07-data/time-semantics.md)).
+Cursor/index implementation details are intentionally kept in repository tests and
+performance evidence rather than copied exhaustively here. If a query's ordering
+or filtering changes, its database index/evidence must change with it.
 
-### Cursors
+## Reconciliation and integrity
 
-Opaque base64url carrying `[sortValue, id]`. A client that parses one has coupled
-itself to a sort key we intend to be free to change.
-
-The codec uses `TextEncoder`/`btoa`, not `Buffer`: `domain-contracts` is imported
-by browser code, and a `Buffer` here would pass every test and fail in the first
-browser to load it. Vietnamese display names are a sort value, so the UTF-8 step
-is not optional — `btoa("Cô Hoà")` throws.
-
-A cursor that does not decode is treated as "start from the beginning" rather than
-as an error. Cursors travel in URLs, URLs get truncated and hand-edited, and a 500
-turns a cosmetic problem into a broken screen.
-
-There is no total count. Counting the whole set costs a scan the page does not
-need, and every consumer so far wants "is there more", which `nextCursor` answers.
-
-## What a read returns
-
-- **Never a database row.** Every projection is an explicit field-by-field map to
-  a published DTO. A `SELECT *` that grows a column must not silently grow the
-  public contract.
-- **Both timestamps, separately.** `transactionTime` is when it happened;
-  `recordedAt` is when we recorded it (BR-COMMAND-003).
-- **Integers only.** Money is `{ amountMinor, currency }` and quantities are
-  integer milli-units, so nothing on the wire is a float or a `bigint` a JSON
-  encoder would have to guess about (ADR-0006).
-- **The aggregate version**, so a client can send it back as `expectedVersion`.
-- **Server-computed derived state**: a sale's `financialState` and `dueState`, an
-  account balance's `classification`. A client that computed these would be one
-  `<` away from rendering a credit as a debt (BR-ACCOUNT-009, BR-SALE-017).
-- **Capabilities**, from the same functions the command guards use (ADR-0003).
-
-### Capabilities on a list row
-
-A list row has facts — status, line count, whether a void exists — not a whole
-aggregate. Loading the lines to compute `post` would be an N+1 across the page.
-
-So the kernel exposes both: `saleCapabilities(sale)` for a detail read and
-`saleSummaryCapabilities(facts)` for a list row. They share their implementation,
-and differ in exactly one way: the list cannot check line _validity_, so it
-returns `allowed` where the detail would return `SALE_LINE_INVALID`. That is the
-correct direction to be wrong in — a capability is advisory and the command
-re-validates from the aggregate it loads — and it is reachable only for a draft
-stored before BR-SALE-003 was enforced, which no write path allows.
-
-TC-READ-004 asserts the list and the detail agree, so the two cannot drift.
-
-## No N+1
-
-Everything a list needs is joined into the page query:
-
-| List               | Joined in                                                          |
-| ------------------ | ------------------------------------------------------------------ |
-| `customer.search`  | balance projection (LEFT — no entries means zero, not missing)     |
-| `sale.list`        | customer name, void record, replacement sale, line count           |
-| `payment.list`     | customer name                                                      |
-| `account.timeline` | sale, sale void, payment, reversal — one LEFT JOIN per source kind |
-| `audit.timeline`   | actor name, and the sale a record corrects                         |
-
-The account timeline's running balance is a window function over the customer's
-**whole** history in business-time order, so an entry shows the same balance
-whichever page it lands on — a page is a slice, and a slice cannot know what came
-before it. That makes it O(n) in the customer's entries per request. At a depot's
-scale that is the right trade for a number that must never disagree with the
-balance projection; if a history ever makes it hurt, the fix is a stored running
-total, not a client-side sum.
-
-## Indexes
-
-Added in migration `0005`, and only for queries that exist. An index no query uses
-costs every write and pays back nothing.
-
-Each is `(filter columns, then the keyset sort key)`, so Postgres walks the index
-in the order the page needs rather than sorting a result set afterwards.
-
-`vuarau_fold` is an IMMUTABLE SQL function, not the `unaccent` extension: it needs
-nothing installed, and it folds `đ`/`Đ`, which Vietnamese names are full of and
-which generic unaccenting leaves alone. No expression index backs it yet — a
-depot's customer list does not warrant one — but being IMMUTABLE means one can be
-added the day it does.
+Customer account, supplier account and inventory reconciliation compare canonical
+append-only sources with rebuildable projections. A healthy projection may be
+rebuilt through an authorized command; missing/duplicate/corrupt canonical source
+facts are surfaced as integrity failure rather than "fixed" by a projection write.
+Workspace integrity and backup validation follow the same fail-closed principle.
 
 ## Related
 
-- [capabilities.md](capabilities.md), [ui-state-catalog.md](ui-state-catalog.md)
-- [command-contracts.md](command-contracts.md) — the write side
+- [command-contracts.md](command-contracts.md)
+- [capabilities.md](capabilities.md)
+- [ui-state-catalog.md](ui-state-catalog.md)
+- [../04-business-rules/read-rules.md](../04-business-rules/read-rules.md)
 - [../04-business-rules/authorization-rules.md](../04-business-rules/authorization-rules.md)
-- [../02-use-cases/use-case-catalog.md](../02-use-cases/use-case-catalog.md)
