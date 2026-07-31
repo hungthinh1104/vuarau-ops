@@ -105,8 +105,10 @@ APP_RELEASE_SHA=<40-character-deployed-sha> \
   pnpm --filter @vuarau/api ops:pilot-readiness --config /secure/pilot.json
 ```
 
-The declaration includes ASM-023/024/025, ASM-017/018, ASM-030, the real two-user
-Supabase smoke, deployment/phone evidence and provider recovery evidence. Passed
+The declaration includes ASM-023/024/025, ASM-017/018, ASM-030 and the
+ASM-032/033/034 quality-policy reviews, plus the real two-user Supabase smoke,
+deployment/phone evidence and provider recovery evidence. The quality reviews
+reference the external [quality-policy worksheet](../09-decisions/m23-quality-policy-worksheet.md); configured grades alone are not policy evidence. Passed
 deployment evidence confirms the clean PostgreSQL 17 deployment, private
 API/database, trusted proxy, global edge limiter, health, safe observability and
 absence of server secrets from the browser/runtime. Passed recovery evidence records

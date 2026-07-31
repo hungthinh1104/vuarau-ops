@@ -52,7 +52,7 @@ usage: node src/operations/pilot-readiness.ts --config <pilot.json>
        node src/operations/pilot-readiness.ts --example
 
   --config   the operator's declaration: depot, actor, exact release, owner
-             semantics, role/owner review, data policy and recovery evidence.
+             semantics, role/owner/quality review, data policy and recovery evidence.
   --example  print a blank one to fill in.
 
 DATABASE_URL must be set. The file is never written to and never committed.
@@ -178,6 +178,9 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
     ["ASM-017 role-permission review", config.rolePermissionReview],
     ["ASM-018 owner-membership review", config.ownerMembershipReview],
     ["ASM-030 sharing and retention review", config.dataSharingRetentionReview],
+    ["ASM-032 universal grade policy review", config.qualityGradePolicyReview],
+    ["ASM-033 receiving quality semantics review", config.receivingQualitySemanticsReview],
+    ["ASM-034 quality role/reclassification review", config.qualityRoleReview],
   ] as const) {
     checks.push(
       review.decision === "accepted"

@@ -266,7 +266,7 @@ source-backed reports.
 Repository readiness remains **PENDING** while the current documentation, UI-state/
 Storybook coverage and quality-policy consistency pass is open. Pilot readiness is
 **BLOCKED/PENDING** until
-the real Supabase A→B smoke, ASM-023/024/025, ASM-017/018, ASM-030, real-phone
+the real Supabase A→B smoke, ASM-023/024/025, ASM-017/018, ASM-030, ASM-032/033/034, real-phone
 deployment and provider PITR/RPO/RTO/restore evidence are actually recorded. M24
 is not authorized.
 

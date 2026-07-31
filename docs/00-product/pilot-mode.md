@@ -72,8 +72,8 @@ An **operational pilot** — where the depot acts on this system as truth — is
 authorized by M23. Repository workflows for correction, logical restore,
 reconciliation, role management and incidents now exist, but operational use
 still requires the signed ASM-023/024/025 semantics, ASM-017/018 access review,
-ASM-030 data policy, real-phone deployment evidence and measured provider
-PITR/RPO/RTO evidence. Missing external evidence is a hard gate, not a missing
+ASM-030 data policy, ASM-032/033/034 quality-policy reviews, real-phone deployment
+evidence and measured provider PITR/RPO/RTO evidence. Missing external evidence is a hard gate, not a missing
 feature to code around.
 
 The first is the sharpest. A depot that cannot undo its own mistake without a

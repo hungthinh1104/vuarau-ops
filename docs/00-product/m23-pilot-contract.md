@@ -31,18 +31,23 @@ contradiction is recorded as a blocker; it is not silently repaired inside M23.
 
 ## Hard policy gates
 
-| Gate    | Evidence required                                            | Failure behavior                                |
-| ------- | ------------------------------------------------------------ | ----------------------------------------------- |
-| ASM-023 | owner signs when customer debt arises                        | block real Sale posting                         |
-| ASM-024 | owner signs what `PostSale` means                            | block real Sale posting/delivery interpretation |
-| ASM-025 | owner signs when supplier payable arises                     | block real Purchase confirmation                |
-| ASM-017 | owner reviews the actual role → permission table             | block member provisioning for unreviewed roles  |
-| ASM-018 | operator and owner verify the exact intended owner actor IDs | block pilot while any unintended owner remains  |
-| ASM-030 | owner/operator approve sharing and customer retention policy | public document sharing remains blocked         |
+| Gate    | Evidence required                                                                                          | Failure behavior                                                                    |
+| ------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| ASM-023 | owner signs when customer debt arises                                                                      | block real Sale posting                                                             |
+| ASM-024 | owner signs what `PostSale` means                                                                          | block real Sale posting/delivery interpretation                                     |
+| ASM-025 | owner signs when supplier payable arises                                                                   | block real Purchase confirmation                                                    |
+| ASM-017 | owner reviews the actual role → permission table                                                           | block member provisioning for unreviewed roles                                      |
+| ASM-018 | operator and owner verify the exact intended owner actor IDs                                               | block pilot while any unintended owner remains                                      |
+| ASM-030 | owner/operator approve sharing and customer retention policy                                               | public document sharing remains blocked                                             |
+| ASM-032 | owner/workers confirm whether every new physical quantity really requires commercial grade                 | block real Sale/Receiving if current universal-grade behavior is rejected           |
+| ASM-033 | owner/receiver confirm that Receipt means accepted inventory and how damaged/rejected arrivals are handled | block affected Receiving flows if current semantics are rejected                    |
+| ASM-034 | owner/warehouse confirm who may manage/reclassify grade and whether approval is needed                     | block grade-management/reclassification pilot work if current authority is rejected |
 
-Signed evidence stays outside git. A rejected ASM-023/024/025 answer preserves the
-contradiction and blocks the affected workflow; it never changes ledger dates or
-wording to make readiness green.
+Signed evidence stays outside git. A rejected ASM-023/024/025 or ASM-032/033/034
+answer preserves the contradiction and blocks the affected workflow; it never
+changes ledger dates, seeds a fake grade, or changes wording to make readiness
+green. ASM-032/033/034 use the
+[quality-policy worksheet](../09-decisions/m23-quality-policy-worksheet.md).
 
 ## Incident severity and stop conditions
 

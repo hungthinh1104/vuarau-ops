@@ -16,6 +16,9 @@ describe("M23 — pilot declaration is fail-closed", () => {
     rolePermissionReview: review("Chủ vựa"),
     ownerMembershipReview: review("Chủ vựa"),
     dataSharingRetentionReview: review("Chủ vựa"),
+    qualityGradePolicyReview: review("Chủ vựa"),
+    receivingQualitySemanticsReview: review("Chủ vựa"),
+    qualityRoleReview: review("Chủ vựa"),
     authenticationSmoke: {
       status: "pending" as const,
       owner: "platform owner",
@@ -47,6 +50,9 @@ describe("M23 — pilot declaration is fail-closed", () => {
       releaseSha: "603e830",
       commercialRecognitionConfirmation: undefined,
       dataSharingRetentionReview: undefined,
+      qualityGradePolicyReview: undefined,
+      receivingQualitySemanticsReview: undefined,
+      qualityRoleReview: undefined,
     };
     const result = readPilotConfig(JSON.stringify(incomplete));
     expect(result.ok).toBe(false);
@@ -54,7 +60,17 @@ describe("M23 — pilot declaration is fail-closed", () => {
       expect(result.problems.join("\n")).toContain("releaseSha");
       expect(result.problems.join("\n")).toContain("commercialRecognitionConfirmation");
       expect(result.problems.join("\n")).toContain("dataSharingRetentionReview");
+      expect(result.problems.join("\n")).toContain("qualityGradePolicyReview");
+      expect(result.problems.join("\n")).toContain("receivingQualitySemanticsReview");
+      expect(result.problems.join("\n")).toContain("qualityRoleReview");
     }
+  });
+
+  it("requires explicit quality-policy evidence rather than inferring it from configured grades", () => {
+    const missing = { ...filled, qualityGradePolicyReview: undefined };
+    const result = readPilotConfig(JSON.stringify(missing));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("qualityGradePolicyReview");
   });
 
   it("requires evidence references when provider recovery is declared passed", () => {

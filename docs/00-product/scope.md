@@ -13,13 +13,13 @@ Technical completion is not field validation. The distinction is defined in the
 
 ## Delivered workflow surface
 
-| Dimension           | Delivered boundary                                                                                                                                                                                                   |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Money Truth         | Customer lifecycle; Quick Sale; Sale correction; customer Payment/reversal/adjustment; account timeline, reconciliation and rebuild; supplier payable, Payment/reversal/adjustment and Purchase correction           |
-| Goods Flow          | Product, QualityGrade and Supplier lifecycle; split-grade Receiving/reversal; per-Product/grade/unit inventory; adjustment, reclassification and reconciliation; exact-grade Delivery dispatch/completion/return     |
-| Operational Control | Supabase identity; workspace roles and capabilities; audit; immutable digest-verified documents; revocable sharing; customer-account activity and source-backed reports; logical export/restore and integrity checks |
-| Reliability         | Client command identity, idempotent receipts, optimistic concurrency, transactional writes, append-only money/goods facts, offline Quick Sale queue and retry recovery                                               |
-| Engineering         | Strict TypeScript, architecture boundaries, source-size/composition gates, docs and trace checks, Vitest projects, PostgreSQL integration, Next/Storybook builds and real-stack Playwright                           |
+| Dimension           | Delivered boundary                                                                                                                                                                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Money Truth         | Customer lifecycle; Quick Sale; Sale correction; customer Payment/reversal/adjustment; account timeline, reconciliation and rebuild; supplier payable, Payment/reversal/adjustment and Purchase correction                                                                                |
+| Goods Flow          | Product, Supplier and commercial QualityGrade lifecycle (grade vocabulary/tracking only, not full quality inspection); split-grade Receiving/reversal; per-Product/grade/unit inventory; adjustment, reclassification and reconciliation; exact-grade Delivery dispatch/completion/return |
+| Operational Control | Supabase identity; workspace roles and capabilities; audit; immutable digest-verified documents; revocable sharing; customer-account activity and source-backed reports; logical export/restore and integrity checks                                                                      |
+| Reliability         | Client command identity, idempotent receipts, optimistic concurrency, transactional writes, append-only money/goods facts, offline Quick Sale queue and retry recovery                                                                                                                    |
+| Engineering         | Strict TypeScript, architecture boundaries, source-size/composition gates, docs and trace checks, Vitest projects, PostgreSQL integration, Next/Storybook builds and real-stack Playwright                                                                                                |
 
 The runtime exposes **49 authenticated command procedures** and **48 authenticated
 query procedures** across 16 bounded-context router namespaces. These counts
@@ -65,7 +65,10 @@ Every known policy question is classified in the
 - ASM-026–029 have explicit temporary defaults and triggers;
 - ASM-030 blocks real-data sharing until the named owners record policy;
 - ASM-031 defines minimum recovery requirements, while provider drill evidence and
-  owner acceptance still block production readiness.
+  owner acceptance still block production readiness;
+- ASM-032–034 gate the current universal-grade assumption, Receiving acceptance
+  semantics and grade-management/reclassification authority. Until accepted,
+  `QualityGrade` is technically implemented but not field-validated depot policy.
 
 ## Related
 

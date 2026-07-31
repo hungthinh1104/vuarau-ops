@@ -21,6 +21,19 @@ term appears in a use case or rule, it means what it means here.
 | điều chỉnh công nợ | adjust debt manually    | `AdjustCustomerDebt`                 | Requires a stated reason                        |
 | lý do              | reason                  | `reason`, `reasonCode`               | Mandatory on adjustments and reversals          |
 
+## Goods classification terms
+
+| Vietnamese      | English          | Code / status    | Meaning here                                                                                                                   |
+| --------------- | ---------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| phẩm cấp        | commercial grade | `QualityGrade`   | Commercial classification attached to a physical quantity, e.g. Loại 1 / Loại 2 / Dạt. It is not Product identity.             |
+| tình trạng hàng | condition        | **not modelled** | Observed temporary condition such as tươi, héo, dập, úng. Do not store it as a grade merely because no Condition model exists. |
+| lỗi hàng        | defect           | **not modelled** | Specific observed defect/degree, e.g. dập 10%, sâu, quá cỡ.                                                                    |
+| hướng xử lý     | disposition      | **not modelled** | Operational decision such as accept, discount, return to supplier, quarantine or discard.                                      |
+
+The current M23 system implements **commercial grade tracking only**. Whether every
+new quantity must have a grade and whether Receiving needs rejected/damaged-arrival
+semantics are open pilot gates ASM-032 and ASM-033.
+
 ## Units (đơn vị tính)
 
 | Vietnamese | Code value | Meaning                                                              |

@@ -28,13 +28,17 @@ rules refine them but may not weaken them.
    implemented contract and integrity properties. Only observed depot use can
    validate recognition semantics, usability and operational fit.
 8. **A posted Sale has a fulfilment identity.** Draft text may be unresolved
-   while a worker is typing, but posting requires an active workspace Product
-   and active workspace QualityGrade for every line. The immutable line keeps
-   both ids and human-readable snapshots.
-9. **Physical quality belongs to quantity, not Product identity.** Inventory,
-   Receiving, Sale fulfilment, Delivery and Return preserve the exact
-   `Product + QualityGrade + unit`. Grade changes append a conserving pair of
-   movements; they never rewrite history.
+   while a worker is typing, but posting always requires an active canonical
+   workspace Product. The current M23 implementation also requires an active
+   QualityGrade for every new line; that universal grade requirement is an
+   explicit pre-pilot policy assumption awaiting ASM-032, not a claim about every
+   depot. Immutable lines keep canonical ids and human-readable snapshots.
+9. **Commercial grade belongs to physical quantity, not Product identity.** Under
+   the current grade-aware model, Inventory, Receiving, Sale fulfilment, Delivery
+   and Return preserve exact `Product + QualityGrade + unit`; reclassification
+   appends a conserving movement pair and never rewrites history. Condition,
+   Defect and disposition/inspection workflows are distinct concepts and are not
+   implemented merely by calling them grades.
 
 ## Evidence vocabulary
 

@@ -101,19 +101,21 @@ must stay out of logs shared with the project.
    rehearsal touches the pilot workspace, discard that workspace and repeat the
    clean bootstrap before observation.
 
-6. Complete ASM-023/024/025 and the ASM-017/018/030 reviews. Record each
-   accepted/rejected answer, date, notes and worksheet reference in the private
-   `pilot.json`; do not commit the signed material. Also keep
-   `authenticationSmoke` and `recoveryEvidence` pending until the real checks have
-   actually run.
+6. Complete ASM-023/024/025 and the ASM-017/018/030/032/033/034 reviews. Record
+   each accepted/rejected answer, date, notes and worksheet reference in the private
+   `pilot.json`; do not commit the signed material. Use the M23 quality-policy
+   worksheet for ASM-032/033/034. A populated QualityGrade list is not a substitute
+   for those answers. Also keep `authenticationSmoke` and `recoveryEvidence`
+   pending until the real checks have actually run.
 
    ```bash
    pnpm --filter @vuarau/api ops:pilot-readiness --config /secure/path/pilot.json
    ```
 
-   Expected: every repository and external check passes. A rejected recognition
-   answer exits non-zero. Record the contradiction and affected model; do not
-   change recognition semantics inside M23.
+   Expected: every repository and external check passes. A rejected recognition or
+   quality-policy answer exits non-zero. Record the contradiction and affected
+   model; do not seed a fake grade or change business semantics merely to make the
+   readiness gate green.
 
 7. Complete [device-smoke-check.md](device-smoke-check.md) on the worker's normal
    phone over mobile data. A failure at step 10 stops the pilot. Then use the

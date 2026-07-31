@@ -37,8 +37,10 @@ claim that a depot has validated the workflow in live operations.
 ## Receiving and inventory
 
 - **BR-INVENTORY-001** — A Receipt references an active confirmed Purchase.
-  Product and unit must exactly match the immutable Purchase line. Each received
-  quantity also names an active workspace QualityGrade.
+  Product and unit must exactly match the immutable Purchase line. Under the current
+  M23 policy, each newly received quantity also names an active workspace
+  QualityGrade. Whether that requirement is universal is an external policy gate
+  (ASM-032), not something a default grade may decide silently.
 - **BR-INVENTORY-002** — Net received quantity per Purchase line cannot exceed
   purchased quantity across all grades. Multiple partial and split-grade
   Receipts are allowed.
@@ -63,6 +65,8 @@ claim that a depot has validated the workflow in live operations.
 - **BR-INVENTORY-010** — QualityGrade is configurable workspace master data.
   It is commercial classification of a physical quantity, not an attribute that
   splits Product identity. Grade names are snapshotted on physical documents.
+  `QualityGrade` means commercial grade only; it is not Condition, Defect,
+  inspection approval, quarantine or supplier-claim state (ASM-033).
 - **BR-INVENTORY-011** — Reclassification appends one negative source-grade and
   one equal positive destination-grade movement atomically. Reason and actor
   are required, total quantity is conserved, and customer/supplier money is

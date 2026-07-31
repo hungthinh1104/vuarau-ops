@@ -300,6 +300,9 @@ session.
 | Sale and supplier recognition need owner signatures (ASM-024/025)                          | Real money entries must not be created until the owner confirms the business event      |
 | Delivery cash handling is undefined (ASM-029)                                              | Do not pilot driver cash collection before the trigger is resolved                      |
 | Sharing/retention policy is unwritten (ASM-030); ASM-031 provider drill evidence is absent | Real-data public sharing and production readiness remain blocked                        |
+| Universal grade requirement is unvalidated (ASM-032)                                       | Sale/Receiving usability evidence is invalid until the depot confirms the policy        |
+| Damaged/rejected Receiving semantics are unvalidated (ASM-033)                             | Do not treat rejected arrival as accepted stock merely to fit the current Receipt model |
+| Grade-management/reclassification authority is unvalidated (ASM-034)                       | Goods workflows remain blocked until the owner/warehouse mapping is reviewed            |
 
 ## Related
 
