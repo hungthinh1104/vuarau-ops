@@ -1,0 +1,54 @@
+"use client";
+
+import type { ResolvedLine, SaleLineDraft } from "./sale-line-editor.tsx";
+import { SaleLineEditor } from "./sale-line-editor.tsx";
+
+export type SaleLineField = "product" | "qualityGrade" | "quantity" | "unit" | "unitPrice";
+
+export function QuickSaleLinesSection(props: {
+  readonly lines: readonly SaleLineDraft[];
+  readonly resolved: readonly ResolvedLine[];
+  readonly submitted: boolean;
+  readonly serverLineIndex: number | null;
+  readonly disabled: boolean;
+  readonly qualityGradeOptions: readonly { readonly value: string; readonly label: string }[];
+  readonly onFocusLine: (lineId: string) => void;
+  readonly onOpenProductPicker: (lineId: string) => void;
+  readonly onChangeLine: (index: number, incoming: SaleLineDraft, field: SaleLineField) => void;
+  readonly onRemoveLine: (index: number) => void;
+  readonly onAdvance: (index: number) => void;
+}) {
+  return (
+    <section aria-labelledby="sale-lines-title" className="grid gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="sale-lines-title" className="text-subheading font-semibold text-ink">
+          Dòng hàng
+        </h2>
+        <span className="tabular text-caption text-ink-muted">{props.lines.length} dòng</span>
+      </div>
+      <ul className="flex flex-col gap-3">
+        {props.lines.map((line, index) => (
+          <SaleLineEditor
+            key={line.lineId}
+            line={line}
+            index={index}
+            issues={props.submitted ? (props.resolved[index]?.issues ?? {}) : {}}
+            {...(props.serverLineIndex === index
+              ? { serverIssue: "Máy chủ từ chối dòng này. Kiểm tra số lượng và đơn giá." }
+              : {})}
+            canRemove={props.lines.length > 1}
+            disabled={props.disabled}
+            qualityGradeOptions={props.qualityGradeOptions}
+            onFocus={() => props.onFocusLine(line.lineId)}
+            {...(!props.disabled
+              ? { onOpenProductPicker: () => props.onOpenProductPicker(line.lineId) }
+              : {})}
+            onChange={(incoming, field) => props.onChangeLine(index, incoming, field)}
+            onRemove={() => props.onRemoveLine(index)}
+            onAdvance={() => props.onAdvance(index)}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
