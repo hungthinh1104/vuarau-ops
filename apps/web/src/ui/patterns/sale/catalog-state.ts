@@ -1,15 +1,9 @@
 /**
- * Every state named in `docs/06-api-contracts/ui-state-catalog.md`.
+ * Every user-visible state named in `docs/06-api-contracts/ui-state-catalog.md`.
  *
- * This list is not the source of truth — the document is. `catalog-coverage.test.ts`
- * parses the coverage checklist out of that markdown and asserts three things
- * agree: the document, this list, and the set of stories that declare a
- * `catalogState`. A state added to the catalog and forgotten in Storybook fails the
- * build, which is the only reason to have a machine-readable copy at all.
- *
- * A state is in the catalog because the backend can produce it. If the backend can
- * produce a state and it is not here, that is the gap where a user ends up staring
- * at a spinner that never resolves.
+ * The Markdown document is the source of truth. TC-WEB-012 compares it with this
+ * list and Storybook `coversState(...)` declarations so coverage cannot silently
+ * shrink to an obsolete bounded context.
  */
 export const UI_STATE_CATALOG = [
   "signed_out",
@@ -42,17 +36,50 @@ export const UI_STATE_CATALOG = [
   "payment_partially_reversed",
   "payment_reversed",
   "reversal_amount_exceeded",
+  "supplier_active",
+  "supplier_inactive",
+  "supplier_balance_payable",
+  "supplier_balance_settled",
+  "supplier_balance_credit",
+  "purchase_draft",
+  "purchase_confirmed",
+  "purchase_discarded",
+  "purchase_voided",
+  "product_active",
+  "product_inactive",
+  "quality_grade_active",
+  "quality_grade_inactive",
+  "no_active_quality_grades",
+  "receipt_active",
+  "receipt_reversed",
+  "inventory_positive",
+  "inventory_zero",
+  "inventory_negative",
+  "inventory_legacy_unclassified",
+  "inventory_reclassification",
+  "inventory_spoilage",
+  "delivery_draft",
+  "delivery_cancelled",
+  "delivery_dispatched",
+  "delivery_delivered",
+  "fulfilment_unfulfilled",
+  "fulfilment_partially_fulfilled",
+  "fulfilment_fulfilled",
+  "fulfilment_returned_partial",
+  "fulfilment_attention",
+  "document_share_available",
+  "document_share_expired",
+  "document_share_revoked",
+  "reconciliation_consistent",
+  "reconciliation_inconsistent",
+  "reconciliation_not_found",
+  "reconciliation_integrity_failure",
+  "workspace_integrity_healthy",
+  "workspace_integrity_attention",
 ] as const;
 
 export type UiCatalogState = (typeof UI_STATE_CATALOG)[number];
 
-/**
- * Attached to the story that renders a catalog state.
- *
- * A parameter rather than a naming convention on the title: a title has to serve
- * a human browsing the sidebar, and making it also carry a machine-readable key
- * makes it worse at both jobs.
- */
 export function coversState(state: UiCatalogState): { catalogState: UiCatalogState } {
   return { catalogState: state };
 }

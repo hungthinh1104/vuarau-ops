@@ -1,308 +1,178 @@
 # UI state catalog
 
-Every state a screen in this system must be able to render, and the server signal
-that produces it.
-
-Every state here is a Storybook story in `apps/web`, and that is checked by machine
-rather than claimed: `catalog-coverage.test.ts` (TC-WEB-012) parses the coverage
-checklist at the end of this document and fails the build when a state named here
-has no story, or a story claims a state this document does not name.
-
-The states were derived from what the backend actually returns rather than from
-what a designer guessed, which is why the catalog was written before the UI was.
-
-A state is in this catalog because the backend can produce it. If the backend
-cannot produce it, it does not belong here; if the backend can produce it and it is
-not here, that is a gap, and the gap is where a user ends up staring at a spinner
-that never resolves.
-
-**Coverage means a story exists, not that every production screen has complete
-screen-level state coverage.** The production workflows now exist. This catalog
-still has to evolve with the Goods Flow and Operational Control surfaces; a green
-coverage test only proves the states named here have stories, not that this list is
-complete. Screen-level Storybook completion is therefore a repository-readiness
-concern, not something inferred from this checklist alone.
-
----
-
-## 0. Signing in and choosing a depot
-
-| State                     | When                                                       | Must show                                                             |
-| ------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------- |
-| `signed_out`              | No Supabase session                                        | A way in using the provisioned email/password flow; no public sign-up |
-| `no_workspace_membership` | Signed in; `session.workspaces` returned an **empty list** | That the account is real and belongs to no depot yet, and who to ask  |
-
-`no_workspace_membership` is the state most likely to be rendered as a spinner
-that never resolves, because it looks like "the list has not arrived". It is a
-successful answer (BR-AUTH-008): a valid account with no membership — the first
-minute of a new person's account, and also what a revoked worker sees. The screen
-says so and offers signing out, because nothing else the person does will change
-it.
-
-There is deliberately **no** `single_workspace_auto_selected`. Selection is always
-explicit: a silently chosen depot is a silently chosen set of books, and the case
-where it would be convenient is exactly the case where somebody with two depots
-would not notice (BR-CUSTOMER-002).
-
----
-
-## 1. Loading and empty
-
-| State     | When                                    | Must show                                                                    |
-| --------- | --------------------------------------- | ---------------------------------------------------------------------------- |
-| `loading` | A request is in flight                  | That work is happening. Never a zero balance while the real one is arriving. |
-| `empty`   | The request succeeded and returned none | That there is nothing, and what to do about it                               |
-
-**`empty` is not an error, and it is not `loading` that stopped.** A customer with
-no account entries has a balance of exactly 0 ₫, classification `settled`, and an
-empty timeline. That is a fact worth stating plainly, not a blank panel.
-
-The failure to avoid: rendering `0 ₫` while `loading`. A worker who reads a
-placeholder as a balance collects nothing from somebody who owes money.
-
----
-
-## 2. Validation and business rejection
-
-Two different states, deliberately not merged.
-
-| State                | Source                                                | Fix belongs to |
-| -------------------- | ----------------------------------------------------- | -------------- |
-| `validation_error`   | `INVALID_COMMAND_PAYLOAD` — the shape is wrong        | the field      |
-| `business_rejection` | Any domain code — the shape is fine, the rule says no | the situation  |
-
-`validation_error` attaches to an input. `SALE_LINE_INVALID` carries `lineIndex`
-and `lineId`, so the message belongs on that row and nowhere else.
-
-`business_rejection` attaches to the action. `SALE_EMPTY`, `SALE_ALREADY_VOIDED`,
-`PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT` — no field is wrong; the request does
-not make sense here. Highlighting a field for these sends the user hunting for a
-typo that does not exist.
-
-**Never render `error.message` as the primary text.** Messages will become
-Vietnamese and will change; `error.code` is the contract
-([error contract](error-contract.md)). Branch on the code, render your own copy,
-and keep the message for a diagnostic panel.
-
----
-
-## 3. Permission denied
-
-| State               | Source                                                  |
-| ------------------- | ------------------------------------------------------- |
-| `permission_denied` | `PERMISSION_DENIED`, naming the permission and the role |
-
-Distinct from `business_rejection` because the remedy is a person, not a retry:
-"ask the owner", not "try again".
-
-Ideally the user never reaches it. `capabilities` on every DTO says in advance
-whether the control should be enabled ([capabilities](capabilities.md)), and
-`session.me` says whether the menu item should exist at all (UC-AUTH-003). This
-state is the honest fallback for when a role changed between the read and the tap —
-which is exactly what happens when somebody's access is revoked mid-shift.
-
-The one thing not to do: hide the control **and** show nothing when it is used. A
-worker who cannot see why they cannot do their job will find a way around the
-system, usually a paper one.
-
----
-
-## 4. Stale version
-
-| State           | Source                                                                           |
-| --------------- | -------------------------------------------------------------------------------- |
-| `stale_version` | `SALE_VERSION_CONFLICT`, `PAYMENT_VERSION_CONFLICT`, `CUSTOMER_VERSION_CONFLICT` |
-
-Somebody else changed this while it was on screen. The details carry
-`expectedVersion` and `actualVersion`.
-
-**The correct response is reload and show what changed** — not an automatic retry
-with the new version. Retrying would apply an intention formed against data this
-user never saw: they meant to post a sale of 1.200.000 ₫, and the retry would post
-whatever it is now.
-
-This is the state most likely to be implemented as a silent retry by somebody
-trying to be helpful. It is a P0 money bug in disguise.
-
----
-
-## 5. Duplicate-safe retry
-
-| State                  | Source                                                           |
-| ---------------------- | ---------------------------------------------------------------- |
-| `duplicate_safe_retry` | A replayed command returned the original result (BR-COMMAND-001) |
-| `command_in_progress`  | `COMMAND_IN_PROGRESS` — the first attempt is still running       |
-
-The first is a **success**. The user tapped twice, or the client retried after a
-timeout, and the server returned what the first attempt produced. Render it as
-done. Showing an error here trains people to submit again, which is the one thing
-that must not happen around money.
-
-The second is the only retryable code in the catalogue: wait briefly and resubmit
-the identical command with the identical key.
-
-`IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD` and `DUPLICATE_COMMAND` are **not**
-this state — they are client bugs, and they belong in `business_rejection` with a
-diagnostic, because no amount of user retrying will fix either.
-
----
-
-## 6. Unknown network outcome
-
-| State                     | When                                            |
-| ------------------------- | ----------------------------------------------- |
-| `unknown_network_outcome` | The request timed out or the connection dropped |
-
-The command may have committed. The client cannot know, and must not guess.
-
-Required behaviour: keep the command with its original `commandId` and
-`idempotencyKey`, tell the user it is unconfirmed rather than failed, and resubmit
-**the identical command** — which either returns the original result
-(`duplicate_safe_retry`) or completes it.
-
-What must never happen: regenerating the key on resubmit. That turns one sale into
-two, and no server-side rule can prevent it, because a fresh key is
-indistinguishable from a genuinely new command. This is the single most important
-line in this catalog.
-
-At a wholesale market at 3 a.m. this is not an edge case; it is Tuesday.
-
----
-
-## 6b. Customer and membership states
-
-| State                  | Source                                      | Rendering note                                  |
-| ---------------------- | ------------------------------------------- | ----------------------------------------------- |
-| `customer_active`      | `isActive: true`                            | The ordinary case                               |
-| `customer_inactive`    | `isActive: false`                           | Greyed, **still listed**, balance still shown   |
-| `membership_revoked`   | `WORKSPACE_MEMBERSHIP_INACTIVE` on any call | Sign the user out and say access was turned off |
-| `last_owner_protected` | `WORKSPACE_LAST_OWNER`                      | A `business_rejection`, naming why              |
-
-`customer_inactive` is the one that matters. A deactivated customer who still owes
-money must keep appearing with their balance (BR-CUSTOMER-003) — a list that hid
-them would let "tidy up the customers" quietly hide debt.
-
-`membership_revoked` can arrive on **any** call, not only at sign-in: membership is
-re-read on every request, so a worker whose access is revoked mid-shift finds out
-on their next tap. Treat it as a session-ending state everywhere, not as one more
-error banner.
-
-## 7. Balance states
-
-Driven by `CustomerAccountBalanceDto.classification` (BR-ACCOUNT-009), never by the
-client inspecting the sign.
-
-| State                     | `classification`  | Meaning                     | Rendering note                             |
-| ------------------------- | ----------------- | --------------------------- | ------------------------------------------ |
-| `balance_receivable`      | `receivable`      | The customer owes the depot | The ordinary case; show the amount and age |
-| `balance_settled`         | `settled`         | Exactly zero                | Say "hết nợ", not a blank                  |
-| `balance_customer_credit` | `customer_credit` | The depot owes the customer | **Never as a negative debt**               |
-
-The third is the one that matters. A customer who paid ahead has a balance of
-`−500.000 ₫`, and a client that renders that as "nợ −500.000" sends a worker to
-collect money from somebody the depot owes. It is a credit, and it must be worded
-as one.
-
-Overpayment is valid and expected (BR-ACCOUNT-007). The UI does not warn about it,
-because there is nothing wrong.
-
----
-
-## 8. Sale states
-
-| State            | Source                                     | Rendering note                                           |
-| ---------------- | ------------------------------------------ | -------------------------------------------------------- |
-| `sale_draft`     | `status: draft`                            | Editable, no money moved yet — say so                    |
-| `sale_discarded` | `status: discarded`                        | Kept and visible, greyed. **Not** deleted from the list  |
-| `sale_posted`    | `status: posted`, `financialState: active` | The receivable stands                                    |
-| `sale_voided`    | `financialState: voided`                   | Struck through, **still visible**, with reason and actor |
-| `sale_replaced`  | `replacesSaleId` on a newer sale           | Link both ways so a reader can follow the correction     |
-
-A discarded draft stays on the list rather than vanishing. Somebody decided to
-throw it away, and that decision is part of the record — the same reasoning that
-keeps a voided sale visible. `capabilities.edit` and `capabilities.discard` both
-carry `SALE_ALREADY_DISCARDED`, so the controls grey out with a reason.
-
-A voided sale is never hidden. It happened, it was corrected, and both facts are
-part of the record (BR-SALE-008). Hiding it produces an account timeline whose
-arithmetic cannot be followed: the `+total` and `−total` entries are both there, so
-a missing document makes the pair look like a bug.
-
-The void reason and explanation are shown with it. That text is what the person
-disputing a balance six months later actually needs (BR-SALE-014).
-
-### Due state
-
-| State         | `dueState`    | Rendering note                                     |
-| ------------- | ------------- | -------------------------------------------------- |
-| `no_due_date` | `no_due_date` | Show nothing. **Not** a warning, not an amber chip |
-| `due`         | `due`         | The date, plainly                                  |
-| `overdue`     | `overdue`     | Escalate                                           |
-
-Most depot sales have no due date (BR-SALE-017). Rendering `no_due_date` as a
-warning would flag nearly every sale, and a warning that appears on everything is
-read as decoration within a week.
-
----
-
-## 9. Payment and reversal states
-
-| State                        | Source                                      | Rendering note                                            |
-| ---------------------------- | ------------------------------------------- | --------------------------------------------------------- |
-| `payment_recorded`           | `status: recorded`                          | Nothing reversed                                          |
-| `payment_partially_reversed` | `status: partially_reversed`                | Show original, reversed, and **remaining reversible**     |
-| `payment_reversed`           | `status: reversed`                          | Terminal; the reverse control is disabled with a reason   |
-| `reversal_amount_exceeded`   | `PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT` | A `business_rejection` naming the actual remaining amount |
-
-Partial reversal is supported and normal — a customer overpaid and took some cash
-back. The screen must show all three numbers, because "reversed 200.000 of
-500.000" and "reversed 200.000" are different facts and only the first is useful.
-
-`remainingReversibleAmount` comes from the server and is not recomputed on the
-client (UC-PAYMENT-003): a client that subtracts wrongly offers to reverse money
-that is not there.
-
----
+This catalog names user-visible states that the current application must be able
+to render. It is derived from published domain/read contracts, not from an old
+screen list or a designer-only wish list.
+
+`apps/web/src/ui/patterns/sale/catalog-state.ts` is the machine-readable mirror.
+`catalog-coverage.test.ts` asserts that this document, the mirror and Storybook
+state declarations remain aligned.
+
+**Coverage here means a renderable state example exists. It does not mean every
+production page already has complete screen-level stories.** Screen-level
+Storybook coverage is a separate repository-readiness gate.
+
+## State families
+
+### Identity and generic command states
+
+| State                     | Source / meaning                              | Rendering obligation                                               |
+| ------------------------- | --------------------------------------------- | ------------------------------------------------------------------ |
+| `signed_out`              | no Supabase session                           | provisioned email/password sign-in; no public sign-up              |
+| `no_workspace_membership` | valid subject belongs to no active depot      | explain that identity is valid and access must be provisioned      |
+| `membership_revoked`      | membership became inactive                    | end workspace authority and explain access was removed             |
+| `last_owner_protected`    | owner-management guard                        | explain why the final owner cannot be removed                      |
+| `loading`                 | request in flight                             | never substitute a zero/empty business value                       |
+| `empty`                   | successful read returned no items             | state that nothing exists and, where applicable, next valid action |
+| `validation_error`        | payload/input shape invalid                   | attach correction to the field/line and preserve entered data      |
+| `business_rejection`      | valid command shape rejected by business rule | explain rule and next valid action; do not parse server prose      |
+| `permission_denied`       | current role lacks permission                 | explain missing authority and who can perform the action           |
+| `stale_version`           | optimistic-concurrency conflict               | reload/show current state; never silently retry new intent         |
+| `duplicate_safe_retry`    | replay returned original committed result     | render success, not another failure                                |
+| `command_in_progress`     | identical command is still executing          | wait/resubmit identical identity only                              |
+| `unknown_network_outcome` | connection dropped after submission           | command may have committed; preserve identity and recover safely   |
+
+### Customer money and Sale
+
+| State                        | Source / meaning                                               |
+| ---------------------------- | -------------------------------------------------------------- |
+| `balance_receivable`         | customer owes depot                                            |
+| `balance_settled`            | customer balance is exactly zero                               |
+| `balance_customer_credit`    | depot owes customer credit                                     |
+| `customer_active`            | Customer lifecycle active                                      |
+| `customer_inactive`          | Customer deactivated but historical/debt truth remains visible |
+| `sale_draft`                 | editable Sale draft; no posting effect yet                     |
+| `sale_discarded`             | abandoned draft retained as history                            |
+| `sale_posted`                | immutable posted Sale with active financial effect             |
+| `sale_voided`                | posted Sale compensated by adjacent void fact                  |
+| `sale_replaced`              | replacement Sale linked to corrected predecessor               |
+| `no_due_date`                | nullable Sale due date absent; not an error/warning            |
+| `due`                        | Sale has a due date not yet overdue                            |
+| `overdue`                    | Sale due date has passed                                       |
+| `payment_recorded`           | customer Payment has reversible amount remaining in full       |
+| `payment_partially_reversed` | Payment has both original and reversed amount                  |
+| `payment_reversed`           | Payment reversal reached full original amount                  |
+| `reversal_amount_exceeded`   | requested reversal exceeds server remaining amount             |
+
+### Supplier and Purchase
+
+| State                      | Source / meaning                                                |
+| -------------------------- | --------------------------------------------------------------- |
+| `supplier_active`          | Supplier may participate in new supplier workflows              |
+| `supplier_inactive`        | Supplier retained historically but unavailable for new Purchase |
+| `supplier_balance_payable` | depot owes supplier                                             |
+| `supplier_balance_settled` | supplier balance is exactly zero                                |
+| `supplier_balance_credit`  | supplier account is credit to depot                             |
+| `purchase_draft`           | editable Purchase draft                                         |
+| `purchase_confirmed`       | immutable confirmed Purchase                                    |
+| `purchase_discarded`       | abandoned Purchase draft retained                               |
+| `purchase_voided`          | confirmed Purchase compensated by adjacent void fact            |
+
+### Product, grade, Receiving and inventory
+
+| State                           | Source / meaning                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------------- |
+| `product_active`                | Product is available to current workflows                                              |
+| `product_inactive`              | Product retained historically but not selectable for new trade                         |
+| `quality_grade_active`          | grade may classify new physical quantity                                               |
+| `quality_grade_inactive`        | grade retained for history but unavailable for new classification                      |
+| `no_active_quality_grades`      | workspace has no active commercial grade; current Sale/Receiving policy cannot proceed |
+| `receipt_active`                | Receipt contributes inbound movements                                                  |
+| `receipt_reversed`              | Receipt was compensated by explicit reversal                                           |
+| `inventory_positive`            | Product/QualityGrade/unit projection is above zero                                     |
+| `inventory_zero`                | projection is exactly zero                                                             |
+| `inventory_negative`            | attributable movement sum is below zero; never clamped                                 |
+| `inventory_legacy_unclassified` | immutable pre-grade history has no invented grade                                      |
+| `inventory_reclassification`    | quantity moved between grades by conserving pair                                       |
+| `inventory_spoilage`            | attributable negative adjustment records spoilage/loss                                 |
+
+### Delivery and fulfilment
+
+| State                            | Source / meaning                                                         |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| `delivery_draft`                 | fulfilment proposal can still be edited/cancelled                        |
+| `delivery_cancelled`             | draft was cancelled before dispatch                                      |
+| `delivery_dispatched`            | goods left inventory                                                     |
+| `delivery_delivered`             | dispatched Delivery was acknowledged at customer; no second stock effect |
+| `fulfilment_unfulfilled`         | no net quantity fulfilled                                                |
+| `fulfilment_partially_fulfilled` | some ordered quantity remains                                            |
+| `fulfilment_fulfilled`           | exact ordered quantity is net fulfilled                                  |
+| `fulfilment_returned_partial`    | return facts reopened part of previously fulfilled quantity              |
+| `fulfilment_attention`           | legacy/inconsistent facts cannot support a normal fulfilment action      |
+
+### Documents, reconciliation and operations
+
+| State                              | Source / meaning                                                                   |
+| ---------------------------------- | ---------------------------------------------------------------------------------- |
+| `document_share_available`         | capability token resolves and frozen snapshot passes validation                    |
+| `document_share_expired`           | share is past expiry                                                               |
+| `document_share_revoked`           | share was explicitly revoked                                                       |
+| `reconciliation_consistent`        | canonical sources and rebuildable projection agree                                 |
+| `reconciliation_inconsistent`      | projection differs from valid canonical sources and may require authorized rebuild |
+| `reconciliation_not_found`         | requested reconciliation subject does not exist                                    |
+| `reconciliation_integrity_failure` | canonical/source integrity prevents safe rebuild                                   |
+| `workspace_integrity_healthy`      | workspace integrity read has no current attention condition                        |
+| `workspace_integrity_attention`    | source/reference/projection/digest check requires operator attention               |
+
+## Rejection mapping rule
+
+A stable backend error code does not automatically become a new UI-state name.
+For example `RECEIPT_QUANTITY_EXCEEDS_PURCHASE`, `DELIVERY_RETURN_EXCEEDS_DISPATCH`
+and `QUALITY_GRADE_INACTIVE` normally render through `business_rejection`; version
+conflicts render through `stale_version`; authorization failures render through
+`permission_denied`. A distinct catalog state is justified when the screen has a
+persisted/derived business condition that changes what the worker sees or can do.
 
 ## Coverage checklist
 
-Every one of these is a Storybook story. Nothing here needs a running backend —
-each is a fixed DTO plus a fixed rejection.
+The formatting below is parsed by TC-WEB-012. Keep one lower_snake_case state per
+`·`-separated item.
 
-This list is parsed by TC-WEB-012, so its formatting is load-bearing: one state per
-`·`-separated item, lower_snake_case. A state added here without a story fails the
-build, which is the only reason the machine-readable copy in
-`apps/web/src/ui/catalog-state.ts` exists.
-
-- [x] signed_out · no_workspace_membership
-- [x] loading · empty
-- [x] validation_error · business_rejection
-- [x] permission_denied
-- [x] stale_version
-- [x] duplicate_safe_retry · command_in_progress
-- [x] unknown_network_outcome
+- [x] signed_out · no_workspace_membership · membership_revoked · last_owner_protected
+- [x] loading · empty · validation_error · business_rejection · permission_denied
+- [x] stale_version · duplicate_safe_retry · command_in_progress · unknown_network_outcome
 - [x] balance_receivable · balance_settled · balance_customer_credit
+- [x] customer_active · customer_inactive
 - [x] sale_draft · sale_discarded · sale_posted · sale_voided · sale_replaced
-- [x] customer_active · customer_inactive · membership_revoked · last_owner_protected
 - [x] no_due_date · due · overdue
 - [x] payment_recorded · payment_partially_reversed · payment_reversed · reversal_amount_exceeded
+- [x] supplier_active · supplier_inactive
+- [x] supplier_balance_payable · supplier_balance_settled · supplier_balance_credit
+- [x] purchase_draft · purchase_confirmed · purchase_discarded · purchase_voided
+- [x] product_active · product_inactive
+- [x] quality_grade_active · quality_grade_inactive · no_active_quality_grades
+- [x] receipt_active · receipt_reversed
+- [x] inventory_positive · inventory_zero · inventory_negative · inventory_legacy_unclassified
+- [x] inventory_reclassification · inventory_spoilage
+- [x] delivery_draft · delivery_cancelled · delivery_dispatched · delivery_delivered
+- [x] fulfilment_unfulfilled · fulfilment_partially_fulfilled · fulfilment_fulfilled
+- [x] fulfilment_returned_partial · fulfilment_attention
+- [x] document_share_available · document_share_expired · document_share_revoked
+- [x] reconciliation_consistent · reconciliation_inconsistent · reconciliation_not_found · reconciliation_integrity_failure
+- [x] workspace_integrity_healthy · workspace_integrity_attention
 
-### Combinations
+## Screen-level combinations still required
 
-States that only make sense together, in `Patterns/Combinations`. A component in
-isolation can be right and the screen still wrong.
+State-story coverage is necessary but insufficient. Critical screen stories must
+also prove meaningful combinations, including:
 
-- [x] posted sale with no due date
-- [x] voided sale with reason and actor
-- [x] replacement sale linked to the original, both directions
-- [x] customer credit after overpayment, with the compensating pair in the timeline
-- [x] payment partially reversed, showing original, reversed and remaining
-- [x] permission revoked between screen load and action
-- [x] unknown network outcome followed by duplicate-safe success
+- Quick Sale with unresolved Product, inactive historical Product, no active grade,
+  stale draft, offline/unknown outcome and success;
+- split-grade Receiving and over-receipt rejection;
+- inventory with multiple grades, negative balance, legacy unclassified history,
+  reclassification and spoilage;
+- partial Delivery, return, full fulfilment and fulfilment attention;
+- reconciliation healthy/drift/integrity failure;
+- pilot/operations surface with missing quality configuration and external evidence
+  still pending.
+
+These combinations belong to the subsequent screen-level Storybook pass; this
+catalog does not claim they are already complete.
 
 ## Related
 
-- [capabilities.md](capabilities.md) — what to disable, and why
-- [error-contract.md](error-contract.md) — the shape every rejection arrives in
+- [error-contract.md](error-contract.md)
+- [capabilities.md](capabilities.md)
+- [../03-state-machines/state-catalog.md](../03-state-machines/state-catalog.md)
 - [../04-business-rules/error-code-catalog.md](../04-business-rules/error-code-catalog.md)
-- [../02-use-cases/use-case-catalog.md](../02-use-cases/use-case-catalog.md) — which states each use case can reach
+- [../02-use-cases/use-case-catalog.md](../02-use-cases/use-case-catalog.md)
