@@ -1,9 +1,10 @@
 # Current scope — depot transaction operating system
 
 This is the delivered technical boundary of the current M23 candidate. Core
-M8–M23 workflows have automated implementation evidence, but repository readiness
-is still being reconciled across documentation, UI-state/Storybook coverage and
-pre-pilot quality-policy truth. Provider PITR, owner policy acceptance, real-phone
+M8–M23 workflows have automated implementation evidence. Documentation and
+critical-screen Storybook reconciliation are technically closed, but repository
+readiness is still pending use-case completeness, cross-dimension correction
+semantics and pre-pilot policy truth. Provider PITR, owner policy acceptance, real-phone
 deployment and H2–H6 observations remain external pilot gates. M24 is not
 authorized.
 
@@ -68,7 +69,11 @@ Every known policy question is classified in the
   owner acceptance still block production readiness;
 - ASM-032–034 gate the current universal-grade assumption, Receiving acceptance
   semantics and grade-management/reclassification authority. Until accepted,
-  `QualityGrade` is technically implemented but not field-validated depot policy.
+  `QualityGrade` is technically implemented but not field-validated depot policy;
+- ASM-035–038 gate cross-dimension corrections after physical fulfilment/Receiving,
+  partial customer-return money semantics and Supplier returns of accepted stock.
+  These gaps must not be hidden with invented Return/Dispatch/Receipt/adjustment
+  facts.
 
 ## Related
 

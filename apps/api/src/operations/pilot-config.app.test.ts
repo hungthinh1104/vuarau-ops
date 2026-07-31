@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_PILOT_CONFIG, readPilotConfig } from "./pilot-config.ts";
+import {
+  EXAMPLE_PILOT_CONFIG,
+  evaluateCrossDimensionScenarioGate,
+  readPilotConfig,
+} from "./pilot-config.ts";
 
 describe("M23 — pilot declaration is fail-closed", () => {
   const filled = {
@@ -19,6 +23,10 @@ describe("M23 — pilot declaration is fail-closed", () => {
     qualityGradePolicyReview: review("Chủ vựa"),
     receivingQualitySemanticsReview: review("Chủ vựa"),
     qualityRoleReview: review("Chủ vựa"),
+    saleFulfilmentCorrectionGate: excludedScenario("Chủ vựa"),
+    purchaseReceivingCorrectionGate: excludedScenario("Chủ vựa"),
+    partialCustomerReturnGate: excludedScenario("Chủ vựa"),
+    supplierReturnGate: excludedScenario("Chủ vựa"),
     authenticationSmoke: {
       status: "pending" as const,
       owner: "platform owner",
@@ -53,6 +61,8 @@ describe("M23 — pilot declaration is fail-closed", () => {
       qualityGradePolicyReview: undefined,
       receivingQualitySemanticsReview: undefined,
       qualityRoleReview: undefined,
+      saleFulfilmentCorrectionGate: undefined,
+      partialCustomerReturnGate: undefined,
     };
     const result = readPilotConfig(JSON.stringify(incomplete));
     expect(result.ok).toBe(false);
@@ -63,6 +73,8 @@ describe("M23 — pilot declaration is fail-closed", () => {
       expect(result.problems.join("\n")).toContain("qualityGradePolicyReview");
       expect(result.problems.join("\n")).toContain("receivingQualitySemanticsReview");
       expect(result.problems.join("\n")).toContain("qualityRoleReview");
+      expect(result.problems.join("\n")).toContain("saleFulfilmentCorrectionGate");
+      expect(result.problems.join("\n")).toContain("partialCustomerReturnGate");
     }
   });
 
@@ -71,6 +83,43 @@ describe("M23 — pilot declaration is fail-closed", () => {
     const result = readPilotConfig(JSON.stringify(missing));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.problems.join("\n")).toContain("qualityGradePolicyReview");
+  });
+
+  it("requires explicit cross-dimension scope gates rather than treating review as support", () => {
+    const missing = { ...filled, supplierReturnGate: undefined };
+    const result = readPilotConfig(JSON.stringify(missing));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("supplierReturnGate");
+  });
+
+  it("passes an explicitly excluded scenario only with a stop-if-encountered declaration", () => {
+    const gate = excludedScenario("Chủ vựa");
+    expect(evaluateCrossDimensionScenarioGate(gate, "6".repeat(40))).toMatchObject({
+      ok: true,
+    });
+    const invalid = readPilotConfig(
+      JSON.stringify({
+        ...filled,
+        saleFulfilmentCorrectionGate: { ...gate, stopIfEncountered: false },
+      }),
+    );
+    expect(invalid.ok).toBe(false);
+  });
+
+  it("rejects cross-dimension resolution evidence from a different release", () => {
+    expect(
+      evaluateCrossDimensionScenarioGate(
+        {
+          disposition: "resolved_in_release",
+          reviewerName: "Chủ vựa",
+          date: "2026-07-29",
+          worksheetReference: "external://correction-review",
+          releaseSha: "7".repeat(40),
+          notes: "",
+        },
+        "6".repeat(40),
+      ),
+    ).toMatchObject({ ok: false });
   });
 
   it("requires evidence references when provider recovery is declared passed", () => {
@@ -182,6 +231,16 @@ function review(reviewerName: string) {
     date: "2026-07-29",
     decision: "accepted" as const,
     worksheetReference: "external://signed-evidence",
+    notes: "",
+  };
+}
+function excludedScenario(reviewerName: string) {
+  return {
+    disposition: "excluded_from_shadow_scope" as const,
+    reviewerName,
+    date: "2026-07-29",
+    worksheetReference: "external://cross-dimension-review",
+    stopIfEncountered: true as const,
     notes: "",
   };
 }

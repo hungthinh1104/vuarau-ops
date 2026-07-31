@@ -20,6 +20,8 @@ terminology observed verbatim:
 recovery behavior:
 final canonical state:
 incident severity: none | P0 | P1 | P2 | P3
+scenario gate encountered: none | ASM-035 | ASM-036 | ASM-037 | ASM-038
+scenario disposition: not-applicable | excluded-stop | resolved-in-release
 observer:
 ```
 
@@ -50,6 +52,10 @@ integration test or written procedure.
 - Prompted and taken-over tasks do not count as unaided passes.
 - A corrected mistake is retained in the evidence; correction never erases
   history.
+- If an ASM-035–038 event is declared `excluded_from_shadow_scope`, encountering
+  it stops the affected task immediately. The facilitator records the event and
+  does not improvise a replacement money/goods workflow.
+- `resolved_in_release` evidence counts only for the exact frozen release SHA.
 - **Automated verification is not field validation.**
 
 Use a fresh copy of the record block for every task. Signed sheets and customer

@@ -49,6 +49,67 @@ const reviewSchema = z.object({
   notes: z.string().trim().default(""),
 });
 
+/**
+ * ASM-035..038 are different from an ordinary policy review: the current release
+ * may not have a truthful path for the event yet. A shadow pilot can proceed only
+ * if the event is explicitly excluded (and the operator stops if it occurs), or
+ * if a later exact release has implemented and verified the resolved semantics.
+ * "We reviewed it" is intentionally not a passing state.
+ */
+export const crossDimensionScenarioGateSchema = z.discriminatedUnion("disposition", [
+  z.object({
+    disposition: z.literal("excluded_from_shadow_scope"),
+    reviewerName: z.string().trim().min(1),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD"),
+    worksheetReference: z.string().trim().min(1),
+    stopIfEncountered: z.literal(true),
+    notes: z.string().trim().default(""),
+  }),
+  z.object({
+    disposition: z.literal("resolved_in_release"),
+    reviewerName: z.string().trim().min(1),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD"),
+    worksheetReference: z.string().trim().min(1),
+    releaseSha: z.string().regex(/^[0-9a-f]{40}$/),
+    notes: z.string().trim().default(""),
+  }),
+  z.object({
+    disposition: z.literal("blocked"),
+    reviewerName: z.string().trim().min(1),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD"),
+    worksheetReference: z.string().trim().min(1),
+    notes: z.string().trim().min(1),
+  }),
+]);
+export type CrossDimensionScenarioGate = z.infer<typeof crossDimensionScenarioGateSchema>;
+
+export function evaluateCrossDimensionScenarioGate(
+  gate: CrossDimensionScenarioGate,
+  frozenReleaseSha: string,
+): { readonly ok: boolean; readonly detail: string } {
+  if (gate.disposition === "excluded_from_shadow_scope") {
+    return {
+      ok: true,
+      detail: `excluded from shadow scope by ${gate.reviewerName} on ${gate.date}; stop if encountered`,
+    };
+  }
+  if (gate.disposition === "resolved_in_release") {
+    return gate.releaseSha === frozenReleaseSha
+      ? {
+          ok: true,
+          detail: `resolved in frozen release ${gate.releaseSha}; reviewed by ${gate.reviewerName} on ${gate.date}`,
+        }
+      : {
+          ok: false,
+          detail: `resolution belongs to ${gate.releaseSha}, not frozen release ${frozenReleaseSha}`,
+        };
+  }
+  return {
+    ok: false,
+    detail: `blocked by ${gate.reviewerName} on ${gate.date}: ${gate.notes}`,
+  };
+}
+
 const authenticationSmokeSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("passed"),
@@ -166,6 +227,10 @@ export const pilotConfigSchema = z.object({
   qualityGradePolicyReview: reviewSchema,
   receivingQualitySemanticsReview: reviewSchema,
   qualityRoleReview: reviewSchema,
+  saleFulfilmentCorrectionGate: crossDimensionScenarioGateSchema,
+  purchaseReceivingCorrectionGate: crossDimensionScenarioGateSchema,
+  partialCustomerReturnGate: crossDimensionScenarioGateSchema,
+  supplierReturnGate: crossDimensionScenarioGateSchema,
   authenticationSmoke: authenticationSmokeSchema,
   deploymentEvidence: deploymentEvidenceSchema,
   recoveryEvidence: recoveryEvidenceSchema,
@@ -245,6 +310,38 @@ export const EXAMPLE_PILOT_CONFIG = {
     date: "",
     decision: "accepted",
     worksheetReference: "",
+    notes: "",
+  },
+  saleFulfilmentCorrectionGate: {
+    disposition: "excluded_from_shadow_scope",
+    reviewerName: "",
+    date: "",
+    worksheetReference: "",
+    stopIfEncountered: true,
+    notes: "",
+  },
+  purchaseReceivingCorrectionGate: {
+    disposition: "excluded_from_shadow_scope",
+    reviewerName: "",
+    date: "",
+    worksheetReference: "",
+    stopIfEncountered: true,
+    notes: "",
+  },
+  partialCustomerReturnGate: {
+    disposition: "excluded_from_shadow_scope",
+    reviewerName: "",
+    date: "",
+    worksheetReference: "",
+    stopIfEncountered: true,
+    notes: "",
+  },
+  supplierReturnGate: {
+    disposition: "excluded_from_shadow_scope",
+    reviewerName: "",
+    date: "",
+    worksheetReference: "",
+    stopIfEncountered: true,
     notes: "",
   },
   authenticationSmoke: {

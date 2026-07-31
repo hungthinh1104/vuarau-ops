@@ -101,21 +101,25 @@ must stay out of logs shared with the project.
    rehearsal touches the pilot workspace, discard that workspace and repeat the
    clean bootstrap before observation.
 
-6. Complete ASM-023/024/025 and the ASM-017/018/030/032/033/034 reviews. Record
-   each accepted/rejected answer, date, notes and worksheet reference in the private
-   `pilot.json`; do not commit the signed material. Use the M23 quality-policy
-   worksheet for ASM-032/033/034. A populated QualityGrade list is not a substitute
-   for those answers. Also keep `authenticationSmoke` and `recoveryEvidence`
-   pending until the real checks have actually run.
+6. Complete ASM-023/024/025 and the ASM-017/018/030/032/033/034 reviews, then
+   classify ASM-035/036/037/038 with the cross-dimension correction worksheet.
+   Record dates, people, notes and worksheet references in the private `pilot.json`;
+   do not commit signed material. A populated QualityGrade list is not a substitute
+   for ASM-032/033/034 evidence. For ASM-035–038, choose only:
+   `excluded_from_shadow_scope` with `stopIfEncountered: true`,
+   `resolved_in_release` bound to the exact frozen SHA, or `blocked`. Also keep
+   `authenticationSmoke` and `recoveryEvidence` pending until the real checks have
+   actually run.
 
    ```bash
    pnpm --filter @vuarau/api ops:pilot-readiness --config /secure/path/pilot.json
    ```
 
    Expected: every repository and external check passes. A rejected recognition or
-   quality-policy answer exits non-zero. Record the contradiction and affected
-   model; do not seed a fake grade or change business semantics merely to make the
-   readiness gate green.
+   quality-policy answer exits non-zero. A blocked ASM-035–038 scenario exits
+   non-zero; an excluded scenario passes readiness only because the session must
+   stop if that event appears. Record contradictions; do not create fake goods or
+   money movements merely to make readiness green.
 
 7. Complete [device-smoke-check.md](device-smoke-check.md) on the worker's normal
    phone over mobile data. A failure at step 10 stops the pilot. Then use the

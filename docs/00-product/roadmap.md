@@ -263,12 +263,58 @@ source-backed reports.
 - H2–H6 criteria, P0–P3 stop rules, deployment/recovery evidence and support
   runbooks are frozen.
 
-Repository readiness remains **PENDING** while the current documentation, UI-state/
-Storybook coverage and quality-policy consistency pass is open. Pilot readiness is
-**BLOCKED/PENDING** until
-the real Supabase A→B smoke, ASM-023/024/025, ASM-017/018, ASM-030, ASM-032/033/034, real-phone
-deployment and provider PITR/RPO/RTO/restore evidence are actually recorded. M24
-is not authorized.
+The repository-truth and critical-screen Storybook reconciliation is now technically
+closed: every critical screen in `docs/08-qa/ui-screen-coverage.md` has a shared
+presentation View and executable Storybook states. Repository readiness remains
+**PENDING** because M23.14–M23.17 still have to close business-use-case completeness
+and cross-dimension correction semantics; visual coverage is not product
+completeness.
+
+Pilot readiness is **BLOCKED/PENDING** until the real Supabase A→B smoke,
+ASM-023/024/025, ASM-017/018, ASM-030, ASM-032/033/034, ASM-035/036/037/038,
+real-phone deployment and provider PITR/RPO/RTO/restore evidence are actually
+recorded. M24 is not authorized.
+
+#### M23.10–M23.13 — Repository truth, UI-state and quality gates (technical closure)
+
+- current code/contracts, data model and authoritative docs were reconciled;
+- the UI-state catalog and all critical operational screens have Storybook-backed
+  presentation states rather than component-only examples;
+- commercial Grade is explicitly bounded from Condition/Defect/inspection policy;
+- repository truth checks fail on API/data/docs/navigation/decision/UI drift.
+
+#### M23.14 — Use-case completeness audit (current)
+
+- evaluate actor × business event × money/goods/control effects rather than counting
+  procedures as product completeness;
+- decompose umbrella Supplier/Purchase/Receiving/Inventory/Delivery/Document/
+  Operations use cases only where actor goal or risk really differs;
+- classify each uncovered event as implemented, policy-blocked, missing/discovery,
+  or deliberately out-of-scope;
+- use `docs/02-use-cases/use-case-completeness-audit.md` as the working audit.
+
+#### M23.15 — Cross-dimension correction closure
+
+Resolve ASM-035–038 before feature implementation. Sale correction after Delivery,
+Purchase correction after Receiving, partial customer returns, and Supplier returns
+must preserve historical physical facts without manufacturing fake movements.
+A policy answer that changes canonical facts requires ADR/rule/case/test/restore
+review.
+
+#### M23.16 — Field-policy closure
+
+Close the owner/worker questions that can invalidate current pilot semantics:
+recognition moments, role table, Grade requirement, Receiving acceptance, Grade
+management authority, delivery cash handling and cross-dimension corrections.
+No seeded/default category counts as owner evidence.
+
+#### M23.17 — Full depot-day rehearsal
+
+Run a synthetic day through Supplier → Purchase → Receiving → Inventory → Sale →
+Delivery → Return → Payments/corrections → reports/reconciliation, including
+partial operations, unknown outcomes and mistakes. The rehearsal may only use
+business events the model can represent truthfully; a fake compensating movement
+to make a screen look complete is a failure.
 
 | Horizon                               | Milestones                                                                | Gate                                                                                   |
 | ------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |

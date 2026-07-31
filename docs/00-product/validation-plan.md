@@ -293,16 +293,20 @@ provider evidence and owner acceptance.
 Recorded rather than worked around, because a gap a pilot rediscovers is a wasted
 session.
 
-| Gap or gate                                                                                | Effect                                                                                  |
-| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| Reads are not audited (ASM-022)                                                            | “Who looked at this balance?” remains unanswerable                                      |
-| Role mapping and migrated owners need confirmation (ASM-017/018)                           | A field session may expose a capability mismatch; roles must be assigned before go-live |
-| Sale and supplier recognition need owner signatures (ASM-024/025)                          | Real money entries must not be created until the owner confirms the business event      |
-| Delivery cash handling is undefined (ASM-029)                                              | Do not pilot driver cash collection before the trigger is resolved                      |
-| Sharing/retention policy is unwritten (ASM-030); ASM-031 provider drill evidence is absent | Real-data public sharing and production readiness remain blocked                        |
-| Universal grade requirement is unvalidated (ASM-032)                                       | Sale/Receiving usability evidence is invalid until the depot confirms the policy        |
-| Damaged/rejected Receiving semantics are unvalidated (ASM-033)                             | Do not treat rejected arrival as accepted stock merely to fit the current Receipt model |
-| Grade-management/reclassification authority is unvalidated (ASM-034)                       | Goods workflows remain blocked until the owner/warehouse mapping is reviewed            |
+| Gap or gate                                                                                | Effect                                                                                               |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Reads are not audited (ASM-022)                                                            | “Who looked at this balance?” remains unanswerable                                                   |
+| Role mapping and migrated owners need confirmation (ASM-017/018)                           | A field session may expose a capability mismatch; roles must be assigned before go-live              |
+| Sale and supplier recognition need owner signatures (ASM-024/025)                          | Real money entries must not be created until the owner confirms the business event                   |
+| Delivery cash handling is undefined (ASM-029)                                              | Do not pilot driver cash collection before the trigger is resolved                                   |
+| Sharing/retention policy is unwritten (ASM-030); ASM-031 provider drill evidence is absent | Real-data public sharing and production readiness remain blocked                                     |
+| Universal grade requirement is unvalidated (ASM-032)                                       | Sale/Receiving usability evidence is invalid until the depot confirms the policy                     |
+| Damaged/rejected Receiving semantics are unvalidated (ASM-033)                             | Do not treat rejected arrival as accepted stock merely to fit the current Receipt model              |
+| Grade-management/reclassification authority is unvalidated (ASM-034)                       | Goods workflows remain blocked until the owner/warehouse mapping is reviewed                         |
+| Sale correction after prior fulfilment is unresolved (ASM-035)                             | Exclude from the shadow scope or stop the session if encountered until exact-release semantics exist |
+| Purchase correction after prior Receiving is unresolved (ASM-036)                          | Do not fabricate reverse/re-receive movements; exclude or stop until resolved                        |
+| Partial customer-return money semantics are unresolved (ASM-037)                           | Physical Return does not imply refund/debt movement; exclude or stop before financial action         |
+| Supplier return of accepted stock is unresolved (ASM-038)                                  | Do not use generic adjustment as a fake Supplier-return/payable workflow                             |
 
 ## Related
 
@@ -315,4 +319,5 @@ session.
 - [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — the four questions for the owner
 - [../09-decisions/ASM-024-post-sale-meaning-worksheet.md](../09-decisions/ASM-024-post-sale-meaning-worksheet.md) — Sale recognition validation
 - [../09-decisions/ASM-025-supplier-payable-recognition-worksheet.md](../09-decisions/ASM-025-supplier-payable-recognition-worksheet.md) — supplier recognition validation
+- [../09-decisions/m23-cross-dimension-correction-worksheet.md](../09-decisions/m23-cross-dimension-correction-worksheet.md) — ASM-035–038 scope/resolution evidence
 - [../09-decisions/ADR-0014-debt-recognition-at-posting.md](../09-decisions/ADR-0014-debt-recognition-at-posting.md) — when a customer starts owing

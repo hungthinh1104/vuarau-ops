@@ -15,7 +15,12 @@ import { randomIdGenerator, systemClock } from "../infrastructure/clock.ts";
 import { readServerConfig } from "../infrastructure/config.ts";
 import type { CommandContext, CommandDeps } from "../modules/shared/command-pipeline.ts";
 import { listActorWorkspaces } from "../modules/session/session.queries.ts";
-import { EXAMPLE_PILOT_CONFIG, readPilotConfig, type PilotConfig } from "./pilot-config.ts";
+import {
+  EXAMPLE_PILOT_CONFIG,
+  evaluateCrossDimensionScenarioGate,
+  readPilotConfig,
+  type PilotConfig,
+} from "./pilot-config.ts";
 
 /**
  * Read-only M23 gate. Repository checks inspect runtime/database state; external
@@ -52,7 +57,7 @@ usage: node src/operations/pilot-readiness.ts --config <pilot.json>
        node src/operations/pilot-readiness.ts --example
 
   --config   the operator's declaration: depot, actor, exact release, owner
-             semantics, role/owner/quality review, data policy and recovery evidence.
+             semantics, role/owner/quality/correction-scope review, data policy and recovery evidence.
   --example  print a blank one to fill in.
 
 DATABASE_URL must be set. The file is never written to and never committed.
@@ -195,6 +200,20 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
             `rejected by ${review.reviewerName} on ${review.date}`,
             "external",
           ),
+    );
+  }
+
+  for (const [name, gate] of [
+    ["ASM-035 Sale correction after fulfilment", config.saleFulfilmentCorrectionGate],
+    ["ASM-036 Purchase correction after Receiving", config.purchaseReceivingCorrectionGate],
+    ["ASM-037 partial customer-return consequence", config.partialCustomerReturnGate],
+    ["ASM-038 Supplier return of accepted stock", config.supplierReturnGate],
+  ] as const) {
+    const outcome = evaluateCrossDimensionScenarioGate(gate, config.releaseSha);
+    checks.push(
+      outcome.ok
+        ? pass(`${name} safe for frozen shadow scope`, outcome.detail, "external")
+        : fail(`${name} safe for frozen shadow scope`, outcome.detail, "external"),
     );
   }
 
