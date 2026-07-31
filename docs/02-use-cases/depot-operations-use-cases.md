@@ -50,7 +50,7 @@ Generation and sharing never mutate the source transaction.
 ## UC-REPORT-001 — Inspect source-backed operational reports
 
 An authorized worker reads `customer_account_activity`, customer receivables,
-supplier payables, inventory by Product/unit, inventory movements, and
+supplier payables, inventory by Product/QualityGrade/unit, inventory movements, and
 outstanding delivery. `customer_account_activity` contains customer ledger
 activity only; it does not mix in receiving, inventory, or Delivery events.
 

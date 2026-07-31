@@ -170,9 +170,10 @@ physical quantity.
 ### M18 — Receiving and inventory movements (technical evidence complete)
 
 Partial Receipt capture, full reversal, over-receipt protection, immutable
-per-line movements, per-Product/unit projections, adjustments and reconciliation
-are implemented. Inbound Goods Truth is proven; outbound Sale fulfilment remains
-the explicit M19 boundary.
+per-line movements, the original per-Product/unit projections, adjustments and
+reconciliation were implemented. M23.8 later superseded the projection identity with
+Product/QualityGrade/unit. Inbound Goods Truth was the M18 boundary; outbound Sale
+fulfilment remained the explicit M19 boundary.
 
 ### M19 — Sale fulfilment and delivery (technical evidence complete)
 
@@ -262,7 +263,9 @@ source-backed reports.
 - H2–H6 criteria, P0–P3 stop rules, deployment/recovery evidence and support
   runbooks are frozen.
 
-Repository readiness is **PASS**. Pilot readiness remains **BLOCKED/PENDING** until
+Repository readiness remains **PENDING** while the current documentation, UI-state/
+Storybook coverage and quality-policy consistency pass is open. Pilot readiness is
+**BLOCKED/PENDING** until
 the real Supabase A→B smoke, ASM-023/024/025, ASM-017/018, ASM-030, real-phone
 deployment and provider PITR/RPO/RTO/restore evidence are actually recorded. M24
 is not authorized.

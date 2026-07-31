@@ -2,8 +2,9 @@
 
 Schema in code: `packages/db/src/schema/`. Migration: `packages/db/migrations/`.
 
-Only the tables the first vertical slice needs. No table exists here for a module
-that has not been built.
+This is the human-readable persistence model for the currently implemented
+transaction system. The executable schema and migrations are authoritative; this
+document must be updated when their business meaning changes.
 
 ## Tables
 

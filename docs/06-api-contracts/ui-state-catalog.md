@@ -16,19 +16,21 @@ cannot produce it, it does not belong here; if the backend can produce it and it
 not here, that is a gap, and the gap is where a user ends up staring at a spinner
 that never resolves.
 
-**Coverage means a story exists, not that a screen does.** The production
-workflows — customer search, sale entry, payment capture, sale void — are not
-built. What is covered is that each state has a rendering, a fixture, and a test of
-the rule it encodes.
+**Coverage means a story exists, not that every production screen has complete
+screen-level state coverage.** The production workflows now exist. This catalog
+still has to evolve with the Goods Flow and Operational Control surfaces; a green
+coverage test only proves the states named here have stories, not that this list is
+complete. Screen-level Storybook completion is therefore a repository-readiness
+concern, not something inferred from this checklist alone.
 
 ---
 
 ## 0. Signing in and choosing a depot
 
-| State                     | When                                                       | Must show                                                            |
-| ------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------- |
-| `signed_out`              | No Supabase session                                        | A way in. An email field and a code, never a password                |
-| `no_workspace_membership` | Signed in; `session.workspaces` returned an **empty list** | That the account is real and belongs to no depot yet, and who to ask |
+| State                     | When                                                       | Must show                                                             |
+| ------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------- |
+| `signed_out`              | No Supabase session                                        | A way in using the provisioned email/password flow; no public sign-up |
+| `no_workspace_membership` | Signed in; `session.workspaces` returned an **empty list** | That the account is real and belongs to no depot yet, and who to ask  |
 
 `no_workspace_membership` is the state most likely to be rendered as a spinner
 that never resolves, because it looks like "the list has not arrived". It is a

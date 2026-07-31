@@ -1,7 +1,8 @@
 # Read models
 
-The query side of the API: nine procedures a first UI needs, added in the same
-router as the commands.
+The query side of the API spans the current bounded contexts. This document
+records the shared read pipeline and published read-model rules; executable DTOs and
+router procedures remain the source of truth as the surface grows.
 
 Source of truth in code: `packages/domain-contracts/src/*/index.ts` for the DTOs,
 `packages/db/src/repositories/read/` for context-specific SQL, with

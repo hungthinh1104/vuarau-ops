@@ -15,6 +15,7 @@ const DOCS = join(ROOT, "docs");
 
 /** Every document the bootstrap brief requires. Missing one fails the build. */
 const REQUIRED = [
+  "README.md",
   "00-product/product-brief.md",
   "00-product/scope.md",
   "00-product/validation-plan.md",
