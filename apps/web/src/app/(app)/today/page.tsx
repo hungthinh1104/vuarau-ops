@@ -6,7 +6,6 @@ import {
   BarChart3,
   ClipboardList,
   PackageCheck,
-  PackageOpen,
   Settings2,
   ShoppingCart,
   Truck,
@@ -108,48 +107,6 @@ export default function TodayPage() {
             <p className="hidden text-body-sm text-ink-muted md:block">
               Mở thẳng vào nghiệp vụ thay vì tìm lại trong menu.
             </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {mayReadDeliveries ? (
-              <>
-                <QueueSummary
-                  icon={PackageOpen}
-                  label="Phiếu cần xuất"
-                  value={
-                    draftDeliveries.isLoading || draftDeliveries.isError
-                      ? null
-                      : (draftDeliveries.data?.items.length ?? 0)
-                  }
-                  href="/deliveries"
-                  tone="warning"
-                />
-                <QueueSummary
-                  icon={Truck}
-                  label="Đang giao"
-                  value={
-                    dispatchedDeliveries.isLoading || dispatchedDeliveries.isError
-                      ? null
-                      : (dispatchedDeliveries.data?.items.length ?? 0)
-                  }
-                  href="/deliveries"
-                  tone="info"
-                />
-              </>
-            ) : null}
-            {mayReadPurchases ? (
-              <QueueSummary
-                icon={PackageCheck}
-                label="Đơn mua đã xác nhận"
-                value={
-                  openPurchases.isLoading || openPurchases.isError
-                    ? null
-                    : (openPurchases.data?.items.length ?? 0)
-                }
-                href="/purchases"
-                tone="neutral"
-              />
-            ) : null}
           </div>
 
           <div className="grid gap-3 xl:grid-cols-3">
@@ -293,40 +250,6 @@ function QuickAction({ action, primary = false }: { action: TodayAction; primary
   );
 }
 
-function QueueSummary(props: {
-  readonly icon: LucideIcon;
-  readonly label: string;
-  readonly value: number | null;
-  readonly href: string;
-  readonly tone: "warning" | "info" | "neutral";
-}) {
-  const Icon = props.icon;
-  const tone =
-    props.tone === "warning"
-      ? "bg-warning-soft text-warning"
-      : props.tone === "info"
-        ? "bg-info-soft text-info"
-        : "bg-surface-muted text-ink";
-  return (
-    <Link
-      href={props.href}
-      className="group flex items-center gap-3 rounded-card border border-border bg-surface p-4 hover:border-border-strong"
-    >
-      <span className={`flex h-10 w-10 items-center justify-center rounded-card ${tone}`}>
-        <Icon aria-hidden="true" className="h-5 w-5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-body-sm text-ink-muted">{props.label}</span>
-        <strong className="tabular text-heading text-ink">{props.value ?? "—"}</strong>
-      </span>
-      <ArrowRight
-        aria-hidden="true"
-        className="h-4 w-4 text-ink-muted transition-transform group-hover:translate-x-0.5"
-      />
-    </Link>
-  );
-}
-
 function WorkQueue(props: {
   title: string;
   href: string;
@@ -338,9 +261,6 @@ function WorkQueue(props: {
     <section className="rounded-card border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-subheading font-semibold">{props.title}</h3>
-        <span className="tabular rounded-pill bg-surface-muted px-2 py-1 text-caption font-semibold text-ink-muted">
-          {props.loading || props.error ? "—" : props.items.length}
-        </span>
       </div>
       <div className="mt-3">
         {props.loading ? (
@@ -370,9 +290,7 @@ function WorkQueue(props: {
               </li>
             ))}
             {props.items.length > 3 ? (
-              <li className="pt-2 text-body-sm text-ink-muted">
-                +{props.items.length - 3} việc nữa
-              </li>
+              <li className="pt-2 text-body-sm text-ink-muted">Còn thêm trong danh sách.</li>
             ) : null}
           </ul>
         )}

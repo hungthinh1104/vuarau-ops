@@ -2,8 +2,114 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { calculateLineTotal } from "@vuarau/domain-contracts";
+import { PRODUCT_CA_CHUA_ID, QUALITY_GRADE_1_ID } from "@vuarau/test-fixtures/ids";
 import { SaleLineEditor, emptyLine, resolveLine } from "./sale-line-editor.tsx";
 import { ACCEPTANCE_TARGETS, WORKFLOW_METRICS } from "@/api/workflow-metrics.ts";
+
+/**
+ * TC-WEB-024 — keyboard/focus sequence hardening for Quick Sale.
+ */
+describe("TC-WEB-024 — keyboard/focus sequence", () => {
+  const readyLine = () => ({
+    ...emptyLine("l1"),
+    productId: PRODUCT_CA_CHUA_ID,
+    productName: "Cà chua",
+    qualityGradeId: QUALITY_GRADE_1_ID,
+    qualityGradeName: "Loại 1",
+    quantityText: "12,5",
+    unit: "kg" as const,
+    unitPriceText: "18.000",
+  });
+
+  const baseProps = {
+    index: 0,
+    issues: {},
+    canRemove: false,
+    qualityGradeOptions: [{ value: QUALITY_GRADE_1_ID, label: "Loại 1" }],
+    onRemove: () => undefined,
+  } as const;
+
+  it("moves Product Enter to the required quality-grade control", async () => {
+    const user = userEvent.setup();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        line={{ ...readyLine(), qualityGradeId: null, qualityGradeName: null }}
+        onChange={() => undefined}
+      />,
+    );
+
+    await user.click(screen.getByLabelText(/Mặt hàng/));
+    await user.keyboard("[Enter]");
+
+    expect(screen.getByLabelText(/Phân hạng chất lượng/)).toHaveFocus();
+  });
+
+  it("moves to quantity only after a quality grade is actually selected", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        line={{ ...readyLine(), qualityGradeId: null, qualityGradeName: null }}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: /Phân hạng chất lượng/ }));
+    await user.click(screen.getByRole("option", { name: "Loại 1" }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        qualityGradeId: QUALITY_GRADE_1_ID,
+        qualityGradeName: "Loại 1",
+      }),
+      "qualityGrade",
+    );
+    expect(screen.getByLabelText(/Số lượng/)).toHaveFocus();
+  });
+
+  it("advances from price when the line is fully fulfilment-ready", async () => {
+    const user = userEvent.setup();
+    const onAdvance = vi.fn();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        line={readyLine()}
+        onChange={() => undefined}
+        onAdvance={onAdvance}
+      />,
+    );
+
+    await user.click(screen.getByLabelText(/Đơn giá/));
+    await user.keyboard("[Enter]");
+
+    expect(onAdvance).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["catalog product identity is missing", { productId: null }],
+    ["quality grade is missing", { qualityGradeId: null, qualityGradeName: null }],
+    ["quantity is invalid", { quantityText: "0" }],
+    ["unit price is invalid", { unitPriceText: "-1" }],
+  ])("does not advance when %s", async (_label, override) => {
+    const user = userEvent.setup();
+    const onAdvance = vi.fn();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        line={{ ...readyLine(), ...override }}
+        onChange={() => undefined}
+        onAdvance={onAdvance}
+      />,
+    );
+
+    await user.click(screen.getByLabelText(/Đơn giá/));
+    await user.keyboard("[Enter]");
+
+    expect(onAdvance).not.toHaveBeenCalled();
+  });
+});
 
 /**
  * TC-WEB-021 — a sale line resolves to integers, or says which field is wrong.

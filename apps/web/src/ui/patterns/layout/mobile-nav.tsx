@@ -4,14 +4,13 @@ import { ClipboardCheck, Ellipsis, House, ReceiptText, Users } from "lucide-reac
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { activeNavigationHref, hasPermissionFor } from "./pilot-navigation.ts";
+import { todayActionsFor } from "@/ui/patterns/today-actions.ts";
 import type { Permission } from "@vuarau/domain-contracts";
 
 const ITEMS = [
   { label: "Hôm nay", href: "/today", activeHref: "/today", icon: House },
   { label: "Đơn hàng", href: "/sales", activeHref: "/sales", icon: ReceiptText },
   { label: "Khách hàng", href: "/customers", activeHref: "/customers", icon: Users },
-  { label: "Công việc", href: "/today#work", activeHref: null, icon: ClipboardCheck },
-  { label: "Thêm", href: "/today#more", activeHref: null, icon: Ellipsis },
 ] as const;
 
 export function MobileNav({ permissions }: { readonly permissions: readonly Permission[] }) {
@@ -26,9 +25,27 @@ export function MobileNavView({
   readonly pathname: string;
 }) {
   const activeHref = activeNavigationHref(pathname);
-  const visibleItems = ITEMS.filter(
-    (item) => item.href.includes("#") || hasPermissionFor(item.href, permissions),
-  );
+  const baseItems = ITEMS.filter((item) => hasPermissionFor(item.href, permissions));
+  const todayActions = todayActionsFor(permissions);
+  const hasWork = todayActions.some((action) => action.area === "work");
+  const hasMore = todayActions.some((action) => action.area === "more");
+  const workItem = {
+    label: "Công việc",
+    href: "/today#work",
+    activeHref: null,
+    icon: ClipboardCheck,
+  } as const;
+  const moreItem = {
+    label: "Thêm",
+    href: "/today#more",
+    activeHref: null,
+    icon: Ellipsis,
+  } as const;
+  const visibleItems = [
+    ...baseItems,
+    ...(hasWork ? [workItem] : []),
+    ...(hasMore ? [moreItem] : []),
+  ];
 
   return (
     <nav

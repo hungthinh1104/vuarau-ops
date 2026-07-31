@@ -45,11 +45,36 @@ const workspaceHistory: readonly WorkspaceProductHistoryDto[] = [
 ];
 
 const visibleProducts: readonly VisibleProduct[] = [
-  { id: PRODUCT_CA_CHUA_ID, displayName: "Cà chua", preferredUnit: "kg" },
-  { id: testUuid("d", 21) as ProductId, displayName: "Cà chua Đà Lạt", preferredUnit: "kg" },
-  { id: PRODUCT_RAU_MUONG_ID, displayName: "Rau muống", preferredUnit: "bo" },
-  { id: PRODUCT_OT_ID, displayName: "Ớt hiểm", preferredUnit: "thung" },
-  { id: testUuid("d", 22) as ProductId, displayName: "Xà lách", preferredUnit: "kg" },
+  {
+    id: PRODUCT_CA_CHUA_ID,
+    displayName: "Cà chua",
+    aliases: ["ca chua", "tomato"],
+    preferredUnit: "kg",
+  },
+  {
+    id: testUuid("d", 21) as ProductId,
+    displayName: "Cà chua Đà Lạt",
+    aliases: ["ca chua da lat"],
+    preferredUnit: "kg",
+  },
+  {
+    id: PRODUCT_RAU_MUONG_ID,
+    displayName: "Rau muống",
+    aliases: ["rau muong", "morning glory"],
+    preferredUnit: "bo",
+  },
+  {
+    id: PRODUCT_OT_ID,
+    displayName: "Ớt hiểm",
+    aliases: ["ot hiem", "chili"],
+    preferredUnit: "thung",
+  },
+  {
+    id: testUuid("d", 22) as ProductId,
+    displayName: "Xà lách",
+    aliases: ["xa lach", "lettuce"],
+    preferredUnit: "kg",
+  },
 ];
 
 const onClose = vi.fn();
@@ -151,6 +176,41 @@ describe("ProductPicker", () => {
 
     await user.click(screen.getByRole("button", { name: "Xoá tìm kiếm" }));
     expect(onSearchChange).toHaveBeenLastCalledWith("");
+  });
+
+  it("matches products by alias without requiring diacritics", async () => {
+    const user = userEvent.setup();
+    renderPicker({ customerHistory: [], workspaceHistory: [] });
+
+    await user.type(screen.getByRole("searchbox", { name: "Tìm mặt hàng" }), "tomato");
+
+    expect(screen.getByRole("button", { name: "Cà chua · kg" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Xà lách/ })).not.toBeInTheDocument();
+  });
+
+  it("ranks exact alias matches before prefix alias matches", async () => {
+    const user = userEvent.setup();
+    renderPicker({ customerHistory: [], workspaceHistory: [] });
+
+    await user.type(screen.getByRole("searchbox", { name: "Tìm mặt hàng" }), "ca chua");
+
+    const section = screen.getByRole("heading", { name: "Danh mục chung" }).closest("section");
+    expect(section).not.toBeNull();
+    const matches = within(section!).getAllByRole("button", { name: /Cà chua/ });
+    // Exact alias match "ca chua" on "Cà chua" ranks before prefix match on "Cà chua Đà Lạt"
+    expect(matches[0]).toHaveAccessibleName("Cà chua · kg");
+    expect(matches[1]).toHaveAccessibleName("Cà chua Đà Lạt · kg");
+  });
+
+  it("keeps alias matches visible when server returns them but local filter would miss them", async () => {
+    const user = userEvent.setup();
+    // Simulate server returning "Rau muống" for query "morning glory" (alias match)
+    // but local displayName-only filter would hide it
+    renderPicker({ customerHistory: [], workspaceHistory: [] });
+
+    await user.type(screen.getByRole("searchbox", { name: "Tìm mặt hàng" }), "morning glory");
+
+    expect(screen.getByRole("button", { name: "Rau muống · bó" })).toBeInTheDocument();
   });
 
   it("shows a useful empty state and can clear the search", async () => {

@@ -103,7 +103,18 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
   }
 
   function advanceFromLine(index: number): void {
-    if (resolved[index]?.total === null) return;
+    const line = lines[index];
+    if (
+      line === undefined ||
+      resolved[index]?.total === null ||
+      line.productId === null ||
+      line.productId === undefined ||
+      line.qualityGradeId === null ||
+      line.qualityGradeId === undefined ||
+      line.qualityGradeName === null ||
+      line.qualityGradeName === undefined
+    )
+      return;
     const focusProductAt = (at: number) => {
       requestAnimationFrame(() => {
         const products = document.querySelectorAll<HTMLElement>("[data-sale-field='product']");
@@ -186,7 +197,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
           className="rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-body-sm"
         >
           Khách mới đang lưu trên thiết bị. Khi chốt đơn, hệ thống sẽ đồng bộ khách trước rồi mới
-          tạo và chốt Sale.
+          tạo và chốt đơn.
         </p>
       ) : null}
 

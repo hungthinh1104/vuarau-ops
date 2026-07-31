@@ -18,6 +18,7 @@ import { formatDate, formatMoney } from "@/ui/format.ts";
 export type VisibleProduct = {
   readonly id: ProductId;
   readonly displayName: string;
+  readonly aliases: readonly string[];
   readonly preferredUnit: Unit | null;
 };
 
@@ -59,9 +60,41 @@ function matchRank(value: string, query: string): number {
   return foldedValue.includes(foldedQuery) ? 1 : 0;
 }
 
+function matchRankWithAliases(
+  displayName: string,
+  aliases: readonly string[],
+  query: string,
+): number {
+  const displayRank = matchRank(displayName, query);
+  let aliasRank = 0;
+  for (const alias of aliases) {
+    const rank = matchRank(alias, query);
+    if (rank > aliasRank) aliasRank = rank;
+    if (aliasRank === 3) break;
+  }
+  return Math.max(displayRank, aliasRank);
+}
+
 function filterAndRank<T>(items: readonly T[], query: string, labelOf: (item: T) => string): T[] {
   return items
     .map<Ranked<T>>((item, index) => ({ item, index, rank: matchRank(labelOf(item), query) }))
+    .filter((entry) => entry.rank > 0)
+    .sort((left, right) => right.rank - left.rank || left.index - right.index)
+    .map((entry) => entry.item);
+}
+
+function filterAndRankWithAliases<T>(
+  items: readonly T[],
+  query: string,
+  displayNameOf: (item: T) => string,
+  aliasesOf: (item: T) => readonly string[],
+): T[] {
+  return items
+    .map<Ranked<T>>((item, index) => ({
+      item,
+      index,
+      rank: matchRankWithAliases(displayNameOf(item), aliasesOf(item), query),
+    }))
     .filter((entry) => entry.rank > 0)
     .sort((left, right) => right.rank - left.rank || left.index - right.index)
     .map((entry) => entry.item);
@@ -98,7 +131,12 @@ export function ProductPicker({
 
   const customerMatches = filterAndRank(customerHistory, query, (item) => item.productName);
   const workspaceMatches = filterAndRank(workspaceHistory, query, (item) => item.productName);
-  const productMatches = filterAndRank(visibleProducts, query, (item) => item.displayName);
+  const productMatches = filterAndRankWithAliases(
+    visibleProducts,
+    query,
+    (item) => item.displayName,
+    (item) => item.aliases,
+  );
   const hasResults =
     customerMatches.length > 0 || workspaceMatches.length > 0 || productMatches.length > 0;
 

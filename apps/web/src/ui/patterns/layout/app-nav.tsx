@@ -50,7 +50,7 @@ export function AppNavView({
 
   return (
     <nav aria-label="Điều hướng chính" className="hidden w-64 shrink-0 py-6 lg:block">
-      <div className="sticky top-4 grid gap-6">
+      <div className="sticky top-20 grid gap-6">
         {groups.map((group) => (
           <section key={group.label} aria-labelledby={`nav-${group.label}`}>
             <h2

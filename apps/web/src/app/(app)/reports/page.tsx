@@ -155,7 +155,7 @@ export default function ReportsPage() {
               className="overflow-x-auto rounded-card border border-border bg-surface"
             >
               <table className="w-full text-left text-body-sm">
-                <thead className="sticky top-0 bg-surface-muted text-label">
+                <thead className="sticky top-16 z-10 bg-surface-muted text-label">
                   <tr>
                     <th className="p-3">Nguồn</th>
                     <th className="p-3">Thời điểm</th>

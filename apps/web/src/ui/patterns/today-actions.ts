@@ -11,14 +11,14 @@ export type TodayAction = {
 const ACTIONS: readonly TodayAction[] = [
   {
     label: "Ghi đơn nhanh",
-    description: "Chọn khách, ghi hàng và chốt Sale.",
+    description: "Chọn khách, ghi hàng và chốt đơn.",
     href: "/sales/new",
     permission: "sale.create",
     area: "primary",
   },
   {
     label: "Đơn hàng",
-    description: "Mở các Sale đã ghi trong vựa.",
+    description: "Mở các đơn đã ghi trong vựa.",
     href: "/sales",
     permission: "sale.read",
     area: "work",

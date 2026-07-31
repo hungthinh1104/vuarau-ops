@@ -56,7 +56,7 @@ export default function DeliveriesPage() {
     <div className="grid gap-4">
       <PageHeader
         title="Giao hàng"
-        description="Phiếu giao hiện có; trạng thái và dòng hàng đến từ read model server."
+        description="Các phiếu giao hiện có cùng trạng thái và hàng cần giao."
       />
       <QueryStates
         query={deliveries}
@@ -100,7 +100,7 @@ export default function DeliveriesPage() {
               </ul>
               <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
                 <table className="w-full text-left text-body-sm">
-                  <thead className="sticky top-0 bg-surface-muted text-label">
+                  <thead className="sticky top-16 z-10 bg-surface-muted text-label">
                     <tr>
                       <th className="px-3 py-2">Phiếu</th>
                       <th className="px-3 py-2">Đơn bán</th>

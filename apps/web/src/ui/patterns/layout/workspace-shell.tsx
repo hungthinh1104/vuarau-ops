@@ -110,8 +110,8 @@ export function WorkspaceShellView({
 
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-4 py-2.5 lg:px-8">
+      <header className="sticky top-0 z-20 h-16 border-b border-border bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between gap-3 px-4 py-2 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-card bg-leaf-soft text-leaf sm:flex">
               <Store aria-hidden="true" className="h-5 w-5" />

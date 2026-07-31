@@ -10,7 +10,7 @@ import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { parseMoneyText, parseQuantityText } from "@/ui/primitives/numeric-text.ts";
 import { Search, X } from "lucide-react";
-import type { KeyboardEvent } from "react";
+import { useRef, type KeyboardEvent } from "react";
 import { formatMoney } from "@/ui/format.ts";
 
 /**
@@ -170,16 +170,30 @@ export function SaleLineEditor({
   onAdvance,
 }: SaleLineEditorProps & { readonly onAdvance?: () => void }) {
   const { total } = resolveLine(line);
+  const rowRef = useRef<HTMLLIElement>(null);
+
+  const isFulfilmentReady =
+    line.productId !== null &&
+    line.productId !== undefined &&
+    line.qualityGradeId !== null &&
+    line.qualityGradeId !== undefined &&
+    line.qualityGradeName !== null &&
+    line.qualityGradeName !== undefined &&
+    total !== null;
+
+  function focusRowField(field: string): void {
+    rowRef.current?.querySelector<HTMLElement>(`[data-sale-field="${field}"]`)?.focus();
+  }
 
   function focusField(event: KeyboardEvent<HTMLElement>, field: string): void {
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
     event.preventDefault();
-    const row = event.currentTarget.closest("li");
-    row?.querySelector<HTMLElement>(`[data-sale-field="${field}"]`)?.focus();
+    focusRowField(field);
   }
 
   return (
     <li
+      ref={rowRef}
       data-testid={`sale-line-${index}`}
       className="rounded-card border border-border bg-surface p-3 shadow-sm sm:p-4"
       onFocus={onFocus}
@@ -210,7 +224,7 @@ export function SaleLineEditor({
               disabled={disabled}
               value={line.productName}
               data-sale-field="product"
-              onKeyDown={(event) => focusField(event, "quantity")}
+              onKeyDown={(event) => focusField(event, "qualityGrade")}
               onChange={(event) =>
                 onChange({ ...line, productName: event.target.value }, "product")
               }
@@ -241,6 +255,7 @@ export function SaleLineEditor({
               disabled={disabled}
               value={line.qualityGradeId ?? ""}
               placeholder="Chọn hạng"
+              data-sale-field="qualityGrade"
               onChange={(event) => {
                 const option = qualityGradeOptions.find(
                   (candidate) => candidate.value === event.target.value,
@@ -253,6 +268,9 @@ export function SaleLineEditor({
                   },
                   "qualityGrade",
                 );
+                if (option !== undefined) {
+                  requestAnimationFrame(() => focusRowField("quantity"));
+                }
               }}
               options={qualityGradeOptions}
             />
@@ -290,7 +308,9 @@ export function SaleLineEditor({
               onKeyDown={(event) => {
                 if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
                 event.preventDefault();
-                onAdvance?.();
+                if (isFulfilmentReady) {
+                  onAdvance?.();
+                }
               }}
               onChange={(event) =>
                 onChange({ ...line, unitPriceText: event.target.value }, "unitPrice")

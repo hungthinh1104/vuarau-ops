@@ -55,7 +55,7 @@ export default function SalesPage() {
     <div className="grid gap-4">
       <PageHeader
         title="Đơn hàng"
-        description="Danh sách Sale do server đọc từ dữ liệu nghiệp vụ của vựa."
+        description="Các đơn đã ghi trong vựa, gồm đơn nháp, đã chốt và đã hoàn tác."
         actions={
           session.permissions.includes("sale.create") ? (
             <PageActions>
@@ -129,7 +129,7 @@ export default function SalesPage() {
               </ul>
               <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
                 <table className="w-full border-collapse text-left text-body-sm">
-                  <thead className="sticky top-0 bg-surface-muted text-label">
+                  <thead className="sticky top-16 z-10 bg-surface-muted text-label">
                     <tr>
                       <th className="px-3 py-2">Thời điểm</th>
                       <th className="px-3 py-2">Khách hàng</th>
