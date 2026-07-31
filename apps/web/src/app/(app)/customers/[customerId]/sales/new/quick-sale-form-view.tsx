@@ -130,7 +130,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
   }
 
   return (
-    <div className="flex flex-col gap-5 pb-28">
+    <div className="flex flex-col gap-6 pb-28">
       <PageHeader
         title="Đơn hàng mới"
         back={{ href: `/customers/${customerId}`, label: "Khách hàng" }}
@@ -174,7 +174,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
           onRetry={() => void replacementSource.refetch()}
         >
           {(source) => (
-            <p className="rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-body-sm text-ink">
+            <p className="border-l-2 border-warning pl-3 text-body-sm text-ink">
               Đang tạo đơn thay thế cho đơn {source.id.slice(0, 8).toUpperCase()}. Kiểm tra dữ liệu
               trước khi chốt; đơn này là một giao dịch mới.
             </p>
@@ -183,19 +183,13 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
       ) : null}
 
       {cacheFetchedAt !== null && customer.data === undefined ? (
-        <p
-          role="status"
-          className="rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-body-sm"
-        >
+        <p role="status" className="border-l-2 border-warning pl-3 text-body-sm text-ink-muted">
           Đang dùng thông tin khách đã lưu lúc {formatDate(cacheFetchedAt)}. Số dư chỉ là thông tin
           cũ và không được dùng để quyết định giao dịch.
         </p>
       ) : null}
       {pendingCustomerCreate !== null ? (
-        <p
-          role="status"
-          className="rounded-card border border-warning/30 bg-warning-soft px-3 py-2 text-body-sm"
-        >
+        <p role="status" className="border-l-2 border-warning pl-3 text-body-sm text-ink-muted">
           Khách mới đang lưu trên thiết bị. Khi chốt đơn, hệ thống sẽ đồng bộ khách trước rồi mới
           tạo và chốt đơn.
         </p>
@@ -219,8 +213,13 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
       >
         {(detail) => (
           <>
-            <section className="rounded-card border border-border bg-surface p-4">
-              <p className="text-body font-medium text-ink">{detail.customer.displayName}</p>
+            <section className="border-y border-border py-3">
+              <p className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
+                Khách hàng
+              </p>
+              <p className="mt-1 text-subheading font-semibold text-ink">
+                {detail.customer.displayName}
+              </p>
               {detail.customer.phone !== null ? (
                 <p className="text-caption text-ink-muted">{detail.customer.phone}</p>
               ) : null}
@@ -238,81 +237,89 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               />
             ) : null}
 
-            <ul className="flex flex-col gap-3">
-              {lines.map((line, index) => (
-                <SaleLineEditor
-                  key={line.lineId}
-                  line={line}
-                  index={index}
-                  issues={submitted ? resolved[index]!.issues : {}}
-                  {...(serverLineIndex === index
-                    ? { serverIssue: "Máy chủ từ chối dòng này. Kiểm tra số lượng và đơn giá." }
-                    : {})}
-                  canRemove={lines.length > 1}
-                  disabled={locallyQueued}
-                  qualityGradeOptions={qualityGradeOptions}
-                  onFocus={() => setActiveLineId(line.lineId)}
-                  {...(!locallyQueued
-                    ? {
-                        onOpenProductPicker: () => {
-                          setActiveLineId(line.lineId);
-                          openProductPicker();
-                        },
-                      }
-                    : {})}
-                  onChange={(incoming, field) =>
-                    editLines((current) =>
-                      current.map((existing, at) => {
-                        if (at !== index) return existing;
-                        const next =
-                          field === "product"
-                            ? { ...existing, productName: incoming.productName }
-                            : field === "qualityGrade"
-                              ? {
-                                  ...existing,
-                                  qualityGradeId: incoming.qualityGradeId ?? null,
-                                  qualityGradeName: incoming.qualityGradeName ?? null,
-                                }
-                              : field === "quantity"
-                                ? { ...existing, quantityText: incoming.quantityText }
-                                : field === "unit"
-                                  ? { ...existing, unit: incoming.unit }
-                                  : { ...existing, unitPriceText: incoming.unitPriceText };
-                        const recalled = existing.priceOrigin?.kind === "recalled";
-                        const productChanged = existing.productName !== next.productName;
-                        const unitChanged = existing.unit !== next.unit;
-                        if (recalled && (productChanged || unitChanged)) {
-                          setUnitNotice(
-                            "Giá lần trước đã được xoá vì mặt hàng hoặc đơn vị thay đổi.",
-                          );
-                          metrics.count("recalled_price_cleared_after_context_change");
-                          return {
-                            ...next,
-                            productId: productChanged ? null : (next.productId ?? null),
-                            unitPriceText: "",
-                            priceOrigin: null,
-                          };
+            <section aria-labelledby="sale-lines-title" className="grid gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="sale-lines-title" className="text-subheading font-semibold text-ink">
+                  Dòng hàng
+                </h2>
+                <span className="tabular text-caption text-ink-muted">{lines.length} dòng</span>
+              </div>
+              <ul className="flex flex-col gap-3">
+                {lines.map((line, index) => (
+                  <SaleLineEditor
+                    key={line.lineId}
+                    line={line}
+                    index={index}
+                    issues={submitted ? resolved[index]!.issues : {}}
+                    {...(serverLineIndex === index
+                      ? { serverIssue: "Máy chủ từ chối dòng này. Kiểm tra số lượng và đơn giá." }
+                      : {})}
+                    canRemove={lines.length > 1}
+                    disabled={locallyQueued}
+                    qualityGradeOptions={qualityGradeOptions}
+                    onFocus={() => setActiveLineId(line.lineId)}
+                    {...(!locallyQueued
+                      ? {
+                          onOpenProductPicker: () => {
+                            setActiveLineId(line.lineId);
+                            openProductPicker();
+                          },
                         }
-                        // Any edit to a recalled visible price is an intentional manual override.
-                        if (existing.unitPriceText !== next.unitPriceText && recalled) {
-                          metrics.count("historical_price_changed_after_apply");
-                          return { ...next, priceOrigin: { kind: "manual" } };
-                        }
-                        if (
-                          existing.unitPriceText !== next.unitPriceText &&
-                          next.unitPriceText.length > 0
-                        ) {
-                          return { ...next, priceOrigin: { kind: "manual" } };
-                        }
-                        return productChanged ? { ...next, productId: null } : next;
-                      }),
-                    )
-                  }
-                  onRemove={() => editLines((current) => current.filter((_, at) => at !== index))}
-                  onAdvance={() => advanceFromLine(index)}
-                />
-              ))}
-            </ul>
+                      : {})}
+                    onChange={(incoming, field) =>
+                      editLines((current) =>
+                        current.map((existing, at) => {
+                          if (at !== index) return existing;
+                          const next =
+                            field === "product"
+                              ? { ...existing, productName: incoming.productName }
+                              : field === "qualityGrade"
+                                ? {
+                                    ...existing,
+                                    qualityGradeId: incoming.qualityGradeId ?? null,
+                                    qualityGradeName: incoming.qualityGradeName ?? null,
+                                  }
+                                : field === "quantity"
+                                  ? { ...existing, quantityText: incoming.quantityText }
+                                  : field === "unit"
+                                    ? { ...existing, unit: incoming.unit }
+                                    : { ...existing, unitPriceText: incoming.unitPriceText };
+                          const recalled = existing.priceOrigin?.kind === "recalled";
+                          const productChanged = existing.productName !== next.productName;
+                          const unitChanged = existing.unit !== next.unit;
+                          if (recalled && (productChanged || unitChanged)) {
+                            setUnitNotice(
+                              "Giá lần trước đã được xoá vì mặt hàng hoặc đơn vị thay đổi.",
+                            );
+                            metrics.count("recalled_price_cleared_after_context_change");
+                            return {
+                              ...next,
+                              productId: productChanged ? null : (next.productId ?? null),
+                              unitPriceText: "",
+                              priceOrigin: null,
+                            };
+                          }
+                          // Any edit to a recalled visible price is an intentional manual override.
+                          if (existing.unitPriceText !== next.unitPriceText && recalled) {
+                            metrics.count("historical_price_changed_after_apply");
+                            return { ...next, priceOrigin: { kind: "manual" } };
+                          }
+                          if (
+                            existing.unitPriceText !== next.unitPriceText &&
+                            next.unitPriceText.length > 0
+                          ) {
+                            return { ...next, priceOrigin: { kind: "manual" } };
+                          }
+                          return productChanged ? { ...next, productId: null } : next;
+                        }),
+                      )
+                    }
+                    onRemove={() => editLines((current) => current.filter((_, at) => at !== index))}
+                    onAdvance={() => advanceFromLine(index)}
+                  />
+                ))}
+              </ul>
+            </section>
 
             {unitNotice !== null ? (
               <p role="status" className="text-caption text-warning">
@@ -398,9 +405,9 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               {draft === null ? "Huỷ đơn" : "Bỏ đơn"}
             </Button>
 
-            <section className="rounded-card border border-border bg-surface p-4">
-              <div className="flex items-baseline justify-between">
-                <span className="text-subheading font-semibold">Tổng đơn</span>
+            <section className="border-y border-border py-4">
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="text-body-sm font-semibold text-ink-muted">Tổng đơn</span>
                 <span className="tabular text-display font-bold" data-testid="sale-total">
                   {formatMoney(total)}
                 </span>

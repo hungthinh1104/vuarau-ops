@@ -10,8 +10,9 @@ import { useDebounced } from "@/api/use-debounced.ts";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { SearchInput } from "@/ui/primitives/search-input.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
-import { Button } from "@/ui/primitives/button.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { LinkButton, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 
 export default function SuppliersPage() {
   const { workspaceId, session } = useSession();
@@ -35,28 +36,28 @@ export default function SuppliersPage() {
   const suppliers = pages.flatMap((page) => page.items);
   const next = pages.at(-1)?.nextCursor ?? null;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Nhà cung cấp"
         actions={
           session.permissions.includes("supplier.create") ? (
-            <Link href="/suppliers/new" className="text-info underline">
-              Thêm nhà cung cấp
-            </Link>
+            <LinkButton href="/suppliers/new">Thêm nhà cung cấp</LinkButton>
           ) : null
         }
       />
-      <SearchInput
-        label="Tìm nhà cung cấp"
-        placeholder="Tên hoặc số điện thoại"
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setCursor(null);
-          setPages([]);
-        }}
-        onClear={() => setQuery("")}
-      />
+      <div className="border-y border-border py-4 sm:max-w-xl">
+        <SearchInput
+          label="Tìm nhà cung cấp"
+          placeholder="Tên hoặc số điện thoại"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setCursor(null);
+            setPages([]);
+          }}
+          onClear={() => setQuery("")}
+        />
+      </div>
       <QueryStates
         query={search}
         loadingLabel="Đang tải nhà cung cấp"
@@ -64,15 +65,24 @@ export default function SuppliersPage() {
       >
         {() =>
           suppliers.length === 0 ? (
-            <p>Chưa có nhà cung cấp phù hợp.</p>
+            <EmptyState
+              title={
+                query.trim().length === 0 ? "Chưa có nhà cung cấp" : "Không tìm thấy nhà cung cấp"
+              }
+              description={
+                query.trim().length === 0
+                  ? "Thêm nhà cung cấp đầu tiên để bắt đầu ghi đơn mua."
+                  : "Thử tên ngắn hơn hoặc số điện thoại."
+              }
+            />
           ) : (
             <>
-              <ul className="flex flex-col gap-2 lg:hidden">
+              <ul className="overflow-hidden rounded-card border border-border bg-surface divide-y divide-border lg:hidden">
                 {suppliers.map((supplier) => (
                   <li key={supplier.id}>
                     <Link
                       href={`/suppliers/${supplier.id}`}
-                      className="flex justify-between rounded-card border border-border bg-surface p-4"
+                      className="flex min-h-[64px] justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
                     >
                       <span>
                         <strong>{supplier.displayName}</strong>
@@ -104,7 +114,10 @@ export default function SuppliersPage() {
                           {supplier.isActive ? "Đang hoạt động" : "Đã ngưng"}
                         </td>
                         <td className="px-3 py-2">
-                          <Link href={`/suppliers/${supplier.id}`} className="text-info underline">
+                          <Link
+                            href={`/suppliers/${supplier.id}`}
+                            className="font-semibold text-info underline-offset-4 hover:underline"
+                          >
                             Mở chi tiết
                           </Link>
                         </td>
@@ -117,11 +130,14 @@ export default function SuppliersPage() {
           )
         }
       </QueryStates>
-      {next === null ? null : (
-        <Button tone="secondary" onClick={() => setCursor(next)} disabled={search.isFetching}>
-          {search.isFetching ? "Đang tải" : "Tải thêm"}
-        </Button>
-      )}
+      {next !== null ? (
+        <LoadMoreFooter
+          visibleCount={suppliers.length}
+          noun="nhà cung cấp"
+          loading={search.isFetching}
+          onLoadMore={() => setCursor(next)}
+        />
+      ) : null}
     </div>
   );
 }

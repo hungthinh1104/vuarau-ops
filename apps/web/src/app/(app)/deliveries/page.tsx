@@ -8,17 +8,12 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { pageStateForWorkspace, type WorkspacePageState } from "@/api/workspace-page-state.ts";
 import { formatInstant } from "@/ui/format.ts";
+import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
-import { Button } from "@/ui/primitives/button.tsx";
-
-const STATUS = {
-  draft: "Nháp",
-  cancelled: "Đã hủy",
-  dispatched: "Đang giao",
-  delivered: "Đã giao",
-} as const;
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 
 export default function DeliveriesPage() {
   const { workspaceId } = useSession();
@@ -53,7 +48,7 @@ export default function DeliveriesPage() {
   const next = visible.pages.at(-1)?.nextCursor ?? null;
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       <PageHeader
         title="Giao hàng"
         description="Các phiếu giao hiện có cùng trạng thái và hàng cần giao."
@@ -65,18 +60,23 @@ export default function DeliveriesPage() {
       >
         {() =>
           rows.length === 0 ? (
-            <p>Chưa có phiếu giao hàng.</p>
+            <EmptyState
+              title="Chưa có phiếu giao"
+              description="Phiếu giao sẽ xuất hiện khi đơn đã chốt được đưa sang bước giao hàng."
+            />
           ) : (
             <>
-              <ul className="grid gap-2 lg:hidden">
+              <ul className="overflow-hidden rounded-card border border-border bg-surface divide-y divide-border lg:hidden">
                 {rows.map((delivery) => (
                   <li key={delivery.id}>
                     <Link
                       href={`/deliveries/${delivery.id}`}
-                      className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-4"
+                      className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
                     >
                       <span>
-                        <strong>Phiếu {delivery.id.slice(0, 8)}</strong>
+                        <strong>
+                          {delivery.lines[0]?.productName ?? "Phiếu chưa có dòng hàng"}
+                        </strong>
                         <span className="block text-caption text-ink-muted">
                           {formatInstant(delivery.transactionTime)} · {delivery.lines.length} dòng
                         </span>
@@ -92,7 +92,7 @@ export default function DeliveriesPage() {
                                 : "neutral"
                         }
                       >
-                        {STATUS[delivery.status]}
+                        {DELIVERY_STATUS_COPY[delivery.status]}
                       </Badge>
                     </Link>
                   </li>
@@ -102,7 +102,7 @@ export default function DeliveriesPage() {
                 <table className="w-full text-left text-body-sm">
                   <thead className="sticky top-16 z-10 bg-surface-muted text-label">
                     <tr>
-                      <th className="px-3 py-2">Phiếu</th>
+                      <th className="px-3 py-2">Hàng giao</th>
                       <th className="px-3 py-2">Đơn bán</th>
                       <th className="px-3 py-2">Thời điểm</th>
                       <th className="px-3 py-2">Số dòng</th>
@@ -114,20 +114,27 @@ export default function DeliveriesPage() {
                     {rows.map((delivery) => (
                       <tr key={delivery.id} className="hover:bg-surface-muted">
                         <td className="px-3 py-2 font-medium">
-                          {delivery.id.slice(0, 8).toUpperCase()}
+                          {delivery.lines[0]?.productName ?? "Chưa có dòng hàng"}
+                          {delivery.lines.length > 1 ? ` · +${delivery.lines.length - 1}` : ""}
                         </td>
                         <td className="px-3 py-2">
-                          <Link href={`/sales/${delivery.saleId}`} className="text-info underline">
-                            {delivery.saleId.slice(0, 8).toUpperCase()}
+                          <Link
+                            href={`/sales/${delivery.saleId}`}
+                            className="font-semibold text-info underline-offset-4 hover:underline"
+                          >
+                            Mở đơn nguồn
                           </Link>
                         </td>
                         <td className="whitespace-nowrap px-3 py-2">
                           {formatInstant(delivery.transactionTime)}
                         </td>
                         <td className="px-3 py-2">{delivery.lines.length}</td>
-                        <td className="px-3 py-2">{STATUS[delivery.status]}</td>
+                        <td className="px-3 py-2">{DELIVERY_STATUS_COPY[delivery.status]}</td>
                         <td className="px-3 py-2">
-                          <Link href={`/deliveries/${delivery.id}`} className="text-info underline">
+                          <Link
+                            href={`/deliveries/${delivery.id}`}
+                            className="font-semibold text-info underline-offset-4 hover:underline"
+                          >
                             Mở phiếu
                           </Link>
                         </td>
@@ -140,15 +147,14 @@ export default function DeliveriesPage() {
           )
         }
       </QueryStates>
-      {next === null ? null : (
-        <Button
-          tone="secondary"
-          disabled={deliveries.isFetching}
-          onClick={() => setPageState({ ...visible, cursor: next })}
-        >
-          {deliveries.isFetching ? "Đang tải" : "Tải thêm"}
-        </Button>
-      )}
+      {next !== null ? (
+        <LoadMoreFooter
+          visibleCount={rows.length}
+          noun="phiếu giao"
+          loading={deliveries.isFetching}
+          onLoadMore={() => setPageState({ ...visible, cursor: next })}
+        />
+      ) : null}
     </div>
   );
 }

@@ -15,6 +15,18 @@ import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 
+const STATUS_COPY: Readonly<Record<SupplierPaymentDto["status"], string>> = {
+  recorded: "Đã ghi nhận",
+  partially_reversed: "Hoàn tác một phần",
+  reversed: "Đã hoàn tác hết",
+};
+
+const METHOD_COPY = {
+  cash: "Tiền mặt",
+  bank_transfer: "Chuyển khoản",
+  other: "Khác",
+} as const;
+
 export default function SupplierPaymentPage() {
   const paymentId = useParams<{ paymentId: string }>().paymentId as SupplierPaymentId;
   const { workspaceId, session } = useSession();
@@ -32,23 +44,23 @@ export default function SupplierPaymentPage() {
       onRetry={() => void payment.refetch()}
     >
       {(detail) => (
-        <div className="flex max-w-2xl flex-col gap-4">
+        <div className="flex max-w-2xl flex-col gap-6">
           <PageHeader
             title="Thanh toán nhà cung cấp"
             back={{ href: `/suppliers/${detail.supplierId}`, label: "Mở nhà cung cấp" }}
             status={
               <Badge tone={detail.status === "recorded" ? "positive" : "warning"}>
-                {detail.status}
+                {STATUS_COPY[detail.status]}
               </Badge>
             }
           />
           <dl className="grid grid-cols-2 gap-2 rounded-card border border-border bg-surface p-4">
             <dt>Số tiền</dt>
-            <dd className="text-right font-bold">{formatMoney(detail.amount)}</dd>
+            <dd className="tabular text-right font-bold">{formatMoney(detail.amount)}</dd>
             <dt>Đã hoàn tác</dt>
-            <dd className="text-right">{formatMoney(detail.reversedAmount)}</dd>
+            <dd className="tabular text-right">{formatMoney(detail.reversedAmount)}</dd>
             <dt>Phương thức</dt>
-            <dd className="text-right">{detail.method}</dd>
+            <dd className="text-right">{METHOD_COPY[detail.method]}</dd>
             <dt>Thời điểm giao dịch</dt>
             <dd className="text-right">{formatInstant(detail.transactionTime)}</dd>
             <dt>Ghi nhận</dt>
@@ -100,7 +112,7 @@ function ReversePayment(props: { payment: SupplierPaymentDto; onChanged: () => v
         />
       </label>
       <Button
-        tone="secondary"
+        tone="danger-solid"
         disabled={amountMinor <= 0 || amountMinor > remaining || reason.trim().length === 0}
         onClick={() =>
           void command.submit(

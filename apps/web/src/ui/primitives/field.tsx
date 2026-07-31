@@ -64,7 +64,7 @@ export function Field({ label, hint, error, required = false, children }: FieldP
 }
 
 export const INPUT_CLASS = [
-  "touch-target w-full rounded-input border bg-surface px-3 text-body text-ink",
+  "touch-target min-h-[52px] w-full rounded-input border bg-surface px-3 text-body text-ink sm:min-h-11",
   "border-border focus:border-leaf",
   "aria-[invalid=true]:border-danger",
   "disabled:bg-surface-muted disabled:text-ink-muted",

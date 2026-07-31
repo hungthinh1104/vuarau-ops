@@ -45,7 +45,11 @@ export function PageHeader({
 }
 
 export function PageActions({ children }: { readonly children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-2">{children}</div>;
+  return (
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+      {children}
+    </div>
+  );
 }
 
 export function Section({
@@ -53,19 +57,24 @@ export function Section({
   description,
   id,
   children,
+  contained = false,
 }: {
   readonly title: string;
   readonly description?: string;
   readonly id?: string;
   readonly children: ReactNode;
+  readonly contained?: boolean;
 }) {
   return (
-    <section id={id} className="rounded-card border border-border bg-surface p-4">
+    <section
+      id={id}
+      className={contained ? "rounded-card border border-border bg-surface p-4" : "grid gap-3"}
+    >
       <h2 className="text-subheading font-semibold">{title}</h2>
       {description === undefined ? null : (
         <p className="mt-1 text-body-sm text-ink-muted">{description}</p>
       )}
-      <div className="mt-3">{children}</div>
+      <div className={contained ? "mt-3" : undefined}>{children}</div>
     </section>
   );
 }
@@ -83,7 +92,7 @@ export function LinkButton({
     <Link
       href={href}
       className={[
-        "touch-target inline-flex items-center justify-center rounded-button border px-4",
+        "touch-target inline-flex min-h-[52px] flex-1 items-center justify-center rounded-button border px-4 sm:min-h-11 sm:flex-none",
         "text-label font-semibold transition-colors",
         secondary
           ? "border-border bg-surface text-ink hover:border-border-strong"

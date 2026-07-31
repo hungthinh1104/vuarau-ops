@@ -51,7 +51,7 @@ export function Button({
       {...(disabledReason !== undefined ? { title: disabledReason } : {})}
       aria-disabled={isDisabled}
       className={[
-        "touch-target inline-flex items-center justify-center gap-2 rounded-button px-4",
+        "touch-target inline-flex min-h-[52px] items-center justify-center gap-2 rounded-button px-4 sm:min-h-11",
         "text-label font-semibold transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-50",
         TONE_CLASS[tone],

@@ -16,9 +16,11 @@ import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useCommand } from "@/api/use-command.ts";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
+import { PURCHASE_STATUS_COPY } from "@/ui/copy.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PurchaseLinesSummary } from "@/ui/patterns/purchase/purchase-lines-summary.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
@@ -148,10 +150,10 @@ function PurchaseDetail(props: {
     }),
   );
   return (
-    <div className="flex max-w-4xl flex-col gap-5">
+    <div className="flex max-w-4xl flex-col gap-6">
       <PageHeader
-        title={`Đơn mua ${purchase.id.slice(0, 8).toUpperCase()}`}
-        description={`${formatInstant(purchase.transactionTime)}${
+        title="Đơn mua"
+        description={`Mã ${purchase.id.slice(0, 8).toUpperCase()} · ${formatInstant(purchase.transactionTime)}${
           purchase.recordedAt === purchase.transactionTime
             ? ""
             : ` · ghi ${formatInstant(purchase.recordedAt)}`
@@ -167,39 +169,24 @@ function PurchaseDetail(props: {
                   : "neutral"
             }
           >
-            {purchase.voidRecord !== null ? "Đã hoàn tác" : purchase.status}
+            {purchase.voidRecord !== null ? "Đã hoàn tác" : PURCHASE_STATUS_COPY[purchase.status]}
           </Badge>
         }
       />
-      <Link href={`/suppliers/${purchase.supplierId}`} className="text-info underline">
+      <Link
+        href={`/suppliers/${purchase.supplierId}`}
+        className="font-semibold text-info underline-offset-4 hover:underline"
+      >
         Mở nhà cung cấp
       </Link>
-      <section className="rounded-card border border-border bg-surface p-4">
-        <h2 className="text-subheading font-semibold">Hàng mua</h2>
-        <ul className="divide-y divide-border">
-          {purchase.lines.map((line) => (
-            <li key={line.lineId} className="grid gap-1 py-3 md:grid-cols-3">
-              <Link
-                href={`/products/${line.productId}`}
-                className="font-semibold text-info underline"
-              >
-                {line.productName}
-              </Link>
-              <span>
-                {formatQuantity(line.quantity)} × {formatMoney(line.unitPrice)}
-              </span>
-              <strong className="md:text-right">{formatMoney(line.lineTotal)}</strong>
-            </li>
-          ))}
-        </ul>
-        <p className="text-right text-subheading font-bold">
-          Tổng {formatMoney(purchase.totalAmount)}
-        </p>
-      </section>
+      <PurchaseLinesSummary purchase={purchase} />
       {purchase.replacesPurchaseId === null ? null : (
         <p>
           Thay thế{" "}
-          <Link href={`/purchases/${purchase.replacesPurchaseId}`} className="text-info underline">
+          <Link
+            href={`/purchases/${purchase.replacesPurchaseId}`}
+            className="font-semibold text-info underline-offset-4 hover:underline"
+          >
             đơn mua trước
           </Link>
           .
@@ -215,7 +202,7 @@ function PurchaseDetail(props: {
           {session.permissions.includes("purchase.create") ? (
             <Link
               href={`/purchases/new?replacesPurchaseId=${purchase.id}`}
-              className="text-info underline"
+              className="font-semibold text-info underline-offset-4 hover:underline"
             >
               Tạo đơn mua thay thế
             </Link>
@@ -265,10 +252,7 @@ function PurchaseDetail(props: {
         <section className="rounded-card border border-border bg-surface p-4">
           <h2 className="text-subheading font-semibold">Ghi nhận hàng về</h2>
           {purchase.lines.map((line) => (
-            <fieldset
-              key={line.lineId}
-              className="grid gap-2 rounded-card border border-border p-3"
-            >
+            <fieldset key={line.lineId} className="grid gap-2 border-t border-border py-3">
               <legend className="px-1 text-label font-semibold">
                 {line.productName} ({line.quantity.unit})
               </legend>
@@ -321,9 +305,9 @@ function PurchaseDetail(props: {
       <section className="flex flex-col gap-2">
         <h2 className="text-subheading font-semibold">Phiếu nhận hàng</h2>
         {props.receivingSummary.length === 0 ? null : (
-          <ul className="rounded-card border border-border bg-surface p-3">
+          <ul className="divide-y divide-border rounded-card border border-border bg-surface">
             {props.receivingSummary.map((line) => (
-              <li key={line.purchaseLineId}>
+              <li key={line.purchaseLineId} className="px-3 py-2">
                 <strong>{line.productName}</strong>: đặt {formatQuantity(line.ordered)} · đã nhận{" "}
                 {formatQuantity(line.received)} · còn lại {formatQuantity(line.remaining)}
               </li>
@@ -337,9 +321,12 @@ function PurchaseDetail(props: {
         ) : (
           <ul className="flex flex-col gap-2">
             {props.receipts.map((item) => (
-              <li key={item.id} className="rounded-card border border-border bg-surface p-3">
-                <Link href={`/receipts/${item.id}`} className="font-semibold text-info underline">
-                  Phiếu {item.id.slice(0, 8).toUpperCase()}
+              <li key={item.id} className="grid gap-2 border-t border-border py-3 first:border-t-0">
+                <Link
+                  href={`/receipts/${item.id}`}
+                  className="font-semibold text-info underline-offset-4 hover:underline"
+                >
+                  {formatInstant(item.transactionTime)}
                 </Link>
                 <p>{item.lines.map((line) => formatQuantity(line.quantity)).join(", ")}</p>
                 {item.reversal === null ? (

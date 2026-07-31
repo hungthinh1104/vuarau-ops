@@ -1,11 +1,22 @@
 "use client";
 
-import { ClipboardCheck, Ellipsis, House, ReceiptText, Users } from "lucide-react";
+import {
+  Ellipsis,
+  House,
+  PackageCheck,
+  ReceiptText,
+  Settings2,
+  ShoppingCart,
+  Truck,
+  Users,
+  WalletCards,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { activeNavigationHref, hasPermissionFor } from "./pilot-navigation.ts";
+import type { Permission, WorkspaceRole } from "@vuarau/domain-contracts";
 import { todayActionsFor } from "@/ui/patterns/today-actions.ts";
-import type { Permission } from "@vuarau/domain-contracts";
+import { activeNavigationHref, hasPermissionFor } from "./pilot-navigation.ts";
 
 const ITEMS = [
   { label: "Hôm nay", href: "/today", activeHref: "/today", icon: House },
@@ -13,27 +24,44 @@ const ITEMS = [
   { label: "Khách hàng", href: "/customers", activeHref: "/customers", icon: Users },
 ] as const;
 
-export function MobileNav({ permissions }: { readonly permissions: readonly Permission[] }) {
-  return <MobileNavView permissions={permissions} pathname={usePathname() ?? ""} />;
+const ROLE_WORK: Readonly<Record<WorkspaceRole, { label: string; icon: LucideIcon }>> = {
+  owner: { label: "Cảnh báo", icon: Settings2 },
+  accountant: { label: "Thanh toán", icon: WalletCards },
+  sales: { label: "Ghi đơn", icon: ShoppingCart },
+  warehouse: { label: "Nhận / Soạn", icon: PackageCheck },
+  delivery: { label: "Chuyến giao", icon: Truck },
+};
+
+export function MobileNav({
+  permissions,
+  role,
+}: {
+  readonly permissions: readonly Permission[];
+  readonly role: WorkspaceRole;
+}) {
+  return <MobileNavView permissions={permissions} role={role} pathname={usePathname() ?? ""} />;
 }
 
 export function MobileNavView({
   permissions,
+  role,
   pathname,
 }: {
   readonly permissions: readonly Permission[];
+  readonly role: WorkspaceRole;
   readonly pathname: string;
 }) {
   const activeHref = activeNavigationHref(pathname);
   const baseItems = ITEMS.filter((item) => hasPermissionFor(item.href, permissions));
-  const todayActions = todayActionsFor(permissions);
+  const todayActions = todayActionsFor(permissions, role);
   const hasWork = todayActions.some((action) => action.area === "work");
   const hasMore = todayActions.some((action) => action.area === "more");
+  const roleWork = ROLE_WORK[role];
   const workItem = {
-    label: "Công việc",
+    label: roleWork.label,
     href: "/today#work",
     activeHref: null,
-    icon: ClipboardCheck,
+    icon: roleWork.icon,
   } as const;
   const moreItem = {
     label: "Thêm",
@@ -45,7 +73,7 @@ export function MobileNavView({
     ...baseItems,
     ...(hasWork ? [workItem] : []),
     ...(hasMore ? [moreItem] : []),
-  ];
+  ].slice(0, 5);
 
   return (
     <nav
@@ -57,7 +85,7 @@ export function MobileNavView({
           const active = item.activeHref !== null && activeHref === item.activeHref;
           const Icon = item.icon;
           return (
-            <li key={item.label} className="flex-1">
+            <li key={`${item.label}:${item.href}`} className="flex-1">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}

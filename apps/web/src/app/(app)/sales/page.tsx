@@ -10,9 +10,10 @@ import { pageStateForWorkspace, type WorkspacePageState } from "@/api/workspace-
 import { formatInstant, formatMoney } from "@/ui/format.ts";
 import { PageActions, PageHeader, LinkButton } from "@/ui/patterns/layout/page-layout.tsx";
 import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
+import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
-import { Button } from "@/ui/primitives/button.tsx";
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 
 export default function SalesPage() {
   const { workspaceId, session } = useSession();
@@ -52,7 +53,7 @@ export default function SalesPage() {
   const next = visible.pages.at(-1)?.nextCursor ?? null;
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       <PageHeader
         title="Đơn hàng"
         description="Các đơn đã ghi trong vựa, gồm đơn nháp, đã chốt và đã hoàn tác."
@@ -64,7 +65,7 @@ export default function SalesPage() {
           ) : undefined
         }
       />
-      <div className="rounded-card border border-border bg-surface-muted/60 p-3">
+      <div className="border-y border-border py-4">
         <FilterChipGroup
           label="Lọc trạng thái đơn hàng"
           value={filter}
@@ -87,15 +88,18 @@ export default function SalesPage() {
       >
         {() =>
           rows.length === 0 ? (
-            <p>Chưa có đơn hàng.</p>
+            <EmptyState
+              title="Chưa có đơn hàng"
+              description="Ghi đơn đầu tiên để bắt đầu theo dõi bán hàng và công nợ."
+            />
           ) : (
             <>
-              <ul className="grid gap-2 lg:hidden">
+              <ul className="overflow-hidden rounded-card border border-border bg-surface divide-y divide-border lg:hidden">
                 {rows.map((sale) => (
                   <li key={sale.id}>
                     <Link
                       href={`/sales/${sale.id}`}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface p-4"
+                      className="flex min-h-[64px] flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
                     >
                       <span>
                         <strong>{sale.customerDisplayName}</strong>
@@ -176,7 +180,10 @@ export default function SalesPage() {
                           </Badge>
                         </td>
                         <td className="px-3 py-2">
-                          <Link href={`/sales/${sale.id}`} className="text-info underline">
+                          <Link
+                            href={`/sales/${sale.id}`}
+                            className="font-semibold text-info underline-offset-4 hover:underline"
+                          >
                             Mở chi tiết
                           </Link>
                         </td>
@@ -189,15 +196,14 @@ export default function SalesPage() {
           )
         }
       </QueryStates>
-      {next === null ? null : (
-        <Button
-          tone="secondary"
-          disabled={sales.isFetching}
-          onClick={() => setPageState({ ...visible, cursor: next })}
-        >
-          {sales.isFetching ? "Đang tải" : "Tải thêm"}
-        </Button>
-      )}
+      {next !== null ? (
+        <LoadMoreFooter
+          visibleCount={rows.length}
+          noun="đơn hàng"
+          loading={sales.isFetching}
+          onLoadMore={() => setPageState({ ...visible, cursor: next })}
+        />
+      ) : null}
     </div>
   );
 }

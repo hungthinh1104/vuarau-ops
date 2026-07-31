@@ -7,10 +7,12 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { formatDate, formatMoney } from "@/ui/format.ts";
+import { PURCHASE_STATUS_COPY } from "@/ui/copy.ts";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { LinkButton, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
-import { Button } from "@/ui/primitives/button.tsx";
+import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 
 export default function PurchasesPage() {
   const { workspaceId, session } = useSession();
@@ -33,14 +35,12 @@ export default function PurchasesPage() {
   const rows = pages.flatMap((page) => page.items);
   const next = pages.at(-1)?.nextCursor ?? null;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Đơn mua"
         actions={
           session.permissions.includes("purchase.create") ? (
-            <Link href="/purchases/new" className="text-info underline">
-              Tạo đơn mua
-            </Link>
+            <LinkButton href="/purchases/new">Tạo đơn mua</LinkButton>
           ) : null
         }
       />
@@ -51,15 +51,18 @@ export default function PurchasesPage() {
       >
         {() =>
           rows.length === 0 ? (
-            <p>Chưa có đơn mua.</p>
+            <EmptyState
+              title="Chưa có đơn mua"
+              description="Tạo đơn mua đầu tiên khi cần ghi hàng nhập từ nhà cung cấp."
+            />
           ) : (
             <>
-              <ul className="flex flex-col gap-2 lg:hidden">
+              <ul className="overflow-hidden rounded-card border border-border bg-surface divide-y divide-border lg:hidden">
                 {rows.map((purchase) => (
                   <li key={purchase.id}>
                     <Link
                       href={`/purchases/${purchase.id}`}
-                      className="flex justify-between rounded-card border border-border bg-surface p-4"
+                      className="flex min-h-[64px] justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
                     >
                       <span>
                         <strong>{formatMoney(purchase.totalAmount)}</strong>
@@ -76,7 +79,9 @@ export default function PurchasesPage() {
                               : "neutral"
                         }
                       >
-                        {purchase.voidRecord !== null ? "Đã hoàn tác" : purchase.status}
+                        {purchase.voidRecord !== null
+                          ? "Đã hoàn tác"
+                          : PURCHASE_STATUS_COPY[purchase.status]}
                       </Badge>
                     </Link>
                   </li>
@@ -87,7 +92,7 @@ export default function PurchasesPage() {
                   <thead className="sticky top-16 z-10 bg-surface-muted text-label">
                     <tr>
                       <th className="px-3 py-2">Ngày</th>
-                      <th className="px-3 py-2">Nhà cung cấp</th>
+                      <th className="px-3 py-2">Mặt hàng</th>
                       <th className="px-3 py-2">Số dòng</th>
                       <th className="px-3 py-2 text-right">Tổng mua</th>
                       <th className="px-3 py-2">Trạng thái</th>
@@ -99,17 +104,23 @@ export default function PurchasesPage() {
                       <tr key={purchase.id} className="hover:bg-surface-muted">
                         <td className="px-3 py-2">{formatDate(purchase.transactionTime)}</td>
                         <td className="px-3 py-2">
-                          {purchase.supplierId.slice(0, 8).toUpperCase()}
+                          {purchase.lines[0]?.productName ?? "Chưa có hàng"}
+                          {purchase.lines.length > 1 ? ` · +${purchase.lines.length - 1}` : ""}
                         </td>
                         <td className="px-3 py-2">{purchase.lines.length}</td>
                         <td className="px-3 py-2 text-right font-semibold">
                           {formatMoney(purchase.totalAmount)}
                         </td>
                         <td className="px-3 py-2">
-                          {purchase.voidRecord !== null ? "Đã hoàn tác" : purchase.status}
+                          {purchase.voidRecord !== null
+                            ? "Đã hoàn tác"
+                            : PURCHASE_STATUS_COPY[purchase.status]}
                         </td>
                         <td className="px-3 py-2">
-                          <Link href={`/purchases/${purchase.id}`} className="text-info underline">
+                          <Link
+                            href={`/purchases/${purchase.id}`}
+                            className="font-semibold text-info underline-offset-4 hover:underline"
+                          >
                             Mở chi tiết
                           </Link>
                         </td>
@@ -122,11 +133,14 @@ export default function PurchasesPage() {
           )
         }
       </QueryStates>
-      {next === null ? null : (
-        <Button tone="secondary" disabled={purchases.isFetching} onClick={() => setCursor(next)}>
-          {purchases.isFetching ? "Đang tải" : "Tải thêm"}
-        </Button>
-      )}
+      {next !== null ? (
+        <LoadMoreFooter
+          visibleCount={rows.length}
+          noun="đơn mua"
+          loading={purchases.isFetching}
+          onLoadMore={() => setCursor(next)}
+        />
+      ) : null}
     </div>
   );
 }

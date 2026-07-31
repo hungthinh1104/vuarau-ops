@@ -13,6 +13,7 @@ import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 
@@ -72,13 +73,25 @@ function ProductEditor(props: {
     if (update.result !== null || lifecycle.result !== null) props.onChanged();
   }, [lifecycle.result, props.onChanged, update.result]);
   return (
-    <div className="flex max-w-xl flex-col gap-4">
+    <div className="flex max-w-xl flex-col gap-6">
       <PageHeader
-        title="Mặt hàng"
-        description={`Mã ${props.product.id.slice(0, 8).toUpperCase()} · phiên bản ${props.product.version}`}
+        title={props.product.displayName}
+        description={
+          props.product.preferredUnit === null
+            ? "Chưa chọn đơn vị ưu tiên"
+            : `Đơn vị ưu tiên: ${UNIT_LABEL_VI[props.product.preferredUnit]}`
+        }
         back={{ href: "/products", label: "Danh mục mặt hàng" }}
+        status={
+          <Badge tone={props.product.isActive ? "positive" : "neutral"}>
+            {props.product.isActive ? "Đang dùng" : "Đã ngưng"}
+          </Badge>
+        }
       />
-      <Link href={`/products/${props.product.id}/inventory`} className="text-info underline">
+      <Link
+        href={`/products/${props.product.id}/inventory`}
+        className="font-semibold text-info underline-offset-4 hover:underline"
+      >
         Xem tồn kho và biến động vật lý
       </Link>
       <label className="text-label">
@@ -121,24 +134,26 @@ function ProductEditor(props: {
             )
           }
         >
-          Lưu thay đổi
+          Cập nhật mặt hàng
         </Button>
       ) : null}
       {props.mayDeactivate ? (
-        <Button
-          tone="secondary"
-          onClick={() =>
-            void lifecycle.submit(
-              {
-                productId: props.product.id,
-                reason: props.product.isActive ? "Ngưng sử dụng" : "Sử dụng lại",
-              },
-              { expectedVersion: props.product.version },
-            )
-          }
-        >
-          {props.product.isActive ? "Ngưng mặt hàng" : "Dùng lại mặt hàng"}
-        </Button>
+        <div className="border-t border-border pt-4">
+          <Button
+            tone={props.product.isActive ? "danger" : "secondary"}
+            onClick={() =>
+              void lifecycle.submit(
+                {
+                  productId: props.product.id,
+                  reason: props.product.isActive ? "Ngưng sử dụng" : "Sử dụng lại",
+                },
+                { expectedVersion: props.product.version },
+              )
+            }
+          >
+            {props.product.isActive ? "Ngưng mặt hàng" : "Dùng lại mặt hàng"}
+          </Button>
+        </div>
       ) : null}
       <CommandOutcome
         command={update}

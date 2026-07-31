@@ -101,7 +101,7 @@ export default function NewPaymentPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Ghi nhận thanh toán"
         back={{ href: `/customers/${customerId}`, label: "Khách hàng" }}
@@ -115,8 +115,13 @@ export default function NewPaymentPage() {
       >
         {(detail) => (
           <>
-            <section className="rounded-card border border-border bg-surface p-4">
-              <p className="text-body font-medium text-ink">{detail.customer.displayName}</p>
+            <section className="border-y border-border py-3">
+              <p className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
+                Khách hàng
+              </p>
+              <p className="mt-1 text-subheading font-semibold text-ink">
+                {detail.customer.displayName}
+              </p>
               {detail.customer.phone !== null ? (
                 <p className="text-caption text-ink-muted">{detail.customer.phone}</p>
               ) : null}
@@ -183,7 +188,7 @@ export default function NewPaymentPage() {
               onCancel={() => router.push(`/customers/${customerId}`)}
             />
 
-            <div className="sticky bottom-0 -mx-4 border-t border-border bg-surface px-4 py-3">
+            <div className="sticky bottom-16 -mx-4 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur lg:bottom-0">
               <Button
                 fullWidth
                 onClick={() => void submit()}

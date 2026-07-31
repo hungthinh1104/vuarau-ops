@@ -11,7 +11,7 @@ import { useCommand } from "@/api/use-command.ts";
 import { useWorkflowMetrics } from "@/api/workflow-metrics.ts";
 import { hasPermission } from "@/api/session.ts";
 import { useDebounced } from "@/api/use-debounced.ts";
-import { messageForCode } from "@/ui/copy.ts";
+import { DELIVERY_STATUS_COPY, messageForCode } from "@/ui/copy.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { CorrectionTimeline } from "@/ui/patterns/sale/correction-timeline.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -144,7 +144,7 @@ export default function SaleDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <QueryStates
         query={sale}
         loadingLabel="Đang tải đơn hàng"
@@ -153,22 +153,19 @@ export default function SaleDetailPage() {
       >
         {(detail) => (
           <>
-            <div className="flex flex-col gap-2">
-              <PageHeader
-                title="CHI TIẾT ĐƠN"
-                description={detail.displayReference}
-                back={{
-                  href: `/customers/${detail.sale.customerId}`,
-                  label: "Xem sổ công nợ khách hàng",
-                }}
-              />
-              <SaleStatus
-                status={detail.sale.status}
-                financialState={detail.sale.financialState}
-                dueState={detail.sale.dueState}
-                replacesSaleId={detail.sale.replacesSaleId}
-              />
-            </div>
+            <PageHeader
+              title={`Đơn của ${detail.customer.displayName}`}
+              description={`${detail.displayReference} · ${formatInstant(detail.sale.transactionTime)}`}
+              back={{ href: "/sales", label: "Đơn hàng" }}
+              status={
+                <SaleStatus
+                  status={detail.sale.status}
+                  financialState={detail.sale.financialState}
+                  dueState={detail.sale.dueState}
+                  replacesSaleId={detail.sale.replacesSaleId}
+                />
+              }
+            />
 
             <section className="rounded-card border border-border bg-surface p-4">
               <ul className="flex flex-col gap-2">
@@ -198,7 +195,7 @@ export default function SaleDetailPage() {
             </section>
 
             {detail.sale.note !== null ? (
-              <p className="rounded-card bg-surface-muted px-4 py-3 text-body-sm text-ink">
+              <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
                 {detail.sale.note}
               </p>
             ) : null}
@@ -214,14 +211,12 @@ export default function SaleDetailPage() {
               ) : null}
             </dl>
 
-            <section className="rounded-card border border-border bg-surface p-4 text-body-sm">
-              <p>
-                Khách hàng: <strong>{detail.customer.displayName}</strong>
-              </p>
-              <p>
-                Tên vựa: <strong>{detail.workspace.name}</strong>
-              </p>
-            </section>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-y border-border py-3 text-body-sm">
+              <dt className="text-ink-muted">Khách hàng</dt>
+              <dd className="text-right font-medium text-ink">{detail.customer.displayName}</dd>
+              <dt className="text-ink-muted">Vựa</dt>
+              <dd className="text-right font-medium text-ink">{detail.workspace.name}</dd>
+            </dl>
             {detail.accountEffect !== null ? (
               <section className="rounded-card border border-border bg-surface p-4">
                 <h2 className="text-subheading font-semibold">Ảnh hưởng công nợ</h2>
@@ -250,7 +245,10 @@ export default function SaleDetailPage() {
                     (line) =>
                       line.fulfilmentState !== "attention" && line.remaining.valueScaled > 0,
                   ) ? (
-                    <Link href={`/sales/${saleId}/deliveries/new`} className="text-info underline">
+                    <Link
+                      href={`/sales/${saleId}/deliveries/new`}
+                      className="font-semibold text-info underline-offset-4 hover:underline"
+                    >
                       Tạo phiếu giao
                     </Link>
                   ) : null}
@@ -282,9 +280,10 @@ export default function SaleDetailPage() {
                       <Link
                         key={delivery.id}
                         href={`/deliveries/${delivery.id}`}
-                        className="text-info underline"
+                        className="font-semibold text-info underline-offset-4 hover:underline"
                       >
-                        Phiếu {delivery.id.slice(0, 8).toUpperCase()} · {delivery.status}
+                        Phiếu {delivery.id.slice(0, 8).toUpperCase()} ·{" "}
+                        {DELIVERY_STATUS_COPY[delivery.status]}
                       </Link>
                     ))}
                   </div>
@@ -333,7 +332,7 @@ export default function SaleDetailPage() {
                 ) : (
                   <Link
                     href={`/sales/${detail.sale.replacesSaleId}`}
-                    className="mt-3 block text-info underline"
+                    className="mt-3 block font-semibold text-info underline-offset-4 hover:underline"
                   >
                     Xem đơn gốc trong chuỗi điều chỉnh
                   </Link>
@@ -355,19 +354,19 @@ export default function SaleDetailPage() {
                     }
                   />
                 ) : hasPermission(session, "sale.void") ? (
-                  <p className="rounded-card border border-border bg-surface-muted p-4 text-body-sm text-ink-muted">
+                  <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
                     {detail.sale.capabilities.void.reasonCode === undefined
                       ? "Đơn này không thể điều chỉnh."
                       : messageForCode(detail.sale.capabilities.void.reasonCode)}
                   </p>
                 ) : (
-                  <p className="rounded-card border border-border bg-surface-muted p-4 text-body-sm text-ink-muted">
+                  <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
                     Bạn không có quyền điều chỉnh đơn đã chốt.
                   </p>
                 )}
                 <CommandOutcome
                   command={voidCommand}
-                  attemptedAction="Void đơn đã chốt"
+                  attemptedAction="Hoàn tác đơn đã chốt"
                   onReload={() => void sale.refetch()}
                 />
               </section>

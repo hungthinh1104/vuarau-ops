@@ -45,7 +45,7 @@ describe("Goods Truth workspace navigation", () => {
     expect(screen.queryByRole("link", { name: "Nhà cung cấp" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Nhận hàng" })).not.toBeInTheDocument();
     const quickSaleLinks = screen.getAllByRole("link", { name: "Ghi đơn nhanh" });
-    expect(quickSaleLinks).toHaveLength(2);
+    expect(quickSaleLinks).toHaveLength(1);
     for (const link of quickSaleLinks) expect(link).toHaveAttribute("href", "/sales/new");
   });
 
@@ -80,12 +80,12 @@ describe("Goods Truth workspace navigation", () => {
     );
     expect(screen.getAllByRole("link", { name: "Hôm nay" })).toHaveLength(2);
     expect(screen.getByRole("navigation", { name: "Điều hướng di động" })).toBeInTheDocument();
-    for (const label of ["Hôm nay", "Đơn hàng", "Khách hàng", "Công việc", "Thêm"]) {
+    for (const label of ["Hôm nay", "Đơn hàng", "Khách hàng", "Ghi đơn", "Thêm"]) {
       expect(
         screen
           .getByRole("navigation", { name: "Điều hướng di động" })
           .querySelector(
-            `a[href="${label === "Hôm nay" ? "/today" : label === "Đơn hàng" ? "/sales" : label === "Khách hàng" ? "/customers" : label === "Công việc" ? "/today#work" : "/today#more"}"]`,
+            `a[href="${label === "Hôm nay" ? "/today" : label === "Đơn hàng" ? "/sales" : label === "Khách hàng" ? "/customers" : label === "Ghi đơn" ? "/today#work" : "/today#more"}"]`,
           ),
       ).not.toBeNull();
     }

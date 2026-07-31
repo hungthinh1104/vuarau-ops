@@ -1,6 +1,8 @@
 import type {
+  DeliveryStatus,
   DomainRejectionCode,
   PaymentStatus,
+  PurchaseStatus,
   SaleDueState,
   SaleStatus,
 } from "@vuarau/domain-contracts";
@@ -172,6 +174,19 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
 export function messageForCode(code: DomainRejectionCode, serverMessage?: string): string {
   return REJECTION_COPY[code] ?? serverMessage ?? "Không thực hiện được. Hãy thử lại.";
 }
+
+export const DELIVERY_STATUS_COPY: Readonly<Record<DeliveryStatus, string>> = {
+  draft: "Cần xuất hàng",
+  dispatched: "Đang giao",
+  delivered: "Đã giao",
+  cancelled: "Đã hủy",
+};
+
+export const PURCHASE_STATUS_COPY: Readonly<Record<PurchaseStatus, string>> = {
+  draft: "Nháp",
+  confirmed: "Đã xác nhận",
+  discarded: "Đã bỏ",
+};
 
 export const SALE_STATUS_COPY: Readonly<Record<SaleStatus, string>> = {
   draft: "Nháp",

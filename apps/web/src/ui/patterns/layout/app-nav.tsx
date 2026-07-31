@@ -51,49 +51,57 @@ export function AppNavView({
   return (
     <nav aria-label="Điều hướng chính" className="hidden w-64 shrink-0 py-6 lg:block">
       <div className="sticky top-20 grid gap-6">
-        {groups.map((group) => (
-          <section key={group.label} aria-labelledby={`nav-${group.label}`}>
-            <h2
-              id={`nav-${group.label}`}
-              className="mb-2 px-3 text-caption font-semibold uppercase tracking-[0.08em] text-ink-muted"
-            >
-              {group.label}
-            </h2>
-            <ul className="grid gap-1">
-              {group.items.map((item) => {
-                const active = navigationItemIsActive(pathname, item);
-                const Icon = ICONS[item.href] ?? House;
-                return (
-                  <li key={`${group.label}:${item.label}`}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={[
-                        "relative flex min-h-11 items-center gap-3 rounded-button px-3 text-body-sm font-medium transition-colors",
-                        active
-                          ? "bg-leaf-soft text-leaf"
-                          : "text-ink hover:bg-surface-muted hover:text-ink",
-                      ].join(" ")}
-                    >
-                      {active ? (
-                        <span
+        {groups.map((group) => {
+          const groupId = `nav-${group.label
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "")}`;
+          return (
+            <section key={group.label} aria-labelledby={groupId}>
+              <h2
+                id={groupId}
+                className="mb-2 px-3 text-caption font-semibold uppercase tracking-[0.08em] text-ink-muted"
+              >
+                {group.label}
+              </h2>
+              <ul className="grid gap-1">
+                {group.items.map((item) => {
+                  const active = navigationItemIsActive(pathname, item);
+                  const Icon = ICONS[item.href] ?? House;
+                  return (
+                    <li key={`${group.label}:${item.label}`}>
+                      <Link
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={[
+                          "relative flex min-h-11 items-center gap-3 rounded-button px-3 text-body-sm font-medium transition-colors",
+                          active
+                            ? "bg-leaf-soft text-leaf"
+                            : "text-ink hover:bg-surface-muted hover:text-ink",
+                        ].join(" ")}
+                      >
+                        {active ? (
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-leaf"
+                          />
+                        ) : null}
+                        <Icon
                           aria-hidden="true"
-                          className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-leaf"
+                          className="h-[18px] w-[18px] shrink-0"
+                          strokeWidth={1.8}
                         />
-                      ) : null}
-                      <Icon
-                        aria-hidden="true"
-                        className="h-[18px] w-[18px] shrink-0"
-                        strokeWidth={1.8}
-                      />
-                      <span>{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
+                        <span>{item.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
       </div>
     </nav>
   );

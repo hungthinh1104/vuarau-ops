@@ -1,4 +1,4 @@
-import type { Permission } from "@vuarau/domain-contracts";
+import type { Permission, WorkspaceRole } from "@vuarau/domain-contracts";
 
 export type TodayAction = {
   readonly label: string;
@@ -46,21 +46,39 @@ const ACTIONS: readonly TodayAction[] = [
   },
   {
     label: "Kiểm tra vận hành",
-    description: "Mở các kiểm tra integrity và khôi phục dành cho chủ vựa.",
+    description: "Kiểm tra dữ liệu vận hành và khôi phục khi cần.",
     href: "/workspace/operations",
     permission: "workspace.manage",
     area: "more",
   },
   {
     label: "Báo cáo",
-    description: "Đọc báo cáo dựng từ nguồn nghiệp vụ hiện có.",
+    description: "Xem số liệu và mở chứng từ tạo ra từng con số.",
     href: "/reports",
     permission: "report.read",
     area: "more",
   },
 ];
 
-export function todayActionsFor(permissions: readonly Permission[]): readonly TodayAction[] {
+const PRIMARY_BY_ROLE: Readonly<Record<WorkspaceRole, string>> = {
+  owner: "/workspace/operations",
+  accountant: "/customers",
+  sales: "/sales/new",
+  warehouse: "/purchases",
+  delivery: "/deliveries",
+};
+
+export function todayActionsFor(
+  permissions: readonly Permission[],
+  role?: WorkspaceRole,
+): readonly TodayAction[] {
   const allowed = new Set(permissions);
-  return ACTIONS.filter((action) => allowed.has(action.permission));
+  const available = ACTIONS.filter((action) => allowed.has(action.permission));
+  if (role === undefined) return available;
+  const primaryHref = PRIMARY_BY_ROLE[role];
+  return available.map((action) => {
+    if (action.href === primaryHref) return { ...action, area: "primary" };
+    if (action.area === "primary") return { ...action, area: "work" };
+    return action;
+  });
 }

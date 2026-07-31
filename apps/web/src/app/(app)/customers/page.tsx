@@ -14,6 +14,7 @@ import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { describeBalance } from "@/ui/format.ts";
 import { LinkButton, PageActions, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
+import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 
 /**
  * The first screen of every workflow: find the person.
@@ -60,7 +61,7 @@ export default function CustomersPage() {
   const nextCursor = pages.at(-1)?.nextCursor ?? null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Khách hàng"
         actions={
@@ -77,7 +78,7 @@ export default function CustomersPage() {
         }
       />
 
-      <div className="grid gap-3 rounded-card border border-border bg-surface-muted/60 p-3">
+      <div className="grid gap-3 border-y border-border py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <SearchInput
           label="Tìm khách hàng"
           placeholder="Tên hoặc số điện thoại"
@@ -115,7 +116,7 @@ export default function CustomersPage() {
             />
           ) : (
             <>
-              <ul className="flex flex-col gap-2 lg:hidden">
+              <ul className="overflow-hidden rounded-card border border-border bg-surface divide-y divide-border lg:hidden">
                 {items.map((customer) => (
                   <li key={customer.id}>
                     <CustomerRow customer={customer} />
@@ -149,7 +150,7 @@ export default function CustomersPage() {
                           <td className="px-3 py-2">
                             <Link
                               href={`/customers/${customer.id}`}
-                              className="text-info underline"
+                              className="font-semibold text-info underline-offset-4 hover:underline"
                             >
                               Mở hồ sơ
                             </Link>
@@ -166,26 +167,13 @@ export default function CustomersPage() {
       </QueryStates>
 
       {nextCursor !== null ? (
-        <div className="flex items-center gap-3">
-          <p className="text-caption text-ink-muted">Đang hiện {items.length} khách hàng.</p>
-          <button
-            type="button"
-            className="touch-target rounded-button border border-border px-3 text-label"
-            disabled={customers.isFetching}
-            onClick={() => setCursor(nextCursor)}
-          >
-            {customers.isFetching ? "Đang tải" : "Tải thêm"}
-          </button>
-          {customers.isError ? (
-            <button
-              type="button"
-              className="text-info underline"
-              onClick={() => customers.refetch()}
-            >
-              Thử lại
-            </button>
-          ) : null}
-        </div>
+        <LoadMoreFooter
+          visibleCount={items.length}
+          noun="khách hàng"
+          loading={customers.isFetching}
+          onLoadMore={() => setCursor(nextCursor)}
+          {...(customers.isError ? { onRetry: () => void customers.refetch() } : {})}
+        />
       ) : null}
     </div>
   );
@@ -197,7 +185,7 @@ function CustomerRow({ customer }: { customer: CustomerSummaryDto }) {
   return (
     <Link
       href={`/customers/${customer.id}`}
-      className="flex min-h-[64px] items-center justify-between gap-3 rounded-card border border-border bg-surface px-4 py-3 hover:border-border-strong"
+      className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
     >
       <span className="flex flex-col">
         <span className="text-body font-medium text-ink">{customer.displayName}</span>

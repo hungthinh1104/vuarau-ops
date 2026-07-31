@@ -24,6 +24,13 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 
+const RECONCILIATION_STATUS_COPY = {
+  consistent: "Đã đối chiếu",
+  inconsistent: "Có sai lệch",
+  not_found: "Chưa có sổ",
+  integrity_failure: "Dữ liệu cần kiểm tra",
+} as const;
+
 const sourceHref = (entry: SupplierAccountEntryDto): string | null => {
   if (entry.sourceDocument?.type === "purchase") return `/purchases/${entry.sourceDocument.id}`;
   if (entry.sourceDocument?.type === "supplier_payment")
@@ -74,10 +81,10 @@ export default function SupplierDetailPage() {
       onRetry={() => void supplier.refetch()}
     >
       {(record) => (
-        <div className="flex max-w-4xl flex-col gap-5">
+        <div className="flex max-w-4xl flex-col gap-6">
           <PageHeader
             title={record.displayName}
-            description={`${record.phone ?? "Không có số điện thoại"} · phiên bản ${record.version}`}
+            description={record.phone ?? "Không có số điện thoại"}
             back={{ href: "/suppliers", label: "Nhà cung cấp" }}
             status={
               <Badge tone={record.isActive ? "positive" : "neutral"}>
@@ -86,14 +93,20 @@ export default function SupplierDetailPage() {
             }
           />
           {record.note === null ? null : <p>{record.note}</p>}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             {session.permissions.includes("supplier.update") ? (
-              <Link href={`/suppliers/${record.id}/edit`} className="text-info underline">
+              <Link
+                href={`/suppliers/${record.id}/edit`}
+                className="touch-target inline-flex items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
+              >
                 Sửa hồ sơ
               </Link>
             ) : null}
             {session.permissions.includes("purchase.create") && record.isActive ? (
-              <Link href={`/purchases/new?supplierId=${record.id}`} className="text-info underline">
+              <Link
+                href={`/purchases/new?supplierId=${record.id}`}
+                className="touch-target inline-flex items-center justify-center rounded-button bg-leaf px-4 text-label font-semibold text-white hover:bg-leaf-hover"
+              >
                 Tạo đơn mua
               </Link>
             ) : null}
@@ -130,8 +143,8 @@ export default function SupplierDetailPage() {
                 onRetry={() => void reconciliation.refetch()}
               >
                 {(result) => (
-                  <p role="status">
-                    Đối chiếu: <strong>{result.status}</strong>
+                  <p role="status" className="text-body-sm">
+                    Đối chiếu: <strong>{RECONCILIATION_STATUS_COPY[result.status]}</strong>
                     {result.diagnostics.length === 0 ? "" : ` · ${result.diagnostics.join(", ")}`}
                   </p>
                 )}
@@ -147,14 +160,11 @@ export default function SupplierDetailPage() {
                     entries.length === 0 ? (
                       <p>Chưa có phát sinh.</p>
                     ) : (
-                      <ol className="flex flex-col gap-2">
+                      <ol className="divide-y divide-border rounded-card border border-border bg-surface">
                         {entries.map((entry) => {
                           const href = sourceHref(entry);
                           return (
-                            <li
-                              key={entry.id}
-                              className="rounded-card border border-border bg-surface p-3"
-                            >
+                            <li key={entry.id} className="px-4 py-3">
                               <div className="flex justify-between gap-3">
                                 <span>{entry.sourceType.replaceAll("_", " ")}</span>
                                 <strong>{formatSignedMoney(entry.amount)}</strong>
@@ -167,7 +177,10 @@ export default function SupplierDetailPage() {
                               </p>
                               {entry.reason === null ? null : <p>{entry.reason}</p>}
                               {href === null ? null : (
-                                <Link href={href} className="text-info underline">
+                                <Link
+                                  href={href}
+                                  className="font-semibold text-info underline-offset-4 hover:underline"
+                                >
                                   Mở chứng từ
                                 </Link>
                               )}

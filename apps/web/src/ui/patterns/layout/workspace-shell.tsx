@@ -2,17 +2,7 @@
 
 import type { SessionDto, WorkspaceRole } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
-import {
-  CloudAlert,
-  CloudCheck,
-  CloudUpload,
-  LogOut,
-  Settings2,
-  ShoppingCart,
-  Store,
-  SwitchCamera,
-} from "lucide-react";
-import Link from "next/link";
+import { CloudAlert, CloudCheck, CloudUpload, LogOut, Store, SwitchCamera } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useOffline } from "@/offline/provider.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -105,9 +95,6 @@ export function WorkspaceShellView({
   children,
   pathname,
 }: WorkspaceShellProps & { readonly pathname: string }) {
-  const isQuickSaleRoute =
-    pathname === "/sales/new" || /^\/customers\/[^/]+\/sales\/new$/.test(pathname);
-
   return (
     <div className="min-h-screen bg-canvas">
       <header className="sticky top-0 z-20 h-16 border-b border-border bg-surface/95 backdrop-blur">
@@ -163,33 +150,6 @@ export function WorkspaceShellView({
         </div>
       </header>
 
-      {!isQuickSaleRoute &&
-      (session.permissions.includes("sale.create") ||
-        session.permissions.includes("workspace.manage")) ? (
-        <div className="border-b border-border bg-surface px-4 py-2 lg:hidden">
-          <div className="mx-auto flex max-w-xl gap-2">
-            {session.permissions.includes("sale.create") ? (
-              <Link
-                href="/sales/new"
-                className="touch-target flex flex-1 items-center justify-center gap-2 rounded-button bg-leaf px-3 text-label font-semibold text-white"
-              >
-                <ShoppingCart aria-hidden="true" className="h-4 w-4" />
-                Ghi đơn nhanh
-              </Link>
-            ) : null}
-            {session.permissions.includes("workspace.manage") ? (
-              <Link
-                href="/workspace/operations"
-                className="touch-target flex flex-1 items-center justify-center gap-2 rounded-button border border-border bg-surface px-3 text-label font-semibold text-ink"
-              >
-                <Settings2 aria-hidden="true" className="h-4 w-4" />
-                Vận hành
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
       {notice !== undefined ? (
         <p className="border-b border-warning/30 bg-warning-soft px-4 py-2 text-center text-body-sm text-warning lg:px-8">
           {notice}
@@ -200,7 +160,7 @@ export function WorkspaceShellView({
         <AppNavView permissions={session.permissions} pathname={pathname} />
         <main className="min-w-0 flex-1 py-6 pb-24 lg:pb-10">{children}</main>
       </div>
-      <MobileNavView permissions={session.permissions} pathname={pathname} />
+      <MobileNavView permissions={session.permissions} role={session.role} pathname={pathname} />
     </div>
   );
 }

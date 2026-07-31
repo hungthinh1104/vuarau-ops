@@ -1,35 +1,28 @@
 import { render, screen } from "@testing-library/react";
-import type { Permission } from "@vuarau/domain-contracts";
-import { permissionsForRole } from "@vuarau/domain-contracts";
+import { permissionsForRole, type WorkspaceRole } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
 import { MobileNavView } from "./mobile-nav.tsx";
 
-function renderMobileNav(permissions: readonly Permission[]) {
-  render(<MobileNavView permissions={permissions} pathname="/today" />);
+function renderRole(role: WorkspaceRole) {
+  render(<MobileNavView permissions={permissionsForRole(role)} role={role} pathname="/today" />);
   return screen.getByRole("navigation", { name: "Điều hướng di động" });
 }
 
-describe("MobileNav Today section destinations", () => {
-  it("shows Công việc only when Today has at least one work action", () => {
-    const nav = renderMobileNav(["sale.read"]);
+describe("MobileNav role projection", () => {
+  it.each([
+    ["owner", "Cảnh báo"],
+    ["accountant", "Thanh toán"],
+    ["sales", "Ghi đơn"],
+    ["warehouse", "Nhận / Soạn"],
+    ["delivery", "Chuyến giao"],
+  ] as const)("uses the %s work label", (role, label) => {
+    const nav = renderRole(role);
+    expect(nav).toHaveTextContent(label);
     expect(nav.querySelector('a[href="/today#work"]')).toBeInTheDocument();
-    expect(nav.querySelector('a[href="/today#more"]')).not.toBeInTheDocument();
   });
 
-  it("shows Thêm only when Today has at least one more action", () => {
-    const nav = renderMobileNav(["report.read"]);
-    expect(nav.querySelector('a[href="/today#work"]')).not.toBeInTheDocument();
-    expect(nav.querySelector('a[href="/today#more"]')).toBeInTheDocument();
-  });
-
-  it("does not expose dead Today anchors with no matching actions", () => {
-    const nav = renderMobileNav([]);
-    expect(nav.querySelector('a[href="/today#work"]')).not.toBeInTheDocument();
-    expect(nav.querySelector('a[href="/today#more"]')).not.toBeInTheDocument();
-  });
-
-  it("keeps the owner projection at five destinations or fewer", () => {
-    const nav = renderMobileNav(permissionsForRole("owner"));
+  it("never renders more than five destinations", () => {
+    const nav = renderRole("owner");
     expect(nav.querySelectorAll("a").length).toBeLessThanOrEqual(5);
   });
 });

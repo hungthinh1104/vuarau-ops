@@ -120,7 +120,7 @@ export default function CustomerDetailPage() {
         onRetry={() => void customer.refetch()}
       >
         {(detail) => (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             <PageHeader
               title={detail.customer.displayName}
               back={{ href: "/customers", label: "Khách hàng" }}
@@ -143,20 +143,12 @@ export default function CustomerDetailPage() {
             />
 
             {detail.customer.note !== null ? (
-              <p className="rounded-card bg-surface-muted px-4 py-3 text-body-sm text-ink">
+              <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
                 {detail.customer.note}
               </p>
             ) : null}
 
-            <div className="flex flex-wrap gap-3">
-              {detail.capabilities.update.allowed ? (
-                <Link
-                  href={`/customers/${customerId}/edit`}
-                  className="touch-target inline-flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink"
-                >
-                  Sửa hồ sơ
-                </Link>
-              ) : null}
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
               <Link
                 href={`/customers/${customerId}/sales/new`}
                 className="touch-target inline-flex flex-1 items-center justify-center rounded-button bg-leaf px-4 text-label font-semibold text-white hover:bg-leaf-hover"
@@ -169,6 +161,14 @@ export default function CustomerDetailPage() {
               >
                 Ghi nhận thanh toán
               </Link>
+              {detail.capabilities.update.allowed ? (
+                <Link
+                  href={`/customers/${customerId}/edit`}
+                  className="touch-target inline-flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink"
+                >
+                  Sửa hồ sơ
+                </Link>
+              ) : null}
               {session.permissions.includes("debt.adjust") ? (
                 <Link
                   href={`/customers/${customerId}/account/adjust`}
@@ -185,36 +185,38 @@ export default function CustomerDetailPage() {
               </Link>
             </div>
 
-            {detail.capabilities.deactivate.allowed ? (
-              <button
-                type="button"
-                disabled={deactivateCommand.phase.kind === "sending"}
-                onClick={() =>
-                  void deactivateCommand.submit(
-                    { customerId, reason: "Ngưng dùng hồ sơ khách hàng" },
-                    { expectedVersion: detail.customer.version },
-                  )
-                }
-                className="touch-target rounded-button border border-danger px-4 text-label text-danger"
-              >
-                Ngưng khách hàng
-              </button>
-            ) : null}
-            {detail.capabilities.reactivate.allowed ? (
-              <button
-                type="button"
-                disabled={reactivateCommand.phase.kind === "sending"}
-                onClick={() =>
-                  void reactivateCommand.submit(
-                    { customerId, reason: "Khôi phục hồ sơ khách hàng" },
-                    { expectedVersion: detail.customer.version },
-                  )
-                }
-                className="touch-target rounded-button border border-border px-4 text-label"
-              >
-                Kích hoạt lại
-              </button>
-            ) : null}
+            <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+              {detail.capabilities.deactivate.allowed ? (
+                <button
+                  type="button"
+                  disabled={deactivateCommand.phase.kind === "sending"}
+                  onClick={() =>
+                    void deactivateCommand.submit(
+                      { customerId, reason: "Ngưng dùng hồ sơ khách hàng" },
+                      { expectedVersion: detail.customer.version },
+                    )
+                  }
+                  className="touch-target rounded-button border border-danger px-4 text-label text-danger"
+                >
+                  Ngưng khách hàng
+                </button>
+              ) : null}
+              {detail.capabilities.reactivate.allowed ? (
+                <button
+                  type="button"
+                  disabled={reactivateCommand.phase.kind === "sending"}
+                  onClick={() =>
+                    void reactivateCommand.submit(
+                      { customerId, reason: "Khôi phục hồ sơ khách hàng" },
+                      { expectedVersion: detail.customer.version },
+                    )
+                  }
+                  className="touch-target rounded-button border border-border px-4 text-label"
+                >
+                  Kích hoạt lại
+                </button>
+              ) : null}
+            </div>
             <CommandOutcome
               command={deactivateCommand}
               attemptedAction="Ngưng khách hàng"
@@ -279,7 +281,7 @@ export default function CustomerDetailPage() {
                       <button
                         type="button"
                         onClick={() => void timeline.refetch()}
-                        className="text-info underline"
+                        className="font-semibold text-info underline-offset-4 hover:underline"
                       >
                         Thử lại
                       </button>
@@ -292,14 +294,17 @@ export default function CustomerDetailPage() {
         </QueryStates>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-card border border-border p-4">
+      <section className="grid gap-6 md:grid-cols-2">
+        <div className="border-t border-border pt-4">
           <h2 className="text-subheading font-semibold">Đơn gần đây</h2>
           {sales.data?.items.length ? (
             <ul className="mt-2 flex flex-col gap-2 text-body-sm">
               {sales.data.items.map((sale) => (
                 <li key={sale.id}>
-                  <Link href={`/sales/${sale.id}`} className="text-info underline">
+                  <Link
+                    href={`/sales/${sale.id}`}
+                    className="font-semibold text-info underline-offset-4 hover:underline"
+                  >
                     {formatDate(sale.transactionTime)} · {formatMoney(sale.totalAmount)}
                   </Link>
                 </li>
@@ -309,13 +314,16 @@ export default function CustomerDetailPage() {
             <p className="mt-2 text-body-sm text-ink-muted">Chưa có đơn.</p>
           )}
         </div>
-        <div className="rounded-card border border-border p-4">
+        <div className="border-t border-border pt-4">
           <h2 className="text-subheading font-semibold">Thanh toán gần đây</h2>
           {payments.data?.items.length ? (
             <ul className="mt-2 flex flex-col gap-2 text-body-sm">
               {payments.data.items.map((payment) => (
                 <li key={payment.id}>
-                  <Link href={`/payments/${payment.id}`} className="text-info underline">
+                  <Link
+                    href={`/payments/${payment.id}`}
+                    className="font-semibold text-info underline-offset-4 hover:underline"
+                  >
                     {formatDate(payment.transactionTime)} · {formatMoney(payment.amount)}
                   </Link>
                 </li>

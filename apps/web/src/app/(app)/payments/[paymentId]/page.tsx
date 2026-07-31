@@ -52,7 +52,7 @@ export default function PaymentDetailPage() {
   >((envelope) => reverse.mutateAsync(envelope as never) as Promise<PaymentDto>);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <QueryStates
         query={payment}
         loadingLabel="Đang tải phiếu thu"
@@ -62,15 +62,15 @@ export default function PaymentDetailPage() {
         {(recorded) => (
           <>
             <PageHeader
-              title="Đã ghi nhận thanh toán"
-              description={recorded.customerDisplayName}
+              title={`Thanh toán · ${recorded.customerDisplayName}`}
+              description={formatInstant(recorded.transactionTime)}
               back={{
                 href: `/customers/${recorded.customerId}`,
                 label: "Xem sổ công nợ khách hàng",
               }}
             />
 
-            <section className="rounded-card border border-border bg-surface p-4">
+            <section className="border-y border-border py-4">
               <PaymentStatus
                 status={recorded.status}
                 amount={recorded.amount}

@@ -61,15 +61,12 @@ export default function OperationsPage() {
     return <p role="alert">Chỉ chủ vựa được mở khu vực vận hành.</p>;
   }
   return (
-    <div className="flex max-w-3xl flex-col gap-5">
-      <PageHeader
-        title="Vận hành và bảo toàn dữ liệu"
-        back={{ href: "/workspace", label: "Quản lý vựa" }}
-      />
+    <div className="flex max-w-3xl flex-col gap-6">
+      <PageHeader title="Vận hành hệ thống" back={{ href: "/workspace", label: "Quản lý vựa" }} />
       <section className="rounded-card border border-border bg-surface p-4">
         <h2 className="text-subheading font-semibold">Đồng bộ thiết bị</h2>
         <p>
-          {offline.queuedCount} lệnh đang chờ · {offline.blockedCount} lệnh cần xử lý
+          {offline.queuedCount} thay đổi đang chờ · {offline.blockedCount} thay đổi cần xử lý
         </p>
         <p className="text-caption text-ink-muted">
           Lần đồng bộ thành công: {offline.lastSuccessfulSync ?? "chưa có"}
@@ -95,8 +92,8 @@ export default function OperationsPage() {
               {result.healthyCustomers} tài khoản tốt · {result.anomalousCustomers} bất thường
             </p>
             <p className="text-caption text-ink-muted">
-              Projection drift {result.projectionDrift}; thiếu nguồn {result.missingSources}; trùng
-              nguồn {result.duplicateSources}.
+              Sai lệch số dư tổng hợp: {result.projectionDrift} · thiếu chứng từ nguồn:{" "}
+              {result.missingSources} · chứng từ nguồn bị lặp: {result.duplicateSources}.
             </p>
             <p className="text-caption text-ink-muted">
               Nhà cung cấp: {result.healthySuppliers} tốt, {result.anomalousSuppliers} bất thường ·
@@ -106,10 +103,10 @@ export default function OperationsPage() {
         )}
       </QueryStates>
       <section className="rounded-card border border-border bg-surface p-4">
-        <h2 className="text-subheading font-semibold">Bản sao lưu logic V2</h2>
+        <h2 className="text-subheading font-semibold">Sao lưu dữ liệu</h2>
         <p className="text-body-sm">
-          File JSON có checksum SHA-256, dữ liệu canonical và lịch sử command để giữ retry-safe.
-          Không chứa token, mật khẩu hay khoá Supabase.
+          Tạo file sao lưu để kiểm tra và phục hồi vựa khi cần. File không chứa mật khẩu hoặc khóa
+          truy cập.
         </p>
         <Button
           onClick={() => void exportCommand.submit({})}
@@ -123,7 +120,7 @@ export default function OperationsPage() {
           onReload={() => undefined}
         />
         <label className="mt-3 block text-label">
-          Kiểm tra file trước khi phục hồi
+          Chọn file sao lưu để kiểm tra
           <input
             type="file"
             accept="application/json"
@@ -136,7 +133,7 @@ export default function OperationsPage() {
                   const parsed = workspaceBackupSchema.safeParse(JSON.parse(text));
                   if (!parsed.success) {
                     setBackup(null);
-                    setFileError("File không đúng định dạng WorkspaceBackup V1 hoặc V2.");
+                    setFileError("File sao lưu không đúng định dạng.");
                     return;
                   }
                   setBackup(parsed.data);
@@ -152,12 +149,12 @@ export default function OperationsPage() {
         {validation.data ? (
           <p role="status">
             {validation.data.valid
-              ? "Checksum và workspace hợp lệ."
+              ? "File sao lưu hợp lệ và đúng vựa."
               : `Không hợp lệ: ${validation.data.diagnostics.join(", ")}`}
           </p>
         ) : null}
         {validation.data?.valid === true && backup !== null ? (
-          <div className="mt-3 flex flex-col gap-2 rounded-card border border-warning/40 p-3">
+          <div className="mt-3 flex flex-col gap-2 rounded-card border border-warning/40 bg-warning-soft p-3">
             <label className="text-label">
               Lý do phục hồi
               <input
@@ -181,9 +178,8 @@ export default function OperationsPage() {
           </div>
         ) : null}
         <p className="mt-3 text-caption text-ink-muted">
-          Phục hồi logic chỉ được phép vào target trống và không phải database disaster recovery. Hạ
-          tầng PITR/restore vật lý thuộc deployment provider; hệ thống không merge backup vào sổ
-          đang hoạt động.
+          Chỉ phục hồi vào vựa chưa có dữ liệu. Hệ thống không gộp file sao lưu vào sổ đang hoạt
+          động; việc khôi phục hạ tầng máy chủ được xử lý riêng.
         </p>
       </section>
     </div>

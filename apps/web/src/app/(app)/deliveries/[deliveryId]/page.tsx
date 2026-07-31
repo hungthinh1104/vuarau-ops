@@ -15,6 +15,7 @@ import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useCommand } from "@/api/use-command.ts";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
+import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
@@ -64,14 +65,14 @@ export default function DeliveryDetailPage() {
       onRetry={() => void query.refetch()}
     >
       {(delivery) => (
-        <div className="flex max-w-4xl flex-col gap-5">
+        <div className="flex max-w-4xl flex-col gap-6">
           <PageHeader
-            title={`Phiếu giao ${delivery.id.slice(0, 8).toUpperCase()}`}
-            description={formatInstant(delivery.transactionTime)}
+            title="Phiếu giao"
+            description={`${formatInstant(delivery.transactionTime)} · Mã ${delivery.id.slice(0, 8).toUpperCase()}`}
             back={{ href: `/sales/${delivery.saleId}`, label: "Mở đơn bán nguồn" }}
             status={
               <Badge tone={delivery.status === "delivered" ? "positive" : "neutral"}>
-                {delivery.status}
+                {DELIVERY_STATUS_COPY[delivery.status]}
               </Badge>
             }
           />
@@ -82,7 +83,7 @@ export default function DeliveryDetailPage() {
                 <li key={line.deliveryLineId} className="grid gap-2 py-3 md:grid-cols-4">
                   <Link
                     href={`/products/${line.productId}/inventory`}
-                    className="text-info underline"
+                    className="font-semibold text-info underline-offset-4 hover:underline"
                   >
                     {line.productName}
                   </Link>

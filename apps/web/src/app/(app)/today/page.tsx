@@ -33,7 +33,7 @@ const ACTION_ICONS: Readonly<Record<string, LucideIcon>> = {
 export default function TodayPage() {
   const { session, workspaceId } = useSession();
   const trpc = useTRPC();
-  const actions = todayActionsFor(session.permissions);
+  const actions = todayActionsFor(session.permissions, session.role);
   const primary = actions.filter((action) => action.area === "primary");
   const work = actions.filter((action) => action.area === "work");
   const more = actions.filter((action) => action.area === "more");
@@ -72,7 +72,7 @@ export default function TodayPage() {
   });
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-8">
       <PageHeader
         title="Hôm nay"
         description="Việc cần làm, lối vào nhanh và trạng thái vận hành của ca hiện tại."
@@ -109,7 +109,7 @@ export default function TodayPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 xl:grid-cols-3">
+          <div className="grid gap-6 xl:grid-cols-3">
             {mayReadDeliveries ? (
               <>
                 <WorkQueue
@@ -258,7 +258,7 @@ function WorkQueue(props: {
   items: readonly QueueItem[];
 }) {
   return (
-    <section className="rounded-card border border-border bg-surface p-4">
+    <section className="border-t border-border pt-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-subheading font-semibold">{props.title}</h3>
       </div>

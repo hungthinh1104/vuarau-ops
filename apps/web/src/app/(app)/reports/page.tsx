@@ -14,6 +14,16 @@ import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
+const REPORT_STATUS_COPY: Readonly<Record<string, string>> = {
+  canonical: "Nguồn chuẩn",
+  receivable: "Phải thu",
+  payable: "Phải trả",
+  negative: "Âm · cần kiểm tra",
+  zero: "Bằng 0",
+  positive: "Dương",
+  outstanding: "Chưa hoàn tất",
+};
+
 const TYPES: readonly { value: ReportType; label: string }[] = [
   { value: "customer_account_activity", label: "Biến động công nợ khách hàng" },
   { value: "customer_receivables", label: "Phải thu khách hàng" },
@@ -61,12 +71,12 @@ export default function ReportsPage() {
     return <p role="alert">Bạn không có quyền đọc báo cáo.</p>;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Báo cáo"
         description="Đọc số liệu vận hành từ dữ liệu nguồn và đi thẳng tới chứng từ tạo ra con số."
       />
-      <div className="grid gap-3 rounded-card border border-border bg-surface-muted/60 p-4 md:grid-cols-3 md:items-end">
+      <div className="grid gap-3 border-y border-border py-4 md:grid-cols-3 md:items-end">
         <Select
           label="Loại báo cáo"
           options={TYPES}
@@ -159,7 +169,7 @@ export default function ReportsPage() {
                   <tr>
                     <th className="p-3">Nguồn</th>
                     <th className="p-3">Thời điểm</th>
-                    <th className="p-3">Giá trị</th>
+                    <th className="p-3 text-right">Giá trị</th>
                     <th className="p-3">Trạng thái</th>
                   </tr>
                 </thead>
@@ -170,7 +180,10 @@ export default function ReportsPage() {
                         {row.documentHref === null ? (
                           row.label
                         ) : (
-                          <Link href={row.documentHref} className="text-info underline">
+                          <Link
+                            href={row.documentHref}
+                            className="font-semibold text-info underline-offset-4 hover:underline"
+                          >
                             {row.label}
                           </Link>
                         )}
@@ -178,14 +191,14 @@ export default function ReportsPage() {
                       <td className="p-3">
                         {row.transactionTime === null ? "—" : formatInstant(row.transactionTime)}
                       </td>
-                      <td className="p-3">
+                      <td className="tabular p-3 text-right">
                         {row.amount !== null
                           ? formatMoney(row.amount)
                           : row.quantity !== null
                             ? formatQuantity(row.quantity)
                             : "—"}
                       </td>
-                      <td className="p-3">{row.status}</td>
+                      <td className="p-3">{REPORT_STATUS_COPY[row.status] ?? row.status}</td>
                     </tr>
                   ))}
                 </tbody>

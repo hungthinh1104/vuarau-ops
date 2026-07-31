@@ -52,13 +52,13 @@ export default function QualityGradesPage() {
   }
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="flex max-w-3xl flex-col gap-6">
       <PageHeader
         title="Phân hạng chất lượng"
         description="Phân hạng thuộc từng lượng hàng. Đổi tên sau này không sửa lại chứng từ đã ghi."
       />
       {mayManage ? (
-        <section className="grid gap-3 rounded-card border border-border bg-surface p-4 sm:grid-cols-[1fr_10rem_auto]">
+        <section className="grid gap-3 border-y border-border py-4 sm:grid-cols-[1fr_10rem_auto]">
           <TextInput
             label="Tên phân hạng"
             placeholder="Ví dụ: Loại 1"
