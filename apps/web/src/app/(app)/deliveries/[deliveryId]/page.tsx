@@ -8,20 +8,17 @@ import type {
   DocumentDto,
   DocumentId,
 } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useCommand } from "@/api/use-command.ts";
-import { formatInstant, formatQuantity } from "@/ui/format.ts";
-import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
+import {
+  DeliveryReturnPanel,
+  type DeliveryReturnIntent,
+} from "@/ui/patterns/delivery/delivery-return-panel.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
-import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
-import { Badge } from "@/ui/primitives/badge.tsx";
-import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { DeliveryDetailView } from "@/ui/screens/delivery-detail-view.tsx";
 
 export default function DeliveryDetailPage() {
   const deliveryId = useParams<{ deliveryId: string }>().deliveryId as DeliveryId;
@@ -45,148 +42,57 @@ export default function DeliveryDetailPage() {
   const generated = useCommand<unknown, DocumentDto>((envelope) =>
     documentMutation.mutateAsync(envelope as never),
   );
-  const [returnId] = useState(() => crypto.randomUUID() as DeliveryReturnId);
-  const [documentId] = useState(() => crypto.randomUUID() as DocumentId);
-  const [returnReason, setReturnReason] = useState("");
-  const [returnQuantities, setReturnQuantities] = useState<Record<string, string>>({});
+  const returnId = useRef(crypto.randomUUID() as DeliveryReturnId);
+  const documentId = useRef(crypto.randomUUID() as DocumentId);
 
   useEffect(() => {
-    if (dispatch.result !== null || delivered.result !== null || returned.result !== null)
+    if (dispatch.result !== null || delivered.result !== null || returned.result !== null) {
       void query.refetch();
-  }, [delivered.result, dispatch.result, query, returned.result]);
+    }
+  }, [delivered.result, dispatch.result, query.refetch, returned.result]);
+
   useEffect(() => {
     if (generated.result !== null) router.push(`/documents/${generated.result.id}`);
   }, [generated.result, router]);
 
+  const dispatchLocked = dispatch.phase.kind === "sending" || dispatch.phase.kind === "unknown";
+  const completeLocked = delivered.phase.kind === "sending" || delivered.phase.kind === "unknown";
+  const documentLocked = generated.phase.kind === "sending" || generated.phase.kind === "unknown";
+
   return (
-    <QueryStates
+    <DeliveryDetailView
       query={query}
-      loadingLabel="Đang tải phiếu giao"
-      onRetry={() => void query.refetch()}
-    >
-      {(delivery) => (
-        <div className="flex max-w-4xl flex-col gap-6">
-          <PageHeader
-            title="Phiếu giao"
-            description={`${formatInstant(delivery.transactionTime)} · Mã ${delivery.id.slice(0, 8).toUpperCase()}`}
-            back={{ href: `/sales/${delivery.saleId}`, label: "Mở đơn bán nguồn" }}
-            status={
-              <Badge tone={delivery.status === "delivered" ? "positive" : "neutral"}>
-                {DELIVERY_STATUS_COPY[delivery.status]}
-              </Badge>
-            }
-          />
-          <section className="rounded-card border border-border bg-surface p-4">
-            <h2 className="font-semibold">Hàng giao</h2>
-            <ul className="divide-y divide-border">
-              {delivery.lines.map((line) => (
-                <li key={line.deliveryLineId} className="grid gap-2 py-3 md:grid-cols-4">
-                  <Link
-                    href={`/products/${line.productId}/inventory`}
-                    className="font-semibold text-info underline-offset-4 hover:underline"
-                  >
-                    {line.productName}
-                  </Link>
-                  <span>{line.qualityGradeName ?? "Chưa phân loại (lịch sử)"}</span>
-                  <span>Giao {formatQuantity(line.quantity)}</span>
-                  <span>Trả {formatQuantity(line.returnedQuantity)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-          <div className="flex flex-wrap gap-3">
-            {delivery.status === "draft" && session.permissions.includes("delivery.dispatch") ? (
-              <Button
-                disabled={dispatch.phase.kind === "sending"}
-                onClick={() =>
-                  void dispatch.submit({ deliveryId }, { expectedVersion: delivery.version })
-                }
-              >
-                Xuất hàng / Bắt đầu giao
-              </Button>
-            ) : null}
-            {delivery.status === "dispatched" &&
-            session.permissions.includes("delivery.complete") ? (
-              <Button
-                onClick={() =>
-                  void delivered.submit({ deliveryId }, { expectedVersion: delivery.version })
-                }
-              >
-                Đã giao khách
-              </Button>
-            ) : null}
-            {session.permissions.includes("document.generate") ? (
-              <Button
-                tone="secondary"
-                onClick={() =>
-                  void generated.submit({
-                    documentId,
-                    documentType: "delivery_note",
-                    sourceType: "delivery",
-                    sourceId: delivery.id,
-                  })
-                }
-              >
-                Tạo chứng từ giao hàng
-              </Button>
-            ) : null}
-          </div>
-          {["dispatched", "delivered"].includes(delivery.status) &&
-          session.permissions.includes("delivery.return") ? (
-            <section className="rounded-card border border-border bg-surface p-4">
-              <h2 className="font-semibold">Ghi nhận hàng trả</h2>
-              {delivery.lines.map((line) => (
-                <label key={line.deliveryLineId} className="grid gap-2 py-2">
-                  <span>{line.productName}</span>
-                  <input
-                    className={INPUT_CLASS}
-                    inputMode="decimal"
-                    aria-label={`Số lượng trả ${line.productName}`}
-                    value={returnQuantities[line.deliveryLineId] ?? ""}
-                    onChange={(event) =>
-                      setReturnQuantities((current) => ({
-                        ...current,
-                        [line.deliveryLineId]: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-              ))}
-              <label className="grid gap-2 py-2">
-                <span>Lý do</span>
-                <textarea
-                  className={INPUT_CLASS}
-                  value={returnReason}
-                  onChange={(event) => setReturnReason(event.target.value)}
-                />
-              </label>
-              <Button
-                onClick={() => {
-                  const lines = delivery.lines.flatMap((line) => {
-                    const valueScaled = Math.round(
-                      Number(returnQuantities[line.deliveryLineId] ?? "0") * 1000,
-                    );
-                    return valueScaled > 0 && Number.isSafeInteger(valueScaled)
-                      ? [
-                          {
-                            deliveryLineId: line.deliveryLineId,
-                            quantity: { valueScaled, unit: line.quantity.unit },
-                          },
-                        ]
-                      : [];
-                  });
-                  void returned.submit({
-                    returnId,
-                    deliveryId,
-                    lines,
-                    reason: returnReason,
-                  });
-                }}
-              >
-                Ghi hàng trả
-              </Button>
-            </section>
-          ) : null}
+      canDispatch={session.permissions.includes("delivery.dispatch")}
+      canComplete={session.permissions.includes("delivery.complete")}
+      canReturn={session.permissions.includes("delivery.return")}
+      canGenerateDocument={session.permissions.includes("document.generate")}
+      dispatchLocked={dispatchLocked}
+      completeLocked={completeLocked}
+      documentLocked={documentLocked}
+      onDispatch={(delivery) =>
+        void dispatch.submit({ deliveryId }, { expectedVersion: delivery.version })
+      }
+      onComplete={(delivery) =>
+        void delivered.submit({ deliveryId }, { expectedVersion: delivery.version })
+      }
+      onGenerateDocument={(delivery) =>
+        void generated.submit({
+          documentId: documentId.current,
+          documentType: "delivery_note",
+          sourceType: "delivery",
+          sourceId: delivery.id,
+        })
+      }
+      renderReturnPanel={(delivery) => (
+        <DeliveryReturnCommandPanel
+          delivery={delivery}
+          command={returned}
+          returnId={returnId}
+          onChanged={() => void query.refetch()}
+        />
+      )}
+      feedback={
+        <div className="grid gap-2">
           <CommandOutcome
             command={dispatch}
             attemptedAction="Xuất hàng / Bắt đầu giao"
@@ -198,17 +104,55 @@ export default function DeliveryDetailPage() {
             onReload={() => void query.refetch()}
           />
           <CommandOutcome
-            command={returned}
-            attemptedAction="Ghi hàng trả"
-            onReload={() => void query.refetch()}
-          />
-          <CommandOutcome
             command={generated}
             attemptedAction="Tạo chứng từ giao hàng"
             onReload={() => void query.refetch()}
           />
         </div>
-      )}
-    </QueryStates>
+      }
+      onRetry={() => void query.refetch()}
+    />
+  );
+}
+
+function DeliveryReturnCommandPanel(props: {
+  readonly delivery: DeliveryDto;
+  readonly command: ReturnType<typeof useCommand<unknown, DeliveryDto>>;
+  readonly returnId: { current: DeliveryReturnId };
+  readonly onChanged: () => void;
+}) {
+  const locked = props.command.phase.kind === "sending" || props.command.phase.kind === "unknown";
+
+  useEffect(() => {
+    if (props.command.result !== null) props.onChanged();
+  }, [props.command.result, props.onChanged]);
+
+  function submit(intent: DeliveryReturnIntent): void {
+    void props.command.submit({
+      returnId: props.returnId.current,
+      deliveryId: props.delivery.id,
+      lines: intent.lines,
+      reason: intent.reason,
+    });
+  }
+
+  return (
+    <DeliveryReturnPanel
+      lines={props.delivery.lines}
+      completed={props.command.result !== null}
+      locked={locked}
+      onSubmit={submit}
+      onStartAnother={() => {
+        props.returnId.current = crypto.randomUUID() as DeliveryReturnId;
+        props.command.reset();
+      }}
+      feedback={
+        <CommandOutcome
+          command={props.command}
+          attemptedAction="Ghi hàng trả"
+          onReload={props.onChanged}
+        />
+      }
+    />
   );
 }
