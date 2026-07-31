@@ -1,0 +1,313 @@
+"use client";
+
+import type {
+  DeliveryDto,
+  SaleDetailDto,
+  SaleDto,
+  SaleFulfilmentDto,
+} from "@vuarau/domain-contracts";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
+import { formatInstant, formatMoney, formatQuantity, formatRecordedGap } from "@/ui/format.ts";
+import { CorrectionTimeline } from "@/ui/patterns/sale/correction-timeline.tsx";
+import { SaleStatus } from "@/ui/patterns/sale/sale-status.tsx";
+import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+
+export type SaleDetailViewProps = {
+  readonly detail: SaleDetailDto;
+  readonly fulfilment?: SaleFulfilmentDto;
+  readonly deliveries?: readonly DeliveryDto[];
+  readonly replacedSale?: SaleDto;
+  readonly canCreateDelivery: boolean;
+  readonly canGenerateDocument: boolean;
+  readonly documentLocked: boolean;
+  readonly correctionSection?: ReactNode;
+  readonly recoverySection?: ReactNode;
+  readonly feedback?: ReactNode;
+  readonly onGenerateDocument: () => void;
+};
+
+export function SaleDetailView({
+  detail,
+  fulfilment,
+  deliveries = [],
+  replacedSale,
+  canCreateDelivery,
+  canGenerateDocument,
+  documentLocked,
+  correctionSection,
+  recoverySection,
+  feedback,
+  onGenerateDocument,
+}: SaleDetailViewProps) {
+  const { sale } = detail;
+  const mayCreateDelivery =
+    canCreateDelivery &&
+    sale.status === "posted" &&
+    fulfilment?.lines.some(
+      (line) => line.fulfilmentState !== "attention" && line.remaining.valueScaled > 0,
+    ) === true;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title={`Đơn của ${detail.customer.displayName}`}
+        description={`${detail.displayReference} · ${formatInstant(sale.transactionTime)}`}
+        back={{ href: "/sales", label: "Đơn hàng" }}
+        status={
+          <SaleStatus
+            status={sale.status}
+            financialState={sale.financialState}
+            dueState={sale.dueState}
+            replacesSaleId={sale.replacesSaleId}
+          />
+        }
+      />
+
+      <SaleMoneyTruth detail={detail} />
+
+      {fulfilment === undefined ? null : (
+        <SaleFulfilmentSection
+          sale={sale}
+          fulfilment={fulfilment}
+          deliveries={deliveries}
+          mayCreateDelivery={mayCreateDelivery}
+        />
+      )}
+
+      {sale.status === "posted" && canGenerateDocument ? (
+        <div>
+          <Button tone="secondary" disabled={documentLocked} onClick={onGenerateDocument}>
+            {documentLocked ? "Đang tạo phiếu bán hàng" : "Tạo phiếu bán hàng"}
+          </Button>
+        </div>
+      ) : null}
+
+      {sale.replacesSaleId !== null ||
+      detail.correction.voidRecord !== null ||
+      detail.correction.replacedBySaleId !== null ? (
+        <CorrectionLinks
+          detail={detail}
+          {...(replacedSale === undefined ? {} : { replacedSale })}
+        />
+      ) : null}
+
+      {correctionSection}
+      {recoverySection}
+      {feedback}
+    </div>
+  );
+}
+
+function SaleMoneyTruth({ detail }: { readonly detail: SaleDetailDto }) {
+  const { sale } = detail;
+  return (
+    <>
+      <section className="rounded-card border border-border bg-surface p-4">
+        <ul className="flex flex-col gap-2">
+          {sale.lines.map((line) => (
+            <li key={line.lineId} className="flex items-baseline justify-between gap-3">
+              <span className="text-body text-ink">
+                {line.productName}
+                {line.qualityGradeName === null ? null : (
+                  <span className="ml-1 text-caption text-ink-muted">
+                    · {line.qualityGradeName}
+                  </span>
+                )}
+                <span className="ml-2 text-caption text-ink-muted">
+                  {formatQuantity(line.quantity)} × {formatMoney(line.unitPrice)}
+                </span>
+              </span>
+              <span className="tabular text-body font-medium text-ink">
+                {formatMoney(line.lineTotal)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex items-baseline justify-between border-t border-border pt-3">
+          <span className="text-subheading font-semibold">Tổng đơn</span>
+          <span className="tabular text-heading font-bold" data-testid="posted-total">
+            {formatMoney(sale.totalAmount)}
+          </span>
+        </div>
+      </section>
+
+      {sale.note === null ? null : (
+        <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
+          {sale.note}
+        </p>
+      )}
+
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body-sm">
+        <dt className="text-ink-muted">Thời điểm bán</dt>
+        <dd className="text-right text-ink">{formatInstant(sale.transactionTime)}</dd>
+        {formatRecordedGap(sale.transactionTime, sale.recordedAt) === null ? null : (
+          <>
+            <dt className="text-ink-muted">Ghi vào sổ</dt>
+            <dd className="text-right text-ink">{formatInstant(sale.recordedAt)}</dd>
+          </>
+        )}
+      </dl>
+
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-y border-border py-3 text-body-sm">
+        <dt className="text-ink-muted">Khách hàng</dt>
+        <dd className="text-right font-medium text-ink">{detail.customer.displayName}</dd>
+        <dt className="text-ink-muted">Vựa</dt>
+        <dd className="text-right font-medium text-ink">{detail.workspace.name}</dd>
+      </dl>
+
+      {detail.accountEffect === null ? null : (
+        <section className="rounded-card border border-border bg-surface p-4">
+          <h2 className="text-subheading font-semibold">Ảnh hưởng công nợ</h2>
+          <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-2 text-body-sm">
+            <dt>Công nợ trước</dt>
+            <dd className="tabular">{formatMoney(detail.accountEffect.balanceBefore)}</dd>
+            <dt>Đơn này</dt>
+            <dd className="tabular">{formatMoney(detail.accountEffect.change)}</dd>
+            <dt className="font-semibold">Công nợ mới</dt>
+            <dd className="tabular font-semibold">
+              {formatMoney(detail.accountEffect.balanceAfter)}
+            </dd>
+            <dt>Phân loại sau giao dịch</dt>
+            <dd>{balanceClassificationCopy(detail.accountEffect.classificationAfter)}</dd>
+          </dl>
+        </section>
+      )}
+    </>
+  );
+}
+
+function SaleFulfilmentSection(props: {
+  readonly sale: SaleDto;
+  readonly fulfilment: SaleFulfilmentDto;
+  readonly deliveries: readonly DeliveryDto[];
+  readonly mayCreateDelivery: boolean;
+}) {
+  return (
+    <section className="rounded-card border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-subheading font-semibold">Thực hiện giao hàng</h2>
+          <p className="text-body-sm text-ink-muted">
+            Giao hàng là Goods Truth riêng. Chốt đơn đã ghi công nợ; xuất hàng mới làm giảm tồn kho.
+          </p>
+        </div>
+        {props.mayCreateDelivery ? (
+          <Link
+            href={`/sales/${props.sale.id}/deliveries/new`}
+            className="font-semibold text-info underline-offset-4 hover:underline"
+          >
+            Tạo phiếu giao
+          </Link>
+        ) : null}
+      </div>
+
+      <ul className="mt-3 divide-y divide-border">
+        {props.fulfilment.lines.map((line) => (
+          <li
+            key={line.saleLineId}
+            className="grid gap-2 py-3 lg:grid-cols-[minmax(12rem,2fr)_repeat(5,1fr)_minmax(9rem,1.2fr)]"
+          >
+            <strong>
+              {line.productName} · {line.qualityGradeName ?? "Chưa phân loại"}
+            </strong>
+            <span>Đặt {formatQuantity(line.ordered)}</span>
+            <span>Đã xuất {formatQuantity(line.dispatched)}</span>
+            <span>Đã trả {formatQuantity(line.returned)}</span>
+            <span>Thực giao {formatQuantity(line.netFulfilled)}</span>
+            <span className="font-semibold">Còn {formatQuantity(line.remaining)}</span>
+            <FulfilmentState state={line.fulfilmentState} blockedReason={line.blockedReason} />
+          </li>
+        ))}
+      </ul>
+
+      {props.deliveries.length === 0 ? null : (
+        <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-3">
+          {props.deliveries.map((delivery) => (
+            <Link
+              key={delivery.id}
+              href={`/deliveries/${delivery.id}`}
+              className="font-semibold text-info underline-offset-4 hover:underline"
+            >
+              Phiếu {delivery.id.slice(0, 8).toUpperCase()} ·{" "}
+              {DELIVERY_STATUS_COPY[delivery.status]}
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FulfilmentState(props: {
+  readonly state: SaleFulfilmentDto["lines"][number]["fulfilmentState"];
+  readonly blockedReason: string | null;
+}) {
+  if (props.state === "attention") {
+    return (
+      <span className="text-warning">
+        Cần xử lý: {props.blockedReason ?? "dữ liệu không toàn vẹn"}
+      </span>
+    );
+  }
+  const copy = {
+    unfulfilled: "Chưa giao",
+    partially_fulfilled: "Giao một phần",
+    fulfilled: "Đã giao đủ",
+    returned_partial: "Có hàng trả lại",
+  } as const;
+  const tone =
+    props.state === "fulfilled"
+      ? "positive"
+      : props.state === "unfulfilled"
+        ? "neutral"
+        : "warning";
+  return <Badge tone={tone}>{copy[props.state]}</Badge>;
+}
+
+function CorrectionLinks(props: {
+  readonly detail: SaleDetailDto;
+  readonly replacedSale?: SaleDto;
+}) {
+  const sale = props.detail.sale;
+  return (
+    <section className="rounded-card border border-border bg-surface p-4 text-body-sm">
+      <h2 className="text-subheading font-semibold">Liên kết điều chỉnh</h2>
+      {sale.replacesSaleId === null || props.replacedSale !== undefined ? (
+        <CorrectionTimeline
+          sale={sale}
+          replacedBySaleId={props.detail.correction.replacedBySaleId}
+          currentLabel={props.detail.displayReference}
+          {...(props.replacedSale === undefined ? {} : { replacedSale: props.replacedSale })}
+        />
+      ) : (
+        <Link
+          href={`/sales/${sale.replacesSaleId}`}
+          className="mt-3 block font-semibold text-info underline-offset-4 hover:underline"
+        >
+          Xem đơn gốc trong chuỗi điều chỉnh
+        </Link>
+      )}
+    </section>
+  );
+}
+
+function balanceClassificationCopy(
+  value: SaleDetailDto["accountEffect"] extends infer T
+    ? NonNullable<T> extends { classificationAfter: infer C }
+      ? C
+      : never
+    : never,
+): string {
+  switch (value) {
+    case "receivable":
+      return "Khách còn nợ";
+    case "settled":
+      return "Đã cân công nợ";
+    case "customer_credit":
+      return "Khách đang có tiền dư";
+  }
+}
