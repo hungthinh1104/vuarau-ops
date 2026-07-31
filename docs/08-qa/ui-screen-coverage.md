@@ -18,7 +18,7 @@ lower-level state catalog.
 - [ ] Sale detail / fulfilment consequences — `apps/web/src/ui/screens/sale-detail-view.stories.tsx`
 - [ ] Customer detail / debt operations — `apps/web/src/ui/screens/customer-detail-view.stories.tsx`
 - [ ] Purchase detail / Receiving — `apps/web/src/ui/screens/purchase-detail-view.stories.tsx`
-- [ ] Product inventory / movement history — `apps/web/src/ui/screens/product-inventory-view.stories.tsx`
+- [x] Product inventory / movement history — `apps/web/src/ui/screens/product-inventory-view.stories.tsx`
 - [ ] Delivery detail / dispatch-return lifecycle — `apps/web/src/ui/screens/delivery-detail-view.stories.tsx`
 - [ ] Reports / source navigation — `apps/web/src/ui/screens/reports-view.stories.tsx`
 - [ ] Workspace operations / integrity-recovery — `apps/web/src/ui/screens/operations-view.stories.tsx`

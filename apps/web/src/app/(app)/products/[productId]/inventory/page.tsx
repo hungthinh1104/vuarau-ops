@@ -10,30 +10,21 @@ import type {
   QualityGradeId,
   Unit,
 } from "@vuarau/domain-contracts";
-import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useCommand } from "@/api/use-command.ts";
-import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
-import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
-import { Badge } from "@/ui/primitives/badge.tsx";
-import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
-import { Select } from "@/ui/primitives/select.tsx";
-
-const movementHref = (movement: InventoryMovementDto) =>
-  movement.sourceDocument?.type === "receipt"
-    ? `/receipts/${movement.sourceDocument.id}`
-    : movement.sourceDocument?.type === "inventory_adjustment"
-      ? `/inventory-adjustments/${movement.sourceDocument.id}`
-      : null;
-
-const gradeLabel = (gradeName: string | null) => gradeName ?? "Chưa phân loại (lịch sử)";
+import {
+  InventoryAdjustmentPanel,
+  type InventoryAdjustmentIntent,
+} from "@/ui/patterns/inventory/inventory-adjustment-panel.tsx";
+import {
+  InventoryReclassificationPanel,
+  type InventoryReclassificationIntent,
+} from "@/ui/patterns/inventory/inventory-reclassification-panel.tsx";
+import { ProductInventoryView } from "@/ui/screens/product-inventory-view.tsx";
 
 export default function ProductInventoryPage() {
   const productId = useParams<{ productId: string }>().productId as ProductId;
@@ -63,387 +54,164 @@ export default function ProductInventoryPage() {
       limit: 25,
     }),
   );
+
   useEffect(() => {
     if (timeline.data === undefined) return;
     setPages((current) => (cursor === null ? [timeline.data] : [...current, timeline.data]));
   }, [cursor, timeline.data]);
+
+  const refreshInventory = useCallback(() => {
+    setCursor(null);
+    setPages([]);
+    void Promise.all([balances.refetch(), timeline.refetch()]);
+  }, [balances.refetch, timeline.refetch]);
+
+  const activeGrades = grades.data?.items ?? [];
   const rows = pages.flatMap((page) => page.items);
   const next = pages.at(-1)?.nextCursor ?? null;
+
   return (
-    <div className="flex max-w-4xl flex-col gap-5">
-      <QueryStates
-        query={product}
-        loadingLabel="Đang tải mặt hàng"
-        onRetry={() => void product.refetch()}
-      >
-        {(detail) => (
-          <PageHeader
-            title="Tồn kho"
-            description={detail.displayName}
-            back={{ href: `/products/${productId}`, label: "Mặt hàng" }}
+    <ProductInventoryView
+      productId={productId}
+      productQuery={product}
+      balancesQuery={balances}
+      timelineQuery={timeline}
+      balances={balances.data ?? []}
+      grades={activeGrades}
+      movements={rows}
+      gradeFilter={gradeFilter}
+      unitFilter={unitFilter}
+      hasMore={next !== null}
+      onGradeFilterChange={(value) => {
+        setGradeFilter(value);
+        setCursor(null);
+        setPages([]);
+      }}
+      onUnitFilterChange={(value) => {
+        setUnitFilter(value);
+        setCursor(null);
+        setPages([]);
+      }}
+      onLoadMore={() => {
+        if (next !== null) setCursor(next);
+      }}
+      onRetryProduct={() => void product.refetch()}
+      onRetryBalances={() => void balances.refetch()}
+      onRetryTimeline={() => void timeline.refetch()}
+      adjustment={
+        session.permissions.includes("inventory.adjust") ? (
+          <InventoryAdjustmentCommandPanel
+            productId={productId}
+            grades={activeGrades}
+            onChanged={refreshInventory}
           />
-        )}
-      </QueryStates>
-      <QueryStates
-        query={balances}
-        loadingLabel="Đang tải số lượng"
-        onRetry={() => void balances.refetch()}
-      >
-        {(items) =>
-          items.length === 0 ? (
-            <p>Chưa có biến động vật lý.</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((balance) => (
-                <section
-                  key={`${balance.qualityGradeId ?? "legacy"}:${balance.unit}`}
-                  className="rounded-card border border-border bg-surface p-4"
-                >
-                  <p className="text-label text-ink-muted">
-                    {gradeLabel(balance.qualityGradeName)}
-                  </p>
-                  <p className="text-heading font-bold">
-                    {formatQuantity({ valueScaled: balance.quantityScaled, unit: balance.unit })}
-                  </p>
-                  <Badge
-                    tone={
-                      balance.classification === "negative"
-                        ? "warning"
-                        : balance.classification === "positive"
-                          ? "positive"
-                          : "neutral"
-                    }
-                  >
-                    {balance.classification}
-                  </Badge>
-                </section>
-              ))}
-            </div>
-          )
-        }
-      </QueryStates>
-      <Select
-        label="Lọc theo phẩm cấp"
-        value={gradeFilter === undefined ? "" : (gradeFilter ?? "legacy")}
-        onChange={(event) => {
-          setGradeFilter(
-            event.target.value === ""
-              ? undefined
-              : event.target.value === "legacy"
-                ? null
-                : (event.target.value as QualityGradeId),
-          );
-          setCursor(null);
-          setPages([]);
-        }}
-        placeholder="Tất cả phẩm cấp, không cộng gộp"
-        options={[
-          ...(balances.data?.some((row) => row.qualityGradeId === null)
-            ? [{ value: "legacy", label: "Chưa phân loại (lịch sử)" }]
-            : []),
-          ...(grades.data?.items.map((grade) => ({ value: grade.id, label: grade.name })) ?? []),
-        ]}
-      />
-      <Select
-        label="Lọc theo đơn vị"
-        value={unitFilter ?? ""}
-        onChange={(event) => {
-          setUnitFilter(event.target.value === "" ? null : (event.target.value as Unit));
-          setCursor(null);
-          setPages([]);
-        }}
-        placeholder="Tất cả đơn vị, không cộng gộp"
-        options={UNITS.map((unit) => ({ value: unit, label: UNIT_LABEL_VI[unit] }))}
-      />
-      <QueryStates
-        query={timeline}
-        loadingLabel="Đang tải biến động kho"
-        onRetry={() => void timeline.refetch()}
-      >
-        {() =>
-          rows.length === 0 ? (
-            <p>Không có biến động phù hợp.</p>
-          ) : (
-            <ol className="flex flex-col gap-2">
-              {rows.map((movement) => {
-                const href = movementHref(movement);
-                return (
-                  <li
-                    key={movement.id}
-                    className="rounded-card border border-border bg-surface p-3"
-                  >
-                    <div className="flex justify-between">
-                      <span>
-                        {movement.sourceType.replaceAll("_", " ")} ·{" "}
-                        {gradeLabel(movement.qualityGradeName)}
-                      </span>
-                      <strong>{formatQuantity(movement.quantity)}</strong>
-                    </div>
-                    <p className="text-caption text-ink-muted">
-                      {formatInstant(movement.transactionTime)}
-                    </p>
-                    {movement.reason === null ? null : <p>{movement.reason}</p>}
-                    {href === null ? null : (
-                      <Link href={href} className="text-info underline">
-                        Mở nguồn
-                      </Link>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          )
-        }
-      </QueryStates>
-      {next === null ? null : (
-        <Button tone="secondary" disabled={timeline.isFetching} onClick={() => setCursor(next)}>
-          {timeline.isFetching ? "Đang tải" : "Tải thêm"}
-        </Button>
-      )}
-      {session.permissions.includes("inventory.adjust") ? (
-        <InventoryAdjustment
-          productId={productId}
-          grades={grades.data?.items ?? []}
-          onChanged={() => {
-            setCursor(null);
-            setPages([]);
-            void Promise.all([balances.refetch(), timeline.refetch()]);
-          }}
-        />
-      ) : null}
-      {session.permissions.includes("inventory.reclassify") ? (
-        <InventoryReclassification
-          productId={productId}
-          grades={grades.data?.items ?? []}
-          onChanged={() => {
-            setCursor(null);
-            setPages([]);
-            void Promise.all([balances.refetch(), timeline.refetch()]);
-          }}
-        />
-      ) : null}
-    </div>
+        ) : undefined
+      }
+      reclassification={
+        session.permissions.includes("inventory.reclassify") ? (
+          <InventoryReclassificationCommandPanel
+            productId={productId}
+            grades={activeGrades}
+            onChanged={refreshInventory}
+          />
+        ) : undefined
+      }
+    />
   );
 }
 
-function InventoryAdjustment(props: {
-  productId: ProductId;
-  grades: readonly QualityGradeDto[];
-  onChanged: () => void;
+function InventoryAdjustmentCommandPanel(props: {
+  readonly productId: ProductId;
+  readonly grades: readonly QualityGradeDto[];
+  readonly onChanged: () => void;
 }) {
   const trpc = useTRPC();
-  const adjustmentId = useRef(crypto.randomUUID()).current;
-  const [direction, setDirection] = useState<"increase" | "decrease">("increase");
-  const [quantity, setQuantity] = useState("");
-  const [unit, setUnit] = useState<Unit>("kg");
-  const [qualityGradeId, setQualityGradeId] = useState<QualityGradeId | null>(null);
-  const [reasonCode, setReasonCode] = useState<
-    "opening_balance" | "count_correction" | "spoilage" | "shrinkage" | "other"
-  >("count_correction");
-  const [reason, setReason] = useState("");
+  const adjustmentId = useRef(crypto.randomUUID());
   const mutation = useMutation(trpc.inventory.adjust.mutationOptions());
   const command = useCommand<unknown, { adjustmentId: string }>((envelope) =>
     mutation.mutateAsync(envelope as never),
   );
-  const refreshedAdjustmentId = useRef<string | null>(null);
+  const refreshed = useRef<string | null>(null);
+
   useEffect(() => {
-    if (command.result === null || refreshedAdjustmentId.current === command.result.adjustmentId)
-      return;
-    refreshedAdjustmentId.current = command.result.adjustmentId;
+    if (command.result === null || refreshed.current === command.result.adjustmentId) return;
+    refreshed.current = command.result.adjustmentId;
     props.onChanged();
   }, [command.result, props.onChanged]);
-  const quantityScaled = Math.round(Number(quantity) * 1000);
+
+  function submit(intent: InventoryAdjustmentIntent): void {
+    void command.submit({
+      adjustmentId: adjustmentId.current,
+      productId: props.productId,
+      ...intent,
+    });
+  }
+
   return (
-    <section className="rounded-card border border-border bg-surface p-4">
-      <h2 className="text-subheading font-semibold">Điều chỉnh tồn kho</h2>
-      <div className="grid gap-3 md:grid-cols-3">
-        <Select
-          label="Hướng"
-          value={direction}
-          onChange={(event) => setDirection(event.target.value as typeof direction)}
-          options={[
-            { value: "increase", label: "Tăng" },
-            { value: "decrease", label: "Giảm" },
-          ]}
+    <InventoryAdjustmentPanel
+      grades={props.grades}
+      completed={command.result !== null}
+      locked={command.phase.kind === "sending" || command.phase.kind === "unknown"}
+      onSubmit={submit}
+      onStartAnother={() => {
+        adjustmentId.current = crypto.randomUUID();
+        command.reset();
+      }}
+      feedback={
+        <CommandOutcome
+          command={command}
+          attemptedAction="Điều chỉnh tồn kho"
+          onReload={props.onChanged}
         />
-        <label className="text-label">
-          Số lượng
-          <input
-            className={INPUT_CLASS}
-            inputMode="decimal"
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-          />
-        </label>
-        <Select
-          label="Đơn vị"
-          value={unit}
-          onChange={(event) => setUnit(event.target.value as Unit)}
-          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
-        />
-      </div>
-      <Select
-        label="Phẩm cấp"
-        value={qualityGradeId ?? ""}
-        onChange={(event) => setQualityGradeId(event.target.value as QualityGradeId)}
-        placeholder="Chọn phẩm cấp"
-        options={props.grades.map((grade) => ({ value: grade.id, label: grade.name }))}
-      />
-      <Select
-        label="Mã lý do"
-        value={reasonCode}
-        onChange={(event) => setReasonCode(event.target.value as typeof reasonCode)}
-        options={[
-          { value: "opening_balance", label: "Số dư đầu kỳ" },
-          { value: "count_correction", label: "Kiểm đếm" },
-          { value: "spoilage", label: "Hư hỏng" },
-          { value: "shrinkage", label: "Hao hụt" },
-          { value: "other", label: "Khác" },
-        ]}
-      />
-      <label className="text-label">
-        Giải thích
-        <textarea
-          className={INPUT_CLASS}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
-      </label>
-      <Button
-        disabled={
-          !Number.isSafeInteger(quantityScaled) ||
-          quantityScaled <= 0 ||
-          reason.trim().length === 0 ||
-          qualityGradeId === null
-        }
-        onClick={() =>
-          void command.submit({
-            adjustmentId,
-            productId: props.productId,
-            qualityGradeId,
-            qualityGradeName: props.grades.find((grade) => grade.id === qualityGradeId)?.name ?? "",
-            quantity: { valueScaled: quantityScaled, unit },
-            direction,
-            reasonCode,
-            reason: reason.trim(),
-          })
-        }
-      >
-        Ghi điều chỉnh
-      </Button>
-      <CommandOutcome
-        command={command}
-        attemptedAction="Điều chỉnh tồn kho"
-        onReload={props.onChanged}
-      />
-    </section>
+      }
+    />
   );
 }
 
-function InventoryReclassification(props: {
-  productId: ProductId;
-  grades: readonly QualityGradeDto[];
-  onChanged: () => void;
+function InventoryReclassificationCommandPanel(props: {
+  readonly productId: ProductId;
+  readonly grades: readonly QualityGradeDto[];
+  readonly onChanged: () => void;
 }) {
   const trpc = useTRPC();
-  const reclassificationId = useRef(crypto.randomUUID()).current;
-  const [fromGradeId, setFromGradeId] = useState<QualityGradeId | null>(null);
-  const [toGradeId, setToGradeId] = useState<QualityGradeId | null>(null);
-  const [quantity, setQuantity] = useState("");
-  const [unit, setUnit] = useState<Unit>("kg");
-  const [reason, setReason] = useState("");
+  const reclassificationId = useRef(crypto.randomUUID());
   const mutation = useMutation(trpc.inventory.reclassify.mutationOptions());
   const command = useCommand<unknown, { reclassificationId: string }>((envelope) =>
     mutation.mutateAsync(envelope as never),
   );
-  const refreshedReclassificationId = useRef<string | null>(null);
+  const refreshed = useRef<string | null>(null);
+
   useEffect(() => {
-    if (
-      command.result === null ||
-      refreshedReclassificationId.current === command.result.reclassificationId
-    )
-      return;
-    refreshedReclassificationId.current = command.result.reclassificationId;
+    if (command.result === null || refreshed.current === command.result.reclassificationId) return;
+    refreshed.current = command.result.reclassificationId;
     props.onChanged();
   }, [command.result, props.onChanged]);
-  const quantityScaled = Math.round(Number(quantity) * 1000);
-  const fromGrade = props.grades.find((grade) => grade.id === fromGradeId);
-  const toGrade = props.grades.find((grade) => grade.id === toGradeId);
+
+  function submit(intent: InventoryReclassificationIntent): void {
+    void command.submit({
+      reclassificationId: reclassificationId.current,
+      productId: props.productId,
+      ...intent,
+    });
+  }
+
   return (
-    <section className="rounded-card border border-border bg-surface p-4">
-      <h2 className="text-subheading font-semibold">Chuyển phẩm cấp</h2>
-      <p className="text-body-sm text-ink-muted">
-        Ghi hai biến động bù trừ trong cùng giao dịch; tổng số lượng không đổi.
-      </p>
-      <div className="grid gap-3 md:grid-cols-2">
-        <Select
-          label="Từ phẩm cấp"
-          value={fromGradeId ?? ""}
-          onChange={(event) => setFromGradeId(event.target.value as QualityGradeId)}
-          placeholder="Chọn phẩm cấp nguồn"
-          options={props.grades.map((grade) => ({ value: grade.id, label: grade.name }))}
+    <InventoryReclassificationPanel
+      grades={props.grades}
+      completed={command.result !== null}
+      locked={command.phase.kind === "sending" || command.phase.kind === "unknown"}
+      onSubmit={submit}
+      onStartAnother={() => {
+        reclassificationId.current = crypto.randomUUID();
+        command.reset();
+      }}
+      feedback={
+        <CommandOutcome
+          command={command}
+          attemptedAction="Chuyển phẩm cấp"
+          onReload={props.onChanged}
         />
-        <Select
-          label="Sang phẩm cấp"
-          value={toGradeId ?? ""}
-          onChange={(event) => setToGradeId(event.target.value as QualityGradeId)}
-          placeholder="Chọn phẩm cấp đích"
-          options={props.grades.map((grade) => ({ value: grade.id, label: grade.name }))}
-        />
-        <label className="text-label">
-          Số lượng
-          <input
-            className={INPUT_CLASS}
-            inputMode="decimal"
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-          />
-        </label>
-        <Select
-          label="Đơn vị"
-          value={unit}
-          onChange={(event) => setUnit(event.target.value as Unit)}
-          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
-        />
-      </div>
-      <label className="text-label">
-        Lý do
-        <textarea
-          className={INPUT_CLASS}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
-      </label>
-      <Button
-        disabled={
-          fromGrade === undefined ||
-          toGrade === undefined ||
-          fromGrade.id === toGrade.id ||
-          !Number.isSafeInteger(quantityScaled) ||
-          quantityScaled <= 0 ||
-          reason.trim().length === 0
-        }
-        onClick={() => {
-          if (fromGrade === undefined || toGrade === undefined) return;
-          void command.submit({
-            reclassificationId,
-            productId: props.productId,
-            fromQualityGradeId: fromGrade.id,
-            fromQualityGradeName: fromGrade.name,
-            toQualityGradeId: toGrade.id,
-            toQualityGradeName: toGrade.name,
-            quantity: { valueScaled: quantityScaled, unit },
-            reason: reason.trim(),
-          });
-        }}
-      >
-        Ghi chuyển phẩm cấp
-      </Button>
-      <CommandOutcome
-        command={command}
-        attemptedAction="Chuyển phẩm cấp"
-        onReload={props.onChanged}
-      />
-    </section>
+      }
+    />
   );
 }
