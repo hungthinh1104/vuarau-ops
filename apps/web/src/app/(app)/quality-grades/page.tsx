@@ -7,21 +7,16 @@ import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useCommand } from "@/api/use-command.ts";
 import { useDebounced } from "@/api/use-debounced.ts";
+import {
+  QualityGradesView,
+  type QualityGradeActiveFilter,
+} from "@/ui/screens/quality-grades-view.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
-import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import {
   QualityGradeRow,
   type QualityGradeLifecycleIntent,
   type QualityGradeUpdateIntent,
 } from "@/ui/patterns/quality/quality-grade-row.tsx";
-import { Button } from "@/ui/primitives/button.tsx";
-import { EmptyState } from "@/ui/primitives/empty-state.tsx";
-import { SearchInput } from "@/ui/primitives/search-input.tsx";
-import { TextInput } from "@/ui/primitives/text-input.tsx";
-
-type ActiveFilter = "all" | "active" | "inactive";
 
 export default function QualityGradesPage() {
   const { workspaceId, session } = useSession();
@@ -30,7 +25,7 @@ export default function QualityGradesPage() {
   const [name, setName] = useState("");
   const [sortOrder, setSortOrder] = useState("10");
   const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+  const [activeFilter, setActiveFilter] = useState<QualityGradeActiveFilter>("all");
   const debouncedSearch = useDebounced(search, 200);
   const gradeId = useRef(crypto.randomUUID());
   const mayManage = session.permissions.includes("quality.manage");
@@ -70,98 +65,35 @@ export default function QualityGradesPage() {
   }
 
   return (
-    <div className="flex max-w-4xl flex-col gap-6">
-      <PageHeader
-        title="Phẩm cấp hàng"
-        description="Danh mục phân hạng thương mại của lượng hàng, ví dụ Loại 1 / Loại 2 / Dạt. Đây chưa phải hệ thống kiểm định chất lượng hay ghi lỗi hàng."
-      />
-
-      <p className="rounded-card border border-info/30 bg-info-soft px-4 py-3 text-body-sm">
-        Theo chính sách phần mềm hiện tại, đơn bán và lượng nhận mới phải chọn một phẩm cấp đang
-        dùng. Chính sách này còn chờ chủ vựa xác nhận trước pilot; không tạo phẩm cấp “mặc định” chỉ
-        để bỏ qua quyết định.
-      </p>
-
-      {mayManage ? (
-        <section className="grid gap-3 border-y border-border py-4 sm:grid-cols-[1fr_10rem_auto]">
-          <TextInput
-            label="Tên phẩm cấp"
-            placeholder="Ví dụ: Loại 1"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <TextInput
-            label="Thứ tự"
-            inputMode="numeric"
-            value={sortOrder}
-            onChange={(event) => setSortOrder(event.target.value)}
-          />
-          <Button className="self-end" onClick={() => void create()}>
-            Thêm phẩm cấp
-          </Button>
-          <div className="sm:col-span-3">
-            <CommandOutcome
-              command={createCommand}
-              attemptedAction="Tạo phẩm cấp hàng"
-              onReload={() => void refresh()}
-            />
-          </div>
-        </section>
-      ) : null}
-
-      <section className="grid gap-3 border-b border-border pb-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-        <SearchInput
-          label="Tìm phẩm cấp"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          onClear={() => setSearch("")}
-          placeholder="Tên phẩm cấp"
+    <QualityGradesView
+      query={list}
+      mayManage={mayManage}
+      search={search}
+      activeFilter={activeFilter}
+      createName={name}
+      createSortOrder={sortOrder}
+      createFeedback={
+        <CommandOutcome
+          command={createCommand}
+          attemptedAction="Tạo phẩm cấp hàng"
+          onReload={() => void refresh()}
         />
-        <FilterChipGroup
-          label="Lọc trạng thái phẩm cấp"
-          value={activeFilter}
-          options={[
-            { value: "all", label: "Tất cả" },
-            { value: "active", label: "Đang dùng" },
-            { value: "inactive", label: "Đã ngưng" },
-          ]}
-          onChange={setActiveFilter}
+      }
+      renderGrade={(grade) => (
+        <QualityGradeCommandRow
+          key={grade.id}
+          grade={grade}
+          mayManage={mayManage}
+          onChanged={refresh}
         />
-      </section>
-
-      <QueryStates
-        query={list}
-        loadingLabel="Đang tải phẩm cấp"
-        attemptedAction="Xem danh mục phẩm cấp"
-        onRetry={() => void list.refetch()}
-      >
-        {(page) =>
-          page.items.length === 0 ? (
-            <EmptyState
-              title={search.trim().length > 0 ? "Không tìm thấy phẩm cấp" : "Chưa có phẩm cấp"}
-              description={
-                search.trim().length > 0
-                  ? "Đổi từ khoá hoặc trạng thái lọc để tìm lại."
-                  : mayManage
-                    ? "Hãy ghi đúng cách vựa thực sự phân hạng hàng trước khi pilot."
-                    : "Chủ vựa hoặc nhân sự kho có quyền quản lý cần cấu hình trước khi giao dịch mới."
-              }
-            />
-          ) : (
-            <ul className="divide-y divide-border rounded-card border border-border bg-surface">
-              {page.items.map((grade) => (
-                <QualityGradeCommandRow
-                  key={grade.id}
-                  grade={grade}
-                  mayManage={mayManage}
-                  onChanged={refresh}
-                />
-              ))}
-            </ul>
-          )
-        }
-      </QueryStates>
-    </div>
+      )}
+      onSearchChange={setSearch}
+      onFilterChange={setActiveFilter}
+      onCreateNameChange={setName}
+      onCreateSortOrderChange={setSortOrder}
+      onCreate={() => void create()}
+      onRetry={() => void list.refetch()}
+    />
   );
 }
 
