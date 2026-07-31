@@ -16,7 +16,7 @@ lower-level state catalog.
 - [x] QualityGrade management — `apps/web/src/ui/screens/quality-grades-view.stories.tsx`
 - [x] Quick Sale complete screen — `apps/web/src/ui/screens/quick-sale-view.stories.tsx`
 - [x] Sale detail / fulfilment consequences — `apps/web/src/ui/screens/sale-detail-view.stories.tsx`
-- [ ] Customer detail / debt operations — `apps/web/src/ui/screens/customer-detail-view.stories.tsx`
+- [x] Customer detail / debt operations — `apps/web/src/ui/screens/customer-detail-view.stories.tsx`
 - [x] Purchase detail / Receiving — `apps/web/src/ui/screens/purchase-detail-view.stories.tsx`
 - [x] Product inventory / movement history — `apps/web/src/ui/screens/product-inventory-view.stories.tsx`
 - [x] Delivery detail / dispatch-return lifecycle — `apps/web/src/ui/screens/delivery-detail-view.stories.tsx`
