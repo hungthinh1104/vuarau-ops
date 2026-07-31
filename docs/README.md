@@ -54,5 +54,8 @@ describe an earlier model only when it explicitly says a later milestone superse
 that detail.
 
 Automated checks can prove structure and selected consistency invariants; they do
-not prove that prose is semantically true. Review still compares normative docs to
+not prove that prose is semantically true. `pnpm truth:check` protects the mirrors
+that can be compared mechanically: router procedure catalogs, schema-table catalog,
+navigation routes, selected stale-contract claims, ASM identifier continuity and
+the critical screen Storybook checklist. Review still compares normative docs to
 the executable contracts before a readiness claim is promoted.

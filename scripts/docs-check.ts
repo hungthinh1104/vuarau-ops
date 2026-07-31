@@ -59,6 +59,7 @@ const REQUIRED = [
   "07-data/time-semantics.md",
   "07-data/ledger-model.md",
   "08-qa/test-strategy.md",
+  "08-qa/ui-screen-coverage.md",
   "08-qa/traceability.md",
   "08-qa/risk-classification.md",
   "08-qa/manual-test-template.md",
