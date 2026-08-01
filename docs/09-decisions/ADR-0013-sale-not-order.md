@@ -58,6 +58,16 @@ The mismatch was not cosmetic. It produced concrete confusion:
 | **Compatibility aliases** — `Order = Sale`      | Two names for one concept, forever, in the vocabulary a client is meant to program against. The brief settles it: there is no production data and no client, so clean naming costs nothing today and only gets more expensive.                                                 |
 | **Rename `AdjustCustomerDebt` too**             | "Công nợ" is what a depot owner calls the thing, and `debt.adjust` is the permission named in the working agreement and in ADR-0011. The command moves a **debt** specifically — an amount owed with no document behind it. Renaming it would lose that precision to tidiness. |
 
+
+## Later clarification
+
+M19 introduced Delivery as the physical fulfilment aggregate. Therefore “Sale” no
+longer means that every quantity has physically left the depot; it means the
+commercial transaction recognized by `PostSale` under ADR-0014/ASM-024. Delivery
+records dispatch, completion and return independently. The original decision still
+stands in its important negative form: a Sale is not a customer request, picking
+list or reservation.
+
 ## Consequences
 
 **Good.** The names say what the things are. `PostSale` reads as the money event it

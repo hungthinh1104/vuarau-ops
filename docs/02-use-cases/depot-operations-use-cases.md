@@ -49,10 +49,12 @@ physically return to accepted depot inventory.
 - **Effect:** append positive Product/grade/unit movement referencing original Delivery;
   Delivery and Sale history remain immutable.
 - **Money effect:** none by default. A physical return does not infer refund, debt
-  reduction or exchange value; ASM-037 gates that business consequence.
+  reduction or exchange value; ASM-037 gates that business consequence. Only when
+  canonical net fulfilment is zero may the separate full-Sale `goods_returned` void
+  compensate the entire receivable.
 - **Repeated action:** multiple genuine returns use fresh return identities; unknown
   outcome retries identical command identity.
-- **Rules/tests:** BR-DELIVERY-003/004/005/006/007 · TC-DELIVERY-001/002/003 · TC-E2E-030/032.
+- **Rules/tests:** BR-DELIVERY-003/004/005/006/007 · TC-DELIVERY-001/002/003 · TC-SALE-030 · TC-E2E-030/032.
 
 ## UC-DELIVERY-005 — Inspect Sale fulfilment
 
@@ -73,18 +75,26 @@ statement, Purchase order or Delivery note from canonical source truth.
 
 - **Effect:** next immutable document version with deterministic canonical digest;
   source transaction and prior versions are unchanged.
+- **Multi-day statement:** an optional inclusive Vietnam-time period groups existing
+  customer-ledger entries. Opening balance, signed period change and closing balance
+  are server-derived; the statement does not merge Sales/Payments or allocate one
+  Payment across Sales.
+- **Presentation:** authenticated and public reads render the typed snapshot as a
+  print-ready table with source references, version, digest and a non-tax disclaimer.
+  Legacy snapshots remain readable through an explicit fallback.
 - **Integrity:** authenticated read re-verifies digest; restore rejects mismatch atomically.
 - **Correction:** regenerate a new version; never edit an issued snapshot in place.
-- **Rules/tests:** BR-DOCUMENT-001/002/004 · TC-DOCUMENT-001/002.
+- **Rules/tests:** BR-DOCUMENT-001/002/004/005 · TC-DOCUMENT-001/002/003.
 
 ## UC-DOCUMENT-002 — Share and revoke a document snapshot
 
 **Actor:** authorized document-sharing role. **Trigger:** give a recipient temporary
 read access to one frozen snapshot.
 
-- **Security:** creator receives random token; storage keeps only hash. Expired,
-  revoked, unknown or digest-invalid token fails closed.
-- **State:** share available → revoked; expiry is derived from time.
+- **Security:** creator receives random token; storage keeps only hash. New shares
+  are finite; omitted expiry becomes 24 hours server-side. Expired, revoked,
+  unknown or digest-invalid token fails closed.
+- **State:** share available → expired or revoked; expiry is derived from time.
 - **Effects:** no commercial, money or goods mutation.
 - **Policy:** real customer data remains blocked until ASM-030 policy is approved.
 - **Rules/tests:** BR-DOCUMENT-002/003/004, BR-OPS-005 · TC-DOCUMENT-001/002.

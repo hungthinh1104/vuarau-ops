@@ -37,10 +37,7 @@ claim that a depot has validated the workflow in live operations.
 ## Receiving and inventory
 
 - **BR-INVENTORY-001** — A Receipt references an active confirmed Purchase.
-  Product and unit must exactly match the immutable Purchase line. Under the current
-  M23 policy, each newly received quantity also names an active workspace
-  QualityGrade. Whether that requirement is universal is an external policy gate
-  (ASM-032), not something a default grade may decide silently.
+  Product and unit must exactly match the immutable Purchase line. Under ADR-0024, the workspace profile either requires each new quantity to name an active workspace QualityGrade or requires the explicit ungraded bucket. A default grade is never invented.
 - **BR-INVENTORY-002** — Net received quantity per Purchase line cannot exceed
   purchased quantity across all grades. Multiple partial and split-grade
   Receipts are allowed.

@@ -141,14 +141,17 @@ sale (BR-ACCOUNT-010).
 delivery — the quality is wrong. Nothing replaces them; the trade simply did not
 happen.
 
-**Expected.** `VoidSale` with `reasonCode: goods_returned` and an explanation. One
-compensating entry of `−500.000`. **No replacement sale** — requiring one would
-invent a trade that never occurred (BR-SALE-016).
+**Expected.** The entire dispatched load is refused or physically returned, so
+canonical net fulfilment is zero. `VoidSale` with `reasonCode: goods_returned` and
+an explanation then appends one compensating entry of `−500.000`. **No replacement
+sale** — requiring one would invent a trade that never occurred (BR-SALE-016). A
+partial Return must not use this path because it would erase the whole receivable
+while some goods remain with the customer (ASM-037).
 
 The sale reads `voided`, the balance returns to what it was, and the void reason
 records why.
 
-**Rules.** BR-SALE-012, BR-SALE-014, BR-SALE-016 · **Tests.** TC-SALE-021, TC-SALE-026
+**Rules.** BR-SALE-012, BR-SALE-014, BR-SALE-016 · **Tests.** TC-SALE-021, TC-SALE-026, TC-SALE-030
 
 ---
 

@@ -319,25 +319,31 @@ guess.
 
 ### BR-SALE-014 — Voiding requires a structured reason code and an explanation
 
-**Risk:** P1 · **Code:** `SALE_VOID_REASON_REQUIRED` · **Tests:** TC-SALE-026 · **Cases:** CASE-SALE-008
+**Risk:** P1 · **Code:** `SALE_VOID_REASON_REQUIRED`, `SALE_GOODS_RETURN_INCOMPLETE` · **Tests:** TC-SALE-026, TC-SALE-030 · **Cases:** CASE-SALE-008
 
 Both are mandatory: a `reasonCode` from a fixed list, and free text that is not
 blank after trimming.
 
-| `reasonCode`            | When                                                  |
-| ----------------------- | ----------------------------------------------------- |
-| `wrong_amount`          | Quantity or price was entered incorrectly             |
-| `wrong_customer`        | Recorded against the wrong account                    |
-| `goods_returned`        | Customer returned the load, or refused it on delivery |
-| `duplicate_entry`       | The same sale was recorded twice                      |
-| `cancelled_by_customer` | Agreed off before the goods moved                     |
-| `other`                 | Anything else — the free text carries the meaning     |
+| `reasonCode`            | When                                                                 |
+| ----------------------- | -------------------------------------------------------------------- |
+| `wrong_amount`          | Quantity or price was entered incorrectly                            |
+| `wrong_customer`        | Recorded against the wrong account                                   |
+| `goods_returned`        | The full load was returned/refused; no active net fulfilment remains |
+| `duplicate_entry`       | The same sale was recorded twice                                     |
+| `cancelled_by_customer` | Agreed off before the goods moved                                    |
+| `other`                 | Anything else — the free text carries the meaning                    |
 
 The code is what a report can group by; the text is what the person disputing the
 balance six months later actually needs. A void with only a code produces reports
 nobody can act on; a void with only text produces a list nobody can count.
 
 Free text is stored verbatim and never parsed.
+
+`goods_returned` is a full-sale commercial correction, not a price calculator for
+a partial physical Return. The command is rejected with
+`SALE_GOODS_RETURN_INCOMPLETE` while any canonical Delivery quantity remains net
+fulfilled. A partial Return changes Goods Truth only until ASM-037 defines its
+financial consequence.
 
 ---
 

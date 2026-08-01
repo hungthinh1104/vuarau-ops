@@ -58,11 +58,11 @@ out, so the two remain distinguishable.
 
 ---
 
-### BR-AUTH-004 — Every command requires a permission its role carries
+### BR-AUTH-004 — Every command requires a permission its role set carries
 
 **Risk:** P0 · **Code:** `PERMISSION_DENIED` · **Tests:** TC-AUTH-004, TC-AUTH-009
 
-Each command declares one permission; the pipeline checks it against the role on
+Each command declares one permission; the pipeline checks it against the deterministic union of the roles on
 the caller's membership, using the static table in
 `packages/domain-contracts/src/shared/authorization.ts`
 ([ADR-0011](../09-decisions/ADR-0011-role-permission-mapping.md)).
@@ -102,8 +102,7 @@ the caller's membership, using the static table in
 | `session.me`                          | — (identity only)                                          | all roles                                     | implemented |
 | `session.workspaces`                  | — (identity only)                                          | all roles                                     | implemented |
 
-The refusal names the permission and the role, so the answer to "why can't I do
-this" does not require reading the source.
+The refusal names the permission, primary role projection and complete role set, so the answer to "why can't I do this" does not require reading the source. `owner` is exclusive; all other role combinations receive only the union of their existing permissions.
 
 ### Why `sale.void` is not `sale.post`
 
@@ -176,7 +175,7 @@ they are updating different rows — which is why revocation carries no
 **Risk:** P0 · **Code:** — · **Tests:** TC-AUTH-014, TC-AUTH-015, TC-AUTH-016
 
 `session.workspaces` returns the depots the **authenticated actor** may act in:
-workspace id, display name, role, and the permissions that role carries there. It
+workspace id, display name, normalized role set, a transitional primary-role projection, and the server-derived permission union. It
 is the only read in the system that is not scoped to one workspace, and it is
 allowed to be for a reason that also makes it safe.
 
@@ -221,13 +220,35 @@ TC-AUTH-016 asserts it against real SQL for that reason.
 `WORKSPACE_MEMBER_SELF_ROLE_CHANGE_DENIED` · **Tests:** TC-AUTH-013,
 TC-E2E-024
 
-Only `workspace.manage` may add, change, revoke or reactivate a membership. Role
-changes use the stored membership as server authority and reject stale expected
-roles. An owner cannot demote themselves, and concurrent operations cannot remove
+Only `workspace.manage` may add, change, revoke or reactivate a membership. Role-set changes use the stored membership as server authority and replace the complete set only when `expectedRoles` still matches. Empty sets, duplicates and `owner` combined with another role are rejected at the command boundary. An owner cannot demote themselves, and concurrent operations cannot remove
 the last active owner.
 
 Revocation and reactivation update the membership rather than deleting it. Sales,
 payments, adjustments, ledger entries and audits continue to name the same actor.
+
+---
+
+### BR-AUTH-011 — One active membership may carry several fixed roles
+
+**Risk:** P0 · **Codes:** `INVALID_COMMAND_PAYLOAD`, `WORKSPACE_MEMBER_ROLE_CONFLICT` · **Tests:** TC-AUTH-009, TC-AUTH-015
+
+A membership has one lifecycle and one non-empty normalized role set. Effective
+permissions are the deterministic union of the unchanged static role table; the
+system does not create per-person permission exceptions.
+
+`owner` is exclusive because it already contains every permission. Combining it
+with another role would add no authority while obscuring review. A role-set update
+carries the complete `expectedRoles` and complete replacement `roles`; the server
+never silently merges one checkbox change from a stale screen.
+
+The normalized relation is the authorization source. The legacy single `role`
+column remains only as a primary projection during migration and as a fail-safe
+fallback for an old/imported row that has not yet been backfilled. New writes
+always update both atomically.
+
+Backup snapshots include complete role sets for investigation, but restore does
+not import source memberships into the recovery workspace. A backup file is not
+an authority grant; recovery access remains the target workspace's control plane.
 
 ---
 

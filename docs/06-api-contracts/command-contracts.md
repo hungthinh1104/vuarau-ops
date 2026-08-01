@@ -44,23 +44,25 @@ rejection codes.
 The table is a navigation catalog, not a second payload specification. When a
 command changes, update its schema and tests first, then keep this catalog aligned.
 
-| Namespace    | Commands                                                                                                             |
-| ------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `session`    | `revokeMembership`, `addMember`, `changeMemberRole`, `reactivateMember`                                              |
-| `customer`   | `create`, `update`, `deactivate`, `reactivate`                                                                       |
-| `account`    | `rebuildProjection`                                                                                                  |
-| `debt`       | `adjust`                                                                                                             |
-| `sale`       | `createDraft`, `updateDraft`, `discardDraft`, `post`, `void`                                                         |
-| `payment`    | `record`, `reverse`                                                                                                  |
-| `product`    | `create`, `update`, `deactivate`, `reactivate`                                                                       |
-| `quality`    | `create`, `update`, `deactivate`, `reactivate`                                                                       |
-| `supplier`   | `create`, `update`, `deactivate`, `reactivate`, `recordPayment`, `reversePayment`, `adjustAccount`, `rebuildAccount` |
-| `purchase`   | `createDraft`, `updateDraft`, `discardDraft`, `confirm`, `void`                                                      |
-| `receiving`  | `record`, `reverse`                                                                                                  |
-| `inventory`  | `adjust`, `reclassify`, `rebuild`                                                                                    |
-| `delivery`   | `createDraft`, `updateDraft`, `cancelDraft`, `dispatch`, `markDelivered`, `recordReturn`                             |
-| `document`   | `generate`, `share`, `revokeShare`                                                                                   |
-| `operations` | `exportBackup`, `restoreBackup`                                                                                      |
+| Namespace    | Commands                                                                                                                                                                                                  |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session`    | `revokeMembership`, `addMember`, `changeMemberRole`, `updateOperationalProfile`, `reactivateMember`                                                                                                       |
+| `customer`   | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                            |
+| `account`    | `rebuildProjection`                                                                                                                                                                                       |
+| `debt`       | `adjust`                                                                                                                                                                                                  |
+| `sale`       | `createDraft`, `updateDraft`, `discardDraft`, `post`, `void`                                                                                                                                              |
+| `payment`    | `record`, `reverse`                                                                                                                                                                                       |
+| `product`    | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                            |
+| `quality`    | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                            |
+| `supplier`   | `create`, `update`, `deactivate`, `reactivate`, `recordPayment`, `reversePayment`, `adjustAccount`, `rebuildAccount`                                                                                      |
+| `purchase`   | `createDraft`, `updateDraft`, `discardDraft`, `confirm`, `void`                                                                                                                                           |
+| `receiving`  | `record`, `reverse`                                                                                                                                                                                       |
+| `inventory`  | `adjust`, `reclassify`, `rebuild`                                                                                                                                                                         |
+| `delivery`   | `createDraft`, `updateDraft`, `cancelDraft`, `dispatch`, `markDelivered`, `recordReturn`                                                                                                                  |
+| `document`   | `generate`, `share`, `revokeShare`                                                                                                                                                                        |
+| `operations` | `exportBackup`, `restoreBackup`                                                                                                                                                                           |
+| `cash`       | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`                                         |
+| `intake`     | `createIssueCode`, `updateIssueCode`, `deactivateIssueCode`, `reactivateIssueCode`, `recordArrival`, `reverseArrival`, `recordInspection`, `reverseInspection`, `recordDisposition`, `reverseDisposition` |
 
 The router source is authoritative for procedure names. Domain-contract modules are
 authoritative for payload and result shapes.
@@ -102,8 +104,9 @@ to physical stock use `inventory.reclassify`; they do not rewrite historical
 Receipt, Sale, Delivery or inventory facts. Spoilage/loss is an explicit negative
 inventory adjustment, not a Sale or Receipt.
 
-This is the implemented grade boundary, not a claim that full quality inspection,
-defect capture, supplier claims or quarantine exist.
+Inspected intake now keeps condition/defect evidence and quarantine separate from
+commercial QualityGrade. Supplier claims/credits and canonical lot/expiry remain
+outside the implemented boundary.
 
 ## Money and quantity on the wire
 
@@ -151,3 +154,42 @@ is stored, and expiry/revocation/digest checks fail closed.
 - [capabilities.md](capabilities.md)
 - [../04-business-rules/authorization-rules.md](../04-business-rules/authorization-rules.md)
 - [../00-product/product-invariants.md](../00-product/product-invariants.md)
+
+## Workspace operational-profile commands
+
+- `session.updateOperationalProfile` replaces the complete versioned workspace
+  policy. It is owner-only, requires `expectedVersion` and a reason, and may select
+  Purchasing, Inventory, commercial Grade, Delivery, Cashbook, inspected Intake,
+  weighing mode and the business-day boundary. The server rejects invalid dependencies
+  and disabled-workflow commands.
+
+## Cashbook commands
+
+The `cash` router exposes deterministic command procedures:
+
+- `cash.createAccount`, `cash.updateAccount`, `cash.deactivateAccount`,
+  `cash.reactivateAccount`;
+- `cash.recordExpense`, `cash.reverseExpense`;
+- `cash.transfer`, `cash.reverseTransfer`;
+- `cash.adjust`;
+- `cash.rebuild`.
+
+Every cash mutation requires `OperationalProfile.cashbookMode=accounts_ledger`.
+Canonical source facts and `CashMovement` rows are append-only. Payment and Supplier
+Payment remain in their existing routers; when Cashbook is enabled they require a
+CashAccount and append the debt/payable and cash effects atomically.
+
+## Inspected-intake commands
+
+The `intake` router exposes four append-only fact families and explicit corrections:
+
+- issue-code master data: `createIssueCode`, `updateIssueCode`, `deactivateIssueCode`,
+  `reactivateIssueCode`;
+- physical custody: `recordArrival`, `reverseArrival`;
+- quality observation: `recordInspection`, `reverseInspection`;
+- responsibility/outcome allocation: `recordDisposition`, `reverseDisposition`.
+
+`recordArrival` is enabled only in `inspected_arrival`; gross/tare/net evidence is
+required only in `gross_tare_net`. Only accepted disposition allocations append positive
+InventoryMovement rows. Reversal commands remain available after profile changes and
+must run child disposition → parent disposition → inspection → arrival.

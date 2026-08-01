@@ -18,8 +18,8 @@ not real-worker adoption.
 - **BR-DELIVERY-005** — Dispatch/return retries are duplicate-safe and
   concurrency is serialized against the Sale/Delivery canonical state.
 - **BR-DELIVERY-006** — Sale void/replacement never silently reverses physical
-  goods. A replacement is not fulfillable when its predecessor already has
-  active net fulfilment without an explicit allocation model. Once a Sale is
+  goods. A replacement is not fulfillable when any predecessor in its correction
+  chain already has active net fulfilment without an explicit allocation model. Once a Sale is
   voided, new Delivery creation, editing, and dispatch are rejected; an existing
   dispatched Delivery remains historical truth and may receive an explicit
   return.
@@ -38,9 +38,16 @@ not real-worker adoption.
   reads verify that digest, and logical restore rejects a mismatched document
   without committing any canonical row.
 - **BR-DOCUMENT-003** — Sharing uses a random token while storage retains only
-  its hash. Expired, revoked, unknown, or digest-invalid shares fail closed.
+  its hash. Every new share has a finite expiry; an omitted expiry defaults to 24
+  hours on the server. Expired, revoked, unknown, or digest-invalid shares fail
+  closed.
 - **BR-DOCUMENT-004** — Documents are print-ready business snapshots only. They
   make no tax-invoice, e-signature, or accounting-compliance claim.
+- **BR-DOCUMENT-005** — A multi-day customer statement is a presentation snapshot
+  over immutable account entries, never a multi-day Sale. Its optional inclusive
+  period is interpreted in `Asia/Ho_Chi_Minh`; opening balance, signed period change,
+  closing balance and classification are server-derived. Generating or printing it
+  creates no money/goods fact and performs no Payment-to-Sale allocation.
 
 ## Reports
 

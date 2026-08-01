@@ -273,7 +273,8 @@ completeness.
 Pilot readiness is **BLOCKED/PENDING** until the real Supabase A→B smoke,
 ASM-023/024/025, ASM-017/018, ASM-030, ASM-032/033/034, ASM-035/036/037/038,
 real-phone deployment and provider PITR/RPO/RTO/restore evidence are actually
-recorded. M24 is not authorized.
+recorded. M24 Cashbook and M25 inspected-intake code are technical candidates only;
+they do not remove those pilot gates.
 
 #### M23.10–M23.13 — Repository truth, UI-state and quality gates (technical closure)
 
@@ -315,6 +316,24 @@ Delivery → Return → Payments/corrections → reports/reconciliation, includi
 partial operations, unknown outcomes and mistakes. The rehearsal may only use
 business events the model can represent truthfully; a fake compensating movement
 to make a screen look complete is a failure.
+
+**Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V7 remain intact. This is not a generic rule builder.
+
+**Document/bill closure:** ADR-0023 and TC-DOCUMENT-003 implement a source-backed
+multi-day customer statement with server-derived opening/change/closing balances and
+print-ready authenticated/public presentation. This does not close the local
+“bông hàng” discovery question, multi-role authorization (ADR-0021), canonical
+lot/expiry traceability or Supplier claim/credit settlement.
+
+**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation and Backup V7 evidence are implemented; shift counting and bank-statement matching remain separate discovery.
+
+**Inspected-intake closure:** ADR-0026 implements GoodsArrival → optional gross/tare/net → QualityInspection → QualityDisposition. Only accepted allocations create inventory; quarantine may be resolved through an explicit child disposition; correction is downstream-first and Backup V7 preserves the complete lineage. Supplier claims/credits, general lot/expiry and “bông hàng” remain outside this milestone.
+
+**Repository evidence:** `TC-OPS-015` runs the complete application command chain
+with partial Delivery/Return, customer and Supplier payments, exact-identity retry,
+blocked cross-dimension corrections, reports and three reconciliations. Disposable
+PostgreSQL/browser execution and worker observation remain release/field gates; this
+test does not claim either.
 
 | Horizon                               | Milestones                                                                | Gate                                                                                   |
 | ------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |

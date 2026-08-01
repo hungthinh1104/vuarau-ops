@@ -9,24 +9,26 @@ current procedure catalog without duplicating every DTO field.
 
 ## Current read surface
 
-| Namespace    | Reads                                                                                               |
-| ------------ | --------------------------------------------------------------------------------------------------- |
-| `session`    | `me`, `workspaces`, `workspace`                                                                     |
-| `customer`   | `search`, `get`, `recent`, `duplicates`                                                             |
-| `account`    | `adjustment`, `balance`, `timeline`, `reconciliation`, `reconciliationEvidence`                     |
-| `sale`       | `get`, `list`, `captureContext`, `detail`                                                           |
-| `payment`    | `get`, `list`                                                                                       |
-| `audit`      | `timeline`                                                                                          |
-| `product`    | `search`, `get`                                                                                     |
-| `quality`    | `list`, `get`                                                                                       |
-| `supplier`   | `search`, `get`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence` |
-| `purchase`   | `get`, `list`                                                                                       |
-| `receiving`  | `get`, `listForPurchase`, `summaryForPurchase`                                                      |
-| `inventory`  | `balances`, `getAdjustment`, `timeline`, `reconciliation`, `evidence`                               |
-| `delivery`   | `get`, `list`, `fulfilment`                                                                         |
-| `document`   | `get`, `listForSource`                                                                              |
-| `report`     | `operational`, `csv`                                                                                |
-| `operations` | `integrity`, `validateBackup`                                                                       |
+| Namespace    | Reads                                                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `session`    | `me`, `workspaces`, `workspace`, `operationalProfile`                                                                                 |
+| `customer`   | `search`, `get`, `recent`, `duplicates`                                                                                               |
+| `account`    | `adjustment`, `balance`, `timeline`, `reconciliation`, `reconciliationEvidence`                                                       |
+| `sale`       | `get`, `list`, `captureContext`, `detail`                                                                                             |
+| `payment`    | `get`, `list`                                                                                                                         |
+| `audit`      | `timeline`                                                                                                                            |
+| `product`    | `search`, `get`                                                                                                                       |
+| `quality`    | `list`, `get`                                                                                                                         |
+| `supplier`   | `search`, `get`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence`                                   |
+| `purchase`   | `get`, `list`                                                                                                                         |
+| `receiving`  | `get`, `listForPurchase`, `summaryForPurchase`                                                                                        |
+| `inventory`  | `balances`, `getAdjustment`, `timeline`, `reconciliation`, `evidence`                                                                 |
+| `delivery`   | `get`, `list`, `fulfilment`                                                                                                           |
+| `document`   | `get`, `listForSource`                                                                                                                |
+| `report`     | `operational`, `csv`                                                                                                                  |
+| `operations` | `integrity`, `validateBackup`                                                                                                         |
+| `cash`       | `searchAccounts`, `getAccount`, `timeline`, `getExpense`, `getTransfer`, `reconciliation`                                             |
+| `intake`     | `searchIssueCodes`, `getArrival`, `listArrivals`, `getInspection`, `getDisposition`, `dispositionSourceSummary`, `arrivalLineHistory` |
 
 The router source is authoritative for procedure names. Permission policy belongs
 to [authorization-rules.md](../04-business-rules/authorization-rules.md), and DTO
@@ -141,3 +143,39 @@ Workspace integrity and backup validation follow the same fail-closed principle.
 - [ui-state-catalog.md](ui-state-catalog.md)
 - [../04-business-rules/read-rules.md](../04-business-rules/read-rules.md)
 - [../04-business-rules/authorization-rules.md](../04-business-rules/authorization-rules.md)
+
+## Workspace operational-profile read
+
+`session.operationalProfile` returns the workspace's complete versioned operating
+policy. Clients must not infer workflow availability from navigation, role or the
+presence of historical records.
+
+## Cashbook reads
+
+The `cash` router exposes:
+
+- `cash.searchAccounts` and `cash.getAccount` — CashAccount plus current rebuildable
+  CashBalance;
+- `cash.timeline` — cursor-paged canonical CashMovement facts;
+- `cash.getExpense` and `cash.getTransfer` — immutable source facts with optional
+  append-only reversal;
+- `cash.reconciliation` — `consistent | inconsistent | not_found |
+integrity_failure`, including projected/canonical balances and diagnostics.
+
+Operational reports add `cash_balances`, `cash_movement_report` and
+`expense_report`. Date-filtered cash reports use `transactionTime` and the
+workspace's configured Vietnam business-day boundary.
+
+## Inspected-intake reads
+
+The `intake` router exposes:
+
+- `searchIssueCodes` — paged active/inactive condition and defect master data;
+- `listArrivals` and `getArrival` — physical arrivals with line, weighing and reversal evidence;
+- `getInspection` and `getDisposition` — one immutable quality fact with optional reversal;
+- `dispositionSourceSummary` — source, inspected, allocated, remaining and eligible quantities;
+- `arrivalLineHistory` — ordered inspections plus every direct or quarantine-child disposition
+  rooted at one arrival line.
+
+The line-history read model is the correction surface: clients show active/reversed facts and
+reverse downstream facts before upstream facts. It is not an inventory projection.

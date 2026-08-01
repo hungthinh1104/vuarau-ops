@@ -41,13 +41,13 @@ deferred row below names the event that ends the deferral.
 | ASM-023 | Has a depot owner confirmed that debt arises at chốt đơn?                                        | **operational action**    | Not yet asked                                                                                                                                                                         | Facilitator, before the first real sale is recorded                                                                                                               |
 | ASM-024 | Does `PostSale` mean commercial agreement or physical handover?                                  | **operational action**    | Current software treats it as commercial/financial recognition, separate from Delivery; this is not field-validated                                                                   | Depot owner + facilitator, before the first real posted Sale                                                                                                      |
 | ASM-025 | When does supplier payable arise?                                                                | **operational action**    | Current software recognizes it at `ConfirmPurchase`, not Receiving; this is not field-validated                                                                                       | Depot owner + facilitator, before the first real confirmed Purchase                                                                                               |
-| ASM-026 | What defines the depot business-day boundary?                                                    | **deferred with trigger** | `Asia/Ho_Chi_Minh` civil calendar day                                                                                                                                                 | First shift that crosses midnight or dispute about report-day grouping                                                                                            |
+| ASM-026 | What defines the depot business-day boundary?                                                    | **decided/configurable**  | Workspace profile selects a Vietnam-local start minute; default 00:00 (ADR-0024)                                                                                                      | Owner selects it during onboarding and changes it only with an audited reason                                                                                     |
 | ASM-027 | Does negative inventory block dispatch?                                                          | **deferred with trigger** | **No block**; preserve the attributable movement and surface the negative projection                                                                                                  | First dispatch that would cross below zero, or an owner requests a hard stock gate                                                                                |
 | ASM-028 | How are stocktakes, losses, damage, gifts, and weighing errors recorded?                         | **deferred with trigger** | Explicit `AdjustInventory` with direction, reason code and mandatory explanation; no silent correction                                                                                | First stocktake discrepancy or incident that the current reason set cannot represent unambiguously                                                                |
 | ASM-029 | How is cash collected during delivery recorded and handed over?                                  | **deferred with trigger** | Delivery cannot record payment; an authorized money role records a separate customer Payment                                                                                          | Before the first delivery on which the driver collects cash                                                                                                       |
 | ASM-030 | What are document-sharing, customer-data retention, and public-read policies?                    | **operational action**    | No real customer data is publicly shared until a written policy is approved                                                                                                           | Depot owner/data controller + deployment operator, before real-data sharing or production retention                                                               |
 | ASM-031 | What are production RPO, RTO, backup retention, encryption, and restore-drill requirements?      | **decided**               | RPO ≤15 min, RTO ≤60 min, PITR ≤15 min, encrypted daily backup retained 35 days, quarterly/high-risk-migration drill ([recovery rehearsal](../11-operations/recovery-rehearsal.md))   | Deployment operator records provider evidence; depot owner accepts before production                                                                              |
-| ASM-032 | Is commercial grade required for every new Sale/Receipt quantity?                                | **operational action**    | Current software requires one active QualityGrade for every new physical quantity; this is not field-validated and must not be bypassed with a fake default grade                     | Depot owner + receiving/sales workers, before the first real Sale or Receipt ([worksheet](m23-quality-policy-worksheet.md))                                       |
+| ASM-032 | Is commercial grade required for every new Sale/Receipt quantity?                                | **decided/configurable**  | Workspace profile selects `required` or `disabled`; disabled uses an explicit null grade bucket and never a fake default (ADR-0024)                                                   | Depot owner + receiving/sales workers, before the first real Sale or Receipt ([worksheet](m23-quality-policy-worksheet.md))                                       |
 | ASM-033 | Does Receipt mean accepted inventory, and how are damaged/rejected arrivals represented?         | **operational action**    | Current Receipt means accepted stock and immediately creates inbound inventory; rejected-arrival/claim/quarantine semantics are not modelled                                          | Depot owner + receiver, before the first real Receiving session ([worksheet](m23-quality-policy-worksheet.md))                                                    |
 | ASM-034 | Who may manage/reclassify grade, and is approval required?                                       | **operational action**    | Current defaults allow owner/warehouse to manage grades and reclassify with a reason and no second approval; this is not field-validated                                              | Depot owner + warehouse lead, before pilot goods operations ([worksheet](m23-quality-policy-worksheet.md))                                                        |
 | ASM-035 | How is Sale fulfilment represented when a posted Sale is corrected after Dispatch/Delivery?      | **operational action**    | Current software keeps Delivery on the original Sale and gives a replacement Sale fresh fulfilment; no physical movement may be fabricated to make the replacement look fulfilled     | Depot owner + sales + warehouse, before shadow pilot permits correction of a physically fulfilled Sale ([worksheet](m23-cross-dimension-correction-worksheet.md)) |
@@ -55,8 +55,7 @@ deferred row below names the event that ends the deferral.
 | ASM-037 | What commercial/financial consequence follows a partial customer goods return?                   | **operational action**    | `RecordDeliveryReturn` changes inventory only. It does not infer debt reduction, refund, exchange value or credit from quantity because those policies are not field-validated        | Depot owner + sales/accountant + delivery/warehouse, before the first real partial return ([worksheet](m23-cross-dimension-correction-worksheet.md))              |
 | ASM-038 | How are previously accepted goods returned to a Supplier, and what happens to supplier payable?  | **operational action**    | No Supplier-return fact exists. A generic negative inventory adjustment must not masquerade as a Supplier return when source/payable consequences matter                              | Depot owner + accountant + receiver, before the first real return of accepted stock to a Supplier ([worksheet](m23-cross-dimension-correction-worksheet.md))      |
 
-Thirty-eight entries: twelve decided, thirteen deferred with a named trigger, thirteen
-operational actions. ASM-024 and ASM-025 have owner-validation worksheets because
+Thirty-eight entries remain in the register. Status counts are intentionally not hard-coded here; the table is authoritative as configurable decisions and implementation close prior assumptions. ASM-024 and ASM-025 have owner-validation worksheets because
 a contrary answer can invalidate the transaction time at which current money
 effects are recognized. ASM-030 remains a deployment action. ASM-031 now has
 minimum requirements, while provider evidence and owner acceptance remain a
@@ -194,11 +193,7 @@ and reclassification. It does **not** prove that every depot quantity should be
 forced through a grade, that Receipt is the right representation for damaged
 arrivals, or that the default quality permissions match real work.
 
-Those questions are deliberately operational actions, not schema guesses. Use the
-[m23 quality-policy worksheet](m23-quality-policy-worksheet.md). A rejected answer
-blocks the affected pilot workflow; it must not be converted into a passing grade
-by seeding `Loại 1`, `Mặc định` or `Không phân hạng` unless the depot actually uses
-that category.
+ADR-0024 closes the universal-grade software assumption: the owner selects required grading or explicit ungraded quantity in the workspace profile. The worksheet still determines the correct selection and who may manage/reclassify grades. A rejected answer must not be converted into a passing grade by seeding `Loại 1`, `Mặc định` or `Không phân hạng` unless the depot actually uses that category.
 
 `Condition`, `Defect`, photo evidence, quarantine and supplier-quality claims remain
 out of scope until ASM-033 shows they are needed. ASM-034 supplements, rather than
@@ -223,6 +218,29 @@ generic inventory decrease is not automatically a Supplier return.
 Use the [cross-dimension correction worksheet](m23-cross-dimension-correction-worksheet.md).
 Until the relevant answer is recorded, the shadow pilot either excludes the event
 or stops and records it as a product gap. A guessed default is not readiness.
+
+---
+
+## New design boundaries — multi-role, quality management and “bông hàng”
+
+A worker doing several jobs now has one active membership with a normalized role set and deterministic permission union under [ADR-0021](ADR-0021-multi-role-workspace-membership.md). Owner remains exclusive; role-policy validation under ASM-017 is still required, but the runtime/migration/backup model is implemented.
+
+Commercial `QualityGrade` remains distinct from condition and defect evidence.
+[ADR-0022](ADR-0022-quality-inspection-and-lot-boundary.md) set the boundary and
+[ADR-0026](ADR-0026-inspected-intake-and-quality-disposition.md) now implements
+GoodsArrival, issue-code inspection, quarantine and authorized disposition. Only
+accepted quantity becomes inventory. Supplier claim/credit and canonical lot/expiry
+semantics remain unresolved and are not silently added to Grade, Receipt or payable.
+
+[ADR-0024](ADR-0024-workspace-operational-profile.md) adds one versioned, audited workspace operational profile so depots can select only stable workflows they actually use, including direct versus inspected intake and weighing mode. It is not a generic feature-flag or rule-builder system.
+
+[ADR-0025](ADR-0025-cashbook-separate-from-debt.md) implements CashAccount and append-only cash movements without collapsing physical cash into customer debt or supplier payable.
+
+A bill covering several days is now decided as a source-backed customer statement,
+not a Sale spanning several days. [ADR-0023](ADR-0023-multi-day-statement-not-multi-day-sale.md)
+freezes opening/change/closing balances and source entries in an immutable printable
+snapshot. “Bông hàng” itself remains a field-discovery term until its lifecycle and
+settlement meaning are observed.
 
 ---
 
