@@ -9,6 +9,16 @@ import type {
   DeliveryDto,
   DocumentDto,
   DocumentShareId,
+  WorkspaceOperationalProfileDto,
+  CashAccountDto,
+  CashBalanceDto,
+  CashMovementDto,
+  CashTransferDto,
+  ExpenseDto,
+  GoodsArrivalDto,
+  QualityDispositionDto,
+  QualityInspectionDto,
+  QualityIssueCodeDto,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import type { IdGenerator } from "../../clock.ts";
@@ -34,6 +44,7 @@ export type Store = {
   memberships: Map<string, WorkspaceMembership & { readonly createdAt: IsoInstant }>;
   /** Workspace id → display name, which is all a picker needs (BR-AUTH-008). */
   workspaceNames: Map<string, string>;
+  operationalProfiles: Map<string, WorkspaceOperationalProfileDto>;
   /** Supabase subject → local actor id (BR-AUTH-005). */
   actorsBySubject: Map<string, ActorId>;
   /** Actor display names, for the audit timeline's `actorDisplayName`. */
@@ -107,12 +118,34 @@ export type Store = {
   balances: Map<string, CustomerAccountBalance>;
   audit: AuditRecordDto[];
   receipts: Map<string, CommandReceipt>;
+  cashAccounts: Map<string, CashAccountDto>;
+  expenses: Map<string, ExpenseDto>;
+  cashTransfers: Map<string, CashTransferDto>;
+  cashAdjustments: Array<{
+    id: string;
+    workspaceId: WorkspaceId;
+    cashAccountId: CashAccountDto["id"];
+    amount: Money;
+    reasonCode: string;
+    reason: string;
+    transactionTime: IsoInstant;
+    recordedAt: IsoInstant;
+    actorId: ActorId;
+    commandId: string;
+  }>;
+  cashMovements: CashMovementDto[];
+  cashBalances: Map<string, CashBalanceDto>;
+  qualityIssueCodes: Map<string, QualityIssueCodeDto>;
+  goodsArrivals: Map<string, GoodsArrivalDto>;
+  qualityInspections: Map<string, QualityInspectionDto>;
+  qualityDispositions: Map<string, QualityDispositionDto>;
 };
 
 export function emptyStore(): Store {
   return {
     memberships: new Map(),
     workspaceNames: new Map(),
+    operationalProfiles: new Map(),
     actorsBySubject: new Map(),
     actorNames: new Map(),
     customers: new Map(),
@@ -140,6 +173,16 @@ export function emptyStore(): Store {
     balances: new Map(),
     audit: [],
     receipts: new Map(),
+    cashAccounts: new Map(),
+    expenses: new Map(),
+    cashTransfers: new Map(),
+    cashAdjustments: [],
+    cashMovements: [],
+    cashBalances: new Map(),
+    qualityIssueCodes: new Map(),
+    goodsArrivals: new Map(),
+    qualityInspections: new Map(),
+    qualityDispositions: new Map(),
   };
 }
 
@@ -201,6 +244,7 @@ export function toPaymentSummaryRow(store: Store, payment: PaymentState) {
       store.customers.get(key(payment.workspaceId, payment.customerId))?.displayName ?? "",
     amount: payment.amount,
     method: payment.method,
+    cashAccountId: payment.cashAccountId ?? null,
     status: payment.status,
     reversedAmount: payment.reversedAmount,
     payerName: payment.payerName,

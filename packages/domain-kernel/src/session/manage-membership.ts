@@ -6,22 +6,32 @@ import type {
   ReactivateWorkspaceMemberCommand,
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
+import { normalizeWorkspaceRoles } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
 
 type MembershipFacts = {
   readonly actorId: ActorId;
-  readonly role: WorkspaceRole;
+  readonly roles: readonly WorkspaceRole[];
   readonly isActive: boolean;
 };
 
 type MembershipDecision = {
   readonly actorId: ActorId;
-  readonly role: WorkspaceRole;
+  readonly roles: readonly WorkspaceRole[];
   readonly isActive: boolean;
   readonly audit: AuditDraft;
 };
+
+function sameRoles(left: readonly WorkspaceRole[], right: readonly WorkspaceRole[]): boolean {
+  const normalizedLeft = normalizeWorkspaceRoles(left);
+  const normalizedRight = normalizeWorkspaceRoles(right);
+  return (
+    normalizedLeft.length === normalizedRight.length &&
+    normalizedLeft.every((role, index) => role === normalizedRight[index])
+  );
+}
 
 export function decideAddMembership(args: {
   command: AddWorkspaceMemberCommand;
@@ -35,9 +45,10 @@ export function decideAddMembership(args: {
       { actorId: args.command.payload.actorId, isActive: args.existing.isActive },
     );
   }
+  const roles = normalizeWorkspaceRoles(args.command.payload.roles);
   return ok({
     actorId: args.command.payload.actorId,
-    role: args.command.payload.role,
+    roles,
     isActive: true,
     audit: {
       aggregateType: "membership",
@@ -46,7 +57,7 @@ export function decideAddMembership(args: {
       transactionTime: args.command.occurredAt,
       recordedAt: args.recordedAt,
       before: null,
-      after: { role: args.command.payload.role, isActive: true },
+      after: { roles, isActive: true },
       reason: args.command.payload.reason,
     },
   });
@@ -67,26 +78,28 @@ export function decideChangeMembershipRole(args: {
   if (membership.actorId === command.actorId) {
     return err(
       "WORKSPACE_MEMBER_SELF_ROLE_CHANGE_DENIED",
-      "A member cannot change their own role.",
+      "A member cannot change their own roles.",
       { actorId: membership.actorId },
     );
   }
-  if (membership.role !== command.payload.expectedRole) {
-    return err("WORKSPACE_MEMBER_ROLE_CONFLICT", "The membership role changed.", {
+  if (!sameRoles(membership.roles, command.payload.expectedRoles)) {
+    return err("WORKSPACE_MEMBER_ROLE_CONFLICT", "The membership roles changed.", {
       actorId: membership.actorId,
-      expectedRole: command.payload.expectedRole,
-      actualRole: membership.role,
+      expectedRoles: command.payload.expectedRoles,
+      actualRoles: membership.roles,
     });
   }
-  if (membership.role === command.payload.role) {
-    return err("WORKSPACE_MEMBER_ROLE_UNCHANGED", "The membership already has this role.", {
+
+  const roles = normalizeWorkspaceRoles(command.payload.roles);
+  if (sameRoles(membership.roles, roles)) {
+    return err("WORKSPACE_MEMBER_ROLE_UNCHANGED", "The membership already has these roles.", {
       actorId: membership.actorId,
-      role: membership.role,
+      roles,
     });
   }
   if (
-    membership.role === "owner" &&
-    command.payload.role !== "owner" &&
+    membership.roles.includes("owner") &&
+    !roles.includes("owner") &&
     args.activeOwnerCount <= 1
   ) {
     return err("WORKSPACE_LAST_OWNER", "A workspace must keep at least one active owner.", {
@@ -96,7 +109,7 @@ export function decideChangeMembershipRole(args: {
   }
   return ok({
     actorId: membership.actorId,
-    role: command.payload.role,
+    roles,
     isActive: true,
     audit: {
       aggregateType: "membership",
@@ -104,8 +117,8 @@ export function decideChangeMembershipRole(args: {
       action: "membership.role_changed",
       transactionTime: command.occurredAt,
       recordedAt: args.recordedAt,
-      before: { role: membership.role, isActive: true },
-      after: { role: command.payload.role, isActive: true },
+      before: { roles: normalizeWorkspaceRoles(membership.roles), isActive: true },
+      after: { roles, isActive: true },
       reason: command.payload.reason,
     },
   });
@@ -121,9 +134,10 @@ export function decideReactivateMembership(args: {
       actorId: args.membership.actorId,
     });
   }
+  const roles = normalizeWorkspaceRoles(args.membership.roles);
   return ok({
     actorId: args.membership.actorId,
-    role: args.membership.role,
+    roles,
     isActive: true,
     audit: {
       aggregateType: "membership",
@@ -131,8 +145,8 @@ export function decideReactivateMembership(args: {
       action: "membership.reactivated",
       transactionTime: args.command.occurredAt,
       recordedAt: args.recordedAt,
-      before: { role: args.membership.role, isActive: false },
-      after: { role: args.membership.role, isActive: true },
+      before: { roles, isActive: false },
+      after: { roles, isActive: true },
       reason: args.command.payload.reason,
     },
   });

@@ -6,7 +6,9 @@ import type {
   PurchaseLineInput,
   UpdatePurchaseDraftCommand,
   VoidPurchaseCommand,
+  Capability,
 } from "@vuarau/domain-contracts";
+import { ALLOWED, denied } from "@vuarau/domain-contracts";
 import { calculateLineTotal, isExactMoneyAmount } from "@vuarau/domain-contracts";
 import type { PurchaseLineState, PurchaseState, PurchaseVoidState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
@@ -140,6 +142,16 @@ export function decideConfirmPurchase(
     version: current.version + 1,
     confirmedAt: recordedAt,
   });
+}
+
+export function canVoidPurchase(args: {
+  readonly purchase: PurchaseState;
+  readonly hasActiveReceipts: boolean;
+}): Capability {
+  if (args.purchase.status !== "confirmed") return denied("PURCHASE_NOT_CONFIRMED");
+  if (args.purchase.voidRecord !== null) return denied("PURCHASE_ALREADY_VOIDED");
+  if (args.hasActiveReceipts) return denied("PURCHASE_HAS_ACTIVE_RECEIPTS");
+  return ALLOWED;
 }
 
 export function decideVoidPurchase(

@@ -18,6 +18,46 @@ export const WORKSPACE_ROLES = ["owner", "accountant", "sales", "warehouse", "de
 export const workspaceRoleSchema = z.enum(WORKSPACE_ROLES);
 export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
 
+const WORKSPACE_ROLE_ORDER = new Map<WorkspaceRole, number>(
+  WORKSPACE_ROLES.map((role, index) => [role, index]),
+);
+
+/**
+ * A membership carries one non-empty, deterministic role set. `owner` is
+ * exclusive because it already contains every permission; `owner + warehouse`
+ * would communicate no additional authority and would make review misleading.
+ */
+export function normalizeWorkspaceRoles(roles: readonly WorkspaceRole[]): readonly WorkspaceRole[] {
+  const normalized = [...new Set(roles)].sort(
+    (left, right) =>
+      (WORKSPACE_ROLE_ORDER.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (WORKSPACE_ROLE_ORDER.get(right) ?? Number.MAX_SAFE_INTEGER),
+  );
+  if (normalized.length === 0) throw new Error("A workspace membership needs at least one role.");
+  if (normalized.includes("owner") && normalized.length > 1) {
+    throw new Error('The "owner" role is exclusive.');
+  }
+  return normalized;
+}
+
+export const workspaceRoleSetSchema = z
+  .array(workspaceRoleSchema)
+  .min(1)
+  .superRefine((roles, ctx) => {
+    if (new Set(roles).size !== roles.length) {
+      ctx.addIssue({ code: "custom", message: "Workspace roles must be unique." });
+    }
+    if (roles.includes("owner") && roles.length > 1) {
+      ctx.addIssue({ code: "custom", message: 'The "owner" role is exclusive.' });
+    }
+  })
+  .transform((roles) => [...normalizeWorkspaceRoles(roles)]);
+export type WorkspaceRoleSet = z.infer<typeof workspaceRoleSetSchema>;
+
+export function primaryWorkspaceRole(roles: readonly WorkspaceRole[]): WorkspaceRole {
+  return normalizeWorkspaceRoles(roles)[0] as WorkspaceRole;
+}
+
 /**
  * One permission per thing a caller can attempt. Named after the command or the
  * read it guards, so a refusal names something the reader can find.
@@ -84,6 +124,21 @@ export const PERMISSIONS = [
   "document.generate",
   "document.share",
   "report.read",
+  "cash.read",
+  "cash.account.manage",
+  "cash.expense.record",
+  "cash.expense.reverse",
+  "cash.transfer",
+  "cash.adjust",
+  "cash.rebuild",
+  "intake.read",
+  "intake.record",
+  "intake.reverse",
+  "quality.issue.manage",
+  "quality.inspect",
+  "quality.inspect.reverse",
+  "quality.disposition",
+  "quality.disposition.reverse",
 ] as const;
 export const permissionSchema = z.enum(PERMISSIONS);
 export type Permission = z.infer<typeof permissionSchema>;
@@ -134,6 +189,14 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "document.generate",
     "document.share",
     "report.read",
+    "cash.read",
+    "cash.account.manage",
+    "cash.expense.record",
+    "cash.expense.reverse",
+    "cash.transfer",
+    "cash.adjust",
+    "cash.rebuild",
+    "intake.read",
   ],
 
   /**
@@ -164,6 +227,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "document.generate",
     "document.share",
     "report.read",
+    "cash.read",
   ],
 
   // Warehouse staff pick and pack against a sale; they move no money. They can
@@ -191,6 +255,14 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "delivery.cancel",
     "delivery.dispatch",
     "delivery.return",
+    "intake.read",
+    "intake.record",
+    "intake.reverse",
+    "quality.issue.manage",
+    "quality.inspect",
+    "quality.inspect.reverse",
+    "quality.disposition",
+    "quality.disposition.reverse",
     "document.read",
     "document.generate",
     "report.read",
@@ -227,10 +299,30 @@ const PERMISSION_SETS: Readonly<Record<WorkspaceRole, ReadonlySet<Permission>>> 
   ),
 );
 
-export function roleHasPermission(role: WorkspaceRole, permission: Permission): boolean {
-  return PERMISSION_SETS[role].has(permission);
+export function rolesHavePermission(
+  roles: readonly WorkspaceRole[],
+  permission: Permission,
+): boolean {
+  return normalizeWorkspaceRoles(roles).some((role) => PERMISSION_SETS[role].has(permission));
+}
+
+/** Backward-compatible single-role entry point; multi-role callers pass the set. */
+export function roleHasPermission(
+  roleOrRoles: WorkspaceRole | readonly WorkspaceRole[],
+  permission: Permission,
+): boolean {
+  return Array.isArray(roleOrRoles)
+    ? rolesHavePermission(roleOrRoles, permission)
+    : PERMISSION_SETS[roleOrRoles as WorkspaceRole].has(permission);
 }
 
 export function permissionsForRole(role: WorkspaceRole): readonly Permission[] {
   return ROLE_PERMISSIONS[role];
+}
+
+export function permissionsForRoles(roles: readonly WorkspaceRole[]): readonly Permission[] {
+  const normalized = normalizeWorkspaceRoles(roles);
+  return PERMISSIONS.filter((permission) =>
+    normalized.some((role) => PERMISSION_SETS[role].has(permission)),
+  );
 }

@@ -106,6 +106,7 @@ export function toPaymentDto(payment: PaymentState): PaymentDto {
     amount: payment.amount,
     currency: payment.amount.currency,
     method: payment.method,
+    cashAccountId: payment.cashAccountId ?? null,
     payerName: payment.payerName,
     note: payment.note,
     status: payment.status,

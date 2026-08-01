@@ -7,6 +7,15 @@ import type {
   WorkspaceId,
   WorkspaceRole,
   DocumentDto,
+  WorkspaceOperationalProfileDto,
+  CashMovementDto,
+  CashAccountId,
+  CashBalanceDto,
+} from "@vuarau/domain-contracts";
+import {
+  defaultWorkspaceOperationalProfile,
+  normalizeWorkspaceRoles,
+  primaryWorkspaceRole,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import type { IdGenerator } from "../../clock.ts";
@@ -23,35 +32,7 @@ import type {
 } from "@vuarau/domain-kernel";
 import type { Store } from "./store.ts";
 import { emptyStore, key } from "./store.ts";
-import { createWorkspaceRepositories } from "./repositories/workspace.ts";
-import { createCustomerRepositories } from "./repositories/customer.ts";
-import { createProductRepositories } from "./repositories/product.ts";
-import { createQualityGradeRepositories } from "./repositories/quality.ts";
-import { createSupplierRepositories } from "./repositories/supplier.ts";
-import { createPurchaseRepositories } from "./repositories/purchase.ts";
-import { createInventoryRepositories } from "./repositories/inventory.ts";
-import { createDeliveryRepositories } from "./repositories/delivery.ts";
-import { createDocumentRepositories } from "./repositories/document.ts";
-import { createOperationsRepositories } from "./repositories/operations.ts";
-import { createSaleRepositories } from "./repositories/sale.ts";
-import { createPaymentRepositories } from "./repositories/payment.ts";
-import { createAccountRepositories } from "./repositories/account.ts";
-import { createAuditRepositories } from "./repositories/audit.ts";
-import { createReceiptRepositories } from "./repositories/receipt.ts";
-import { createCustomerReads } from "./reads/customer.ts";
-import { createProductReads } from "./reads/product.ts";
-import { createQualityGradeReads } from "./reads/quality.ts";
-import { createSupplierReads } from "./reads/supplier.ts";
-import { createPurchaseReads } from "./reads/purchase.ts";
-import { createInventoryReads } from "./reads/inventory.ts";
-import { createDeliveryReads } from "./reads/delivery.ts";
-import { createDocumentReads } from "./reads/document.ts";
-import { createReportReads } from "./reads/report.ts";
-import { createSaleReads } from "./reads/sale.ts";
-import { createPaymentReads } from "./reads/payment.ts";
-import { createAccountReads } from "./reads/account.ts";
-import { createOperationsReads } from "./reads/operations.ts";
-import { createAuditReads } from "./reads/audit.ts";
+import { createInMemoryRepositories } from "./composition.ts";
 
 export class InMemoryDatabase {
   private store: Store = emptyStore();
@@ -70,13 +51,17 @@ export class InMemoryDatabase {
   grantMembership(
     workspaceId: WorkspaceId,
     actorId: ActorId,
-    role: WorkspaceRole = "owner",
+    roleOrRoles: WorkspaceRole | readonly WorkspaceRole[] = "owner",
     isActive = true,
   ): void {
+    const roles = normalizeWorkspaceRoles(
+      Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles as WorkspaceRole],
+    );
     this.store.memberships.set(key(workspaceId, actorId), {
       workspaceId,
       actorId,
-      role,
+      role: primaryWorkspaceRole(roles),
+      roles,
       isActive,
       createdAt: "2026-01-01T00:00:00.000Z" as IsoInstant,
     });
@@ -91,6 +76,16 @@ export class InMemoryDatabase {
    */
   registerWorkspace(workspaceId: WorkspaceId, name: string): void {
     this.store.workspaceNames.set(workspaceId, name);
+    if (!this.store.operationalProfiles.has(workspaceId)) {
+      this.store.operationalProfiles.set(
+        workspaceId,
+        defaultWorkspaceOperationalProfile(workspaceId),
+      );
+    }
+  }
+
+  setOperationalProfile(profile: WorkspaceOperationalProfileDto): void {
+    this.store.operationalProfiles.set(profile.workspaceId, { ...profile });
   }
 
   /** Links a verified JWT subject to a local actor. */
@@ -159,6 +154,14 @@ export class InMemoryDatabase {
     return this.store.inventoryMovements;
   }
 
+  cashMovementRecords(): readonly CashMovementDto[] {
+    return this.store.cashMovements;
+  }
+
+  cashBalanceFor(workspaceId: WorkspaceId, cashAccountId: CashAccountId): CashBalanceDto | null {
+    return this.store.cashBalances.get(key(workspaceId, cashAccountId)) ?? null;
+  }
+
   deliveryRecords(): readonly DeliveryState[] {
     return [...this.store.deliveries.values()];
   }
@@ -205,36 +208,6 @@ export class InMemoryDatabase {
   }
 
   private repositories(): Repositories {
-    return {
-      ...createWorkspaceRepositories(this.store),
-      ...createCustomerRepositories(this.store),
-      ...createProductRepositories(this.store),
-      ...createQualityGradeRepositories(this.store),
-      ...createSupplierRepositories(this.store, this.ids),
-      ...createPurchaseRepositories(this.store),
-      ...createInventoryRepositories(this.store, this.ids),
-      ...createDeliveryRepositories(this.store),
-      ...createDocumentRepositories(this.store),
-      ...createOperationsRepositories(this.store),
-      ...createSaleRepositories(this.store),
-      ...createPaymentRepositories(this.store),
-      ...createAccountRepositories(this.store, this.ids),
-      ...createAuditRepositories(this.store, this.ids),
-      ...createReceiptRepositories(this.store),
-      ...createCustomerReads(this.store),
-      ...createProductReads(this.store),
-      ...createQualityGradeReads(this.store),
-      ...createSupplierReads(this.store),
-      ...createPurchaseReads(this.store),
-      ...createInventoryReads(this.store),
-      ...createDeliveryReads(this.store),
-      ...createDocumentReads(this.store),
-      ...createReportReads(this.store),
-      ...createSaleReads(this.store),
-      ...createPaymentReads(this.store),
-      ...createAccountReads(this.store),
-      ...createOperationsReads(this.store),
-      ...createAuditReads(this.store),
-    };
+    return createInMemoryRepositories(this.store, this.ids);
   }
 }

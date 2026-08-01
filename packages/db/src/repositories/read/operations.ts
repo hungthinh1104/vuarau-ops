@@ -1,6 +1,15 @@
 import { and, eq, ne, sql } from "drizzle-orm";
+import type { WorkspaceRole } from "@vuarau/domain-contracts";
+import { normalizeWorkspaceRoles } from "@vuarau/domain-contracts";
 import {
   auditLogs,
+  cashAccounts,
+  cashAdjustments,
+  cashMovements,
+  cashTransfers,
+  cashTransferReversals,
+  expenses,
+  expenseReversals,
   commandReceipts,
   customerAccountBalances,
   customerAccountEntries,
@@ -9,6 +18,16 @@ import {
   payments,
   products,
   qualityGrades,
+  qualityIssueCodes,
+  goodsArrivals,
+  goodsArrivalLines,
+  goodsArrivalReversals,
+  qualityInspections,
+  qualityInspectionIssues,
+  qualityInspectionReversals,
+  qualityDispositions,
+  qualityDispositionAllocations,
+  qualityDispositionReversals,
   suppliers,
   supplierPayments,
   supplierPaymentReversals,
@@ -32,7 +51,9 @@ import {
   saleVoids,
   sales,
   workspaces,
+  workspaceMembershipRoles,
   workspaceMemberships,
+  workspaceOperationalProfiles,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -191,24 +212,27 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
             UNION SELECT id FROM supplier_source_anomalies
           ),
           inventory_ledger AS (
-            SELECT product_id, unit, sum(quantity_scaled)::bigint quantity_scaled,
+            SELECT product_id, quality_grade_id, unit,
+                   sum(quantity_scaled)::bigint quantity_scaled,
                    count(*)::int movement_count
             FROM ${inventoryMovements}
             WHERE workspace_id = ${workspaceId}::uuid
-            GROUP BY product_id, unit
+            GROUP BY product_id, quality_grade_id, unit
           ),
           inventory_projection_anomalies AS (
-            SELECT l.product_id, l.unit
+            SELECT l.product_id, l.quality_grade_id, l.unit
             FROM inventory_ledger l
             LEFT JOIN ${inventoryBalances} b
               ON b.workspace_id = ${workspaceId}::uuid
-              AND b.product_id = l.product_id AND b.unit = l.unit
+              AND b.product_id = l.product_id
+              AND b.quality_grade_id IS NOT DISTINCT FROM l.quality_grade_id
+              AND b.unit = l.unit
             WHERE b.product_id IS NULL
               OR b.quantity_scaled <> l.quantity_scaled
               OR b.movement_count <> l.movement_count
           ),
           inventory_source_anomalies AS (
-            SELECT DISTINCT im.product_id, im.unit
+            SELECT DISTINCT im.product_id, im.quality_grade_id, im.unit
             FROM ${inventoryMovements} im
             LEFT JOIN ${purchaseReceipts} pr
               ON im.source_type = 'purchase_receipt' AND pr.id = im.source_id
@@ -228,6 +252,32 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
             LEFT JOIN ${deliveryLines} return_dl
               ON return_dl.workspace_id = im.workspace_id
               AND return_dl.id = drl.delivery_line_id
+            LEFT JOIN ${qualityDispositions} qd
+              ON im.source_type = 'quality_disposition'
+              AND qd.workspace_id = im.workspace_id AND qd.id = im.source_id
+            LEFT JOIN ${qualityDispositionAllocations} qda
+              ON qda.workspace_id = qd.workspace_id
+              AND qda.disposition_id = qd.id AND qda.id = im.source_line_id
+            LEFT JOIN ${qualityDispositionAllocations} source_qda
+              ON qd.source_type = 'quarantine_allocation'
+              AND source_qda.workspace_id = qd.workspace_id
+              AND source_qda.id = qd.source_quarantine_allocation_id
+            LEFT JOIN ${qualityDispositions} source_qd
+              ON source_qd.workspace_id = source_qda.workspace_id
+              AND source_qd.id = source_qda.disposition_id
+            LEFT JOIN ${goodsArrivalLines} root_line
+              ON root_line.workspace_id = im.workspace_id
+              AND root_line.id = coalesce(qd.source_arrival_line_id, source_qd.source_arrival_line_id)
+            LEFT JOIN ${qualityDispositionReversals} qdr
+              ON im.source_type = 'quality_disposition_reversal'
+              AND qdr.workspace_id = im.workspace_id AND qdr.id = im.source_id
+            LEFT JOIN ${qualityDispositions} reversed_qd
+              ON reversed_qd.workspace_id = qdr.workspace_id
+              AND reversed_qd.id = qdr.disposition_id
+            LEFT JOIN ${qualityDispositionAllocations} reversed_qda
+              ON reversed_qda.workspace_id = reversed_qd.workspace_id
+              AND reversed_qda.disposition_id = reversed_qd.id
+              AND reversed_qda.id = im.source_line_id
             LEFT JOIN ${inventoryMovements} original
               ON original.id = im.reversal_of_movement_id
             WHERE im.workspace_id = ${workspaceId}::uuid
@@ -236,7 +286,29 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
                 OR (im.source_type = 'inventory_adjustment'
                   AND (im.reason_code IS NULL OR nullif(btrim(im.reason), '') IS NULL))
                 OR (im.source_type = 'purchase_receipt' AND pr.id IS NULL)
-                OR (im.source_type = 'purchase_receipt_reversal' AND prr.id IS NULL)
+                OR (im.source_type = 'purchase_receipt_reversal'
+                  AND (prr.id IS NULL OR original.id IS NULL
+                    OR im.reversal_of_movement_id <> original.id
+                    OR im.product_id <> original.product_id
+                    OR im.quality_grade_id IS DISTINCT FROM original.quality_grade_id
+                    OR im.unit <> original.unit
+                    OR im.quantity_scaled <> -original.quantity_scaled))
+                OR (im.source_type = 'quality_disposition'
+                  AND (qd.id IS NULL OR qda.id IS NULL OR qda.outcome <> 'accepted'
+                    OR root_line.id IS NULL OR root_line.product_id <> im.product_id
+                    OR qda.unit <> im.unit
+                    OR qda.quality_grade_id IS DISTINCT FROM im.quality_grade_id
+                    OR qda.value_scaled <> im.quantity_scaled))
+                OR (im.source_type = 'quality_disposition_reversal'
+                  AND (qdr.id IS NULL OR reversed_qd.id IS NULL OR reversed_qda.id IS NULL
+                    OR original.id IS NULL OR original.source_type <> 'quality_disposition'
+                    OR original.source_id <> reversed_qd.id
+                    OR original.source_line_id <> reversed_qda.id
+                    OR im.reversal_of_movement_id <> original.id
+                    OR im.product_id <> original.product_id
+                    OR im.quality_grade_id IS DISTINCT FROM original.quality_grade_id
+                    OR im.unit <> original.unit
+                    OR im.quantity_scaled <> -original.quantity_scaled))
                 OR (im.source_type = 'delivery_dispatch'
                   AND (d.id IS NULL OR dl.id IS NULL
                     OR dl.product_id <> im.product_id OR dl.unit <> im.unit
@@ -254,8 +326,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
               )
           ),
           inventory_anomalies AS (
-            SELECT product_id, unit FROM inventory_projection_anomalies
-            UNION SELECT product_id, unit FROM inventory_source_anomalies
+            SELECT product_id, quality_grade_id, unit FROM inventory_projection_anomalies
+            UNION SELECT product_id, quality_grade_id, unit FROM inventory_source_anomalies
           )
           SELECT
             (SELECT count(*)::int FROM ${suppliers}
@@ -297,10 +369,29 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         .limit(1);
       if (workspace[0] === undefined) return null;
       const [
+        operationalProfileRows,
+        cashAccountRows,
+        expenseRows,
+        expenseReversalRows,
+        cashTransferRows,
+        cashTransferReversalRows,
+        cashAdjustmentRows,
+        cashMovementRows,
         membershipRows,
+        membershipRoleRows,
         customerRows,
         productRows,
         qualityGradeRows,
+        qualityIssueCodeRows,
+        goodsArrivalRows,
+        goodsArrivalLineRows,
+        goodsArrivalReversalRows,
+        qualityInspectionRows,
+        qualityInspectionIssueRows,
+        qualityInspectionReversalRows,
+        qualityDispositionRows,
+        qualityDispositionAllocationRows,
+        qualityDispositionReversalRows,
         saleRows,
         saleLineRows,
         saleVoidRows,
@@ -329,11 +420,58 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
       ] = await Promise.all([
         tx
           .select()
+          .from(workspaceOperationalProfiles)
+          .where(eq(workspaceOperationalProfiles.workspaceId, workspaceId))
+          .limit(1),
+        tx.select().from(cashAccounts).where(eq(cashAccounts.workspaceId, workspaceId)),
+        tx.select().from(expenses).where(eq(expenses.workspaceId, workspaceId)),
+        tx.select().from(expenseReversals).where(eq(expenseReversals.workspaceId, workspaceId)),
+        tx.select().from(cashTransfers).where(eq(cashTransfers.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(cashTransferReversals)
+          .where(eq(cashTransferReversals.workspaceId, workspaceId)),
+        tx.select().from(cashAdjustments).where(eq(cashAdjustments.workspaceId, workspaceId)),
+        tx.select().from(cashMovements).where(eq(cashMovements.workspaceId, workspaceId)),
+        tx
+          .select()
           .from(workspaceMemberships)
           .where(eq(workspaceMemberships.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(workspaceMembershipRoles)
+          .where(eq(workspaceMembershipRoles.workspaceId, workspaceId)),
         tx.select().from(customers).where(eq(customers.workspaceId, workspaceId)),
         tx.select().from(products).where(eq(products.workspaceId, workspaceId)),
         tx.select().from(qualityGrades).where(eq(qualityGrades.workspaceId, workspaceId)),
+        tx.select().from(qualityIssueCodes).where(eq(qualityIssueCodes.workspaceId, workspaceId)),
+        tx.select().from(goodsArrivals).where(eq(goodsArrivals.workspaceId, workspaceId)),
+        tx.select().from(goodsArrivalLines).where(eq(goodsArrivalLines.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(goodsArrivalReversals)
+          .where(eq(goodsArrivalReversals.workspaceId, workspaceId)),
+        tx.select().from(qualityInspections).where(eq(qualityInspections.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(qualityInspectionIssues)
+          .where(eq(qualityInspectionIssues.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(qualityInspectionReversals)
+          .where(eq(qualityInspectionReversals.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(qualityDispositions)
+          .where(eq(qualityDispositions.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(qualityDispositionAllocations)
+          .where(eq(qualityDispositionAllocations.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(qualityDispositionReversals)
+          .where(eq(qualityDispositionReversals.workspaceId, workspaceId)),
         tx.select().from(sales).where(eq(sales.workspaceId, workspaceId)),
         tx.select().from(saleLines).where(eq(saleLines.workspaceId, workspaceId)),
         tx.select().from(saleVoids).where(eq(saleVoids.workspaceId, workspaceId)),
@@ -397,12 +535,55 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
       const plain = (value: unknown): Record<string, unknown> =>
         JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
       const list = (values: readonly unknown[]) => values.map(plain);
+      const roleSets = new Map<string, WorkspaceRole[]>();
+      for (const row of membershipRoleRows) {
+        const roles = roleSets.get(row.actorId) ?? [];
+        roles.push(row.role);
+        roleSets.set(row.actorId, roles);
+      }
+      const membershipSnapshots = membershipRows.map((row) => ({
+        ...row,
+        // Control-plane evidence only. Restore deliberately keeps the recovery
+        // workspace's own memberships rather than importing source access.
+        roles: normalizeWorkspaceRoles(roleSets.get(row.actorId) ?? [row.role]),
+      }));
       return {
         workspace: plain(workspace[0]),
-        memberships: list(membershipRows),
+        operationalProfile: plain(
+          operationalProfileRows[0] ?? {
+            workspaceId,
+            purchasingMode: "purchase_receiving",
+            inventoryMode: "movement_ledger",
+            qualityGradeMode: "required",
+            deliveryMode: "sale_fulfilment",
+            cashbookMode: "disabled",
+            intakeMode: "direct_receipt",
+            weighingMode: "quantity_only",
+            businessDayStartMinute: 0,
+            version: 1,
+          },
+        ),
+        cashAccounts: list(cashAccountRows),
+        expenses: list(expenseRows),
+        expenseReversals: list(expenseReversalRows),
+        cashTransfers: list(cashTransferRows),
+        cashTransferReversals: list(cashTransferReversalRows),
+        cashAdjustments: list(cashAdjustmentRows),
+        cashMovements: list(cashMovementRows),
+        memberships: list(membershipSnapshots),
         customers: list(customerRows),
         products: list(productRows),
         qualityGrades: list(qualityGradeRows),
+        qualityIssueCodes: list(qualityIssueCodeRows),
+        goodsArrivals: list(goodsArrivalRows),
+        goodsArrivalLines: list(goodsArrivalLineRows),
+        goodsArrivalReversals: list(goodsArrivalReversalRows),
+        qualityInspections: list(qualityInspectionRows),
+        qualityInspectionIssues: list(qualityInspectionIssueRows),
+        qualityInspectionReversals: list(qualityInspectionReversalRows),
+        qualityDispositions: list(qualityDispositionRows),
+        qualityDispositionAllocations: list(qualityDispositionAllocationRows),
+        qualityDispositionReversals: list(qualityDispositionReversalRows),
         sales: list(saleRows),
         saleLines: list(saleLineRows),
         saleVoids: list(saleVoidRows),

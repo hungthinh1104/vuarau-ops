@@ -29,6 +29,7 @@ export const createPaymentWriteRepositories = (tx: Tx) => ({
         amountMinor: payment.amount.amountMinor,
         currency: payment.amount.currency,
         method: payment.method,
+        cashAccountId: payment.cashAccountId ?? null,
         payerName: payment.payerName,
         note: payment.note,
         status: payment.status,

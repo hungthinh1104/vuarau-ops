@@ -344,13 +344,14 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
   //    `owner` carries debt.adjust and sale.void — the two ways to move money
   //    with no new trade.
   const unintendedOwners = active.filter(
-    (member) => member.role === "owner" && !config.allowedOwnerActorIds.includes(member.actorId),
+    (member) =>
+      member.roles.includes("owner") && !config.allowedOwnerActorIds.includes(member.actorId),
   );
   checks.push(
     unintendedOwners.length === 0
       ? pass(
           "no unintended owner memberships",
-          `${active.filter((m) => m.role === "owner").length} owner(s), all declared`,
+          `${active.filter((m) => m.roles.includes("owner")).length} owner(s), all declared`,
         )
       : fail(
           "no unintended owner memberships",
@@ -372,11 +373,11 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
     );
   } else {
     checks.push(
-      actor.role === config.actor.expectedRole
+      actor.roles.includes(config.actor.expectedRole)
         ? pass("pilot actor has an active membership", `role: ${actor.role}, as declared`)
         : fail(
             "pilot actor has an active membership",
-            `role is ${actor.role}, declaration says ${config.actor.expectedRole} — ` +
+            `roles are ${actor.roles.join(", ")}, declaration requires ${config.actor.expectedRole} — ` +
               "a role nobody chose is what ASM-018 left behind",
           ),
     );
@@ -489,7 +490,7 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
   // 12. Somebody can undo a mistake. Not a UI — an operator at a shell
   //     (ops:correct-sale) — but somebody in this depot must hold `sale.void`,
   //     or a wrong sale during the session cannot be corrected at all.
-  const correctors = active.filter((member) => roleHasPermission(member.role, "sale.void"));
+  const correctors = active.filter((member) => roleHasPermission(member.roles, "sale.void"));
   checks.push(
     correctors.length > 0
       ? pass(

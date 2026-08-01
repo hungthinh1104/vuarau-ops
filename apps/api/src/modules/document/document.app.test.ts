@@ -7,11 +7,19 @@ import {
   QUALITY_GRADE_1_ID,
   WORKSPACE_ID,
 } from "@vuarau/test-fixtures";
-import type { DocumentId, DocumentShareId, SaleId, SaleLineId } from "@vuarau/domain-contracts";
+import type {
+  DocumentId,
+  DocumentShareId,
+  PaymentId,
+  SaleId,
+  SaleLineId,
+} from "@vuarau/domain-contracts";
+import { documentSnapshotSchema } from "@vuarau/domain-contracts";
 import { hashPayload } from "../../infrastructure/hash.ts";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
+import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { createDocumentShare, generateDocument, revokeDocumentShare } from "./document.handlers.ts";
 import { getPublicDocument } from "./public-document.ts";
 
@@ -84,6 +92,73 @@ describe("M20 immutable documents (TC-DOCUMENT-001)", () => {
     expect(hashPayload(first.value.snapshot)).toBe(first.value.digest);
   });
 
+  it("creates a multi-day customer statement without merging its source transactions", async () => {
+    const paymentId = "00000000-0000-4000-8000-000000000e22" as PaymentId;
+    const paid = await recordCustomerPayment(harness.ctx, {
+      ...command("e22"),
+      // Exactly at the inclusive period boundary: this belongs in the statement
+      // and must not leak into opening balance.
+      occurredAt: "2026-07-23T00:00:00.000+07:00",
+      payload: {
+        paymentId,
+        customerId: CUSTOMER_ID,
+        amount: { amountMinor: 100_000, currency: "VND" },
+        method: "cash",
+        payerName: null,
+        note: null,
+      },
+    });
+    expect(paid.ok).toBe(true);
+
+    const result = await generateDocument(harness.ctx, {
+      ...command("e23"),
+      payload: {
+        documentId: "00000000-0000-4000-8000-000000000e23" as DocumentId,
+        documentType: "customer_statement",
+        sourceType: "customer",
+        sourceId: CUSTOMER_ID,
+        period: {
+          from: "2026-07-23T00:00:00.000+07:00",
+          to: "2026-07-23T23:59:59.999+07:00",
+        },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const parsed = documentSnapshotSchema.safeParse(result.value.snapshot);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success || parsed.data.kind !== "customer_statement") return;
+    expect(parsed.data.openingBalance.amountMinor).toBe(250_000);
+    expect(parsed.data.entries).toHaveLength(1);
+    expect(parsed.data.entries[0]).toMatchObject({
+      source: { type: "payment", id: paymentId },
+      amount: { amountMinor: -100_000, currency: "VND" },
+      runningBalance: { amountMinor: 150_000, currency: "VND" },
+    });
+    expect(parsed.data.periodChange.amountMinor).toBe(-100_000);
+    expect(parsed.data.closingBalance.amountMinor).toBe(150_000);
+    expect(parsed.data.classification).toBe("receivable");
+  });
+
+  it("rejects a statement whose end precedes its start", async () => {
+    const result = await generateDocument(harness.ctx, {
+      ...command("e24"),
+      payload: {
+        documentId: "00000000-0000-4000-8000-000000000e24" as DocumentId,
+        documentType: "customer_statement",
+        sourceType: "customer",
+        sourceId: CUSTOMER_ID,
+        period: {
+          from: "2026-07-24T00:00:00.000+07:00",
+          to: "2026-07-23T23:59:59.999+07:00",
+        },
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "INVALID_COMMAND_PAYLOAD" } });
+  });
+
   it("stores only a token hash and safely rejects expiry and revocation", async () => {
     const documentId = "00000000-0000-4000-8000-000000000e14" as DocumentId;
     await generateDocument(harness.ctx, {
@@ -97,15 +172,23 @@ describe("M20 immutable documents (TC-DOCUMENT-001)", () => {
     });
     expect(shared.ok).toBe(true);
     if (!shared.ok) return;
+    expect(shared.value.expiresAt).toBe("2026-07-24T02:00:30.000Z");
     const publicRead = await harness.deps.uow.transaction((repos) =>
       repos.documentReads.publicByTokenHash(
         hashPayload(shared.value.token),
-        LATER_TRANSACTION_TIME,
+        "2026-07-23T10:00:00.000+07:00",
       ),
     );
     expect(publicRead.kind).toBe("found");
+    const publicPage = await getPublicDocument(harness.deps, shared.value.token);
+    expect(publicPage.kind).toBe("found");
+    if (publicPage.kind === "found") {
+      expect(publicPage.html).toContain("PHIẾU BÁN HÀNG");
+      expect(publicPage.html).toContain("không phải hóa đơn thuế");
+      expect(publicPage.html).not.toContain("&quot;schemaVersion&quot;");
+    }
     const rawTokenLookup = await harness.deps.uow.transaction((repos) =>
-      repos.documentReads.publicByTokenHash(shared.value.token, LATER_TRANSACTION_TIME),
+      repos.documentReads.publicByTokenHash(shared.value.token, "2026-07-23T10:00:00.000+07:00"),
     );
     expect(rawTokenLookup.kind).toBe("not_found");
     expect(
@@ -119,10 +202,31 @@ describe("M20 immutable documents (TC-DOCUMENT-001)", () => {
     const revoked = await harness.deps.uow.transaction((repos) =>
       repos.documentReads.publicByTokenHash(
         hashPayload(shared.value.token),
-        LATER_TRANSACTION_TIME,
+        "2026-07-23T10:00:00.000+07:00",
       ),
     );
     expect(revoked.kind).toBe("revoked");
+  });
+
+  it("compares explicit expiry by instant rather than ISO string ordering", async () => {
+    const documentId = "00000000-0000-4000-8000-000000000e20" as DocumentId;
+    await generateDocument(harness.ctx, {
+      ...command("e20"),
+      payload: { documentId, documentType: "sale_receipt", sourceType: "sale", sourceId: saleId },
+    });
+
+    const result = await createDocumentShare(harness.ctx, {
+      ...command("e21"),
+      payload: {
+        shareId: "00000000-0000-4000-8000-000000000e21" as DocumentShareId,
+        documentId,
+        // 10:00 Vietnam time: just after the 09:00:30 recordedAt, despite the
+        // UTC lexical hour appearing smaller than the offset timestamp's hour.
+        expiresAt: "2026-07-23T03:00:30.000Z",
+      },
+    });
+
+    expect(result.ok).toBe(true);
   });
 
   it("fails closed for an expired link and a tampered immutable snapshot", async () => {

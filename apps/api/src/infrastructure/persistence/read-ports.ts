@@ -10,6 +10,7 @@ import type {
   CursorPosition,
   CustomerAccountEntryId,
   CustomerId,
+  CashAccountId,
   DebtAdjustmentReasonCode,
   DomainRejectionCode,
   IsoInstant,
@@ -21,7 +22,7 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV4,
+  WorkspaceBackupV7,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
@@ -45,6 +46,25 @@ import type {
   DocumentSourceType,
   OperationalReportDto,
   ReportType,
+  CashAccountDto,
+  CashBalanceDto,
+  CashMovementDto,
+  CashReconciliationDto,
+  CashTransferDto,
+  CashTransferId,
+  ExpenseDto,
+  ExpenseId,
+  ArrivalLineHistoryDto,
+  GoodsArrivalDto,
+  GoodsArrivalId,
+  GoodsArrivalLineId,
+  QualityDispositionDto,
+  QualityDispositionId,
+  QualityDispositionSource,
+  QualityDispositionSourceSummaryDto,
+  QualityInspectionDto,
+  QualityInspectionId,
+  QualityIssueCodeDto,
 } from "@vuarau/domain-contracts";
 import type { SaleState } from "@vuarau/domain-kernel";
 
@@ -168,6 +188,7 @@ export type PaymentSummaryRow = {
   readonly customerDisplayName: string;
   readonly amount: Money;
   readonly method: PaymentMethod;
+  readonly cashAccountId: CashAccountId | null;
   readonly status: PaymentStatus;
   readonly reversedAmount: Money;
   readonly payerName: string | null;
@@ -420,6 +441,7 @@ export type ReportReadRepository = {
     workspaceId: WorkspaceId;
     reportType: ReportType;
     businessDate: string | null;
+    businessDayStartMinute?: number;
     productId: ProductId | null;
     unit: Unit | null;
     page: PageQuery;
@@ -456,9 +478,67 @@ export type AuditReadRepository = {
   }): Promise<PageResult<AuditTimelineRow>>;
 };
 
+export type CashReadRepository = {
+  searchAccounts(args: {
+    workspaceId: WorkspaceId;
+    query: string;
+    isActive: boolean | null;
+    page: PageQuery;
+  }): Promise<PageResult<{ readonly account: CashAccountDto; readonly balance: CashBalanceDto }>>;
+  account(
+    workspaceId: WorkspaceId,
+    cashAccountId: CashAccountId,
+  ): Promise<{ readonly account: CashAccountDto; readonly balance: CashBalanceDto } | null>;
+  timeline(args: {
+    workspaceId: WorkspaceId;
+    cashAccountId: CashAccountId;
+    from: IsoInstant | null;
+    to: IsoInstant | null;
+    page: PageQuery;
+  }): Promise<PageResult<CashMovementDto>>;
+  expense(workspaceId: WorkspaceId, expenseId: ExpenseId): Promise<ExpenseDto | null>;
+  transfer(workspaceId: WorkspaceId, transferId: CashTransferId): Promise<CashTransferDto | null>;
+  reconciliation(
+    workspaceId: WorkspaceId,
+    cashAccountId: CashAccountId,
+  ): Promise<CashReconciliationDto>;
+};
+
+export type IntakeReadRepository = {
+  searchIssueCodes(args: {
+    workspaceId: WorkspaceId;
+    query: string;
+    isActive: boolean | null;
+    page: PageQuery;
+  }): Promise<PageResult<QualityIssueCodeDto>>;
+  arrival(workspaceId: WorkspaceId, arrivalId: GoodsArrivalId): Promise<GoodsArrivalDto | null>;
+  listArrivals(args: {
+    workspaceId: WorkspaceId;
+    supplierId: string | null;
+    purchaseId: string | null;
+    page: PageQuery;
+  }): Promise<PageResult<GoodsArrivalDto>>;
+  inspection(
+    workspaceId: WorkspaceId,
+    inspectionId: QualityInspectionId,
+  ): Promise<QualityInspectionDto | null>;
+  disposition(
+    workspaceId: WorkspaceId,
+    dispositionId: QualityDispositionId,
+  ): Promise<QualityDispositionDto | null>;
+  dispositionSourceSummary(
+    workspaceId: WorkspaceId,
+    source: QualityDispositionSource,
+  ): Promise<QualityDispositionSourceSummaryDto | null>;
+  arrivalLineHistory(
+    workspaceId: WorkspaceId,
+    arrivalLineId: GoodsArrivalLineId,
+  ): Promise<ArrivalLineHistoryDto>;
+};
+
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV4["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV7["payload"] | null>;
 };
 
 /**
@@ -483,4 +563,6 @@ export type ReadRepositories = {
   readonly accountReads: AccountReadRepository;
   readonly auditReads: AuditReadRepository;
   readonly operationsReads: OperationsReadRepository;
+  readonly cashReads: CashReadRepository;
+  readonly intakeReads: IntakeReadRepository;
 };

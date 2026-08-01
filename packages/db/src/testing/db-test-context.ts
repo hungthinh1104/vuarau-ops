@@ -20,7 +20,9 @@ import {
   products,
   qualityGrades,
   workspaces,
+  workspaceMembershipRoles,
   workspaceMemberships,
+  workspaceOperationalProfiles,
 } from "../schema/index.ts";
 
 /**
@@ -139,6 +141,10 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
     { id: workspaceId, name: `test:${seedName}` },
     { id: foreignWorkspaceId, name: `test:${seedName}:foreign` },
   ]);
+  await database.db.insert(workspaceOperationalProfiles).values([
+    { workspaceId },
+    { workspaceId: foreignWorkspaceId },
+  ]);
 
   const allActors: Array<{ id: ActorId; label: string }> = [
     ...Object.entries(roleActors).map(([role, id]) => ({ id, label: `${seedName}:${role}` })),
@@ -164,6 +170,26 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
     { workspaceId, actorId: revokedActorId, role: "owner" as const, isActive: false },
     // Full rights, but in a different depot entirely.
     { workspaceId: foreignWorkspaceId, actorId: foreignActorId, role: "owner" as const },
+  ]);
+  await database.db.insert(workspaceMembershipRoles).values([
+    ...Object.entries(roleActors).map(([role, id]) => ({
+      workspaceId,
+      actorId: id,
+      role: role as WorkspaceRole,
+      assignedBy: roleActors.owner,
+    })),
+    {
+      workspaceId,
+      actorId: revokedActorId,
+      role: "owner" as const,
+      assignedBy: roleActors.owner,
+    },
+    {
+      workspaceId: foreignWorkspaceId,
+      actorId: foreignActorId,
+      role: "owner" as const,
+      assignedBy: foreignActorId,
+    },
   ]);
   await database.db.insert(customers).values({
     id: customerId,

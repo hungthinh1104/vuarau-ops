@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  cashAccountIdSchema,
   customerIdSchema,
   paymentIdSchema,
   paymentReversalIdSchema,
@@ -32,6 +33,8 @@ export const recordCustomerPaymentPayloadSchema = z.object({
   /** Positivity is BR-PAYMENT-001, enforced by the domain for a stable code. */
   amount: moneySchema,
   method: paymentMethodSchema,
+  /** Required when this workspace enables the cashbook; null preserves pre-cashbook history. */
+  cashAccountId: cashAccountIdSchema.nullable().optional(),
   /**
    * Set when a relative or driver pays on the customer's behalf. The debt still
    * belongs to `customerId`; this is who physically handed over the money.
@@ -50,6 +53,8 @@ export const reverseCustomerPaymentPayloadSchema = z.object({
   reversalId: paymentReversalIdSchema,
   /** Partial reversals are supported; amount ≤ remaining reversible amount. */
   amount: moneySchema,
+  /** Account money leaves; may be supplied for a legacy payment recorded before cashbook. */
+  cashAccountId: cashAccountIdSchema.nullable().optional(),
   /**
    * Undoing money always requires a stated cause (BR-PAYMENT-004). Blankness is
    * checked by the domain so the refusal is
@@ -76,6 +81,7 @@ export const paymentDtoSchema = z.object({
   amount: moneySchema,
   currency: currencyCodeSchema,
   method: paymentMethodSchema,
+  cashAccountId: cashAccountIdSchema.nullable(),
   payerName: z.string().nullable(),
   note: z.string().nullable(),
   status: paymentStatusSchema,
@@ -137,6 +143,7 @@ export const paymentSummaryDtoSchema = z.object({
   customerDisplayName: z.string(),
   amount: moneySchema,
   method: paymentMethodSchema,
+  cashAccountId: cashAccountIdSchema.nullable(),
   status: paymentStatusSchema,
   reversedAmount: moneySchema,
   /**

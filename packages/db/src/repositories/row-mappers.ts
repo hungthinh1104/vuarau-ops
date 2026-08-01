@@ -173,6 +173,7 @@ export type PaymentRow = {
   amountMinor: number;
   currency: CurrencyCode;
   method: PaymentState["method"];
+  cashAccountId: string | null;
   payerName: string | null;
   note: string | null;
   reversedAmountMinor: number;
@@ -190,6 +191,7 @@ export function toPaymentState(row: PaymentRow): PaymentState {
     customerId: row.customerId as CustomerId,
     amount,
     method: row.method,
+    cashAccountId: row.cashAccountId as NonNullable<PaymentState["cashAccountId"]> | null,
     payerName: row.payerName,
     note: row.note,
     // Recomputed from `reversed_amount` rather than read from the stored column.

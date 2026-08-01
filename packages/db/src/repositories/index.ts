@@ -15,6 +15,8 @@ import { createPaymentWriteRepositories } from "./write/payment.ts";
 import { createAccountWriteRepositories } from "./write/account.ts";
 import { createAuditWriteRepositories } from "./write/audit.ts";
 import { createReceiptWriteRepositories } from "./write/receipt.ts";
+import { createCashWriteRepositories } from "./write/cash.ts";
+import { createIntakeWriteRepositories } from "./write/intake.ts";
 
 type Tx = PgTransaction<never, never, never>;
 export type IdMinter = { newId(): string };
@@ -36,6 +38,8 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     ...createAccountWriteRepositories(tx, ids),
     ...createAuditWriteRepositories(tx, ids),
     ...createReceiptWriteRepositories(tx),
+    ...createCashWriteRepositories(tx, ids),
+    ...createIntakeWriteRepositories(tx),
   };
 }
 

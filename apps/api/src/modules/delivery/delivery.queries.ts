@@ -4,7 +4,8 @@ import type {
   SaleFulfilmentDto,
   SaleFulfilmentInput,
 } from "@vuarau/domain-contracts";
-import { err, ok } from "@vuarau/domain-kernel";
+import { denied, roleHasPermission } from "@vuarau/domain-contracts";
+import { canCreateDeliveryDraftForSale, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 
@@ -41,13 +42,55 @@ export async function getSaleFulfilment(ctx: CommandContext, input: SaleFulfilme
     ctx,
     workspaceId: input.workspaceId,
     permission: "delivery.read",
-    execute: async ({ repos }): Promise<SaleFulfilmentDto> => {
+    execute: async ({ repos, membership }): Promise<SaleFulfilmentDto> => {
       const sale = await repos.saleReads.get(input.workspaceId, input.saleId);
-      if (sale === null) return { saleId: input.saleId, integrity: "attention", lines: [] };
+      if (sale === null) {
+        return {
+          saleId: input.saleId,
+          integrity: "attention",
+          capabilities: { createDelivery: denied("SALE_NOT_FOUND") },
+          lines: [],
+        };
+      }
       const fulfilment = await repos.deliveries.fulfilmentBySaleLine(
         input.workspaceId,
         input.saleId,
       );
+      let replacementAncestryHasFulfilment = false;
+      let predecessorSaleId = sale.replacesSaleId;
+      const visitedSaleIds = new Set<string>();
+      while (predecessorSaleId !== null) {
+        if (visitedSaleIds.has(predecessorSaleId)) {
+          replacementAncestryHasFulfilment = true;
+          break;
+        }
+        visitedSaleIds.add(predecessorSaleId);
+        const predecessorFulfilment = await repos.deliveries.netFulfilledBySaleLine(
+          input.workspaceId,
+          predecessorSaleId,
+          null,
+        );
+        if ([...predecessorFulfilment.values()].some((value) => value > 0)) {
+          replacementAncestryHasFulfilment = true;
+          break;
+        }
+        const predecessorSale = await repos.saleReads.get(input.workspaceId, predecessorSaleId);
+        if (predecessorSale === null) {
+          replacementAncestryHasFulfilment = true;
+          break;
+        }
+        predecessorSaleId = predecessorSale.replacesSaleId;
+      }
+      const aggregateCreateCapability = canCreateDeliveryDraftForSale({
+        sale,
+        replacementAncestryHasFulfilment,
+      });
+      const createDeliveryCapability = roleHasPermission(membership.roles, "delivery.create")
+        ? aggregateCreateCapability
+        : denied("PERMISSION_DENIED", {
+            permission: "delivery.create",
+            role: membership.role,
+          });
       const lines: SaleFulfilmentDto["lines"] = sale.lines.map((line) => {
         const amounts = fulfilment.get(line.lineId) ?? { dispatched: 0, returned: 0 };
         const net = amounts.dispatched - amounts.returned;
@@ -97,6 +140,7 @@ export async function getSaleFulfilment(ctx: CommandContext, input: SaleFulfilme
         integrity: lines.some((line) => line.fulfilmentState === "attention")
           ? "attention"
           : "healthy",
+        capabilities: { createDelivery: createDeliveryCapability },
         lines,
       };
     },

@@ -64,6 +64,7 @@ export function toSupplierPaymentState(
     supplierId: row.supplierId as SupplierId,
     amount: { amountMinor: row.amountMinor, currency: row.currency },
     method: row.method,
+    cashAccountId: row.cashAccountId as NonNullable<SupplierPaymentState["cashAccountId"]> | null,
     note: row.note,
     reversedAmount: { amountMinor: row.reversedAmountMinor, currency: row.currency },
     version: row.version,

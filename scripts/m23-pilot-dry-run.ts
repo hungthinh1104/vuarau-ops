@@ -20,11 +20,13 @@ const steps: readonly EvidenceStep[] = [
       "apps/api/src/operations/pilot-csv.app.test.ts",
       "apps/api/src/infrastructure/request-guard.app.test.ts",
       "apps/api/src/infrastructure/readiness.app.test.ts",
+      "apps/api/src/operations/full-depot-day.app.test.ts",
     ],
     proves: [
       "fail-closed owner/provider declarations",
       "Customer/Product validation and deterministic identity",
       "oversized request, rate limiting, PostgreSQL-unavailable readiness",
+      "one synthetic depot day keeps customer money, supplier money, inventory and fulfilment reconciled",
     ],
   },
   {

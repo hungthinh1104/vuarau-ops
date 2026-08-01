@@ -278,6 +278,7 @@ export function paymentSelect(tx: Tx) {
       amountMinor: payments.amountMinor,
       currency: payments.currency,
       method: payments.method,
+      cashAccountId: payments.cashAccountId,
       status: payments.status,
       reversedAmountMinor: payments.reversedAmountMinor,
       payerName: payments.payerName,
@@ -298,6 +299,7 @@ export function toPaymentSummary(row: {
   amountMinor: number;
   currency: "VND";
   method: "cash" | "bank_transfer" | "other";
+  cashAccountId: string | null;
   status: "recorded" | "partially_reversed" | "reversed";
   reversedAmountMinor: number;
   payerName: string | null;
@@ -313,6 +315,7 @@ export function toPaymentSummary(row: {
     customerDisplayName: row.customerDisplayName,
     amount: money(row.amountMinor, row.currency),
     method: row.method,
+    cashAccountId: row.cashAccountId,
     status: row.status,
     reversedAmount: money(row.reversedAmountMinor, row.currency),
     payerName: row.payerName,

@@ -55,7 +55,7 @@ export async function getCustomerAccountBalance(
     const balance: CustomerAccountBalance =
       stored ?? emptyAccountBalance(workspaceId, customerId, currency, ctx.deps.clock.now());
 
-    return ok(toAccountBalanceDto(balance, accountCapabilities(authorized.value.role)));
+    return ok(toAccountBalanceDto(balance, accountCapabilities(authorized.value.roles)));
   });
 }
 
@@ -135,7 +135,7 @@ export function getAccountReconciliation(
         repos,
         workspaceId: input.workspaceId,
         customerId: input.customerId,
-        role: membership.role,
+        roles: membership.roles,
       }),
   });
 }
@@ -153,7 +153,7 @@ export function exportAccountReconciliationEvidence(
         repos,
         workspaceId: input.workspaceId,
         customerId: input.customerId,
-        role: membership.role,
+        roles: membership.roles,
       });
 
       const entries: AccountTimelineEntryDto[] = [];

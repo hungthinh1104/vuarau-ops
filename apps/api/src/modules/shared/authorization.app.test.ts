@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { PERMISSIONS, ROLE_PERMISSIONS, roleHasPermission } from "@vuarau/domain-contracts";
+import {
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
+  normalizeWorkspaceRoles,
+  permissionsForRoles,
+  roleHasPermission,
+  workspaceRoleSetSchema,
+} from "@vuarau/domain-contracts";
 import {
   ACCOUNTANT_ACTOR_ID,
   ACTOR_ID,
@@ -231,7 +238,7 @@ describe("BR-AUTH-006 / TC-AUTH-006", () => {
     expect(salesSummary.value.capabilities.adjust).toEqual({
       allowed: false,
       reasonCode: "PERMISSION_DENIED",
-      details: { permission: "debt.adjust", role: "sales" },
+      details: { permission: "debt.adjust", role: "sales", roles: ["sales"] },
     });
   });
 
@@ -245,6 +252,25 @@ describe("BR-AUTH-006 / TC-AUTH-006", () => {
 });
 
 describe("BR-AUTH-004 / TC-AUTH-009 — the role table itself", () => {
+  it("normalizes a role set and derives one deterministic permission union", () => {
+    expect(normalizeWorkspaceRoles(["warehouse", "sales", "warehouse"])).toEqual([
+      "sales",
+      "warehouse",
+    ]);
+    const permissions = permissionsForRoles(["warehouse", "sales"]);
+    expect(permissions).toContain("sale.post");
+    expect(permissions).toContain("receiving.record");
+    expect(permissions).not.toContain("debt.adjust");
+    expect(new Set(permissions).size).toBe(permissions.length);
+  });
+
+  it("requires a non-empty unique role set and keeps owner exclusive", () => {
+    expect(workspaceRoleSetSchema.safeParse([]).success).toBe(false);
+    expect(workspaceRoleSetSchema.safeParse(["sales", "sales"]).success).toBe(false);
+    expect(workspaceRoleSetSchema.safeParse(["owner", "warehouse"]).success).toBe(false);
+    expect(workspaceRoleSetSchema.parse(["warehouse", "sales"])).toEqual(["sales", "warehouse"]);
+  });
+
   it("grants debt.adjust to exactly owner and accountant", () => {
     const canAdjust = (["owner", "accountant", "sales", "warehouse", "delivery"] as const).filter(
       (role) => roleHasPermission(role, "debt.adjust"),

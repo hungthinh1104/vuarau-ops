@@ -7,7 +7,8 @@ import type {
   WorkspaceId,
   Unit,
 } from "@vuarau/domain-contracts";
-import { err, ok } from "@vuarau/domain-kernel";
+import { denied, roleHasPermission } from "@vuarau/domain-contracts";
+import { canVoidPurchase, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 
@@ -57,10 +58,35 @@ export async function getPurchaseReceivingSummary(
     ctx,
     workspaceId: input.workspaceId,
     permission: "receiving.read",
-    execute: async ({ repos }) => ({
-      purchase: await repos.purchases.findById(input.workspaceId, input.purchaseId),
-      receipts: await repos.inventoryReads.receipts(input.workspaceId, input.purchaseId),
-    }),
+    execute: async ({ repos, membership }) => {
+      const purchase = await repos.purchases.findById(input.workspaceId, input.purchaseId);
+      return {
+        purchase,
+        receipts: await repos.inventoryReads.receipts(input.workspaceId, input.purchaseId),
+        hasActiveArrival:
+          purchase === null
+            ? false
+            : await repos.goodsArrivals.hasActiveForPurchase(input.workspaceId, purchase.id),
+        acceptedAfterInspection:
+          purchase === null
+            ? new Map<string, number>()
+            : new Map(
+                await Promise.all(
+                  purchase.lines.map(async (line) => [
+                    line.lineId,
+                    (
+                      await repos.qualityDispositions.acceptedQuantityForPurchaseLine(
+                        input.workspaceId,
+                        line.lineId,
+                      )
+                    )?.valueScaled ?? 0,
+                  ] as const),
+                ),
+              ),
+        role: membership.role,
+        roles: membership.roles,
+      };
+    },
   });
   if (!result.ok) return result;
   if (result.value.purchase === null) return err("PURCHASE_NOT_FOUND", "No such Purchase.");
@@ -73,10 +99,27 @@ export async function getPurchaseReceivingSummary(
         (received.get(line.purchaseLineId) ?? 0) + line.quantity.valueScaled,
       );
   }
+  const aggregateVoidCapability = canVoidPurchase({
+    purchase: result.value.purchase,
+    hasActiveReceipts:
+      result.value.hasActiveArrival ||
+      [...received.values()].some((quantity) => quantity > 0) ||
+      [...result.value.acceptedAfterInspection.values()].some((quantity) => quantity > 0),
+  });
+  const voidPurchaseCapability = roleHasPermission(result.value.roles, "purchase.void")
+    ? aggregateVoidCapability
+    : denied("PERMISSION_DENIED", {
+        permission: "purchase.void",
+        role: result.value.role,
+        roles: result.value.roles,
+      });
   return ok({
     purchaseId: result.value.purchase.id,
+    capabilities: { voidPurchase: voidPurchaseCapability },
     lines: result.value.purchase.lines.map((line) => {
-      const receivedScaled = received.get(line.lineId) ?? 0;
+      const receivedScaled =
+        (received.get(line.lineId) ?? 0) +
+        (result.value.acceptedAfterInspection.get(line.lineId) ?? 0);
       return {
         purchaseLineId: line.lineId,
         productId: line.productId,

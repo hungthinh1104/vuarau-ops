@@ -4,7 +4,7 @@ import type {
   WorkspaceDetailDto,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
-import { ALLOWED, permissionsForRole } from "@vuarau/domain-contracts";
+import { ALLOWED, permissionsForRoles } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -47,7 +47,8 @@ export function getSession(
       actorId: ctx.principal.actorId,
       workspaceId,
       role: membership.role,
-      permissions: [...permissionsForRole(membership.role)],
+      roles: [...membership.roles],
+      permissions: [...permissionsForRoles(membership.roles)],
     });
   });
 }
@@ -84,7 +85,8 @@ export function listActorWorkspaces(
         workspaceId: membership.workspaceId,
         name: membership.workspaceName,
         role: membership.role,
-        permissions: [...permissionsForRole(membership.role)],
+        roles: [...membership.roles],
+        permissions: [...permissionsForRoles(membership.roles)],
       })),
     });
   });
@@ -118,6 +120,7 @@ export async function getWorkspaceDetail(
       actorId: item.actorId,
       displayName: item.displayName,
       role: item.role,
+      roles: [...item.roles],
       isActive: item.isActive,
       createdAt: item.createdAt,
     })),

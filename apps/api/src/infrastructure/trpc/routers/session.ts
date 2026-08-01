@@ -6,6 +6,7 @@ import {
   revokeWorkspaceMembershipCommandSchema,
   workspaceIdSchema,
   workspaceDetailInputSchema,
+  updateWorkspaceOperationalProfileCommandSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import { revokeWorkspaceMembership } from "../../../modules/session/revoke-membership.handler.ts";
@@ -19,6 +20,10 @@ import {
   getWorkspaceDetail,
   listActorWorkspaces,
 } from "../../../modules/session/session.queries.ts";
+import {
+  getWorkspaceOperationalProfile,
+  updateWorkspaceOperationalProfile,
+} from "../../../modules/workspace-profile/workspace-profile.ts";
 
 export const sessionRouter = router({
   me: authenticatedProcedure
@@ -60,6 +65,18 @@ export const sessionRouter = router({
   changeMemberRole: commandProcedure
     .input(changeWorkspaceMemberRoleCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await changeWorkspaceMemberRole(ctx, input))),
+
+  operationalProfile: authenticatedProcedure
+    .input(z.object({ workspaceId: workspaceIdSchema }))
+    .query(async ({ ctx, input }) =>
+      unwrap(await getWorkspaceOperationalProfile(ctx, input.workspaceId)),
+    ),
+
+  updateOperationalProfile: commandProcedure
+    .input(updateWorkspaceOperationalProfileCommandSchema)
+    .mutation(async ({ ctx, input }) =>
+      unwrap(await updateWorkspaceOperationalProfile(ctx, input)),
+    ),
 
   reactivateMember: commandProcedure
     .input(reactivateWorkspaceMemberCommandSchema)

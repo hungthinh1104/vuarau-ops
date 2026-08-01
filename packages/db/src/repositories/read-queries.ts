@@ -13,6 +13,8 @@ import { createPaymentReadRepositories } from "./read/payment.ts";
 import { createAccountReadRepositories } from "./read/account.ts";
 import { createOperationsReadRepositories } from "./read/operations.ts";
 import { createAuditReadRepositories } from "./read/audit.ts";
+import { createCashReadRepositories } from "./read/cash.ts";
+import { createIntakeReadRepositories } from "./read/intake.ts";
 
 export function createReadRepositories(tx: Tx) {
   return {
@@ -30,6 +32,8 @@ export function createReadRepositories(tx: Tx) {
     ...createAccountReadRepositories(tx),
     ...createOperationsReadRepositories(tx),
     ...createAuditReadRepositories(tx),
+    ...createCashReadRepositories(tx),
+    ...createIntakeReadRepositories(tx),
   };
 }
 

@@ -17,4 +17,4 @@ export * from "./testing/expect-database-error.ts";
 // Test-only consumers of this package occasionally need to model damaged legacy
 // rows in a transaction. Re-export the Drizzle SQL tag rather than reaching
 // through the workspace's dependency layout.
-export { sql } from "drizzle-orm";
+export { eq, sql } from "drizzle-orm";

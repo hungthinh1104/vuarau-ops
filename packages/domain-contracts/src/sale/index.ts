@@ -17,8 +17,10 @@ import { pageRequestSchema } from "../shared/pagination.ts";
 import { balanceClassificationSchema } from "../account/index.ts";
 
 /**
- * A **sale** is a completed transaction: goods handed over, price agreed
- * (ADR-0013). It is not a request for goods — that is a future `CustomerOrder`.
+ * A **sale** is the depot's recognized commercial transaction under its validated
+ * posting policy (ADR-0013/ADR-0014). It is not a request for goods — that is a
+ * future `CustomerOrder` — and it does not claim physical handover; Delivery owns
+ * fulfilment truth.
  *
  * Stored lifecycle: `draft → posted` or `draft → discarded`. Both ends are
  * terminal — a posted sale is immutable (BR-SALE-008), and a discarded one is a

@@ -33,10 +33,12 @@ import type { z } from "zod";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applySupplierAccountEffects } from "./supplier-account-effects.ts";
+import { applyCashMovements } from "../cash/cash-effects.ts";
 
 const supplierDto = (state: SupplierState): SupplierDto => ({ ...state });
 const paymentDto = (state: SupplierPaymentState): SupplierPaymentDto => ({
   ...state,
+  cashAccountId: state.cashAccountId ?? null,
   status:
     state.reversedAmount.amountMinor === 0
       ? "recorded"
@@ -55,6 +57,7 @@ export function createSupplier(
     input,
     ctx,
     requiredPermission: "supplier.create",
+    requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       if (
         (await repos.suppliers.findById(command.workspaceId, command.payload.supplierId)) !== null
@@ -168,12 +171,37 @@ export function recordSupplierPayment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supplier.payment.record",
-    execute: async ({ command, repos, recordedAt }) => {
+    requiredWorkflows: ["purchasing"],
+    execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const supplier = await repos.suppliers.findById(
         command.workspaceId,
         command.payload.supplierId,
       );
       if (supplier === null) return err("SUPPLIER_NOT_FOUND", "No such supplier.");
+      const cashbookEnabled = operationalProfile.cashbookMode === "accounts_ledger";
+      if (!cashbookEnabled && (command.payload.cashAccountId ?? null) !== null) {
+        return err(
+          "WORKSPACE_WORKFLOW_DISABLED",
+          "Cashbook is disabled for this depot.",
+          { workflow: "cashbook" },
+        );
+      }
+      const cashAccount =
+        (command.payload.cashAccountId ?? null) === null
+          ? null
+          : await repos.cashAccounts.findByIdForUpdate(
+              command.workspaceId,
+              (command.payload.cashAccountId ?? null)!,
+            );
+      if (cashbookEnabled && cashAccount === null) {
+        return err("CASH_ACCOUNT_REQUIRED", "Select the account used to pay this supplier.");
+      }
+      if (cashAccount !== null && !cashAccount.isActive) {
+        return err("CASH_ACCOUNT_INACTIVE", "Cash account is inactive.");
+      }
+      if (cashAccount !== null && cashAccount.currency !== command.payload.amount.currency) {
+        return err("CASH_ACCOUNT_CURRENCY_MISMATCH", "Payment currency must match the cash account.");
+      }
       const decision = decideRecordSupplierPayment(command, recordedAt);
       if (!decision.ok) return decision;
       const payment = decision.value;
@@ -198,6 +226,26 @@ export function recordSupplierPayment(ctx: CommandContext, input: unknown) {
         ],
         payment.amount.currency,
       );
+      if (cashAccount !== null) {
+        await applyCashMovements(repos, [
+          {
+            workspaceId: command.workspaceId,
+            cashAccountId: cashAccount.id,
+            amount: {
+              amountMinor: -payment.amount.amountMinor,
+              currency: payment.amount.currency,
+            },
+            sourceType: "supplier_payment",
+            sourceId: payment.id,
+            reversalOfMovementId: null,
+            note: payment.note,
+            transactionTime: payment.transactionTime,
+            recordedAt,
+            actorId: command.actorId,
+            commandId: command.commandId,
+          },
+        ]);
+      }
       await repos.audit.append({
         workspaceId: command.workspaceId,
         actorId: command.actorId,
@@ -223,12 +271,77 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supplier.payment.reverse",
-    execute: async ({ command, repos, recordedAt }) => {
+    execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const current = await repos.supplierPayments.findByIdForUpdate(
         command.workspaceId,
         command.payload.supplierPaymentId,
       );
       if (current === null) return err("SUPPLIER_PAYMENT_NOT_FOUND", "No such payment.");
+      const linkedCashAccountId = current.cashAccountId ?? null;
+      if (
+        linkedCashAccountId !== null &&
+        (command.payload.cashAccountId ?? null) !== null &&
+        (command.payload.cashAccountId ?? null) !== linkedCashAccountId
+      ) {
+        return err(
+          "CASH_ACCOUNT_LINK_MISMATCH",
+          "A linked supplier-payment reversal must use its original cash account.",
+        );
+      }
+      const selectedCashAccountId = linkedCashAccountId ?? command.payload.cashAccountId ?? null;
+      if (
+        selectedCashAccountId === null &&
+        operationalProfile.cashbookMode === "accounts_ledger"
+      ) {
+        return err(
+          "CASH_ACCOUNT_REQUIRED",
+          "Select the account receiving this legacy supplier-payment reversal.",
+        );
+      }
+      if (
+        selectedCashAccountId !== null &&
+        linkedCashAccountId === null &&
+        operationalProfile.cashbookMode !== "accounts_ledger"
+      ) {
+        return err(
+          "WORKSPACE_WORKFLOW_DISABLED",
+          "Cashbook is disabled for this depot.",
+          { workflow: "cashbook" },
+        );
+      }
+      const cashAccount =
+        selectedCashAccountId === null
+          ? null
+          : await repos.cashAccounts.findByIdForUpdate(
+              command.workspaceId,
+              selectedCashAccountId,
+            );
+      if (selectedCashAccountId !== null && cashAccount === null) {
+        return err("CASH_ACCOUNT_NOT_FOUND", "No such cash account.");
+      }
+      if (
+        cashAccount !== null &&
+        linkedCashAccountId === null &&
+        !cashAccount.isActive
+      ) {
+        return err("CASH_ACCOUNT_INACTIVE", "Cash account is inactive.");
+      }
+      if (cashAccount !== null && cashAccount.currency !== current.amount.currency) {
+        return err("CASH_ACCOUNT_CURRENCY_MISMATCH", "Reversal currency must match the cash account.");
+      }
+      const originalCashMovement =
+        linkedCashAccountId === null
+          ? null
+          : await repos.cashMovements.findBySource(
+              command.workspaceId,
+              "supplier_payment",
+              current.id,
+              linkedCashAccountId,
+            );
+      if (linkedCashAccountId !== null && originalCashMovement === null) {
+        throw new Error(`Supplier payment ${current.id} is missing its linked cash movement.`);
+      }
+
       const originalEntry = await repos.supplierAccountEntries.findBySource(
         command.workspaceId,
         "supplier_payment",
@@ -272,6 +385,23 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
         ],
         current.amount.currency,
       );
+      if (cashAccount !== null) {
+        await applyCashMovements(repos, [
+          {
+            workspaceId: command.workspaceId,
+            cashAccountId: cashAccount.id,
+            amount: command.payload.amount,
+            sourceType: "supplier_payment_reversal",
+            sourceId: command.payload.reversalId,
+            reversalOfMovementId: originalCashMovement?.id ?? null,
+            note: command.payload.reason.trim(),
+            transactionTime: command.occurredAt,
+            recordedAt,
+            actorId: command.actorId,
+            commandId: command.commandId,
+          },
+        ]);
+      }
       await repos.audit.append({
         workspaceId: command.workspaceId,
         actorId: command.actorId,
@@ -297,6 +427,7 @@ export function adjustSupplierAccount(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supplier.account.adjust",
+    requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       if (
         (await repos.suppliers.findById(command.workspaceId, command.payload.supplierId)) === null

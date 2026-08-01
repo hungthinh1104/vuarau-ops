@@ -6,7 +6,9 @@ import type {
   MarkDeliveryDeliveredCommand,
   RecordDeliveryReturnCommand,
   UpdateDeliveryDraftCommand,
+  Capability,
 } from "@vuarau/domain-contracts";
+import { ALLOWED, denied } from "@vuarau/domain-contracts";
 import type { DeliveryState, DeliveryReturnState, SaleState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
@@ -27,11 +29,6 @@ function deliveryLines(
       return err("DELIVERY_LINE_INVALID", "Delivery line does not belong to the Sale.");
     if (saleLine.productId === null)
       return err("DELIVERY_PRODUCT_REQUIRED", "Free-text Sale line cannot move inventory.");
-    if (saleLine.qualityGradeId === null || saleLine.qualityGradeName === null)
-      return err(
-        "DELIVERY_LINE_INVALID",
-        "Legacy Sale line without a quality grade cannot move graded inventory.",
-      );
     if (
       saleLine.productId !== inputLine.productId ||
       saleLine.qualityGradeId !== inputLine.qualityGradeId ||
@@ -39,7 +36,7 @@ function deliveryLines(
     )
       return err(
         "DELIVERY_LINE_INVALID",
-        "Product, quality grade and unit must match the Sale snapshot.",
+        "Product, optional quality grade and unit must match the Sale snapshot.",
       );
     if (inputLine.quantity.valueScaled <= 0 || !Number.isInteger(inputLine.quantity.valueScaled))
       return err("DELIVERY_LINE_INVALID", "Delivery quantity must be positive.");
@@ -59,22 +56,43 @@ function deliveryLines(
   return ok(lines);
 }
 
+export function canCreateDeliveryDraftForSale(args: {
+  readonly sale: SaleState;
+  readonly replacementAncestryHasFulfilment: boolean;
+}): Capability {
+  if (args.sale.status !== "posted") return denied("SALE_NOT_POSTED");
+  if (args.sale.voidRecord !== null) return denied("SALE_ALREADY_VOIDED");
+  if (args.sale.replacesSaleId !== null && args.replacementAncestryHasFulfilment) {
+    return denied("DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED", {
+      predecessorSaleId: args.sale.replacesSaleId,
+    });
+  }
+  return ALLOWED;
+}
+
 export function decideCreateDeliveryDraft(args: {
   command: CreateDeliveryDraftCommand;
   sale: SaleState;
   fulfilled: ReadonlyMap<string, number>;
-  predecessorHasFulfilment: boolean;
+  replacementAncestryHasFulfilment: boolean;
   recordedAt: IsoInstant;
 }): DomainResult<DeliveryState> {
-  if (args.sale.status !== "posted")
-    return err("SALE_NOT_POSTED", "Delivery requires a posted Sale.");
-  if (args.sale.voidRecord !== null)
-    return err("SALE_ALREADY_VOIDED", "A voided Sale cannot start a new Delivery.");
-  if (args.sale.replacesSaleId !== null && args.predecessorHasFulfilment)
+  const creationCapability = canCreateDeliveryDraftForSale({
+    sale: args.sale,
+    replacementAncestryHasFulfilment: args.replacementAncestryHasFulfilment,
+  });
+  if (!creationCapability.allowed) {
+    const code = creationCapability.reasonCode ?? "DELIVERY_LINE_INVALID";
     return err(
-      "DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED",
-      "Replacement Sale cannot duplicate predecessor fulfilment.",
+      code,
+      code === "SALE_NOT_POSTED"
+        ? "Delivery requires a posted Sale."
+        : code === "SALE_ALREADY_VOIDED"
+          ? "A voided Sale cannot start a new Delivery."
+          : "Replacement Sale cannot duplicate predecessor fulfilment.",
+      creationCapability.details,
     );
+  }
   const lines = deliveryLines(args.sale, args.command.payload.lines, args.fulfilled);
   if (!lines.ok) return lines;
   return ok({

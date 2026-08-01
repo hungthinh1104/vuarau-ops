@@ -7,7 +7,14 @@ import type {
   WorkspaceRole,
 } from "@vuarau/domain-contracts";
 import type { Database } from "./client.ts";
-import { actors, auditLogs, workspaces, workspaceMemberships } from "./schema/index.ts";
+import {
+  actors,
+  auditLogs,
+  workspaceMembershipRoles,
+  workspaceOperationalProfiles,
+  workspaces,
+  workspaceMemberships,
+} from "./schema/index.ts";
 
 /**
  * Creating a depot and putting somebody in it.
@@ -105,12 +112,23 @@ export async function bootstrapPilotWorkspace(
         .limit(1)
     )[0];
     if (membership !== undefined) {
-      return membership.role === "owner" && membership.isActive
-        ? { kind: "replayed", workspaceId: input.workspaceId, actorId: input.actorId }
-        : {
-            kind: "conflict",
-            reason: "existing membership is not the active owner declared by this bootstrap",
-          };
+      if (membership.role !== "owner" || !membership.isActive) {
+        return {
+          kind: "conflict",
+          reason: "existing membership is not the active owner declared by this bootstrap",
+        };
+      }
+      await tx
+        .insert(workspaceMembershipRoles)
+        .values({
+          workspaceId: input.workspaceId,
+          actorId: input.actorId,
+          role: "owner",
+          assignedAt: input.occurredAt,
+          assignedBy: input.actorId,
+        })
+        .onConflictDoNothing();
+      return { kind: "replayed", workspaceId: input.workspaceId, actorId: input.actorId };
     }
 
     if (workspace !== undefined) {
@@ -131,6 +149,7 @@ export async function bootstrapPilotWorkspace(
 
     if (workspace === undefined) {
       await tx.insert(workspaces).values({ id: input.workspaceId, name: input.workspaceName });
+      await tx.insert(workspaceOperationalProfiles).values({ workspaceId: input.workspaceId });
     }
     if (actor === undefined) {
       await tx.insert(actors).values({
@@ -145,6 +164,13 @@ export async function bootstrapPilotWorkspace(
       role: "owner",
       isActive: true,
     });
+    await tx.insert(workspaceMembershipRoles).values({
+      workspaceId: input.workspaceId,
+      actorId: input.actorId,
+      role: "owner",
+      assignedAt: input.occurredAt,
+      assignedBy: input.actorId,
+    });
     await tx.insert(auditLogs).values({
       id: input.auditRecordId,
       workspaceId: input.workspaceId,
@@ -156,7 +182,7 @@ export async function bootstrapPilotWorkspace(
       transactionTime: input.occurredAt,
       recordedAt: input.occurredAt,
       before: null,
-      after: { role: "owner", workspaceCreated: workspace === undefined },
+      after: { roles: ["owner"], workspaceCreated: workspace === undefined },
       reason: "M23 pilot bootstrap",
       rejectionCode: null,
     });
@@ -183,7 +209,10 @@ export async function ensureWorkspace(
     return { workspaceId, name: found.name, created: false };
   }
 
-  await database.db.insert(workspaces).values({ id: workspaceId, name });
+  await database.db.transaction(async (tx) => {
+    await tx.insert(workspaces).values({ id: workspaceId, name });
+    await tx.insert(workspaceOperationalProfiles).values({ workspaceId });
+  });
   return { workspaceId, name, created: true };
 }
 
@@ -227,57 +256,83 @@ export async function ensureMembership(
     readonly role: WorkspaceRole;
   },
 ): Promise<ProvisionedMember> {
-  const existingActor = await database.db
-    .select({ id: actors.id })
-    .from(actors)
-    .where(eq(actors.supabaseUserId, input.supabaseUserId))
-    .limit(1);
+  return database.db.transaction(async (tx) => {
+    const existingActor = await tx
+      .select({ id: actors.id })
+      .from(actors)
+      .where(eq(actors.supabaseUserId, input.supabaseUserId))
+      .limit(1);
 
-  const actorId = (existingActor[0]?.id as ActorId | undefined) ?? input.actorId;
-  const actorCreated = existingActor[0] === undefined;
+    const actorId = (existingActor[0]?.id as ActorId | undefined) ?? input.actorId;
+    const actorCreated = existingActor[0] === undefined;
 
-  if (actorCreated) {
-    await database.db.insert(actors).values({
-      id: actorId,
-      supabaseUserId: input.supabaseUserId,
-      displayName: input.displayName,
-    });
-  }
+    if (actorCreated) {
+      await tx.insert(actors).values({
+        id: actorId,
+        supabaseUserId: input.supabaseUserId,
+        displayName: input.displayName,
+      });
+    }
 
-  // Scoped to **this** depot. An actor may be a member of several, and a filter
-  // on `actorId` alone would change their role in every one of them.
-  const membershipScope = and(
-    eq(workspaceMemberships.workspaceId, input.workspaceId),
-    eq(workspaceMemberships.actorId, actorId),
-  );
+    const membershipScope = and(
+      eq(workspaceMemberships.workspaceId, input.workspaceId),
+      eq(workspaceMemberships.actorId, actorId),
+    );
+    const membership = (
+      await tx
+        .select({ role: workspaceMemberships.role, isActive: workspaceMemberships.isActive })
+        .from(workspaceMemberships)
+        .where(membershipScope)
+        .limit(1)
+    )[0];
 
-  const existingMembership = await database.db
-    .select({ role: workspaceMemberships.role, isActive: workspaceMemberships.isActive })
-    .from(workspaceMemberships)
-    .where(membershipScope)
-    .limit(1);
+    if (membership === undefined) {
+      await tx.insert(workspaceMemberships).values({
+        workspaceId: input.workspaceId,
+        actorId,
+        role: input.role,
+        isActive: true,
+      });
+      await tx.insert(workspaceMembershipRoles).values({
+        workspaceId: input.workspaceId,
+        actorId,
+        role: input.role,
+        assignedBy: null,
+      });
+      return {
+        actorId,
+        role: input.role,
+        actorCreated,
+        membershipCreated: true,
+        reactivated: false,
+      };
+    }
 
-  const membership = existingMembership[0];
-  if (membership === undefined) {
-    await database.db.insert(workspaceMemberships).values({
+    await tx
+      .update(workspaceMemberships)
+      .set({ role: input.role, isActive: true })
+      .where(membershipScope);
+    await tx
+      .delete(workspaceMembershipRoles)
+      .where(
+        and(
+          eq(workspaceMembershipRoles.workspaceId, input.workspaceId),
+          eq(workspaceMembershipRoles.actorId, actorId),
+        ),
+      );
+    await tx.insert(workspaceMembershipRoles).values({
       workspaceId: input.workspaceId,
       actorId,
       role: input.role,
-      isActive: true,
+      assignedBy: null,
     });
-    return { actorId, role: input.role, actorCreated, membershipCreated: true, reactivated: false };
-  }
 
-  await database.db
-    .update(workspaceMemberships)
-    .set({ role: input.role, isActive: true })
-    .where(membershipScope);
-
-  return {
-    actorId,
-    role: input.role,
-    actorCreated,
-    membershipCreated: false,
-    reactivated: !membership.isActive,
-  };
+    return {
+      actorId,
+      role: input.role,
+      actorCreated,
+      membershipCreated: false,
+      reactivated: !membership.isActive,
+    };
+  });
 }

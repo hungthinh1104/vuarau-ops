@@ -15,12 +15,34 @@ import type {
   SupplierAccountEntryDto,
   WorkspaceId,
   WorkspaceRole,
-  WorkspaceBackupV4,
+  WorkspaceOperationalProfileDto,
+  WorkspaceBackupV7,
   DeliveryId,
   DocumentDto,
   DocumentShareId,
   DocumentSourceType,
   DocumentType,
+  CashAccountDto,
+  CashAccountId,
+  CashBalanceDto,
+  CashMovementDto,
+  CashMovementSourceType,
+  CashTransferDto,
+  CashTransferId,
+  ExpenseDto,
+  ExpenseId,
+  GoodsArrivalDto,
+  GoodsArrivalId,
+  GoodsArrivalLineId,
+  PurchaseLineId,
+  QualityDispositionDto,
+  QualityDispositionId,
+  QualityDispositionSource,
+  QualityDispositionSourceSummaryDto,
+  QualityInspectionDto,
+  QualityInspectionId,
+  QualityIssueCodeDto,
+  QualityIssueCodeId,
 } from "@vuarau/domain-contracts";
 import type {
   AuditDraft,
@@ -42,6 +64,7 @@ import type {
   InventoryMovementState,
   DeliveryState,
   DeliveryReturnState,
+  CashMovementDraft,
 } from "@vuarau/domain-kernel";
 import type { ReadRepositories } from "./read-ports.ts";
 
@@ -59,8 +82,10 @@ import type { ReadRepositories } from "./read-ports.ts";
 export type WorkspaceMembership = {
   readonly workspaceId: WorkspaceId;
   readonly actorId: ActorId;
-  /** Drives the permission check in the command pipeline (BR-AUTH-004). */
+  /** Transitional primary projection; authorization consumes `roles`. */
   readonly role: WorkspaceRole;
+  /** Complete normalized role set (ADR-0021). */
+  readonly roles: readonly WorkspaceRole[];
   /** Revokes access without deleting who was once a member (BR-AUTH-003). */
   readonly isActive: boolean;
 };
@@ -73,6 +98,11 @@ export type WorkspaceMember = WorkspaceMembership & {
 export type WorkspaceRepository = {
   /** Presentation name for an already workspace-scoped read model. */
   findName(workspaceId: WorkspaceId): Promise<string | null>;
+  findOperationalProfile(workspaceId: WorkspaceId): Promise<WorkspaceOperationalProfileDto | null>;
+  updateOperationalProfile(
+    profile: WorkspaceOperationalProfileDto,
+    expectedVersion: number,
+  ): Promise<boolean>;
   /**
    * Returns the membership including an **inactive** one, so the caller can tell
    * "never had access" from "access was revoked" and answer with the right code.
@@ -88,12 +118,18 @@ export type WorkspaceRepository = {
   /** Sets `is_active = false`. Never deletes the row (UC-AUTH-002). */
   revokeMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean>;
   listMembers(workspaceId: WorkspaceId): Promise<readonly WorkspaceMember[]>;
-  addMembership(workspaceId: WorkspaceId, actorId: ActorId, role: WorkspaceRole): Promise<boolean>;
-  changeMembershipRole(
+  addMembership(
     workspaceId: WorkspaceId,
     actorId: ActorId,
-    expectedRole: WorkspaceRole,
-    role: WorkspaceRole,
+    roles: readonly WorkspaceRole[],
+    assignedBy: ActorId,
+  ): Promise<boolean>;
+  changeMembershipRoles(
+    workspaceId: WorkspaceId,
+    actorId: ActorId,
+    expectedRoles: readonly WorkspaceRole[],
+    roles: readonly WorkspaceRole[],
+    assignedBy: ActorId,
   ): Promise<boolean>;
   reactivateMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean>;
 };
@@ -103,6 +139,7 @@ export type ActorWorkspace = {
   readonly workspaceId: WorkspaceId;
   readonly workspaceName: string;
   readonly role: WorkspaceRole;
+  readonly roles: readonly WorkspaceRole[];
 };
 
 /**
@@ -346,10 +383,157 @@ export type DocumentRepository = {
   }): Promise<boolean>;
 };
 
+export type CashAccountRepository = {
+  findById(workspaceId: WorkspaceId, cashAccountId: CashAccountId): Promise<CashAccountDto | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    cashAccountId: CashAccountId,
+  ): Promise<CashAccountDto | null>;
+  insert(account: CashAccountDto): Promise<boolean>;
+  update(account: CashAccountDto, expectedVersion: number): Promise<boolean>;
+};
+
+export type ExpenseRepository = {
+  findById(workspaceId: WorkspaceId, expenseId: ExpenseId): Promise<ExpenseDto | null>;
+  findByIdForUpdate(workspaceId: WorkspaceId, expenseId: ExpenseId): Promise<ExpenseDto | null>;
+  insert(expense: ExpenseDto): Promise<boolean>;
+  insertReversal(expense: ExpenseDto): Promise<boolean>;
+};
+
+export type CashTransferRepository = {
+  findById(workspaceId: WorkspaceId, transferId: CashTransferId): Promise<CashTransferDto | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    transferId: CashTransferId,
+  ): Promise<CashTransferDto | null>;
+  insert(transfer: CashTransferDto): Promise<boolean>;
+  insertReversal(transfer: CashTransferDto): Promise<boolean>;
+};
+
+export type CashAdjustmentRepository = {
+  insert(adjustment: {
+    id: string;
+    workspaceId: WorkspaceId;
+    cashAccountId: CashAccountId;
+    amount: CashMovementDto["amount"];
+    reasonCode: string;
+    reason: string;
+    transactionTime: IsoInstant;
+    recordedAt: IsoInstant;
+    actorId: ActorId;
+    commandId: CommandId;
+  }): Promise<boolean>;
+};
+
+export type CashMovementRepository = {
+  append(movements: readonly CashMovementDraft[]): Promise<readonly CashMovementDto[]>;
+  listByAccount(
+    workspaceId: WorkspaceId,
+    cashAccountId: CashAccountId,
+  ): Promise<readonly CashMovementDto[]>;
+  findBySource(
+    workspaceId: WorkspaceId,
+    sourceType: CashMovementSourceType,
+    sourceId: string,
+    cashAccountId: CashAccountId,
+  ): Promise<CashMovementDto | null>;
+};
+
+export type CashBalanceRepository = {
+  get(workspaceId: WorkspaceId, cashAccountId: CashAccountId): Promise<CashBalanceDto | null>;
+  applyDelta(delta: {
+    workspaceId: WorkspaceId;
+    cashAccountId: CashAccountId;
+    amount: CashMovementDto["amount"];
+    movementCount: number;
+    lastMovementTransactionTime: IsoInstant;
+    updatedAt: IsoInstant;
+  }): Promise<void>;
+  save(balance: CashBalanceDto): Promise<void>;
+};
+
+export type QualityIssueCodeRepository = {
+  findById(
+    workspaceId: WorkspaceId,
+    qualityIssueCodeId: QualityIssueCodeId,
+  ): Promise<QualityIssueCodeDto | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    qualityIssueCodeId: QualityIssueCodeId,
+  ): Promise<QualityIssueCodeDto | null>;
+  insert(code: QualityIssueCodeDto): Promise<boolean>;
+  update(code: QualityIssueCodeDto, expectedVersion: number): Promise<boolean>;
+};
+
+export type GoodsArrivalRepository = {
+  findById(workspaceId: WorkspaceId, arrivalId: GoodsArrivalId): Promise<GoodsArrivalDto | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    arrivalId: GoodsArrivalId,
+  ): Promise<GoodsArrivalDto | null>;
+  findLine(
+    workspaceId: WorkspaceId,
+    arrivalLineId: GoodsArrivalLineId,
+  ): Promise<{
+    readonly arrival: GoodsArrivalDto;
+    readonly line: GoodsArrivalDto["lines"][number];
+  } | null>;
+  insert(arrival: GoodsArrivalDto): Promise<boolean>;
+  insertReversal(arrival: GoodsArrivalDto): Promise<boolean>;
+  downstreamFactCount(workspaceId: WorkspaceId, arrivalId: GoodsArrivalId): Promise<number>;
+  hasActiveForPurchase(workspaceId: WorkspaceId, purchaseId: string): Promise<boolean>;
+};
+
+export type QualityInspectionRepository = {
+  findById(
+    workspaceId: WorkspaceId,
+    inspectionId: QualityInspectionId,
+  ): Promise<QualityInspectionDto | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    inspectionId: QualityInspectionId,
+  ): Promise<QualityInspectionDto | null>;
+  activeInspectedQuantity(
+    workspaceId: WorkspaceId,
+    arrivalLineId: GoodsArrivalLineId,
+  ): Promise<QualityInspectionDto["inspectedQuantity"] | null>;
+  downstreamFactCount(workspaceId: WorkspaceId, arrivalLineId: GoodsArrivalLineId): Promise<number>;
+  insert(inspection: QualityInspectionDto): Promise<boolean>;
+  insertReversal(inspection: QualityInspectionDto): Promise<boolean>;
+};
+
+export type QualityDispositionRepository = {
+  findById(
+    workspaceId: WorkspaceId,
+    dispositionId: QualityDispositionId,
+  ): Promise<QualityDispositionDto | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    dispositionId: QualityDispositionId,
+  ): Promise<QualityDispositionDto | null>;
+  sourceSummary(
+    workspaceId: WorkspaceId,
+    source: QualityDispositionSource,
+  ): Promise<{
+    readonly summary: QualityDispositionSourceSummaryDto;
+    readonly active: boolean;
+  } | null>;
+  downstreamFactCount(
+    workspaceId: WorkspaceId,
+    dispositionId: QualityDispositionId,
+  ): Promise<number>;
+  acceptedQuantityForPurchaseLine(
+    workspaceId: WorkspaceId,
+    purchaseLineId: PurchaseLineId,
+  ): Promise<QualityDispositionSourceSummaryDto["sourceQuantity"] | null>;
+  insert(disposition: QualityDispositionDto): Promise<boolean>;
+  insertReversal(disposition: QualityDispositionDto): Promise<boolean>;
+};
+
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV4["payload"],
+    payload: WorkspaceBackupV7["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -489,6 +673,16 @@ export type Repositories = ReadRepositories & {
   readonly deliveries: DeliveryRepository;
   readonly documents: DocumentRepository;
   readonly operations: OperationsRepository;
+  readonly cashAccounts: CashAccountRepository;
+  readonly expenses: ExpenseRepository;
+  readonly cashTransfers: CashTransferRepository;
+  readonly cashAdjustments: CashAdjustmentRepository;
+  readonly cashMovements: CashMovementRepository;
+  readonly cashBalances: CashBalanceRepository;
+  readonly qualityIssueCodes: QualityIssueCodeRepository;
+  readonly goodsArrivals: GoodsArrivalRepository;
+  readonly qualityInspections: QualityInspectionRepository;
+  readonly qualityDispositions: QualityDispositionRepository;
   readonly sales: SaleRepository;
   readonly payments: PaymentRepository;
   readonly accountEntries: CustomerAccountEntryRepository;
@@ -497,11 +691,7 @@ export type Repositories = ReadRepositories & {
   readonly receipts: CommandReceiptRepository;
 };
 
-/**
- * One transaction per command (BR-COMMAND-005). Everything a command writes —
- * aggregate, account entries, balance, audit record, receipt — commits together or
- * not at all.
- */
+/** One atomic transaction per command (BR-COMMAND-005). */
 export type UnitOfWork = {
   transaction<T>(work: (repos: Repositories) => Promise<T>): Promise<T>;
 };

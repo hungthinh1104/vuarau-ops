@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { actorIdSchema, workspaceIdSchema } from "../shared/ids.ts";
-import { permissionSchema, workspaceRoleSchema } from "../shared/authorization.ts";
+import {
+  permissionSchema,
+  workspaceRoleSchema,
+  workspaceRoleSetSchema,
+} from "../shared/authorization.ts";
 import { capabilitySchema } from "../shared/capability.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand } from "../shared/command.ts";
@@ -24,7 +28,10 @@ import { defineCommand } from "../shared/command.ts";
 export const sessionDtoSchema = z.object({
   actorId: actorIdSchema,
   workspaceId: workspaceIdSchema,
+  /** Transitional primary-role projection; clients authorize from permissions. */
   role: workspaceRoleSchema,
+  /** Complete normalized role set for this membership. */
+  roles: workspaceRoleSetSchema,
   /**
    * The caller's full permission set, expanded from their role. Sent as a list
    * rather than as the role name so that a client never has to know the mapping —
@@ -87,6 +94,7 @@ export const workspaceSummaryDtoSchema = z.object({
   /** What the depot calls itself. The only string a picker can show. */
   name: z.string().min(1),
   role: workspaceRoleSchema,
+  roles: workspaceRoleSetSchema,
   permissions: z.array(permissionSchema),
 });
 export type WorkspaceSummaryDto = z.infer<typeof workspaceSummaryDtoSchema>;
@@ -107,6 +115,7 @@ export const workspaceMembershipDtoSchema = z.object({
   workspaceId: workspaceIdSchema,
   actorId: actorIdSchema,
   role: workspaceRoleSchema,
+  roles: workspaceRoleSetSchema,
   isActive: z.boolean(),
 });
 export type WorkspaceMembershipDto = z.infer<typeof workspaceMembershipDtoSchema>;
@@ -117,6 +126,7 @@ export const workspaceMemberDtoSchema = z.object({
   actorId: actorIdSchema,
   displayName: z.string().min(1),
   role: workspaceRoleSchema,
+  roles: workspaceRoleSetSchema,
   isActive: z.boolean(),
   createdAt: isoInstantSchema,
 });
@@ -135,7 +145,7 @@ export type WorkspaceDetailInput = z.infer<typeof workspaceDetailInputSchema>;
 
 export const addWorkspaceMemberPayloadSchema = z.object({
   actorId: actorIdSchema,
-  role: workspaceRoleSchema,
+  roles: workspaceRoleSetSchema,
   reason: z.string().trim().min(1).max(500),
 });
 export const addWorkspaceMemberCommandSchema = defineCommand(addWorkspaceMemberPayloadSchema);
@@ -143,8 +153,8 @@ export type AddWorkspaceMemberCommand = z.infer<typeof addWorkspaceMemberCommand
 
 export const changeWorkspaceMemberRolePayloadSchema = z.object({
   actorId: actorIdSchema,
-  expectedRole: workspaceRoleSchema,
-  role: workspaceRoleSchema,
+  expectedRoles: workspaceRoleSetSchema,
+  roles: workspaceRoleSetSchema,
   reason: z.string().trim().min(1).max(500),
 });
 export const changeWorkspaceMemberRoleCommandSchema = defineCommand(

@@ -4,6 +4,7 @@ import { moneySchema } from "../shared/money.ts";
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import {
   actorIdSchema,
+  cashAccountIdSchema,
   commandIdSchema,
   supplierAccountEntryIdSchema,
   supplierIdSchema,
@@ -83,6 +84,7 @@ export const recordSupplierPaymentCommandSchema = defineCommand(
     supplierId: supplierIdSchema,
     amount: moneySchema,
     method: paymentMethodSchema,
+    cashAccountId: cashAccountIdSchema.nullable().optional(),
     note: z.string().trim().max(2_000).nullable().default(null),
   }),
 );
@@ -93,6 +95,7 @@ export const reverseSupplierPaymentCommandSchema = defineVersionedCommand(
     reversalId: supplierPaymentReversalIdSchema,
     supplierPaymentId: supplierPaymentIdSchema,
     amount: moneySchema,
+    cashAccountId: cashAccountIdSchema.nullable().optional(),
     reason: z.string().trim().max(500),
   }),
 );
@@ -124,6 +127,7 @@ export const supplierPaymentDtoSchema = z.object({
   supplierId: supplierIdSchema,
   amount: moneySchema,
   method: paymentMethodSchema,
+  cashAccountId: cashAccountIdSchema.nullable(),
   note: z.string().nullable(),
   reversedAmount: moneySchema,
   status: z.enum(["recorded", "partially_reversed", "reversed"]),

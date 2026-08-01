@@ -1,5 +1,6 @@
 import {
   decodeCursor,
+  defaultWorkspaceOperationalProfile,
   type OperationalReportDto,
   type ReportInput,
 } from "@vuarau/domain-contracts";
@@ -14,11 +15,15 @@ export const getOperationalReport = (ctx: CommandContext, input: ReportInput) =>
     workspaceId: input.workspaceId,
     permission: "report.read",
     execute: async ({ repos }) => {
+      const profile =
+        (await repos.workspaces.findOperationalProfile(input.workspaceId)) ??
+        defaultWorkspaceOperationalProfile(input.workspaceId);
       const [report, integrity] = await Promise.all([
         repos.reportReads.operational({
           workspaceId: input.workspaceId,
           reportType: input.reportType,
           businessDate: input.businessDate,
+          businessDayStartMinute: profile.businessDayStartMinute,
           productId: input.productId,
           unit: input.unit,
           page: toPageQuery(input),
@@ -47,6 +52,9 @@ export const getOperationalReportCsv = (ctx: CommandContext, input: ReportInput)
     workspaceId: input.workspaceId,
     permission: "report.read",
     execute: async ({ repos }) => {
+      const profile =
+        (await repos.workspaces.findOperationalProfile(input.workspaceId)) ??
+        defaultWorkspaceOperationalProfile(input.workspaceId);
       const rows: OperationalReportDto["page"]["items"] = [];
       let after: ReturnType<typeof decodeCursor> = null;
       do {
@@ -54,6 +62,7 @@ export const getOperationalReportCsv = (ctx: CommandContext, input: ReportInput)
           workspaceId: input.workspaceId,
           reportType: input.reportType,
           businessDate: input.businessDate,
+          businessDayStartMinute: profile.businessDayStartMinute,
           productId: input.productId,
           unit: input.unit,
           page: { after, limit: 100 },

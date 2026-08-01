@@ -107,6 +107,7 @@ export const createSupplierReads = (
       if (row === undefined) return null;
       return {
         ...row,
+        cashAccountId: row.cashAccountId ?? null,
         status:
           row.reversedAmount.amountMinor === 0
             ? "recorded"

@@ -75,7 +75,7 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
       command: command(41_000),
       sale,
       fulfilled: new Map([[sale.lines[0]!.lineId, 60_000]]),
-      predecessorHasFulfilment: false,
+      replacementAncestryHasFulfilment: false,
       recordedAt: "2026-07-28T02:00:01.000Z",
     });
     expect(result.ok).toBe(false);
@@ -89,7 +89,7 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
       command: mismatched,
       sale,
       fulfilled: new Map(),
-      predecessorHasFulfilment: false,
+      replacementAncestryHasFulfilment: false,
       recordedAt: "2026-07-28T02:00:01.000Z",
     });
     expect(result.ok).toBe(false);
@@ -101,7 +101,7 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
       command: command(10_000),
       sale: { ...sale, replacesSaleId: crypto.randomUUID() as SaleId },
       fulfilled: new Map(),
-      predecessorHasFulfilment: true,
+      replacementAncestryHasFulfilment: true,
       recordedAt: "2026-07-28T02:00:01.000Z",
     });
     expect(result.ok).toBe(false);
@@ -117,7 +117,7 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
       command: command(10_000),
       sale: voidedSale,
       fulfilled: new Map(),
-      predecessorHasFulfilment: false,
+      replacementAncestryHasFulfilment: false,
       recordedAt: "2026-07-28T02:00:01.000Z",
     });
     expect(creation.ok).toBe(false);
@@ -127,7 +127,7 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
       command: command(10_000),
       sale,
       fulfilled: new Map(),
-      predecessorHasFulfilment: false,
+      replacementAncestryHasFulfilment: false,
       recordedAt: "2026-07-28T02:00:01.000Z",
     });
     if (!draft.ok) throw new Error("fixture failed");
@@ -168,7 +168,7 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
       command: command(60_000),
       sale,
       fulfilled: new Map(),
-      predecessorHasFulfilment: false,
+      replacementAncestryHasFulfilment: false,
       recordedAt: "2026-07-28T02:00:01.000Z",
     });
     if (!draft.ok) throw new Error("fixture failed");

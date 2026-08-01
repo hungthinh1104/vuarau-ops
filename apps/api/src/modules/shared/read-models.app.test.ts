@@ -336,7 +336,7 @@ describe("UC-CUSTOMER-003 / TC-READ-003 — customer.get", () => {
     expect(result.value.capabilities.adjustAccount).toEqual({
       allowed: false,
       reasonCode: "PERMISSION_DENIED",
-      details: { permission: "debt.adjust", role: "sales" },
+      details: { permission: "debt.adjust", role: "sales", roles: ["sales"] },
     });
   });
 });

@@ -36,13 +36,14 @@ import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
  * the caller that has one in hand.
  */
 export function customerCapabilities(
-  role: WorkspaceRole,
+  roleOrRoles: WorkspaceRole | readonly WorkspaceRole[],
   customer?: { isActive: boolean },
 ): CustomerCapabilities {
+  const roles = Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles as WorkspaceRole];
   const permitted = (permission: Permission): Capability =>
-    roleHasPermission(role, permission)
+    roleHasPermission(roles, permission)
       ? { allowed: true }
-      : denied("PERMISSION_DENIED", { permission, role });
+      : denied("PERMISSION_DENIED", { permission, role: roles[0], roles });
 
   const deactivate = permitted("customer.deactivate");
   const reactivate = permitted("customer.reactivate");
@@ -90,7 +91,7 @@ export function searchCustomers(
       });
       return toPage(result, (row) => ({
         ...row,
-        capabilities: customerCapabilities(membership.role, row),
+        capabilities: customerCapabilities(membership.roles, row),
       }));
     },
   });
@@ -108,7 +109,7 @@ export async function getCustomer(
       const found = await repos.customerReads.get(input.workspaceId, input.customerId);
       return found === null
         ? null
-        : { ...found, capabilities: customerCapabilities(membership.role, found.customer) };
+        : { ...found, capabilities: customerCapabilities(membership.roles, found.customer) };
     },
   });
 
@@ -144,7 +145,7 @@ export function findPossibleDuplicateCustomers(
       return rows.map((row) => ({
         customer: {
           ...row.customer,
-          capabilities: customerCapabilities(membership.role, row.customer),
+          capabilities: customerCapabilities(membership.roles, row.customer),
         },
         reasons: [...row.reasons],
       }));

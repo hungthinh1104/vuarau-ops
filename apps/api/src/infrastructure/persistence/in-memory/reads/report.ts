@@ -1,14 +1,22 @@
 import type { Repositories } from "../../ports.ts";
 import type { OperationalReportDto } from "@vuarau/domain-contracts";
 import { money } from "@vuarau/domain-kernel";
-import { encodeCursor } from "@vuarau/domain-contracts";
+import { encodeCursor, vietnamBusinessDateForInstant } from "@vuarau/domain-contracts";
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 
 export const createReportReads = (store: Store): Pick<Repositories, "reportReads"> => ({
   reportReads: {
-    operational: async ({ workspaceId, reportType, businessDate, productId, unit, page }) => {
+    operational: async ({
+      workspaceId,
+      reportType,
+      businessDate,
+      businessDayStartMinute,
+      productId,
+      unit,
+      page,
+    }) => {
       type Row = OperationalReportDto["page"]["items"][number];
       let rows: Row[] = [];
       if (reportType === "customer_account_activity") {
@@ -17,12 +25,10 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
           .filter(
             (entry) =>
               businessDate === null ||
-              new Intl.DateTimeFormat("en-CA", {
-                timeZone: "Asia/Ho_Chi_Minh",
-                year: "numeric",
-                month: "2-digit",
-                day: "2-digit",
-              }).format(new Date(entry.transactionTime)) === businessDate,
+              vietnamBusinessDateForInstant(
+                entry.transactionTime,
+                businessDayStartMinute ?? 0,
+              ) === businessDate,
           )
           .map((entry) => ({
             id: entry.id,
@@ -98,6 +104,79 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
                   },
                 ];
           });
+      } else if (reportType === "cash_balances") {
+        rows = [...store.cashAccounts.values()]
+          .filter((account) => account.workspaceId === workspaceId)
+          .map((account) => {
+            const balance = store.cashBalances.get(key(workspaceId, account.id));
+            return {
+              id: account.id,
+              label: account.displayName,
+              productId: null,
+              productName: null,
+              qualityGradeId: null,
+              qualityGradeName: null,
+              sourceType: "cash_account",
+              sourceId: account.id,
+              documentHref: `/cash/accounts/${account.id}`,
+              transactionTime: balance?.lastMovementTransactionTime ?? null,
+              amount: balance?.balance ?? { amountMinor: 0, currency: account.currency },
+              quantity: null,
+              status: account.isActive ? "active" : "inactive",
+            };
+          });
+      } else if (reportType === "cash_movement_report") {
+        rows = store.cashMovements
+          .filter((movement) => movement.workspaceId === workspaceId)
+          .filter(
+            (movement) =>
+              businessDate === null ||
+              vietnamBusinessDateForInstant(
+                movement.transactionTime,
+                businessDayStartMinute ?? 0,
+              ) === businessDate,
+          )
+          .map((movement) => ({
+            id: movement.id,
+            label: `${store.cashAccounts.get(key(workspaceId, movement.cashAccountId))?.displayName ?? "Tài khoản tiền"} · ${movement.sourceType}`,
+            productId: null,
+            productName: null,
+            qualityGradeId: null,
+            qualityGradeName: null,
+            sourceType: movement.sourceType,
+            sourceId: movement.sourceId,
+            documentHref: `/cash/accounts/${movement.cashAccountId}`,
+            transactionTime: movement.transactionTime,
+            amount: movement.amount,
+            quantity: null,
+            status: movement.amount.amountMinor >= 0 ? "cash_in" : "cash_out",
+          }));
+      } else if (reportType === "expense_report") {
+        rows = [...store.expenses.values()]
+          .filter((expense) => expense.workspaceId === workspaceId && expense.reversal === null)
+          .filter(
+            (expense) =>
+              businessDate === null ||
+              vietnamBusinessDateForInstant(
+                expense.transactionTime,
+                businessDayStartMinute ?? 0,
+              ) === businessDate,
+          )
+          .map((expense) => ({
+            id: expense.id,
+            label: `${expense.category} · ${store.cashAccounts.get(key(workspaceId, expense.cashAccountId))?.displayName ?? "Tài khoản tiền"}`,
+            productId: null,
+            productName: null,
+            qualityGradeId: null,
+            qualityGradeName: null,
+            sourceType: "expense",
+            sourceId: expense.id,
+            documentHref: `/cash/expenses/${expense.id}`,
+            transactionTime: expense.transactionTime,
+            amount: expense.amount,
+            quantity: null,
+            status: "expense",
+          }));
       } else if (reportType === "inventory_by_product_unit") {
         rows = [...store.inventoryBalances.values()]
           .filter((balance) => balance.workspaceId === workspaceId)
@@ -136,6 +215,14 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
       } else if (reportType === "inventory_movement_report") {
         rows = store.inventoryMovements
           .filter((movement) => movement.workspaceId === workspaceId)
+          .filter(
+            (movement) =>
+              businessDate === null ||
+              vietnamBusinessDateForInstant(
+                movement.transactionTime,
+                businessDayStartMinute ?? 0,
+              ) === businessDate,
+          )
           .filter((movement) => productId === null || movement.productId === productId)
           .filter((movement) => unit === null || movement.quantity.unit === unit)
           .map((movement) => {
@@ -171,7 +258,7 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
               status: "canonical",
             };
           });
-      } else {
+      } else if (reportType === "outstanding_delivery") {
         for (const sale of store.sales.values()) {
           if (sale.workspaceId !== workspaceId || sale.status !== "posted") continue;
           const fulfilled = new Map<string, number>();

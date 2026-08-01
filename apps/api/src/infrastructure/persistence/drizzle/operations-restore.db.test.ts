@@ -15,7 +15,7 @@ import type {
   SaleLineId,
   SupplierId,
   SupplierPaymentId,
-  WorkspaceBackupV4,
+  WorkspaceBackupV7,
   DeliveryId,
   DeliveryLineId,
   DocumentId,
@@ -82,7 +82,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     await ctx.close();
   });
 
-  async function prepareCanonicalBackup(): Promise<WorkspaceBackupV4> {
+  async function prepareCanonicalBackup(): Promise<WorkspaceBackupV7> {
     const productId = crypto.randomUUID() as ProductId;
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
@@ -317,6 +317,26 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       await sql`delete from documents where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from inventory_balances where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from inventory_movements where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from quality_disposition_reversals
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from quality_disposition_allocations
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from quality_dispositions
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from quality_inspection_reversals
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from quality_inspection_issues
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from quality_inspections
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from goods_arrival_reversals
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from goods_arrival_lines
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from goods_arrivals
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from quality_issue_codes
+        where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from delivery_return_lines
         where return_id in (
           select id from delivery_returns where workspace_id = ${ctx.workspaceId}::uuid
@@ -355,6 +375,18 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
           as products,
         (select count(*)::int from quality_grades where workspace_id = ${ctx.workspaceId}::uuid)
           as quality_grades,
+        (select count(*)::int from quality_issue_codes where workspace_id = ${ctx.workspaceId}::uuid)
+          as quality_issue_codes,
+        (select count(*)::int from goods_arrivals where workspace_id = ${ctx.workspaceId}::uuid)
+          as goods_arrivals,
+        (select count(*)::int from goods_arrival_lines where workspace_id = ${ctx.workspaceId}::uuid)
+          as goods_arrival_lines,
+        (select count(*)::int from quality_inspections where workspace_id = ${ctx.workspaceId}::uuid)
+          as quality_inspections,
+        (select count(*)::int from quality_dispositions where workspace_id = ${ctx.workspaceId}::uuid)
+          as quality_dispositions,
+        (select count(*)::int from quality_disposition_allocations
+          where workspace_id = ${ctx.workspaceId}::uuid) as quality_disposition_allocations,
         (select count(*)::int from sales where workspace_id = ${ctx.workspaceId}::uuid)
           as sales,
         (select count(*)::int from sale_lines where workspace_id = ${ctx.workspaceId}::uuid)
@@ -410,6 +442,12 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       customers: 0,
       products: 0,
       quality_grades: 0,
+      quality_issue_codes: 0,
+      goods_arrivals: 0,
+      goods_arrival_lines: 0,
+      quality_inspections: 0,
+      quality_dispositions: 0,
+      quality_disposition_allocations: 0,
       sales: 0,
       sale_lines: 0,
       payments: 0,
@@ -437,6 +475,12 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     expect(await canonicalCounts()).toMatchObject({
       customers: backup.payload.customers.length,
       products: backup.payload.products.length,
+      quality_issue_codes: backup.payload.qualityIssueCodes.length,
+      goods_arrivals: backup.payload.goodsArrivals.length,
+      goods_arrival_lines: backup.payload.goodsArrivalLines.length,
+      quality_inspections: backup.payload.qualityInspections.length,
+      quality_dispositions: backup.payload.qualityDispositions.length,
+      quality_disposition_allocations: backup.payload.qualityDispositionAllocations.length,
       sales: backup.payload.sales.length,
       sale_lines: backup.payload.saleLines.length,
       payments: backup.payload.payments.length,
@@ -491,7 +535,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     const backup = await prepareCanonicalBackup();
     await emptyRecoveryWorkspace();
     const duplicateCustomer = backup.payload.customers[0]!;
-    const malformed: WorkspaceBackupV4 = {
+    const malformed: WorkspaceBackupV7 = {
       ...backup,
       payload: {
         ...backup.payload,
@@ -537,7 +581,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         },
       ],
     };
-    const tampered: WorkspaceBackupV4 = {
+    const tampered: WorkspaceBackupV7 = {
       ...backup,
       payload,
       digest: backupDigest(payload),

@@ -89,6 +89,7 @@ export function decideRecordSupplierPayment(
     supplierId: command.payload.supplierId,
     amount: command.payload.amount,
     method: command.payload.method,
+    cashAccountId: command.payload.cashAccountId ?? null,
     note: clean(command.payload.note),
     reversedAmount: money(0, command.payload.amount.currency),
     version: 1,

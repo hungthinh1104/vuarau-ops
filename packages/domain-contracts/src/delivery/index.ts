@@ -14,6 +14,7 @@ import {
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
+import { capabilitySchema } from "../shared/capability.ts";
 
 export const DELIVERY_STATUSES = ["draft", "cancelled", "dispatched", "delivered"] as const;
 export const deliveryStatusSchema = z.enum(DELIVERY_STATUSES);
@@ -23,7 +24,7 @@ export const deliveryLineInputSchema = z.object({
   deliveryLineId: deliveryLineIdSchema,
   saleLineId: saleLineIdSchema,
   productId: productIdSchema,
-  qualityGradeId: qualityGradeIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable().default(null),
   quantity: quantitySchema,
 });
 export type DeliveryLineInput = z.infer<typeof deliveryLineInputSchema>;
@@ -136,6 +137,9 @@ export type SaleFulfilmentInput = z.infer<typeof saleFulfilmentInputSchema>;
 export const saleFulfilmentDtoSchema = z.object({
   saleId: saleIdSchema,
   integrity: z.enum(["healthy", "attention"]),
+  capabilities: z.object({
+    createDelivery: capabilitySchema,
+  }),
   lines: z.array(
     z.object({
       saleLineId: saleLineIdSchema,

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { permissionsForRole } from "@vuarau/domain-contracts";
+import { permissionsForRole, permissionsForRoles } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   FOREIGN_ACTOR_ID,
@@ -45,6 +45,7 @@ describe("BR-AUTH-008 / TC-AUTH-014 — workspace discovery", () => {
         workspaceId: WORKSPACE_ID,
         name: WORKSPACE_NAME,
         role: "owner",
+        roles: ["owner"],
         permissions: [...permissionsForRole("owner")],
       },
     ]);
@@ -142,7 +143,7 @@ describe("BR-AUTH-007 / TC-AUTH-015 — self-service membership administration",
       ...envelope("member-add-foreign"),
       payload: {
         actorId: FOREIGN_ACTOR_ID,
-        role: "warehouse" as const,
+        roles: ["warehouse"] as const,
         reason: "Bổ sung nhân sự kho",
       },
     };
@@ -164,8 +165,8 @@ describe("BR-AUTH-007 / TC-AUTH-015 — self-service membership administration",
       ...envelope("member-role-sales-accountant"),
       payload: {
         actorId: SALES_ACTOR_ID,
-        expectedRole: "sales",
-        role: "accountant",
+        expectedRoles: ["sales"],
+        roles: ["accountant"],
         reason: "Chuyển sang phụ trách sổ",
       },
     });
@@ -175,6 +176,7 @@ describe("BR-AUTH-007 / TC-AUTH-015 — self-service membership administration",
     expect(session.ok).toBe(true);
     if (!session.ok) return;
     expect(session.value.role).toBe("accountant");
+    expect(session.value.roles).toEqual(["accountant"]);
     expect(session.value.permissions).toContain("debt.adjust");
   });
 
@@ -183,8 +185,8 @@ describe("BR-AUTH-007 / TC-AUTH-015 — self-service membership administration",
       ...envelope("member-role-self"),
       payload: {
         actorId: ACTOR_ID,
-        expectedRole: "owner",
-        role: "accountant",
+        expectedRoles: ["owner"],
+        roles: ["accountant"],
         reason: "Tự đổi vai trò",
       },
     });
@@ -202,6 +204,76 @@ describe("BR-AUTH-007 / TC-AUTH-015 — self-service membership administration",
     expect(sales.error.code).toBe("PERMISSION_DENIED");
   });
 
+  it("combines several operational roles without granting owner or accounting authority", async () => {
+    const changed = await changeWorkspaceMemberRole(harness.ctx, {
+      ...envelope("member-role-sales-warehouse"),
+      payload: {
+        actorId: SALES_ACTOR_ID,
+        expectedRoles: ["sales"],
+        roles: ["warehouse", "sales"],
+        reason: "Một người vừa bán hàng vừa phụ kho",
+      },
+    });
+    expect(changed.ok).toBe(true);
+    if (!changed.ok) return;
+    expect(changed.value.roles).toEqual(["sales", "warehouse"]);
+
+    const session = await getSession(harness.contextFor(SALES_ACTOR_ID), WORKSPACE_ID);
+    expect(session.ok).toBe(true);
+    if (!session.ok) return;
+    expect(session.value.roles).toEqual(["sales", "warehouse"]);
+    expect(session.value.permissions).toEqual(permissionsForRoles(["sales", "warehouse"]));
+    expect(session.value.permissions).toContain("sale.post");
+    expect(session.value.permissions).toContain("receiving.record");
+    expect(session.value.permissions).not.toContain("debt.adjust");
+    expect(session.value.permissions).not.toContain("workspace.manage");
+  });
+
+  it("refuses a stale complete role set rather than merging silently", async () => {
+    const first = await changeWorkspaceMemberRole(harness.ctx, {
+      ...envelope("member-role-first-set"),
+      payload: {
+        actorId: SALES_ACTOR_ID,
+        expectedRoles: ["sales"],
+        roles: ["sales", "warehouse"],
+        reason: "Phụ thêm việc kho",
+      },
+    });
+    expect(first.ok).toBe(true);
+
+    const stale = await changeWorkspaceMemberRole(harness.ctx, {
+      ...envelope("member-role-stale-set"),
+      payload: {
+        actorId: SALES_ACTOR_ID,
+        expectedRoles: ["sales"],
+        roles: ["delivery"],
+        reason: "Màn hình cũ đổi phân công",
+      },
+    });
+    expect(stale.ok).toBe(false);
+    if (stale.ok) return;
+    expect(stale.error.code).toBe("WORKSPACE_MEMBER_ROLE_CONFLICT");
+    expect(stale.error.details).toMatchObject({
+      expectedRoles: ["sales"],
+      actualRoles: ["sales", "warehouse"],
+    });
+  });
+
+  it("rejects owner combined with another role at the command boundary", async () => {
+    const invalid = await changeWorkspaceMemberRole(harness.ctx, {
+      ...envelope("member-role-owner-combination"),
+      payload: {
+        actorId: SALES_ACTOR_ID,
+        expectedRoles: ["sales"],
+        roles: ["owner", "sales"],
+        reason: "Không được hợp vai trò chủ vựa",
+      },
+    });
+    expect(invalid.ok).toBe(false);
+    if (invalid.ok) return;
+    expect(invalid.error.code).toBe("INVALID_COMMAND_PAYLOAD");
+  });
+
   it("reactivates a revoked membership without deleting its identity", async () => {
     const activated = await reactivateWorkspaceMember(harness.ctx, {
       ...envelope("member-reactivate"),
@@ -213,5 +285,6 @@ describe("BR-AUTH-007 / TC-AUTH-015 — self-service membership administration",
     expect(session.ok).toBe(true);
     if (!session.ok) return;
     expect(session.value.role).toBe("owner");
+    expect(session.value.roles).toEqual(["owner"]);
   });
 });

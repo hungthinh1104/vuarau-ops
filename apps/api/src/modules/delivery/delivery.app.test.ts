@@ -195,6 +195,151 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
     });
   });
 
+  it("BR-DELIVERY-006 — read capability and create command both block replacement fulfilment after predecessor dispatch", async () => {
+    const created = await createDeliveryDraft(harness.ctx, {
+      ...base("d18"),
+      payload: {
+        deliveryId,
+        saleId,
+        lines: [
+          {
+            deliveryLineId,
+            saleLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: QUALITY_GRADE_1_ID,
+            quantity: { valueScaled: 10_000, unit: "kg" },
+          },
+        ],
+        note: null,
+      },
+    });
+    expect(created.ok).toBe(true);
+    const dispatched = await dispatchDelivery(harness.ctx, {
+      ...base("d19"),
+      expectedVersion: 1,
+      payload: { deliveryId },
+    });
+    expect(dispatched.ok).toBe(true);
+
+    const replacementId = "00000000-0000-4000-8000-000000000d20" as SaleId;
+    harness.db.seedSale({
+      ...postedSale,
+      id: replacementId,
+      workspaceId: WORKSPACE_ID,
+      replacesSaleId: saleId,
+    });
+
+    const read = await getSaleFulfilment(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      saleId: replacementId,
+    });
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.value.capabilities.createDelivery).toMatchObject({
+      allowed: false,
+      reasonCode: "DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED",
+    });
+
+    const replacementLine = postedSale.lines[0]!;
+    const command = await createDeliveryDraft(harness.ctx, {
+      ...base("d21"),
+      payload: {
+        deliveryId: "00000000-0000-4000-8000-000000000d21" as DeliveryId,
+        saleId: replacementId,
+        lines: [
+          {
+            deliveryLineId: "00000000-0000-4000-8000-000000000d22" as DeliveryLineId,
+            saleLineId: replacementLine.lineId,
+            productId: replacementLine.productId!,
+            qualityGradeId: replacementLine.qualityGradeId!,
+            quantity: replacementLine.quantity,
+          },
+        ],
+        note: null,
+      },
+    });
+    expect(command.ok).toBe(false);
+    if (!command.ok) {
+      expect(command.error.code).toBe("DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED");
+    }
+  });
+
+  it("BR-DELIVERY-006 — blocks delivery across a multi-hop replacement chain when an older ancestor was fulfilled", async () => {
+    const created = await createDeliveryDraft(harness.ctx, {
+      ...base("d23"),
+      payload: {
+        deliveryId,
+        saleId,
+        lines: [
+          {
+            deliveryLineId,
+            saleLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: QUALITY_GRADE_1_ID,
+            quantity: { valueScaled: 10_000, unit: "kg" },
+          },
+        ],
+        note: null,
+      },
+    });
+    expect(created.ok).toBe(true);
+    const dispatched = await dispatchDelivery(harness.ctx, {
+      ...base("d24"),
+      expectedVersion: 1,
+      payload: { deliveryId },
+    });
+    expect(dispatched.ok).toBe(true);
+
+    const firstReplacementId = "00000000-0000-4000-8000-000000000d25" as SaleId;
+    const secondReplacementId = "00000000-0000-4000-8000-000000000d26" as SaleId;
+    harness.db.seedSale({
+      ...postedSale,
+      id: firstReplacementId,
+      workspaceId: WORKSPACE_ID,
+      replacesSaleId: saleId,
+    });
+    harness.db.seedSale({
+      ...postedSale,
+      id: secondReplacementId,
+      workspaceId: WORKSPACE_ID,
+      replacesSaleId: firstReplacementId,
+    });
+
+    const read = await getSaleFulfilment(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      saleId: secondReplacementId,
+    });
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.value.capabilities.createDelivery).toMatchObject({
+      allowed: false,
+      reasonCode: "DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED",
+    });
+
+    const replacementLine = postedSale.lines[0]!;
+    const command = await createDeliveryDraft(harness.ctx, {
+      ...base("d27"),
+      payload: {
+        deliveryId: "00000000-0000-4000-8000-000000000d27" as DeliveryId,
+        saleId: secondReplacementId,
+        lines: [
+          {
+            deliveryLineId: "00000000-0000-4000-8000-000000000d28" as DeliveryLineId,
+            saleLineId: replacementLine.lineId,
+            productId: replacementLine.productId!,
+            qualityGradeId: replacementLine.qualityGradeId!,
+            quantity: replacementLine.quantity,
+          },
+        ],
+        note: null,
+      },
+    });
+    expect(command.ok).toBe(false);
+    if (!command.ok) {
+      expect(command.error.code).toBe("DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED");
+    }
+  });
+
   it("lets sales prepare a draft but refuses warehouse-only dispatch authority to sales", async () => {
     const created = await createDeliveryDraft(harness.contextFor(SALES_ACTOR_ID), {
       ...base("d16"),

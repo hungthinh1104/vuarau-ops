@@ -51,7 +51,7 @@ export function revokeWorkspaceMembership(
 
       const decision = decideRevokeMembership({
         command,
-        membership: { actorId: target.actorId, role: target.role, isActive: target.isActive },
+        membership: { actorId: target.actorId, roles: target.roles, isActive: target.isActive },
         activeOwnerCount,
         recordedAt,
       });
@@ -83,6 +83,7 @@ export function revokeWorkspaceMembership(
         workspaceId: command.workspaceId,
         actorId: command.payload.actorId,
         role: target.role,
+        roles: [...target.roles],
         isActive: false,
       });
     },

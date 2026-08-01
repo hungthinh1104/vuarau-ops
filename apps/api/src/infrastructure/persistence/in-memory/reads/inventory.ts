@@ -1,6 +1,7 @@
 import type { Repositories } from "../../ports.ts";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
+import { intakeSourceRoot } from "../repositories/intake.ts";
 
 export const createInventoryReads = (store: Store): Pick<Repositories, "inventoryReads"> => ({
   inventoryReads: {
@@ -110,15 +111,25 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
                           store.deliveryReturns.find((returned) => returned.id === row.sourceId)
                             ?.deliveryId ?? row.sourceId,
                       }
-                    : {
-                        type: "receipt" as const,
-                        id:
-                          row.sourceType === "purchase_receipt"
-                            ? row.sourceId
-                            : ([...store.purchaseReceipts.values()].find(
-                                (receipt) => receipt.reversal?.id === row.sourceId,
-                              )?.id ?? row.sourceId),
-                      },
+                    : row.sourceType === "quality_disposition"
+                      ? { type: "quality_disposition" as const, id: row.sourceId }
+                      : row.sourceType === "quality_disposition_reversal"
+                        ? {
+                            type: "quality_disposition" as const,
+                            id:
+                              [...store.qualityDispositions.values()].find(
+                                (disposition) => disposition.reversal?.id === row.sourceId,
+                              )?.id ?? row.sourceId,
+                          }
+                        : {
+                            type: "receipt" as const,
+                            id:
+                              row.sourceType === "purchase_receipt"
+                                ? row.sourceId
+                                : ([...store.purchaseReceipts.values()].find(
+                                    (receipt) => receipt.reversal?.id === row.sourceId,
+                                  )?.id ?? row.sourceId),
+                          },
         })),
         page,
         (row) => ({
@@ -158,6 +169,50 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
             line.quantity.valueScaled !== movement.quantity.valueScaled
           )
             diagnostics.push("missing_or_mismatched_receipt");
+        }
+        if (movement.sourceType === "quality_disposition") {
+          const disposition = store.qualityDispositions.get(key(workspaceId, movement.sourceId));
+          const allocation = disposition?.allocations.find(
+            (item) => item.allocationId === movement.sourceLineId && item.outcome === "accepted",
+          );
+          const root =
+            disposition === undefined
+              ? null
+              : intakeSourceRoot(store, workspaceId, disposition.source);
+          if (
+            disposition === undefined ||
+            allocation === undefined ||
+            root === null ||
+            root.line.productId !== productId ||
+            allocation.qualityGradeId !== qualityGradeId ||
+            allocation.quantity.unit !== unit ||
+            allocation.quantity.valueScaled !== movement.quantity.valueScaled
+          )
+            diagnostics.push("missing_or_mismatched_quality_disposition");
+        }
+        if (movement.sourceType === "quality_disposition_reversal") {
+          const disposition = [...store.qualityDispositions.values()].find(
+            (item) =>
+              item.workspaceId === workspaceId && item.reversal?.id === movement.sourceId,
+          );
+          const allocation = disposition?.allocations.find(
+            (item) => item.allocationId === movement.sourceLineId && item.outcome === "accepted",
+          );
+          const original = store.inventoryMovements.find(
+            (item) => item.id === movement.reversalOfMovementId,
+          );
+          if (
+            disposition === undefined ||
+            allocation === undefined ||
+            original?.sourceType !== "quality_disposition" ||
+            original.sourceId !== disposition.id ||
+            original.sourceLineId !== allocation.allocationId ||
+            original.productId !== productId ||
+            original.qualityGradeId !== qualityGradeId ||
+            original.quantity.unit !== unit ||
+            movement.quantity.valueScaled !== -original.quantity.valueScaled
+          )
+            diagnostics.push("broken_quality_disposition_reversal");
         }
         if (movement.sourceType === "delivery_dispatch") {
           const delivery = store.deliveries.get(key(workspaceId, movement.sourceId));

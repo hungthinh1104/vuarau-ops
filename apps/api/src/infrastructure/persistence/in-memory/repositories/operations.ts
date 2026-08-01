@@ -8,6 +8,15 @@ import type {
   SupplierAccountEntryDto,
   DocumentDto,
   DocumentShareId,
+  WorkspaceOperationalProfileDto,
+  CashAccountDto,
+  CashMovementDto,
+  CashTransferDto,
+  ExpenseDto,
+  GoodsArrivalDto,
+  QualityDispositionDto,
+  QualityInspectionDto,
+  QualityIssueCodeDto,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import { money } from "@vuarau/domain-kernel";
@@ -35,9 +44,14 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
     restoreBackup: async (workspaceId, payload) => {
       const occupied =
         [
+          ...store.cashAccounts.values(),
           ...store.customers.values(),
           ...store.products.values(),
           ...store.qualityGrades.values(),
+          ...store.qualityIssueCodes.values(),
+          ...store.goodsArrivals.values(),
+          ...store.qualityInspections.values(),
+          ...store.qualityDispositions.values(),
           ...store.sales.values(),
           ...store.suppliers.values(),
           ...store.purchases.values(),
@@ -45,7 +59,8 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.documents.values(),
         ].some((row) => row.workspaceId === workspaceId) ||
         store.accountEntries.some((row) => row.workspaceId === workspaceId) ||
-        store.inventoryMovements.some((row) => row.workspaceId === workspaceId);
+        store.inventoryMovements.some((row) => row.workspaceId === workspaceId) ||
+        store.cashMovements.some((row) => row.workspaceId === workspaceId);
       if (occupied) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -54,6 +69,62 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...row,
           workspaceId,
         });
+        store.operationalProfiles.set(
+          workspaceId,
+          remap(payload.operationalProfile) as unknown as WorkspaceOperationalProfileDto,
+        );
+        for (const raw of payload.cashAccounts) {
+          const row = remap(raw) as unknown as CashAccountDto;
+          store.cashAccounts.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.expenses) {
+          const reversal = payload.expenseReversals.find(
+            (candidate) => candidate["expenseId"] === raw["id"],
+          );
+          const row = remap({
+            ...raw,
+            reversal:
+              reversal === undefined
+                ? null
+                : {
+                    id: reversal["id"],
+                    reason: reversal["reason"],
+                    transactionTime: reversal["transactionTime"],
+                    recordedAt: reversal["recordedAt"],
+                    actorId: reversal["actorId"],
+                    commandId: reversal["commandId"],
+                  },
+          }) as unknown as ExpenseDto;
+          store.expenses.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.cashTransfers) {
+          const reversal = payload.cashTransferReversals.find(
+            (candidate) => candidate["transferId"] === raw["id"],
+          );
+          const row = remap({
+            ...raw,
+            reversal:
+              reversal === undefined
+                ? null
+                : {
+                    id: reversal["id"],
+                    reason: reversal["reason"],
+                    transactionTime: reversal["transactionTime"],
+                    recordedAt: reversal["recordedAt"],
+                    actorId: reversal["actorId"],
+                    commandId: reversal["commandId"],
+                  },
+          }) as unknown as CashTransferDto;
+          store.cashTransfers.set(key(workspaceId, row.id), row);
+        }
+        store.cashAdjustments.push(
+          ...payload.cashAdjustments.map(
+            (raw) => remap(raw) as unknown as Store["cashAdjustments"][number],
+          ),
+        );
+        store.cashMovements.push(
+          ...payload.cashMovements.map((raw) => remap(raw) as unknown as CashMovementDto),
+        );
         for (const raw of payload.customers) {
           const row = remap(raw) as unknown as CustomerState;
           store.customers.set(key(workspaceId, row.id), row);
@@ -65,6 +136,156 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         for (const raw of payload.qualityGrades) {
           const row = remap(raw) as unknown as QualityGradeState;
           store.qualityGrades.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.qualityIssueCodes) {
+          const row = remap(raw) as unknown as QualityIssueCodeDto;
+          store.qualityIssueCodes.set(key(workspaceId, row.id), row);
+        }
+        const arrivalLines = new Map<string, GoodsArrivalDto["lines"]>();
+        for (const raw of payload.goodsArrivalLines) {
+          const arrivalId = String(raw["arrivalId"]);
+          const weightUnit = raw["weightUnit"];
+          const line = {
+            arrivalLineId: raw["id"],
+            purchaseLineId: raw["purchaseLineId"] ?? null,
+            productId: raw["productId"],
+            productName: raw["productName"],
+            arrivedQuantity: {
+              valueScaled: Number(raw["arrivedValueScaled"]),
+              unit: raw["arrivedUnit"],
+            },
+            weighing:
+              raw["grossWeightValueScaled"] == null ||
+              raw["tareWeightValueScaled"] == null ||
+              raw["netWeightValueScaled"] == null ||
+              weightUnit == null
+                ? null
+                : {
+                    containerCount:
+                      raw["containerCount"] == null ? null : Number(raw["containerCount"]),
+                    grossWeight: {
+                      valueScaled: Number(raw["grossWeightValueScaled"]),
+                      unit: weightUnit,
+                    },
+                    tareWeight: {
+                      valueScaled: Number(raw["tareWeightValueScaled"]),
+                      unit: weightUnit,
+                    },
+                    netWeight: {
+                      valueScaled: Number(raw["netWeightValueScaled"]),
+                      unit: weightUnit,
+                    },
+                  },
+            supplierLotCode: raw["supplierLotCode"] ?? null,
+            note: raw["note"] ?? null,
+          } as unknown as GoodsArrivalDto["lines"][number];
+          arrivalLines.set(arrivalId, [...(arrivalLines.get(arrivalId) ?? []), line]);
+        }
+        const arrivalReversals = new Map<string, GoodsArrivalDto["reversal"]>();
+        for (const raw of payload.goodsArrivalReversals) {
+          arrivalReversals.set(String(raw["arrivalId"]), {
+            id: raw["id"],
+            reason: raw["reason"],
+            transactionTime: raw["transactionTime"],
+            recordedAt: raw["recordedAt"],
+            actorId: raw["actorId"],
+            commandId: raw["commandId"],
+          } as unknown as NonNullable<GoodsArrivalDto["reversal"]>);
+        }
+        for (const raw of payload.goodsArrivals) {
+          const id = String(raw["id"]);
+          const row = remap({
+            ...raw,
+            lines: arrivalLines.get(id) ?? [],
+            reversal: arrivalReversals.get(id) ?? null,
+          }) as unknown as GoodsArrivalDto;
+          store.goodsArrivals.set(key(workspaceId, row.id), row);
+        }
+        const inspectionIssues = new Map<string, QualityInspectionDto["issues"]>();
+        for (const raw of payload.qualityInspectionIssues) {
+          const inspectionId = String(raw["inspectionId"]);
+          const issue = {
+            qualityIssueCodeId: raw["qualityIssueCodeId"],
+            qualityIssueCode: raw["qualityIssueCode"],
+            qualityIssueName: raw["qualityIssueName"],
+            severity: raw["severity"],
+            note: raw["note"] ?? null,
+          } as unknown as QualityInspectionDto["issues"][number];
+          inspectionIssues.set(inspectionId, [
+            ...(inspectionIssues.get(inspectionId) ?? []),
+            issue,
+          ]);
+        }
+        const inspectionReversals = new Map<string, QualityInspectionDto["reversal"]>();
+        for (const raw of payload.qualityInspectionReversals) {
+          inspectionReversals.set(String(raw["inspectionId"]), {
+            id: raw["id"],
+            reason: raw["reason"],
+            transactionTime: raw["transactionTime"],
+            recordedAt: raw["recordedAt"],
+            actorId: raw["actorId"],
+            commandId: raw["commandId"],
+          } as unknown as NonNullable<QualityInspectionDto["reversal"]>);
+        }
+        for (const raw of payload.qualityInspections) {
+          const id = String(raw["id"]);
+          const row = remap({
+            ...raw,
+            inspectedQuantity: {
+              valueScaled: Number(raw["inspectedValueScaled"]),
+              unit: raw["inspectedUnit"],
+            },
+            issues: inspectionIssues.get(id) ?? [],
+            reversal: inspectionReversals.get(id) ?? null,
+          }) as unknown as QualityInspectionDto;
+          store.qualityInspections.set(key(workspaceId, row.id), row);
+        }
+        const dispositionAllocations = new Map<string, QualityDispositionDto["allocations"]>();
+        for (const raw of payload.qualityDispositionAllocations) {
+          const dispositionId = String(raw["dispositionId"]);
+          const allocation = {
+            allocationId: raw["id"],
+            outcome: raw["outcome"],
+            quantity: {
+              valueScaled: Number(raw["valueScaled"]),
+              unit: raw["unit"],
+            },
+            qualityGradeId: raw["qualityGradeId"] ?? null,
+            qualityGradeName: raw["qualityGradeName"] ?? null,
+            note: raw["note"] ?? null,
+          } as unknown as QualityDispositionDto["allocations"][number];
+          dispositionAllocations.set(dispositionId, [
+            ...(dispositionAllocations.get(dispositionId) ?? []),
+            allocation,
+          ]);
+        }
+        const dispositionReversals = new Map<string, QualityDispositionDto["reversal"]>();
+        for (const raw of payload.qualityDispositionReversals) {
+          dispositionReversals.set(String(raw["dispositionId"]), {
+            id: raw["id"],
+            reason: raw["reason"],
+            transactionTime: raw["transactionTime"],
+            recordedAt: raw["recordedAt"],
+            actorId: raw["actorId"],
+            commandId: raw["commandId"],
+          } as unknown as NonNullable<QualityDispositionDto["reversal"]>);
+        }
+        for (const raw of payload.qualityDispositions) {
+          const id = String(raw["id"]);
+          const source =
+            raw["sourceType"] === "arrival_line"
+              ? { type: "arrival_line", arrivalLineId: raw["sourceArrivalLineId"] }
+              : {
+                  type: "quarantine_allocation",
+                  allocationId: raw["sourceQuarantineAllocationId"],
+                };
+          const row = remap({
+            ...raw,
+            source,
+            allocations: dispositionAllocations.get(id) ?? [],
+            reversal: dispositionReversals.get(id) ?? null,
+          }) as unknown as QualityDispositionDto;
+          store.qualityDispositions.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.sales) {
           const row = remap(raw) as unknown as SaleState;
@@ -226,6 +447,36 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
                 .sort()
                 .at(-1) ?? null,
             updatedAt: new Date().toISOString() as IsoInstant,
+          });
+        }
+        for (const account of [...store.cashAccounts.values()].filter(
+          (row) => row.workspaceId === workspaceId,
+        )) {
+          const movements = store.cashMovements.filter(
+            (movement) =>
+              movement.workspaceId === workspaceId && movement.cashAccountId === account.id,
+          );
+          store.cashBalances.set(key(workspaceId, account.id), {
+            workspaceId,
+            cashAccountId: account.id,
+            balance: {
+              amountMinor: movements.reduce(
+                (sum, movement) => sum + movement.amount.amountMinor,
+                0,
+              ),
+              currency: account.currency,
+            },
+            movementCount: movements.length,
+            lastMovementTransactionTime:
+              movements
+                .map((movement) => movement.transactionTime)
+                .sort()
+                .at(-1) ?? null,
+            updatedAt:
+              movements
+                .map((movement) => movement.recordedAt)
+                .sort()
+                .at(-1) ?? account.updatedAt,
           });
         }
         return {

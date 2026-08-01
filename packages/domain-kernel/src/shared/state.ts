@@ -11,6 +11,7 @@ import type {
   SaleVoidId,
   SaleVoidReasonCode,
   PaymentId,
+  CashAccountId,
   PaymentMethod,
   PaymentStatus,
   ProductId,
@@ -112,6 +113,7 @@ export type SupplierPaymentState = {
   readonly supplierId: SupplierId;
   readonly amount: Money;
   readonly method: PaymentMethod;
+  readonly cashAccountId?: CashAccountId | null;
   readonly note: string | null;
   readonly reversedAmount: Money;
   readonly version: number;
@@ -163,8 +165,8 @@ export type PurchaseReceiptLineState = {
   readonly receiptLineId: PurchaseReceiptLineId;
   readonly purchaseLineId: PurchaseLineId;
   readonly productId: ProductId;
-  readonly qualityGradeId: QualityGradeId;
-  readonly qualityGradeName: string;
+  readonly qualityGradeId: QualityGradeId | null;
+  readonly qualityGradeName: string | null;
   readonly quantity: Quantity;
 };
 export type PurchaseReceiptReversalState = {
@@ -308,6 +310,7 @@ export type PaymentState = {
   readonly customerId: CustomerId;
   readonly amount: Money;
   readonly method: PaymentMethod;
+  readonly cashAccountId?: CashAccountId | null;
   readonly payerName: string | null;
   readonly note: string | null;
   /** Derived from `reversedAmount` — never set directly (BR-PAYMENT-008). */

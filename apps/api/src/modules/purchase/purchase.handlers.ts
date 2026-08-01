@@ -14,6 +14,7 @@ import {
   voidPurchaseCommandSchema,
 } from "@vuarau/domain-contracts";
 import {
+  canVoidPurchase,
   decideConfirmPurchase,
   decideCreatePurchaseDraft,
   decideDiscardPurchase,
@@ -70,6 +71,7 @@ export function createPurchaseDraft(
     input,
     ctx,
     requiredPermission: "purchase.create",
+    requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       if (
         (await repos.purchases.findById(command.workspaceId, command.payload.purchaseId)) !== null
@@ -133,6 +135,7 @@ export function updatePurchaseDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "purchase.update",
+    requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.purchases.findByIdForUpdate(
         command.workspaceId,
@@ -205,6 +208,7 @@ export function confirmPurchase(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "purchase.confirm",
+    requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.purchases.findByIdForUpdate(
         command.workspaceId,
@@ -272,11 +276,37 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
         command.workspaceId,
         current.id,
       );
-      if ([...received.values()].some((quantity) => quantity > 0))
+      const acceptedAfterInspection = await Promise.all(
+        current.lines.map((line) =>
+          repos.qualityDispositions.acceptedQuantityForPurchaseLine(
+            command.workspaceId,
+            line.lineId,
+          ),
+        ),
+      );
+      const hasActiveArrival = await repos.goodsArrivals.hasActiveForPurchase(
+        command.workspaceId,
+        current.id,
+      );
+      const voidCapability = canVoidPurchase({
+        purchase: current,
+        hasActiveReceipts:
+          hasActiveArrival ||
+          [...received.values()].some((quantity) => quantity > 0) ||
+          acceptedAfterInspection.some((quantity) => (quantity?.valueScaled ?? 0) > 0),
+      });
+      if (!voidCapability.allowed) {
+        const code = voidCapability.reasonCode ?? "PURCHASE_NOT_CONFIRMED";
         return err(
-          "PURCHASE_HAS_ACTIVE_RECEIPTS",
-          "Reverse active Receipts before voiding this Purchase.",
+          code,
+          code === "PURCHASE_HAS_ACTIVE_RECEIPTS"
+            ? "Purchase correction is blocked after accepted Receiving."
+            : code === "PURCHASE_ALREADY_VOIDED"
+              ? "Purchase is already voided."
+              : "Only a confirmed Purchase can be voided.",
+          voidCapability.details,
         );
+      }
       const decision = decideVoidPurchase(current, command, recordedAt);
       if (!decision.ok) return decision;
       if (!(await repos.purchases.insertVoid(decision.value)))

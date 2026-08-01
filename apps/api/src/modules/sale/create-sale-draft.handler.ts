@@ -51,7 +51,7 @@ export function createSaleDraft(
 
       if (
         command.payload.replacesSaleId === null &&
-        !roleHasPermission(membership.role, "sale.create")
+        !roleHasPermission(membership.roles, "sale.create")
       ) {
         return err("PERMISSION_DENIED", "Your role cannot create a sale draft.", {
           workspaceId: command.workspaceId,
@@ -86,7 +86,7 @@ export function createSaleDraft(
             saleId: replaced.id,
           });
         }
-        if (!roleHasPermission(membership.role, "sale.void")) {
+        if (!roleHasPermission(membership.roles, "sale.void")) {
           return err("PERMISSION_DENIED", "Your role cannot continue a sale correction.", {
             workspaceId: command.workspaceId,
             permission: "sale.void",

@@ -35,6 +35,7 @@ export function decideRecordPayment({
     customerId: payload.customerId,
     amount: payload.amount,
     method: payload.method,
+    cashAccountId: payload.cashAccountId ?? null,
     payerName: payload.payerName,
     note: payload.note,
     status: "recorded",

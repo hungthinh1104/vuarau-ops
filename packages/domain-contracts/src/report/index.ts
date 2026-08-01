@@ -11,6 +11,9 @@ export const REPORT_TYPES = [
   "inventory_by_product_unit",
   "inventory_movement_report",
   "outstanding_delivery",
+  "cash_balances",
+  "cash_movement_report",
+  "expense_report",
 ] as const;
 export const reportTypeSchema = z.enum(REPORT_TYPES);
 export type ReportType = z.infer<typeof reportTypeSchema>;

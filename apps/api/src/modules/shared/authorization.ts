@@ -62,11 +62,12 @@ export async function authorizeWorkspaceAccess(args: {
     });
   }
 
-  if (!roleHasPermission(membership.role, permission)) {
+  if (!roleHasPermission(membership.roles, permission)) {
     return err("PERMISSION_DENIED", `Your role cannot perform "${permission}".`, {
       workspaceId,
       permission,
       role: membership.role,
+      roles: membership.roles,
     });
   }
 
@@ -81,10 +82,17 @@ export async function authorizeWorkspaceAccess(args: {
  * One implementation, so a greyed-out button and a refusal cannot disagree
  * (ADR-0003).
  */
-export function accountCapabilities(role: WorkspaceRole): AccountCapabilities {
+export function accountCapabilities(
+  roleOrRoles: WorkspaceRole | readonly WorkspaceRole[],
+): AccountCapabilities {
+  const roles = Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles as WorkspaceRole];
   return {
-    adjust: roleHasPermission(role, "debt.adjust")
+    adjust: roleHasPermission(roles, "debt.adjust")
       ? ALLOWED
-      : denied("PERMISSION_DENIED", { permission: "debt.adjust", role }),
+      : denied("PERMISSION_DENIED", {
+          permission: "debt.adjust",
+          role: roles[0],
+          roles,
+        }),
   };
 }
