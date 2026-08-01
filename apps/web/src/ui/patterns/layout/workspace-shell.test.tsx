@@ -27,7 +27,8 @@ describe("Goods Truth workspace navigation", () => {
         "href",
         "/suppliers",
       );
-      expect(screen.getByRole("link", { name: "Nhận hàng" })).toHaveAttribute("href", "/purchases");
+      expect(screen.getByRole("link", { name: "Đơn mua" })).toHaveAttribute("href", "/purchases");
+      expect(screen.getByRole("link", { name: "Hàng đến" })).toHaveAttribute("href", "/intake");
       unmount();
     }
   });
@@ -43,7 +44,8 @@ describe("Goods Truth workspace navigation", () => {
       </WorkspaceShell>,
     );
     expect(screen.queryByRole("link", { name: "Nhà cung cấp" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Nhận hàng" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Đơn mua" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Hàng đến" })).not.toBeInTheDocument();
     const quickSaleLinks = screen.getAllByRole("link", { name: "Ghi đơn nhanh" });
     expect(quickSaleLinks).toHaveLength(1);
     for (const link of quickSaleLinks) expect(link).toHaveAttribute("href", "/sales/new");

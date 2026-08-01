@@ -278,6 +278,10 @@ function SupplierMoneyActions(props: { supplier: SupplierDto; onChanged: () => v
       {session.permissions.includes("supplier.account.adjust") ? (
         <section className="rounded-card border border-border bg-surface p-4">
           <h2 className="text-subheading font-semibold">Điều chỉnh công nợ</h2>
+          <p className="mt-1 text-body-sm text-ink-muted">
+            Chỉ ghi fact tiền không có Purchase nguồn. Không dùng để bù cho hàng trả nhà cung cấp:
+            thao tác này không chuyển tồn kho và ASM-038 chưa định nghĩa credit/claim tương ứng.
+          </p>
           <Select
             label="Hướng điều chỉnh"
             value={direction}

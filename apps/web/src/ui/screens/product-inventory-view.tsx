@@ -218,6 +218,8 @@ function movementHref(movement: InventoryMovementDto): string | null {
       return `/deliveries/${source.id}`;
     case "inventory_reclassification":
       return `/products/${movement.productId}/inventory`;
+    case "quality_disposition":
+      return `/quality/dispositions/${source.id}`;
   }
 }
 
@@ -235,5 +237,9 @@ function movementLabel(source: InventoryMovementDto["sourceType"]): string {
       return "Hàng trả lại";
     case "inventory_reclassification":
       return "Chuyển phẩm cấp";
+    case "quality_disposition":
+      return "Chấp nhận sau kiểm định";
+    case "quality_disposition_reversal":
+      return "Hoàn tác chấp nhận chất lượng";
   }
 }

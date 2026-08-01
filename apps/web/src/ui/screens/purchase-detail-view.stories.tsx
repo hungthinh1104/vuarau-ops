@@ -188,6 +188,24 @@ export const MobileReceiving: Story = { globals: { viewport: { value: "mobile" }
 export const SplitGradePartialReceipt: Story = {
   args: { receipts: [receipt], receivingSummary: summary },
 };
+export const PurchaseCorrectionBlockedAfterReceiving: Story = {
+  args: {
+    receipts: [receipt],
+    receivingSummary: summary,
+    voidPanel: (
+      <section
+        role="status"
+        className="rounded-card border border-warning/30 bg-warning-soft p-4 text-body-sm"
+      >
+        <p className="font-semibold">Chưa thể hoàn tác đơn mua này</p>
+        <p className="mt-1">
+          Hàng đã thực sự được nhận. Không hoàn tác phiếu nhận chỉ để mở khóa sửa đơn mua; dừng và
+          xử lý theo ASM-036.
+        </p>
+      </section>
+    ),
+  },
+};
 export const ReversedReceipt: Story = {
   args: { receipts: [reversedReceipt], receivingSummary: summary, canReverseReceipt: false },
 };

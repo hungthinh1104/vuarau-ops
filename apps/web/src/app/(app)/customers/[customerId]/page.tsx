@@ -1,18 +1,22 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   AccountTimelineEntryDto,
   Cursor,
   CustomerDto,
   CustomerId,
+  DocumentDto,
+  DocumentId,
+  DocumentPeriod,
   Page,
 } from "@vuarau/domain-contracts";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useCommand } from "@/api/use-command.ts";
+import { CustomerStatementPanel } from "@/ui/patterns/document/customer-statement-panel.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { CustomerDetailView } from "@/ui/screens/customer-detail-view.tsx";
@@ -20,6 +24,7 @@ import { CustomerDetailView } from "@/ui/screens/customer-detail-view.tsx";
 export default function CustomerDetailPage() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const router = useRouter();
   const params = useParams<{ customerId: string }>();
   const customerId = params.customerId as CustomerId;
   const [cursor, setCursor] = useState<Cursor | null>(null);
@@ -65,6 +70,7 @@ export default function CustomerDetailPage() {
 
   const deactivateMutation = useMutation(trpc.customer.deactivate.mutationOptions());
   const reactivateMutation = useMutation(trpc.customer.reactivate.mutationOptions());
+  const documentMutation = useMutation(trpc.document.generate.mutationOptions());
   const deactivateCommand = useCommand<
     { customerId: CustomerId; reason: string | null },
     CustomerDto
@@ -72,6 +78,17 @@ export default function CustomerDetailPage() {
   const reactivateCommand = useCommand<{ customerId: CustomerId; reason: string }, CustomerDto>(
     (envelope) => reactivateMutation.mutateAsync(envelope as never) as Promise<CustomerDto>,
   );
+  const statementDocumentId = useRef(crypto.randomUUID() as DocumentId);
+  const statementDocument = useCommand<
+    {
+      documentId: DocumentId;
+      documentType: "customer_statement";
+      sourceType: "customer";
+      sourceId: CustomerId;
+      period: DocumentPeriod;
+    },
+    DocumentDto
+  >((envelope) => documentMutation.mutateAsync(envelope as never) as Promise<DocumentDto>);
 
   useEffect(() => {
     setCursor(null);
@@ -89,6 +106,11 @@ export default function CustomerDetailPage() {
       void customer.refetch();
     }
   }, [customer.refetch, deactivateCommand.phase.kind, reactivateCommand.phase.kind]);
+  useEffect(() => {
+    if (statementDocument.result !== null) {
+      router.push(`/documents/${statementDocument.result.id}`);
+    }
+  }, [router, statementDocument.result]);
 
   const entries = pages.flatMap((page) => page.items);
   const nextCursor = pages.at(-1)?.nextCursor ?? null;
@@ -119,6 +141,32 @@ export default function CustomerDetailPage() {
           canCreateSale={session.permissions.includes("sale.create")}
           canRecordPayment={session.permissions.includes("payment.record")}
           canAdjustDebt={session.permissions.includes("debt.adjust")}
+          documentSection={
+            session.permissions.includes("document.generate") ? (
+              <CustomerStatementPanel
+                locked={
+                  statementDocument.phase.kind === "sending" ||
+                  statementDocument.phase.kind === "unknown"
+                }
+                onSubmit={(period) =>
+                  void statementDocument.submit({
+                    documentId: statementDocumentId.current,
+                    documentType: "customer_statement",
+                    sourceType: "customer",
+                    sourceId: customerId,
+                    period,
+                  })
+                }
+                feedback={
+                  <CommandOutcome
+                    command={statementDocument}
+                    attemptedAction="Tạo sao kê công nợ"
+                    onReload={() => void customer.refetch()}
+                  />
+                }
+              />
+            ) : undefined
+          }
           customerCommandLocked={customerCommandLocked}
           onDeactivate={() =>
             void deactivateCommand.submit(

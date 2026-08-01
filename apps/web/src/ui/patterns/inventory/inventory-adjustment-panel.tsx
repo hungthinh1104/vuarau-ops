@@ -65,8 +65,9 @@ export function InventoryAdjustmentPanel({
     <section className="rounded-card border border-border bg-surface p-4">
       <h2 className="text-subheading font-semibold">Điều chỉnh tồn kho</h2>
       <p className="mt-1 text-body-sm text-ink-muted">
-        Chỉ dùng cho số dư đầu kỳ, kiểm đếm, hư hỏng, hao hụt hoặc sự kiện không thuộc
-        Receipt/Delivery.
+        Chỉ dùng cho số dư đầu kỳ, kiểm đếm, hư hỏng, hao hụt hoặc fact vật lý không có chứng từ
+        nguồn tốt hơn. Điều chỉnh này chỉ đổi tồn kho; không dùng để giả lập trả nhà cung cấp, hoàn
+        tác phiếu nhận hay giảm công nợ. Supplier return còn chờ ASM-038.
       </p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <Select

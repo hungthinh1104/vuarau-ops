@@ -31,6 +31,7 @@ function sessionFor(actorId: SessionDto["actorId"], role: WorkspaceRole): Sessio
     actorId,
     workspaceId: WORKSPACE_ID,
     role,
+    roles: [role],
     permissions: [...permissionsForRole(role)],
   };
 }
@@ -60,12 +61,14 @@ export const workspaceChoices: readonly WorkspaceSummaryDto[] = [
     workspaceId: WORKSPACE_ID,
     name: WORKSPACE_NAME,
     role: "owner",
+    roles: ["owner"],
     permissions: [...permissionsForRole("owner")],
   },
   {
     workspaceId: OTHER_WORKSPACE_ID,
     name: "Vựa Sáu Tâm — chợ Thủ Đức",
     role: "sales",
+    roles: ["sales"],
     permissions: [...permissionsForRole("sales")],
   },
 ];

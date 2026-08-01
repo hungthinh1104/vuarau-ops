@@ -13,6 +13,7 @@ import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useCommand } from "@/api/use-command.ts";
 import { formatInstant } from "@/ui/format.ts";
+import { DocumentSnapshotView } from "@/ui/patterns/document/document-snapshot-view.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
@@ -54,7 +55,7 @@ export default function DocumentDetailPage() {
       onRetry={() => void document.refetch()}
     >
       {(detail) => (
-        <div className="flex max-w-4xl flex-col gap-6">
+        <div className="flex flex-col gap-6">
           <PageHeader
             title={DOCUMENT_TYPE_LABEL[detail.documentType]}
             description={`Tạo ${formatInstant(detail.generatedAt)}`}
@@ -63,11 +64,7 @@ export default function DocumentDetailPage() {
               label: "Mở dữ liệu nguồn",
             }}
           />
-          <section className="rounded-card border border-border bg-surface p-4 print:border-0">
-            <pre className="whitespace-pre-wrap text-body-sm">
-              {JSON.stringify(detail.snapshot, null, 2)}
-            </pre>
-          </section>
+          <DocumentSnapshotView document={detail} />
           <div className="flex flex-wrap gap-3 print:hidden">
             <Button tone="secondary" onClick={() => window.print()}>
               In chứng từ
@@ -78,13 +75,13 @@ export default function DocumentDetailPage() {
                   void share.submit({ shareId, documentId: detail.id, expiresAt: null })
                 }
               >
-                Tạo liên kết đọc
+                Tạo liên kết đọc trong 24 giờ
               </Button>
             ) : null}
           </div>
           {share.result !== null ? (
             <section className="rounded-card border border-border bg-surface p-4">
-              <p>Liên kết chỉ hiện một lần:</p>
+              <p>Liên kết chỉ hiện một lần và hết hạn {formatInstant(share.result.expiresAt)}:</p>
               <a
                 className="break-all font-semibold text-info underline-offset-4 hover:underline"
                 href={`/shared/documents/${share.result.token}`}

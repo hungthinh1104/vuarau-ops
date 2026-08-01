@@ -26,6 +26,7 @@ describe("offline session partition bootstrap", () => {
           workspaceId,
           name: "Vựa thử",
           role: "sales",
+          roles: ["sales"],
           permissions: ["sale.create", "sale.post", "sale.read"],
         },
       ],
@@ -34,6 +35,7 @@ describe("offline session partition bootstrap", () => {
       actorId,
       workspaceId,
       role: "sales",
+      roles: ["sales"],
       permissions: ["sale.create", "sale.post", "sale.read"],
     });
     cacheWorkspaces(SUBJECT_A, workspaces);

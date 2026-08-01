@@ -18,7 +18,11 @@ export default function ReportsPage() {
       workspaceId,
       reportType,
       businessDate:
-        reportType === "customer_account_activity" && businessDate ? businessDate : null,
+        ["customer_account_activity", "cash_movement_report", "expense_report"].includes(
+          reportType,
+        ) && businessDate
+          ? businessDate
+          : null,
       productId: null,
       unit: null,
       cursor,

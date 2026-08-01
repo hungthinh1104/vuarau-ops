@@ -42,6 +42,7 @@ describe("inventory command panels", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "Ghi điều chỉnh" })).toBeDisabled();
+    expect(screen.getByText(/không dùng để giả lập trả nhà cung cấp/i)).toBeInTheDocument();
   });
 
   it("requires a deliberate reset before a second adjustment", async () => {

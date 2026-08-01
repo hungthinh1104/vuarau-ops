@@ -1,6 +1,6 @@
 "use client";
 
-import type { SessionDto, WorkspaceRole } from "@vuarau/domain-contracts";
+import type { SessionDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { CloudAlert, CloudCheck, CloudUpload, LogOut, Store, SwitchCamera } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -9,14 +9,7 @@ import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { AppNavView } from "./app-nav.tsx";
 import { MobileNavView } from "./mobile-nav.tsx";
-
-const ROLE_COPY: Readonly<Record<WorkspaceRole, string>> = {
-  owner: "Chủ vựa",
-  accountant: "Kế toán",
-  sales: "Bán hàng",
-  warehouse: "Kho",
-  delivery: "Giao hàng",
-};
+import { WORKSPACE_ROLE_COPY } from "@/ui/patterns/workspace/role-set-picker.tsx";
 
 export type WorkspaceShellProps = {
   readonly workspaceName: string;
@@ -120,7 +113,13 @@ export function WorkspaceShellView({
                   {userLabel}
                 </p>
               </div>
-              <Badge tone="info">{ROLE_COPY[session.role]}</Badge>
+              <div className="flex max-w-64 flex-wrap justify-end gap-1">
+                {session.roles.map((role) => (
+                  <Badge key={role} tone="info">
+                    {WORKSPACE_ROLE_COPY[role]}
+                  </Badge>
+                ))}
+              </div>
             </div>
             {onChangeWorkspace === undefined ? null : (
               <Button

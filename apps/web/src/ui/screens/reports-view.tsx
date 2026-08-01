@@ -18,6 +18,11 @@ const REPORT_STATUS_COPY: Readonly<Record<string, string>> = {
   zero: "Bằng 0",
   positive: "Dương",
   outstanding: "Chưa hoàn tất",
+  active: "Đang hoạt động",
+  inactive: "Ngừng sử dụng",
+  cash_in: "Tiền vào",
+  cash_out: "Tiền ra",
+  expense: "Chi phí",
 };
 
 export const REPORT_TYPE_OPTIONS: readonly { value: ReportType; label: string }[] = [
@@ -27,6 +32,9 @@ export const REPORT_TYPE_OPTIONS: readonly { value: ReportType; label: string }[
   { value: "inventory_by_product_unit", label: "Tồn kho theo mặt hàng, phẩm cấp và đơn vị" },
   { value: "inventory_movement_report", label: "Biến động tồn kho" },
   { value: "outstanding_delivery", label: "Hàng còn phải giao" },
+  { value: "cash_balances", label: "Số dư các tài khoản tiền" },
+  { value: "cash_movement_report", label: "Biến động tiền" },
+  { value: "expense_report", label: "Chi phí vận hành" },
 ];
 
 export function ReportsView(props: {
@@ -57,7 +65,9 @@ export function ReportsView(props: {
           value={props.reportType}
           onChange={(event) => props.onReportTypeChange(event.target.value as ReportType)}
         />
-        {props.reportType === "customer_account_activity" ? (
+        {["customer_account_activity", "cash_movement_report", "expense_report"].includes(
+          props.reportType,
+        ) ? (
           <label className="grid gap-2">
             <span>Ngày nghiệp vụ · Asia/Ho_Chi_Minh</span>
             <input

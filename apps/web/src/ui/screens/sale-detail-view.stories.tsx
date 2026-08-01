@@ -66,6 +66,7 @@ function fulfilment(
   return {
     saleId: salePosted.id,
     integrity: state === "attention" ? "attention" : "healthy",
+    capabilities: { createDelivery: { allowed: state !== "attention" } },
     lines: [
       {
         saleLineId: SALE_LINE_1_ID,
@@ -115,6 +116,7 @@ const delivery: DeliveryDto = {
 
 const correction = (
   <SaleCorrectionPanel
+    goodsReturnStatus="blocked"
     originalCustomerId={CUSTOMER_ID}
     customerSearchQuery=""
     customerMatches={[]}
@@ -130,7 +132,6 @@ const meta = {
     detail: detailFor(salePosted),
     fulfilment: fulfilment("unfulfilled"),
     deliveries: [],
-    canCreateDelivery: true,
     canGenerateDocument: true,
     documentLocked: false,
     correctionSection: correction,
@@ -158,12 +159,26 @@ export const ReturnedPartial: Story = {
   },
 };
 export const FulfilmentAttention: Story = {
-  args: { fulfilment: fulfilment("attention"), canCreateDelivery: true },
+  args: { fulfilment: fulfilment("attention") },
+};
+export const ReplacementAfterPriorFulfilmentBlocked: Story = {
+  args: {
+    detail: detailFor(saleReplacement),
+    fulfilment: {
+      ...fulfilment("unfulfilled"),
+      saleId: saleReplacement.id,
+      capabilities: {
+        createDelivery: {
+          allowed: false,
+          reasonCode: "DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED",
+        },
+      },
+    },
+  },
 };
 export const DocumentOutcomeUnknown: Story = { args: { documentLocked: true } };
 export const ReadOnly: Story = {
   args: {
-    canCreateDelivery: false,
     canGenerateDocument: false,
     correctionSection: (
       <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
@@ -177,7 +192,6 @@ export const VoidedAndReplaced: Story = {
     <SaleDetailView
       detail={detailFor(saleVoided, saleReplacement.id)}
       replacedSale={saleVoided}
-      canCreateDelivery={false}
       canGenerateDocument
       documentLocked={false}
       onGenerateDocument={() => undefined}

@@ -144,6 +144,12 @@ export default function SaleDetailPage() {
           voidCommand.phase.kind === "sending" || voidCommand.phase.kind === "unknown";
         const documentLocked =
           receiptDocument.phase.kind === "sending" || receiptDocument.phase.kind === "unknown";
+        const goodsReturnStatus =
+          fulfilment.isSuccess && fulfilment.data.integrity === "healthy"
+            ? fulfilment.data.lines.some((line) => line.netFulfilled.valueScaled > 0)
+              ? ("blocked" as const)
+              : ("safe" as const)
+            : ("unknown" as const);
 
         return (
           <SaleDetailView
@@ -151,7 +157,6 @@ export default function SaleDetailPage() {
             {...(fulfilment.data === undefined ? {} : { fulfilment: fulfilment.data })}
             {...(deliveries.data === undefined ? {} : { deliveries: deliveries.data.items })}
             {...(replacedSale.data === undefined ? {} : { replacedSale: replacedSale.data.sale })}
-            canCreateDelivery={hasPermission(session, "delivery.create")}
             canGenerateDocument={session.permissions.includes("document.generate")}
             documentLocked={documentLocked}
             onGenerateDocument={() =>
@@ -168,6 +173,7 @@ export default function SaleDetailPage() {
                   {canVoid && detail.sale.capabilities.void.allowed ? (
                     <SaleCorrectionPanel
                       onSubmit={submitCorrection}
+                      goodsReturnStatus={goodsReturnStatus}
                       originalCustomerId={detail.sale.customerId}
                       customerSearchQuery={replacementCustomerQuery}
                       customerMatches={correctionCustomers.data?.items ?? []}

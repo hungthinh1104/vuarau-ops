@@ -98,3 +98,59 @@
     outline-offset: 2px;
   }
 }
+
+@layer components {
+  .document-table {
+    border-collapse: collapse;
+  }
+
+  .document-table th,
+  .document-table td {
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.55rem 0.5rem;
+    vertical-align: top;
+  }
+
+  .document-table th {
+    background: var(--color-surface-muted);
+    font-weight: 700;
+    text-align: left;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body {
+    background: white;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .document-sheet,
+  .document-sheet * {
+    visibility: visible;
+  }
+
+  .document-sheet {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    box-shadow: none;
+  }
+
+  .document-table thead {
+    display: table-header-group;
+  }
+
+  .document-table tr,
+  .document-table td,
+  .document-table th {
+    break-inside: avoid;
+  }
+}

@@ -28,6 +28,7 @@ export function CustomerDetailView(props: {
   readonly canRecordPayment: boolean;
   readonly canAdjustDebt: boolean;
   readonly customerCommandLocked: boolean;
+  readonly documentSection?: ReactNode;
   readonly outcomes?: ReactNode;
   readonly onDeactivate: () => void;
   readonly onReactivate: () => void;
@@ -128,6 +129,7 @@ export function CustomerDetailView(props: {
           ) : null}
         </div>
         {props.outcomes}
+        {props.documentSection}
       </div>
 
       <CustomerTimelineSection

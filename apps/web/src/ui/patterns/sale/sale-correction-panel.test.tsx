@@ -20,8 +20,6 @@ describe("SaleCorrectionPanel", () => {
     const onSubmit = vi.fn();
     render(<SaleCorrectionPanel onSubmit={onSubmit} />);
 
-    await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
-    await user.click(screen.getByRole("option", { name: "Sai số tiền hoặc giá" }));
     await user.type(screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }), "Nhập sai giá bán");
     await user.click(screen.getByRole("button", { name: "Xác nhận void" }));
 
@@ -50,6 +48,44 @@ describe("SaleCorrectionPanel", () => {
     });
   });
 
+  it("blocks a full debt void when some delivered goods remain with the customer", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<SaleCorrectionPanel onSubmit={onSubmit} goodsReturnStatus="blocked" />);
+
+    await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Toàn bộ hàng đã trả / bị từ chối" }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/còn hàng thực giao chưa trả hết/i);
+    expect(screen.getByRole("button", { name: "Xác nhận void" })).toBeDisabled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("allows the full-load goods-return reason after canonical fulfilment is zero", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<SaleCorrectionPanel onSubmit={onSubmit} goodsReturnStatus="safe" />);
+
+    await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Toàn bộ hàng đã trả / bị từ chối" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }),
+      "Khách trả lại toàn bộ hàng",
+    );
+    await user.click(screen.getByRole("button", { name: "Xác nhận void" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      reasonCode: "goods_returned",
+      reason: "Khách trả lại toàn bộ hàng",
+      replacement: false,
+      replacementCustomerId: null,
+    });
+  });
+
   it("requires and sends a different customer for a wrong-customer replacement", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
@@ -65,7 +101,7 @@ describe("SaleCorrectionPanel", () => {
     );
 
     await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
-    await user.click(screen.getByRole("option", { name: "Sai khách hàng" }));
+    await user.click(await screen.findByRole("option", { name: "Sai khách hàng" }));
     await user.click(screen.getByRole("checkbox", { name: /Tạo đơn thay thế sau khi void/ }));
     await user.type(screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }), "Chọn nhầm khách");
     await user.click(screen.getByRole("button", { name: "Void và tạo đơn thay thế" }));

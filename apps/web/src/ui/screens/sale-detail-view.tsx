@@ -21,7 +21,6 @@ export type SaleDetailViewProps = {
   readonly fulfilment?: SaleFulfilmentDto;
   readonly deliveries?: readonly DeliveryDto[];
   readonly replacedSale?: SaleDto;
-  readonly canCreateDelivery: boolean;
   readonly canGenerateDocument: boolean;
   readonly documentLocked: boolean;
   readonly correctionSection?: ReactNode;
@@ -35,7 +34,6 @@ export function SaleDetailView({
   fulfilment,
   deliveries = [],
   replacedSale,
-  canCreateDelivery,
   canGenerateDocument,
   documentLocked,
   correctionSection,
@@ -45,9 +43,8 @@ export function SaleDetailView({
 }: SaleDetailViewProps) {
   const { sale } = detail;
   const mayCreateDelivery =
-    canCreateDelivery &&
-    sale.status === "posted" &&
-    fulfilment?.lines.some(
+    fulfilment?.capabilities.createDelivery.allowed === true &&
+    fulfilment.lines.some(
       (line) => line.fulfilmentState !== "attention" && line.remaining.valueScaled > 0,
     ) === true;
 
@@ -204,6 +201,19 @@ function SaleFulfilmentSection(props: {
           </Link>
         ) : null}
       </div>
+
+      {!props.fulfilment.capabilities.createDelivery.allowed &&
+      props.fulfilment.capabilities.createDelivery.reasonCode ===
+        "DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED" ? (
+        <p
+          role="status"
+          className="mt-3 rounded-card border border-warning/30 bg-warning-soft p-3 text-body-sm"
+        >
+          Đơn này thay thế một đơn đã có hàng thực giao. Hệ thống không tạo phiếu giao mới vì như
+          vậy sẽ ghi nhận hàng đi lần hai. Giữ nguyên lịch sử giao hàng cũ và xử lý theo quy trình
+          điều chỉnh sau giao khi ASM-035 được chốt.
+        </p>
+      ) : null}
 
       <ul className="mt-3 divide-y divide-border">
         {props.fulfilment.lines.map((line) => (
