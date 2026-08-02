@@ -109,7 +109,9 @@ policies and source facts are agreed and implemented. Neither read returns a
 numeric fallback for an unavailable metric. The contract rejects an `available` or
 `degraded` metric unless formula, canonical sources, included/excluded states,
 business time, scope, freshness, integrity behavior, drill-down and action are
-all present.
+all present. Web Reports renders the same catalog as a read-only evidence panel;
+a catalog read failure is surfaced as a read failure, not as an empty or numeric
+metric state.
 
 Inventory report rows preserve Product/QualityGrade/unit identity. An aggregate
 across grades, when shown for information, must be labelled as an aggregate rather

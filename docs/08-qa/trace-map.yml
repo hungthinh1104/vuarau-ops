@@ -840,12 +840,15 @@ use_cases:
         BR-OPS-007,
       ]
     cases: []
-    tests: [TC-REPORT-001, TC-REPORT-002, TC-OPS-007, TC-OPS-010, TC-OPS-011, TC-E2E-030]
+    tests:
+      [TC-REPORT-001, TC-REPORT-002, TC-REPORT-003, TC-OPS-007, TC-OPS-010, TC-OPS-011, TC-E2E-030]
     implementation:
       - apps/api/src/modules/report/report.queries.ts
       - apps/api/src/modules/report/csv.ts
       - packages/db/src/repositories/read/report.ts
       - apps/web/src/app/(app)/reports/page.tsx
+      - apps/web/src/ui/controllers/reports-controller.tsx
+      - apps/web/src/ui/screens/reports-view.tsx
 
   UC-OPERATIONS-001:
     title: Run and observe service under trusted configuration
@@ -2136,10 +2139,11 @@ business_rules:
     title: Policy-blocked metrics are unavailable without numeric fallbacks
     risk: P1
     doc: docs/04-business-rules/depot-operations-rules.md
-    tests: [TC-REPORT-002]
+    tests: [TC-REPORT-002, TC-REPORT-003]
     implementation:
       - packages/domain-contracts/src/report/index.ts
       - apps/api/src/modules/report/report.queries.ts
+      - apps/web/src/ui/screens/reports-view.tsx
 
   BR-CASH-001:
     title: CashAccount is versioned lifecycle data with explicit custody
@@ -2696,6 +2700,9 @@ contract_tests:
   TC-REPORT-002:
     title: Application and tRPC reads expose policy-blocked metrics as unavailable
     file: apps/api/src/modules/report/definitions.app.test.ts
+  TC-REPORT-003:
+    title: Reports Web Admin renders metric gates and next evidence without numeric fallbacks
+    file: apps/web/src/ui/screens/reports-view.test.tsx
   TC-E2E-030:
     title: Browser API and PostgreSQL prove partial delivery completion and explicit return
     file: apps/web/e2e/m19-m21-depot-operations.spec.ts

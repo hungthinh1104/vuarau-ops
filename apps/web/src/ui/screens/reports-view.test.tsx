@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import type { OperationalReportDto } from "@vuarau/domain-contracts";
+import { REPORT_METRIC_DEFINITIONS_DTO, type OperationalReportDto } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
 import {
   PRODUCT_CA_CHUA_ID,
@@ -52,6 +52,13 @@ const result: OperationalReportDto = {
   },
 };
 
+const ready = <T,>(data: T) => ({
+  isPending: false,
+  isError: false,
+  error: null,
+  data,
+});
+
 function renderView(overrides: Partial<React.ComponentProps<typeof ReportsView>> = {}) {
   return render(
     <ReportsView
@@ -60,11 +67,13 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ReportsView>>
       businessDate=""
       state="ready"
       result={result}
+      metrics={ready(REPORT_METRIC_DEFINITIONS_DTO)}
       exporting={false}
       onReportTypeChange={() => undefined}
       onBusinessDateChange={() => undefined}
       onExport={() => undefined}
       onRetry={() => undefined}
+      onMetricsRetry={() => undefined}
       onNextPage={() => undefined}
       {...overrides}
     />,
@@ -82,6 +91,16 @@ describe("ReportsView", () => {
   it("labels cross-grade quantity totals as informational aggregation", () => {
     renderView();
     expect(screen.getByText("Tổng tất cả phẩm cấp · kg")).toBeInTheDocument();
+  });
+
+  it("surfaces blocked management metrics with their next evidence", () => {
+    renderView();
+    expect(screen.getByRole("heading", { name: "Metric quản trị" })).toBeInTheDocument();
+    const cogsCard = screen.getByRole("heading", { name: "COGS" }).closest("li");
+    expect(cogsCard).not.toBeNull();
+    expect(cogsCard).toHaveTextContent("Gate: ASM-039, ASM-040");
+    expect(cogsCard).toHaveTextContent("Evidence tiếp theo:");
+    expect(screen.queryByText("0 ₫")).not.toBeInTheDocument();
   });
 
   it("fails visibly instead of rendering stale totals when the report read fails", () => {

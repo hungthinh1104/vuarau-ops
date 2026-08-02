@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { OperationalReportDto } from "@vuarau/domain-contracts";
+import { REPORT_METRIC_DEFINITIONS_DTO, type OperationalReportDto } from "@vuarau/domain-contracts";
 import {
   PRODUCT_CA_CHUA_ID,
   QUALITY_GRADE_1_ID,
@@ -75,11 +75,18 @@ const baseArgs = {
   businessDate: "",
   state: "ready" as const,
   result: inventoryReport,
+  metrics: {
+    isPending: false,
+    isError: false,
+    error: null,
+    data: REPORT_METRIC_DEFINITIONS_DTO,
+  },
   exporting: false,
   onReportTypeChange: () => undefined,
   onBusinessDateChange: () => undefined,
   onExport: () => undefined,
   onRetry: () => undefined,
+  onMetricsRetry: () => undefined,
   onNextPage: () => undefined,
 };
 

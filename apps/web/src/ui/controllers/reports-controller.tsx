@@ -10,6 +10,7 @@ import { ReportsView } from "@/ui/screens/reports-view.tsx";
 export function ReportsController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const metricDefinitions = useQuery(trpc.report.metrics.queryOptions({ workspaceId }));
   const [reportType, setReportType] = useState<ReportType>("customer_account_activity");
   const [businessDate, setBusinessDate] = useState("");
   const [cursor, setCursor] = useState<Cursor | null>(null);
@@ -51,6 +52,7 @@ export function ReportsController() {
       businessDate={businessDate}
       state={report.isPending ? "loading" : report.isError ? "error" : "ready"}
       result={report.data ?? null}
+      metrics={metricDefinitions}
       exporting={csv.isFetching}
       onReportTypeChange={(value) => {
         setReportType(value);
@@ -62,6 +64,7 @@ export function ReportsController() {
       }}
       onExport={() => void csv.refetch()}
       onRetry={() => void report.refetch()}
+      onMetricsRetry={() => void metricDefinitions.refetch()}
       onNextPage={() => {
         const next = report.data?.page.nextCursor ?? null;
         if (next !== null) setCursor(next);

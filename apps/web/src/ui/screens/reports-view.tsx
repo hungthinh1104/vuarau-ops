@@ -1,9 +1,16 @@
 "use client";
 
-import type { OperationalReportDto, ReportType } from "@vuarau/domain-contracts";
+import type {
+  MetricDefinition,
+  OperationalReportDto,
+  ReportMetricDefinitionsDto,
+  ReportType,
+} from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
+import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
@@ -43,11 +50,13 @@ export function ReportsView(props: {
   readonly businessDate: string;
   readonly state: "loading" | "ready" | "error";
   readonly result: OperationalReportDto | null;
+  readonly metrics: QueryLike<ReportMetricDefinitionsDto>;
   readonly exporting: boolean;
   readonly onReportTypeChange: (value: ReportType) => void;
   readonly onBusinessDateChange: (value: string) => void;
   readonly onExport: () => void;
   readonly onRetry: () => void;
+  readonly onMetricsRetry: () => void;
   readonly onNextPage: () => void;
 }) {
   if (!props.canRead) return <p role="alert">Bạn không có quyền đọc báo cáo.</p>;
@@ -58,6 +67,7 @@ export function ReportsView(props: {
         title="Báo cáo"
         description="Đọc số liệu từ dữ liệu nguồn; mọi con số vận hành phải quay lại được chứng từ tạo ra nó."
       />
+      <MetricCatalog query={props.metrics} onRetry={props.onMetricsRetry} />
       <div className="grid gap-3 border-y border-border py-4 md:grid-cols-3 md:items-end">
         <Select
           label="Loại báo cáo"
@@ -95,6 +105,75 @@ export function ReportsView(props: {
         <ReportResult result={props.result} onNextPage={props.onNextPage} />
       )}
     </div>
+  );
+}
+
+function MetricCatalog(props: {
+  readonly query: QueryLike<ReportMetricDefinitionsDto>;
+  readonly onRetry: () => void;
+}) {
+  return (
+    <section aria-labelledby="metric-catalog-title" className="grid gap-3">
+      <div>
+        <h2 id="metric-catalog-title" className="text-subheading font-semibold">
+          Metric quản trị
+        </h2>
+        <p className="text-body-sm text-ink-muted">
+          Chỉ metric có đủ policy, nguồn chuẩn và integrity contract mới được phép có số. Các mục
+          chưa đủ evidence hiện rõ gate thay vì hiện số 0.
+        </p>
+      </div>
+      <QueryStates
+        query={props.query}
+        loadingLabel="Đang tải catalog metric"
+        attemptedAction="Xem catalog metric quản trị"
+        onRetry={props.onRetry}
+      >
+        {(catalog) => (
+          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {catalog.definitions.map((definition) => (
+              <MetricCard key={definition.metricId} definition={definition} />
+            ))}
+          </ul>
+        )}
+      </QueryStates>
+    </section>
+  );
+}
+
+function MetricCard({ definition }: { readonly definition: MetricDefinition }) {
+  if (definition.availability === "unavailable") {
+    return (
+      <li className="grid gap-2 rounded-card border border-warning/30 bg-warning-soft/40 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h3 className="font-semibold">{definition.label}</h3>
+          <Badge tone="warning">Chưa khả dụng</Badge>
+        </div>
+        <p className="text-body-sm text-ink">{definition.reason}</p>
+        <p className="text-caption text-ink-muted">
+          Gate: <strong>{definition.blockedBy.join(", ")}</strong>
+        </p>
+        <p className="text-caption text-ink-muted">Evidence tiếp theo: {definition.nextEvidence}</p>
+      </li>
+    );
+  }
+
+  return (
+    <li className="grid gap-2 rounded-card border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="font-semibold">{definition.label}</h3>
+        <Badge tone={definition.availability === "available" ? "positive" : "info"}>
+          {definition.availability === "available" ? "Đang có" : "Có cảnh báo"}
+        </Badge>
+      </div>
+      <p className="text-body-sm">{definition.formula}</p>
+      <p className="text-caption text-ink-muted">
+        Nguồn: {definition.canonicalSources.join(", ")} · integrity: {definition.integrity}
+      </p>
+      <p className="text-caption text-ink-muted">
+        Drill-down: {definition.drilldown} · hành động: {definition.action}
+      </p>
+    </li>
   );
 }
 
