@@ -5,11 +5,12 @@ import type {
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
   SupplierDto,
+  SupplierPriceHistoryRowDto,
   SupplierReconciliationDto,
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { formatInstant, formatMoney, formatSignedMoney } from "@/ui/format.ts";
+import { formatInstant, formatMoney, formatQuantity, formatSignedMoney } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
@@ -32,6 +33,10 @@ export type SupplierDetailViewProps = {
   readonly entries: readonly SupplierAccountEntryDto[];
   readonly nextCursor: string | null;
   readonly timelineFetching: boolean;
+  readonly priceHistory: QueryLike<Page<SupplierPriceHistoryRowDto>>;
+  readonly priceHistoryItems: readonly SupplierPriceHistoryRowDto[];
+  readonly priceHistoryNextCursor: string | null;
+  readonly priceHistoryFetching: boolean;
   readonly canUpdate: boolean;
   readonly canCreatePurchase: boolean;
   readonly canReadAccount: boolean;
@@ -40,7 +45,9 @@ export type SupplierDetailViewProps = {
   readonly onBalanceRetry: () => void;
   readonly onReconciliationRetry: () => void;
   readonly onTimelineRetry: () => void;
+  readonly onPriceHistoryRetry: () => void;
   readonly onLoadMore: () => void;
+  readonly onPriceHistoryLoadMore: () => void;
 };
 
 export function SupplierDetailView(props: SupplierDetailViewProps) {
@@ -69,6 +76,79 @@ export function SupplierDetailView(props: SupplierDetailViewProps) {
               <LinkButton href={`/purchases/new?supplierId=${record.id}`}>Tạo đơn mua</LinkButton>
             ) : null}
           </div>
+          <section aria-labelledby="supplier-price-history-title" className="flex flex-col gap-3">
+            <div>
+              <h2 id="supplier-price-history-title" className="text-subheading font-semibold">
+                Lịch sử giá mua đã chốt
+              </h2>
+              <p className="text-caption text-ink-muted">
+                Giá quan sát từ các dòng đơn mua đã xác nhận; không phải giá đề xuất hay xếp hạng.
+              </p>
+            </div>
+            <QueryStates
+              query={props.priceHistory}
+              loadingLabel="Đang tải lịch sử giá mua"
+              onRetry={props.onPriceHistoryRetry}
+            >
+              {() =>
+                props.priceHistoryItems.length === 0 ? (
+                  <p>Chưa có dòng mua đã chốt.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-card border border-border bg-surface">
+                    <table className="min-w-full text-body-sm">
+                      <caption className="sr-only">Lịch sử giá mua đã chốt</caption>
+                      <thead className="border-b border-border text-left text-caption text-ink-muted">
+                        <tr>
+                          <th scope="col" className="px-4 py-3 font-medium">
+                            Mặt hàng
+                          </th>
+                          <th scope="col" className="px-4 py-3 font-medium">
+                            Số lượng
+                          </th>
+                          <th scope="col" className="px-4 py-3 text-right font-medium">
+                            Đơn giá
+                          </th>
+                          <th scope="col" className="px-4 py-3 text-right font-medium">
+                            Thành tiền
+                          </th>
+                          <th scope="col" className="px-4 py-3 font-medium">
+                            Ngày chốt
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {props.priceHistoryItems.map((row) => (
+                          <tr key={row.purchaseLineId}>
+                            <th scope="row" className="px-4 py-3 text-left font-semibold">
+                              <Link
+                                href={`/purchases/${row.purchaseId}`}
+                                className="text-info underline-offset-4 hover:underline"
+                              >
+                                {row.productName}
+                              </Link>
+                            </th>
+                            <td className="px-4 py-3">{formatQuantity(row.quantity)}</td>
+                            <td className="px-4 py-3 text-right">{formatMoney(row.unitPrice)}</td>
+                            <td className="px-4 py-3 text-right">{formatMoney(row.lineTotal)}</td>
+                            <td className="px-4 py-3">{formatInstant(row.confirmedAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              }
+            </QueryStates>
+            {props.priceHistoryNextCursor === null ? null : (
+              <Button
+                tone="secondary"
+                disabled={props.priceHistoryFetching}
+                onClick={props.onPriceHistoryLoadMore}
+              >
+                {props.priceHistoryFetching ? "Đang tải" : "Tải thêm lịch sử giá"}
+              </Button>
+            )}
+          </section>
           {props.canReadAccount ? (
             <>
               <QueryStates

@@ -9,6 +9,7 @@ import {
   type SupplierAccountEntryDto,
   type SupplierId,
   type SupplierPaymentId,
+  type SupplierPriceHistoryRowDto,
 } from "@vuarau/domain-contracts";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -43,16 +44,46 @@ export function SupplierDetailController() {
 
   const entries = pages.flatMap((page) => page.items);
   const nextCursor = pages.at(-1)?.nextCursor ?? null;
+  const [priceHistoryCursor, setPriceHistoryCursor] = useState<Cursor | null>(null);
+  const [priceHistoryPages, setPriceHistoryPages] = useState<
+    readonly Page<SupplierPriceHistoryRowDto>[]
+  >([]);
+  const priceHistory = useQuery(
+    trpc.supplier.priceHistory.queryOptions({
+      workspaceId,
+      supplierId,
+      productId: null,
+      cursor: priceHistoryCursor,
+      limit: 25,
+    }),
+  );
+  useEffect(() => {
+    if (priceHistory.data === undefined) return;
+    setPriceHistoryPages((current) =>
+      priceHistoryCursor === null ? [priceHistory.data] : [...current, priceHistory.data],
+    );
+  }, [priceHistory.data, priceHistoryCursor]);
+  const priceHistoryItems = priceHistoryPages.flatMap((page) => page.items);
+  const priceHistoryNextCursor = priceHistoryPages.at(-1)?.nextCursor ?? null;
   const refresh = useCallback(() => {
     setCursor(null);
     setPages([]);
+    setPriceHistoryCursor(null);
+    setPriceHistoryPages([]);
     void Promise.all([
       supplier.refetch(),
       balance.refetch(),
       reconciliation.refetch(),
       timeline.refetch(),
+      priceHistory.refetch(),
     ]);
-  }, [balance.refetch, reconciliation.refetch, supplier.refetch, timeline.refetch]);
+  }, [
+    balance.refetch,
+    priceHistory.refetch,
+    reconciliation.refetch,
+    supplier.refetch,
+    timeline.refetch,
+  ]);
 
   const paymentId = useRef(crypto.randomUUID() as SupplierPaymentId).current;
   const adjustmentId = useRef(crypto.randomUUID()).current;
@@ -84,6 +115,10 @@ export function SupplierDetailController() {
       entries={entries}
       nextCursor={nextCursor}
       timelineFetching={timeline.isFetching}
+      priceHistory={priceHistory}
+      priceHistoryItems={priceHistoryItems}
+      priceHistoryNextCursor={priceHistoryNextCursor}
+      priceHistoryFetching={priceHistory.isFetching}
       canUpdate={session.permissions.includes("supplier.update")}
       canCreatePurchase={session.permissions.includes("purchase.create")}
       canReadAccount={session.permissions.includes("supplier.account.read")}
@@ -130,8 +165,12 @@ export function SupplierDetailController() {
       onBalanceRetry={() => void balance.refetch()}
       onReconciliationRetry={() => void reconciliation.refetch()}
       onTimelineRetry={() => void timeline.refetch()}
+      onPriceHistoryRetry={() => void priceHistory.refetch()}
       onLoadMore={() => {
         if (nextCursor !== null) setCursor(nextCursor);
+      }}
+      onPriceHistoryLoadMore={() => {
+        if (priceHistoryNextCursor !== null) setPriceHistoryCursor(priceHistoryNextCursor);
       }}
     />
   );
