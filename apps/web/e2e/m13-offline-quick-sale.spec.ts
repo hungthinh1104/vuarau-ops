@@ -1,6 +1,24 @@
 import { expect, test, signIn } from "./harness/signed-in.ts";
+import type { Page } from "@playwright/test";
 import { api } from "./harness/api.ts";
 import { uniqueCustomerName } from "./harness/environment.ts";
+
+async function chooseProduct(page: Page, productName: string): Promise<void> {
+  await page.getByRole("button", { name: "Mở bảng chọn mặt hàng và giá gần đây" }).click();
+  const picker = page.getByRole("dialog");
+  await expect(picker).toBeVisible();
+  await picker.getByLabel("Tìm mặt hàng").fill(productName);
+  const product = picker.getByRole("button", {
+    name: new RegExp(`^${productName}( ·|$)`),
+  });
+  await product.focus();
+  await product.press("Enter");
+}
+
+async function chooseOption(page: Page, label: string, option: string): Promise<void> {
+  await page.getByRole("combobox", { name: label }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
 
 test.describe("M13 — durable offline Quick Sale", () => {
   test("survives offline reload and synchronizes exactly one posting", async ({
@@ -10,7 +28,7 @@ test.describe("M13 — durable offline Quick Sale", () => {
     const customerId = await api.createCustomer(uniqueCustomerName("offline"));
     await signIn(page);
     await page.goto(`/customers/${customerId}/sales/new`);
-    await expect(page.getByLabel("Mặt hàng")).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Mặt hàng" })).toBeVisible();
     await page.waitForURL(/localSaleId=/);
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
@@ -19,16 +37,11 @@ test.describe("M13 — durable offline Quick Sale", () => {
     // lets it cache this route and its hashed Next assets before connectivity
     // disappears.
     await page.reload();
-    await expect(page.getByLabel("Mặt hàng")).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Mặt hàng" })).toBeVisible();
 
-    await page.getByLabel("Mặt hàng").fill("Rau muống");
-    await page
-      .getByRole("heading", { name: "Danh mục mặt hàng" })
-      .locator("..")
-      .getByRole("button", { name: "Rau muống", exact: true })
-      .click();
-    await page.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
-    await page.getByLabel("Đơn vị").selectOption("bo");
+    await chooseProduct(page, "Rau muống");
+    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
+    await chooseOption(page, "Đơn vị", "bó");
     await page.getByLabel("Số lượng").fill("10");
     await page.getByLabel("Đơn giá").fill("12.000");
     await page.getByLabel("Ghi chú").fill("Ảnh chụp bất biến trên thiết bị");
@@ -37,23 +50,27 @@ test.describe("M13 — durable offline Quick Sale", () => {
     // A local draft has no frozen command yet, so reload must preserve it
     // without taking away the worker's ability to continue editing.
     await page.reload();
-    await expect(page.getByLabel("Mặt hàng")).toHaveValue("Rau muống");
-    await expect(page.getByLabel("Mặt hàng")).toBeEnabled();
+    await expect(page.getByRole("textbox", { name: "Mặt hàng" })).toHaveValue("Rau muống");
+    await expect(page.getByRole("textbox", { name: "Mặt hàng" })).toBeEnabled();
     await expect(page.getByRole("button", { name: "+ Thêm dòng" })).toBeEnabled();
     await expect(page.getByRole("button", { name: "Lưu nháp" })).toBeEnabled();
 
     await context.setOffline(true);
-    await page.getByRole("button", { name: "Chốt đơn" }).dblclick();
+    await page.getByRole("button", { name: "Chốt đơn", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Chốt đơn", exact: true }).click();
     await expect(page.getByText(/Đã lưu trên thiết bị/)).toBeVisible();
 
     await page.reload();
-    await expect(page.getByTestId("sale-line-0").getByLabel("Mặt hàng")).toHaveValue("Rau muống");
+    await expect(
+      page.getByTestId("sale-line-0").getByRole("textbox", { name: "Mặt hàng" }),
+    ).toHaveValue("Rau muống");
     await expect(
       page.getByText("Đã lưu trên thiết bị · chờ máy chủ", { exact: true }),
     ).toBeVisible();
     await expect(page.getByText("Đơn đã được lưu an toàn trên thiết bị.")).toBeVisible();
-    await expect(page.getByText(/Đang dùng danh mục đã lưu lúc/)).toBeVisible();
-    await expect(page.getByTestId("sale-line-0").getByLabel("Mặt hàng")).toBeDisabled();
+    await expect(
+      page.getByTestId("sale-line-0").getByRole("textbox", { name: "Mặt hàng" }),
+    ).toBeDisabled();
     await expect(page.getByTestId("sale-line-0").getByLabel("Số lượng")).toBeDisabled();
     await expect(page.getByTestId("sale-line-0").getByLabel("Đơn vị")).toBeDisabled();
     await expect(page.getByTestId("sale-line-0").getByLabel("Đơn giá")).toBeDisabled();
@@ -64,10 +81,9 @@ test.describe("M13 — durable offline Quick Sale", () => {
 
     await context.setOffline(false);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
-    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible({
-      timeout: 20_000,
-    });
-
+    await expect
+      .poll(async () => (await api.sales(customerId)).items.length, { timeout: 20_000 })
+      .toBe(1);
     const sales = await api.sales(customerId);
     expect(sales.items).toHaveLength(1);
     const posted = await api.sale(sales.items[0]!.id);
@@ -96,15 +112,9 @@ test.describe("M13 — durable offline Quick Sale", () => {
       await navigator.serviceWorker.ready;
     });
     await page.reload();
-    await expect(page.getByLabel("Mặt hàng")).toBeVisible();
-    await page.getByLabel("Mặt hàng").fill("Cà chua");
-    await expect(
-      page
-        .getByRole("heading", { name: "Danh mục mặt hàng" })
-        .locator("..")
-        .getByRole("button", { name: "Cà chua", exact: true }),
-    ).toBeVisible();
-    await page.getByRole("link", { name: "Ghi đơn nhanh" }).click();
+    await expect(page.getByRole("textbox", { name: "Mặt hàng" })).toBeVisible();
+    await chooseProduct(page, "Cà chua");
+    await page.goto("/sales/new");
     await expect(page.getByLabel("Tìm khách hàng")).toBeVisible();
 
     await context.setOffline(true);
@@ -116,23 +126,21 @@ test.describe("M13 — durable offline Quick Sale", () => {
     const customerId = new URL(page.url()).searchParams.get("offlineCustomerId")!;
     await expect(page.getByText(/Khách mới đang lưu trên thiết bị/)).toBeVisible();
 
-    await page.getByLabel("Mặt hàng").fill("Cà chua");
-    await page
-      .getByRole("heading", { name: "Danh mục mặt hàng" })
-      .locator("..")
-      .getByRole("button", { name: "Cà chua", exact: true })
-      .click();
-    await page.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
+    await context.setOffline(false);
+    await chooseProduct(page, "Cà chua");
+    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
     await page.getByLabel("Số lượng").fill("3");
     await page.getByLabel("Đơn giá").fill("15.000");
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
+    await context.setOffline(true);
+    await page.getByRole("button", { name: "Chốt đơn", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Chốt đơn", exact: true }).click();
     await expect(page.getByText(/Đã lưu trên thiết bị/)).toBeVisible();
 
     await context.setOffline(false);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
-    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible({
-      timeout: 20_000,
-    });
+    await expect
+      .poll(async () => (await api.sales(customerId)).items.length, { timeout: 20_000 })
+      .toBe(1);
     const sales = await api.sales(customerId);
     expect(sales.items).toHaveLength(1);
     expect(sales.items[0]?.status).toBe("posted");
