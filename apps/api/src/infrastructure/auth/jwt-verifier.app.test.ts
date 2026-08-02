@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SignJWT } from "jose";
 import { ACTOR_ID, subjectFor } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
@@ -45,6 +45,17 @@ const verifier = createSupabaseJwtVerifier({
 });
 
 let harness: Harness;
+
+const previousRealActorLookup = process.env["E2E_REAL_ACTOR_LOOKUP"];
+beforeAll(() => {
+  // These tests assert verified-subject → local-actor resolution. Development
+  // UI boot intentionally has a bypass, so opt into the real lookup explicitly.
+  process.env["E2E_REAL_ACTOR_LOOKUP"] = "1";
+});
+afterAll(() => {
+  if (previousRealActorLookup === undefined) delete process.env["E2E_REAL_ACTOR_LOOKUP"];
+  else process.env["E2E_REAL_ACTOR_LOOKUP"] = previousRealActorLookup;
+});
 
 beforeEach(() => {
   harness = createHarness();
