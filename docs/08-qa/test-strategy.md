@@ -69,6 +69,11 @@ without failing.
 
 ## Database tests
 
+`pnpm test:db` loads the root `.env` when it exists, so the documented local
+command exercises the configured disposable database without requiring a manual
+`export`. Environment variables already present in the shell still win, which is
+how CI supplies its service-container URL.
+
 `pnpm test:db` **skips** its suites when `DATABASE_URL` is unset rather than
 failing, so a laptop without Postgres still gets a green `pnpm verify`. Skipped is
 reported as skipped — the summary says so.

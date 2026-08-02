@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build -o storybook-static",
-    "e2e": "node --env-file=../../.env ./node_modules/@playwright/test/cli.js test"
+    "e2e": "node --env-file-if-exists=../../.env ./node_modules/@playwright/test/cli.js test"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
