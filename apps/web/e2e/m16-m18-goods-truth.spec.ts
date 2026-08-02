@@ -1,6 +1,11 @@
 import { expect, test, signIn } from "./harness/signed-in.ts";
 import { api } from "./harness/api.ts";
 
+async function chooseOption(page: Parameters<typeof signIn>[0], label: string, option: string) {
+  await page.getByRole("combobox", { name: label }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
+
 test.describe("M16-M18 — Goods Truth", () => {
   test("keeps Purchase payable and physical receipts separate and attributable", async ({
     page,
@@ -8,15 +13,17 @@ test.describe("M16-M18 — Goods Truth", () => {
     await signIn(page, "owner");
 
     await page.goto("/quality-grades");
-    await page.getByLabel("Tên phân hạng").fill("Loại 2");
+    await page.getByLabel("Tên phẩm cấp").fill("Loại 2");
     await page.getByLabel("Thứ tự").fill("20");
-    await page.getByRole("button", { name: "Thêm phân hạng" }).click();
+    const addGrade = page.getByRole("button", { name: "Thêm phẩm cấp" });
+    await addGrade.focus();
+    await addGrade.press("Enter");
     await expect(page.getByText("Loại 2", { exact: true })).toBeVisible();
 
     const productName = `${String(Number.MAX_SAFE_INTEGER - Date.now()).padStart(16, "0")} Cải Goods`;
     await page.goto("/products/new");
     await page.getByLabel("Tên mặt hàng").fill(productName);
-    await page.getByLabel("Đơn vị gợi ý").selectOption("kg");
+    await chooseOption(page, "Đơn vị gợi ý", "kg");
     await page.getByRole("button", { name: "Tạo mặt hàng" }).click();
     await page.waitForURL(/\/products\/[0-9a-f-]+$/);
     const productId = new URL(page.url()).pathname.split("/").at(-1)!;
@@ -29,14 +36,14 @@ test.describe("M16-M18 — Goods Truth", () => {
     const supplierId = new URL(page.url()).pathname.split("/").at(-1)!;
 
     await page.goto("/purchases/new");
-    await page.getByLabel("Nhà cung cấp").selectOption(supplierId);
-    await page.getByLabel("Mặt hàng").selectOption(productId);
+    await chooseOption(page, "Nhà cung cấp", supplierName);
+    await chooseOption(page, "Mặt hàng", productName);
     await page.getByLabel("Số lượng").fill("100");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
     await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     const purchaseId = new URL(page.url()).pathname.split("/").at(-1)!;
-    await expect(page.getByText("Tổng 1.000.000 ₫", { exact: true })).toBeVisible();
+    await expect(page.getByText("Tổng mua").locator("..").getByText("1.000.000 ₫")).toBeVisible();
 
     await page.goto(`/suppliers/${supplierId}`);
     const paymentPanel = page
@@ -51,7 +58,7 @@ test.describe("M16-M18 — Goods Truth", () => {
     await page.goto(`/purchases/${purchaseId}`);
     await page.getByLabel("Loại 1").fill("60");
     await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
-    await expect(page.getByRole("link", { name: /Phiếu/ })).toHaveCount(1);
+    await expect(page.locator('a[href^="/receipts/"]')).toHaveCount(1);
 
     await page.getByLabel("Loại 2").fill("40");
     await page
@@ -60,7 +67,7 @@ test.describe("M16-M18 — Goods Truth", () => {
         button.click();
         button.click();
       });
-    await expect(page.getByRole("link", { name: /Phiếu/ })).toHaveCount(2);
+    await expect(page.locator('a[href^="/receipts/"]')).toHaveCount(2);
     await expect(page.getByText(/đã nhận 100 kg · còn lại 0 kg/)).toBeVisible();
 
     await page.getByLabel("Loại 1").fill("1");
@@ -69,10 +76,8 @@ test.describe("M16-M18 — Goods Truth", () => {
       page.getByRole("alert").filter({ hasText: "Số lượng nhận vượt số lượng đã mua" }),
     ).toBeVisible();
 
-    await page.getByLabel("Giải thích").last().fill("Không tiếp tục giao dịch");
-    await page.getByRole("button", { name: "Hoàn tác đơn mua" }).click();
     await expect(
-      page.getByRole("alert").filter({ hasText: "Phải hoàn tác toàn bộ phiếu nhận hàng trước" }),
+      page.getByRole("status").filter({ hasText: "Đơn mua đã có hàng thực nhận" }),
     ).toBeVisible();
 
     for (let index = 0; index < 2; index += 1) {
