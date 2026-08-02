@@ -926,7 +926,7 @@ use_cases:
     doc: docs/02-use-cases/cash-use-cases.md
     rules: [BR-CASH-003, BR-CASH-004, BR-CASH-005, BR-CASH-009, BR-CASH-010, BR-CASH-011]
     cases: [CASE-CASH-001, CASE-CASH-002, CASE-CASH-003]
-    tests: [TC-CASH-004, TC-CASH-005, TC-CASH-006, TC-CASH-007, TC-CASH-008, TC-CASH-009, TC-OPS-016]
+    tests: [TC-CASH-004, TC-CASH-005, TC-CASH-006, TC-CASH-007, TC-CASH-008, TC-CASH-009, TC-CASH-010, TC-OPS-016]
     implementation:
       - apps/api/src/modules/cash/cash.queries.ts
       - packages/db/src/repositories/read/cash.ts
@@ -2894,6 +2894,9 @@ contract_tests:
     file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
   TC-CASH-009:
     title: PostgreSQL forbids mutation of canonical expense and cash-movement facts
+    file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
+  TC-CASH-010:
+    title: PostgreSQL serializes concurrent customer-payment retries into one debt and cash effect
     file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
   TC-OPS-016:
     title: Backup V7 restores profile cashbook and inspected-intake lineage then reconciles projections

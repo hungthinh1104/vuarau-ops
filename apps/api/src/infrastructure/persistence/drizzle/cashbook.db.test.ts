@@ -5,6 +5,7 @@ import {
   sql,
   cashBalances,
   cashMovements,
+  customerAccountEntries,
   createDbTestContext,
   createUnitOfWork,
   expenses,
@@ -147,5 +148,38 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
         .from(expenses)
         .where(eq(expenses.id, expenseId)),
     ).toHaveLength(1);
+  });
+
+  it("TC-CASH-010 — concurrent payment retries create one debt and one cash effect", async () => {
+    const paymentId = crypto.randomUUID() as PaymentId;
+    const first = {
+      ...command("cash-concurrent-retry"),
+      payload: {
+        paymentId,
+        customerId: ctx.customerId,
+        amount: { amountMinor: 125_000, currency: "VND" as const },
+        method: "cash" as const,
+        cashAccountId: accountId,
+        payerName: null,
+        note: null,
+      },
+    };
+    const retry = { ...first, commandId: crypto.randomUUID() };
+    const results = await Promise.all([
+      recordCustomerPayment(context(), first),
+      recordCustomerPayment(context(), retry),
+    ]);
+
+    expect(results.every((result) => result.ok)).toBe(true);
+    const movements = await ctx.database.db
+      .select({ id: cashMovements.id })
+      .from(cashMovements)
+      .where(eq(cashMovements.sourceId, paymentId));
+    const entries = await ctx.database.db
+      .select({ id: customerAccountEntries.id })
+      .from(customerAccountEntries)
+      .where(eq(customerAccountEntries.sourceId, paymentId));
+    expect(movements).toHaveLength(1);
+    expect(entries).toHaveLength(1);
   });
 });
