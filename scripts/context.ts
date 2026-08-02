@@ -1,13 +1,26 @@
 import { existsSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { readFile } from "node:fs/promises";
+import { execFile as execFileCallback } from "node:child_process";
+import { promisify } from "node:util";
+import { join } from "node:path";
 import { parse } from "yaml";
 
+const execFile = promisify(execFileCallback);
 const ROOT = process.cwd();
-const TRACE_PATH = "docs/08-qa/trace-map.yml";
+export const TRACE_PATH = "docs/08-qa/trace-map.yml";
 const ID_PATTERN = /\b(?:ADR-\d{4}|(?:UC|BR|CASE|TC|ASM|T)-[A-Z0-9]+-\d{3})\b/g;
-const SOURCE_EXTENSIONS = new Set([".md", ".yml", ".yaml", ".ts", ".tsx", ".json"]);
 const ARCHIVE_PREFIX = "docs/archive/";
+const GENERATED_SEGMENTS = [
+  "/node_modules/",
+  "/dist/",
+  "/.next/",
+  "/test-results/",
+  "/playwright-report/",
+  "/storybook-static/",
+  "/coverage/",
+];
+const EXCLUDED_PATHS = ["pnpm-lock.yaml", "packages/db/migrations/meta/"];
+const LIMITS = { docs: 8, implementation: 12, tests: 12 } as const;
 
 type TraceEntry = {
   readonly title?: string;
@@ -19,51 +32,70 @@ type TraceEntry = {
 };
 
 type TraceMap = Record<string, Record<string, TraceEntry>>;
+type MatchReason =
+  | "exact ID"
+  | "exact path"
+  | "filename match"
+  | "heading/symbol match"
+  | "body-text match"
+  | "trace-linked";
 
-async function filesUnder(directory: string, includeArchive: boolean): Promise<string[]> {
-  const output: string[] = [];
-  const walk = async (current: string): Promise<void> => {
-    const entries = await readdir(current, { withFileTypes: true });
-    for (const entry of entries) {
-      const full = join(current, entry.name);
-      const path = relative(ROOT, full).replaceAll("\\", "/");
-      if (entry.isDirectory()) {
-        if (
-          entry.name === "node_modules" ||
-          entry.name === "dist" ||
-          entry.name === ".next" ||
-          entry.name === "test-results" ||
-          entry.name === "playwright-report" ||
-          entry.name === "storybook-static"
-        )
-          continue;
-        if (!includeArchive && path === "docs/archive") continue;
-        await walk(full);
-        continue;
-      }
-      const extension = entry.name.slice(entry.name.lastIndexOf("."));
-      if (
-        SOURCE_EXTENSIONS.has(extension) &&
-        (includeArchive || !path.startsWith(ARCHIVE_PREFIX))
-      ) {
-        output.push(path);
-      }
-    }
-  };
-  await walk(directory);
-  return output.sort();
-}
+export type ContextResult = {
+  readonly path: string;
+  readonly reasons: readonly MatchReason[];
+  readonly score: number;
+};
 
-function unique(values: readonly string[]): string[] {
+export type ContextOutput = {
+  readonly query: string;
+  readonly archive: "included" | "excluded by default";
+  readonly scope: string | null;
+  readonly exactIds: readonly string[];
+  readonly traceEntries: readonly string[];
+  readonly docs: readonly ContextResult[];
+  readonly tests: readonly ContextResult[];
+  readonly implementation: readonly ContextResult[];
+  readonly validation: readonly string[];
+};
+
+type ContextOptions = { readonly includeArchive?: boolean; readonly all?: boolean };
+type ContextDeps = {
+  readonly readText?: (path: string) => Promise<string>;
+  readonly trackedFiles?: () => Promise<readonly string[]>;
+  readonly searchTests?: (ids: readonly string[]) => Promise<readonly string[]>;
+  readonly searchContent?: (
+    query: string,
+    candidates: readonly string[],
+  ) => Promise<readonly string[]>;
+  readonly pathExists?: (path: string) => boolean;
+};
+
+function unique<T>(values: readonly T[]): T[] {
   return [...new Set(values)];
 }
 
-function idsIn(value: string): string[] {
+export function idsIn(value: string): string[] {
   return unique(value.match(ID_PATTERN) ?? []);
 }
 
-function pathExists(path: string): boolean {
-  return existsSync(join(ROOT, path));
+function normalizePath(path: string): string {
+  return path.replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+function isExcluded(path: string, includeArchive: boolean): boolean {
+  const normalized = normalizePath(path);
+  if (!includeArchive && normalized.startsWith(ARCHIVE_PREFIX)) return true;
+  if (EXCLUDED_PATHS.some((excluded) => normalized === excluded || normalized.startsWith(excluded)))
+    return true;
+  return GENERATED_SEGMENTS.some((segment) => normalized.includes(segment));
+}
+
+function isTest(path: string): boolean {
+  return /(?:\.test\.|\.spec\.|\/e2e\/)/.test(path);
+}
+
+function isDoc(path: string): boolean {
+  return /\.(?:md|ya?ml)$/.test(path);
 }
 
 function entryIds(entry: TraceEntry): string[] {
@@ -73,6 +105,100 @@ function entryIds(entry: TraceEntry): string[] {
     ...(entry.tests ?? []),
     ...idsIn(entry.doc ?? ""),
   ]);
+}
+
+function traceIndex(trace: TraceMap): Map<string, TraceEntry> {
+  const entries = new Map<string, TraceEntry>();
+  for (const section of Object.values(trace)) {
+    for (const [id, entry] of Object.entries(section ?? {})) entries.set(id, entry);
+  }
+  return entries;
+}
+
+function addResult(
+  map: Map<string, ContextResult>,
+  path: string,
+  reasons: readonly MatchReason[],
+): void {
+  const existing = map.get(path);
+  const merged = unique([...(existing?.reasons ?? []), ...reasons]);
+  const rank: Record<MatchReason, number> = {
+    "exact ID": 100,
+    "exact path": 90,
+    "filename match": 70,
+    "heading/symbol match": 50,
+    "body-text match": 30,
+    "trace-linked": 80,
+  };
+  map.set(path, {
+    path,
+    reasons: merged,
+    score: Math.max(...merged.map((reason) => rank[reason])),
+  });
+}
+
+function sortResults(results: Iterable<ContextResult>): ContextResult[] {
+  return [...results].sort((a, b) => b.score - a.score || a.path.localeCompare(b.path));
+}
+
+function limited(results: Iterable<ContextResult>, limit: number, all: boolean): ContextResult[] {
+  const sorted = sortResults(results);
+  return all ? sorted : sorted.slice(0, limit);
+}
+
+async function defaultReadText(path: string): Promise<string> {
+  return readFile(join(ROOT, path), "utf8");
+}
+
+async function defaultTrackedFiles(): Promise<readonly string[]> {
+  const { stdout } = await execFile("git", ["ls-files", "-z"], {
+    cwd: ROOT,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  return stdout.split("\0").filter(Boolean).map(normalizePath);
+}
+
+async function defaultSearchTests(ids: readonly string[]): Promise<readonly string[]> {
+  if (ids.length === 0) return [];
+  const args = [
+    "-l",
+    "--fixed-strings",
+    "--hidden",
+    "--glob",
+    "!docs/archive/**",
+    "--glob",
+    "!packages/db/migrations/meta/**",
+  ];
+  for (const id of ids) args.push("-e", id);
+  args.push("--glob", "*.test.*", "--glob", "*.spec.*", "--glob", "**/e2e/**", ".");
+  try {
+    const { stdout } = await execFile("rg", args, { cwd: ROOT, maxBuffer: 2 * 1024 * 1024 });
+    return stdout
+      .split("\n")
+      .filter(Boolean)
+      .map((path) => normalizePath(path));
+  } catch (error) {
+    const exitCode = (error as { code?: number }).code;
+    if (exitCode === 1) return [];
+    throw error;
+  }
+}
+
+async function defaultSearchContent(
+  query: string,
+  candidates: readonly string[],
+): Promise<readonly string[]> {
+  if (candidates.length === 0) return [];
+  try {
+    const { stdout } = await execFile("rg", ["-l", "--fixed-strings", "--", query, ...candidates], {
+      cwd: ROOT,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    return stdout.split("\n").filter(Boolean).map(normalizePath);
+  } catch (error) {
+    if ((error as { code?: number }).code === 1) return [];
+    throw error;
+  }
 }
 
 function validationCommands(files: readonly string[], hasTrace: boolean): string[] {
@@ -85,9 +211,8 @@ function validationCommands(files: readonly string[], hasTrace: boolean): string
     commands.add("pnpm test:web");
   }
   if (joined.includes("packages/domain-kernel/")) commands.add("pnpm test:domain");
-  if (joined.includes("apps/api/") && !joined.includes(".db.test.")) {
+  if (joined.includes("apps/api/") && !joined.includes(".db.test."))
     commands.add("pnpm test:application");
-  }
   if (joined.includes("packages/db/") || joined.includes(".db.test.")) commands.add("pnpm test:db");
   if (joined.includes("apps/web/e2e/")) commands.add("pnpm web:e2e");
   if (joined.includes("apps/web/") && joined.includes("stories"))
@@ -95,185 +220,175 @@ function validationCommands(files: readonly string[], hasTrace: boolean): string
   return [...commands];
 }
 
-const args = process.argv.slice(2);
-const includeArchive = args.includes("--include-archive");
-const jsonOutput = args.includes("--json");
-const query = args
-  .filter((arg) => arg !== "--include-archive" && arg !== "--json")
-  .join(" ")
-  .trim();
-
-if (query.length === 0) {
-  console.error("Usage: pnpm context [--include-archive] <query>");
-  process.exit(1);
-}
-
-const trace = parse(await readFile(join(ROOT, TRACE_PATH), "utf8")) as TraceMap;
-const traceEntries = new Map<string, TraceEntry>();
-for (const section of Object.values(trace)) {
-  for (const [id, entry] of Object.entries(section ?? {})) traceEntries.set(id, entry);
-}
-
-const requestedIds = idsIn(query.toUpperCase());
-const matchedTraceIds = new Set<string>();
-const matchedEntries: TraceEntry[] = [];
-for (const id of requestedIds) {
-  const direct = traceEntries.get(id);
-  if (direct !== undefined) {
-    matchedTraceIds.add(id);
-    matchedEntries.push(direct);
+function classifyFreeText(path: string, query: string, content: string): MatchReason[] {
+  const normalizedQuery = query.toLocaleLowerCase("vi");
+  const lowerPath = path.toLocaleLowerCase("vi");
+  const reasons: MatchReason[] = [];
+  if (lowerPath === normalizedQuery) reasons.push("exact path");
+  if (lowerPath.split("/").at(-1)?.includes(normalizedQuery)) reasons.push("filename match");
+  const lines = content.split("\n");
+  if (
+    lines.some(
+      (line) =>
+        /^(?:#|\s*(?:export\s+)?(?:function|class|const|type|interface)\b)/.test(line) &&
+        line.toLocaleLowerCase("vi").includes(normalizedQuery),
+    )
+  ) {
+    reasons.push("heading/symbol match");
   }
-  for (const [entryId, entry] of traceEntries) {
-    if (entryIds(entry).includes(id)) {
-      matchedTraceIds.add(entryId);
-      matchedEntries.push(entry);
+  if (content.toLocaleLowerCase("vi").includes(normalizedQuery)) reasons.push("body-text match");
+  return reasons;
+}
+
+function formatTraceResults(
+  paths: readonly string[],
+  reason: MatchReason,
+  existing: Map<string, ContextResult>,
+): void {
+  for (const path of paths) addResult(existing, normalizePath(path), [reason]);
+}
+
+export async function runContext(
+  query: string,
+  options: ContextOptions = {},
+  deps: ContextDeps = {},
+): Promise<ContextOutput> {
+  const includeArchive = options.includeArchive ?? false;
+  const all = options.all ?? false;
+  const readText = deps.readText ?? defaultReadText;
+  const pathExists = deps.pathExists ?? ((path: string) => existsSync(join(ROOT, path)));
+  const exactIds = idsIn(query.toUpperCase());
+  const isExact = exactIds.length > 0;
+  const docs = new Map<string, ContextResult>();
+  const tests = new Map<string, ContextResult>();
+  const implementation = new Map<string, ContextResult>();
+  const matchedTraceIds = new Set<string>();
+  let scope: string | null = null;
+
+  if (isExact) {
+    const trace = parse(await readText(TRACE_PATH)) as TraceMap;
+    const entries = traceIndex(trace);
+    const matchedEntries = new Map<string, TraceEntry>();
+    for (const requestedId of exactIds) {
+      for (const [entryId, entry] of entries) {
+        if (entryId === requestedId || entryIds(entry).includes(requestedId)) {
+          matchedTraceIds.add(entryId);
+          matchedEntries.set(entryId, entry);
+        }
+      }
+    }
+    for (const entry of matchedEntries.values()) {
+      if (entry.doc && pathExists(entry.doc) && !isExcluded(entry.doc, includeArchive))
+        addResult(docs, entry.doc, ["exact ID"]);
+      formatTraceResults(
+        (entry.implementation ?? []).filter(
+          (path) => pathExists(path) && !isExcluded(path, includeArchive),
+        ),
+        "exact ID",
+        implementation,
+      );
+    }
+    const relatedIds = unique([...exactIds, ...[...matchedEntries.values()].flatMap(entryIds)]);
+    const searchTests = deps.searchTests ?? defaultSearchTests;
+    for (const path of await searchTests(relatedIds)) {
+      if (!isExcluded(path, includeArchive)) addResult(tests, path, ["exact ID"]);
+    }
+  } else {
+    const tracked = (await (deps.trackedFiles ?? defaultTrackedFiles)()).filter(
+      (path) => !isExcluded(path, includeArchive),
+    );
+    const normalizedQuery = query.replaceAll("\\", "/").replace(/\/$/, "");
+    const folder = tracked.some((path) => path.startsWith(`${normalizedQuery}/`))
+      ? normalizedQuery
+      : null;
+    scope = folder;
+    const candidates = folder
+      ? tracked.filter((path) => path === folder || path.startsWith(`${folder}/`))
+      : tracked;
+    const pathCandidates = candidates.filter((path) =>
+      path.toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")),
+    );
+    const contentMatches = new Set(
+      await (deps.searchContent ?? defaultSearchContent)(query, candidates),
+    );
+    const candidatePaths = unique([...pathCandidates, ...contentMatches]);
+    for (const path of candidatePaths) {
+      const content = await readText(path);
+      const reasons = classifyFreeText(path, query, content);
+      if (reasons.length === 0 && pathCandidates.includes(path)) reasons.push("filename match");
+      if (reasons.length === 0) continue;
+      const resultMap = isDoc(path) ? docs : isTest(path) ? tests : implementation;
+      addResult(resultMap, path, reasons);
+    }
+    if (!folder && candidatePaths.some((path) => path.startsWith("apps/web/"))) {
+      for (const path of ["docs/design.md", "docs/WEB-ADMIN.md", "docs/MOBILE-POS.md"]) {
+        if (pathExists(path) && !isExcluded(path, includeArchive))
+          addResult(docs, path, ["trace-linked"]);
+      }
     }
   }
-}
 
-const relatedIds = unique([...requestedIds, ...matchedEntries.flatMap(entryIds)]);
-const relatedEntries = new Map<string, TraceEntry>();
-for (const id of relatedIds) {
-  const entry = traceEntries.get(id);
-  if (entry !== undefined) relatedEntries.set(id, entry);
-}
-const allFiles = await filesUnder(ROOT, includeArchive);
-const contents = new Map<string, string>();
-for (const file of allFiles) {
-  try {
-    contents.set(file, await readFile(join(ROOT, file), "utf8"));
-  } catch {
-    // Ignore a generated or concurrently removed file.
-  }
-}
-
-const normalizedQueryPath = query.replaceAll("\\", "/").replace(/\/$/, "");
-const folderQuery =
-  existsSync(join(ROOT, normalizedQueryPath)) && !normalizedQueryPath.includes(".")
-    ? normalizedQueryPath
-    : null;
-const scopedFiles =
-  folderQuery === null
-    ? allFiles
-    : allFiles.filter((file) => file === folderQuery || file.startsWith(`${folderQuery}/`));
-const folderIds =
-  folderQuery === null
-    ? []
-    : unique(scopedFiles.flatMap((file) => idsIn(contents.get(file) ?? "")));
-const searchIds = unique([...requestedIds, ...folderIds]);
-for (const id of folderIds) {
-  const direct = traceEntries.get(id);
-  if (direct !== undefined) {
-    matchedTraceIds.add(id);
-    matchedEntries.push(direct);
-    relatedEntries.set(id, direct);
-  }
-  for (const [entryId, entry] of traceEntries) {
-    if (entryIds(entry).includes(id)) {
-      matchedTraceIds.add(entryId);
-      matchedEntries.push(entry);
-      relatedEntries.set(entryId, entry);
-    }
-  }
-}
-
-const traceDocs = unique(
-  [...matchedEntries, ...relatedEntries.values()].flatMap((entry) =>
-    entry.doc ? [entry.doc] : [],
-  ),
-).filter(pathExists);
-const directImplementation = unique(
-  [...matchedEntries, ...relatedEntries.values()].flatMap((entry) => entry.implementation ?? []),
-).filter(pathExists);
-const directTests = unique(
-  [...matchedEntries, ...relatedEntries.values()].flatMap((entry) => entry.tests ?? []),
-);
-const idHits = scopedFiles.filter((file) => {
-  const source = contents.get(file) ?? "";
-  return searchIds.some((id) => new RegExp(`\\b${id}\\b`).test(source));
-});
-const queryLower = query.toLocaleLowerCase("vi");
-const pathHits = scopedFiles.filter((file) => file.toLocaleLowerCase("vi").includes(queryLower));
-const textHits = scopedFiles.filter((file) =>
-  (contents.get(file) ?? "").toLocaleLowerCase("vi").includes(queryLower),
-);
-const featureHits = unique([...pathHits, ...textHits]);
-const uiDesignDocs = allFiles.filter((file) =>
-  /^docs\/(?:design|WEB-ADMIN|MOBILE-POS)\.md$/.test(file),
-);
-const surfaceDocs =
-  folderQuery === null && featureHits.some((file) => file.startsWith("apps/web/"))
-    ? uiDesignDocs
-    : [];
-
-const docs =
-  folderQuery !== null && folderQuery.startsWith("docs/")
-    ? scopedFiles.filter((file) => /\.(md|ya?ml)$/.test(file))
-    : unique([
-        ...traceDocs,
-        ...surfaceDocs,
-        ...(requestedIds.length > 0
-          ? idHits.filter(
-              (file) =>
-                file.startsWith("docs/") &&
-                requestedIds.some((id) => (contents.get(file) ?? "").includes(id)),
-            )
-          : featureHits.filter((file) => file.startsWith("docs/"))),
-      ]).slice(0, 20);
-const implementations =
-  folderQuery !== null && !folderQuery.startsWith("docs/")
-    ? scopedFiles.filter((file) => !file.includes(".test.") && !file.startsWith("docs/"))
-    : unique([
-        ...directImplementation,
-        ...(requestedIds.length > 0
-          ? idHits.filter((file) => !file.startsWith("docs/") && !file.includes(".test."))
-          : featureHits.filter((file) => !file.startsWith("docs/") && !file.includes(".test."))),
-      ]).slice(0, 24);
-const tests =
-  folderQuery !== null
-    ? scopedFiles.filter((file) => file.includes(".test.") || file.includes("/e2e/"))
-    : unique([
-        ...idHits.filter((file) => file.includes(".test.") || file.includes("/e2e/")),
-        ...featureHits.filter((file) => file.includes(".test.") || file.includes("/e2e/")),
-        ...directTests,
-      ])
-        .filter(pathExists)
-        .slice(0, 24);
-const retrievalFiles = unique([...docs, ...implementations, ...tests]);
-const validationFiles = folderQuery === null ? retrievalFiles : scopedFiles;
-const commands = validationCommands(
-  validationFiles,
-  matchedTraceIds.size > 0 || queryLower.includes("trace"),
-);
-
-const result = {
-  query,
-  archive: includeArchive ? "included" : "excluded by default",
-  scope: folderQuery,
-  exactIds: requestedIds,
-  traceEntries: [...matchedTraceIds],
-  docs,
-  tests,
-  implementation: implementations,
-  validation: commands,
-};
-
-if (jsonOutput) {
-  console.log(JSON.stringify(result, null, 2));
-} else {
-  console.log(`Context: ${query}`);
-  console.log(`Archive: ${includeArchive ? "included" : "excluded by default"}`);
-  console.log(`Scope: ${folderQuery ?? "repository"}`);
-  console.log(`\nExact IDs: ${requestedIds.length > 0 ? requestedIds.join(", ") : "none"}`);
-  console.log(
-    `Trace entries: ${matchedTraceIds.size > 0 ? [...matchedTraceIds].join(", ") : "none"}`,
+  const limitedDocs = limited(docs.values(), LIMITS.docs, all);
+  const limitedTests = limited(tests.values(), LIMITS.tests, all);
+  const limitedImplementation = limited(implementation.values(), LIMITS.implementation, all);
+  const files = [...limitedDocs, ...limitedTests, ...limitedImplementation].map(
+    (result) => result.path,
   );
-  console.log(`\nRelevant docs (${docs.length}):`);
-  for (const file of docs) console.log(`  ${file}`);
-  console.log(`\nTests (${tests.length}):`);
-  for (const file of tests) console.log(`  ${file}`);
-  console.log(`\nImplementation (${implementations.length}):`);
-  for (const file of implementations) console.log(`  ${file}`);
-  console.log(`\nValidation:`);
-  for (const command of commands) console.log(`  ${command}`);
+  return {
+    query,
+    archive: includeArchive ? "included" : "excluded by default",
+    scope,
+    exactIds,
+    traceEntries: [...matchedTraceIds],
+    docs: limitedDocs,
+    tests: limitedTests,
+    implementation: limitedImplementation,
+    validation: validationCommands(
+      files,
+      matchedTraceIds.size > 0 || query.toLocaleLowerCase("vi").includes("trace"),
+    ),
+  };
 }
+
+function printResult(result: ContextOutput, jsonOutput: boolean): void {
+  if (jsonOutput) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  console.log(`Context: ${result.query}`);
+  console.log(`Archive: ${result.archive}`);
+  console.log(`Scope: ${result.scope ?? "repository"}`);
+  console.log(`\nExact IDs: ${result.exactIds.length ? result.exactIds.join(", ") : "none"}`);
+  console.log(
+    `Trace entries: ${result.traceEntries.length ? result.traceEntries.join(", ") : "none"}`,
+  );
+  for (const [label, values] of [
+    ["Relevant docs", result.docs],
+    ["Tests", result.tests],
+    ["Implementation", result.implementation],
+  ] as const) {
+    console.log(`\n${label} (${values.length}):`);
+    for (const value of values) console.log(`  ${value.path} — ${value.reasons.join(", ")}`);
+  }
+  console.log("\nValidation:");
+  for (const command of result.validation) console.log(`  ${command}`);
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const includeArchive = args.includes("--include-archive");
+  const jsonOutput = args.includes("--json");
+  const all = args.includes("--all");
+  const query = args
+    .filter((arg) => !arg.startsWith("--"))
+    .join(" ")
+    .trim();
+  if (!query) {
+    console.error("Usage: pnpm context [--all] [--include-archive] [--json] <query>");
+    process.exitCode = 1;
+    return;
+  }
+  printResult(await runContext(query, { includeArchive, all }), jsonOutput);
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) void main();

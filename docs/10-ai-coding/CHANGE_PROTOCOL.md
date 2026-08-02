@@ -38,8 +38,14 @@ Use [TASK_TEMPLATE.md](TASK_TEMPLATE.md).
 
 ## 3. Order of work
 
-1. Update the **documentation** for the rule or state first. The docs are the
-   specification, not a description written afterwards
+The repository authority order is defined only by [docs/README.md](../README.md):
+runtime and persistence facts outrank every document. "Documentation-first"
+means update the applicable normative document or published contract before the
+implementation so the intended change is reviewable; it never means prose can
+override the schema, executable rule, or persisted result.
+
+1. Update the **applicable documentation** for the rule, state, or contract first.
+   Keep it consistent with the runtime facts and authority order above
    ([ADR-0005](../09-decisions/ADR-0005-markdown-docs-as-source-of-truth.md)).
 2. Add the trace-map entry.
 3. Write the **failing test**, with its IDs in the `describe` title.

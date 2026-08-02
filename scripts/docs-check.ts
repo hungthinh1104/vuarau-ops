@@ -106,6 +106,105 @@ const fail = (message: string) => failures.push(message);
 
 const LINK_PATTERN = /\[[^\]]*\]\(([^)\s]+)\)/g;
 
+export type RoutingContractSources = Readonly<Record<string, string>>;
+
+/** Regression checks for canonical routing docs and known stale claims. */
+export function checkRoutingContracts(sources: RoutingContractSources): string[] {
+  const failures: string[] = [];
+  const read = (path: string): string => sources[path] ?? "";
+  const requireText = (path: string, text: string, message: string): void => {
+    if (!read(path).includes(text)) failures.push(`${path}: ${message}`);
+  };
+
+  const authorityPath = "docs/README.md";
+  const authority = read(authorityPath);
+  const authorityMarkers = [
+    "**Runtime and persistence facts**",
+    "**Recorded business decisions**",
+    "**Normative business documentation**",
+    "**Published interface contracts**",
+    "**UI policy**",
+    "**Evidence and release status**",
+  ];
+  let previous = -1;
+  for (const marker of authorityMarkers) {
+    const position = authority.indexOf(marker);
+    if (position === -1) {
+      failures.push(`${authorityPath}: missing canonical authority-order marker ${marker}`);
+    } else if (position <= previous) {
+      failures.push(`${authorityPath}: authority-order markers are out of order`);
+    }
+    previous = position;
+  }
+
+  const repoMapPath = "docs/10-ai-coding/REPO_MAP.md";
+  for (const marker of [
+    "apps/web/src/app/(app)/",
+    "apps/web/e2e/",
+    "m13-offline-quick-sale.spec.ts",
+    "next start",
+    "scripts/context.ts",
+    "scripts/dev.ts",
+    "scripts/docs-check.ts",
+    "packages/domain-contracts",
+    "packages/domain-kernel",
+    "packages/db",
+    "packages/test-fixtures",
+    "packages/config",
+  ]) {
+    requireText(repoMapPath, marker, `current repository map must mention ${marker}`);
+  }
+  for (const stale of ["one demonstration route", "Playwright skeleton"]) {
+    if (read(repoMapPath).toLowerCase().includes(stale.toLowerCase())) {
+      failures.push(`${repoMapPath}: stale repository claim remains: ${stale}`);
+    }
+  }
+
+  const reviewPath = "docs/10-ai-coding/REVIEW_CHECKLIST.md";
+  requireText(
+    reviewPath,
+    "may import `domain-contracts` and `domain-kernel`",
+    "db boundary must allow domain-kernel",
+  );
+  requireText(
+    reviewPath,
+    "must not\n      import anything from `apps/*`",
+    "db boundary must forbid apps/*",
+  );
+  if (/packages\/db` does not import `domain-kernel`/.test(read(reviewPath))) {
+    failures.push(`${reviewPath}: stale db prohibition contradicts the enforced boundary`);
+  }
+
+  const changePath = "docs/10-ai-coding/CHANGE_PROTOCOL.md";
+  requireText(
+    changePath,
+    "[docs/README.md](../README.md)",
+    "must defer authority order to docs/README.md",
+  );
+  requireText(
+    changePath,
+    "runtime and persistence facts outrank every document",
+    "must preserve runtime-first authority",
+  );
+  if (
+    /The docs are the\s+specification, not a description written afterwards/.test(read(changePath))
+  ) {
+    failures.push(`${changePath}: documentation-first wording overrides the authority order`);
+  }
+
+  const standardPath = "docs/10-ai-coding/ENGINEERING_STANDARD.md";
+  requireText(
+    standardPath,
+    "[REPO_MAP.md](REPO_MAP.md)",
+    "must reference the canonical dependency map",
+  );
+  if (read(standardPath).includes("contracts ← domain kernel ← application")) {
+    failures.push(`${standardPath}: must not define a second dependency graph`);
+  }
+
+  return failures;
+}
+
 async function* walkMarkdown(directory: string): AsyncGenerator<string> {
   const entries = await readdir(directory, { withFileTypes: true });
   for (const entry of entries) {
@@ -125,6 +224,18 @@ async function main(): Promise<void> {
       fail(`Missing required document: docs/${required}`);
     }
   }
+
+  const routingPaths = [
+    "docs/README.md",
+    "docs/10-ai-coding/REPO_MAP.md",
+    "docs/10-ai-coding/REVIEW_CHECKLIST.md",
+    "docs/10-ai-coding/CHANGE_PROTOCOL.md",
+    "docs/10-ai-coding/ENGINEERING_STANDARD.md",
+  ];
+  const routingSources = Object.fromEntries(
+    routingPaths.map((path) => [path, readFileSync(join(ROOT, path), "utf8")]),
+  );
+  for (const failure of checkRoutingContracts(routingSources)) fail(failure);
 
   const definedIds = new Map<string, string>();
   let linkCount = 0;
@@ -210,4 +321,4 @@ async function main(): Promise<void> {
   );
 }
 
-await main();
+if (import.meta.url === `file://${process.argv[1]}`) await main();

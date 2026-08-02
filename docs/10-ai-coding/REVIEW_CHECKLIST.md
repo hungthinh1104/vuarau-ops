@@ -40,7 +40,8 @@ Ordered by what costs most when missed. Stop at the first section that fails.
 - [ ] `domain-kernel` imports nothing from tRPC, Drizzle, Supabase, React, HTTP, or
       `node:*`.
 - [ ] Decision functions are deterministic — no clock, no UUID generation, no I/O.
-- [ ] `packages/db` does not import `domain-kernel` or `apps/*`.
+- [ ] `packages/db` may import `domain-contracts` and `domain-kernel`, but must not
+      import anything from `apps/*` (or transport/UI frameworks).
 - [ ] No raw database row is exposed as an API type; DTOs are mapped explicitly.
 - [ ] No rule is implemented twice. Capabilities call the same function the handler
       calls.

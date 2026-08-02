@@ -6,11 +6,15 @@ reviewer can check. It is deliberately not a list of SOLID/DRY/KISS slogans.
 
 ## 1. Dependency direction
 
-`contracts ← domain kernel ← application ← infrastructure / transport / UI`
+The canonical dependency map is
+[REPO_MAP.md](REPO_MAP.md). Use it for package boundaries, allowed imports, and
+the browser's explicitly documented type-only exceptions. This standard defines
+the review principle; it does not maintain a second dependency graph.
 
-Imports may point only toward the left. Business decisions do not live in React,
-tRPC procedures or Drizzle repositories. A boundary exception needs an ADR and a
-test; it must not be hidden behind a utility import.
+Imports must follow the directions and exceptions recorded there. Business
+decisions do not live in React, tRPC procedures or Drizzle repositories. A
+boundary exception needs an ADR and a test; it must not be hidden behind a
+utility import.
 
 ## 2. One canonical business truth
 
