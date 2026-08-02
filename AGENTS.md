@@ -18,3 +18,29 @@ index; update the existing routing sources when authority changes.
 Use `pnpm context --json <query>` for machine-readable output. Fast validation:
 `pnpm typecheck`, focused test tier, `pnpm docs:check`,
 `pnpm trace:check`, and `git diff --check`. Use `pnpm verify` for the merge gate.
+
+## Validation policy
+
+Use the smallest validation scope that can disprove the current change.
+
+During implementation:
+
+1. Run the exact test file or test ID being changed.
+2. Run the affected project only when the focused test passes.
+3. Run static checks relevant to changed files.
+
+Before a commit:
+
+- run focused regression tests;
+- run the affected Vitest project;
+- run `pnpm check:static` when contracts, docs, boundaries or shared types changed;
+- run focused PostgreSQL tests when persistence changed.
+
+Before merge:
+
+- run `pnpm verify`.
+
+Do not repeatedly run `pnpm verify` during implementation unless the change is
+repository-wide or the requester explicitly asks for the full gate. A successful
+focused test is not a substitute for the merge gate, and the merge gate is not the
+default edit loop.

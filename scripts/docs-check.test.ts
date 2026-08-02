@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { checkRoutingContracts } from "./docs-check.ts";
 
 const paths = [
+  "AGENTS.md",
   "docs/README.md",
   "docs/10-ai-coding/REPO_MAP.md",
   "docs/10-ai-coding/REVIEW_CHECKLIST.md",
@@ -53,6 +54,26 @@ test("documentation-first wording cannot outrank runtime facts", () => {
     "\nThe docs are the specification, not a description written afterwards.\n";
   assert.ok(
     checkRoutingContracts(fixture).some((failure) => failure.includes("documentation-first")),
+  );
+});
+
+test("layered validation policy is required", () => {
+  const fixture = sources();
+  fixture["AGENTS.md"] = fixture["AGENTS.md"]!.replace(
+    "Use the smallest validation scope",
+    "Use broad validation",
+  );
+  assert.ok(
+    checkRoutingContracts(fixture).some((failure) => failure.includes("layered validation policy")),
+  );
+});
+
+test("verify is not allowed as the default edit-loop command", () => {
+  const fixture = sources();
+  fixture["docs/10-ai-coding/CHANGE_PROTOCOL.md"] +=
+    "\nEvery implementation edit must run pnpm verify.\n";
+  assert.ok(
+    checkRoutingContracts(fixture).some((failure) => failure.includes("stale validation rule")),
   );
 });
 

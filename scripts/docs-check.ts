@@ -191,6 +191,45 @@ export function checkRoutingContracts(sources: RoutingContractSources): string[]
   ) {
     failures.push(`${changePath}: documentation-first wording overrides the authority order`);
   }
+  for (const marker of ["During implementation", "Before commit", "Before merge"]) {
+    requireText(
+      changePath,
+      marker,
+      "must define layered validation stages instead of a single edit-loop gate",
+    );
+  }
+  requireText(
+    changePath,
+    "`pnpm verify` is the repository merge gate",
+    "must reserve pnpm verify for the merge gate",
+  );
+  for (const stale of [
+    "run pnpm verify after every change",
+    "every implementation edit must run pnpm verify",
+    "pnpm verify is the fast validation command",
+  ]) {
+    if (read(changePath).toLowerCase().includes(stale)) {
+      failures.push(`${changePath}: stale validation rule remains: ${stale}`);
+    }
+  }
+
+  const agentsPath = "AGENTS.md";
+  for (const marker of [
+    "smallest validation scope",
+    "Before merge",
+    "Do not repeatedly run `pnpm verify`",
+  ]) {
+    requireText(agentsPath, marker, "must define the layered validation policy for agents");
+  }
+  for (const stale of [
+    "run pnpm verify after every change",
+    "every implementation edit must run pnpm verify",
+    "pnpm verify is the fast validation command",
+  ]) {
+    if (read(agentsPath).toLowerCase().includes(stale)) {
+      failures.push(`${agentsPath}: stale validation rule remains: ${stale}`);
+    }
+  }
 
   const standardPath = "docs/10-ai-coding/ENGINEERING_STANDARD.md";
   requireText(
@@ -226,6 +265,7 @@ async function main(): Promise<void> {
   }
 
   const routingPaths = [
+    "AGENTS.md",
     "docs/README.md",
     "docs/10-ai-coding/REPO_MAP.md",
     "docs/10-ai-coding/REVIEW_CHECKLIST.md",
