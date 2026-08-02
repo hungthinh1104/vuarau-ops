@@ -244,6 +244,26 @@ Tổng quan | Đơn hàng | Công nợ | Thanh toán | Nhật ký
 
 Use KPI cards only for high-value summaries. Follow them with charts, tables, and actionable lists. Avoid all-card dashboards.
 
+#### Policy gate
+
+The dashboard candidates below are a surface contract, not evidence that every
+metric exists. A metric may be rendered only when its canonical source, business
+time, filters, integrity state and drill-down action are defined and tested.
+
+Until the corresponding business policies are agreed and implemented, do not
+render or infer:
+
+- gross profit, margin or stock value without a COGS/valuation policy;
+- overdue debt or credit-limit warnings without payment-term semantics;
+- stockout or reorder risk without minimum stock, target stock and lead-time
+  policy;
+- supplier quality, price or return performance without source-linked supplier
+  facts and claim/credit semantics.
+
+The current operational reports remain source-backed views of canonical
+transactions and ledgers. A missing policy is shown as unavailable or blocked,
+never as zero, a stale projection or a recommendation.
+
 ---
 
 ## 6. Customer directory
@@ -416,6 +436,8 @@ Other sections may include:
 
 - Every comparison states its reference period.
 - Every card defines scope and freshness.
+- A candidate metric blocked by an unresolved business policy is not displayed as
+  a number or labelled as a recommendation.
 - Real-time and reconciled values are visually distinct.
 - Rising debt or waste is negative even when the delta is positive.
 - Important metrics drill into records.
