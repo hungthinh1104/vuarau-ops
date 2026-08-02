@@ -12,6 +12,38 @@ Configured in `vitest.config.ts`.
 | `db`          | `pnpm test:db`          | Real Postgres: migrations, repositories, constraints, triggers (`packages/db/**/*.db.test.ts`) | `DATABASE_URL` |
 | `web`         | `pnpm test:web`         | Components over fixed DTOs, in jsdom (`apps/web/**/*.test.ts{,x}`)                             | nothing        |
 
+## Validation tiers
+
+Choose the smallest validation scope that can disprove the current change. The
+commands below are the canonical progression; `pnpm verify` remains the merge gate,
+not the default edit loop.
+
+| Stage | Command | When |
+| --- | --- | --- |
+| Edit loop | exact file or `pnpm test:focus -t TC-*` | after each small change |
+| Affected loop | `pnpm test:related <changed-file>` or a project command | after the focused test is green |
+| Commit gate | `pnpm validate:commit` plus focused DB evidence when needed | before commit |
+| Merge gate | `pnpm verify` | before PR or merge |
+
+`pnpm test:fast` runs the domain, application, contract and web projects in one
+Vitest invocation. It intentionally excludes the Postgres project; add
+`pnpm test:db <focused-file>` when the change touches schema, migrations,
+repositories, transactions, row mappers, SQL aggregates, backup/restore or a
+persistence adapter.
+
+### Changed area decision table
+
+| Changed area | Required local validation |
+| --- | --- |
+| `domain-kernel` | focused test + `pnpm test:domain` |
+| application handler | focused application test + `pnpm test:application` |
+| tRPC/schema/DTO | contract test + `pnpm test:contract` |
+| repository/schema/mapper | focused DB test + `pnpm test:db` before merge |
+| React component | focused web test + `pnpm test:web` |
+| route/user journey | focused web test + relevant E2E smoke |
+| docs only | docs/truth/trace checks |
+| shared config | `pnpm check:static` + all affected projects |
+
 Only `db` needs anything. That is a direct consequence of ADR-0003: a pure kernel
 is a fast test suite, and a UI that renders server-computed answers can be tested
 against fixtures rather than against a server.
