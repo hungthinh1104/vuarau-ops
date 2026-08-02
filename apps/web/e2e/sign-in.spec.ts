@@ -62,8 +62,13 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await page.goto("/customers");
     await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
 
-    await expect(page.getByText("Chủ vựa")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Vận hành" })).toBeVisible();
+    // Desktop exposes the full workspace navigation; mobile collapses the same
+    // owner work area to its role-specific bottom-nav label.
+    const ownerWorkLink = page.getByRole("link", {
+      name:
+        page.viewportSize()?.width && page.viewportSize()!.width < 1024 ? "Cảnh báo" : "Vận hành",
+    });
+    await expect(ownerWorkLink).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
 
     await page.getByRole("button", { name: "Đăng xuất" }).click();
@@ -95,7 +100,11 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await expect(page.getByText("Chủ vựa")).toBeHidden();
     await expect(page.getByRole("link", { name: "Vận hành" })).toBeHidden();
     await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
-    await expect(page.getByText("Bán hàng")).toBeVisible();
+    const salesRoleMarker =
+      page.viewportSize()?.width && page.viewportSize()!.width < 1024
+        ? page.getByRole("link", { name: "Ghi đơn" })
+        : page.getByText("Bán hàng");
+    await expect(salesRoleMarker).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
   });
 });

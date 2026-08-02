@@ -54,9 +54,8 @@ const webEnvironment = {
    * There is no Supabase project here — CI has none, and standing one up would
    * make questions about Postgres rows depend on a third party. So the harness
    * mints a token against the API's configured secret and injects it, and this
-   * flag is what lets the app read it (TC-WEB-024). A production build cannot
-   * open the same door: the bridge is also guarded on `NODE_ENV`, which Next
-   * resolves at build time and removes the branch behind.
+   * flag is what lets the app read it (TC-WEB-024). The ordinary production
+   * build does not set this flag; only the explicitly separate E2E artifact does.
    *
    * The depot list is **not** configured here any more. It comes from
    * `session.workspaces`, against the seeded workspace, which means the picker

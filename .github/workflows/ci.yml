@@ -110,6 +110,11 @@ jobs:
       - name: Storybook build
         run: pnpm web:storybook
 
+      # E2E uses a separate production artifact with the test-only token bridge
+      # compiled in. The ordinary production build above remains bridge-free.
+      - name: Next production E2E build
+        run: pnpm web:e2e:build
+
       # --- the whole stack, through a browser ----------------------------------
       - name: Install Playwright browsers
         run: pnpm --filter @vuarau/web exec playwright install --with-deps chromium
