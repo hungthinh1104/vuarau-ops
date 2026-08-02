@@ -96,6 +96,11 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
       .where(eq(cashMovements.sourceId, paymentId));
     expect(movements).toHaveLength(1);
     expect(movements[0]?.amountMinor).toBe(700_000);
+    const customerEntries = await ctx.database.db
+      .select({ amountMinor: customerAccountEntries.amountMinor })
+      .from(customerAccountEntries)
+      .where(eq(customerAccountEntries.sourceId, paymentId));
+    expect(customerEntries).toEqual([{ amountMinor: -700_000 }]);
 
     const balances = await ctx.database.db
       .select()
