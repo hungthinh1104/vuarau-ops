@@ -23,6 +23,9 @@ export type CustomerId = z.infer<typeof customerIdSchema>;
 export const productIdSchema = z.uuid().brand<"ProductId">();
 export type ProductId = z.infer<typeof productIdSchema>;
 
+export const priceRuleIdSchema = z.uuid().brand<"PriceRuleId">();
+export type PriceRuleId = z.infer<typeof priceRuleIdSchema>;
+
 export const qualityGradeIdSchema = z.uuid().brand<"QualityGradeId">();
 export type QualityGradeId = z.infer<typeof qualityGradeIdSchema>;
 

@@ -60,6 +60,7 @@ export const DOMAIN_REJECTION_CODES = [
   "QUALITY_GRADE_INACTIVE",
   "QUALITY_GRADE_VERSION_CONFLICT",
   "QUALITY_GRADE_NOT_USED",
+  "PRICING_RULE_INVALID",
 
   // --- supplier -------------------------------------------------------------
   "SUPPLIER_NOT_FOUND",

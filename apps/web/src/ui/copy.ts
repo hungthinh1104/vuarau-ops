@@ -51,6 +51,8 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   QUALITY_GRADE_INACTIVE: "Phân hạng chất lượng này đang ngưng sử dụng.",
   QUALITY_GRADE_VERSION_CONFLICT: "Phân hạng chất lượng đã được người khác cập nhật.",
   QUALITY_GRADE_NOT_USED: "Vựa này không sử dụng phân hạng thương mại cho giao dịch mới.",
+  PRICING_RULE_INVALID:
+    "Quy tắc giá chưa hợp lệ. Kiểm tra phạm vi, thời hạn và các khoản điều chỉnh.",
   BACKUP_DIGEST_INVALID: "Checksum bản sao lưu không hợp lệ.",
   BACKUP_UNSAFE_TARGET: "Chỉ có thể phục hồi vào vựa trống.",
   BACKUP_INTEGRITY_ERROR: "Bản sao lưu có tham chiếu hoặc dữ liệu không hợp lệ.",

@@ -15,6 +15,8 @@ import type {
   PaymentMethod,
   PaymentStatus,
   ProductId,
+  PriceRuleId,
+  PriceRuleKind,
   QualityGradeId,
   SupplierId,
   SupplierPaymentId,
@@ -82,6 +84,28 @@ export type ProductState = {
   readonly version: number;
   readonly createdAt: IsoInstant;
   readonly updatedAt: IsoInstant;
+};
+
+export type PriceRuleState = {
+  readonly id: PriceRuleId;
+  readonly workspaceId: WorkspaceId;
+  readonly productId: ProductId;
+  readonly qualityGradeId: QualityGradeId | null;
+  readonly customerId: CustomerId | null;
+  readonly unit: import("@vuarau/domain-contracts").Unit;
+  readonly kind: PriceRuleKind;
+  readonly priority: number;
+  readonly minimumQuantityScaled: number;
+  readonly effectiveFrom: IsoInstant;
+  readonly effectiveTo: IsoInstant | null;
+  readonly baseUnitPrice: Money;
+  readonly discountPerUnit: Money;
+  readonly feePerUnit: Money;
+  readonly finalUnitPrice: Money;
+  readonly reason: string | null;
+  readonly actorId: ActorId;
+  readonly commandId: CommandId;
+  readonly recordedAt: IsoInstant;
 };
 
 export type QualityGradeState = {
