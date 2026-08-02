@@ -71,7 +71,7 @@ export function CustomerDetailView(props: {
           {props.canCreateSale && detail.customer.isActive ? (
             <Link
               href={`/customers/${customerId}/sales/new`}
-              className="touch-target inline-flex flex-1 items-center justify-center rounded-button bg-leaf px-4 text-label font-semibold text-white hover:bg-leaf-hover"
+              className="touch-target inline-flex flex-1 items-center justify-center rounded-button bg-brand px-4 text-label font-semibold text-white hover:bg-brand-hover"
             >
               Tạo đơn mới
             </Link>

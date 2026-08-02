@@ -18,7 +18,7 @@ more convenient prose.
 4. **Published interface contracts** — command contracts, read models, capabilities
    and error/UI-state catalogs mirror the executable contract. They are not allowed
    to preserve an obsolete vertical-slice description after the contract grows.
-5. **UI policy** — `../design.md` governs interaction and presentation. It may name
+5. **UI policy** — `design.md` governs interaction and presentation. It may name
    future desired states, but those states are not delivered until backed by a
    current contract, fixture/story where applicable, and evidence.
 6. **Evidence and release status** — QA traceability, scope and roadmap describe what
@@ -43,7 +43,7 @@ more convenient prose.
 | `09-decisions/`                    | ADRs and unresolved/operational policy    | normative policy      |
 | `10-ai-coding/`                    | Engineering workflow for agents           | process               |
 | `11-operations/`                   | Deployment/recovery/pilot procedures      | operational contract  |
-| `../design.md`                     | UI design and state policy                | normative UI policy   |
+| `design.md`                        | UI design and state policy                | normative UI policy   |
 
 ## Drift rule
 
@@ -59,3 +59,10 @@ that can be compared mechanically: router procedure catalogs, schema-table catal
 navigation routes, selected stale-contract claims, ASM identifier continuity and
 the critical screen Storybook checklist. Review still compares normative docs to
 the executable contracts before a readiness claim is promoted.
+
+## Agent retrieval
+
+Codex starts with this authority map and `10-ai-coding/REPO_MAP.md`, then runs
+`pnpm context <query>` to resolve exact IDs through `08-qa/trace-map.yml`. The
+command excludes `archive/` by default. Archive documents are historical context,
+not active product or engineering authority.

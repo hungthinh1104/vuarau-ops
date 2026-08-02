@@ -35,6 +35,22 @@ import {
 export const DATABASE_URL = process.env["DATABASE_URL"];
 export const hasDatabase = DATABASE_URL !== undefined && DATABASE_URL.length > 0;
 
+function isDisposableTestDatabase(url: string | undefined): boolean {
+  if (url === undefined || url.length === 0) return false;
+  const parsed = new URL(url);
+  const databaseName = parsed.pathname.replace(/^\//, "");
+  return (
+    ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname) && databaseName.endsWith("_test")
+  );
+}
+
+if (hasDatabase && !isDisposableTestDatabase(DATABASE_URL)) {
+  throw new Error(
+    "Database tests require a disposable local database whose name ends with _test; " +
+      "refusing to run against a development or remote DATABASE_URL.",
+  );
+}
+
 /** GitHub Actions sets `CI=true`; so does every other runner worth naming. */
 const inCi = (process.env["CI"] ?? "").length > 0 && process.env["CI"] !== "false";
 
@@ -141,10 +157,9 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
     { id: workspaceId, name: `test:${seedName}` },
     { id: foreignWorkspaceId, name: `test:${seedName}:foreign` },
   ]);
-  await database.db.insert(workspaceOperationalProfiles).values([
-    { workspaceId },
-    { workspaceId: foreignWorkspaceId },
-  ]);
+  await database.db
+    .insert(workspaceOperationalProfiles)
+    .values([{ workspaceId }, { workspaceId: foreignWorkspaceId }]);
 
   const allActors: Array<{ id: ActorId; label: string }> = [
     ...Object.entries(roleActors).map(([role, id]) => ({ id, label: `${seedName}:${role}` })),

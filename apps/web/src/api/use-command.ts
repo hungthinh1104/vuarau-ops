@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { DomainError } from "@vuarau/domain-contracts";
+import type {
+  ActorId,
+  CommandId,
+  DomainError,
+  IdempotencyKey,
+  WorkspaceId,
+} from "@vuarau/domain-contracts";
 import type { CommandIdentity, CommandPhase, PendingCommand } from "./command-identity.ts";
 import {
   beginCommand,
@@ -31,10 +37,10 @@ import { useSession } from "./session-gate.tsx";
  * server-side rule can prevent.
  */
 export type CommandEnvelope<TPayload> = {
-  readonly commandId: string;
-  readonly idempotencyKey: string;
-  readonly workspaceId: string;
-  readonly actorId: string;
+  readonly commandId: CommandId;
+  readonly idempotencyKey: IdempotencyKey;
+  readonly workspaceId: WorkspaceId;
+  readonly actorId: ActorId;
   readonly occurredAt: string;
   readonly expectedVersion?: number;
   readonly payload: TPayload;

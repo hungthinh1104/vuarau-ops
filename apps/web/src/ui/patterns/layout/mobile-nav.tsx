@@ -91,7 +91,7 @@ export function MobileNavView({
                 aria-current={active ? "page" : undefined}
                 className={[
                   "touch-target relative flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 text-center text-caption font-medium transition-colors",
-                  active ? "text-leaf" : "text-ink-muted hover:text-ink",
+                  active ? "text-brand" : "text-ink-muted hover:text-ink",
                 ].join(" ")}
               >
                 <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} />
@@ -99,7 +99,7 @@ export function MobileNavView({
                 {active ? (
                   <span
                     aria-hidden="true"
-                    className="absolute bottom-1 h-1 w-5 rounded-pill bg-leaf"
+                    className="absolute bottom-1 h-1 w-5 rounded-pill bg-brand"
                   />
                 ) : null}
               </Link>

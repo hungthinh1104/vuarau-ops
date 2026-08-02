@@ -84,7 +84,9 @@ const REQUIRED = [
   "10-ai-coding/TASK_TEMPLATE.md",
   "10-ai-coding/REVIEW_CHECKLIST.md",
   "10-ai-coding/CHANGE_PROTOCOL.md",
-  "10-ai-coding/bootstrap-progress.md",
+  "design.md",
+  "WEB-ADMIN.md",
+  "MOBILE-POS.md",
   "11-operations/deployment-contract.md",
   "11-operations/device-smoke-check.md",
 ];
@@ -129,9 +131,25 @@ async function main(): Promise<void> {
   let fileCount = 0;
 
   for await (const file of walkMarkdown(DOCS)) {
-    fileCount += 1;
     const source = readFileSync(file, "utf8");
     const relativePath = relative(ROOT, file);
+
+    // Archive documents are retained for history but are not part of the active
+    // authority graph. They may contain old links, IDs, and status snapshots.
+    if (relativePath.startsWith("docs/archive/")) continue;
+    fileCount += 1;
+
+    for (const line of source.split("\n")) {
+      if (
+        /(?:docs\/archive\/|(?:\.\.\/)*archive\/)/i.test(line) &&
+        /(authorit|normative|source[- ]of[- ]truth)/i.test(line)
+      ) {
+        fail(
+          `${relativePath}: archive documents cannot be treated as authoritative; ` +
+            "use active docs and routing sources instead",
+        );
+      }
+    }
 
     // ---- relative links resolve -------------------------------------------
     for (const match of source.matchAll(LINK_PATTERN)) {

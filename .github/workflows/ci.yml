@@ -70,6 +70,12 @@ jobs:
       - name: Architectural boundaries
         run: pnpm boundary:check
 
+      - name: Source boundaries
+        run: pnpm source:check
+
+      - name: Repository truth
+        run: pnpm truth:check
+
       - name: Documentation
         run: pnpm docs:check
 

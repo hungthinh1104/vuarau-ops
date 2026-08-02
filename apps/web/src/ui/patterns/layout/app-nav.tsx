@@ -49,8 +49,8 @@ export function AppNavView({
   const groups = navigationFor(permissions);
 
   return (
-    <nav aria-label="Điều hướng chính" className="hidden w-64 shrink-0 py-6 lg:block">
-      <div className="sticky top-20 grid gap-6">
+    <nav aria-label="Điều hướng chính" className="hidden w-[232px] shrink-0 py-5 lg:block">
+      <div className="sticky top-[4.5rem] grid gap-5">
         {groups.map((group) => {
           const groupId = `nav-${group.label
             .normalize("NFD")
@@ -78,14 +78,14 @@ export function AppNavView({
                         className={[
                           "relative flex min-h-11 items-center gap-3 rounded-button px-3 text-body-sm font-medium transition-colors",
                           active
-                            ? "bg-leaf-soft text-leaf"
+                            ? "bg-brand-soft text-brand"
                             : "text-ink hover:bg-surface-muted hover:text-ink",
                         ].join(" ")}
                       >
                         {active ? (
                           <span
                             aria-hidden="true"
-                            className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-leaf"
+                            className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-brand"
                           />
                         ) : null}
                         <Icon

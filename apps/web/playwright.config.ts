@@ -80,7 +80,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] === undefined ? 0 : 1,
   reporter: "list",
-  // Real HTTP, a real database write and a Next dev compile on first hit.
+  // Real HTTP and database writes against the same production artefact CI builds.
   timeout: 60_000,
   expect: { timeout: 10_000 },
 
@@ -88,7 +88,10 @@ export default defineConfig({
 
   use: {
     baseURL: `http://127.0.0.1:${E2E_WEB_PORT}`,
-    trace: "on-first-retry",
+    trace:
+      process.env["CI"] === "1" || process.env["CI"] === "true"
+        ? "on-first-retry"
+        : "retain-on-failure",
   },
 
   /*
@@ -118,7 +121,7 @@ export default defineConfig({
           timeout: 60_000,
         },
         {
-          command: `next dev --port ${E2E_WEB_PORT}`,
+          command: `next start --port ${E2E_WEB_PORT}`,
           url: `http://127.0.0.1:${E2E_WEB_PORT}`,
           env: webEnvironment,
           // A previously interrupted offline run can leave a dev server process

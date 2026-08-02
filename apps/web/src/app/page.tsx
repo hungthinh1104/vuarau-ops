@@ -20,7 +20,7 @@ export default function HomePage() {
 
       <Link
         href="/customers"
-        className="touch-target inline-flex items-center justify-center rounded-button bg-leaf px-4 text-label font-semibold text-white hover:bg-leaf-hover"
+        className="touch-target inline-flex items-center justify-center rounded-button bg-brand px-4 text-label font-semibold text-white hover:bg-brand-hover"
       >
         Khách hàng
       </Link>

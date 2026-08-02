@@ -96,7 +96,7 @@ export function LinkButton({
         "text-label font-semibold transition-colors",
         secondary
           ? "border-border bg-surface text-ink hover:border-border-strong"
-          : "border-transparent bg-leaf text-white hover:bg-leaf-hover",
+          : "border-transparent bg-brand text-white hover:bg-brand-hover",
       ].join(" ")}
     >
       {children}

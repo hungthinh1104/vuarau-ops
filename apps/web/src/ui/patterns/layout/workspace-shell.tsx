@@ -90,10 +90,10 @@ export function WorkspaceShellView({
 }: WorkspaceShellProps & { readonly pathname: string }) {
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="sticky top-0 z-20 h-16 border-b border-border bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between gap-3 px-4 py-2 lg:px-8">
+      <header className="sticky top-0 z-20 h-14 border-b border-border bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between gap-3 px-4 py-2 lg:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-card bg-leaf-soft text-leaf sm:flex">
+            <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-card bg-brand-soft text-brand sm:flex">
               <Store aria-hidden="true" className="h-5 w-5" />
             </span>
             <div className="min-w-0">
@@ -155,7 +155,7 @@ export function WorkspaceShellView({
         </p>
       ) : null}
 
-      <div className="mx-auto flex max-w-[1440px] gap-6 px-4 lg:px-8">
+      <div className="mx-auto flex max-w-[1600px] gap-6 px-4 lg:px-6">
         <AppNavView permissions={session.permissions} pathname={pathname} />
         <main className="min-w-0 flex-1 py-6 pb-24 lg:pb-10">{children}</main>
       </div>

@@ -3,7 +3,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 /**
- * Three tones, matching design.md: primary (Leaf), secondary (bordered), danger.
+ * Three tones, matching docs/design.md: primary (Plum), secondary (bordered), danger.
  *
  * `danger` is white-with-danger-text by default and only fills solid in a final
  * destructive confirmation, because a screen full of red buttons stops meaning
@@ -12,7 +12,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 export type ButtonTone = "primary" | "secondary" | "danger" | "danger-solid";
 
 const TONE_CLASS: Readonly<Record<ButtonTone, string>> = {
-  primary: "bg-leaf text-white hover:bg-leaf-hover border border-transparent",
+  primary: "bg-brand text-white hover:bg-brand-hover border border-transparent",
   secondary: "bg-surface text-ink border border-border hover:border-border-strong",
   danger: "bg-surface text-danger border border-danger/40 hover:border-danger",
   "danger-solid": "bg-danger text-white border border-transparent hover:opacity-90",

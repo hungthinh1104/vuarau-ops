@@ -1,6 +1,13 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  createProductCommandSchema,
+  createSaleDraftCommandSchema,
+  discardSaleDraftCommandSchema,
+  postSaleCommandSchema,
+  updateSaleDraftCommandSchema,
+} from "@vuarau/domain-contracts";
 import type {
   CustomerDetailDto,
   CustomerId,
@@ -8,6 +15,7 @@ import type {
   ProductId,
   ProductDto,
   QualityGradeId,
+  SaleLineId,
   SaleDto,
 } from "@vuarau/domain-contracts";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -77,10 +85,10 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
 
   const localSaleId = searchParams.get("localSaleId") ?? crypto.randomUUID();
 
-  const saleIdRef = useRef(localSaleId);
+  const saleIdRef = useRef<SaleDto["id"]>(localSaleId as SaleDto["id"]);
 
   const [lines, setLines] = useState<readonly SaleLineDraft[]>(() => [
-    emptyLine(crypto.randomUUID()),
+    emptyLine(crypto.randomUUID() as SaleLineId),
   ]);
 
   const [note, setNote] = useState("");
@@ -333,28 +341,26 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
 
   draftRef.current = draft;
 
-  const draftCommand = useCommand<unknown, SaleDto>(async (envelope) =>
-    draftRef.current === null
-      ? ((await createDraft.mutateAsync(envelope as never)) as SaleDto)
-      : ((await updateDraft.mutateAsync(envelope as never)) as SaleDto),
-  );
+  const draftCommand = useCommand<unknown, SaleDto>(async (envelope) => {
+    if (typeof envelope.payload !== "object" || envelope.payload === null) {
+      throw new Error("Sale draft payload must be an object.");
+    }
+    if ("customerId" in envelope.payload) {
+      return createDraft.mutateAsync(createSaleDraftCommandSchema.parse(envelope));
+    }
+    return updateDraft.mutateAsync(updateSaleDraftCommandSchema.parse(envelope));
+  });
 
-  const postCommand = useCommand<{ saleId: string }, SaleDto>(
-    async (envelope) => (await postSale.mutateAsync(envelope as never)) as SaleDto,
-  );
+  const postCommand = useCommand<unknown, SaleDto>(async (envelope) => {
+    return postSale.mutateAsync(postSaleCommandSchema.parse(envelope));
+  });
 
-  const discardCommand = useCommand<{ saleId: string; reason: string | null }, SaleDto>(
-    async (envelope) => (await discardDraft.mutateAsync(envelope as never)) as SaleDto,
+  const discardCommand = useCommand<unknown, SaleDto>(async (envelope) => {
+    return discardDraft.mutateAsync(discardSaleDraftCommandSchema.parse(envelope));
+  });
+  const productCreateCommand = useCommand<unknown, ProductDto>((envelope) =>
+    createProductMutation.mutateAsync(createProductCommandSchema.parse(envelope)),
   );
-  const productCreateCommand = useCommand<
-    {
-      productId: string;
-      displayName: string;
-      aliases: readonly string[];
-      preferredUnit: SaleLineDraft["unit"];
-    },
-    ProductDto
-  >(async (envelope) => (await createProductMutation.mutateAsync(envelope as never)) as ProductDto);
   const pendingProductRef = useRef<{
     readonly context: string;
     readonly productId: string;
@@ -422,7 +428,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   }
 
   function addLine(): void {
-    const line = emptyLine(crypto.randomUUID());
+    const line = emptyLine(crypto.randomUUID() as SaleLineId);
     editLines([...lines, line]);
     setActiveLineId(line.lineId);
   }
@@ -432,7 +438,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     if (!mayCreateProduct || displayName.length === 0 || locallyQueued) return;
     const context = `${activeLine.lineId}\u0000${displayName}\u0000${activeLine.unit}`;
     if (pendingProductRef.current?.context !== context) {
-      pendingProductRef.current = { context, productId: crypto.randomUUID() };
+      pendingProductRef.current = { context, productId: crypto.randomUUID() as ProductId };
       productCreateCommand.reset();
     }
     const created = await productCreateCommand.submit({
@@ -457,10 +463,10 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     metrics.count("product_created_inline");
   }
 
-  function toPayload() {
+  function toPayload(isNew: boolean) {
     return {
       saleId: saleIdRef.current,
-      ...(draftRef.current === null ? { customerId, currency: "VND" as const } : {}),
+      ...(isNew ? { customerId, currency: "VND" as const } : {}),
       lines: lines.map((line, index) => ({
         lineId: line.lineId,
         /*
@@ -477,9 +483,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
       })),
       note: note.trim().length === 0 ? null : note.trim(),
       dueAt: null,
-      ...(draftRef.current === null
-        ? { replacesSaleId: replacesSaleId as SaleDto["id"] | null }
-        : {}),
+      ...(isNew ? { replacesSaleId: replacesSaleId as SaleDto["id"] | null } : {}),
     };
   }
 
@@ -493,9 +497,10 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     if (!dirty && draftRef.current !== null) return draftRef.current;
 
     draftCommand.reset();
+    const isNew = draftRef.current === null;
     const saved = await draftCommand.submit(
-      toPayload(),
-      draftRef.current === null ? {} : { expectedVersion: draftRef.current.version },
+      toPayload(isNew),
+      isNew ? {} : { expectedVersion: draftRef.current!.version },
     );
     if (saved !== null) {
       setDraft(saved);
@@ -552,7 +557,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
           sale: {
             saleId: saleIdRef.current,
             customerId,
-            lines: toPayload().lines,
+            lines: toPayload(true).lines,
             note: note.trim().length === 0 ? null : note.trim(),
             replacesSaleId: null,
           },

@@ -154,7 +154,7 @@ function QuickAction({ action, primary = false }: { action: TodayAction; primary
       className={[
         "group flex min-h-24 items-center gap-4 rounded-panel border p-4 transition-colors",
         primary
-          ? "border-leaf/25 bg-leaf text-white hover:bg-leaf-hover"
+          ? "border-brand/25 bg-brand text-white hover:bg-brand-hover"
           : "border-border bg-surface hover:border-border-strong",
       ].join(" ")}
     >
