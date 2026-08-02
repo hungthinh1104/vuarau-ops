@@ -2,6 +2,25 @@ import { expect, test, signIn } from "./harness/signed-in.ts";
 import { api } from "./harness/api.ts";
 import { uniqueCustomerName } from "./harness/environment.ts";
 
+async function chooseOption(page: Parameters<typeof signIn>[0], label: string, option: string) {
+  await page.getByRole("combobox", { name: label }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
+
+async function chooseCatalogProduct(
+  page: Parameters<typeof signIn>[0],
+  query: string,
+  productName: string,
+): Promise<void> {
+  await page.getByRole("button", { name: "Mở bảng chọn mặt hàng và giá gần đây" }).click();
+  const picker = page.getByRole("dialog");
+  await expect(picker).toBeVisible();
+  await picker.getByLabel("Tìm mặt hàng").fill(query);
+  const product = picker.getByRole("button", { name: new RegExp(`^${productName} · kg$`) });
+  await product.focus();
+  await product.press("Enter");
+}
+
 test.describe("M15 — Product catalog", () => {
   test("catalog changes never rewrite a posted Sale snapshot and unresolved text must be resolved", async ({
     page,
@@ -13,10 +32,10 @@ test.describe("M15 — Product catalog", () => {
     const alias = `cai be ${uniqueSuffix}`;
     await page.getByLabel("Tên mặt hàng").fill(name);
     await page.getByLabel("Tên gọi khác").fill(alias);
-    await page.getByLabel("Đơn vị gợi ý").selectOption("kg");
+    await chooseOption(page, "Đơn vị gợi ý", "kg");
     await page.getByRole("button", { name: "Tạo mặt hàng" }).click();
     await page.waitForURL(/\/products\/[0-9a-f-]+$/);
-    await expect(page.getByRole("heading", { name: "Mặt hàng", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
     await expect(page.getByLabel("Tên mặt hàng")).toHaveValue(name);
     const productUrl = page.url();
 
@@ -31,16 +50,20 @@ test.describe("M15 — Product catalog", () => {
     const customerId = await api.createCustomer(uniqueCustomerName("product-sale"));
     await page.goto(`/customers/${customerId}/sales/new`);
     const line = page.getByTestId("sale-line-0");
-    await line.getByLabel("Mặt hàng").fill(alias);
-    await page.getByRole("button", { name: `${name} · kg`, exact: true }).click();
-    await expect(line.getByLabel("Mặt hàng")).toHaveValue(name);
-    await expect(line.getByLabel("Đơn vị")).toHaveValue("kg");
+    await chooseCatalogProduct(page, alias, name);
+    await expect(line.getByRole("textbox", { name: "Mặt hàng" })).toHaveValue(name);
+    await expect(line.getByRole("combobox", { name: "Đơn vị" })).toContainText("kg");
     await expect(line.getByLabel("Đơn giá")).toHaveValue("");
-    await line.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
+    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
     await line.getByLabel("Số lượng").fill("2");
     await line.getByLabel("Đơn giá").fill("20.000");
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
-    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+    await page.getByRole("button", { name: "Chốt đơn", exact: true }).click();
+    const confirmation = page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Chốt đơn", exact: true });
+    await confirmation.focus();
+    await confirmation.press("Enter");
+    await expect(page.getByRole("heading", { name: /^Đơn của / })).toBeVisible();
     await expect(page.getByText(name).first()).toBeVisible();
     await expect(page.getByText("2 kg × 20.000 ₫")).toBeVisible();
     const saleUrl = page.url();
@@ -48,9 +71,9 @@ test.describe("M15 — Product catalog", () => {
     const renamed = `${name} đổi tên`;
     await page.goto(productUrl);
     await page.getByLabel("Tên mặt hàng").fill(renamed);
-    await page.getByLabel("Đơn vị gợi ý").selectOption("cai");
-    await page.getByRole("button", { name: "Lưu thay đổi" }).click();
-    await expect(page.getByText(/phiên bản 2/)).toBeVisible();
+    await chooseOption(page, "Đơn vị gợi ý", "cái");
+    await page.getByRole("button", { name: "Cập nhật mặt hàng" }).click();
+    await expect(page.getByRole("status").getByText("Đã ghi nhận", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Ngưng mặt hàng" }).click();
     await expect(page.getByRole("button", { name: "Dùng lại mặt hàng" })).toBeVisible();
 
@@ -62,7 +85,7 @@ test.describe("M15 — Product catalog", () => {
     const freeTextCustomerId = await api.createCustomer(uniqueCustomerName("free-text"));
     await page.goto(`/customers/${freeTextCustomerId}/sales/new`);
     const freeTextLine = page.getByTestId("sale-line-0");
-    await freeTextLine.getByLabel("Mặt hàng").fill(renamed);
+    await freeTextLine.getByRole("textbox", { name: "Mặt hàng" }).fill(renamed);
     await expect(page.getByRole("button", { name: `${renamed} · cái`, exact: true })).toHaveCount(
       0,
     );
@@ -70,16 +93,21 @@ test.describe("M15 — Product catalog", () => {
     await expect(page.getByRole("button", { name: "Chốt đơn" })).toBeDisabled();
 
     const replacementName = `${renamed} mới`;
-    await freeTextLine.getByLabel("Mặt hàng").fill(replacementName);
-    await page.getByRole("button", { name: `Tạo mặt hàng “${replacementName}”` }).click();
+    await freeTextLine.getByRole("textbox", { name: "Mặt hàng" }).fill(replacementName);
+    await page.getByRole("button", { name: /Tạo mặt hàng/ }).click();
     await expect(
       page.getByRole("status").filter({ hasText: "Tạo mặt hàng trong đơn" }),
     ).toBeVisible();
-    await freeTextLine.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
+    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
     await freeTextLine.getByLabel("Số lượng").fill("1");
     await freeTextLine.getByLabel("Đơn giá").fill("10.000");
-    await page.getByRole("button", { name: "Chốt đơn" }).click();
-    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+    await page.getByRole("button", { name: "Chốt đơn", exact: true }).click();
+    const replacementConfirmation = page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Chốt đơn", exact: true });
+    await replacementConfirmation.focus();
+    await replacementConfirmation.press("Enter");
+    await expect(page.getByRole("heading", { name: /^Đơn của / })).toBeVisible();
     await expect(page.getByText(replacementName).first()).toBeVisible();
     await expect(page.getByText("1 kg × 10.000 ₫")).toBeVisible();
   });
