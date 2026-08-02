@@ -187,6 +187,7 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
     ["ASM-032 universal grade policy review", config.qualityGradePolicyReview],
     ["ASM-033 receiving quality semantics review", config.receivingQualitySemanticsReview],
     ["ASM-034 quality role/reclassification review", config.qualityRoleReview],
+    ["UC-PRICING-001 pricing policy review", config.pricingPolicyReview],
   ] as const) {
     checks.push(
       review.decision === "accepted"

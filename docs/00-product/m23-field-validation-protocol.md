@@ -29,6 +29,16 @@ The independent reference is the depot's existing notebook/process, a source
 document, or an independently counted physical quantity—not another screen derived
 from the same canonical rows.
 
+## Pricing rule policy observation
+
+Before a shadow observation uses the explicit pricing catalogue, record the
+owner/worker answer for customer-specific versus list precedence, equal-priority
+ties, quantity thresholds, effective-date boundaries, discounts, operational fees,
+and override authority/reason. A repository test proves only the current
+`none`/`selected`/`ambiguous` contract; it does not choose the depot's commercial
+policy. Until the review is accepted with an external worksheet reference, price
+resolution remains advisory and the worker must confirm the final Sale price.
+
 ## Frozen hypotheses
 
 | Hypothesis | Observed task                                                               | Pass criterion frozen before observation                                                                                  |

@@ -229,6 +229,8 @@ export const pilotConfigSchema = z.object({
   qualityGradePolicyReview: reviewSchema,
   receivingQualitySemanticsReview: reviewSchema,
   qualityRoleReview: reviewSchema,
+  /** UC-PRICING-001 — precedence, quantity tiers and commercial adjustments remain field policy. */
+  pricingPolicyReview: reviewSchema,
   saleFulfilmentCorrectionGate: crossDimensionScenarioGateSchema,
   purchaseReceivingCorrectionGate: crossDimensionScenarioGateSchema,
   partialCustomerReturnGate: crossDimensionScenarioGateSchema,
@@ -317,6 +319,13 @@ export const EXAMPLE_PILOT_CONFIG = {
     notes: "",
   },
   qualityRoleReview: {
+    reviewerName: "",
+    date: "",
+    decision: "accepted",
+    worksheetReference: "",
+    notes: "",
+  },
+  pricingPolicyReview: {
     reviewerName: "",
     date: "",
     decision: "accepted",

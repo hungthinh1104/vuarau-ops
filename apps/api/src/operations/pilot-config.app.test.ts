@@ -24,6 +24,7 @@ describe("M23 — pilot declaration is fail-closed", () => {
     qualityGradePolicyReview: review("Chủ vựa"),
     receivingQualitySemanticsReview: review("Chủ vựa"),
     qualityRoleReview: review("Chủ vựa"),
+    pricingPolicyReview: review("Chủ vựa"),
     saleFulfilmentCorrectionGate: excludedScenario("Chủ vựa"),
     purchaseReceivingCorrectionGate: excludedScenario("Chủ vựa"),
     partialCustomerReturnGate: excludedScenario("Chủ vựa"),
@@ -64,6 +65,7 @@ describe("M23 — pilot declaration is fail-closed", () => {
       qualityGradePolicyReview: undefined,
       receivingQualitySemanticsReview: undefined,
       qualityRoleReview: undefined,
+      pricingPolicyReview: undefined,
       saleFulfilmentCorrectionGate: undefined,
       partialCustomerReturnGate: undefined,
     };
@@ -77,6 +79,7 @@ describe("M23 — pilot declaration is fail-closed", () => {
       expect(result.problems.join("\n")).toContain("qualityGradePolicyReview");
       expect(result.problems.join("\n")).toContain("receivingQualitySemanticsReview");
       expect(result.problems.join("\n")).toContain("qualityRoleReview");
+      expect(result.problems.join("\n")).toContain("pricingPolicyReview");
       expect(result.problems.join("\n")).toContain("saleFulfilmentCorrectionGate");
       expect(result.problems.join("\n")).toContain("partialCustomerReturnGate");
     }
@@ -87,6 +90,13 @@ describe("M23 — pilot declaration is fail-closed", () => {
     const result = readPilotConfig(JSON.stringify(missing));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.problems.join("\n")).toContain("qualityGradePolicyReview");
+  });
+
+  it("requires explicit pricing-policy evidence rather than inferring commercial precedence", () => {
+    const missing = { ...filled, pricingPolicyReview: undefined };
+    const result = readPilotConfig(JSON.stringify(missing));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("pricingPolicyReview");
   });
 
   it("requires explicit cross-dimension scope gates rather than treating review as support", () => {
