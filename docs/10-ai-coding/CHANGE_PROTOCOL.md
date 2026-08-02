@@ -52,7 +52,38 @@ override the schema, executable rule, or persisted result.
 4. **Run it. Confirm it fails for the expected reason** — the missing behaviour, not
    a typo or an unresolved import.
 5. Write the minimum code to pass.
-6. `pnpm verify`.
+6. Run the validation tier appropriate to the current stage.
+
+### During implementation
+
+Run the narrowest failing test first:
+
+- exact test ID with `-t`;
+- exact test file;
+- affected Vitest project;
+- focused database test file when persistence is involved.
+
+Do not run the full repository gate after every edit.
+
+### Before commit
+
+Run:
+
+- the regression test that proves the change;
+- the affected test project;
+- relevant static checks;
+- focused PostgreSQL evidence for persistence, money, inventory or recovery changes.
+
+### Before merge
+
+Run:
+
+```bash
+pnpm verify
+```
+
+`pnpm verify` is the repository merge gate. It is not the default implementation
+feedback loop.
 
 Step 4 is not ceremony. A test that passes before the implementation exists is
 testing nothing, and this is the most common way an agent produces work that looks
@@ -62,7 +93,10 @@ complete and is not.
 
 A change is done when **all** of these hold:
 
-- [ ] `pnpm verify` passes: format, lint, typecheck, boundaries, docs, trace, tests.
+- [ ] Focused regression evidence passes.
+- [ ] The affected test project passes.
+- [ ] Required PostgreSQL evidence passes for persistence-sensitive changes.
+- [ ] `pnpm verify` passes before merge.
 - [ ] Every new or changed business rule is documented with a stable ID and a risk
       class.
 - [ ] Every P0 rule touched has an automated test.

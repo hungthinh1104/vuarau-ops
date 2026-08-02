@@ -67,6 +67,15 @@ Ordered by what costs most when missed. Stop at the first section that fails.
 
 ## 7. Tests
 
+- [ ] The exact regression test was run and observed failing for the expected reason.
+- [ ] The exact regression test passes after implementation.
+- [ ] The affected Vitest project passes.
+- [ ] Persistence-sensitive changes have focused PostgreSQL evidence.
+- [ ] Full E2E was run only when the user journey, routing, integration boundary or
+      production build behavior changed.
+- [ ] `pnpm verify` passes before merge, not necessarily after every implementation edit.
+- [ ] No broad test suite was repeatedly run when a narrower command could provide
+      equivalent feedback.
 - [ ] The test was written before the implementation and observed failing for the
       expected reason.
 - [ ] Test names carry `BR-*` / `TC-*` ids.

@@ -53,6 +53,30 @@ negative" — not "add a validation to recordPayment".>
 
 **Write them first and confirm they fail for the right reason.**
 
+## Validation plan
+
+### Edit loop
+
+- Exact test ID:
+- Exact test file:
+- Affected project:
+
+### Commit gate
+
+- Static checks:
+- Focused PostgreSQL tests:
+- Other affected suites:
+
+### Merge gate
+
+- `pnpm verify`
+
+### Not required for this edit loop
+
+- Full E2E:
+- Storybook build:
+- Full database suite:
+
 ## Unresolved policy
 
 <Does this depend on anything in the decision backlog? If yes, name the ASM and
@@ -62,7 +86,10 @@ either get an answer or state the smallest reversible default being assumed.>
 
 - [ ] Failing test written first and observed failing for the expected reason
 - [ ] Minimum implementation added
-- [ ] `pnpm verify` passes
+- [ ] Focused regression evidence passes
+- [ ] The affected test project passes
+- [ ] Required PostgreSQL evidence passes for persistence-sensitive changes
+- [ ] `pnpm verify` passes before merge
 - [ ] Rule documented with a stable ID and risk class
 - [ ] Trace map updated
 - [ ] No boundary violation
