@@ -71,6 +71,14 @@ async function seed(): Promise<void> {
       )
     `;
     await tx.unsafe(`
+      insert into command_receipts(
+        command_id,workspace_id,idempotency_key,command_type,payload_hash,status,result,recorded_at
+      )
+      select ${uuidExpression("f22d")},'${WORKSPACE_ID}'::uuid,'m22-scale-'||i,
+        'M22ScaleSeed',repeat('0',64),'completed','{}'::jsonb,now()
+      from generate_series(1,10000) i
+    `);
+    await tx.unsafe(`
       insert into sales(
         id,workspace_id,customer_id,status,currency,total_amount_minor,note,version,
         transaction_time,recorded_at,posted_at,discarded_at,due_at,replaces_sale_id

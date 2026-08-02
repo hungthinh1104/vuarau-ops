@@ -82,6 +82,29 @@ jobs:
             exit 1
           fi
 
+      # --- production-shape release evidence ----------------------------------
+      # Keep the million-row rehearsal out of the functional-test database. The
+      # performance script owns its fixed seed workspace and this database is
+      # disposable by construction.
+      - name: Create production-scale rehearsal database
+        run: createdb --host=localhost --port=5432 --username=postgres vuarau_perf
+        env:
+          PGPASSWORD: postgres
+
+      - name: Production-scale performance budgets
+        run: pnpm perf:m22
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/vuarau_perf
+
+      - name: Fresh migration and idempotent reapply rehearsal
+        run: pnpm rehearse:m22
+
+      - name: Drop production-scale rehearsal database
+        if: always()
+        run: dropdb --if-exists --host=localhost --port=5432 --username=postgres vuarau_perf
+        env:
+          PGPASSWORD: postgres
+
       # --- every Vitest project ------------------------------------------------
       # Run separately rather than as `pnpm test`, so a red build names which
       # layer broke before anybody opens the log.

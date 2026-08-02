@@ -33,6 +33,7 @@ vendor-independent promises.
 500,000 inventory movements
 25,000 dispatched Deliveries
 10,000 immutable documents
+10,001 command receipts for indexed replay lookup
 ```
 
 Each query is warmed, executed 20 measured times, and checked with

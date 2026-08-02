@@ -36,9 +36,10 @@ Rollback policy:
 
 ## Rehearsed evidence — 2026-07-29
 
-- `rehearse:m22` created a disposable empty PostgreSQL database, applied all 21
-  migrations to 33 tables, reapplied idempotently, and removed only the validated
-  `vuarau_m22_rehearsal_<pid>` database: pass.
+- `rehearse:m22` creates a disposable empty PostgreSQL database, applies every
+  committed migration, reapplies them idempotently, verifies the public schema,
+  and removes only the validated `vuarau_m22_rehearsal_<pid>` database. CI runs
+  this rehearsal on every verification build.
 - Migration `0020` was applied to the production-shape workspace containing one
   million canonical ledger/movement rows before the successful EXPLAIN run: pass.
 - PostgreSQL restore integration tests export `WorkspaceBackupV1`, restore
