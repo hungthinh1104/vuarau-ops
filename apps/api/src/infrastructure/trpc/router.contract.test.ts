@@ -301,6 +301,31 @@ describe("BR-AUTH-002 / TC-CUSTOMER-003 — actor impersonation", () => {
     });
     expect(created.status).toBe("draft");
   });
+
+  it("refuses a read that pairs a valid entity id with a foreign workspace", async () => {
+    try {
+      await caller.account.balance({
+        workspaceId: OTHER_WORKSPACE_ID,
+        customerId: CUSTOMER_ID,
+      });
+      expect.unreachable("a valid customer id must not cross the workspace boundary");
+    } catch (error) {
+      expect(domainErrorOf(error).code).toBe("WORKSPACE_ACCESS_DENIED");
+    }
+  });
+
+  it("refuses a command whose workspaceId is not an active membership", async () => {
+    try {
+      await caller.sale.createDraft({
+        ...envelope("contract-foreign-workspace"),
+        workspaceId: OTHER_WORKSPACE_ID,
+        payload: salePayload,
+      });
+      expect.unreachable("a command must not write into a foreign workspace");
+    } catch (error) {
+      expect(domainErrorOf(error).code).toBe("WORKSPACE_ACCESS_DENIED");
+    }
+  });
 });
 
 describe("BR-AUTH-001 / TC-AUTH-001 — unauthenticated access", () => {
