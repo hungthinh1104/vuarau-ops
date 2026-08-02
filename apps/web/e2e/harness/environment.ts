@@ -87,9 +87,29 @@ export function endToEndDisabled(): boolean {
   return true;
 }
 
+/**
+ * Parse an optional isolated E2E port without allowing it to become a shell
+ * fragment in the Playwright web-server command.
+ */
+export function parseE2EPort(value: string | undefined, fallback: number): number {
+  if (value === undefined || value.trim() === "") return fallback;
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`E2E port must be an integer: received ${JSON.stringify(value)}`);
+  }
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1024 || port > 65_535) {
+    throw new Error(`E2E port must be between 1024 and 65535: received ${value}`);
+  }
+  return port;
+}
+
 /** Where the specs run. Both servers are started by `playwright.config.ts`. */
-export const E2E_WEB_PORT = 3101;
-export const E2E_API_PORT = 3102;
+export const E2E_WEB_PORT = parseE2EPort(process.env["E2E_WEB_PORT"], 3101);
+export const E2E_API_PORT = parseE2EPort(process.env["E2E_API_PORT"], 3102);
+
+if (E2E_WEB_PORT === E2E_API_PORT) {
+  throw new Error(`E2E web and API ports must differ: received ${E2E_WEB_PORT}`);
+}
 
 /**
  * A fresh customer per spec, created through the API rather than inserted.

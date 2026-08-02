@@ -104,6 +104,17 @@ pnpm test:db
 CI runs a `postgres:17` service container against an empty database, so migrations
 apply from scratch on every push and the suites execute there.
 
+Playwright owns its API and Next production processes and normally uses ports
+`3102` and `3101`. To run the production-shaped E2E artifact while a local dev
+server is already running, choose isolated ports for both the build and test:
+
+```bash
+E2E_API_PORT=3202 E2E_WEB_PORT=3201 pnpm web:e2e:build
+E2E_API_PORT=3202 E2E_WEB_PORT=3201 pnpm web:e2e
+```
+
+The override is validated as a TCP port and the two ports must differ.
+
 Each database test creates its **own workspace UUID** and asserts only within it.
 No truncation between files, no shared fixture state, and files can run in
 parallel. As a side effect, every database test is also a small workspace-isolation
