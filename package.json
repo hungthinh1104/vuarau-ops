@@ -29,7 +29,7 @@
     "e2e:config:test": "node --test apps/web/e2e/harness/environment.test.ts",
     "test:fast": "vitest run --project domain --project application --project contract --project web",
     "validate:commit": "pnpm check:static && pnpm test:fast",
-    "check:static": "pnpm format && pnpm lint && pnpm typecheck && pnpm boundary:check && pnpm source:check && pnpm ui:check && pnpm docs:check && pnpm docs:check:test && pnpm truth:check && pnpm context:test && pnpm e2e:config:test && pnpm trace:check && pnpm security:m22",
+    "check:static": "pnpm format && pnpm lint && pnpm typecheck && pnpm boundary:check && pnpm source:check && pnpm ui:check && pnpm docs:check && pnpm docs:check:test && pnpm truth:check && pnpm context:test && pnpm e2e:config:test && pnpm policy:closure:test && pnpm trace:check && pnpm security:m22",
     "boundary:check": "node scripts/boundary-check.ts",
     "source:check": "node --test scripts/source-boundary-check.test.ts && node scripts/source-boundary-check.ts",
     "ui:check": "node --test scripts/ui-architecture-check.test.ts && node scripts/ui-architecture-check-runner.ts",
@@ -44,6 +44,8 @@
     "rehearse:m22": "node --env-file-if-exists=.env packages/db/src/performance/m22-migration-rehearsal.ts",
     "verify:m22": "pnpm security:m22 && pnpm perf:m22 && pnpm rehearse:m22",
     "pilot:dry-run": "node --env-file-if-exists=.env scripts/m23-pilot-dry-run.ts",
+    "policy:closure": "node scripts/m24-policy-closure.ts",
+    "policy:closure:test": "node --test scripts/m24-policy-closure.test.ts",
     "verify": "pnpm check:static && pnpm test && pnpm web:build && pnpm web:storybook && pnpm web:e2e",
     "web:build": "pnpm --filter @vuarau/web build",
     "web:e2e:build": "NEXT_DIST_DIR=.next-e2e NEXT_PUBLIC_E2E_AUTH_BRIDGE=1 NEXT_PUBLIC_API_ORIGIN=http://127.0.0.1:${E2E_API_PORT:-3102} NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY= NEXT_PUBLIC_SUPABASE_ANON_KEY= pnpm --filter @vuarau/web build",
@@ -62,6 +64,7 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.4",
     "vitest": "^3.2.4",
-    "yaml": "^2.8.1"
+    "yaml": "^2.8.1",
+    "zod": "^4.4.3"
   }
 }

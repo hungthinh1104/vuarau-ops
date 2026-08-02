@@ -123,6 +123,7 @@ the checker and its regression tests.
 
 The root script entry points are implemented in `scripts/dev.ts`,
 `scripts/context.ts`, `scripts/docs-check.ts`, `scripts/trace-check.ts`,
+`scripts/m24-policy-closure.ts`,
 `scripts/repository-truth-check.ts`, `scripts/boundary-check.ts`,
 `scripts/source-boundary-check.ts`, `scripts/m22-security-check.ts` and
 `scripts/m23-pilot-dry-run.ts`.

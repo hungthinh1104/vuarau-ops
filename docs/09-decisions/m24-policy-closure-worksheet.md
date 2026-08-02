@@ -18,6 +18,22 @@ For each item record:
   `blocked`, or `needs_more_evidence`;
 - the release or process boundary to which the answer applies.
 
+The record can be kept as an external JSON packet and checked without changing
+product configuration:
+
+```bash
+pnpm policy:closure --example > m24-policy-closure.json
+pnpm policy:closure --config m24-policy-closure.json
+```
+
+The template is intentionally blank and invalid until a real participant fills
+the normal, partial/exception and correction examples. The checker requires all
+ASM-039–ASM-048 exactly once, reports `policyDecisionReady`, `fieldValidated` and
+`productionAccepted` separately, and exits non-zero while any policy is
+`needs_more_evidence`, `blocked` or `excluded_from_scope`. It never promotes a
+repository test into field evidence and never writes the packet back to the
+repository.
+
 ## ASM-039 — Inventory valuation and COGS
 
 Which valuation basis assigns cost to a Product/grade/unit quantity, and at what
