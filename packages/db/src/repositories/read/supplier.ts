@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
 import {
   suppliers,
   supplierPayments,
@@ -7,6 +7,8 @@ import {
   supplierAccountEntries,
   supplierAccountBalances,
   purchaseVoids,
+  purchases,
+  purchaseLines,
 } from "../../schema/index.ts";
 import { classifySupplierBalance } from "@vuarau/domain-kernel";
 import { money, toIso, toIsoOrNull } from "../row-mappers.ts";
@@ -80,6 +82,89 @@ export const createSupplierReadRepositories = (tx: Tx) => ({
             createdAt: toIso(row.createdAt),
             updatedAt: toIso(row.updatedAt),
           };
+    },
+    async priceHistory(args: {
+      workspaceId: string;
+      supplierId: string;
+      productId: string | null;
+      page: Page;
+    }) {
+      const filters: SQL[] = [
+        eq(purchases.workspaceId, args.workspaceId),
+        eq(purchaseLines.workspaceId, args.workspaceId),
+        eq(purchases.supplierId, args.supplierId),
+        eq(purchases.status, "confirmed"),
+        isNotNull(purchases.confirmedAt),
+      ];
+      if (args.productId !== null) filters.push(eq(purchaseLines.productId, args.productId));
+      if (args.page.after !== null) {
+        const [transactionTime, recordedAt, purchaseId] = args.page.after.sortValue.split("|");
+        if (transactionTime !== undefined && recordedAt !== undefined && purchaseId !== undefined) {
+          filters.push(
+            sql`(${purchases.transactionTime}, ${purchases.recordedAt}, ${purchases.id}, ${purchaseLines.id}) < (${transactionTime}::timestamptz, ${recordedAt}::timestamptz, ${purchaseId}::uuid, ${args.page.after.id}::uuid)`,
+          );
+        }
+      }
+      const rows = await tx
+        .select({
+          workspaceId: purchases.workspaceId,
+          supplierId: purchases.supplierId,
+          purchaseId: purchases.id,
+          purchaseLineId: purchaseLines.id,
+          productId: purchaseLines.productId,
+          productName: purchaseLines.productName,
+          quantityScaled: purchaseLines.quantityScaled,
+          unit: purchaseLines.unit,
+          unitPriceMinor: purchaseLines.unitPriceMinor,
+          lineTotalMinor: purchaseLines.lineTotalMinor,
+          currency: purchaseLines.currency,
+          transactionTime: purchases.transactionTime,
+          recordedAt: purchases.recordedAt,
+          confirmedAt: purchases.confirmedAt,
+        })
+        .from(purchaseLines)
+        .innerJoin(
+          purchases,
+          and(
+            eq(purchases.id, purchaseLines.purchaseId),
+            eq(purchases.workspaceId, purchaseLines.workspaceId),
+          ),
+        )
+        .where(and(...filters))
+        .orderBy(
+          desc(purchases.transactionTime),
+          desc(purchases.recordedAt),
+          desc(purchases.id),
+          desc(purchaseLines.id),
+        )
+        .limit(fetchLimit(args.page));
+      return paged(
+        rows.flatMap((row) =>
+          row.confirmedAt === null
+            ? []
+            : [
+                {
+                  workspaceId: row.workspaceId,
+                  supplierId: row.supplierId,
+                  purchaseId: row.purchaseId,
+                  purchaseLineId: row.purchaseLineId,
+                  productId: row.productId,
+                  productName: row.productName,
+                  quantity: { valueScaled: row.quantityScaled, unit: row.unit },
+                  unitPrice: money(row.unitPriceMinor, row.currency),
+                  lineTotal: money(row.lineTotalMinor, row.currency),
+                  transactionTime: toIso(row.transactionTime),
+                  recordedAt: toIso(row.recordedAt),
+                  confirmedAt: toIso(row.confirmedAt),
+                },
+              ],
+        ),
+        args.page,
+        (row) => ({
+          sortValue: `${row.transactionTime}|${row.recordedAt}|${row.purchaseId}`,
+          id: row.purchaseLineId,
+        }),
+      );
     },
   },
   supplierAccountReads: {

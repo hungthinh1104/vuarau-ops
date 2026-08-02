@@ -204,6 +204,13 @@
       "when": 1785706634589,
       "tag": "0028_yellow_madrox",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1785709501631,
+      "tag": "0029_brief_franklin_storm",
+      "breakpoints": true
     }
   ]
 }

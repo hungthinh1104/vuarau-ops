@@ -8,6 +8,7 @@ import {
   adjustSupplierAccountCommandSchema,
   supplierSearchInputSchema,
   supplierGetInputSchema,
+  supplierPriceHistoryInputSchema,
   supplierAccountInputSchema,
   supplierAccountTimelineInputSchema,
   supplierPaymentGetInputSchema,
@@ -26,6 +27,7 @@ import {
 } from "../../../modules/supplier/supplier.handlers.ts";
 import {
   getSupplier,
+  getSupplierPriceHistory,
   getSupplierBalance,
   getSupplierPayment,
   getSupplierAdjustment,
@@ -54,6 +56,9 @@ export const supplierRouter = router({
   get: authenticatedProcedure
     .input(supplierGetInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getSupplier(ctx, input))),
+  priceHistory: authenticatedProcedure
+    .input(supplierPriceHistoryInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSupplierPriceHistory(ctx, input))),
   getPayment: authenticatedProcedure
     .input(supplierPaymentGetInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getSupplierPayment(ctx, input))),

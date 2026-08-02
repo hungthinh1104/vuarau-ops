@@ -47,6 +47,14 @@ export const purchases = pgTable(
       table.recordedAt,
       table.id,
     ),
+    index("purchases_supplier_status_time_idx").on(
+      table.workspaceId,
+      table.supplierId,
+      table.status,
+      table.transactionTime,
+      table.recordedAt,
+      table.id,
+    ),
   ],
 );
 

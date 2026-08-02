@@ -18,6 +18,11 @@ claim that a depot has validated the workflow in live operations.
   nonblank explanation.
 - **BR-SUPPLIER-005** — Supplier balance is a rebuildable projection. Rebuild
   refuses source corruption and never changes the ledger.
+- **BR-SUPPLIER-006** — Supplier price history is a read-only view of immutable
+  `confirmed` Purchase-line snapshots. It preserves Product identity, quantity,
+  unit price and both business/recording timestamps; draft or discarded Purchases
+  are excluded. It does not infer a normalized supplier price, recommendation or
+  performance score.
 
 ## Purchase
 

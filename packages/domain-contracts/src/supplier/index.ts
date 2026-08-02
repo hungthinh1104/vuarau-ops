@@ -6,6 +6,9 @@ import {
   actorIdSchema,
   cashAccountIdSchema,
   commandIdSchema,
+  productIdSchema,
+  purchaseIdSchema,
+  purchaseLineIdSchema,
   supplierAccountEntryIdSchema,
   supplierIdSchema,
   supplierPaymentIdSchema,
@@ -14,6 +17,7 @@ import {
 } from "../shared/ids.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { paymentMethodSchema } from "../payment/index.ts";
+import { quantitySchema } from "../shared/quantity.ts";
 
 const supplierFields = z.object({
   supplierId: supplierIdSchema,
@@ -60,6 +64,34 @@ export const supplierGetInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   supplierId: supplierIdSchema,
 });
+
+/**
+ * Observed prices from confirmed Purchase snapshots. This is deliberately not
+ * a suggested, normalized or "best" price: those semantics need supplier
+ * catalogue policy and field evidence first.
+ */
+export const supplierPriceHistoryRowDtoSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  supplierId: supplierIdSchema,
+  purchaseId: purchaseIdSchema,
+  purchaseLineId: purchaseLineIdSchema,
+  productId: productIdSchema,
+  productName: z.string(),
+  quantity: quantitySchema,
+  unitPrice: moneySchema,
+  lineTotal: moneySchema,
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  confirmedAt: isoInstantSchema,
+});
+export type SupplierPriceHistoryRowDto = z.infer<typeof supplierPriceHistoryRowDtoSchema>;
+export const supplierPriceHistoryInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  supplierId: supplierIdSchema,
+  productId: productIdSchema.nullable().default(null),
+});
+export type SupplierPriceHistoryInput = z.infer<typeof supplierPriceHistoryInputSchema>;
+export const supplierPriceHistoryPageSchema = pageOf(supplierPriceHistoryRowDtoSchema);
 
 export const SUPPLIER_ACCOUNT_SOURCE_TYPES = [
   "supplier_payment",

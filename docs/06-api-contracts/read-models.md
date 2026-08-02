@@ -19,7 +19,7 @@ current procedure catalog without duplicating every DTO field.
 | `audit`      | `timeline`                                                                                                                            |
 | `product`    | `search`, `get`                                                                                                                       |
 | `quality`    | `list`, `get`                                                                                                                         |
-| `supplier`   | `search`, `get`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence`                                   |
+| `supplier`   | `search`, `get`, `priceHistory`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence`                   |
 | `purchase`   | `get`, `list`                                                                                                                         |
 | `receiving`  | `get`, `listForPurchase`, `summaryForPurchase`                                                                                        |
 | `inventory`  | `balances`, `getAdjustment`, `timeline`, `reconciliation`, `evidence`                                                                 |
@@ -79,6 +79,12 @@ rewritten balance.
 `sale.captureContext` carries canonical historical `productId` when the historical
 line has one. Legacy history with no Product id remains an unresolved suggestion;
 display name is never promoted to canonical identity implicitly.
+
+`supplier.priceHistory` is an observed source read over confirmed Purchase-line
+snapshots. It preserves Product identity, quantity, unit price, Purchase id and
+business/recording timestamps, with optional Product filtering and keyset
+pagination. Draft/discarded Purchases are excluded. It is not a normalized price,
+margin, recommendation or supplier-performance metric.
 
 `delivery.fulfilment` is derived from Sale, Dispatch and Return facts and exposes
 ordered, dispatched, returned, net-fulfilled and remaining quantities plus an

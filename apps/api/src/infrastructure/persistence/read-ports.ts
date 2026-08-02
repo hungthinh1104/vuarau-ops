@@ -26,6 +26,8 @@ import type {
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
+  SupplierPriceHistoryInput,
+  SupplierPriceHistoryRowDto,
   SupplierDto,
   SupplierId,
   SupplierPaymentDto,
@@ -371,6 +373,12 @@ export type SupplierReadRepository = {
     page: PageQuery;
   }): Promise<PageResult<SupplierDto>>;
   get(workspaceId: WorkspaceId, supplierId: SupplierId): Promise<SupplierDto | null>;
+  priceHistory(args: {
+    workspaceId: WorkspaceId;
+    supplierId: SupplierId;
+    productId: SupplierPriceHistoryInput["productId"];
+    page: PageQuery;
+  }): Promise<PageResult<SupplierPriceHistoryRowDto>>;
 };
 
 export type SupplierAccountReadRepository = {

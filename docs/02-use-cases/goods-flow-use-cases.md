@@ -91,6 +91,22 @@ payable or investigate projection drift.
 - **UI:** payable/settled/supplier-credit, consistent/inconsistent/integrity-failure.
 - **Rules/tests:** BR-SUPPLIER-002, BR-SUPPLIER-005 · TC-GOODS-001/002 · TC-E2E-029.
 
+## UC-SUPPLIER-005 — Inspect confirmed Supplier price history
+
+**Actor:** authorized purchasing, accounting or warehouse reader. **Trigger:** compare
+observed prices recorded on prior confirmed Purchases for one Supplier and optional
+Product.
+
+- **Read:** `supplier.priceHistory` returns immutable Purchase-line snapshots in
+  deterministic `transactionTime → recordedAt → Purchase → line` order.
+- **Scope:** only confirmed Purchases in the requested workspace are returned;
+  drafts, discarded Purchases and other Products are excluded.
+- **Meaning:** this is observed source evidence, not a suggested price, normalized
+  catalogue, margin calculation or supplier-performance score. Those remain policy
+  gates under ASM-047/048.
+- **Effects:** none. The read does not mutate Supplier, Purchase, ledger or stock.
+- **Rules/tests:** BR-SUPPLIER-006 · TC-SUPPLIER-003/004 · TC-E2E-029.
+
 ## UC-PURCHASE-001 — Draft, edit and discard a Purchase
 
 **Actor:** owner/accountant/warehouse according to current permission table.

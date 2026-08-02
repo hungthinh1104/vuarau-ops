@@ -598,6 +598,18 @@ use_cases:
       - apps/api/src/modules/supplier/supplier.queries.ts
       - apps/api/src/modules/supplier/rebuild-supplier-account.handler.ts
 
+  UC-SUPPLIER-005:
+    title: Inspect confirmed Supplier price history
+    risk: P1
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-SUPPLIER-006]
+    cases: []
+    tests: [TC-SUPPLIER-003, TC-SUPPLIER-004, TC-E2E-029]
+    implementation:
+      - apps/api/src/modules/supplier/supplier.queries.ts
+      - apps/api/src/infrastructure/persistence/read-ports.ts
+      - packages/db/src/repositories/read/supplier.ts
+
   UC-PURCHASE-001:
     title: Draft edit and discard a Purchase
     risk: P1
@@ -1149,6 +1161,16 @@ business_rules:
     cases: []
     tests: [TC-GOODS-001]
     implementation: [apps/api/src/modules/supplier/rebuild-supplier-account.handler.ts]
+  BR-SUPPLIER-006:
+    title: Supplier price history exposes confirmed Purchase snapshots only
+    risk: P1
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-SUPPLIER-003, TC-SUPPLIER-004]
+    implementation:
+      - packages/domain-contracts/src/supplier/index.ts
+      - apps/api/src/modules/supplier/supplier.queries.ts
+      - packages/db/src/repositories/read/supplier.ts
   BR-PURCHASE-001:
     title: Confirmed Purchase snapshots are immutable
     risk: P0
@@ -2690,6 +2712,12 @@ contract_tests:
   TC-GOODS-005:
     title: PostgreSQL cursor tests prove equal-time Goods ordering
     file: apps/api/src/infrastructure/persistence/drizzle/goods-truth.db.test.ts
+  TC-SUPPLIER-003:
+    title: Application read exposes confirmed Supplier price snapshots only
+    file: apps/api/src/modules/supplier/supplier.app.test.ts
+  TC-SUPPLIER-004:
+    title: PostgreSQL read repository preserves confirmed Supplier price snapshots
+    file: packages/db/src/repositories/supplier-price-history.db.test.ts
   TC-PRODUCT-001:
     title: Product application tests prove lifecycle search duplicate identity and workspace authority
     file: apps/api/src/modules/product/product.app.test.ts
