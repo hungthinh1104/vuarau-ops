@@ -100,7 +100,10 @@ not claim that COGS, margin, debt aging, reorder risk or supplier-performance
 metrics exist. `report.metrics` makes those candidates explicit as
 `unavailable`, with their policy gates and next evidence, until their business
 policies and source facts are agreed and implemented. Neither read returns a
-numeric fallback for an unavailable metric.
+numeric fallback for an unavailable metric. The contract rejects an `available` or
+`degraded` metric unless formula, canonical sources, included/excluded states,
+business time, scope, freshness, integrity behavior, drill-down and action are
+all present.
 
 Inventory report rows preserve Product/QualityGrade/unit identity. An aggregate
 across grades, when shown for information, must be labelled as an aggregate rather

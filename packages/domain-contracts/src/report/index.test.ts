@@ -7,6 +7,7 @@ import {
   REPORT_TYPES,
   reportDefinitionSchema,
   reportDefinitionsDtoSchema,
+  metricDefinitionSchema,
   reportMetricDefinitionsDtoSchema,
 } from "./index.ts";
 
@@ -72,5 +73,32 @@ describe("operational report semantic definitions", () => {
     expect(METRIC_AVAILABILITY_DEFINITIONS.every((metric) => metric.blockedBy.length > 0)).toBe(
       true,
     );
+  });
+
+  it("requires the complete semantic contract before a metric can be available", () => {
+    const incomplete = metricDefinitionSchema.safeParse({
+      metricId: "cogs",
+      label: "COGS",
+      availability: "available",
+    });
+    expect(incomplete.success).toBe(false);
+
+    const complete = metricDefinitionSchema.safeParse({
+      metricId: "cogs",
+      label: "COGS",
+      availability: "available",
+      formula: "field-approved formula",
+      canonicalSources: ["field-approved canonical source"],
+      includedStates: ["field-approved included state"],
+      excludedStates: ["field-approved excluded state"],
+      businessTime: "field-approved business-time semantics",
+      scope: "field-approved scope and filters",
+      freshness: "field-approved freshness contract",
+      integrity: "projection",
+      onIntegrityAttention: "fail_closed",
+      drilldown: "field-approved drill-down destination",
+      action: "field-approved action",
+    });
+    expect(complete.success, JSON.stringify(complete.error?.issues)).toBe(true);
   });
 });

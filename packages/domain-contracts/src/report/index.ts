@@ -476,6 +476,34 @@ export const metricAvailabilityDefinitionSchema = z.object({
 });
 export type MetricAvailabilityDefinition = z.infer<typeof metricAvailabilityDefinitionSchema>;
 
+const metricSemanticDefinitionSchema = z.object({
+  metricId: metricCandidateIdSchema,
+  label: z.string().min(1),
+  availability: z.enum(["available", "degraded"]),
+  formula: z.string().min(1),
+  canonicalSources: z.array(z.string().min(1)).min(1),
+  includedStates: z.array(z.string().min(1)).min(1),
+  excludedStates: z.array(z.string().min(1)),
+  businessTime: z.string().min(1),
+  scope: z.string().min(1),
+  freshness: z.string().min(1),
+  integrity: z.enum(["canonical", "projection", "derived_canonical"]),
+  onIntegrityAttention: z.enum(["show_with_attention", "fail_closed"]),
+  drilldown: z.string().min(1),
+  action: z.string().min(1),
+});
+export type MetricSemanticDefinition = z.infer<typeof metricSemanticDefinitionSchema>;
+
+/**
+ * Moving a candidate out of `unavailable` requires the complete semantic
+ * contract. This union is the structural gate for future policy-decided metrics.
+ */
+export const metricDefinitionSchema = z.discriminatedUnion("availability", [
+  metricAvailabilityDefinitionSchema,
+  metricSemanticDefinitionSchema,
+]);
+export type MetricDefinition = z.infer<typeof metricDefinitionSchema>;
+
 export const METRIC_AVAILABILITY_DEFINITIONS = [
   {
     metricId: "revenue",
@@ -601,7 +629,7 @@ export const METRIC_AVAILABILITY_DEFINITIONS = [
 
 export const reportMetricDefinitionsDtoSchema = z.object({
   version: z.literal(1),
-  definitions: z.array(metricAvailabilityDefinitionSchema),
+  definitions: z.array(metricDefinitionSchema),
 });
 export type ReportMetricDefinitionsDto = z.infer<typeof reportMetricDefinitionsDtoSchema>;
 
