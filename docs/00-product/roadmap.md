@@ -306,8 +306,10 @@ review.
 
 Close the owner/worker questions that can invalidate current pilot semantics:
 recognition moments, role table, Grade requirement, Receiving acceptance, Grade
-management authority, delivery cash handling and cross-dimension corrections.
-No seeded/default category counts as owner evidence.
+management authority, sensitive-action approval, delivery cash handling and
+cross-dimension corrections. The pilot declaration now carries explicit ASM-020
+and ASM-029 review/stop gates; no seeded/default category counts as owner
+evidence.
 
 #### M23.17 — Full depot-day rehearsal
 
