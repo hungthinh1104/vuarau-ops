@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
-import type { TodayAction } from "@/ui/patterns/today-actions.ts";
+import type { TodayAction } from "@/ui/domain/today-actions.ts";
 
 const ACTION_ICONS: Readonly<Record<string, LucideIcon>> = {
   "/sales/new": ShoppingCart,

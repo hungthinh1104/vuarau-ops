@@ -32,7 +32,7 @@ export function Sheet({ open, title, onClose, children, actions }: SheetProps) {
             <Drawer.Popup
               className={[
                 "pointer-events-auto mt-auto flex max-h-[96svh] w-full max-w-none flex-col",
-                "rounded-t-panel bg-surface p-0 text-ink shadow-md outline-none",
+                "rounded-t-panel border border-border bg-surface p-0 text-ink outline-none",
                 "sm:mt-0 sm:h-full sm:w-[24rem] sm:max-w-[24rem]",
                 "sm:rounded-none sm:rounded-l-panel",
               ].join(" ")}

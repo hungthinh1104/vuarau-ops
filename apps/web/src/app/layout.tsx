@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
+import { Be_Vietnam_Pro } from "next/font/google";
 import type { ReactNode } from "react";
 import { Toaster } from "@/ui/primitives/toaster.tsx";
 import "./globals.css";
 import { AuthProvider } from "@/api/auth.tsx";
+
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  variable: "--font-be-vietnam-pro",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Vựa Rau — sổ vựa",
@@ -17,7 +25,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="vi">
-      <body className="min-h-screen bg-canvas text-ink antialiased">
+      <body className={`${beVietnamPro.variable} min-h-screen bg-canvas text-ink antialiased`}>
         <AuthProvider>{children}</AuthProvider>
         <Toaster />
       </body>

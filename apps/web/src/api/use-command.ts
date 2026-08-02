@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import type { ZodType } from "zod";
 import type {
   ActorId,
   CommandId,
@@ -268,6 +269,18 @@ export function useCommand<TPayload, TResult>(
   }, []);
 
   return { ...state, submit, resend, reset };
+}
+
+/**
+ * Binds a command runner to the published domain schema before it reaches a
+ * tRPC mutation. This keeps versioned envelopes type-safe without forcing each
+ * controller to cast an incomplete client envelope through `never`.
+ */
+export function useContractCommand<TCommand extends { readonly payload: unknown }, TResult>(
+  schema: ZodType<TCommand>,
+  send: (command: TCommand) => Promise<TResult>,
+): CommandRunner<TCommand["payload"], TResult> {
+  return useCommand<TCommand["payload"], TResult>((envelope) => send(schema.parse(envelope)));
 }
 
 /**

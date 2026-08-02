@@ -1,88 +1,74 @@
 @import "tailwindcss";
 
-/*
- * Shared tokens come from docs/design.md. Surface-specific composition lives in
- * docs/WEB-ADMIN.md and docs/MOBILE-POS.md.
- *
- * Tailwind v4 turns each entry into a utility — `--color-brand` becomes `bg-brand`,
- * `text-brand`, `border-brand` — so components name the token rather than the hex,
- * and a token change lands everywhere at once.
- */
+/* Tokens are defined by docs/design.md. Components consume names, never hex values. */
 @theme {
-  --color-canvas: #f4f1ed;
+  --color-canvas: #fafaf9;
   --color-surface: #ffffff;
-  --color-surface-muted: #f9f7f4;
-  --color-ink: #19161c;
-  --color-ink-muted: #77717b;
-  --color-border: #e5e0e7;
-  --color-border-strong: #cfc7d2;
+  --color-surface-muted: #f5f5f4;
+  --color-surface-selected: #e8f5fe;
+  --color-ink: #0c0a09;
+  --color-ink-muted: #78716c;
+  --color-border: #e8e6e5;
+  --color-border-strong: #d6d3d1;
 
-  --color-brand: #5a2f73;
-  --color-brand-hover: #49245f;
-  --color-brand-soft: #efe7f4;
+  --color-brand: #3ba6f1;
+  --color-brand-hover: #3398e1;
+  --color-brand-soft: #e8f5fe;
+  --color-primary: #3ba6f1;
+  --color-primary-foreground: #ffffff;
+  --color-primary-soft: #e8f5fe;
+  --color-secondary: #f5f5f4;
+  --color-secondary-foreground: #0c0a09;
+  --color-muted: #f5f5f4;
+  --color-muted-foreground: #78716c;
+  --color-accent: #e8f5fe;
+  --color-accent-foreground: #0c0a09;
+  --color-input: #d6d3d1;
+  --color-ring: #3ba6f1;
 
-  --color-leaf: #3f7547;
-  --color-leaf-hover: #315f38;
-  --color-leaf-soft: #e8f1e7;
-
-  --color-warning: #a85d00;
-  --color-warning-soft: #fff2d8;
+  --color-success: #26763d;
+  --color-success-foreground: #ffffff;
+  --color-success-soft: #e6f4ea;
+  --color-leaf: #26763d;
+  --color-leaf-hover: #1f6132;
+  --color-leaf-soft: #e6f4ea;
+  --color-warning: #9a5a00;
+  --color-warning-foreground: #ffffff;
+  --color-warning-soft: #fff1d6;
   --color-danger: #b42318;
+  --color-danger-strong: #8d1d14;
+  --color-danger-foreground: #ffffff;
   --color-danger-soft: #fdecea;
-  --color-info: #2457a6;
-  --color-info-soft: #eaf1fb;
-  --color-offline: #5a2f73;
-  --color-offline-soft: #efe7f4;
+  --color-info: #2563eb;
+  --color-info-foreground: #ffffff;
+  --color-info-soft: #eaf1ff;
+  --color-offline: #9a5a00;
+  --color-offline-soft: #fff1d6;
 
-  --color-danger-strong: #8f2f2b;
-  --color-warning-strong: #744600;
-  --color-info-strong: #2c4e81;
-  --color-leaf-strong: #315f38;
+  --font-sans: var(--font-be-vietnam-pro), ui-sans-serif, system-ui, sans-serif;
 
-  --font-sans: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-editorial: Newsreader, Georgia, serif;
-
-  /* The type scale, name for name. */
   --text-caption: 12px;
-  --text-caption--line-height: 1.35;
   --text-body-sm: 14px;
-  --text-body-sm--line-height: 1.45;
   --text-body: 16px;
-  --text-body--line-height: 1.5;
-  --text-label: 14px;
-  --text-label--line-height: 1.3;
-  --text-subheading: 18px;
-  --text-subheading--line-height: 1.35;
-  --text-heading: 24px;
-  --text-heading--line-height: 1.2;
-  --text-display: 32px;
-  --text-display--line-height: 1.1;
+  --text-label: 13px;
+  --text-subheading: 20px;
+  --text-heading: 28px;
+  --text-display: 30px;
 
-  --radius-input: 8px;
-  --radius-button: 10px;
-  --radius-card: 12px;
-  --radius-panel: 16px;
+  --radius-input: 10px;
+  --radius-button: 9999px;
+  --radius-card: 16px;
+  --radius-panel: 20px;
   --radius-pill: 9999px;
-
-  --shadow-sm: 0 1px 2px rgba(35, 23, 42, 0.06);
-  --shadow-md: 0 8px 24px rgba(35, 23, 42, 0.1);
 }
 
-/*
- * A minimum target of 48px, set once rather than remembered per component.
- *
- * The users are roughly 40–60 and often working one-handed on a phone at a
- * loading bay. `min-height` rather than `height` so a control that needs to be
- * taller may be, and none may be shorter.
- */
 @utility touch-target {
   min-height: 48px;
   min-width: 48px;
 }
 
-/* Money and quantity align in a column only if the digits are the same width. */
 @utility tabular {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 @layer base {
@@ -100,22 +86,62 @@
   h1,
   h2,
   h3 {
-    font-family: var(--font-editorial);
-    font-weight: 500;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 
-  /*
-   * Visible focus everywhere, including for mouse users. The alternative —
-   * `:focus-visible` only — hides the ring from anybody navigating a form with
-   * Tab on a desktop, which in this product is the accountant.
-   */
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline: 2px solid var(--color-leaf);
+    outline: 2px solid var(--color-ring);
     outline-offset: 2px;
   }
 }
 
 @layer components {
+  /*
+   * Operational directories share one table contract. Keeping every cell
+   * single-line makes column edges stable with Vietnamese names and lets the
+   * surrounding overflow container provide the escape hatch on narrower
+   * desktop widths. Detail text belongs in the linked record, not in a row
+   * that silently changes height and pushes adjacent columns out of alignment.
+   */
+  .data-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .data-table th,
+  .data-table td {
+    vertical-align: middle;
+  }
+
+  .data-table th {
+    white-space: nowrap;
+  }
+
+  .data-table tbody td {
+    height: 48px;
+    white-space: nowrap;
+  }
+
+  .data-table .data-table-primary {
+    max-width: 24rem;
+  }
+
+  .data-table .data-table-truncate {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .data-table .data-table-actions {
+    white-space: nowrap;
+  }
+
   .document-table {
     border-collapse: collapse;
   }
@@ -123,14 +149,18 @@
   .document-table th,
   .document-table td {
     border-bottom: 1px solid var(--color-border);
-    padding: 0.55rem 0.5rem;
-    vertical-align: top;
+    padding: 0.75rem 0.5rem;
+    vertical-align: middle;
   }
 
   .document-table th {
-    background: var(--color-surface-muted);
-    font-weight: 700;
+    color: var(--color-ink-muted);
+    font-weight: 600;
     text-align: left;
+  }
+
+  .document-table tbody tr:hover {
+    background-color: var(--color-surface-muted);
   }
 }
 

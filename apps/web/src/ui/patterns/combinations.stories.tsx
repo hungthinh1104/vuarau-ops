@@ -219,7 +219,7 @@ export const UnknownThenDuplicateSafeSuccess: Story = {
           attemptedAction="Ghi nhận thanh toán 500.000 ₫"
           wasDuplicateSafeRetry
         />
-        <p className="text-caption font-mono text-ink-muted">
+        <p className="text-caption tabular text-ink-muted">
           idempotencyKey: {pending.identity.idempotencyKey} · lần gửi {pending.attempts}
         </p>
       </div>

@@ -1,150 +1,113 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
   GoodsArrivalLineInput,
-  QualityDispositionAllocationId,
-  QualityDispositionDto,
-  QualityDispositionId,
   QualityDispositionSource,
-  RecordQualityDispositionCommand,
+  QualityGradeDto,
 } from "@vuarau/domain-contracts";
-import { useEffect, useRef, useState } from "react";
-import { useTRPC } from "@/api/providers.tsx";
-import { useSession } from "@/api/session-gate.tsx";
-import { useCommand } from "@/api/use-command.ts";
-import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import type { ReactNode } from "react";
 import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
+import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 
-const toScaled = (value: string) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return null;
-  const result = Math.round(parsed * 1000);
-  return Number.isSafeInteger(result) ? result : null;
+export type DispositionValues = {
+  readonly accepted: string;
+  readonly quarantined: string;
+  readonly rejected: string;
+  readonly disposed: string;
+};
+
+export type DispositionValueKey = keyof DispositionValues;
+
+export type DispositionFormProps = {
+  readonly source: QualityDispositionSource;
+  readonly unit: GoodsArrivalLineInput["arrivedQuantity"]["unit"];
+  readonly eligibleValueScaled: number;
+  readonly gradeRequired: boolean;
+  readonly allowQuarantine: boolean;
+  readonly title: string;
+  readonly grades: readonly QualityGradeDto[];
+  readonly values: DispositionValues;
+  readonly gradeId: string;
+  readonly note: string;
+  readonly total: number;
+  readonly gradeMissing: boolean;
+  readonly locked: boolean;
+  readonly feedback?: ReactNode;
+  readonly onValueChange: (key: DispositionValueKey, value: string) => void;
+  readonly onGradeChange: (value: string) => void;
+  readonly onNoteChange: (value: string) => void;
+  readonly onSubmit: () => void;
 };
 
 export function DispositionForm({
-  source,
+  title,
   unit,
   eligibleValueScaled,
   gradeRequired,
   allowQuarantine,
-  title,
-  onChanged,
-}: {
-  source: QualityDispositionSource;
-  unit: GoodsArrivalLineInput["arrivedQuantity"]["unit"];
-  eligibleValueScaled: number;
-  gradeRequired: boolean;
-  allowQuarantine: boolean;
-  title: string;
-  onChanged: () => void;
-}) {
-  const { workspaceId } = useSession();
-  const trpc = useTRPC();
-  const grades = useQuery(
-    trpc.quality.list.queryOptions({
-      workspaceId,
-      query: "",
-      isActive: true,
-      cursor: null,
-      limit: 100,
-    }),
-  );
-  const mutation = useMutation(trpc.intake.recordDisposition.mutationOptions());
-  const command = useCommand<RecordQualityDispositionCommand["payload"], QualityDispositionDto>(
-    (envelope) => mutation.mutateAsync(envelope as never),
-  );
-  const dispositionId = useRef(crypto.randomUUID() as QualityDispositionId);
-  const allocationIds = useRef(new Map<string, QualityDispositionAllocationId>());
-  const [accepted, setAccepted] = useState("");
-  const [quarantined, setQuarantined] = useState("");
-  const [rejected, setRejected] = useState("");
-  const [disposed, setDisposed] = useState("");
-  const [gradeId, setGradeId] = useState("");
-  const [note, setNote] = useState("");
-
-  useEffect(() => {
-    if (command.result === null) return;
-    onChanged();
-    setAccepted("");
-    setQuarantined("");
-    setRejected("");
-    setDisposed("");
-    setGradeId("");
-    setNote("");
-    dispositionId.current = crypto.randomUUID() as QualityDispositionId;
-    allocationIds.current.clear();
-    command.reset();
-  }, [command.reset, command.result, onChanged]);
-
-  const values = { accepted, quarantined, rejected, disposed } as const;
-  const selectedGrade = grades.data?.items.find((grade) => grade.id === gradeId) ?? null;
-  const allocations = Object.entries(values).flatMap(([outcome, raw]) => {
-    const valueScaled = toScaled(raw);
-    if (valueScaled === null || valueScaled <= 0) return [];
-    let allocationId = allocationIds.current.get(outcome);
-    if (allocationId === undefined) {
-      allocationId = crypto.randomUUID() as QualityDispositionAllocationId;
-      allocationIds.current.set(outcome, allocationId);
-    }
-    const acceptedOutcome = outcome === "accepted";
-    return [
-      {
-        allocationId,
-        outcome: outcome as "accepted" | "quarantined" | "rejected" | "disposed",
-        quantity: { valueScaled, unit },
-        qualityGradeId: acceptedOutcome ? (selectedGrade?.id ?? null) : null,
-        qualityGradeName: acceptedOutcome ? (selectedGrade?.name ?? null) : null,
-        note: null,
-      },
-    ];
-  });
-  const total = allocations.reduce((sum, allocation) => sum + allocation.quantity.valueScaled, 0);
-  const acceptedValue = toScaled(accepted) ?? 0;
-  const gradeMissing = gradeRequired && acceptedValue > 0 && selectedGrade === null;
-  const locked = command.phase.kind === "sending" || command.phase.kind === "unknown";
+  grades,
+  values,
+  gradeId,
+  note,
+  total,
+  gradeMissing,
+  locked,
+  feedback,
+  onValueChange,
+  onGradeChange,
+  onNoteChange,
+  onSubmit,
+}: DispositionFormProps) {
+  const acceptedValue = Number(values.accepted) * 1000;
+  const canSubmit = !locked && total > 0 && total <= eligibleValueScaled && !gradeMissing;
 
   return (
-    <details open className="rounded-button border border-leaf/40 p-3">
+    <details open className="rounded-card border border-leaf/40 p-3">
       <summary className="cursor-pointer text-label font-semibold">{title}</summary>
       <p className="mt-2 text-caption text-ink-muted">
         Có thể phân bổ tối đa {eligibleValueScaled / 1000} {unit}. Chỉ lượng chấp nhận mới tạo tồn
         kho.
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <NumberInput label={`Chấp nhận (${unit})`} value={accepted} onChange={setAccepted} />
+        <NumberInput
+          label={`Chấp nhận (${unit})`}
+          value={values.accepted}
+          onChange={(value) => onValueChange("accepted", value)}
+        />
         {allowQuarantine ? (
-          <NumberInput label={`Cách ly (${unit})`} value={quarantined} onChange={setQuarantined} />
+          <NumberInput
+            label={`Cách ly (${unit})`}
+            value={values.quarantined}
+            onChange={(value) => onValueChange("quarantined", value)}
+          />
         ) : null}
-        <NumberInput label={`Từ chối (${unit})`} value={rejected} onChange={setRejected} />
-        <NumberInput label={`Hủy bỏ (${unit})`} value={disposed} onChange={setDisposed} />
+        <NumberInput
+          label={`Từ chối (${unit})`}
+          value={values.rejected}
+          onChange={(value) => onValueChange("rejected", value)}
+        />
+        <NumberInput
+          label={`Hủy bỏ (${unit})`}
+          value={values.disposed}
+          onChange={(value) => onValueChange("disposed", value)}
+        />
       </div>
       {acceptedValue > 0 ? (
-        <label className="mt-3 grid gap-2 text-label">
-          Phẩm cấp cho lượng chấp nhận {gradeRequired ? "(bắt buộc)" : "(không bắt buộc)"}
-          <select
-            className={INPUT_CLASS}
-            value={gradeId}
-            onChange={(event) => setGradeId(event.target.value)}
-          >
-            <option value="">Không gán phẩm cấp</option>
-            {(grades.data?.items ?? []).map((grade) => (
-              <option key={grade.id} value={grade.id}>
-                {grade.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label={`Phẩm cấp cho lượng chấp nhận ${gradeRequired ? "(bắt buộc)" : "(không bắt buộc)"}`}
+          value={gradeId}
+          onChange={(event) => onGradeChange(event.target.value)}
+          options={[
+            { value: "", label: "Không gán phẩm cấp" },
+            ...grades.map((grade) => ({ value: grade.id, label: grade.name })),
+          ]}
+        />
       ) : null}
       <label className="mt-3 grid gap-2 text-label">
         Ghi chú quyết định
-        <textarea
-          className={INPUT_CLASS}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-        />
+        <TextareaControl value={note} onChange={(event) => onNoteChange(event.target.value)} />
       </label>
       {total > eligibleValueScaled ? (
         <p role="alert" className="mt-2 text-caption text-danger">
@@ -155,25 +118,10 @@ export function DispositionForm({
           Vựa đang bắt buộc phẩm cấp cho lượng nhập kho.
         </p>
       ) : null}
-      <Button
-        className="mt-3"
-        disabled={locked || allocations.length === 0 || total > eligibleValueScaled || gradeMissing}
-        onClick={() =>
-          void command.submit({
-            dispositionId: dispositionId.current,
-            source,
-            allocations,
-            note: note.trim() || null,
-          })
-        }
-      >
+      <Button className="mt-3" disabled={!canSubmit} onClick={onSubmit}>
         {locked ? "Đang ghi quyết định" : "Xác nhận quyết định"}
       </Button>
-      <CommandOutcome
-        command={command}
-        attemptedAction="Ghi quyết định chất lượng"
-        onReload={onChanged}
-      />
+      {feedback}
     </details>
   );
 }
@@ -183,19 +131,14 @@ function NumberInput({
   value,
   onChange,
 }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
+  readonly label: string;
+  readonly value: string;
+  readonly onChange: (value: string) => void;
 }) {
   return (
     <label className="grid gap-2 text-label">
       {label}
-      <input
-        className={INPUT_CLASS}
-        inputMode="decimal"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
+      <Input inputMode="decimal" value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }

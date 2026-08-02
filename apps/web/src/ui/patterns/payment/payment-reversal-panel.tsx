@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { parseMoneyText } from "@/ui/primitives/numeric-text.ts";
+import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";

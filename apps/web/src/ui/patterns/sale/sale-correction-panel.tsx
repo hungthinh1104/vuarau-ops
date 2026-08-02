@@ -3,6 +3,8 @@
 import type { SaleVoidReasonCode } from "@vuarau/domain-contracts";
 import { useState } from "react";
 import { Button } from "@/ui/primitives/button.tsx";
+import { Checkbox } from "@/ui/primitives/checkbox.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
@@ -110,13 +112,12 @@ export function SaleCorrectionPanel({
             <label className="text-label font-semibold" htmlFor="replacement-customer-search">
               Khách hàng đúng
             </label>
-            <input
+            <Input
               id="replacement-customer-search"
               value={customerSearchQuery}
               onChange={(event) => onCustomerSearchChange(event.target.value)}
               placeholder="Tìm tên hoặc số điện thoại"
               disabled={disabled}
-              className="min-h-11 rounded-button border border-border bg-surface px-3 text-body"
             />
             {customerMatches.length > 0 ? (
               <ul className="flex flex-col gap-1" aria-label="Kết quả tìm kiếm khách hàng">
@@ -124,15 +125,16 @@ export function SaleCorrectionPanel({
                   .filter((customer) => customer.id !== originalCustomerId)
                   .map((customer) => (
                     <li key={customer.id}>
-                      <button
+                      <Button
+                        tone="secondary"
                         type="button"
                         onClick={() => setReplacementCustomerId(customer.id)}
                         disabled={disabled}
-                        className="w-full rounded-button px-2 py-2 text-left text-body hover:bg-surface"
+                        className="min-h-10 w-full justify-start px-2 py-2 text-left font-normal"
                         aria-pressed={replacementCustomerId === customer.id}
                       >
                         {customer.displayName}
-                      </button>
+                      </Button>
                     </li>
                   ))}
               </ul>
@@ -152,12 +154,11 @@ export function SaleCorrectionPanel({
           disabled={disabled}
         />
         <label className="flex items-start gap-2 text-body-sm text-ink">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={replacement}
             onChange={(event) => setReplacement(event.target.checked)}
             disabled={disabled}
-            className="mt-1 size-4 accent-leaf"
+            className="mt-1"
           />
           <span>
             <strong>Tạo đơn thay thế sau khi void</strong>

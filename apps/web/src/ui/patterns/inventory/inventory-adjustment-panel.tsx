@@ -5,8 +5,9 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
+import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 
 type InventoryAdjustmentReasonCode =
   "opening_balance" | "count_correction" | "spoilage" | "shrinkage" | "other";
@@ -62,8 +63,13 @@ export function InventoryAdjustmentPanel({
   }
 
   return (
-    <section className="rounded-card border border-border bg-surface p-4">
-      <h2 className="text-subheading font-semibold">Điều chỉnh tồn kho</h2>
+    <section
+      aria-labelledby="inventory-adjustment-title"
+      className="rounded-card border border-border bg-surface p-4"
+    >
+      <h2 id="inventory-adjustment-title" className="text-subheading font-semibold">
+        Điều chỉnh tồn kho
+      </h2>
       <p className="mt-1 text-body-sm text-ink-muted">
         Chỉ dùng cho số dư đầu kỳ, kiểm đếm, hư hỏng, hao hụt hoặc fact vật lý không có chứng từ
         nguồn tốt hơn. Điều chỉnh này chỉ đổi tồn kho; không dùng để giả lập trả nhà cung cấp, hoàn
@@ -82,8 +88,7 @@ export function InventoryAdjustmentPanel({
         />
         <label className="text-label">
           Số lượng
-          <input
-            className={INPUT_CLASS}
+          <Input
             inputMode="decimal"
             disabled={completed || locked}
             value={quantity}
@@ -121,8 +126,7 @@ export function InventoryAdjustmentPanel({
       />
       <label className="text-label">
         Giải thích
-        <textarea
-          className={INPUT_CLASS}
+        <TextareaControl
           disabled={completed || locked}
           value={reason}
           onChange={(event) => setReason(event.target.value)}

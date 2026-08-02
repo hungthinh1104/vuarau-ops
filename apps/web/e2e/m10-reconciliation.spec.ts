@@ -21,7 +21,9 @@ test.describe("TC-E2E-023 — M10 financial reconciliation", () => {
 
     await page.getByRole("button", { name: "Xuất bằng chứng JSON" }).click();
     await expect(page.getByText("Bằng chứng đối soát", { exact: true })).toBeVisible();
-    await expect(page.locator("pre")).toContainText("projection_balance_mismatch");
+    await expect(page.getByRole("region", { name: "Bằng chứng JSON" })).toContainText(
+      "projection_balance_mismatch",
+    );
 
     await page.getByRole("button", { name: "Dựng lại số dư" }).click();
     await expect(page.getByRole("status").getByText("Đã ghi nhận")).toBeVisible();

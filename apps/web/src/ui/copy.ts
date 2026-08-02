@@ -194,7 +194,8 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   QUALITY_ISSUE_CODE_ALREADY_INACTIVE: "Mã lỗi chất lượng đã ngừng sử dụng.",
   GOODS_ARRIVAL_NOT_FOUND: "Không tìm thấy lần hàng đến này.",
   GOODS_ARRIVAL_ALREADY_REVERSED: "Lần hàng đến đã được hoàn tác.",
-  GOODS_ARRIVAL_HAS_DOWNSTREAM_FACTS: "Lần hàng đến đã có kiểm định hoặc quyết định xử lý nên không thể hoàn tác trực tiếp.",
+  GOODS_ARRIVAL_HAS_DOWNSTREAM_FACTS:
+    "Lần hàng đến đã có kiểm định hoặc quyết định xử lý nên không thể hoàn tác trực tiếp.",
   GOODS_ARRIVAL_LINE_INVALID: "Có dòng hàng đến không hợp lệ.",
   GOODS_ARRIVAL_PURCHASE_MISMATCH: "Hàng đến không khớp nhà cung cấp hoặc dòng mua đã chọn.",
   WEIGHING_REQUIRED: "Vựa này yêu cầu ghi cân tổng, bì và khối lượng tịnh.",
@@ -204,14 +205,17 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   QUALITY_INSPECTION_ALREADY_REVERSED: "Lần kiểm định đã được hoàn tác.",
   QUALITY_INSPECTION_QUANTITY_EXCEEDS_ARRIVAL: "Số lượng kiểm định vượt số hàng đến.",
   QUALITY_INSPECTION_INVALID: "Nội dung kiểm định chất lượng không hợp lệ.",
-  QUALITY_INSPECTION_HAS_DOWNSTREAM_FACTS: "Kiểm định đã được dùng để xử lý hàng nên không thể hoàn tác trực tiếp.",
+  QUALITY_INSPECTION_HAS_DOWNSTREAM_FACTS:
+    "Kiểm định đã được dùng để xử lý hàng nên không thể hoàn tác trực tiếp.",
   QUALITY_DISPOSITION_SOURCE_NOT_FOUND: "Không tìm thấy nguồn hàng cần xử lý chất lượng.",
   QUALITY_DISPOSITION_SOURCE_REVERSED: "Nguồn hàng đã bị hoàn tác nên không thể xử lý tiếp.",
-  QUALITY_DISPOSITION_QUANTITY_EXCEEDS_REMAINING: "Số lượng xử lý vượt phần còn lại của nguồn hàng.",
+  QUALITY_DISPOSITION_QUANTITY_EXCEEDS_REMAINING:
+    "Số lượng xử lý vượt phần còn lại của nguồn hàng.",
   QUALITY_DISPOSITION_INVALID: "Quyết định xử lý chất lượng không hợp lệ.",
   QUALITY_DISPOSITION_NOT_FOUND: "Không tìm thấy quyết định xử lý chất lượng.",
   QUALITY_DISPOSITION_ALREADY_REVERSED: "Quyết định xử lý chất lượng đã được hoàn tác.",
-  QUALITY_DISPOSITION_HAS_DOWNSTREAM_FACTS: "Lô cách ly đã được xử lý tiếp nên không thể hoàn tác quyết định trước.",
+  QUALITY_DISPOSITION_HAS_DOWNSTREAM_FACTS:
+    "Lô cách ly đã được xử lý tiếp nên không thể hoàn tác quyết định trước.",
   COMMAND_NOT_AVAILABLE: "Chức năng này chưa có.",
 };
 

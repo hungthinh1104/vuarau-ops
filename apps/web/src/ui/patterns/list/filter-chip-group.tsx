@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/ui/primitives/button.tsx";
+
 export type FilterChipOption<T extends string> = {
   readonly value: T;
   readonly label: string;
@@ -17,23 +19,22 @@ export function FilterChipGroup<T extends string>(props: {
       {props.options.map((option) => {
         const active = option.value === props.value;
         return (
-          <button
+          <Button
             key={option.value}
-            type="button"
+            tone={active ? "primary" : "secondary"}
             aria-pressed={active}
             onClick={() => props.onChange(option.value)}
             className={[
               "touch-target inline-flex min-h-10 items-center gap-1.5 rounded-pill border px-3 text-body-sm font-medium transition-colors",
-              active
-                ? "border-leaf/30 bg-leaf-soft text-leaf"
-                : "border-border bg-surface text-ink-muted hover:border-border-strong hover:text-ink",
+              "min-h-10 rounded-pill px-3",
+              active ? "border-brand" : "text-ink-muted",
             ].join(" ")}
           >
             <span>{option.label}</span>
             {option.count === undefined ? null : (
               <span className="tabular text-caption opacity-75">{option.count}</span>
             )}
-          </button>
+          </Button>
         );
       })}
     </div>

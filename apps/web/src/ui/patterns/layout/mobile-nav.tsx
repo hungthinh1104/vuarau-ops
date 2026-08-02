@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Permission, WorkspaceRole } from "@vuarau/domain-contracts";
-import { todayActionsFor } from "@/ui/patterns/today-actions.ts";
+import { todayActionsFor } from "@/ui/domain/today-actions.ts";
 import { activeNavigationHref, hasPermissionFor } from "./pilot-navigation.ts";
 
 const ITEMS = [
@@ -78,7 +78,7 @@ export function MobileNavView({
   return (
     <nav
       aria-label="Điều hướng di động"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface lg:hidden"
     >
       <ul className="mx-auto flex max-w-xl">
         {visibleItems.map((item) => {

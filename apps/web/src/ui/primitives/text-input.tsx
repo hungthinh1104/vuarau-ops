@@ -1,7 +1,8 @@
 "use client";
 
 import type { InputHTMLAttributes } from "react";
-import { Field, INPUT_CLASS } from "./field.tsx";
+import { Field } from "./field.tsx";
+import { Input } from "./input.tsx";
 
 export type TextInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & {
   readonly label: string;
@@ -26,13 +27,13 @@ export function TextInput({ label, hint, error, required, className, ...rest }: 
       required={required === true}
     >
       {({ inputId, describedBy, invalid }) => (
-        <input
+        <Input
           {...rest}
           id={inputId}
           type={rest.type ?? "text"}
           aria-invalid={invalid}
           {...(describedBy !== undefined ? { "aria-describedby": describedBy } : {})}
-          className={[INPUT_CLASS, className].filter(Boolean).join(" ")}
+          className={className}
         />
       )}
     </Field>

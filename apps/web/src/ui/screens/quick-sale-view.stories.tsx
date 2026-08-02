@@ -101,6 +101,7 @@ type Story = StoryObj<typeof meta>;
 
 export const ReadyToPost: Story = {};
 export const MobileOneHand: Story = { globals: { viewport: { value: "mobile" } } };
+export const TabletCounter: Story = { globals: { viewport: { value: "tablet" } } };
 export const UnresolvedProduct: Story = {
   args: {
     linesSection: lineSection([unresolvedLine]),

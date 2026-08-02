@@ -9,12 +9,20 @@ import type {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
+import { messageForCode } from "@/ui/copy.ts";
 import { formatInstant, formatMoney, formatQuantity, formatRecordedGap } from "@/ui/format.ts";
+import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import {
+  SaleCorrectionPanel,
+  type SaleCorrectionSubmission,
+} from "@/ui/patterns/sale/sale-correction-panel.tsx";
 import { CorrectionTimeline } from "@/ui/patterns/sale/correction-timeline.tsx";
 import { SaleStatus } from "@/ui/patterns/sale/sale-status.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
 
 export type SaleDetailViewProps = {
   readonly detail: SaleDetailDto;
@@ -28,6 +36,111 @@ export type SaleDetailViewProps = {
   readonly feedback?: ReactNode;
   readonly onGenerateDocument: () => void;
 };
+
+export function SaleCorrectionSectionView(props: {
+  readonly sale: SaleDto;
+  readonly canVoid: boolean;
+  readonly voidAllowed: boolean;
+  readonly voidReasonCode: SaleDto["capabilities"]["void"]["reasonCode"];
+  readonly goodsReturnStatus: "blocked" | "safe" | "unknown";
+  readonly customerSearchQuery: string;
+  readonly customerMatches: readonly { readonly id: string; readonly displayName: string }[];
+  readonly command: CommandOutcomeView;
+  readonly disabled: boolean;
+  readonly onSubmit: (correction: SaleCorrectionSubmission) => void;
+  readonly onCustomerSearchChange: (value: string) => void;
+  readonly onReload: () => void;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      {props.canVoid && props.voidAllowed ? (
+        <SaleCorrectionPanel
+          onSubmit={props.onSubmit}
+          goodsReturnStatus={props.goodsReturnStatus}
+          originalCustomerId={props.sale.customerId}
+          customerSearchQuery={props.customerSearchQuery}
+          customerMatches={props.customerMatches}
+          onCustomerSearchChange={props.onCustomerSearchChange}
+          disabled={props.disabled}
+        />
+      ) : (
+        <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
+          {props.canVoid
+            ? props.voidReasonCode === undefined
+              ? "Đơn này không thể điều chỉnh."
+              : messageForCode(props.voidReasonCode)
+            : "Bạn không có quyền điều chỉnh đơn đã chốt."}
+        </p>
+      )}
+      <CommandOutcome
+        command={props.command}
+        attemptedAction="Hoàn tác đơn đã chốt"
+        onReload={props.onReload}
+      />
+    </section>
+  );
+}
+
+export function SaleReplacementRecoveryView(props: {
+  readonly sale: SaleDto;
+  readonly query: string;
+  readonly customerMatches: readonly { readonly id: string; readonly displayName: string }[];
+  readonly selectedCustomerId: string | null;
+  readonly onQueryChange: (value: string) => void;
+  readonly onSelectCustomer: (customerId: string) => void;
+  readonly onContinue: (customerId: string) => void;
+}) {
+  const voidRecord = props.sale.voidRecord;
+  if (voidRecord === null) return null;
+  const wrongCustomer = voidRecord.reasonCode === "wrong_customer";
+  const customerId = wrongCustomer ? props.selectedCustomerId : props.sale.customerId;
+  return (
+    <section className="rounded-card border border-warning/30 bg-warning-soft p-4">
+      <h2 className="text-subheading font-semibold">Tiếp tục đơn thay thế</h2>
+      <p className="mt-1 text-body-sm text-ink-muted">
+        Đơn gốc đã được hoàn tác. Có thể tiếp tục tạo đơn thay thế sau khi tải lại hoặc khi phản hồi
+        trước đó bị gián đoạn.
+      </p>
+      {wrongCustomer ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <label className="text-label font-semibold" htmlFor="recovery-customer-search">
+            Khách hàng đúng
+          </label>
+          <Input
+            id="recovery-customer-search"
+            value={props.query}
+            onChange={(event) => props.onQueryChange(event.target.value)}
+            placeholder="Tìm tên hoặc số điện thoại"
+          />
+          <div className="flex flex-wrap gap-2">
+            {props.customerMatches
+              .filter((customer) => customer.id !== props.sale.customerId)
+              .map((customer) => (
+                <Button
+                  key={customer.id}
+                  tone="secondary"
+                  onClick={() => props.onSelectCustomer(customer.id)}
+                >
+                  {customer.displayName}
+                </Button>
+              ))}
+          </div>
+        </div>
+      ) : null}
+      <Button
+        className="mt-3"
+        onClick={() => {
+          if (customerId !== null) props.onContinue(customerId);
+        }}
+        {...(customerId === null
+          ? { disabledReason: "Chọn khách hàng đúng trước khi tiếp tục." }
+          : {})}
+      >
+        Tạo đơn thay thế
+      </Button>
+    </section>
+  );
+}
 
 export function SaleDetailView({
   detail,
@@ -157,8 +270,13 @@ function SaleMoneyTruth({ detail }: { readonly detail: SaleDetailDto }) {
       </dl>
 
       {detail.accountEffect === null ? null : (
-        <section className="rounded-card border border-border bg-surface p-4">
-          <h2 className="text-subheading font-semibold">Ảnh hưởng công nợ</h2>
+        <section
+          aria-labelledby="sale-account-effect-title"
+          className="rounded-card border border-border bg-surface p-4"
+        >
+          <h2 id="sale-account-effect-title" className="text-subheading font-semibold">
+            Ảnh hưởng công nợ
+          </h2>
           <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-2 text-body-sm">
             <dt>Công nợ trước</dt>
             <dd className="tabular">{formatMoney(detail.accountEffect.balanceBefore)}</dd>

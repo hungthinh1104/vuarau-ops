@@ -7,7 +7,8 @@ import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { formatInstant, formatMoney } from "@/ui/format.ts";
 import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
-import { LinkButton, PageActions, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageActions, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 
@@ -129,8 +130,8 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
       </ul>
 
       <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
-        <table className="w-full border-collapse text-left text-body-sm">
-          <thead className="sticky top-16 z-10 bg-surface-muted text-label">
+        <table className="data-table min-w-[1060px] text-left text-body-sm">
+          <thead className="sticky top-0 z-10 bg-surface-muted text-label">
             <tr>
               <th className="px-3 py-2">Thời điểm</th>
               <th className="px-3 py-2">Khách hàng</th>

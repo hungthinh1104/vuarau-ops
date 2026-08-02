@@ -37,7 +37,7 @@ export function BusinessRejection({ error, action }: BusinessRejectionProps) {
 
       {action !== undefined ? <div className="mt-1 flex justify-end">{action}</div> : null}
 
-      <p className="text-caption font-mono text-ink-muted">{error.code}</p>
+      <p className="text-caption text-ink-muted">Mã hỗ trợ: {error.code}</p>
     </div>
   );
 }

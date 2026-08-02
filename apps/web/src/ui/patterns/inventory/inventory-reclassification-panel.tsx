@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
+import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 
 export type InventoryReclassificationIntent = {
@@ -60,8 +61,13 @@ export function InventoryReclassificationPanel({
   }
 
   return (
-    <section className="rounded-card border border-border bg-surface p-4">
-      <h2 className="text-subheading font-semibold">Chuyển phẩm cấp</h2>
+    <section
+      aria-labelledby="inventory-reclassification-title"
+      className="rounded-card border border-border bg-surface p-4"
+    >
+      <h2 id="inventory-reclassification-title" className="text-subheading font-semibold">
+        Chuyển phẩm cấp
+      </h2>
       <p className="text-body-sm text-ink-muted">
         Ghi hai biến động bù trừ trong cùng giao dịch; tổng số lượng không đổi.
       </p>
@@ -84,8 +90,7 @@ export function InventoryReclassificationPanel({
         />
         <label className="text-label">
           Số lượng
-          <input
-            className={INPUT_CLASS}
+          <Input
             inputMode="decimal"
             disabled={completed || locked}
             value={quantity}
@@ -102,8 +107,7 @@ export function InventoryReclassificationPanel({
       </div>
       <label className="text-label">
         Lý do
-        <textarea
-          className={INPUT_CLASS}
+        <TextareaControl
           disabled={completed || locked}
           value={reason}
           onChange={(event) => setReason(event.target.value)}

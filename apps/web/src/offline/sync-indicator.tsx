@@ -1,6 +1,7 @@
 "use client";
 
 import { useOffline } from "./provider.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
 
 export function SyncIndicator() {
   const offline = useOffline();
@@ -26,7 +27,7 @@ export function SyncIndicatorView(props: {
   return (
     <aside
       aria-label="Đồng bộ"
-      className="fixed right-3 bottom-20 z-30 rounded-card border border-border bg-surface px-3 py-2 text-caption shadow-md"
+      className="fixed right-3 bottom-20 z-30 rounded-card border border-border bg-surface px-3 py-2 text-caption"
     >
       <p>
         Chờ đồng bộ: <strong>{props.queuedCount}</strong> · Cần xử lý:{" "}
@@ -37,9 +38,9 @@ export function SyncIndicatorView(props: {
           Lần cuối: {new Date(props.lastSuccessfulSync).toLocaleTimeString("vi-VN")}
         </p>
       ) : null}
-      <button type="button" className="text-info underline" onClick={() => void props.onRetry()}>
+      <Button tone="link" onClick={() => void props.onRetry()}>
         Thử đồng bộ
-      </button>
+      </Button>
     </aside>
   );
 }

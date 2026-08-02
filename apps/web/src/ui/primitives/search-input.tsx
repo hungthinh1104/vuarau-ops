@@ -37,7 +37,7 @@ export function SearchInput({ label, onClear, value, className, ...rest }: Searc
           value={value}
           className={[
             "touch-target w-full rounded-input border border-border bg-surface px-3",
-            "text-body text-ink focus:border-leaf",
+            "text-body text-ink focus:border-brand",
             className,
           ]
             .filter(Boolean)

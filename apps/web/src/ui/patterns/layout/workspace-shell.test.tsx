@@ -82,6 +82,11 @@ describe("Goods Truth workspace navigation", () => {
     );
     expect(screen.getAllByRole("link", { name: "Hôm nay" })).toHaveLength(2);
     expect(screen.getByRole("navigation", { name: "Điều hướng di động" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Bỏ qua đến nội dung chính" })).toHaveAttribute(
+      "href",
+      "#main-content",
+    );
+    expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
     for (const label of ["Hôm nay", "Đơn hàng", "Khách hàng", "Ghi đơn", "Thêm"]) {
       expect(
         screen

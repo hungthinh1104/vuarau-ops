@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { permissionsForRole } from "@vuarau/domain-contracts";
 import { activeNavigationHref, navigationFor } from "./pilot-navigation.ts";
-import { todayActionsFor } from "@/ui/patterns/today-actions.ts";
+import { todayActionsFor } from "@/ui/domain/today-actions.ts";
 
 describe("TC-WEB-029 — role-aware pilot navigation", () => {
   it("shows only destinations backed by server-authored permissions", () => {

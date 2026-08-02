@@ -1,7 +1,7 @@
 "use client";
 
-import type { CommandOutcomeView } from "@/api/use-command.ts";
-import { rejectionStateOf } from "@/api/domain-error.ts";
+import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
+import { rejectionStateOf } from "@/ui/domain/domain-error.ts";
 import { BusinessRejection } from "./business-rejection.tsx";
 import { CommandProgressNotice } from "./command-progress-notice.tsx";
 import { PermissionDenied } from "./permission-denied.tsx";

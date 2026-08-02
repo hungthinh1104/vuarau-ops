@@ -4,7 +4,7 @@ import type { PurchaseDto, QualityGradeDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { formatQuantity } from "@/ui/format.ts";
 import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
 
 export type ReceivingCaptureIntentLine = {
   readonly purchaseLineId: PurchaseDto["lines"][number]["lineId"];
@@ -81,8 +81,7 @@ export function ReceivingCapturePanel({
                   className="grid gap-1 text-label sm:grid-cols-[1fr_10rem] sm:items-center"
                 >
                   <span>{grade.name}</span>
-                  <input
-                    className={INPUT_CLASS}
+                  <Input
                     inputMode="decimal"
                     disabled={locked}
                     aria-label={`${line.productName} · ${grade.name}`}

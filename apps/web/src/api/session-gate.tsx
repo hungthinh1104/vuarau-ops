@@ -14,7 +14,7 @@ import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Skeleton } from "@/ui/primitives/skeleton.tsx";
 import { BusinessRejection } from "@/ui/patterns/feedback/business-rejection.tsx";
 import { SignInUnconfigured } from "@/ui/patterns/auth/sign-in.tsx";
-import { ConnectedWorkspaceShell } from "@/ui/patterns/layout/workspace-shell.tsx";
+import { ConnectedWorkspaceShell } from "@/ui/controllers/workspace-shell-controller.tsx";
 import { OfflineProvider } from "@/offline/provider.tsx";
 import {
   cacheSession,

@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { BalanceCard } from "../patterns/finance/balance-card.tsx";
 import { PaymentStatus } from "../patterns/payment/payment-status.tsx";
 import { describeBalance, formatMoney, formatQuantity, formatSignedMoney } from "../format.ts";
-import { parseMoneyText, parseQuantityText } from "../primitives/numeric-text.ts";
+import { parseMoneyText, parseQuantityText } from "./numeric-text.ts";
 import {
   balanceCustomerCredit,
   balanceReceivable,

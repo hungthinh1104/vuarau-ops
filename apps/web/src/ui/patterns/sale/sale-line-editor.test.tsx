@@ -57,7 +57,7 @@ describe("TC-WEB-024 — keyboard/focus sequence", () => {
     );
 
     await user.click(screen.getByRole("combobox", { name: /Phân hạng chất lượng/ }));
-    await user.click(screen.getByRole("option", { name: "Loại 1" }));
+    await user.click(await screen.findByRole("option", { name: "Loại 1" }));
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -248,7 +248,7 @@ describe("TC-WEB-022 — the line editor", () => {
     );
     expect(screen.getByLabelText(/Phân hạng chất lượng/)).toHaveValue("");
     await userEvent.click(screen.getByRole("combobox", { name: /Phân hạng chất lượng/ }));
-    await userEvent.click(screen.getByRole("option", { name: "Loại 1" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Loại 1" }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         qualityGradeId: "grade-1",

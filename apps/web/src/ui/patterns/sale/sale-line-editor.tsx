@@ -8,7 +8,7 @@ import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
-import { parseMoneyText, parseQuantityText } from "@/ui/primitives/numeric-text.ts";
+import { parseMoneyText, parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { Search, X } from "lucide-react";
 import { useRef, type KeyboardEvent } from "react";
 import { formatMoney } from "@/ui/format.ts";
@@ -195,7 +195,7 @@ export function SaleLineEditor({
     <li
       ref={rowRef}
       data-testid={`sale-line-${index}`}
-      className="rounded-card border border-border bg-surface p-3 shadow-sm sm:p-4"
+      className="rounded-card border border-border bg-surface p-3 sm:p-4"
       onFocus={onFocus}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
@@ -280,6 +280,7 @@ export function SaleLineEditor({
             required
             disabled={disabled}
             unit={line.unit}
+            unitLabel={UNIT_LABEL_VI[line.unit]}
             showUnitSuffix={false}
             value={line.quantityText}
             data-sale-field="quantity"

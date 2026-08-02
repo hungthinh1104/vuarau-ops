@@ -13,9 +13,11 @@ import type { NextConfig } from "next";
  * has none today, and this is why it does not need one yet.
  */
 const apiOrigin = process.env["NEXT_PUBLIC_API_ORIGIN"] ?? "http://localhost:3000";
+const distDir = process.env["NEXT_DIST_DIR"] ?? ".next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  distDir,
   transpilePackages: ["@vuarau/domain-contracts"],
   /*
    * The dev badge sits bottom-left, which on a phone viewport is exactly where

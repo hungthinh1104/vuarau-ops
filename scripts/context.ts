@@ -163,7 +163,11 @@ async function defaultTrackedFiles(): Promise<readonly string[]> {
     cwd: ROOT,
     maxBuffer: 4 * 1024 * 1024,
   });
-  return stdout.split("\0").filter(Boolean).map(normalizePath);
+  return stdout
+    .split("\0")
+    .filter(Boolean)
+    .filter((path) => existsSync(join(ROOT, path)))
+    .map(normalizePath);
 }
 
 async function defaultSearchTests(ids: readonly string[]): Promise<readonly string[]> {

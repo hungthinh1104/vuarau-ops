@@ -30,9 +30,29 @@ describe("TimelineItem", () => {
     render(
       <TimelineItem entry={entry} sourceHref="/payments/00000000-0000-4000-8000-000000000004" />,
     );
-    expect(screen.getByRole("link", { name: "Tiền mặt" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Tiền mặt/ })).toHaveAttribute(
       "href",
       "/payments/00000000-0000-4000-8000-000000000004",
     );
+  });
+
+  it("names a compensating entry by its canonical payment document", () => {
+    const reversal = {
+      ...entry,
+      source: {
+        type: "payment_reversal",
+        id: "00000000-0000-4000-8000-000000000007",
+        document: { type: "payment", id: "00000000-0000-4000-8000-000000000004" },
+        label: "Hoàn tiền",
+      },
+    } as unknown as AccountTimelineEntryDto;
+
+    render(
+      <TimelineItem entry={reversal} sourceHref="/payments/00000000-0000-4000-8000-000000000004" />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: /00000000-0000-4000-8000-000000000004/ }),
+    ).toHaveAttribute("href", "/payments/00000000-0000-4000-8000-000000000004");
   });
 });

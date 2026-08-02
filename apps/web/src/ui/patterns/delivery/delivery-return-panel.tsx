@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { formatQuantity } from "@/ui/format.ts";
 import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
+import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 
 export type DeliveryReturnIntent = {
   readonly lines: readonly {
@@ -73,8 +74,7 @@ export function DeliveryReturnPanel({
                 {formatQuantity(line.quantity)}
               </span>
             </span>
-            <input
-              className={INPUT_CLASS}
+            <Input
               inputMode="decimal"
               disabled={completed || locked}
               aria-label={`Số lượng trả ${line.productName}`}
@@ -91,8 +91,7 @@ export function DeliveryReturnPanel({
       </div>
       <label className="grid gap-2 py-2">
         <span className="text-label">Lý do</span>
-        <textarea
-          className={INPUT_CLASS}
+        <TextareaControl
           disabled={completed || locked}
           value={reason}
           onChange={(event) => setReason(event.target.value)}

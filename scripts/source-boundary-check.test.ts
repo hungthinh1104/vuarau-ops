@@ -84,6 +84,7 @@ test("excludes generated, fixture, test, and E2E files", async () => {
     "apps/generated/large.ts": lines(701),
     "apps/fixtures/large.ts": lines(701),
     "apps/e2e/large.ts": lines(701),
+    "apps/.next-e2e/large.ts": lines(701),
     "apps/feature/large.test.ts": lines(701),
   });
 

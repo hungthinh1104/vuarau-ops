@@ -7,7 +7,7 @@ import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 
 const REPORT_STATUS_COPY: Readonly<Record<string, string>> = {
@@ -70,9 +70,8 @@ export function ReportsView(props: {
         ) ? (
           <label className="grid gap-2">
             <span>Ngày nghiệp vụ · Asia/Ho_Chi_Minh</span>
-            <input
+            <Input
               type="date"
-              className={INPUT_CLASS}
               value={props.businessDate}
               onChange={(event) => props.onBusinessDateChange(event.target.value)}
             />
@@ -167,8 +166,8 @@ function ReportResult(props: {
           id="report-sources"
           className="overflow-x-auto rounded-card border border-border bg-surface"
         >
-          <table className="w-full text-left text-body-sm">
-            <thead className="sticky top-16 z-10 bg-surface-muted text-label">
+          <table className="data-table min-w-[820px] text-left text-body-sm">
+            <thead className="sticky top-0 z-10 bg-surface-muted text-label">
               <tr>
                 <th className="p-3">Nguồn</th>
                 <th className="p-3">Phẩm cấp</th>

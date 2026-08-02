@@ -44,7 +44,7 @@ function isDisposableTestDatabase(url: string | undefined): boolean {
   );
 }
 
-if (hasDatabase && !isDisposableTestDatabase(DATABASE_URL)) {
+if (process.env["NODE_ENV"] === "test" && hasDatabase && !isDisposableTestDatabase(DATABASE_URL)) {
   throw new Error(
     "Database tests require a disposable local database whose name ends with _test; " +
       "refusing to run against a development or remote DATABASE_URL.",

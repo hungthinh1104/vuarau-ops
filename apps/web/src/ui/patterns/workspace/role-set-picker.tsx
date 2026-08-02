@@ -2,6 +2,7 @@
 
 import type { WorkspaceRole } from "@vuarau/domain-contracts";
 import { WORKSPACE_ROLES, normalizeWorkspaceRoles } from "@vuarau/domain-contracts";
+import { Checkbox } from "@/ui/primitives/checkbox.tsx";
 
 export const WORKSPACE_ROLE_COPY: Readonly<Record<WorkspaceRole, string>> = {
   owner: "Chủ vựa",
@@ -36,15 +37,14 @@ export function RoleSetPicker({
 }) {
   const normalized = normalizeWorkspaceRoles(value);
   return (
-    <fieldset className="rounded-button border border-border p-3" disabled={disabled}>
+    <fieldset className="rounded-card border border-border p-3" disabled={disabled}>
       <legend className="px-1 text-label font-semibold">Vai trò</legend>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {WORKSPACE_ROLES.map((role) => {
           const checked = normalized.includes(role);
           return (
             <label key={role} className="flex min-h-11 items-center gap-2 text-label">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={checked}
                 disabled={disabled || (checked && normalized.length === 1)}
                 onChange={() => onChange(nextWorkspaceRoles(normalized, role))}

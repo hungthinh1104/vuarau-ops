@@ -22,9 +22,9 @@ describe("DebtAdjustmentForm", () => {
     render(<DebtAdjustmentForm onSubmit={onSubmit} />);
 
     await user.click(screen.getByRole("combobox", { name: "Hướng điều chỉnh" }));
-    await user.click(screen.getByRole("option", { name: "Giảm công nợ" }));
+    await user.click(await screen.findByRole("option", { name: "Giảm công nợ" }));
     await user.click(screen.getByRole("combobox", { name: "Lý do" }));
-    await user.click(screen.getByRole("option", { name: "Xoá nợ" }));
+    await user.click(await screen.findByRole("option", { name: "Xoá nợ" }));
     await user.type(screen.getByRole("textbox", { name: "Số tiền điều chỉnh" }), "20.000");
     await user.type(screen.getByRole("textbox", { name: "Giải thích" }), "Xoá nợ không thể thu");
     await user.click(screen.getByRole("button", { name: "Xác nhận điều chỉnh" }));

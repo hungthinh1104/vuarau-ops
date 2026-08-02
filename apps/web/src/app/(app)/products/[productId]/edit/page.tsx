@@ -1,3 +1,5 @@
-"use client";
+import { ProductDetailController } from "@/ui/controllers/product-detail-controller.tsx";
 
-export { default } from "../page.tsx";
+export default function ProductEditPage() {
+  return <ProductDetailController />;
+}

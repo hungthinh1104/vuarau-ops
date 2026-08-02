@@ -78,28 +78,3 @@ export function Section({
     </section>
   );
 }
-
-export function LinkButton({
-  href,
-  children,
-  secondary = false,
-}: {
-  readonly href: string;
-  readonly children: ReactNode;
-  readonly secondary?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={[
-        "touch-target inline-flex min-h-[52px] flex-1 items-center justify-center rounded-button border px-4 sm:min-h-11 sm:flex-none",
-        "text-label font-semibold transition-colors",
-        secondary
-          ? "border-border bg-surface text-ink hover:border-border-strong"
-          : "border-transparent bg-brand text-white hover:bg-brand-hover",
-      ].join(" ")}
-    >
-      {children}
-    </Link>
-  );
-}

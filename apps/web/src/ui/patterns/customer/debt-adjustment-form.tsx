@@ -6,7 +6,7 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
-import { parseMoneyText } from "@/ui/primitives/numeric-text.ts";
+import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 
 const DIRECTIONS = [
   { value: "increase", label: "Tăng công nợ" },

@@ -37,11 +37,11 @@ export function QuickSaleFooter(props: {
       : null;
 
   return (
-    <div className="fixed inset-x-0 bottom-16 z-20 border-t border-border bg-surface/95 px-4 py-2.5 shadow-md backdrop-blur lg:bottom-0">
-      <div className="mx-auto flex max-w-[1440px] items-center gap-2 lg:justify-end lg:pl-[312px] lg:pr-8">
+    <div className="fixed inset-x-0 bottom-16 z-20 border-t border-border bg-surface px-4 py-3 lg:bottom-0">
+      <div className="mx-auto flex max-w-[1440px] items-center gap-2 lg:justify-end lg:px-8">
         <div className="mr-auto min-w-0">
-          <p className="text-caption text-ink-muted">Tổng đơn</p>
-          <p className="tabular truncate text-subheading font-bold text-ink">
+          <p className="text-caption font-medium text-ink-muted">Tổng đơn</p>
+          <p className="tabular truncate text-subheading font-semibold tracking-[-0.02em] text-ink">
             {formatMoney(props.total)}
           </p>
         </div>

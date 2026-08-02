@@ -25,11 +25,11 @@ export function Dialog({ open, title, onClose, children, actions }: DialogProps)
   return (
     <BaseDialog.Root open={open} onOpenChange={(isOpen: boolean) => !isOpen && onClose()}>
       <BaseDialog.Portal>
-        <BaseDialog.Backdrop className="fixed inset-0 bg-ink/40" />
+        <BaseDialog.Backdrop className="fixed inset-0 z-40 bg-ink/40" />
         <BaseDialog.Popup
           className={[
-            "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
-            "w-[min(32rem,calc(100vw-2rem))] rounded-panel bg-surface p-0 text-ink shadow-md",
+            "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
+            "w-[min(32rem,calc(100vw-2rem))] rounded-panel border border-border bg-surface p-0 text-ink",
             "outline-none",
           ].join(" ")}
         >

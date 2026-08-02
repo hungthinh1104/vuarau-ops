@@ -30,6 +30,7 @@ export const sourceBoundaryManifest: SourceBoundaryManifest = {
     "/e2e/",
     "/storybook-static/",
     "/.next/",
+    "/.next-e2e/",
   ],
   warningLines: 450,
   failureLines: 700,

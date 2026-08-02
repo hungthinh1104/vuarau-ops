@@ -53,7 +53,11 @@ export function TimelineItem({ entry, actorName, sourceHref }: TimelineItemProps
       {sourceHref === undefined ? (
         <p className="text-body-sm text-ink-muted">{entry.source.label}</p>
       ) : (
-        <Link href={sourceHref} className="text-body-sm text-info underline underline-offset-2">
+        <Link
+          href={sourceHref}
+          aria-label={`Mở ${entry.source.label} · ${entry.source.document.id}`}
+          className="text-body-sm text-info underline underline-offset-2"
+        >
           {entry.source.label}
         </Link>
       )}

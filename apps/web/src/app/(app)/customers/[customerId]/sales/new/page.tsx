@@ -1,13 +1,5 @@
-"use client";
-
-import type { CustomerId } from "@vuarau/domain-contracts";
-import { QuickSaleFormView } from "./quick-sale-form-view.tsx";
-import { useQuickSaleFormModel } from "./quick-sale-form-model.ts";
+import { QuickSaleFormController } from "@/ui/controllers/quick-sale-form-controller.tsx";
 
 export default function NewSalePage() {
-  return <QuickSaleForm />;
-}
-
-export function QuickSaleForm(props: { readonly customerIdOverride?: CustomerId }) {
-  return <QuickSaleFormView {...useQuickSaleFormModel(props)} />;
+  return <QuickSaleFormController />;
 }

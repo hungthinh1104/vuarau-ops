@@ -24,7 +24,9 @@ apps/
     src/offline/                       IndexedDB cache, sync engine and offline provider
     src/ui/primitives/                 reusable accessible controls and stories/tests
     src/ui/patterns/                   domain workflows, layouts and feedback states
-    src/ui/screens/                    route-level screen compositions and stories/tests
+    src/ui/domain/                     UI-only value/state transformations and presentation contracts
+    src/ui/controllers/                route orchestration: params, queries, commands, offline and navigation
+    src/ui/screens/                    route-level visual compositions; no API or offline imports
     src/fixtures/ and src/testing/     typed UI fixtures and test helpers
     e2e/                               Playwright real-stack specs and harness
     .storybook/                        Storybook configuration
@@ -34,6 +36,19 @@ The web app is not a shell or a demonstration route. It is the production Next
 application and its Storybook catalogue. `pnpm web:build` produces the artefact
 that E2E loads with `next start`; `pnpm web:storybook` builds the component/state
 catalogue. The authenticated route root is `apps/web/src/app/(app)/`.
+
+Every production `page.tsx` delegates to `apps/web/src/ui/controllers/`. A
+controller owns route parameters, data loading, command identity, offline
+coordination and navigation; it passes state and callbacks to a screen. Screens
+compose patterns and primitives. Route files do not import API hooks or UI
+primitives directly. `pnpm ui:check` and its regression tests enforce this
+direction, including controller visual-composition boundaries and shared visual
+tokens (Be Vietnam Pro, semantic colours and radius tokens). Storybook covers
+representative screen and state compositions; `apps/web/e2e/ui-performance.spec.ts`
+measures production-runtime p75 LCP, INP and CLS for the customer directory.
+The root App Router also provides a shared loading skeleton and safe error
+boundary; route-specific screens own their query, empty, permission and business
+rejection states.
 
 ## E2E and validation surfaces
 

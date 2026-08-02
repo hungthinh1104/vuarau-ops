@@ -45,7 +45,7 @@ export function PermissionDenied({ error, attemptedAction }: PermissionDeniedPro
           {permission !== null ? (
             <>
               <dt>Quyền cần có</dt>
-              <dd className="font-mono">{permission}</dd>
+              <dd className="break-all text-body-sm">{permission}</dd>
             </>
           ) : null}
         </dl>

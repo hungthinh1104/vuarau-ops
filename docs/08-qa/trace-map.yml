@@ -107,7 +107,7 @@ use_cases:
       - apps/web/src/offline/session-cache.ts
       - apps/web/src/ui/patterns/auth/sign-in.tsx
       - apps/web/src/ui/patterns/layout/pilot-navigation.ts
-      - apps/web/src/ui/patterns/today-actions.ts
+      - apps/web/src/ui/domain/today-actions.ts
 
   UC-AUTH-005:
     title: Manage workspace members and roles
@@ -926,7 +926,17 @@ use_cases:
     doc: docs/02-use-cases/cash-use-cases.md
     rules: [BR-CASH-003, BR-CASH-004, BR-CASH-005, BR-CASH-009, BR-CASH-010, BR-CASH-011]
     cases: [CASE-CASH-001, CASE-CASH-002, CASE-CASH-003]
-    tests: [TC-CASH-004, TC-CASH-005, TC-CASH-006, TC-CASH-007, TC-CASH-008, TC-CASH-009, TC-CASH-010, TC-OPS-016]
+    tests:
+      [
+        TC-CASH-004,
+        TC-CASH-005,
+        TC-CASH-006,
+        TC-CASH-007,
+        TC-CASH-008,
+        TC-CASH-009,
+        TC-CASH-010,
+        TC-OPS-016,
+      ]
     implementation:
       - apps/api/src/modules/cash/cash.queries.ts
       - packages/db/src/repositories/read/cash.ts
@@ -949,7 +959,8 @@ use_cases:
     title: Record and reverse physical goods arrival
     risk: P0
     doc: docs/02-use-cases/intake-use-cases.md
-    rules: [BR-INTAKE-001, BR-INTAKE-002, BR-INTAKE-003, BR-INTAKE-009, BR-INTAKE-010, BR-INTAKE-012]
+    rules:
+      [BR-INTAKE-001, BR-INTAKE-002, BR-INTAKE-003, BR-INTAKE-009, BR-INTAKE-010, BR-INTAKE-012]
     cases: [CASE-INTAKE-001, CASE-INTAKE-004, CASE-INTAKE-005]
     tests: [TC-INTAKE-001, TC-INTAKE-002, TC-INTAKE-007, TC-INTAKE-008, TC-INTAKE-010]
     implementation:
@@ -1403,7 +1414,7 @@ business_rules:
       - packages/domain-contracts/src/sale/index.ts
       - packages/domain-kernel/src/sale/post-sale.ts
       - apps/api/src/modules/sale/post-sale.handler.ts
-      - apps/web/src/app/(app)/customers/[customerId]/sales/new/quick-sale-form-model.ts
+      - apps/web/src/ui/controllers/quick-sale-form-model.ts
 
   BR-SALE-020:
     title: The receivable arises at posting, and at no other event
@@ -2173,7 +2184,8 @@ business_rules:
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-005]
     tests: [TC-INTAKE-002, TC-INTAKE-008]
-    implementation: [packages/domain-kernel/src/intake/index.ts, apps/api/src/modules/intake/intake.handlers.ts]
+    implementation:
+      [packages/domain-kernel/src/intake/index.ts, apps/api/src/modules/intake/intake.handlers.ts]
   BR-INTAKE-002:
     title: Purchase linked arrival identity must match supplier line product unit and snapshot
     risk: P0
@@ -2187,14 +2199,16 @@ business_rules:
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-001]
     tests: [TC-INTAKE-001, TC-INTAKE-002, TC-INTAKE-007]
-    implementation: [packages/domain-contracts/src/intake/index.ts, packages/domain-kernel/src/intake/index.ts]
+    implementation:
+      [packages/domain-contracts/src/intake/index.ts, packages/domain-kernel/src/intake/index.ts]
   BR-INTAKE-004:
     title: Inspection coverage and issue snapshots remain bounded and evidential
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-002]
     tests: [TC-INTAKE-003, TC-INTAKE-008]
-    implementation: [packages/domain-kernel/src/intake/index.ts, apps/api/src/modules/intake/intake.handlers.ts]
+    implementation:
+      [packages/domain-kernel/src/intake/index.ts, apps/api/src/modules/intake/intake.handlers.ts]
   BR-INTAKE-005:
     title: Inspection changes no inventory and reverses only after downstream facts
     risk: P0
@@ -2208,42 +2222,60 @@ business_rules:
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-002]
     tests: [TC-INTAKE-004, TC-INTAKE-008, TC-INTAKE-009]
-    implementation: [packages/domain-kernel/src/intake/index.ts, packages/db/src/repositories/shared/intake-mappers.ts]
+    implementation:
+      [
+        packages/domain-kernel/src/intake/index.ts,
+        packages/db/src/repositories/shared/intake-mappers.ts,
+      ]
   BR-INTAKE-007:
     title: Only accepted quality allocation creates sellable inventory
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-002, CASE-INTAKE-003]
     tests: [TC-INTAKE-004, TC-INTAKE-008, TC-INTAKE-009]
-    implementation: [apps/api/src/modules/intake/intake.handlers.ts, packages/db/src/repositories/read/inventory.ts]
+    implementation:
+      [
+        apps/api/src/modules/intake/intake.handlers.ts,
+        packages/db/src/repositories/read/inventory.ts,
+      ]
   BR-INTAKE-008:
     title: Grade belongs only to accepted quantity and quarantine resolves once
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-003]
     tests: [TC-INTAKE-005, TC-INTAKE-006, TC-INTAKE-009]
-    implementation: [packages/domain-contracts/src/intake/index.ts, packages/domain-kernel/src/intake/index.ts]
+    implementation:
+      [packages/domain-contracts/src/intake/index.ts, packages/domain-kernel/src/intake/index.ts]
   BR-INTAKE-009:
     title: Reversal is append only exact inverse and downstream first
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-004]
     tests: [TC-INTAKE-006, TC-INTAKE-008, TC-INTAKE-010]
-    implementation: [apps/api/src/modules/intake/intake.handlers.ts, packages/db/src/schema/intake.ts]
+    implementation:
+      [apps/api/src/modules/intake/intake.handlers.ts, packages/db/src/schema/intake.ts]
   BR-INTAKE-010:
     title: Active arrival blocks Purchase void and intake paths are mutually exclusive
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-005]
     tests: [TC-INTAKE-007, TC-INTAKE-008]
-    implementation: [apps/api/src/modules/purchase/purchase.handlers.ts, apps/api/src/modules/workspace-profile/workspace-profile.ts]
+    implementation:
+      [
+        apps/api/src/modules/purchase/purchase.handlers.ts,
+        apps/api/src/modules/workspace-profile/workspace-profile.ts,
+      ]
   BR-INTAKE-011:
     title: Profile changes never strand historical reads or reversals
     risk: P1
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-006]
     tests: [TC-INTAKE-007, TC-INTAKE-008]
-    implementation: [apps/api/src/modules/shared/command-pipeline.ts, apps/api/src/modules/intake/intake.handlers.ts]
+    implementation:
+      [
+        apps/api/src/modules/shared/command-pipeline.ts,
+        apps/api/src/modules/intake/intake.handlers.ts,
+      ]
   BR-INTAKE-012:
     title: Intake evidence preserves transaction and recorded time separately
     risk: P1
@@ -2257,14 +2289,22 @@ business_rules:
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-007]
     tests: [TC-INTAKE-009, TC-OPS-016]
-    implementation: [apps/api/src/modules/operations/restore-workspace.handler.ts, packages/db/src/repositories/write/operations.ts]
+    implementation:
+      [
+        apps/api/src/modules/operations/restore-workspace.handler.ts,
+        packages/db/src/repositories/write/operations.ts,
+      ]
   BR-INTAKE-014:
     title: Quality outcome does not silently rewrite supplier payable
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-002, CASE-INTAKE-003]
     tests: [TC-INTAKE-008]
-    implementation: [apps/api/src/modules/intake/intake.handlers.ts, apps/api/src/modules/purchase/purchase.handlers.ts]
+    implementation:
+      [
+        apps/api/src/modules/intake/intake.handlers.ts,
+        apps/api/src/modules/purchase/purchase.handlers.ts,
+      ]
 
 cases:
   CASE-SALE-001:
@@ -2446,8 +2486,8 @@ cases:
     rules: [BR-ACCOUNT-007, BR-ACCOUNT-009]
     tests: [TC-PAYMENT-011, TC-ACCOUNT-010]
 
-# Tests that exercise the API contract rather than a single rule. Declared here so
-# `trace-check` recognises them; they still name their rules in the test titles.
+  # Tests that exercise the API contract rather than a single rule. Declared here so
+  # `trace-check` recognises them; they still name their rules in the test titles.
   CASE-CASH-001:
     title: Customer pays cash held in the depot drawer
     doc: docs/05-casebook/cash-cases.md
@@ -2866,8 +2906,8 @@ contract_tests:
     title: An operator corrects a posted sale through the real commands, and can re-run it
     file: apps/api/src/operations/sale-correction.db.test.ts
 
-# Retired identifiers. Never reissued. The old → new mapping is in
-# docs/02-use-cases/use-case-catalog.md.
+  # Retired identifiers. Never reissued. The old → new mapping is in
+  # docs/02-use-cases/use-case-catalog.md.
   TC-CASH-001:
     title: Cash account custody and kind invariants are explicit
     file: packages/domain-kernel/src/cash/cash.test.ts

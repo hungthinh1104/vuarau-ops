@@ -12,6 +12,7 @@ import type { ApiContext } from "./context.ts";
  */
 const t = initTRPC.context<ApiContext>().create({
   errorFormatter({ shape, error }) {
+    console.error("TRPC ERROR:", error);
     // Input that fails the schema is still a business-facing refusal, and it gets
     // the same envelope as every other one rather than a bare Zod dump.
     const domainError =

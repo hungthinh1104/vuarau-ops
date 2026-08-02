@@ -1,18 +1,24 @@
 "use client";
 
 import type {
+  GoodsArrivalDto,
   PurchaseDto,
   PurchaseReceiptDto,
   PurchaseReceivingSummaryDto,
 } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { PURCHASE_STATUS_COPY } from "@/ui/copy.ts";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
+import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PurchaseLinesSummary } from "@/ui/patterns/purchase/purchase-lines-summary.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
+import { LinkButton } from "@/ui/primitives/link-button.tsx";
+import { Select } from "@/ui/primitives/select.tsx";
+import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 
 export type PurchaseDetailViewProps = {
   readonly purchase: PurchaseDto;
@@ -28,6 +34,203 @@ export type PurchaseDetailViewProps = {
   readonly feedback?: ReactNode;
   readonly onReverseReceipt: (receiptId: PurchaseReceiptDto["id"]) => void;
 };
+
+export function PurchaseDraftActionsView(props: {
+  readonly purchase: PurchaseDto;
+  readonly canUpdate: boolean;
+  readonly canConfirm: boolean;
+  readonly canDiscard: boolean;
+  readonly confirmLocked: boolean;
+  readonly discardLocked: boolean;
+  readonly onConfirm: () => void;
+  readonly onDiscard: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-3">
+      {props.canUpdate ? (
+        <LinkButton tone="secondary" href={`/purchases/${props.purchase.id}/edit`}>
+          Sửa đơn nháp
+        </LinkButton>
+      ) : null}
+      {props.canConfirm ? (
+        <Button disabled={props.confirmLocked} onClick={props.onConfirm}>
+          {props.confirmLocked ? "Đang xác nhận" : "Xác nhận đơn mua"}
+        </Button>
+      ) : null}
+      {props.canDiscard ? (
+        <Button tone="secondary" disabled={props.discardLocked} onClick={props.onDiscard}>
+          Bỏ đơn nháp
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+export function PurchaseReceivingLoadingView() {
+  return (
+    <section className="rounded-card border border-border bg-surface p-4 text-body-sm text-ink-muted">
+      Đang xác định luồng nhận hàng của vựa…
+    </section>
+  );
+}
+
+export function PurchaseCommandsFeedbackView(props: {
+  readonly confirm: CommandOutcomeView;
+  readonly discard: CommandOutcomeView;
+  readonly onReload: () => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <CommandOutcome
+        command={props.confirm}
+        attemptedAction="Xác nhận đơn mua"
+        onReload={props.onReload}
+      />
+      <CommandOutcome
+        command={props.discard}
+        attemptedAction="Bỏ đơn mua"
+        onReload={props.onReload}
+      />
+    </div>
+  );
+}
+
+export function PurchaseInspectedIntakeView(props: {
+  readonly purchase: PurchaseDto;
+  readonly arrivals: readonly GoodsArrivalDto[];
+  readonly loading: boolean;
+  readonly canRecord: boolean;
+}) {
+  return (
+    <section className="rounded-card border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-subheading font-semibold">Hàng đến và kiểm định</h2>
+          <p className="mt-1 max-w-2xl text-body-sm text-ink-muted">
+            Luồng này chưa đưa hàng vào kho ngay. Ghi nhận hàng đến, kiểm số lượng/chất lượng, rồi
+            quyết định phần chấp nhận, cách ly, từ chối hoặc hủy.
+          </p>
+        </div>
+        {props.canRecord ? (
+          <LinkButton href={`/intake/new?purchaseId=${props.purchase.id}`}>Ghi hàng đến</LinkButton>
+        ) : null}
+      </div>
+      {props.loading ? (
+        <p className="mt-4 text-body-sm text-ink-muted">Đang tải các lần hàng đến…</p>
+      ) : props.arrivals.length === 0 ? (
+        <p className="mt-4 text-body-sm text-ink-muted">
+          Chưa có lần hàng đến nào cho đơn mua này.
+        </p>
+      ) : (
+        <ul className="mt-4 grid gap-2">
+          {props.arrivals.map((arrival) => (
+            <li key={arrival.id}>
+              <Link
+                href={`/intake/${arrival.id}`}
+                aria-label={`Phiếu hàng đến ${arrival.id}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-button border border-border px-3 py-2 hover:bg-canvas"
+              >
+                <span className="text-label font-semibold">
+                  {arrival.vehicleReference ?? "Không ghi xe"} · {arrival.lines.length} mặt hàng
+                </span>
+                <span className="text-caption text-ink-muted">
+                  {arrival.reversal === null ? "Đang hiệu lực" : "Đã hoàn tác"}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export function PurchaseVoidView(props: {
+  readonly state: "loading" | "error" | "blocked" | "ready";
+  readonly blockedCode: string | null;
+  readonly blockedReason: string | null;
+  readonly voidReasonCode: string;
+  readonly voidReason: string;
+  readonly locked: boolean;
+  readonly command: CommandOutcomeView;
+  readonly onReasonCodeChange: (value: string) => void;
+  readonly onReasonChange: (value: string) => void;
+  readonly onSubmit: () => void;
+  readonly onReload: () => void;
+}) {
+  if (props.state === "loading")
+    return (
+      <section className="rounded-card border border-border bg-surface p-4 text-body-sm text-ink-muted">
+        Đang kiểm tra hàng thực nhận trước khi cho phép hoàn tác đơn mua…
+      </section>
+    );
+  if (props.state === "error")
+    return (
+      <section
+        role="alert"
+        className="rounded-card border border-danger/30 bg-surface p-4 text-body-sm"
+      >
+        Không kiểm tra được hàng đã nhận nên chưa thể hoàn tác đơn mua. Tải lại để tránh đảo công nợ
+        trong khi Goods Truth chưa rõ.
+      </section>
+    );
+  if (props.state === "blocked")
+    return (
+      <section
+        role="status"
+        className="rounded-card border border-warning/30 bg-warning-soft p-4 text-body-sm"
+      >
+        <p className="font-semibold">Chưa thể hoàn tác đơn mua này</p>
+        <p className="mt-1">{props.blockedReason}</p>
+        {props.blockedCode === "PURCHASE_HAS_ACTIVE_RECEIPTS" ? (
+          <p className="mt-2 text-ink-muted">
+            Nếu phiếu nhận hàng tự nó ghi sai, hãy hoàn tác phiếu nhận đó. Nếu hàng đã thực sự được
+            nhận và chỉ đơn mua thương mại bị sai, dừng ở đây và xử lý theo ASM-036; không tạo
+            chuyển động kho giả để mở khóa nút này.
+          </p>
+        ) : null}
+      </section>
+    );
+  return (
+    <section className="rounded-card border border-warning/40 p-4">
+      <h2 className="font-semibold">Hoàn tác đơn mua</h2>
+      <Select
+        label="Lý do"
+        value={props.voidReasonCode}
+        disabled={props.locked}
+        onChange={(event) => props.onReasonCodeChange(event.target.value)}
+        options={[
+          { value: "wrong_supplier", label: "Sai nhà cung cấp" },
+          { value: "wrong_product", label: "Sai mặt hàng" },
+          { value: "wrong_quantity", label: "Sai số lượng" },
+          { value: "wrong_price", label: "Sai giá" },
+          { value: "duplicate", label: "Trùng" },
+          { value: "other", label: "Khác" },
+        ]}
+      />
+      <label className="grid gap-2 text-label">
+        Giải thích
+        <TextareaControl
+          disabled={props.locked}
+          value={props.voidReason}
+          onChange={(event) => props.onReasonChange(event.target.value)}
+        />
+      </label>
+      <Button
+        tone="secondary"
+        disabled={props.voidReason.trim().length === 0 || props.locked}
+        onClick={props.onSubmit}
+      >
+        Hoàn tác đơn mua
+      </Button>
+      <CommandOutcome
+        command={props.command}
+        attemptedAction="Hoàn tác đơn mua"
+        onReload={props.onReload}
+      />
+    </section>
+  );
+}
 
 export function PurchaseDetailView({
   purchase,
@@ -174,6 +377,7 @@ function ReceivingHistory(props: {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <Link
                   href={`/receipts/${item.id}`}
+                  aria-label={`Phiếu nhận hàng ${item.id}`}
                   className="font-semibold text-info underline-offset-4 hover:underline"
                 >
                   {formatInstant(item.transactionTime)}

@@ -93,24 +93,26 @@ test.describe("TC-E2E-022 — M9 account ledger truth", () => {
     // Each rendered timeline source points to the detail endpoint that owns it.
     await page.goto(`/customers/${customerId}`);
     const accountTimeline = page.getByRole("list", { name: "Giao dịch công nợ" });
-    await expect(accountTimeline.locator(`a[href="/sales/${sale.id}"]`)).toBeVisible();
-    await expect(accountTimeline.locator(`a[href="/payments/${payment.id}"]`)).toHaveCount(2);
+    await expect(accountTimeline.getByRole("link", { name: new RegExp(sale.id) })).toBeVisible();
+    await expect(accountTimeline.getByRole("link", { name: new RegExp(payment.id) })).toHaveCount(
+      2,
+    );
     await expect(
-      accountTimeline.locator(`a[href="/account-adjustments/${adjustmentId}"]`),
+      accountTimeline.getByRole("link", { name: new RegExp(adjustmentId) }),
     ).toBeVisible();
-    await accountTimeline.locator(`a[href="/sales/${sale.id}"]`).click();
+    await accountTimeline.getByRole("link", { name: new RegExp(sale.id) }).click();
     await expect(page.getByRole("heading", { name: /^Đơn của / })).toBeVisible();
     await page.goto(`/customers/${customerId}`);
     await page
       .getByRole("list", { name: "Giao dịch công nợ" })
-      .locator(`a[href="/payments/${payment.id}"]`)
+      .getByRole("link", { name: new RegExp(payment.id) })
       .first()
       .click();
     await expect(page.getByRole("heading", { name: /^Thanh toán ·/ })).toBeVisible();
     await page.goto(`/customers/${customerId}`);
     await page
       .getByRole("list", { name: "Giao dịch công nợ" })
-      .locator(`a[href="/account-adjustments/${adjustmentId}"]`)
+      .getByRole("link", { name: new RegExp(adjustmentId) })
       .click();
     await expect(page.getByText("−20.000 ₫")).toBeVisible();
 

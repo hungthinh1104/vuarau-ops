@@ -15,6 +15,7 @@ import { TimelineItem } from "@/ui/patterns/timeline-item.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { LinkButton } from "@/ui/primitives/link-button.tsx";
 
 export function CustomerDetailView(props: {
   readonly detail: CustomerDetailDto;
@@ -69,43 +70,40 @@ export function CustomerDetailView(props: {
 
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {props.canCreateSale && detail.customer.isActive ? (
-            <Link
-              href={`/customers/${customerId}/sales/new`}
-              className="touch-target inline-flex flex-1 items-center justify-center rounded-button bg-brand px-4 text-label font-semibold text-white hover:bg-brand-hover"
-            >
+            <LinkButton href={`/customers/${customerId}/sales/new`} className="flex-1">
               Tạo đơn mới
-            </Link>
+            </LinkButton>
           ) : null}
           {props.canRecordPayment ? (
-            <Link
+            <LinkButton
+              tone="secondary"
               href={`/customers/${customerId}/payments/new`}
-              className="touch-target inline-flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
+              className="flex-1"
             >
               Ghi nhận thanh toán
-            </Link>
+            </LinkButton>
           ) : null}
           {detail.capabilities.update.allowed ? (
-            <Link
-              href={`/customers/${customerId}/edit`}
-              className="touch-target inline-flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink"
-            >
+            <LinkButton tone="secondary" href={`/customers/${customerId}/edit`} className="flex-1">
               Sửa hồ sơ
-            </Link>
+            </LinkButton>
           ) : null}
           {props.canAdjustDebt ? (
-            <Link
+            <LinkButton
+              tone="secondary"
               href={`/customers/${customerId}/account/adjust`}
-              className="touch-target inline-flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
+              className="flex-1"
             >
               Điều chỉnh công nợ
-            </Link>
+            </LinkButton>
           ) : null}
-          <Link
+          <LinkButton
+            tone="secondary"
             href={`/customers/${customerId}/account/reconciliation`}
-            className="touch-target inline-flex flex-1 items-center justify-center rounded-button border border-border bg-surface px-4 text-label font-semibold text-ink hover:border-border-strong"
+            className="flex-1"
           >
             Giải thích số dư
-          </Link>
+          </LinkButton>
         </div>
 
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
@@ -202,13 +200,9 @@ function CustomerTimelineSection(props: {
                 {props.fetching ? "Đang tải" : "Tải thêm"}
               </Button>
               {props.state === "error" ? (
-                <button
-                  type="button"
-                  onClick={props.onRetry}
-                  className="font-semibold text-info underline-offset-4 hover:underline"
-                >
+                <Button tone="link" className="min-h-0 sm:min-h-0" onClick={props.onRetry}>
                   Thử lại
-                </button>
+                </Button>
               ) : null}
             </div>
           ) : null}

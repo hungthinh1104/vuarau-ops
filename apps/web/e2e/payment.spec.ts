@@ -264,7 +264,10 @@ test.describe("TC-E2E-009 — the timeline shows the committed transaction", () 
     await page.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
     await expectRecordedPayment(page);
 
-    await page.getByRole("link", { name: "Xem sổ công nợ khách hàng" }).click();
+    await Promise.all([
+      page.waitForURL(new RegExp(`/customers/${customerId}$`)),
+      page.getByRole("link", { name: "Xem sổ công nợ khách hàng" }).click(),
+    ]);
 
     await expect(page.getByRole("heading", { name: "Sổ công nợ", exact: true })).toBeVisible();
     await expect(page.getByText("Thu tiền")).toBeVisible();

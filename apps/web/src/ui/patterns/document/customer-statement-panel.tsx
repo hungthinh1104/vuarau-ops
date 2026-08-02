@@ -4,7 +4,7 @@ import type { DocumentPeriod } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
 
 function startOfVietnamDay(value: string): string | null {
   return value === "" ? null : `${value}T00:00:00.000+07:00`;
@@ -33,9 +33,8 @@ export function CustomerStatementPanel(props: {
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1 text-label font-semibold">
           Từ ngày
-          <input
+          <Input
             type="date"
-            className={INPUT_CLASS}
             value={fromDate}
             disabled={props.locked}
             onChange={(event) => setFromDate(event.target.value)}
@@ -43,9 +42,8 @@ export function CustomerStatementPanel(props: {
         </label>
         <label className="grid gap-1 text-label font-semibold">
           Đến ngày
-          <input
+          <Input
             type="date"
-            className={INPUT_CLASS}
             value={toDate}
             disabled={props.locked}
             onChange={(event) => setToDate(event.target.value)}

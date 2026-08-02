@@ -19,14 +19,19 @@ export function QuickSaleLinesSection(props: {
   readonly onAdvance: (index: number) => void;
 }) {
   return (
-    <section aria-labelledby="sale-lines-title" className="grid gap-3">
+    <section aria-labelledby="sale-lines-title" className="grid gap-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="sale-lines-title" className="text-subheading font-semibold text-ink">
-          Dòng hàng
-        </h2>
-        <span className="tabular text-caption text-ink-muted">{props.lines.length} dòng</span>
+        <div>
+          <p className="text-label font-medium text-ink-muted">Giỏ hàng</p>
+          <h2 id="sale-lines-title" className="mt-1 text-subheading font-semibold text-ink">
+            Dòng hàng
+          </h2>
+        </div>
+        <span className="tabular rounded-pill bg-surface-muted px-2.5 py-1 text-caption font-medium text-ink-muted">
+          {props.lines.length} dòng
+        </span>
       </div>
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-4">
         {props.lines.map((line, index) => (
           <SaleLineEditor
             key={line.lineId}

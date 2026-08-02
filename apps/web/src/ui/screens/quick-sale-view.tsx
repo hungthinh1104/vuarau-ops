@@ -26,35 +26,51 @@ export function QuickSaleView(props: {
 }) {
   const status = draftStateCopy(props.draftState);
   return (
-    <div className="flex flex-col gap-6 pb-28">
-      <PageHeader
-        title="Đơn hàng mới"
-        back={{ href: `/customers/${props.customerId}`, label: "Khách hàng" }}
-        status={<Badge tone={status.tone}>{status.label}</Badge>}
-      />
-
-      <p className="text-body-sm text-info">
-        Đơn nháp <strong>chưa tính vào công nợ</strong>; công nợ chỉ phát sinh khi chốt đơn.
-      </p>
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 pb-32 lg:gap-6 lg:px-8">
+      <header className="border-b border-border pb-5">
+        <PageHeader
+          title="Đơn hàng mới"
+          back={{ href: `/customers/${props.customerId}`, label: "Khách hàng" }}
+          status={<Badge tone={status.tone}>{status.label}</Badge>}
+        />
+        <p className="mt-3 max-w-2xl text-body-sm text-ink-muted">
+          Đơn nháp <strong className="font-semibold text-ink">chưa tính vào công nợ</strong>; công
+          nợ chỉ phát sinh khi chốt đơn.
+        </p>
+      </header>
 
       {props.contextNotices}
-      {props.customerSection}
-      {props.linesSection}
-      {props.operationalNotices}
-      {props.productResolution}
-      {props.noteSection}
 
-      <section className="border-y border-border py-4">
-        <div className="flex items-baseline justify-between gap-4">
-          <span className="text-body-sm font-semibold text-ink-muted">Tổng đơn</span>
-          <span className="tabular text-display font-bold" data-testid="sale-total">
-            {formatMoney(props.total)}
-          </span>
-        </div>
-      </section>
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6">
+        <main className="grid min-w-0 gap-5">
+          <section className="rounded-card border border-border bg-surface p-4 sm:p-5">
+            {props.customerSection}
+          </section>
+          <section className="rounded-card border border-border bg-surface p-4 sm:p-5">
+            {props.linesSection}
+          </section>
+          {props.operationalNotices}
+          {props.productResolution}
+          <section className="rounded-card border border-border bg-surface p-4 sm:p-5">
+            {props.noteSection}
+          </section>
+          {props.outcomes}
+        </main>
 
-      {props.balanceSection}
-      {props.outcomes}
+        <aside className="grid gap-4 lg:sticky lg:top-4">
+          <section className="rounded-card border border-border bg-surface p-4 sm:p-5">
+            <p className="text-label font-medium text-ink-muted">Tổng đơn</p>
+            <p
+              className="tabular mt-2 text-display font-semibold tracking-[-0.03em]"
+              data-testid="sale-total"
+            >
+              {formatMoney(props.total)}
+            </p>
+          </section>
+          {props.balanceSection}
+        </aside>
+      </div>
+
       {props.picker}
       {props.confirmation}
       {props.footer}

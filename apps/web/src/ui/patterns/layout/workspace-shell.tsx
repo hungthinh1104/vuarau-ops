@@ -4,7 +4,6 @@ import type { SessionDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { CloudAlert, CloudCheck, CloudUpload, LogOut, Store, SwitchCamera } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useOffline } from "@/offline/provider.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { AppNavView } from "./app-nav.tsx";
@@ -30,8 +29,8 @@ export type WorkspaceShellProps = {
 function SyncStatus({ sync }: { readonly sync: NonNullable<WorkspaceShellProps["sync"]> }) {
   if (sync.blockedCount > 0) {
     return (
-      <button
-        type="button"
+      <Button
+        tone="secondary"
         onClick={() => void sync.onRetry()}
         className="touch-target inline-flex min-h-10 items-center gap-2 rounded-pill border border-warning/30 bg-warning-soft px-3 text-caption font-semibold text-warning"
         aria-label={`Cần xử lý ${sync.blockedCount} lệnh đồng bộ. Thử đồng bộ lại.`}
@@ -39,13 +38,13 @@ function SyncStatus({ sync }: { readonly sync: NonNullable<WorkspaceShellProps["
         <CloudAlert aria-hidden="true" className="h-4 w-4" />
         <span className="sm:hidden">{sync.blockedCount}</span>
         <span className="hidden sm:inline">Cần xử lý · {sync.blockedCount}</span>
-      </button>
+      </Button>
     );
   }
   if (sync.queuedCount > 0) {
     return (
-      <button
-        type="button"
+      <Button
+        tone="secondary"
         onClick={() => void sync.onRetry()}
         className="touch-target inline-flex min-h-10 items-center gap-2 rounded-pill border border-offline/25 bg-offline-soft px-3 text-caption font-semibold text-offline"
         aria-label={`Có ${sync.queuedCount} lệnh chờ đồng bộ. Thử đồng bộ.`}
@@ -53,7 +52,7 @@ function SyncStatus({ sync }: { readonly sync: NonNullable<WorkspaceShellProps["
         <CloudUpload aria-hidden="true" className="h-4 w-4" />
         <span className="sm:hidden">{sync.queuedCount}</span>
         <span className="hidden sm:inline">Chờ đồng bộ · {sync.queuedCount}</span>
-      </button>
+      </Button>
     );
   }
   return (
@@ -90,7 +89,13 @@ export function WorkspaceShellView({
 }: WorkspaceShellProps & { readonly pathname: string }) {
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="sticky top-0 z-20 h-14 border-b border-border bg-surface/95 backdrop-blur">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-button focus:bg-surface focus:px-4 focus:py-3 focus:text-label focus:font-semibold focus:text-ink"
+      >
+        Bỏ qua đến nội dung chính
+      </a>
+      <header className="sticky top-0 z-20 h-14 border-b border-border bg-surface">
         <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between gap-3 px-4 py-2 lg:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-card bg-brand-soft text-brand sm:flex">
@@ -157,24 +162,11 @@ export function WorkspaceShellView({
 
       <div className="mx-auto flex max-w-[1600px] gap-6 px-4 lg:px-6">
         <AppNavView permissions={session.permissions} pathname={pathname} />
-        <main className="min-w-0 flex-1 py-6 pb-24 lg:pb-10">{children}</main>
+        <main id="main-content" className="min-w-0 flex-1 py-6 pb-24 lg:pb-10">
+          {children}
+        </main>
       </div>
       <MobileNavView permissions={session.permissions} role={session.role} pathname={pathname} />
     </div>
-  );
-}
-
-export function ConnectedWorkspaceShell(props: Omit<WorkspaceShellProps, "sync">) {
-  const offline = useOffline();
-  return (
-    <WorkspaceShell
-      {...props}
-      sync={{
-        queuedCount: offline.queuedCount,
-        blockedCount: offline.blockedCount,
-        lastSuccessfulSync: offline.lastSuccessfulSync,
-        onRetry: offline.retry,
-      }}
-    />
   );
 }

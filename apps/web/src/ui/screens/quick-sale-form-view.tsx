@@ -1,42 +1,54 @@
 "use client";
 
-import type { SaleLineDraft } from "@/ui/patterns/sale/sale-line-editor.tsx";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import dynamic from "next/dynamic";
 import { formatDate } from "@/ui/format.ts";
 import { BalancePreview } from "@/ui/patterns/finance/balance-preview.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { ProductPicker } from "@/ui/patterns/sale/product-picker.tsx";
+const ProductPicker = dynamic(
+  () => import("@/ui/patterns/sale/product-picker.tsx").then((module) => module.ProductPicker),
+  { ssr: false },
+);
 import {
   QuickSaleGradeState,
   QuickSaleUnresolvedProduct,
 } from "@/ui/patterns/sale/quick-sale-blockers.tsx";
 import { QuickSaleFooter } from "@/ui/patterns/sale/quick-sale-footer.tsx";
-import {
-  QuickSaleLinesSection,
-  type SaleLineField,
-} from "@/ui/patterns/sale/quick-sale-lines-section.tsx";
+import { QuickSaleLinesSection } from "@/ui/patterns/sale/quick-sale-lines-section.tsx";
 import { TransactionPreview } from "@/ui/patterns/sale/transaction-preview.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Dialog } from "@/ui/primitives/dialog.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
-import { QuickSaleView, type QuickSaleDraftState } from "@/ui/screens/quick-sale-view.tsx";
-import type { QuickSaleFormModel } from "./quick-sale-form-model.ts";
+import { QuickSaleView } from "@/ui/screens/quick-sale-view.tsx";
+import type { QuickSaleFormModel } from "@/ui/controllers/quick-sale-form-model.ts";
+import { useQuickSaleFormInteractions } from "@/ui/controllers/quick-sale-form-interactions.ts";
 
 export function QuickSaleFormView(model: QuickSaleFormModel) {
+  const {
+    advanceFromLine,
+    changeLine,
+    closeProductPicker,
+    confirmOpen,
+    draftState,
+    effectiveCustomer,
+    handleConfirmedPost,
+    openProductPicker,
+    pickerOpen,
+    postLocked,
+    posting,
+    productCreateLocked,
+    setConfirmOpen,
+  } = useQuickSaleFormInteractions(model);
   const {
     activeLine,
     addLine,
     cacheFetchedAt,
     cachedCatalogFetchedAt,
-    cachedCustomer,
     capture,
     createActiveProduct,
     customer,
     customerId,
-    dirty,
     discard,
     draft,
     draftCommand,
@@ -49,9 +61,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     mayPost,
     metrics,
     note,
-    offline,
     pendingCustomerCreate,
-    post,
     postCommand,
     productCreateCommand,
     productSearchLoading,
@@ -69,142 +79,11 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     setPickerProductQuery,
     setDirty,
     setNote,
-    setUnitNotice,
     submitted,
     total,
     unitNotice,
     visibleProducts,
   } = model;
-
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [posting, setPosting] = useState(false);
-  const toastedRef = useRef(false);
-
-  useEffect(() => {
-    if (postCommand.phase.kind === "succeeded" && !toastedRef.current) {
-      toastedRef.current = true;
-      toast.success("Đã chốt đơn thành công");
-    }
-  }, [postCommand.phase.kind]);
-
-  function openProductPicker(lineId: string): void {
-    setActiveLineId(lineId);
-    setPickerProductQuery("");
-    setPickerOpen(true);
-  }
-
-  function closeProductPicker(): void {
-    setPickerOpen(false);
-    setPickerProductQuery(null);
-  }
-
-  async function handleConfirmedPost(): Promise<void> {
-    setPosting(true);
-    try {
-      await post();
-    } finally {
-      setPosting(false);
-      setConfirmOpen(false);
-    }
-  }
-
-  function advanceFromLine(index: number): void {
-    const line = lines[index];
-    if (
-      line === undefined ||
-      resolved[index]?.total === null ||
-      line.productId === null ||
-      line.productId === undefined ||
-      line.qualityGradeId === null ||
-      line.qualityGradeId === undefined ||
-      line.qualityGradeName === null ||
-      line.qualityGradeName === undefined
-    ) {
-      return;
-    }
-    const focusProductAt = (at: number) => {
-      requestAnimationFrame(() => {
-        document.querySelectorAll<HTMLElement>("[data-sale-field='product']")[at]?.focus();
-      });
-    };
-    if (index < lines.length - 1) {
-      focusProductAt(index + 1);
-      return;
-    }
-    addLine();
-    requestAnimationFrame(() => focusProductAt(index + 1));
-  }
-
-  function changeLine(index: number, incoming: SaleLineDraft, field: SaleLineField): void {
-    editLines((current) =>
-      current.map((existing, at) => {
-        if (at !== index) return existing;
-        const next =
-          field === "product"
-            ? { ...existing, productName: incoming.productName }
-            : field === "qualityGrade"
-              ? {
-                  ...existing,
-                  qualityGradeId: incoming.qualityGradeId ?? null,
-                  qualityGradeName: incoming.qualityGradeName ?? null,
-                }
-              : field === "quantity"
-                ? { ...existing, quantityText: incoming.quantityText }
-                : field === "unit"
-                  ? { ...existing, unit: incoming.unit }
-                  : { ...existing, unitPriceText: incoming.unitPriceText };
-        const recalled = existing.priceOrigin?.kind === "recalled";
-        const productChanged = existing.productName !== next.productName;
-        const unitChanged = existing.unit !== next.unit;
-        if (recalled && (productChanged || unitChanged)) {
-          setUnitNotice("Giá lần trước đã được xoá vì mặt hàng hoặc đơn vị thay đổi.");
-          metrics.count("recalled_price_cleared_after_context_change");
-          return {
-            ...next,
-            productId: productChanged ? null : (next.productId ?? null),
-            unitPriceText: "",
-            priceOrigin: null,
-          };
-        }
-        if (existing.unitPriceText !== next.unitPriceText && recalled) {
-          metrics.count("historical_price_changed_after_apply");
-          return { ...next, priceOrigin: { kind: "manual" } };
-        }
-        if (existing.unitPriceText !== next.unitPriceText && next.unitPriceText.length > 0) {
-          return { ...next, priceOrigin: { kind: "manual" } };
-        }
-        return productChanged ? { ...next, productId: null } : next;
-      }),
-    );
-  }
-
-  const effectiveCustomer =
-    cachedCustomer === null
-      ? customer
-      : ({
-          ...customer,
-          data: cachedCustomer,
-          isPending: false,
-          isError: false,
-          error: null,
-        } as typeof customer);
-  const draftState: QuickSaleDraftState = locallyQueued
-    ? offline.blockedCount > 0
-      ? "sync_attention"
-      : "queued"
-    : draft === null
-      ? "unsaved"
-      : dirty
-        ? "dirty"
-        : "saved";
-  const postLocked =
-    postCommand.phase.kind === "sending" ||
-    postCommand.phase.kind === "unknown" ||
-    draftCommand.phase.kind === "sending" ||
-    draftCommand.phase.kind === "unknown";
-  const productCreateLocked =
-    productCreateCommand.phase.kind === "sending" || productCreateCommand.phase.kind === "unknown";
 
   return (
     <QueryStates

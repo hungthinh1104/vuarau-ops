@@ -48,7 +48,7 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await expect(page.getByRole("heading", { name: "Chọn vựa" })).toBeHidden();
     // The deployment is deliberately unconfigured in deterministic E2E, so
     // credentials are never accepted by a fake identity provider.
-    await expect(page.locator('input[type="password"]')).toHaveCount(0);
+    await expect(page.getByLabel("Mật khẩu")).toHaveCount(0);
   });
 
   test("TC-E2E-031 — isolates User A from User B across logout in the same tab", async ({
@@ -74,7 +74,7 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await page.getByRole("button", { name: "Đăng xuất" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "Đăng nhập" })).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.getByLabel("Mật khẩu")).toBeVisible();
 
     const aResidue = await page.evaluate((subject) => {
       const encoded = encodeURIComponent(subject);

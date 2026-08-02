@@ -30,6 +30,11 @@ const hasDatabase = !endToEndDisabled();
 
 const apiEnvironment = {
   DATABASE_URL: databaseUrl,
+  // Keep E2E on the real actor lookup path. Local development may use its
+  // convenience principal fallback, but acceptance must prove workspace and
+  // membership isolation through PostgreSQL.
+  APP_ENV: "development",
+  E2E_REAL_ACTOR_LOOKUP: "1",
   PORT: String(E2E_API_PORT),
   SUPABASE_JWT_ISSUER: E2E_JWT_ISSUER,
   SUPABASE_JWT_AUDIENCE: E2E_JWT_AUDIENCE,
@@ -41,6 +46,7 @@ const apiEnvironment = {
 };
 
 const webEnvironment = {
+  NEXT_DIST_DIR: ".next-e2e",
   NEXT_PUBLIC_API_ORIGIN: `http://127.0.0.1:${E2E_API_PORT}`,
   // E2E authenticates through the token bridge, never against a developer's
   // Supabase project. Clear inherited public keys so the unauthenticated-route

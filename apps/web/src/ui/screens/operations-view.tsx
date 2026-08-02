@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
 
 export function OperationsView(props: {
   readonly canManage: boolean;
@@ -82,7 +82,7 @@ export function OperationsView(props: {
 
         <label className="mt-4 block text-label">
           Chọn file sao lưu để kiểm tra
-          <input
+          <Input
             type="file"
             accept="application/json"
             onChange={(event) => {
@@ -110,8 +110,7 @@ export function OperationsView(props: {
             </p>
             <label className="text-label">
               Lý do phục hồi
-              <input
-                className={INPUT_CLASS}
+              <Input
                 value={props.restoreReason}
                 onChange={(event) => props.onRestoreReasonChange(event.target.value)}
               />

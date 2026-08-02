@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { domainErrorOf } from "@/api/domain-error.ts";
+import { domainErrorOf } from "@/ui/domain/domain-error.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Skeleton } from "@/ui/primitives/skeleton.tsx";

@@ -64,7 +64,7 @@ run("pnpm", ["db:migrate"], { ...process.env, DATABASE_URL: databaseUrl });
 const children = [
   spawn("pnpm", ["--filter", "@vuarau/api", "dev"], {
     cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
+    env: { ...process.env, DATABASE_URL: databaseUrl, PORT: "3102" },
     stdio: "inherit",
   }),
   spawn("pnpm", ["--filter", "@vuarau/web", "dev"], {

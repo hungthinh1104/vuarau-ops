@@ -1,4 +1,4 @@
-import type { CommandPhase } from "@/api/command-identity.ts";
+import type { CommandPhase } from "@/ui/domain/command-state.ts";
 import { Skeleton } from "@/ui/primitives/skeleton.tsx";
 
 export type CommandProgressNoticeProps = {

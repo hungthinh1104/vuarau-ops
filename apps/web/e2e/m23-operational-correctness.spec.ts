@@ -50,7 +50,6 @@ test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
     await page.getByLabel("Tên nhà cung cấp").fill(supplierName);
     await page.getByRole("button", { name: "Tạo nhà cung cấp" }).click();
     await page.waitForURL(/\/suppliers\/[0-9a-f-]+$/);
-    const supplierId = new URL(page.url()).pathname.split("/").at(-1)!;
 
     await page.goto("/purchases/new");
     await chooseOption(page, "Nhà cung cấp", supplierName);
@@ -108,7 +107,7 @@ test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
     await expect(page.getByText("Còn 10 kg")).toBeVisible();
 
     await page.goto(`/products/${productId}/inventory`);
-    const reclass = page.getByRole("heading", { name: "Chuyển phẩm cấp" }).locator("..");
+    const reclass = page.getByRole("region", { name: "Chuyển phẩm cấp" });
     await chooseOption(page, "Từ phẩm cấp", secondGrade);
     await chooseOption(page, "Sang phẩm cấp", "Loại 1");
     await reclass.getByLabel("Số lượng").fill("10");
@@ -117,7 +116,7 @@ test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
     await expect(page.getByRole("paragraph").filter({ hasText: /^10 kg$/ })).toBeVisible();
     await expect(page.getByRole("paragraph").filter({ hasText: /^20 kg$/ })).toBeVisible();
 
-    const adjustment = page.getByRole("heading", { name: "Điều chỉnh tồn kho" }).locator("..");
+    const adjustment = page.getByRole("region", { name: "Điều chỉnh tồn kho" });
     await chooseOption(page, "Hướng", "Giảm");
     await adjustment.getByLabel("Số lượng").fill("4");
     await chooseOption(page, "Phẩm cấp", "Loại 1");

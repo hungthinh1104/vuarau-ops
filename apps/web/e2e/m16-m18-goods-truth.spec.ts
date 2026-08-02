@@ -13,12 +13,13 @@ test.describe("M16-M18 — Goods Truth", () => {
     await signIn(page, "owner");
 
     await page.goto("/quality-grades");
-    await page.getByLabel("Tên phẩm cấp").fill("Loại 2");
+    const qualityGradeName = `Loại 2 Goods ${Date.now()}`;
+    await page.getByLabel("Tên phẩm cấp").fill(qualityGradeName);
     await page.getByLabel("Thứ tự").fill("20");
     const addGrade = page.getByRole("button", { name: "Thêm phẩm cấp" });
     await addGrade.focus();
     await addGrade.press("Enter");
-    await expect(page.getByText("Loại 2", { exact: true })).toBeVisible();
+    await expect(page.getByText(qualityGradeName, { exact: true })).toBeVisible();
 
     const productName = `${String(Number.MAX_SAFE_INTEGER - Date.now()).padStart(16, "0")} Cải Goods`;
     await page.goto("/products/new");
@@ -43,14 +44,15 @@ test.describe("M16-M18 — Goods Truth", () => {
     await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     const purchaseId = new URL(page.url()).pathname.split("/").at(-1)!;
-    await expect(page.getByText("Tổng mua").locator("..").getByText("1.000.000 ₫")).toBeVisible();
+    await expect(
+      page
+        .getByRole("region", { name: "Tóm tắt hàng mua" })
+        .getByRole("group", { name: "Tổng mua" })
+        .getByText("1.000.000 ₫", { exact: true }),
+    ).toBeVisible();
 
     await page.goto(`/suppliers/${supplierId}`);
-    const paymentPanel = page
-      .getByRole("heading", {
-        name: "Ghi tiền trả nhà cung cấp",
-      })
-      .locator("..");
+    const paymentPanel = page.getByRole("region", { name: "Ghi tiền trả nhà cung cấp" });
     await paymentPanel.getByLabel("Số tiền (nghìn đồng)").fill("400");
     await paymentPanel.getByRole("button", { name: "Ghi thanh toán" }).click();
     await expect(page.getByText("600.000 ₫")).toBeVisible();
@@ -58,16 +60,16 @@ test.describe("M16-M18 — Goods Truth", () => {
     await page.goto(`/purchases/${purchaseId}`);
     await page.getByLabel("Loại 1").fill("60");
     await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
-    await expect(page.locator('a[href^="/receipts/"]')).toHaveCount(1);
+    await expect(page.getByRole("link", { name: /^Phiếu nhận hàng / })).toHaveCount(1);
 
-    await page.getByLabel("Loại 2").fill("40");
+    await page.getByLabel(qualityGradeName).fill("40");
     await page
       .getByRole("button", { name: "Ghi phiếu nhận hàng" })
       .evaluate((button: HTMLButtonElement) => {
         button.click();
         button.click();
       });
-    await expect(page.locator('a[href^="/receipts/"]')).toHaveCount(2);
+    await expect(page.getByRole("link", { name: /^Phiếu nhận hàng / })).toHaveCount(2);
     await expect(page.getByText(/đã nhận 100 kg · còn lại 0 kg/)).toBeVisible();
 
     await page.getByLabel("Loại 1").fill("1");
@@ -82,11 +84,7 @@ test.describe("M16-M18 — Goods Truth", () => {
 
     for (let index = 0; index < 2; index += 1) {
       await page.getByRole("button", { name: "Hoàn tác phiếu nhận" }).first().click();
-      const reversePanel = page
-        .getByRole("heading", {
-          name: "Hoàn tác phiếu nhận",
-        })
-        .locator("..");
+      const reversePanel = page.getByRole("region", { name: "Hoàn tác phiếu nhận" });
       await reversePanel.getByLabel("Giải thích").fill(`Hoàn tác phiếu ${index + 1}`);
       await reversePanel.getByRole("button", { name: "Xác nhận hoàn tác" }).click();
       await expect(page.getByText("Đã hoàn tác")).toHaveCount(index + 1);
@@ -109,7 +107,7 @@ test.describe("M16-M18 — Goods Truth", () => {
           movementCount: 2,
         }),
         expect.objectContaining({
-          qualityGradeName: "Loại 2",
+          qualityGradeName,
           unit: "kg",
           quantityScaled: 0,
           movementCount: 2,
@@ -124,9 +122,8 @@ test.describe("M16-M18 — Goods Truth", () => {
     });
 
     await page.goto(`/suppliers/${supplierId}`);
-    const timeline = page.getByText("Dòng thời gian công nợ").locator("..");
-    await expect(timeline.locator(`a[href="/purchases/${purchaseId}"]`)).toHaveCount(2);
-    await expect(timeline.locator('a[href^="/supplier-payments/"]')).toHaveCount(1);
+    const timeline = page.getByRole("region", { name: "Dòng thời gian công nợ" });
+    await expect(timeline.getByRole("link", { name: "Mở chứng từ" })).toHaveCount(3);
 
     await signIn(page, "warehouse");
     await page.goto(`/purchases/${purchaseId}`);

@@ -75,7 +75,7 @@ describe("Select", () => {
     const trigger = screen.getByRole("combobox", { name: "Keyboard" });
     await user.click(trigger); // open menu
 
-    const listbox = screen.getByRole("listbox");
+    const listbox = await screen.findByRole("listbox");
     expect(listbox).toBeInTheDocument();
 
     // Select the first option with keyboard

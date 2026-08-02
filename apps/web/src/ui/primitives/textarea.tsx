@@ -1,7 +1,8 @@
 "use client";
 
 import type { TextareaHTMLAttributes } from "react";
-import { Field, INPUT_CLASS } from "./field.tsx";
+import { Field } from "./field.tsx";
+import { TextareaControl } from "./textarea-control.tsx";
 
 export type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id"> & {
   readonly label: string;
@@ -24,13 +25,12 @@ export function Textarea({ label, hint, error, required, className, ...rest }: T
       required={required === true}
     >
       {({ inputId, describedBy, invalid }) => (
-        <textarea
+        <TextareaControl
           {...rest}
           id={inputId}
-          rows={rest.rows ?? 3}
           aria-invalid={invalid}
           {...(describedBy !== undefined ? { "aria-describedby": describedBy } : {})}
-          className={[INPUT_CLASS, "py-2 leading-relaxed", className].filter(Boolean).join(" ")}
+          className={className}
         />
       )}
     </Field>

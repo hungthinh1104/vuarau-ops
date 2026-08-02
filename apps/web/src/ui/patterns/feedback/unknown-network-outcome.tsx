@@ -1,6 +1,6 @@
 "use client";
 
-import type { CommandIdentity } from "@/api/command-identity.ts";
+import type { CommandIdentity } from "@/ui/domain/command-state.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 
 export type UnknownNetworkOutcomeProps = {
@@ -65,7 +65,7 @@ export function UnknownNetworkOutcome({
         Lần gửi thứ {attempts}
         {/* The key is shown because it is the thing a support conversation needs,
             and because a visible key is one somebody would notice changing. */}
-        <span className="ml-2 font-mono" data-testid="idempotency-key">
+        <span className="ml-2 tabular" data-testid="idempotency-key">
           {identity.idempotencyKey}
         </span>
       </p>

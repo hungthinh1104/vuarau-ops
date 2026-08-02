@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ownerSession, salesSession, warehouseSession } from "@/fixtures/session.fixtures.ts";
-import { todayActionsFor } from "@/ui/patterns/today-actions.ts";
+import { todayActionsFor } from "@/ui/domain/today-actions.ts";
 import { TodayView, type TodayQueueState } from "./today-view.tsx";
 
 const populated: TodayQueueState = {

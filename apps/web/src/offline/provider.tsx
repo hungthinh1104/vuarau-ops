@@ -3,7 +3,13 @@
 import { useMutation } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import type { SessionDto, WorkspaceId } from "@vuarau/domain-contracts";
+import {
+  createCustomerCommandSchema,
+  createSaleDraftCommandSchema,
+  postSaleCommandSchema,
+  type SessionDto,
+  type WorkspaceId,
+} from "@vuarau/domain-contracts";
 import { useTRPC } from "@/api/providers.tsx";
 import { domainErrorOf } from "@/api/domain-error.ts";
 import { OfflineDatabase, requestPersistentStorage } from "./database.ts";
@@ -79,9 +85,11 @@ export function OfflineProvider(props: {
       new OfflineSyncEngine(
         database,
         async (kind, envelope) => {
-          if (kind === "customer.create") return createCustomer(envelope as never);
-          if (kind === "sale.createDraft") return createDraft(envelope as never);
-          return postSale(envelope as never);
+          if (kind === "customer.create")
+            return createCustomer(createCustomerCommandSchema.parse(envelope));
+          if (kind === "sale.createDraft")
+            return createDraft(createSaleDraftCommandSchema.parse(envelope));
+          return postSale(postSaleCommandSchema.parse(envelope));
         },
         domainErrorOf,
       ),

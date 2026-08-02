@@ -1,50 +1,47 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import type {
   ArrivalLineHistoryDto,
   QualityDispositionDto,
-  QualityDispositionReversalId,
   QualityInspectionDto,
-  QualityInspectionReversalId,
-  ReverseQualityDispositionCommand,
-  ReverseQualityInspectionCommand,
 } from "@vuarau/domain-contracts";
-import { useEffect, useRef, useState } from "react";
-import { useTRPC } from "@/api/providers.tsx";
-import { useCommand } from "@/api/use-command.ts";
+import type { ReactNode } from "react";
 import { formatQuantity } from "@/ui/format.ts";
-import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { INPUT_CLASS } from "@/ui/primitives/field.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
+
+export type FactHistoryProps = {
+  readonly facts: ArrivalLineHistoryDto;
+  readonly canInspectReverse: boolean;
+  readonly canDispositionReverse: boolean;
+  readonly onChanged: () => void;
+  readonly renderInspectionReverse?: (inspection: QualityInspectionDto) => ReactNode;
+  readonly renderDispositionReverse?: (disposition: QualityDispositionDto) => ReactNode;
+};
 
 export function FactHistory({
   facts,
   canInspectReverse,
   canDispositionReverse,
-  onChanged,
-}: {
-  facts: ArrivalLineHistoryDto;
-  canInspectReverse: boolean;
-  canDispositionReverse: boolean;
-  onChanged: () => void;
-}) {
+  renderInspectionReverse,
+  renderDispositionReverse,
+}: FactHistoryProps) {
   if (facts.inspections.length === 0 && facts.dispositions.length === 0) {
     return (
-      <section className="rounded-button bg-canvas p-3 text-body-sm text-ink-muted">
+      <section className="rounded-card bg-canvas p-3 text-body-sm text-ink-muted">
         Chưa có kiểm định hoặc quyết định chất lượng.
       </section>
     );
   }
   return (
-    <details className="rounded-button border border-border p-3">
+    <details className="rounded-card border border-border p-3">
       <summary className="cursor-pointer text-label font-semibold">
         Lịch sử kiểm định và quyết định ({facts.inspections.length + facts.dispositions.length})
       </summary>
       <div className="mt-3 grid gap-3">
         {facts.inspections.map((inspection) => (
-          <article key={inspection.id} className="rounded-button bg-canvas p-3">
+          <article key={inspection.id} className="rounded-card bg-canvas p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="text-label font-semibold">
@@ -69,13 +66,13 @@ export function FactHistory({
             ) : (
               <p className="mt-2 text-body-sm text-ink-muted">Không ghi nhận vấn đề.</p>
             )}
-            {canInspectReverse && inspection.reversal === null ? (
-              <ReverseInspectionControl inspection={inspection} onChanged={onChanged} />
-            ) : null}
+            {canInspectReverse && inspection.reversal === null
+              ? renderInspectionReverse?.(inspection)
+              : null}
           </article>
         ))}
         {facts.dispositions.map((disposition) => (
-          <article key={disposition.id} className="rounded-button bg-canvas p-3">
+          <article key={disposition.id} className="rounded-card bg-canvas p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="text-label font-semibold">
@@ -98,9 +95,9 @@ export function FactHistory({
                 </li>
               ))}
             </ul>
-            {canDispositionReverse && disposition.reversal === null ? (
-              <ReverseDispositionControl disposition={disposition} onChanged={onChanged} />
-            ) : null}
+            {canDispositionReverse && disposition.reversal === null
+              ? renderDispositionReverse?.(disposition)
+              : null}
           </article>
         ))}
       </div>
@@ -116,107 +113,67 @@ const outcomeLabel = (outcome: QualityDispositionDto["allocations"][number]["out
     disposed: "Hủy bỏ",
   })[outcome];
 
-function ReverseInspectionControl({
-  inspection,
-  onChanged,
+export function ReverseInspectionControl({
+  reason,
+  locked,
+  feedback,
+  onReasonChange,
+  onSubmit,
 }: {
-  inspection: QualityInspectionDto;
-  onChanged: () => void;
+  readonly reason: string;
+  readonly locked: boolean;
+  readonly feedback?: ReactNode;
+  readonly onReasonChange: (value: string) => void;
+  readonly onSubmit: () => void;
 }) {
-  const trpc = useTRPC();
-  const mutation = useMutation(trpc.intake.reverseInspection.mutationOptions());
-  const command = useCommand<ReverseQualityInspectionCommand["payload"], QualityInspectionDto>(
-    (envelope) => mutation.mutateAsync(envelope as never),
-  );
-  const reversalId = useRef(crypto.randomUUID() as QualityInspectionReversalId);
-  const [reason, setReason] = useState("");
-  const locked = command.phase.kind === "sending" || command.phase.kind === "unknown";
-  useEffect(() => {
-    if (command.result !== null) onChanged();
-  }, [command.result, onChanged]);
   return (
     <details className="mt-3 border-t border-border pt-2">
       <summary className="cursor-pointer text-caption font-semibold text-danger">
         Hoàn tác kiểm định
       </summary>
       <div className="mt-2 grid gap-2">
-        <input
-          className={INPUT_CLASS}
+        <Input
           value={reason}
           placeholder="Lý do hoàn tác"
-          onChange={(event) => setReason(event.target.value)}
+          onChange={(event) => onReasonChange(event.target.value)}
         />
-        <Button
-          tone="danger"
-          disabled={locked || reason.trim().length === 0}
-          onClick={() =>
-            void command.submit({
-              reversalId: reversalId.current,
-              inspectionId: inspection.id,
-              reason: reason.trim(),
-            })
-          }
-        >
+        <Button tone="danger" disabled={locked || reason.trim().length === 0} onClick={onSubmit}>
           {locked ? "Đang hoàn tác" : "Xác nhận hoàn tác kiểm định"}
         </Button>
-        <CommandOutcome
-          command={command}
-          attemptedAction="Hoàn tác kiểm định"
-          onReload={onChanged}
-        />
+        {feedback}
       </div>
     </details>
   );
 }
 
-function ReverseDispositionControl({
-  disposition,
-  onChanged,
+export function ReverseDispositionControl({
+  reason,
+  locked,
+  feedback,
+  onReasonChange,
+  onSubmit,
 }: {
-  disposition: QualityDispositionDto;
-  onChanged: () => void;
+  readonly reason: string;
+  readonly locked: boolean;
+  readonly feedback?: ReactNode;
+  readonly onReasonChange: (value: string) => void;
+  readonly onSubmit: () => void;
 }) {
-  const trpc = useTRPC();
-  const mutation = useMutation(trpc.intake.reverseDisposition.mutationOptions());
-  const command = useCommand<ReverseQualityDispositionCommand["payload"], QualityDispositionDto>(
-    (envelope) => mutation.mutateAsync(envelope as never),
-  );
-  const reversalId = useRef(crypto.randomUUID() as QualityDispositionReversalId);
-  const [reason, setReason] = useState("");
-  const locked = command.phase.kind === "sending" || command.phase.kind === "unknown";
-  useEffect(() => {
-    if (command.result !== null) onChanged();
-  }, [command.result, onChanged]);
   return (
     <details className="mt-3 border-t border-border pt-2">
       <summary className="cursor-pointer text-caption font-semibold text-danger">
         Hoàn tác quyết định
       </summary>
       <div className="mt-2 grid gap-2">
-        <input
-          className={INPUT_CLASS}
+        <Input
           value={reason}
           placeholder="Hoàn tác fact con trước fact cha"
-          onChange={(event) => setReason(event.target.value)}
+          onChange={(event) => onReasonChange(event.target.value)}
         />
-        <Button
-          tone="danger"
-          disabled={locked || reason.trim().length === 0}
-          onClick={() =>
-            void command.submit({
-              reversalId: reversalId.current,
-              dispositionId: disposition.id,
-              reason: reason.trim(),
-            })
-          }
-        >
+        <Button tone="danger" disabled={locked || reason.trim().length === 0} onClick={onSubmit}>
           {locked ? "Đang hoàn tác" : "Xác nhận hoàn tác quyết định"}
         </Button>
-        <CommandOutcome
-          command={command}
-          attemptedAction="Hoàn tác quyết định chất lượng"
-          onReload={onChanged}
-        />
+        {feedback}
       </div>
     </details>
   );

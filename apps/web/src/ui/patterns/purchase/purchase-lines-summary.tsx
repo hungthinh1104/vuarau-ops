@@ -8,7 +8,10 @@ export function PurchaseLinesSummary({
   readonly purchase: Pick<PurchaseDto, "lines" | "totalAmount">;
 }) {
   return (
-    <section className="rounded-card border border-border bg-surface p-4">
+    <section
+      aria-label="Tóm tắt hàng mua"
+      className="rounded-card border border-border bg-surface p-4"
+    >
       <h2 className="text-subheading font-semibold">Hàng mua</h2>
       <ul className="divide-y divide-border">
         {purchase.lines.map((line) => (
@@ -26,7 +29,11 @@ export function PurchaseLinesSummary({
           </li>
         ))}
       </ul>
-      <div className="mt-3 flex items-baseline justify-between border-t border-border pt-3">
+      <div
+        role="group"
+        aria-label="Tổng mua"
+        className="mt-3 flex items-baseline justify-between border-t border-border pt-3"
+      >
         <span className="text-body-sm font-semibold text-ink-muted">Tổng mua</span>
         <strong className="tabular text-heading text-ink">
           {formatMoney(purchase.totalAmount)}

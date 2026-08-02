@@ -12,13 +12,13 @@ test.describe("TC-E2E-024 — M11 workspace administration", () => {
     await page.goto("/workspace");
     await expect(page.getByRole("heading", { name: "Vựa rau Bình Điền" })).toBeVisible();
 
-    const addForm = page.locator("section").filter({ hasText: "Thêm tài khoản đã có" });
+    const addForm = page.getByRole("region", { name: "Thêm tài khoản đã có" });
     await addForm.getByLabel("Mã tài khoản").fill(actorId);
     await expect(addForm.getByRole("checkbox", { name: "Bán hàng" })).toBeChecked();
     await addForm.getByRole("button", { name: "Thêm thành viên" }).click();
     await expect(page.getByText(memberName, { exact: true })).toBeVisible();
 
-    const member = page.locator("article").filter({ hasText: memberName });
+    const member = page.getByRole("article", { name: `Thành viên ${memberName}` });
     await member.getByRole("checkbox", { name: "Kế toán" }).check();
     await member.getByRole("checkbox", { name: "Bán hàng" }).uncheck();
     await member.getByRole("button", { name: "Lưu vai trò" }).click();

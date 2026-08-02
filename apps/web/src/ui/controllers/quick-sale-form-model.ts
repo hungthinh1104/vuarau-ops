@@ -1,36 +1,21 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-  createProductCommandSchema,
-  createSaleDraftCommandSchema,
-  discardSaleDraftCommandSchema,
-  postSaleCommandSchema,
-  updateSaleDraftCommandSchema,
-} from "@vuarau/domain-contracts";
-import type {
-  CustomerDetailDto,
-  CustomerId,
-  Money,
-  ProductId,
-  ProductDto,
-  QualityGradeId,
-  SaleLineId,
-  SaleDto,
-} from "@vuarau/domain-contracts";
+import { useQuery } from "@tanstack/react-query";
+import type { CustomerId, Money, ProductId, SaleLineId, SaleDto } from "@vuarau/domain-contracts";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
-import { useCommand } from "@/api/use-command.ts";
 import { hasPermission } from "@/api/session.ts";
 import { useWorkflowMetrics } from "@/api/workflow-metrics.ts";
-import { useDebounced } from "@/api/use-debounced.ts";
 import { useOffline } from "@/offline/provider.tsx";
-import type { CachedProduct, CachedQualityGrade } from "@/offline/types.ts";
 import { emptyLine, resolveLine } from "@/ui/patterns/sale/sale-line-editor.tsx";
 import type { SaleLineDraft } from "@/ui/patterns/sale/sale-line-editor.tsx";
 import { replacementDraftFrom } from "@/ui/patterns/sale/replacement-sale-draft.ts";
+import { useQuickSaleCatalog } from "@/ui/controllers/quick-sale-catalog.ts";
+import { useQuickSaleCommands } from "@/ui/controllers/quick-sale-commands.ts";
+import { useQuickSalePersistence } from "@/ui/controllers/quick-sale-persistence.ts";
+import { buildQuickSalePayload } from "@/ui/controllers/quick-sale-payload.ts";
 
 export function useQuickSaleFormModel(props: { readonly customerIdOverride?: CustomerId }) {
   const { session, workspaceId } = useSession();
@@ -54,24 +39,6 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   const metrics = useWorkflowMetrics();
 
   const offline = useOffline();
-
-  const loadOfflineDraft = offline.loadDraft;
-
-  const saveOfflineDraft = offline.saveDraft;
-
-  const [cachedCustomer, setCachedCustomer] = useState<CustomerDetailDto | null>(null);
-
-  const [pendingCustomerCreate, setPendingCustomerCreate] = useState<{
-    readonly customerId: string;
-    readonly displayName: string;
-    readonly phone: string | null;
-    readonly note: string | null;
-  } | null>(null);
-
-  const [cacheFetchedAt, setCacheFetchedAt] = useState<string | null>(null);
-
-  const [cachedProducts, setCachedProducts] = useState<readonly CachedProduct[]>([]);
-  const [cachedQualityGrades, setCachedQualityGrades] = useState<readonly CachedQualityGrade[]>([]);
 
   const customer = useQuery(trpc.customer.get.queryOptions({ workspaceId, customerId }));
 
@@ -103,106 +70,34 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
 
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
 
-  const [localHydrated, setLocalHydrated] = useState(false);
-
   const [locallyQueued, setLocallyQueued] = useState(false);
 
   const activeLine = lines.find((line) => line.lineId === activeLineId) ?? lines[0]!;
 
+  const { cachedCustomer, cacheFetchedAt, pendingCustomerCreate } = useQuickSalePersistence({
+    customer,
+    customerId,
+    saleIdRef,
+    lines,
+    note,
+    locallyQueued,
+    setLines,
+    setNote,
+    setLocallyQueued,
+    offline,
+  });
+
   const [pickerProductQuery, setPickerProductQuery] = useState<string | null>(null);
-  const activeProductQuery = useDebounced(pickerProductQuery ?? activeLine.productName, 200);
-
-  const capture = useQuery(
-    trpc.sale.captureContext.queryOptions({
-      workspaceId,
-      customerId,
-      query: activeProductQuery,
-      limit: 10,
-    }),
-  );
-
-  const productSuggestions = useQuery(
-    trpc.product.search.queryOptions({
-      workspaceId,
-      query: activeProductQuery,
-      isActive: true,
-      cursor: null,
-      limit: pickerProductQuery === null ? 8 : 12,
-    }),
-  );
-  const qualityGrades = useQuery(
-    trpc.quality.list.queryOptions({
-      workspaceId,
-      query: "",
-      isActive: true,
-      cursor: null,
-      limit: 100,
-    }),
-  );
-
-  useEffect(() => {
-    if (qualityGrades.data === undefined) return;
-    const fetchedAt = new Date().toISOString();
-    const rows = qualityGrades.data.items.map((grade) => ({
-      ...offline.partition,
-      qualityGradeId: grade.id,
-      name: grade.name,
-      sortOrder: grade.sortOrder,
-      fetchedAt,
-    }));
-    setCachedQualityGrades(rows);
-    void offline.cacheQualityGrades(rows);
-  }, [offline, qualityGrades.data]);
-
-  useEffect(() => {
-    if (qualityGrades.data !== undefined) return;
-    void offline.cachedQualityGrades().then(setCachedQualityGrades);
-  }, [offline, qualityGrades.data]);
-
-  useEffect(() => {
-    if (productSuggestions.data === undefined) return;
-    const fetchedAt = new Date().toISOString();
-    const rows = productSuggestions.data.items.map((product) => ({
-      ...offline.partition,
-      productId: product.id,
-      displayName: product.displayName,
-      aliases: product.aliases,
-      preferredUnit: product.preferredUnit,
-      fetchedAt,
-    }));
-    setCachedProducts(rows);
-    void offline.cacheProducts(rows);
-  }, [offline, productSuggestions.data]);
-
-  useEffect(() => {
-    if (productSuggestions.data !== undefined) return;
-    void offline.cachedProducts().then(setCachedProducts);
-  }, [offline, productSuggestions.data]);
-
-  const visibleProducts =
-    productSuggestions.data?.items ??
-    cachedProducts
-      .filter((product) => {
-        const needle = activeProductQuery.toLocaleLowerCase("vi");
-        return (
-          product.displayName.toLocaleLowerCase("vi").includes(needle) ||
-          product.aliases.some((alias) => alias.toLocaleLowerCase("vi").includes(needle))
-        );
-      })
-      .map((product) => ({
-        id: product.productId as ProductId,
-        displayName: product.displayName,
-        aliases: [...product.aliases],
-        preferredUnit: product.preferredUnit as SaleLineDraft["unit"] | null,
-      }));
-
-  const cachedCatalogFetchedAt =
-    productSuggestions.data === undefined
-      ? (cachedProducts
-          .map((product) => product.fetchedAt)
-          .sort()
-          .at(-1) ?? null)
-      : null;
+  const catalog = useQuickSaleCatalog({
+    workspaceId,
+    customerId,
+    pickerProductQuery,
+    productName: activeLine.productName,
+    trpc,
+    offline,
+  });
+  const { capture, qualityGrades, qualityGradeOptions, visibleProducts, cachedCatalogFetchedAt } =
+    catalog;
 
   // The sale's identity is minted once, when the screen opens. A draft saved,
   // edited and saved again is the same sale throughout.
@@ -237,66 +132,6 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   }, [pathname, props.customerIdOverride, router, searchParams]);
 
   useEffect(() => {
-    let active = true;
-    void loadOfflineDraft(saleIdRef.current).then((saved) => {
-      if (!active) return;
-      if (saved !== null) {
-        setLines(saved.lines as readonly SaleLineDraft[]);
-        setNote(saved.note ?? "");
-        setLocallyQueued(saved.syncState !== "local");
-      }
-      setLocalHydrated(true);
-    });
-    return () => {
-      active = false;
-    };
-  }, [loadOfflineDraft]);
-
-  useEffect(() => {
-    if (!localHydrated || locallyQueued) return;
-    void saveOfflineDraft({
-      saleId: saleIdRef.current,
-      customerId,
-      ...offline.partition,
-      lines,
-      note: note.trim().length === 0 ? null : note,
-      occurredAt: new Date().toISOString(),
-      syncState: "local",
-      updatedAt: new Date().toISOString(),
-    });
-  }, [customerId, lines, localHydrated, locallyQueued, note, offline.partition, saveOfflineDraft]);
-
-  useEffect(() => {
-    if (customer.data === undefined) return;
-    const fetchedAt = new Date().toISOString();
-    void offline.cacheCustomers([
-      {
-        ...offline.partition,
-        customerId,
-        displayName: customer.data.customer.displayName,
-        phone: customer.data.customer.phone,
-        detail: customer.data,
-        fetchedAt,
-      },
-    ]);
-  }, [customer.data, customerId, offline]);
-
-  useEffect(() => {
-    if (customer.data !== undefined) return;
-    let active = true;
-    void offline.cachedCustomers().then((customers) => {
-      const cached = customers.find((candidate) => candidate.customerId === customerId);
-      if (!active || cached === undefined) return;
-      setCachedCustomer(cached.detail);
-      setCacheFetchedAt(cached.fetchedAt);
-      setPendingCustomerCreate(cached.pendingCreate ?? null);
-    });
-    return () => {
-      active = false;
-    };
-  }, [customer.data, customerId, offline]);
-
-  useEffect(() => {
     if (
       replacesSaleId === null ||
       replacementSource.data === undefined ||
@@ -328,39 +163,14 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     metrics.count("historical_price_offered");
   }, [activeLine.lineId, activeLine.productName, activeLine.unit, capture.data, metrics]);
 
-  const createDraft = useMutation(trpc.sale.createDraft.mutationOptions());
-  const createProductMutation = useMutation(trpc.product.create.mutationOptions());
-
-  const updateDraft = useMutation(trpc.sale.updateDraft.mutationOptions());
-
-  const discardDraft = useMutation(trpc.sale.discardDraft.mutationOptions());
-
-  const postSale = useMutation(trpc.sale.post.mutationOptions());
+  const { draftCommand, discardCommand, postCommand, productCreateCommand } = useQuickSaleCommands({
+    trpc,
+  });
 
   const draftRef = useRef<SaleDto | null>(null);
 
   draftRef.current = draft;
 
-  const draftCommand = useCommand<unknown, SaleDto>(async (envelope) => {
-    if (typeof envelope.payload !== "object" || envelope.payload === null) {
-      throw new Error("Sale draft payload must be an object.");
-    }
-    if ("customerId" in envelope.payload) {
-      return createDraft.mutateAsync(createSaleDraftCommandSchema.parse(envelope));
-    }
-    return updateDraft.mutateAsync(updateSaleDraftCommandSchema.parse(envelope));
-  });
-
-  const postCommand = useCommand<unknown, SaleDto>(async (envelope) => {
-    return postSale.mutateAsync(postSaleCommandSchema.parse(envelope));
-  });
-
-  const discardCommand = useCommand<unknown, SaleDto>(async (envelope) => {
-    return discardDraft.mutateAsync(discardSaleDraftCommandSchema.parse(envelope));
-  });
-  const productCreateCommand = useCommand<unknown, ProductDto>((envelope) =>
-    createProductMutation.mutateAsync(createProductCommandSchema.parse(envelope)),
-  );
   const pendingProductRef = useRef<{
     readonly context: string;
     readonly productId: string;
@@ -378,20 +188,6 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
       line.qualityGradeName !== null &&
       line.qualityGradeName !== undefined,
   );
-  const qualityGradeOptions = (
-    qualityGrades.data?.items ??
-    [...cachedQualityGrades]
-      .sort(
-        (left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name),
-      )
-      .map((grade) => ({
-        id: grade.qualityGradeId as QualityGradeId,
-        name: grade.name,
-      }))
-  ).map((grade) => ({
-    value: grade.id,
-    label: grade.name,
-  }));
   const noProductMatch = activeLine.productName.trim().length > 0 && activeLine.productId == null;
   const mayCreateProduct = hasPermission(session, "product.create");
 
@@ -463,30 +259,6 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     metrics.count("product_created_inline");
   }
 
-  function toPayload(isNew: boolean) {
-    return {
-      saleId: saleIdRef.current,
-      ...(isNew ? { customerId, currency: "VND" as const } : {}),
-      lines: lines.map((line, index) => ({
-        lineId: line.lineId,
-        /*
-         * A catalog choice carries its real id; free text carries null.
-         * `productName`, unit and price remain the immutable Sale snapshot
-         * (BR-SALE-011 / ADR-0017). Never mint a product id for free text.
-         */
-        productId: line.productId ?? null,
-        productName: line.productName.trim(),
-        qualityGradeId: (line.qualityGradeId ?? null) as QualityGradeId | null,
-        qualityGradeName: line.qualityGradeName ?? null,
-        quantity: resolved[index]!.quantity,
-        unitPrice: resolved[index]!.unitPrice,
-      })),
-      note: note.trim().length === 0 ? null : note.trim(),
-      dueAt: null,
-      ...(isNew ? { replacesSaleId: replacesSaleId as SaleDto["id"] | null } : {}),
-    };
-  }
-
   async function saveDraft(): Promise<SaleDto | null> {
     if (replacementPending) return null;
     setSubmitted(true);
@@ -499,7 +271,15 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     draftCommand.reset();
     const isNew = draftRef.current === null;
     const saved = await draftCommand.submit(
-      toPayload(isNew),
+      buildQuickSalePayload({
+        saleId: saleIdRef.current,
+        customerId,
+        lines,
+        resolved,
+        note,
+        replacesSaleId,
+        isNew,
+      }),
       isNew ? {} : { expectedVersion: draftRef.current!.version },
     );
     if (saved !== null) {
@@ -557,7 +337,15 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
           sale: {
             saleId: saleIdRef.current,
             customerId,
-            lines: toPayload(true).lines,
+            lines: buildQuickSalePayload({
+              saleId: saleIdRef.current,
+              customerId,
+              lines,
+              resolved,
+              note,
+              replacesSaleId: null,
+              isNew: true,
+            }).lines,
             note: note.trim().length === 0 ? null : note.trim(),
             replacesSaleId: null,
           },
@@ -629,7 +417,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     post,
     postCommand,
     productCreateCommand,
-    productSearchLoading: productSuggestions.isFetching || capture.isFetching,
+    productSearchLoading: catalog.productSearchLoading,
     noProductMatch,
     qualityGrades,
     qualityGradeOptions,
