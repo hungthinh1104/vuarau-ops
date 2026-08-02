@@ -3,17 +3,35 @@ import { expect, test, signIn } from "./harness/signed-in.ts";
 import { api } from "./harness/api.ts";
 import { uniqueCustomerName } from "./harness/environment.ts";
 
+async function chooseOption(page: Page, label: string, option: string): Promise<void> {
+  await page.getByRole("combobox", { name: label }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
+
+async function chooseProduct(page: Page, productName: string): Promise<void> {
+  await page.getByRole("button", { name: "Mở bảng chọn mặt hàng và giá gần đây" }).click();
+  const picker = page.getByRole("dialog");
+  await expect(picker).toBeVisible();
+  await picker.getByLabel("Tìm mặt hàng").fill(productName);
+  const product = picker.getByRole("button", { name: new RegExp(`^${productName}( ·|$)`) });
+  await product.focus();
+  await product.press("Enter");
+}
+
 async function postSale(page: Page, customerId: string): Promise<void> {
   await page.goto(`/customers/${customerId}/sales/new`);
   const line = page.getByTestId("sale-line-0");
-  await line.getByLabel("Mặt hàng").fill("Cà chua");
-  const catalog = page.getByRole("heading", { name: "Danh mục mặt hàng" }).locator("..");
-  await catalog.getByRole("button", { name: "Cà chua", exact: true }).click();
-  await line.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
+  await chooseProduct(page, "Cà chua");
+  await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
   await line.getByLabel("Số lượng").fill("1");
   await line.getByLabel("Đơn giá").fill("500.000");
-  await page.getByRole("button", { name: "Chốt đơn" }).click();
-  await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+  await page.getByRole("button", { name: "Chốt đơn", exact: true }).click();
+  const confirmation = page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Chốt đơn", exact: true });
+  await confirmation.focus();
+  await confirmation.press("Enter");
+  await expect(page.getByRole("heading", { name: /^Đơn của / })).toBeVisible();
 }
 
 test.describe("TC-E2E-022 — M9 account ledger truth", () => {
@@ -32,7 +50,8 @@ test.describe("TC-E2E-022 — M9 account ledger truth", () => {
     await page.goto(`/customers/${customerId}/payments/new`);
     await page.getByLabel("Số tiền khách trả").fill("200.000");
     await page.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expect(page).toHaveURL(/\/payments\/[0-9a-f-]+$/);
+    await expect(page.getByRole("heading", { name: /^Thanh toán ·/ })).toBeVisible();
     const payment = (await api.payments(customerId)).items.at(0);
     if (payment === undefined) return;
 
@@ -42,8 +61,8 @@ test.describe("TC-E2E-022 — M9 account ledger truth", () => {
     await expect(page.getByRole("status").getByText("Đã ghi nhận")).toBeVisible();
 
     await page.goto(`/customers/${customerId}/account/adjust`);
-    await page.getByLabel("Hướng điều chỉnh").selectOption("decrease");
-    await page.getByLabel("Lý do").selectOption("goodwill_discount");
+    await chooseOption(page, "Hướng điều chỉnh", "Giảm công nợ");
+    await chooseOption(page, "Lý do", "Giảm trừ thiện chí");
     await page.getByLabel("Số tiền điều chỉnh").fill("20.000");
     await page.getByLabel("Giải thích").fill("Giảm trừ đã duyệt");
     await page
@@ -80,14 +99,14 @@ test.describe("TC-E2E-022 — M9 account ledger truth", () => {
       accountTimeline.locator(`a[href="/account-adjustments/${adjustmentId}"]`),
     ).toBeVisible();
     await accountTimeline.locator(`a[href="/sales/${sale.id}"]`).click();
-    await expect(page.getByRole("heading", { name: /CHI TIẾT ĐƠN/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Đơn của / })).toBeVisible();
     await page.goto(`/customers/${customerId}`);
     await page
       .getByRole("list", { name: "Giao dịch công nợ" })
       .locator(`a[href="/payments/${payment.id}"]`)
       .first()
       .click();
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Thanh toán ·/ })).toBeVisible();
     await page.goto(`/customers/${customerId}`);
     await page
       .getByRole("list", { name: "Giao dịch công nợ" })
@@ -102,7 +121,7 @@ test.describe("TC-E2E-022 — M9 account ledger truth", () => {
     await expect(page.getByText("Sổ công nợ")).toBeVisible();
     await expect(page.getByRole("link", { name: "Điều chỉnh công nợ" })).toHaveCount(0);
     await page.goto(`/payments/${payment.id}`);
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Thanh toán ·/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "Xác nhận hoàn tác" })).toHaveCount(0);
     await page.goto(`/customers/${customerId}/account/adjust`);
     await expect(page.getByText("Không đủ quyền", { exact: true })).toBeVisible();
