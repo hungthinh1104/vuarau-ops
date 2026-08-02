@@ -30,11 +30,14 @@ async function chooseLineOption(
 
 async function fillLine(page: Page, index: number, line: Line): Promise<void> {
   const row = page.getByTestId(`sale-line-${index}`);
-  await row.getByRole("textbox", { name: "Mặt hàng" }).fill(line.product);
+  const productInput = row.getByRole("textbox", { name: "Mặt hàng" });
+  await productInput.fill(line.product);
+  await productInput.focus();
+  await page.waitForTimeout(250);
   await row.getByRole("button", { name: "Mở bảng chọn mặt hàng và giá gần đây" }).click();
-  await page.waitForTimeout(500);
   const picker = page.getByRole("dialog");
   await expect(picker).toBeVisible();
+  await page.waitForTimeout(750);
   await picker.getByLabel("Tìm mặt hàng").fill(line.product);
   const product = picker.getByRole("button", {
     name: new RegExp(`^${line.product.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}( ·|$)`),
