@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   REPORT_DEFINITIONS,
   REPORT_DEFINITIONS_DTO,
+  METRIC_AVAILABILITY_DEFINITIONS,
+  REPORT_METRIC_DEFINITIONS_DTO,
   REPORT_TYPES,
   reportDefinitionSchema,
   reportDefinitionsDtoSchema,
+  reportMetricDefinitionsDtoSchema,
 } from "./index.ts";
 
 describe("operational report semantic definitions", () => {
@@ -56,6 +59,18 @@ describe("operational report semantic definitions", () => {
     expect(REPORT_DEFINITIONS_DTO.version).toBe(1);
     expect(REPORT_DEFINITIONS_DTO.definitions.map((definition) => definition.reportType)).toEqual(
       REPORT_TYPES,
+    );
+  });
+
+  it("publishes policy-blocked metric availability without numeric fallbacks", () => {
+    const parsed = reportMetricDefinitionsDtoSchema.safeParse(REPORT_METRIC_DEFINITIONS_DTO);
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    expect(REPORT_METRIC_DEFINITIONS_DTO.version).toBe(1);
+    expect(
+      METRIC_AVAILABILITY_DEFINITIONS.every((metric) => metric.availability === "unavailable"),
+    ).toBe(true);
+    expect(METRIC_AVAILABILITY_DEFINITIONS.every((metric) => metric.blockedBy.length > 0)).toBe(
+      true,
     );
   });
 });

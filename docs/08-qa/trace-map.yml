@@ -815,9 +815,18 @@ use_cases:
     title: Inspect source-backed operational reports
     risk: P1
     doc: docs/02-use-cases/depot-operations-use-cases.md
-    rules: [BR-REPORT-001, BR-REPORT-002, BR-REPORT-003, BR-REPORT-004, BR-OPS-005, BR-OPS-007]
+    rules:
+      [
+        BR-REPORT-001,
+        BR-REPORT-002,
+        BR-REPORT-003,
+        BR-REPORT-004,
+        BR-REPORT-005,
+        BR-OPS-005,
+        BR-OPS-007,
+      ]
     cases: []
-    tests: [TC-REPORT-001, TC-OPS-007, TC-OPS-010, TC-OPS-011, TC-E2E-030]
+    tests: [TC-REPORT-001, TC-REPORT-002, TC-OPS-007, TC-OPS-010, TC-OPS-011, TC-E2E-030]
     implementation:
       - apps/api/src/modules/report/report.queries.ts
       - apps/api/src/modules/report/csv.ts
@@ -2099,6 +2108,14 @@ business_rules:
     risk: P1
     doc: docs/04-business-rules/depot-operations-rules.md
     tests: [TC-REPORT-001]
+  BR-REPORT-005:
+    title: Policy-blocked metrics are unavailable without numeric fallbacks
+    risk: P1
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-REPORT-002]
+    implementation:
+      - packages/domain-contracts/src/report/index.ts
+      - apps/api/src/modules/report/report.queries.ts
 
   BR-CASH-001:
     title: CashAccount is versioned lifecycle data with explicit custody
@@ -2649,6 +2666,9 @@ contract_tests:
   TC-REPORT-001:
     title: PostgreSQL proves customer-ledger report scope, totals, source links, pagination, dates and per-unit truth
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
+  TC-REPORT-002:
+    title: Application and tRPC reads expose policy-blocked metrics as unavailable
+    file: apps/api/src/modules/report/definitions.app.test.ts
   TC-E2E-030:
     title: Browser API and PostgreSQL prove partial delivery completion and explicit return
     file: apps/web/e2e/m19-m21-depot-operations.spec.ts

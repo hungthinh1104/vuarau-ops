@@ -264,6 +264,11 @@ The current operational reports remain source-backed views of canonical
 transactions and ledgers. A missing policy is shown as unavailable or blocked,
 never as zero, a stale projection or a recommendation.
 
+The authenticated `report.metrics` read exposes the blocked management candidates
+and their ASM policy gates. It is an availability contract, not a value endpoint:
+an unavailable candidate has no numeric value, formula or drill-down action until
+field policy and canonical source evidence are closed.
+
 ---
 
 ## 6. Customer directory

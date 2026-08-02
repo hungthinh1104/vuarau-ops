@@ -1,6 +1,7 @@
 import {
   decodeCursor,
   defaultWorkspaceOperationalProfile,
+  REPORT_METRIC_DEFINITIONS_DTO,
   REPORT_DEFINITIONS_DTO,
   type ReportDefinitionsInput,
   type OperationalReportDto,
@@ -32,6 +33,18 @@ export const getReportDefinitions = (ctx: CommandContext, input: ReportDefinitio
     workspaceId: input.workspaceId,
     permission: "report.read",
     execute: async () => REPORT_DEFINITIONS_DTO,
+  });
+
+/**
+ * Returns blocked management candidates explicitly. This is not a metric value
+ * endpoint: unavailable candidates carry policy gates and no numeric fallback.
+ */
+export const getReportMetricDefinitions = (ctx: CommandContext, input: ReportDefinitionsInput) =>
+  runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "report.read",
+    execute: async () => REPORT_METRIC_DEFINITIONS_DTO,
   });
 
 function protectReportAgainstIntegrityDrift(

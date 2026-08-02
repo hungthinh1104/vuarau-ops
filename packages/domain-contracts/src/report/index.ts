@@ -441,6 +441,175 @@ export const REPORT_DEFINITIONS_DTO = {
   definitions: REPORT_DEFINITIONS,
 } satisfies ReportDefinitionsDto;
 
+/**
+ * Availability is deliberately separate from the operational report contract.
+ * A blocked candidate must be visible as unavailable, without inventing a zero,
+ * formula or source projection before its policy and canonical facts exist.
+ */
+export const METRIC_CANDIDATE_IDS = [
+  "revenue",
+  "cogs",
+  "gross_profit",
+  "gross_margin",
+  "waste_value",
+  "waste_rate",
+  "price_margin_change",
+  "receivable_aging",
+  "payable_aging",
+  "inventory_health",
+  "reorder_risk",
+  "supplier_performance",
+  "cash_gap",
+  "shift_close_variance",
+  "bank_reconciliation",
+] as const;
+export const metricCandidateIdSchema = z.enum(METRIC_CANDIDATE_IDS);
+export type MetricCandidateId = z.infer<typeof metricCandidateIdSchema>;
+
+export const metricAvailabilityDefinitionSchema = z.object({
+  metricId: metricCandidateIdSchema,
+  label: z.string().min(1),
+  availability: z.literal("unavailable"),
+  blockedBy: z.array(z.string().regex(/^ASM-\d{3}$/)).min(1),
+  reason: z.string().min(1),
+  nextEvidence: z.string().min(1),
+});
+export type MetricAvailabilityDefinition = z.infer<typeof metricAvailabilityDefinitionSchema>;
+
+export const METRIC_AVAILABILITY_DEFINITIONS = [
+  {
+    metricId: "revenue",
+    label: "Revenue",
+    availability: "unavailable",
+    blockedBy: ["ASM-023", "ASM-024"],
+    reason: "Recognition semantics must be field-validated before management revenue is published.",
+    nextEvidence: "Owner-confirmed recognition moment bound to the operating release.",
+  },
+  {
+    metricId: "cogs",
+    label: "COGS",
+    availability: "unavailable",
+    blockedBy: ["ASM-039", "ASM-040"],
+    reason: "Valuation basis and cost effects are not decided.",
+    nextEvidence: "Field-approved valuation, cost assignment and correction examples.",
+  },
+  {
+    metricId: "gross_profit",
+    label: "Gross profit",
+    availability: "unavailable",
+    blockedBy: ["ASM-039", "ASM-040"],
+    reason: "COGS is unavailable until valuation and cost-effect policy is closed.",
+    nextEvidence: "Reproducible revenue-minus-COGS policy with historical examples.",
+  },
+  {
+    metricId: "gross_margin",
+    label: "Gross margin",
+    availability: "unavailable",
+    blockedBy: ["ASM-039", "ASM-040"],
+    reason: "Margin cannot be derived while revenue recognition or cost basis is unresolved.",
+    nextEvidence: "Field-approved numerator, denominator and zero/negative-cost handling.",
+  },
+  {
+    metricId: "waste_value",
+    label: "Waste value",
+    availability: "unavailable",
+    blockedBy: ["ASM-040"],
+    reason: "Waste, damage and rejected-goods cost treatment is not decided.",
+    nextEvidence: "Source-linked waste examples with approved valuation treatment.",
+  },
+  {
+    metricId: "waste_rate",
+    label: "Waste rate",
+    availability: "unavailable",
+    blockedBy: ["ASM-040"],
+    reason: "The numerator, denominator and included physical outcomes are not decided.",
+    nextEvidence: "Field-approved waste classification and period calculation examples.",
+  },
+  {
+    metricId: "price_margin_change",
+    label: "Price and margin change",
+    availability: "unavailable",
+    blockedBy: ["ASM-039", "ASM-040"],
+    reason: "Price history exists, but margin requires a policy-backed cost baseline.",
+    nextEvidence: "Approved cost baseline and comparison period semantics.",
+  },
+  {
+    metricId: "receivable_aging",
+    label: "Receivable aging",
+    availability: "unavailable",
+    blockedBy: ["ASM-016", "ASM-041"],
+    reason: "Payment terms, due-date defaults and allocation semantics are unresolved.",
+    nextEvidence: "Field-approved terms, aging buckets and allocation examples.",
+  },
+  {
+    metricId: "payable_aging",
+    label: "Payable aging",
+    availability: "unavailable",
+    blockedBy: ["ASM-025", "ASM-041"],
+    reason: "Supplier recognition and payable terms/allocation semantics are unresolved.",
+    nextEvidence: "Owner/accountant confirmation of payable timing and aging rules.",
+  },
+  {
+    metricId: "inventory_health",
+    label: "Inventory health",
+    availability: "unavailable",
+    blockedBy: ["ASM-042", "ASM-043"],
+    reason: "Stock-risk thresholds and stocktake/variance semantics are not decided.",
+    nextEvidence: "Field-approved stock-risk states and variance workflow.",
+  },
+  {
+    metricId: "reorder_risk",
+    label: "Reorder risk",
+    availability: "unavailable",
+    blockedBy: ["ASM-042"],
+    reason: "Minimum, target, lead-time and velocity policies are not decided.",
+    nextEvidence: "Product/grade/unit planning examples with approved action thresholds.",
+  },
+  {
+    metricId: "supplier_performance",
+    label: "Supplier performance",
+    availability: "unavailable",
+    blockedBy: ["ASM-047", "ASM-048"],
+    reason: "Supplier facts, quality/claim semantics and review windows are not closed.",
+    nextEvidence: "Source-linked delivery, quality, return and credit examples.",
+  },
+  {
+    metricId: "cash_gap",
+    label: "Projected cash gap",
+    availability: "unavailable",
+    blockedBy: ["ASM-045", "ASM-046"],
+    reason: "Close, deposit and settlement semantics are not decided.",
+    nextEvidence: "Field-approved cash close, external settlement and unresolved-item rules.",
+  },
+  {
+    metricId: "shift_close_variance",
+    label: "Shift close variance",
+    availability: "unavailable",
+    blockedBy: ["ASM-045"],
+    reason: "There is no decided persisted close event or variance authority.",
+    nextEvidence: "Observed close procedure with counted inputs and correction authority.",
+  },
+  {
+    metricId: "bank_reconciliation",
+    label: "Bank reconciliation",
+    availability: "unavailable",
+    blockedBy: ["ASM-046"],
+    reason: "External statement matching and settlement semantics are not decided.",
+    nextEvidence: "Approved statement input, matching key and unresolved settlement workflow.",
+  },
+] satisfies readonly MetricAvailabilityDefinition[];
+
+export const reportMetricDefinitionsDtoSchema = z.object({
+  version: z.literal(1),
+  definitions: z.array(metricAvailabilityDefinitionSchema),
+});
+export type ReportMetricDefinitionsDto = z.infer<typeof reportMetricDefinitionsDtoSchema>;
+
+export const REPORT_METRIC_DEFINITIONS_DTO = {
+  version: 1,
+  definitions: METRIC_AVAILABILITY_DEFINITIONS,
+} satisfies ReportMetricDefinitionsDto;
+
 export const operationalReportDtoSchema = z.object({
   reportType: reportTypeSchema,
   businessDate: z.string().nullable(),

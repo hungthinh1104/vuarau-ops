@@ -121,5 +121,7 @@ receivables, supplier payables, grade-aware inventory/movements or outstanding D
 - **Navigation:** each applicable row links to its source transaction; legacy source
   limitations remain visible rather than invented.
 - **Integrity:** healthy/attention is explicit; read failure never becomes stale “current” totals.
+- **Metric availability:** `report.metrics` exposes policy-blocked candidates as
+  `unavailable` with their ASM gates; it never supplies zero or inferred values.
 - **CSV:** representation of the same server read, not a separate calculation.
-- **Rules/tests:** BR-REPORT-001…004, BR-OPS-005/007 · TC-REPORT-001 · TC-E2E-030.
+- **Rules/tests:** BR-REPORT-001…005, BR-OPS-005/007 · TC-REPORT-001/002 · TC-E2E-030.

@@ -66,3 +66,9 @@ not real-worker adoption.
   until the projection is reconciled or rebuilt. Canonical activity/movement
   reports may remain visible with the attention state because they read source
   facts directly.
+- **BR-REPORT-005** — Policy-blocked management metrics are published as
+  `unavailable` candidates with their decision gates and no numeric fallback.
+  Missing policy, missing canonical sources or unresolved metric semantics must
+  not be rendered as zero, estimated truth or a recommendation. A future metric
+  becomes available only after its formula, canonical sources, time semantics,
+  integrity behavior, drill-down and action are defined and verified.
