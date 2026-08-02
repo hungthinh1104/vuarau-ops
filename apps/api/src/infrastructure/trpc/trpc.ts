@@ -4,6 +4,26 @@ import type { DomainError, DomainRejectionCode } from "@vuarau/domain-contracts"
 import { isRetryableCode } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import type { ApiContext } from "./context.ts";
+import { currentRequestId, log } from "../logging.ts";
+
+/**
+ * Unexpected transport failures need an operator-visible breadcrumb, but their
+ * message/cause/stack may contain SQL, payloads or customer data. Keep this
+ * event deliberately smaller than the exception object.
+ */
+export function logUnexpectedTrpcError(args: {
+  readonly procedure: string;
+  readonly code: string;
+  readonly hasDomainError: boolean;
+}): void {
+  if (args.hasDomainError) return;
+  log({
+    event: "exception",
+    requestId: currentRequestId(),
+    procedure: args.procedure,
+    code: args.code,
+  });
+}
 
 /**
  * The transport edge. This is the only place a domain refusal becomes a thrown
@@ -12,7 +32,6 @@ import type { ApiContext } from "./context.ts";
  */
 const t = initTRPC.context<ApiContext>().create({
   errorFormatter({ shape, error }) {
-    console.error("TRPC ERROR:", error);
     // Input that fails the schema is still a business-facing refusal, and it gets
     // the same envelope as every other one rather than a bare Zod dump.
     const domainError =
@@ -29,6 +48,12 @@ const t = initTRPC.context<ApiContext>().create({
             retryable: false,
           } satisfies DomainError)
         : ((error.cause as { domainError?: DomainError } | undefined)?.domainError ?? null);
+
+    logUnexpectedTrpcError({
+      procedure: typeof shape.data?.path === "string" ? shape.data.path : "unknown",
+      code: error.code,
+      hasDomainError: domainError !== null,
+    });
 
     return { ...shape, data: { ...shape.data, domainError } };
   },

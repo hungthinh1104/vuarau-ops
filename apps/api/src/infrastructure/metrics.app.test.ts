@@ -33,11 +33,19 @@ describe("M22 safe operational metrics", () => {
       checkType: "workspace",
       status: "attention",
     });
+    observeOperationalEvent({
+      event: "exception",
+      requestId: "req-4",
+      procedure: "sale.post",
+      code: "INTERNAL_SERVER_ERROR",
+    });
 
     const output = renderMetrics();
     expect(output).toContain('result="postsale_replayed"');
     expect(output).toContain('result="workspace_access_denied"');
     expect(output).toContain('result="workspace_attention"');
+    expect(output).toContain('family="exceptions"');
+    expect(output).toContain('result="internal_server_error"');
     expect(output).not.toContain("workspace-1");
     expect(output).not.toContain("actor-1");
     expect(output).not.toContain("command-1");

@@ -10,11 +10,15 @@ command   requestId · commandId · workspaceId · actorId · type · outcome/co
 query     requestId · workspaceId · actorId · permission · outcome/code · durationMs
 integrity requestId · workspaceId · checkType · healthy/attention
 health    probe · status · failing
+exception requestId · procedure · transport code
 ```
 
 The Prometheus endpoint `/metrics` derives counters and latency summaries from the
 same closed events. It deliberately drops request, command, actor and workspace
 identifiers from labels to avoid high cardinality and business-data leakage.
+Unexpected tRPC failures emit an `exception` event with no message, stack, cause,
+payload, SQL or business amount. Expected domain refusals are already represented
+by command/query outcome codes and are not duplicated as exceptions.
 
 ## Correlation procedure
 

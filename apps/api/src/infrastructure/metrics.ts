@@ -36,6 +36,8 @@ export function observeOperationalEvent(event: LogEvent): void {
     increment("integrity_checks", `${event.checkType}:${event.status}`);
   } else if (event.event === "health") {
     increment("health_checks", `${event.probe}:${event.status}`);
+  } else if (event.event === "exception") {
+    increment("exceptions", event.code);
   }
 }
 
