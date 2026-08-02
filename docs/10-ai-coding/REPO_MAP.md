@@ -64,12 +64,13 @@ spec files include `apps/web/e2e/m13-offline-quick-sale.spec.ts` and
 
 The repository checks are split by feedback speed:
 
-| Command                | Scope                                                                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------ |
-| `pnpm test:fast`       | domain, application, contract and web Vitest projects                                      |
-| `pnpm check:static`    | format, lint, typecheck, boundaries, source, docs, truth, context and trace checks         |
-| `pnpm verify`          | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E |
-| `pnpm context <query>` | targeted docs/tests/implementation retrieval for an agent                                  |
+| Command                               | Scope                                                                                                          |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:fast`                      | domain, application, contract and web Vitest projects                                                          |
+| `pnpm check:static`                   | format, lint, typecheck, boundaries, source, UI/docs/truth checks, context, trace and security-surface checks  |
+| `pnpm verify`                         | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                     |
+| `pnpm context <query>`                | targeted docs/tests/implementation retrieval for an agent                                                      |
+| `pnpm perf:m22` / `pnpm rehearse:m22` | disposable production-shape performance and fresh/idempotent migration evidence; both run as separate CI gates |
 
 `pnpm context <folder>` is exhaustive for that active tracked folder by default;
 ID and free-text queries use the normal result limits unless `--all` is passed.
