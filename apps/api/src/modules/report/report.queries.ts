@@ -1,6 +1,8 @@
 import {
   decodeCursor,
   defaultWorkspaceOperationalProfile,
+  REPORT_DEFINITIONS_DTO,
+  type ReportDefinitionsInput,
   type OperationalReportDto,
   type ReportInput,
 } from "@vuarau/domain-contracts";
@@ -23,6 +25,14 @@ const PROJECTION_BACKED_REPORTS = new Set<ReportInput["reportType"]>([
 ]);
 
 const projectionUnavailableDiagnostic = "report_projection_unavailable";
+
+export const getReportDefinitions = (ctx: CommandContext, input: ReportDefinitionsInput) =>
+  runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "report.read",
+    execute: async () => REPORT_DEFINITIONS_DTO,
+  });
 
 function protectReportAgainstIntegrityDrift(
   report: OperationalReportDto,

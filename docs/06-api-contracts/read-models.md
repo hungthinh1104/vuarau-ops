@@ -25,7 +25,7 @@ current procedure catalog without duplicating every DTO field.
 | `inventory`  | `balances`, `getAdjustment`, `timeline`, `reconciliation`, `evidence`                                                                 |
 | `delivery`   | `get`, `list`, `fulfilment`                                                                                                           |
 | `document`   | `get`, `listForSource`                                                                                                                |
-| `report`     | `operational`, `csv`                                                                                                                  |
+| `report`     | `definitions`, `operational`, `csv`                                                                                                   |
 | `operations` | `integrity`, `validateBackup`                                                                                                         |
 | `cash`       | `searchAccounts`, `getAccount`, `timeline`, `getExpense`, `getTransfer`, `reconciliation`                                             |
 | `intake`     | `searchIssueCodes`, `getArrival`, `listArrivals`, `getInspection`, `getDisposition`, `dispositionSourceSummary`, `arrivalLineHistory` |
@@ -90,6 +90,14 @@ path. Clients do not recompute this model.
 source-backed report model. Current report families cover customer account
 activity, receivables, payables, grade-aware inventory, inventory movements and
 outstanding delivery work.
+
+`report.definitions` is an authenticated, versioned semantic contract for those
+currently implemented operational reports. Each entry states its measure,
+canonical or rebuildable source relations, business-time semantics, supported
+and ignored filters, integrity behavior and drill-down action. The registry does
+not claim that COGS, margin, debt aging, reorder risk or supplier-performance
+metrics exist; those remain unavailable until their business policies and source
+facts are agreed and implemented.
 
 Inventory report rows preserve Product/QualityGrade/unit identity. An aggregate
 across grades, when shown for information, must be labelled as an aggregate rather

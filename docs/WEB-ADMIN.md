@@ -458,6 +458,12 @@ A report must define:
 - comparison period;
 - drill-down records.
 
+For current operational reports, the authenticated `report.definitions` read is
+the machine-readable source for these semantics. UI code must not invent a
+formula, date boundary, freshness state or action when the definition is absent.
+Definitions currently cover source-backed operational views only; policy-blocked
+metrics such as COGS, margin, aging and reorder risk remain unavailable.
+
 ### Report hierarchy
 
 ```text
