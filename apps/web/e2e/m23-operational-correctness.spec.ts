@@ -1,6 +1,24 @@
 import { api } from "./harness/api.ts";
 import { E2E_QUALITY_GRADE_ID } from "./harness/environment.ts";
 import { expect, signIn, test } from "./harness/signed-in.ts";
+import type { Locator, Page } from "@playwright/test";
+
+async function chooseOption(scope: Page | Locator, label: string, option: string): Promise<void> {
+  await scope.getByRole("combobox", { name: label, exact: true }).click();
+  await scope.getByRole("option", { name: option, exact: true }).click();
+}
+
+async function chooseProduct(page: Page, productName: string): Promise<void> {
+  await page.getByRole("button", { name: "Mở bảng chọn mặt hàng và giá gần đây" }).click();
+  const picker = page.getByRole("dialog");
+  await expect(picker).toBeVisible();
+  await picker.getByLabel("Tìm mặt hàng").fill(productName);
+  const product = picker.getByRole("button", {
+    name: new RegExp(`^${productName}( ·|$)`),
+  });
+  await product.focus();
+  await product.press("Enter");
+}
 
 test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
   test("preserves Product, grade, fulfilment, inventory and money truth end to end", async ({
@@ -11,16 +29,18 @@ test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
     const suffix = Date.now();
     const secondGrade = `Hạng B ${suffix}`;
     await page.goto("/quality-grades");
-    await page.getByLabel("Tên phân hạng").fill(secondGrade);
+    await page.getByLabel("Tên phẩm cấp").fill(secondGrade);
     await page.getByLabel("Thứ tự").fill("20");
-    await page.getByRole("button", { name: "Thêm phân hạng" }).click();
+    const addGrade = page.getByRole("button", { name: "Thêm phẩm cấp" });
+    await addGrade.focus();
+    await addGrade.press("Enter");
     await expect(page.getByText(secondGrade, { exact: true })).toBeVisible();
     const secondGradeId = await api.qualityGradeIdByName(secondGrade);
 
     const productName = `Cà M23 ${suffix}`;
     await page.goto("/products/new");
     await page.getByLabel("Tên mặt hàng").fill(productName);
-    await page.getByLabel("Đơn vị gợi ý").selectOption("kg");
+    await chooseOption(page, "Đơn vị gợi ý", "kg");
     await page.getByRole("button", { name: "Tạo mặt hàng" }).click();
     await page.waitForURL(/\/products\/[0-9a-f-]+$/);
     const productId = new URL(page.url()).pathname.split("/").at(-1)!;
@@ -33,8 +53,8 @@ test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
     const supplierId = new URL(page.url()).pathname.split("/").at(-1)!;
 
     await page.goto("/purchases/new");
-    await page.getByLabel("Nhà cung cấp").selectOption(supplierId);
-    await page.getByLabel("Mặt hàng").selectOption(productId);
+    await chooseOption(page, "Nhà cung cấp", supplierName);
+    await chooseOption(page, "Mặt hàng", productName);
     await page.getByLabel("Số lượng").fill("100");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
     await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();
@@ -51,12 +71,15 @@ test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
     const customerId = await api.createCustomer(`Khách M23 ${suffix}`);
     await page.goto(`/customers/${customerId}/sales/new`);
     const saleLine = page.getByTestId("sale-line-0");
-    await saleLine.getByLabel("Mặt hàng").fill(productName);
-    await page.getByRole("button", { name: `${productName} · kg`, exact: true }).click();
-    await saleLine.getByLabel("Phân hạng chất lượng").selectOption({ label: "Loại 1" });
+    await chooseProduct(page, productName);
+    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
+    await chooseOption(page, "Đơn vị", "kg");
     await saleLine.getByLabel("Số lượng").fill("80");
     await saleLine.getByLabel("Đơn giá").fill("10.000");
     await page.getByRole("button", { name: "Chốt đơn" }).click();
+    const confirmation = page.getByRole("dialog").getByRole("button", { name: "Chốt đơn" });
+    await confirmation.focus();
+    await confirmation.press("Enter");
     await page.waitForURL(/\/sales\/[0-9a-f-]+$/);
     const saleId = new URL(page.url()).pathname.split("/").at(-1)!;
     const debtAfterPost = await api.balance(customerId);
@@ -86,8 +109,8 @@ test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
 
     await page.goto(`/products/${productId}/inventory`);
     const reclass = page.getByRole("heading", { name: "Chuyển phẩm cấp" }).locator("..");
-    await reclass.getByLabel("Từ phẩm cấp").selectOption({ label: secondGrade });
-    await reclass.getByLabel("Sang phẩm cấp").selectOption({ label: "Loại 1" });
+    await chooseOption(page, "Từ phẩm cấp", secondGrade);
+    await chooseOption(page, "Sang phẩm cấp", "Loại 1");
     await reclass.getByLabel("Số lượng").fill("10");
     await reclass.getByLabel("Lý do").fill("Phân loại lại cuối ngày");
     await reclass.getByRole("button", { name: "Ghi chuyển phẩm cấp" }).click();
@@ -95,10 +118,10 @@ test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
     await expect(page.getByRole("paragraph").filter({ hasText: /^20 kg$/ })).toBeVisible();
 
     const adjustment = page.getByRole("heading", { name: "Điều chỉnh tồn kho" }).locator("..");
-    await adjustment.getByLabel("Hướng").selectOption("decrease");
+    await chooseOption(page, "Hướng", "Giảm");
     await adjustment.getByLabel("Số lượng").fill("4");
-    await adjustment.getByLabel("Phẩm cấp").selectOption({ label: "Loại 1" });
-    await adjustment.getByLabel("Mã lý do").selectOption("spoilage");
+    await chooseOption(page, "Phẩm cấp", "Loại 1");
+    await chooseOption(page, "Lý do", "Hư hỏng");
     await adjustment.getByLabel("Giải thích").fill("Dập sau một ngày");
     await adjustment.getByRole("button", { name: "Ghi điều chỉnh" }).click();
 
