@@ -63,6 +63,7 @@ describe.skipIf(skipWithoutDatabase())("workspace discovery against Postgres", (
         workspaceId: ctx.workspaceId,
         name: "test:workspace-discovery",
         role: "owner",
+        roles: ["owner"],
         permissions: [...permissionsForRole("owner")],
       },
     ]);
@@ -107,7 +108,7 @@ describe.skipIf(skipWithoutDatabase())("workspace discovery against Postgres", (
       occurredAt: new Date().toISOString() as never,
       payload: {
         actorId: ctx.foreignActorId,
-        role: "warehouse" as const,
+        roles: ["warehouse"] as const,
         reason: "Hỗ trợ kho ở cả hai vựa",
       },
     };
@@ -124,8 +125,8 @@ describe.skipIf(skipWithoutDatabase())("workspace discovery against Postgres", (
       occurredAt: new Date().toISOString() as never,
       payload: {
         actorId: ctx.roleActors.sales,
-        expectedRole: "sales",
-        role: "accountant",
+        expectedRoles: ["sales"] as const,
+        roles: ["accountant"] as const,
         reason: "Phụ trách đối soát",
       },
     });
@@ -163,8 +164,8 @@ describe.skipIf(skipWithoutDatabase())("workspace discovery against Postgres", (
       occurredAt: new Date().toISOString() as never,
       payload: {
         actorId: ctx.actorId,
-        expectedRole: "owner",
-        role: "sales",
+        expectedRoles: ["owner"] as const,
+        roles: ["sales"] as const,
         reason: "Crafted request",
       },
     });
