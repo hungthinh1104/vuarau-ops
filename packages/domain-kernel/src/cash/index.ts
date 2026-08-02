@@ -18,7 +18,10 @@ import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
 
-function validCustodian(kind: CashAccountDto["kind"], custodian: CashAccountDto["custodianActorId"]): boolean {
+function validCustodian(
+  kind: CashAccountDto["kind"],
+  custodian: CashAccountDto["custodianActorId"],
+): boolean {
   return kind === "employee_holding" ? custodian !== null : custodian === null;
 }
 
@@ -54,7 +57,11 @@ export function decideCreateCashAccount(
       transactionTime: command.occurredAt,
       recordedAt,
       before: null,
-      after: { kind: account.kind, currency: account.currency, custodianActorId: account.custodianActorId },
+      after: {
+        kind: account.kind,
+        currency: account.currency,
+        custodianActorId: account.custodianActorId,
+      },
       reason: null,
     },
   });
@@ -100,8 +107,16 @@ export function decideUpdateCashAccount(
       action: "cash_account.updated",
       transactionTime: command.occurredAt,
       recordedAt,
-      before: { kind: current.kind, custodianActorId: current.custodianActorId, version: current.version },
-      after: { kind: account.kind, custodianActorId: account.custodianActorId, version: account.version },
+      before: {
+        kind: current.kind,
+        custodianActorId: current.custodianActorId,
+        version: current.version,
+      },
+      after: {
+        kind: account.kind,
+        custodianActorId: account.custodianActorId,
+        version: account.version,
+      },
       reason: null,
     },
   });
@@ -182,7 +197,11 @@ export function decideRecordExpense(
       transactionTime: command.occurredAt,
       recordedAt,
       before: null,
-      after: { cashAccountId: account.id, category: expense.category, amountMinor: expense.amount.amountMinor },
+      after: {
+        cashAccountId: account.id,
+        category: expense.category,
+        amountMinor: expense.amount.amountMinor,
+      },
       reason: expense.note,
     },
   });
@@ -193,7 +212,8 @@ export function decideReverseExpense(
   expense: ExpenseDto,
   recordedAt: IsoInstant,
 ): DomainResult<{ expense: ExpenseDto; movementAmountMinor: number; audit: AuditDraft }> {
-  if (expense.reversal !== null) return err("EXPENSE_ALREADY_REVERSED", "Expense is already reversed.");
+  if (expense.reversal !== null)
+    return err("EXPENSE_ALREADY_REVERSED", "Expense is already reversed.");
   const updated: ExpenseDto = {
     ...expense,
     reversal: {
@@ -228,8 +248,10 @@ export function decideRecordCashTransfer(
   recordedAt: IsoInstant,
 ): DomainResult<{ transfer: CashTransferDto; audit: AuditDraft }> {
   if (from.id === to.id) return err("CASH_TRANSFER_INVALID", "Transfer accounts must differ.");
-  if (!from.isActive || !to.isActive) return err("CASH_ACCOUNT_INACTIVE", "Both cash accounts must be active.");
-  if (command.payload.amount.amountMinor <= 0) return err("CASH_AMOUNT_INVALID", "Transfer amount must be positive.");
+  if (!from.isActive || !to.isActive)
+    return err("CASH_ACCOUNT_INACTIVE", "Both cash accounts must be active.");
+  if (command.payload.amount.amountMinor <= 0)
+    return err("CASH_AMOUNT_INVALID", "Transfer amount must be positive.");
   if (from.currency !== to.currency || command.payload.amount.currency !== from.currency) {
     return err("CASH_ACCOUNT_CURRENCY_MISMATCH", "Transfer currency must match both accounts.");
   }
@@ -305,9 +327,13 @@ export function decideAdjustCash(
   recordedAt: IsoInstant,
 ): DomainResult<{ movementAmountMinor: number; audit: AuditDraft }> {
   if (!account.isActive) return err("CASH_ACCOUNT_INACTIVE", "Cash account is inactive.");
-  if (command.payload.amount.amountMinor <= 0) return err("CASH_AMOUNT_INVALID", "Cash adjustment must be positive.");
+  if (command.payload.amount.amountMinor <= 0)
+    return err("CASH_AMOUNT_INVALID", "Cash adjustment must be positive.");
   if (command.payload.amount.currency !== account.currency) {
-    return err("CASH_ACCOUNT_CURRENCY_MISMATCH", "Adjustment currency must match the cash account.");
+    return err(
+      "CASH_ACCOUNT_CURRENCY_MISMATCH",
+      "Adjustment currency must match the cash account.",
+    );
   }
   const signed =
     command.payload.direction === "increase"

@@ -13,11 +13,7 @@ import {
   workspaceOperationalProfiles,
   type DbTestContext,
 } from "@vuarau/db";
-import type {
-  CashAccountId,
-  ExpenseId,
-  PaymentId,
-} from "@vuarau/domain-contracts";
+import type { CashAccountId, ExpenseId, PaymentId } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
 import { createCashAccount, recordExpense } from "../../../modules/cash/cash.handlers.ts";

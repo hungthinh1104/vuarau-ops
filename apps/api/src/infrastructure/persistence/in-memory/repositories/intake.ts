@@ -89,7 +89,9 @@ export function intakeSourceSummary(
       : null;
   const remaining = root.quantity.valueScaled - allocated;
   const eligible =
-    inspected === null ? remaining : Math.max(0, Math.min(root.quantity.valueScaled, inspected) - allocated);
+    inspected === null
+      ? remaining
+      : Math.max(0, Math.min(root.quantity.valueScaled, inspected) - allocated);
   return {
     summary: {
       source,
@@ -156,7 +158,8 @@ export const createIntakeRepositories = (
     insertReversal: async (arrival) => {
       const arrivalKey = key(arrival.workspaceId, arrival.id);
       const current = store.goodsArrivals.get(arrivalKey);
-      if (current === undefined || current.reversal !== null || arrival.reversal === null) return false;
+      if (current === undefined || current.reversal !== null || arrival.reversal === null)
+        return false;
       store.goodsArrivals.set(arrivalKey, arrival);
       return true;
     },
@@ -225,7 +228,8 @@ export const createIntakeRepositories = (
     insertReversal: async (inspection) => {
       const inspectionKey = key(inspection.workspaceId, inspection.id);
       const current = store.qualityInspections.get(inspectionKey);
-      if (current === undefined || current.reversal !== null || inspection.reversal === null) return false;
+      if (current === undefined || current.reversal !== null || inspection.reversal === null)
+        return false;
       store.qualityInspections.set(inspectionKey, inspection);
       return true;
     },
@@ -262,7 +266,8 @@ export const createIntakeRepositories = (
         for (const allocation of disposition.allocations) {
           if (allocation.outcome !== "accepted") continue;
           unit ??= allocation.quantity.unit;
-          if (unit !== allocation.quantity.unit) throw new Error("Accepted purchase quantities use mixed units.");
+          if (unit !== allocation.quantity.unit)
+            throw new Error("Accepted purchase quantities use mixed units.");
           valueScaled += allocation.quantity.valueScaled;
         }
       }

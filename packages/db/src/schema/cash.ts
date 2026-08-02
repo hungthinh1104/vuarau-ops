@@ -66,8 +66,12 @@ export const expenses = pgTable(
     note: text("note").notNull(),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -96,8 +100,12 @@ export const expenseReversals = pgTable(
     reason: text("reason").notNull(),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -122,8 +130,12 @@ export const cashTransfers = pgTable(
     note: text("note"),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -137,7 +149,10 @@ export const cashTransfers = pgTable(
       foreignColumns: [cashAccounts.workspaceId, cashAccounts.id],
       name: "cash_transfers_workspace_to_account_fk",
     }),
-    check("cash_transfers_accounts_ck", sql`${table.fromCashAccountId} <> ${table.toCashAccountId}`),
+    check(
+      "cash_transfers_accounts_ck",
+      sql`${table.fromCashAccountId} <> ${table.toCashAccountId}`,
+    ),
     check("cash_transfers_amount_ck", sql`${table.amountMinor} > 0`),
     index("cash_transfers_workspace_time_idx").on(
       table.workspaceId,
@@ -157,8 +172,12 @@ export const cashTransferReversals = pgTable(
     reason: text("reason").notNull(),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -183,8 +202,12 @@ export const cashAdjustments = pgTable(
     reason: text("reason").notNull(),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -211,8 +234,12 @@ export const cashMovements = pgTable(
     note: text("note"),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -246,7 +273,9 @@ export const cashBalances = pgTable(
     balanceMinor: bigint("balance_minor", { mode: "number" }).notNull().default(0),
     currency: currencyCodeEnum("currency").notNull().default("VND"),
     movementCount: integer("movement_count").notNull().default(0),
-    lastMovementTransactionTime: timestamp("last_movement_transaction_time", { withTimezone: true }),
+    lastMovementTransactionTime: timestamp("last_movement_transaction_time", {
+      withTimezone: true,
+    }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

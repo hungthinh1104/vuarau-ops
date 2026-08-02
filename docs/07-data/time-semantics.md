@@ -34,7 +34,6 @@ Both facts matter, and neither can be derived from the other. So both are stored
 | Debugging, incident timelines          | `recordedAt`                                        | When the system saw it                  |
 | Idempotency-window reasoning           | `recordedAt`                                        | A property of the request, not the sale |
 
-
 ## Configured business-day boundary
 
 A workspace may start its business day at any local Vietnam minute. The default is

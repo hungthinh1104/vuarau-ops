@@ -193,7 +193,11 @@ function checkM25WorkflowClaims() {
   }
 
   for (const [path, source] of activeDocs) {
-    if (/no\s+(?:arrival|inspection|disposition)\s+workflow|arrival[\s\S]{0,100}(?:not|never)\s+(?:implemented|modelled)/i.test(source)) {
+    if (
+      /no\s+(?:arrival|inspection|disposition)\s+workflow|arrival[\s\S]{0,100}(?:not|never)\s+(?:implemented|modelled)/i.test(
+        source,
+      )
+    ) {
       fail(`${path}: stale claim that inspected intake is not implemented`);
     }
     if (/driver handover has no cash model|delivery cannot record payment/i.test(source)) {

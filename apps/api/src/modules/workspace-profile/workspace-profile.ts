@@ -34,10 +34,7 @@ export function updateWorkspaceOperationalProfile(
   ctx: CommandContext,
   input: unknown,
 ): Promise<DomainResult<WorkspaceOperationalProfileDto>> {
-  return runCommand<
-    UpdateWorkspaceOperationalProfileCommand,
-    WorkspaceOperationalProfileDto
-  >({
+  return runCommand<UpdateWorkspaceOperationalProfileCommand, WorkspaceOperationalProfileDto>({
     commandType: "UpdateWorkspaceOperationalProfile",
     schema: updateWorkspaceOperationalProfileCommandSchema,
     input,
@@ -58,10 +55,7 @@ export function updateWorkspaceOperationalProfile(
         current.version,
       );
       if (!updated) {
-        return err(
-          "WORKSPACE_PROFILE_VERSION_CONFLICT",
-          "Workspace profile changed concurrently.",
-        );
+        return err("WORKSPACE_PROFILE_VERSION_CONFLICT", "Workspace profile changed concurrently.");
       }
       await repos.audit.append({
         ...decision.value.audit,

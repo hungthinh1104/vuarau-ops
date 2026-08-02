@@ -54,7 +54,10 @@ export const cashbookModeEnum = pgEnum("cashbook_mode", CASHBOOK_MODES);
 export const intakeModeEnum = pgEnum("intake_mode", INTAKE_MODES);
 export const weighingModeEnum = pgEnum("weighing_mode", WEIGHING_MODES);
 export const cashAccountKindEnum = pgEnum("cash_account_kind", CASH_ACCOUNT_KINDS);
-export const cashMovementSourceTypeEnum = pgEnum("cash_movement_source_type", CASH_MOVEMENT_SOURCE_TYPES);
+export const cashMovementSourceTypeEnum = pgEnum(
+  "cash_movement_source_type",
+  CASH_MOVEMENT_SOURCE_TYPES,
+);
 export const expenseCategoryEnum = pgEnum("expense_category", EXPENSE_CATEGORIES);
 export const qualityIssueCategoryEnum = pgEnum("quality_issue_category", QUALITY_ISSUE_CATEGORIES);
 export const qualitySeverityEnum = pgEnum("quality_severity", QUALITY_SEVERITIES);

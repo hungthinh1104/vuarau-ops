@@ -101,7 +101,9 @@ export function decideQualityIssueCodeLifecycle(
   if (current.isActive === targetActive) {
     return err(
       targetActive ? "QUALITY_ISSUE_CODE_ALREADY_ACTIVE" : "QUALITY_ISSUE_CODE_ALREADY_INACTIVE",
-      targetActive ? "Quality issue code is already active." : "Quality issue code is already inactive.",
+      targetActive
+        ? "Quality issue code is already active."
+        : "Quality issue code is already inactive.",
     );
   }
   const code = {
@@ -115,9 +117,7 @@ export function decideQualityIssueCodeLifecycle(
     audit: {
       aggregateType: "quality_issue_code",
       aggregateId: current.id,
-      action: targetActive
-        ? "quality_issue_code.reactivated"
-        : "quality_issue_code.deactivated",
+      action: targetActive ? "quality_issue_code.reactivated" : "quality_issue_code.deactivated",
       transactionTime: command.occurredAt,
       recordedAt,
       before: { isActive: current.isActive, version: current.version },
@@ -336,7 +336,10 @@ export function decideRecordQualityDisposition(
       command.payload.source.type === "quarantine_allocation" &&
       allocation.outcome === "quarantined"
     ) {
-      return err("QUALITY_DISPOSITION_INVALID", "Quarantined quantity cannot be quarantined again.");
+      return err(
+        "QUALITY_DISPOSITION_INVALID",
+        "Quarantined quantity cannot be quarantined again.",
+      );
     }
     allocated += allocation.quantity.valueScaled;
   }

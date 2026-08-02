@@ -77,7 +77,7 @@ command refuses source or ledger corruption rather than hiding it.
 | UC-CASH-002       | Record/reverse operating expense            | cash expense permissions        | implemented | [cashbook](cash-use-cases.md)                                |
 | UC-CASH-003       | Transfer/reverse money between accounts     | `cash.transfer`                 | implemented | [cashbook](cash-use-cases.md)                                |
 | UC-CASH-004       | Record explained cash adjustment            | `cash.adjust`                   | implemented | [cashbook](cash-use-cases.md)                                |
-| UC-CASH-005       | Inspect/reconcile/rebuild cash               | cash read/rebuild permissions   | implemented | [cashbook](cash-use-cases.md)                                |
+| UC-CASH-005       | Inspect/reconcile/rebuild cash              | cash read/rebuild permissions   | implemented | [cashbook](cash-use-cases.md)                                |
 | UC-REPORT-001     | Inspect source-backed operational reports   | `report.read`                   | implemented | [depot operations](depot-operations-use-cases.md)            |
 | UC-OPERATIONS-001 | Run/observe service under trusted config    | platform operator               | implemented | [platform](platform-use-cases.md)                            |
 | UC-OPERATIONS-002 | Export/validate/restore logical recovery    | workspace/recovery permissions  | implemented | [platform](platform-use-cases.md)                            |

@@ -93,9 +93,7 @@ export const workspaceOperationalProfileDtoSchema = operationalProfileFieldsSche
   workspaceId: workspaceIdSchema,
   version: z.int().positive(),
 });
-export type WorkspaceOperationalProfileDto = z.infer<
-  typeof workspaceOperationalProfileDtoSchema
->;
+export type WorkspaceOperationalProfileDto = z.infer<typeof workspaceOperationalProfileDtoSchema>;
 
 export function defaultWorkspaceOperationalProfile(
   workspaceId: z.infer<typeof workspaceIdSchema>,
@@ -103,10 +101,11 @@ export function defaultWorkspaceOperationalProfile(
   return { workspaceId, version: 1, ...DEFAULT_OPERATIONAL_PROFILE };
 }
 
-export const updateWorkspaceOperationalProfilePayloadSchema =
-  operationalProfileFieldsSchema.extend({
+export const updateWorkspaceOperationalProfilePayloadSchema = operationalProfileFieldsSchema.extend(
+  {
     reason: z.string().trim().min(1).max(500),
-  });
+  },
+);
 export const updateWorkspaceOperationalProfileCommandSchema = defineVersionedCommand(
   updateWorkspaceOperationalProfilePayloadSchema,
 );

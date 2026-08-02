@@ -192,8 +192,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         }
         if (movement.sourceType === "quality_disposition_reversal") {
           const disposition = [...store.qualityDispositions.values()].find(
-            (item) =>
-              item.workspaceId === workspaceId && item.reversal?.id === movement.sourceId,
+            (item) => item.workspaceId === workspaceId && item.reversal?.id === movement.sourceId,
           );
           const allocation = disposition?.allocations.find(
             (item) => item.allocationId === movement.sourceLineId && item.outcome === "accepted",

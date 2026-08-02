@@ -72,15 +72,18 @@ export async function getPurchaseReceivingSummary(
             ? new Map<string, number>()
             : new Map(
                 await Promise.all(
-                  purchase.lines.map(async (line) => [
-                    line.lineId,
-                    (
-                      await repos.qualityDispositions.acceptedQuantityForPurchaseLine(
-                        input.workspaceId,
+                  purchase.lines.map(
+                    async (line) =>
+                      [
                         line.lineId,
-                      )
-                    )?.valueScaled ?? 0,
-                  ] as const),
+                        (
+                          await repos.qualityDispositions.acceptedQuantityForPurchaseLine(
+                            input.workspaceId,
+                            line.lineId,
+                          )
+                        )?.valueScaled ?? 0,
+                      ] as const,
+                  ),
                 ),
               ),
         role: membership.role,

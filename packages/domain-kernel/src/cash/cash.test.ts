@@ -7,11 +7,7 @@ import {
   recordExpenseCommandSchema,
   workspaceIdSchema,
 } from "@vuarau/domain-contracts";
-import {
-  decideCreateCashAccount,
-  decideRecordCashTransfer,
-  decideRecordExpense,
-} from "./index.ts";
+import { decideCreateCashAccount, decideRecordCashTransfer, decideRecordExpense } from "./index.ts";
 
 const workspaceId = workspaceIdSchema.parse("11111111-1111-4111-8111-111111111111");
 const actorId = "22222222-2222-4222-8222-222222222222";

@@ -11,11 +11,7 @@ import {
   supplierPaymentIdSchema,
   supplierPaymentReversalIdSchema,
 } from "@vuarau/domain-contracts";
-import {
-  ACTOR_ID,
-  WORKSPACE_ID,
-  activeCustomer,
-} from "@vuarau/test-fixtures";
+import { ACTOR_ID, WORKSPACE_ID, activeCustomer } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import {
   createCashAccount,
@@ -29,7 +25,11 @@ import { getCashReconciliation } from "./cash.queries.ts";
 import { getOperationalReport } from "../report/report.queries.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { reverseCustomerPayment } from "../payment/reverse-payment.handler.ts";
-import { createSupplier, recordSupplierPayment, reverseSupplierPayment } from "../supplier/supplier.handlers.ts";
+import {
+  createSupplier,
+  recordSupplierPayment,
+  reverseSupplierPayment,
+} from "../supplier/supplier.handlers.ts";
 
 let harness: Harness;
 const drawer = cashAccountIdSchema.parse("90000000-0000-4000-8000-000000000001");
@@ -115,9 +115,7 @@ describe("cashbook application", () => {
         })
       ).ok,
     ).toBe(true);
-    const supplierPaymentId = supplierPaymentIdSchema.parse(
-      "90000000-0000-4000-8000-000000000021",
-    );
+    const supplierPaymentId = supplierPaymentIdSchema.parse("90000000-0000-4000-8000-000000000021");
     const payment = await recordSupplierPayment(harness.ctx, {
       ...envelope("supplier-cash-out"),
       payload: {
@@ -136,9 +134,7 @@ describe("cashbook application", () => {
       ...envelope("supplier-cash-return"),
       expectedVersion: 1,
       payload: {
-        reversalId: supplierPaymentReversalIdSchema.parse(
-          "90000000-0000-4000-8000-000000000022",
-        ),
+        reversalId: supplierPaymentReversalIdSchema.parse("90000000-0000-4000-8000-000000000022"),
         supplierPaymentId,
         amount: { amountMinor: 100_000, currency: "VND" },
         reason: "Nhà cung cấp hoàn lại",
@@ -171,9 +167,7 @@ describe("cashbook application", () => {
         await reverseExpense(harness.ctx, {
           ...envelope("expense-reversal"),
           payload: {
-            reversalId: expenseReversalIdSchema.parse(
-              "90000000-0000-4000-8000-000000000031",
-            ),
+            reversalId: expenseReversalIdSchema.parse("90000000-0000-4000-8000-000000000031"),
             expenseId,
             reason: "Ghi nhầm",
           },
@@ -253,5 +247,4 @@ describe("cashbook application", () => {
     );
     expect(report.value.totals.amount?.amountMinor).toBe(600_000);
   });
-
 });

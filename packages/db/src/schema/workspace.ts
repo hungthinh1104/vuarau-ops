@@ -31,7 +31,6 @@ export const workspaces = pgTable("workspaces", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-
 /**
  * Versioned, explicit operating choices for one depot. This is not a general
  * feature-flag bag: each column changes command semantics and is audited.
@@ -42,9 +41,7 @@ export const workspaceOperationalProfiles = pgTable(
     workspaceId: uuid("workspace_id")
       .primaryKey()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    purchasingMode: purchasingModeEnum("purchasing_mode")
-      .notNull()
-      .default("purchase_receiving"),
+    purchasingMode: purchasingModeEnum("purchasing_mode").notNull().default("purchase_receiving"),
     inventoryMode: inventoryModeEnum("inventory_mode").notNull().default("movement_ledger"),
     qualityGradeMode: qualityGradeModeEnum("quality_grade_mode").notNull().default("required"),
     deliveryMode: deliveryModeEnum("delivery_mode").notNull().default("sale_fulfilment"),

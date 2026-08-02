@@ -11,8 +11,7 @@ const canonicalBalance = (
   const account = store.cashAccounts.get(key(workspaceId, cashAccountId));
   if (account === undefined) return null;
   const movements = store.cashMovements.filter(
-    (movement) =>
-      movement.workspaceId === workspaceId && movement.cashAccountId === cashAccountId,
+    (movement) => movement.workspaceId === workspaceId && movement.cashAccountId === cashAccountId,
   );
   return {
     workspaceId,
@@ -23,9 +22,15 @@ const canonicalBalance = (
     },
     movementCount: movements.length,
     lastMovementTransactionTime:
-      movements.map((movement) => movement.transactionTime).sort().at(-1) ?? null,
+      movements
+        .map((movement) => movement.transactionTime)
+        .sort()
+        .at(-1) ?? null,
     updatedAt:
-      movements.map((movement) => movement.recordedAt).sort().at(-1) ?? account.updatedAt,
+      movements
+        .map((movement) => movement.recordedAt)
+        .sort()
+        .at(-1) ?? account.updatedAt,
   };
 };
 
@@ -77,24 +82,41 @@ function sourceValid(store: Store, movement: CashMovementDto): boolean {
   }
   if (movement.sourceType === "expense") {
     const expense = store.expenses.get(key(movement.workspaceId, movement.sourceId));
-    return expense !== undefined && expense.cashAccountId === movement.cashAccountId && signed === -expense.amount.amountMinor;
+    return (
+      expense !== undefined &&
+      expense.cashAccountId === movement.cashAccountId &&
+      signed === -expense.amount.amountMinor
+    );
   }
   if (movement.sourceType === "expense_reversal") {
     const expense = [...store.expenses.values()].find(
-      (candidate) => candidate.workspaceId === movement.workspaceId && candidate.reversal?.id === movement.sourceId,
+      (candidate) =>
+        candidate.workspaceId === movement.workspaceId &&
+        candidate.reversal?.id === movement.sourceId,
     );
-    return expense !== undefined && expense.cashAccountId === movement.cashAccountId && signed === expense.amount.amountMinor;
+    return (
+      expense !== undefined &&
+      expense.cashAccountId === movement.cashAccountId &&
+      signed === expense.amount.amountMinor
+    );
   }
   if (movement.sourceType === "cash_adjustment") {
     const adjustment = store.cashAdjustments.find(
-      (candidate) => candidate.workspaceId === movement.workspaceId && candidate.id === movement.sourceId,
+      (candidate) =>
+        candidate.workspaceId === movement.workspaceId && candidate.id === movement.sourceId,
     );
-    return adjustment !== undefined && adjustment.cashAccountId === movement.cashAccountId && signed === adjustment.amount.amountMinor;
+    return (
+      adjustment !== undefined &&
+      adjustment.cashAccountId === movement.cashAccountId &&
+      signed === adjustment.amount.amountMinor
+    );
   }
   if (movement.sourceType.startsWith("cash_transfer")) {
     const transfer = movement.sourceType.includes("reversal")
       ? [...store.cashTransfers.values()].find(
-          (candidate) => candidate.workspaceId === movement.workspaceId && candidate.reversal?.id === movement.sourceId,
+          (candidate) =>
+            candidate.workspaceId === movement.workspaceId &&
+            candidate.reversal?.id === movement.sourceId,
         )
       : store.cashTransfers.get(key(movement.workspaceId, movement.sourceId));
     if (transfer === undefined) return false;
@@ -114,10 +136,13 @@ export const createCashReads = (store: Store): Pick<Repositories, "cashReads"> =
       const rows = [...store.cashAccounts.values()]
         .filter((account) => account.workspaceId === workspaceId)
         .filter((account) => isActive === null || account.isActive === isActive)
-        .filter(
-          (account) => needle.length === 0 || fold(account.displayName).includes(needle),
+        .filter((account) => needle.length === 0 || fold(account.displayName).includes(needle))
+        .sort(
+          ascendingBy(
+            (account) => account.displayName,
+            (account) => account.id,
+          ),
         )
-        .sort(ascendingBy((account) => account.displayName, (account) => account.id))
         .filter((account) =>
           page.after === null
             ? true
@@ -163,7 +188,10 @@ export const createCashReads = (store: Store): Pick<Repositories, "cashReads"> =
         .filter((movement) => {
           if (page.after === null) return true;
           const sort = `${movement.transactionTime}|${movement.recordedAt}`;
-          return sort < page.after.sortValue || (sort === page.after.sortValue && movement.id < page.after.id);
+          return (
+            sort < page.after.sortValue ||
+            (sort === page.after.sortValue && movement.id < page.after.id)
+          );
         });
       return takePage(rows, page, (movement) => ({
         sortValue: `${movement.transactionTime}|${movement.recordedAt}`,
@@ -177,10 +205,17 @@ export const createCashReads = (store: Store): Pick<Repositories, "cashReads"> =
     reconciliation: async (workspaceId, cashAccountId): Promise<CashReconciliationDto> => {
       const account = store.cashAccounts.get(key(workspaceId, cashAccountId));
       if (account === undefined) {
-        return { status: "not_found", cashAccountId, projected: null, canonical: null, diagnostics: [] };
+        return {
+          status: "not_found",
+          cashAccountId,
+          projected: null,
+          canonical: null,
+          diagnostics: [],
+        };
       }
       const movements = store.cashMovements.filter(
-        (movement) => movement.workspaceId === workspaceId && movement.cashAccountId === cashAccountId,
+        (movement) =>
+          movement.workspaceId === workspaceId && movement.cashAccountId === cashAccountId,
       );
       const diagnostics = movements.flatMap((movement) =>
         movement.amount.amountMinor === 0

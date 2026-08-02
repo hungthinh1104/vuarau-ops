@@ -4,11 +4,7 @@ import {
   customerAccountEntryIdSchema,
   defaultWorkspaceOperationalProfile,
 } from "@vuarau/domain-contracts";
-import {
-  ACTOR_ID,
-  WORKSPACE_ID,
-  activeCustomer,
-} from "@vuarau/test-fixtures";
+import { ACTOR_ID, WORKSPACE_ID, activeCustomer } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { getOperationalReport } from "./report.queries.ts";
 

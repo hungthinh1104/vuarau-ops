@@ -95,8 +95,6 @@ export type PaymentReversalId = z.infer<typeof paymentReversalIdSchema>;
 export const customerAccountEntryIdSchema = z.uuid().brand<"CustomerAccountEntryId">();
 export type CustomerAccountEntryId = z.infer<typeof customerAccountEntryIdSchema>;
 
-
-
 export const qualityIssueCodeIdSchema = z.uuid().brand<"QualityIssueCodeId">();
 export type QualityIssueCodeId = z.infer<typeof qualityIssueCodeIdSchema>;
 export const goodsArrivalIdSchema = z.uuid().brand<"GoodsArrivalId">();
@@ -111,7 +109,9 @@ export const qualityInspectionReversalIdSchema = z.uuid().brand<"QualityInspecti
 export type QualityInspectionReversalId = z.infer<typeof qualityInspectionReversalIdSchema>;
 export const qualityDispositionIdSchema = z.uuid().brand<"QualityDispositionId">();
 export type QualityDispositionId = z.infer<typeof qualityDispositionIdSchema>;
-export const qualityDispositionAllocationIdSchema = z.uuid().brand<"QualityDispositionAllocationId">();
+export const qualityDispositionAllocationIdSchema = z
+  .uuid()
+  .brand<"QualityDispositionAllocationId">();
 export type QualityDispositionAllocationId = z.infer<typeof qualityDispositionAllocationIdSchema>;
 export const qualityDispositionReversalIdSchema = z.uuid().brand<"QualityDispositionReversalId">();
 export type QualityDispositionReversalId = z.infer<typeof qualityDispositionReversalIdSchema>;

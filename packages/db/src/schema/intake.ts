@@ -30,7 +30,9 @@ export const qualityIssueCodes = pgTable(
   "quality_issue_codes",
   {
     id: uuid("id").notNull(),
-    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     code: text("code").notNull(),
     displayName: text("display_name").notNull(),
     category: qualityIssueCategoryEnum("category").notNull(),
@@ -56,15 +58,21 @@ export const goodsArrivals = pgTable(
   "goods_arrivals",
   {
     id: uuid("id").notNull(),
-    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     supplierId: uuid("supplier_id").notNull(),
     purchaseId: uuid("purchase_id"),
     vehicleReference: text("vehicle_reference"),
     note: text("note"),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -162,8 +170,12 @@ export const goodsArrivalReversals = pgTable(
     reason: text("reason").notNull(),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -188,8 +200,12 @@ export const qualityInspections = pgTable(
     evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -244,8 +260,12 @@ export const qualityInspectionReversals = pgTable(
     reason: text("reason").notNull(),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -265,15 +285,21 @@ export const qualityDispositions = pgTable(
   "quality_dispositions",
   {
     id: uuid("id").notNull(),
-    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     sourceType: qualityDispositionSourceTypeEnum("source_type").notNull(),
     sourceArrivalLineId: uuid("source_arrival_line_id"),
     sourceQuarantineAllocationId: uuid("source_quarantine_allocation_id"),
     note: text("note"),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -334,10 +360,7 @@ export const qualityDispositionAllocations = pgTable(
         ${table.qualityGradeId} is null and ${table.qualityGradeName} is null
       )`,
     ),
-    uniqueIndex("quality_disposition_allocations_workspace_id_uq").on(
-      table.workspaceId,
-      table.id,
-    ),
+    uniqueIndex("quality_disposition_allocations_workspace_id_uq").on(table.workspaceId, table.id),
   ],
 );
 
@@ -350,8 +373,12 @@ export const qualityDispositionReversals = pgTable(
     reason: text("reason").notNull(),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
-    actorId: uuid("actor_id").notNull().references(() => actors.id),
-    commandId: uuid("command_id").notNull().references(() => commandReceipts.commandId),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),

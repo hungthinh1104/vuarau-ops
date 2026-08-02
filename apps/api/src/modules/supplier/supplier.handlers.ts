@@ -180,11 +180,9 @@ export function recordSupplierPayment(ctx: CommandContext, input: unknown) {
       if (supplier === null) return err("SUPPLIER_NOT_FOUND", "No such supplier.");
       const cashbookEnabled = operationalProfile.cashbookMode === "accounts_ledger";
       if (!cashbookEnabled && (command.payload.cashAccountId ?? null) !== null) {
-        return err(
-          "WORKSPACE_WORKFLOW_DISABLED",
-          "Cashbook is disabled for this depot.",
-          { workflow: "cashbook" },
-        );
+        return err("WORKSPACE_WORKFLOW_DISABLED", "Cashbook is disabled for this depot.", {
+          workflow: "cashbook",
+        });
       }
       const cashAccount =
         (command.payload.cashAccountId ?? null) === null
@@ -200,7 +198,10 @@ export function recordSupplierPayment(ctx: CommandContext, input: unknown) {
         return err("CASH_ACCOUNT_INACTIVE", "Cash account is inactive.");
       }
       if (cashAccount !== null && cashAccount.currency !== command.payload.amount.currency) {
-        return err("CASH_ACCOUNT_CURRENCY_MISMATCH", "Payment currency must match the cash account.");
+        return err(
+          "CASH_ACCOUNT_CURRENCY_MISMATCH",
+          "Payment currency must match the cash account.",
+        );
       }
       const decision = decideRecordSupplierPayment(command, recordedAt);
       if (!decision.ok) return decision;
@@ -289,10 +290,7 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
         );
       }
       const selectedCashAccountId = linkedCashAccountId ?? command.payload.cashAccountId ?? null;
-      if (
-        selectedCashAccountId === null &&
-        operationalProfile.cashbookMode === "accounts_ledger"
-      ) {
+      if (selectedCashAccountId === null && operationalProfile.cashbookMode === "accounts_ledger") {
         return err(
           "CASH_ACCOUNT_REQUIRED",
           "Select the account receiving this legacy supplier-payment reversal.",
@@ -303,31 +301,25 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
         linkedCashAccountId === null &&
         operationalProfile.cashbookMode !== "accounts_ledger"
       ) {
-        return err(
-          "WORKSPACE_WORKFLOW_DISABLED",
-          "Cashbook is disabled for this depot.",
-          { workflow: "cashbook" },
-        );
+        return err("WORKSPACE_WORKFLOW_DISABLED", "Cashbook is disabled for this depot.", {
+          workflow: "cashbook",
+        });
       }
       const cashAccount =
         selectedCashAccountId === null
           ? null
-          : await repos.cashAccounts.findByIdForUpdate(
-              command.workspaceId,
-              selectedCashAccountId,
-            );
+          : await repos.cashAccounts.findByIdForUpdate(command.workspaceId, selectedCashAccountId);
       if (selectedCashAccountId !== null && cashAccount === null) {
         return err("CASH_ACCOUNT_NOT_FOUND", "No such cash account.");
       }
-      if (
-        cashAccount !== null &&
-        linkedCashAccountId === null &&
-        !cashAccount.isActive
-      ) {
+      if (cashAccount !== null && linkedCashAccountId === null && !cashAccount.isActive) {
         return err("CASH_ACCOUNT_INACTIVE", "Cash account is inactive.");
       }
       if (cashAccount !== null && cashAccount.currency !== current.amount.currency) {
-        return err("CASH_ACCOUNT_CURRENCY_MISMATCH", "Reversal currency must match the cash account.");
+        return err(
+          "CASH_ACCOUNT_CURRENCY_MISMATCH",
+          "Reversal currency must match the cash account.",
+        );
       }
       const originalCashMovement =
         linkedCashAccountId === null

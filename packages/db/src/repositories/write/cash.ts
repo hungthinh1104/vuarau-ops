@@ -235,8 +235,10 @@ export const createCashWriteRepositories = (tx: Tx, ids: IdMinter) => ({
     },
   },
   expenses: {
-    findById: (workspaceId: WorkspaceId, expenseId: ExpenseId) => expenseDto(tx, workspaceId, expenseId),
-    findByIdForUpdate: (workspaceId: WorkspaceId, expenseId: ExpenseId) => expenseDto(tx, workspaceId, expenseId, true),
+    findById: (workspaceId: WorkspaceId, expenseId: ExpenseId) =>
+      expenseDto(tx, workspaceId, expenseId),
+    findByIdForUpdate: (workspaceId: WorkspaceId, expenseId: ExpenseId) =>
+      expenseDto(tx, workspaceId, expenseId, true),
     async insert(expense: ExpenseDto) {
       const rows = await tx
         .insert(expenses)
@@ -278,8 +280,10 @@ export const createCashWriteRepositories = (tx: Tx, ids: IdMinter) => ({
     },
   },
   cashTransfers: {
-    findById: (workspaceId: WorkspaceId, transferId: CashTransferId) => transferDto(tx, workspaceId, transferId),
-    findByIdForUpdate: (workspaceId: WorkspaceId, transferId: CashTransferId) => transferDto(tx, workspaceId, transferId, true),
+    findById: (workspaceId: WorkspaceId, transferId: CashTransferId) =>
+      transferDto(tx, workspaceId, transferId),
+    findByIdForUpdate: (workspaceId: WorkspaceId, transferId: CashTransferId) =>
+      transferDto(tx, workspaceId, transferId, true),
     async insert(transfer: CashTransferDto) {
       const rows = await tx
         .insert(cashTransfers)

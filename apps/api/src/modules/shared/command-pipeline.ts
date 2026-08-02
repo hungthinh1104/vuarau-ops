@@ -182,11 +182,9 @@ export async function runCommand<
       if (disabledWorkflow !== undefined) {
         throw new RollbackForRejection(
           asRejection(
-            err(
-              "WORKSPACE_WORKFLOW_DISABLED",
-              "This workflow is disabled for the current depot.",
-              { workflow: disabledWorkflow },
-            ),
+            err("WORKSPACE_WORKFLOW_DISABLED", "This workflow is disabled for the current depot.", {
+              workflow: disabledWorkflow,
+            }),
           ),
         );
       }

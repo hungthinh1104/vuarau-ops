@@ -57,7 +57,8 @@ export const createCashRepositories = (
     insertReversal: async (expense) => {
       const expenseKey = key(expense.workspaceId, expense.id);
       const current = store.expenses.get(expenseKey);
-      if (current === undefined || current.reversal !== null || expense.reversal === null) return false;
+      if (current === undefined || current.reversal !== null || expense.reversal === null)
+        return false;
       store.expenses.set(expenseKey, expense);
       return true;
     },
@@ -76,7 +77,8 @@ export const createCashRepositories = (
     insertReversal: async (transfer) => {
       const transferKey = key(transfer.workspaceId, transfer.id);
       const current = store.cashTransfers.get(transferKey);
-      if (current === undefined || current.reversal !== null || transfer.reversal === null) return false;
+      if (current === undefined || current.reversal !== null || transfer.reversal === null)
+        return false;
       store.cashTransfers.set(transferKey, transfer);
       return true;
     },

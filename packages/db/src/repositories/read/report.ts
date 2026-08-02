@@ -33,10 +33,16 @@ export const createReportReadRepositories = (tx: Tx) => ({
       page: Page;
     }) {
       if (args.reportType === "customer_account_activity") {
-        return customerActivityAtScale(tx, { ...args, businessDayStartMinute: args.businessDayStartMinute ?? 0 });
+        return customerActivityAtScale(tx, {
+          ...args,
+          businessDayStartMinute: args.businessDayStartMinute ?? 0,
+        });
       }
       if (args.reportType === "inventory_movement_report") {
-        return inventoryMovementReportAtScale(tx, { ...args, businessDayStartMinute: args.businessDayStartMinute ?? 0 });
+        return inventoryMovementReportAtScale(tx, {
+          ...args,
+          businessDayStartMinute: args.businessDayStartMinute ?? 0,
+        });
       }
       type Row = {
         id: string;

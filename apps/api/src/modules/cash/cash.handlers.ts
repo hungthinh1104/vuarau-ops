@@ -98,11 +98,7 @@ export function updateCashAccount(ctx: CommandContext, input: unknown) {
   });
 }
 
-function cashAccountLifecycle(
-  ctx: CommandContext,
-  input: unknown,
-  targetActive: boolean,
-) {
+function cashAccountLifecycle(ctx: CommandContext, input: unknown, targetActive: boolean) {
   const schema = targetActive
     ? reactivateCashAccountCommandSchema
     : deactivateCashAccountCommandSchema;
@@ -239,10 +235,14 @@ export function recordCashTransfer(ctx: CommandContext, input: unknown) {
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
       const [from, to] = await Promise.all([
-        repos.cashAccounts.findByIdForUpdate(command.workspaceId, command.payload.fromCashAccountId),
+        repos.cashAccounts.findByIdForUpdate(
+          command.workspaceId,
+          command.payload.fromCashAccountId,
+        ),
         repos.cashAccounts.findByIdForUpdate(command.workspaceId, command.payload.toCashAccountId),
       ]);
-      if (from === null || to === null) return err("CASH_ACCOUNT_NOT_FOUND", "Transfer account is missing.");
+      if (from === null || to === null)
+        return err("CASH_ACCOUNT_NOT_FOUND", "Transfer account is missing.");
       const decision = decideRecordCashTransfer(command, from, to, recordedAt);
       if (!decision.ok) return decision;
       if (!(await repos.cashTransfers.insert(decision.value.transfer))) {
@@ -371,19 +371,24 @@ export function adjustCash(ctx: CommandContext, input: unknown) {
         amountMinor: decision.value.movementAmountMinor,
         currency: account.currency,
       };
-      if (!(await repos.cashAdjustments.insert({
-        id: command.payload.adjustmentId,
-        workspaceId: command.workspaceId,
-        cashAccountId: account.id,
-        amount,
-        reasonCode: command.payload.reasonCode,
-        reason: command.payload.reason.trim(),
-        transactionTime: command.occurredAt,
-        recordedAt,
-        actorId: command.actorId,
-        commandId: command.commandId,
-      }))) {
-        return err("CASH_RECONCILIATION_INTEGRITY_FAILURE", "Cash adjustment identity already exists.");
+      if (
+        !(await repos.cashAdjustments.insert({
+          id: command.payload.adjustmentId,
+          workspaceId: command.workspaceId,
+          cashAccountId: account.id,
+          amount,
+          reasonCode: command.payload.reasonCode,
+          reason: command.payload.reason.trim(),
+          transactionTime: command.occurredAt,
+          recordedAt,
+          actorId: command.actorId,
+          commandId: command.commandId,
+        }))
+      ) {
+        return err(
+          "CASH_RECONCILIATION_INTEGRITY_FAILURE",
+          "Cash adjustment identity already exists.",
+        );
       }
       await applyCashMovements(repos, [
         {

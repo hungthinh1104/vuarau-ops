@@ -25,7 +25,6 @@ export const transactionTimeSchema = isoInstantSchema;
 /** System acceptance time. Server-assigned, never client-supplied. */
 export const recordedAtSchema = isoInstantSchema;
 
-
 const VIETNAM_OFFSET_MINUTES = 7 * 60;
 
 /**
@@ -43,8 +42,7 @@ export function vietnamBusinessDayRange(
     throw new Error(`Invalid business-day start minute: ${startMinute}`);
   }
   const [year, month, day] = businessDate.split("-").map(Number) as [number, number, number];
-  const startMs =
-    Date.UTC(year, month - 1, day, 0, startMinute) - VIETNAM_OFFSET_MINUTES * 60_000;
+  const startMs = Date.UTC(year, month - 1, day, 0, startMinute) - VIETNAM_OFFSET_MINUTES * 60_000;
   return {
     start: new Date(startMs).toISOString() as IsoInstant,
     end: new Date(startMs + 86_400_000).toISOString() as IsoInstant,

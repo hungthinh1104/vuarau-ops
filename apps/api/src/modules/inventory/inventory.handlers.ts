@@ -217,10 +217,7 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
         return err("PRODUCT_NOT_FOUND", "No such Product.");
       let grade: { id: typeof command.payload.qualityGradeId; name: string } | null = null;
       if (operationalProfile.qualityGradeMode === "required") {
-        if (
-          command.payload.qualityGradeId === null ||
-          command.payload.qualityGradeName === null
-        ) {
+        if (command.payload.qualityGradeId === null || command.payload.qualityGradeName === null) {
           return err(
             "SALE_QUALITY_GRADE_REQUIRED",
             "This depot requires a quality grade for inventory adjustments.",
@@ -231,7 +228,8 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
           command.payload.qualityGradeId,
         );
         if (currentGrade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
-        if (!currentGrade.isActive) return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
+        if (!currentGrade.isActive)
+          return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
         if (currentGrade.name !== command.payload.qualityGradeName) {
           return err(
             "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",

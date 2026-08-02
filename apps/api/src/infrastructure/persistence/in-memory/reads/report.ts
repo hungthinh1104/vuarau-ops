@@ -25,10 +25,8 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
           .filter(
             (entry) =>
               businessDate === null ||
-              vietnamBusinessDateForInstant(
-                entry.transactionTime,
-                businessDayStartMinute ?? 0,
-              ) === businessDate,
+              vietnamBusinessDateForInstant(entry.transactionTime, businessDayStartMinute ?? 0) ===
+                businessDate,
           )
           .map((entry) => ({
             id: entry.id,

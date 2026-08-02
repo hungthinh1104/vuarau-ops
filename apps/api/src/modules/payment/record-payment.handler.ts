@@ -32,11 +32,9 @@ export function recordCustomerPayment(
 
       const cashbookEnabled = operationalProfile.cashbookMode === "accounts_ledger";
       if (!cashbookEnabled && (command.payload.cashAccountId ?? null) !== null) {
-        return err(
-          "WORKSPACE_WORKFLOW_DISABLED",
-          "Cashbook is disabled for this depot.",
-          { workflow: "cashbook" },
-        );
+        return err("WORKSPACE_WORKFLOW_DISABLED", "Cashbook is disabled for this depot.", {
+          workflow: "cashbook",
+        });
       }
       const cashAccount =
         (command.payload.cashAccountId ?? null) === null
@@ -52,7 +50,10 @@ export function recordCustomerPayment(
         return err("CASH_ACCOUNT_INACTIVE", "Cash account is inactive.");
       }
       if (cashAccount !== null && cashAccount.currency !== command.payload.amount.currency) {
-        return err("CASH_ACCOUNT_CURRENCY_MISMATCH", "Payment currency must match the cash account.");
+        return err(
+          "CASH_ACCOUNT_CURRENCY_MISMATCH",
+          "Payment currency must match the cash account.",
+        );
       }
 
       const decision = decideRecordPayment({ command, recordedAt });

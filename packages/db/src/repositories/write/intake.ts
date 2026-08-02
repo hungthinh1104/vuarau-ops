@@ -438,12 +438,24 @@ export const createIntakeWriteRepositories = (tx: Tx) => ({
       let valueScaled = 0;
       let unit: QualityDispositionDto["allocations"][number]["quantity"]["unit"] | null = null;
       for (const row of rows) {
-        const root = await sourceRoot(tx, workspaceId, row.disposition.sourceType === "arrival_line"
-          ? { type: "arrival_line", arrivalLineId: row.disposition.sourceArrivalLineId as GoodsArrivalLineId }
-          : { type: "quarantine_allocation", allocationId: row.disposition.sourceQuarantineAllocationId as QualityDispositionDto["allocations"][number]["allocationId"] });
+        const root = await sourceRoot(
+          tx,
+          workspaceId,
+          row.disposition.sourceType === "arrival_line"
+            ? {
+                type: "arrival_line",
+                arrivalLineId: row.disposition.sourceArrivalLineId as GoodsArrivalLineId,
+              }
+            : {
+                type: "quarantine_allocation",
+                allocationId: row.disposition
+                  .sourceQuarantineAllocationId as QualityDispositionDto["allocations"][number]["allocationId"],
+              },
+        );
         if (root === null || root.line.purchaseLineId !== purchaseLineId) continue;
         unit ??= row.allocation.unit;
-        if (unit !== row.allocation.unit) throw new Error(`Purchase line ${purchaseLineId} has mixed accepted units.`);
+        if (unit !== row.allocation.unit)
+          throw new Error(`Purchase line ${purchaseLineId} has mixed accepted units.`);
         valueScaled += row.allocation.valueScaled;
       }
       return unit === null ? null : { valueScaled, unit };

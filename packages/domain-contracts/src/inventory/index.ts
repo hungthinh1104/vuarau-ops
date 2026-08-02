@@ -111,7 +111,13 @@ export const inventoryMovementDtoSchema = z.object({
   commandId: commandIdSchema,
   sourceDocument: z
     .object({
-      type: z.enum(["receipt", "inventory_adjustment", "inventory_reclassification", "delivery", "quality_disposition"]),
+      type: z.enum([
+        "receipt",
+        "inventory_adjustment",
+        "inventory_reclassification",
+        "delivery",
+        "quality_disposition",
+      ]),
       id: z.uuid(),
     })
     .optional(),

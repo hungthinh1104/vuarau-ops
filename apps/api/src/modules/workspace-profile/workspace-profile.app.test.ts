@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  ACTOR_ID,
-  SALES_ACTOR_ID,
-  WORKSPACE_ID,
-} from "@vuarau/test-fixtures";
+import { ACTOR_ID, SALES_ACTOR_ID, WORKSPACE_ID } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { createSupplier } from "../supplier/supplier.handlers.ts";
 import {
@@ -61,9 +57,7 @@ describe("workspace operational profile", () => {
     expect(first.ok).toBe(true);
     expect(replay).toEqual(first);
     expect(first.ok && first.value.version).toBe(2);
-    expect(harness.db.auditRecords().at(-1)?.action).toBe(
-      "workspace.operational_profile_updated",
-    );
+    expect(harness.db.auditRecords().at(-1)?.action).toBe("workspace.operational_profile_updated");
   });
 
   it("keeps profile changes owner-only", async () => {

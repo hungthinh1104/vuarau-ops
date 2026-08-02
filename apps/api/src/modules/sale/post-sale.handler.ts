@@ -111,7 +111,10 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
               { saleId: sale.id, lineId: line.lineId },
             );
           }
-          const grade = await repos.qualityGrades.findById(command.workspaceId, line.qualityGradeId);
+          const grade = await repos.qualityGrades.findById(
+            command.workspaceId,
+            line.qualityGradeId,
+          );
           if (grade === null) {
             return err(
               "SALE_QUALITY_GRADE_NOT_FOUND",

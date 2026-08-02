@@ -222,7 +222,12 @@ describe("intake and quality domain", () => {
         reason: "Ghi nhầm",
       },
     });
-    const result = decideReverseQualityDisposition(reverse, recorded.value.disposition, 1, recordedAt);
+    const result = decideReverseQualityDisposition(
+      reverse,
+      recorded.value.disposition,
+      1,
+      recordedAt,
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("QUALITY_DISPOSITION_HAS_DOWNSTREAM_FACTS");
   });

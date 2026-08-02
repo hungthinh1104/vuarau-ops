@@ -67,7 +67,10 @@ export function createQualityIssueCode(ctx: CommandContext, input: unknown) {
       const decision = decideCreateQualityIssueCode(command, recordedAt);
       if (!decision.ok) return decision;
       if (!(await repos.qualityIssueCodes.insert(decision.value.code))) {
-        return err("QUALITY_ISSUE_CODE_VERSION_CONFLICT", "Issue code identity or code already exists.");
+        return err(
+          "QUALITY_ISSUE_CODE_VERSION_CONFLICT",
+          "Issue code identity or code already exists.",
+        );
       }
       await appendAudit(repos, command, decision.value.audit as never);
       return ok(decision.value.code);
@@ -143,7 +146,10 @@ export function recordGoodsArrival(ctx: CommandContext, input: unknown) {
     requiredPermission: "intake.record",
     requiredWorkflows: ["purchasing", "inventory", "inspected_intake"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
-      const supplier = await repos.suppliers.findById(command.workspaceId, command.payload.supplierId);
+      const supplier = await repos.suppliers.findById(
+        command.workspaceId,
+        command.payload.supplierId,
+      );
       if (supplier === null) return err("SUPPLIER_NOT_FOUND", "No such supplier.");
       if (!supplier.isActive) return err("SUPPLIER_INACTIVE", "Supplier is inactive.");
       const purchase =
@@ -374,22 +380,20 @@ export function recordQualityDisposition(ctx: CommandContext, input: unknown) {
           if (grade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such grade.");
           if (!grade.isActive) return err("QUALITY_GRADE_INACTIVE", "Grade is inactive.");
           if (grade.name !== allocation.qualityGradeName) {
-            return err(
-              "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
-              "Accepted grade snapshot is stale.",
-            );
+            return err("SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH", "Accepted grade snapshot is stale.");
           }
-        } else if (
-          allocation.qualityGradeId !== null ||
-          allocation.qualityGradeName !== null
-        ) {
+        } else if (allocation.qualityGradeId !== null || allocation.qualityGradeName !== null) {
           return err("QUALITY_GRADE_NOT_USED", "This depot does not use commercial grades.");
         }
       }
       const acceptedNew = command.payload.allocations
         .filter((allocation) => allocation.outcome === "accepted")
         .reduce((sum, allocation) => sum + allocation.quantity.valueScaled, 0);
-      if (acceptedNew > 0 && source.summary.purchaseId !== null && source.summary.purchaseLineId !== null) {
+      if (
+        acceptedNew > 0 &&
+        source.summary.purchaseId !== null &&
+        source.summary.purchaseLineId !== null
+      ) {
         const purchase = await repos.purchases.findById(
           command.workspaceId,
           source.summary.purchaseId,
@@ -414,9 +418,7 @@ export function recordQualityDisposition(ctx: CommandContext, input: unknown) {
         if (
           purchaseLine.quantity.unit !== source.summary.sourceQuantity.unit ||
           (inspected !== null && inspected.unit !== purchaseLine.quantity.unit) ||
-          (direct.get(purchaseLine.lineId) ?? 0) +
-            (inspected?.valueScaled ?? 0) +
-            acceptedNew >
+          (direct.get(purchaseLine.lineId) ?? 0) + (inspected?.valueScaled ?? 0) + acceptedNew >
             purchaseLine.quantity.valueScaled
         ) {
           return err(
@@ -490,7 +492,9 @@ export function reverseQualityDisposition(ctx: CommandContext, input: unknown) {
       if (source === null) {
         throw new Error(`Disposition ${current.id} has no canonical source.`);
       }
-      const accepted = current.allocations.filter((allocation) => allocation.outcome === "accepted");
+      const accepted = current.allocations.filter(
+        (allocation) => allocation.outcome === "accepted",
+      );
       const originals = await Promise.all(
         accepted.map(async (allocation) => {
           const movements = await repos.inventoryMovements.listByProduct(

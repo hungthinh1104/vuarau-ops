@@ -82,14 +82,10 @@ export async function getCashTransfer(ctx: CommandContext, input: CashTransferGe
     : ok(result.value);
 }
 
-export const getCashReconciliation = (
-  ctx: CommandContext,
-  input: CashReconciliationInput,
-) =>
+export const getCashReconciliation = (ctx: CommandContext, input: CashReconciliationInput) =>
   runQuery({
     ctx,
     workspaceId: input.workspaceId,
     permission: "cash.read",
-    execute: ({ repos }) =>
-      repos.cashReads.reconciliation(input.workspaceId, input.cashAccountId),
+    execute: ({ repos }) => repos.cashReads.reconciliation(input.workspaceId, input.cashAccountId),
   });
