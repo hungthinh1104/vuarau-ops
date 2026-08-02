@@ -88,4 +88,19 @@ describe("ReportsView", () => {
     renderView({ state: "error", result: null });
     expect(screen.getByRole("alert")).toHaveTextContent("Không hiển thị tổng cũ");
   });
+
+  it("shows a projection integrity block instead of an empty successful report", () => {
+    renderView({
+      result: {
+        ...result,
+        integrity: "attention",
+        diagnostics: ["workspace_integrity_attention", "report_projection_unavailable"],
+        totals: { amount: null, quantities: [] },
+        page: { items: [], nextCursor: null },
+      },
+    });
+    expect(screen.getByText("Đang khóa số liệu")).toBeInTheDocument();
+    expect(screen.getByText(/Báo cáo đang khóa vì projection chưa đối chiếu/)).toBeInTheDocument();
+    expect(screen.queryByText("Không có dòng phù hợp")).not.toBeInTheDocument();
+  });
 });

@@ -44,7 +44,10 @@ import {
   revokeDocumentShare,
 } from "../../../modules/document/document.handlers.ts";
 import { getDocument } from "../../../modules/document/document.queries.ts";
-import { getOperationalReport } from "../../../modules/report/report.queries.ts";
+import {
+  getOperationalReport,
+  getOperationalReportCsv,
+} from "../../../modules/report/report.queries.ts";
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
 
 // TC-DELIVERY-003, TC-DOCUMENT-002, TC-REPORT-001
@@ -415,8 +418,21 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
     });
     expect(inconsistentReport.ok && inconsistentReport.value).toMatchObject({
       integrity: "attention",
-      diagnostics: ["workspace_integrity_attention"],
+      diagnostics: ["workspace_integrity_attention", "report_projection_unavailable"],
+      totals: { amount: null, quantities: [] },
+      page: { items: [], nextCursor: null },
     });
+    const blockedCsv = await getOperationalReportCsv(context(), {
+      workspaceId: ctx.workspaceId,
+      reportType: "inventory_by_product_unit",
+      businessDate: null,
+      productId,
+      unit: "kg",
+      cursor: null,
+      limit: 20,
+    });
+    expect(blockedCsv.ok).toBe(true);
+    if (blockedCsv.ok) expect(blockedCsv.value.split("\n")).toHaveLength(1);
   });
 
   it("serializes competing dispatches so physical fulfilment cannot exceed the Sale", async () => {

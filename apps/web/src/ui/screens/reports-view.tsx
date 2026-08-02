@@ -104,6 +104,7 @@ function ReportResult(props: {
 }) {
   const { result } = props;
   const title = REPORT_TYPE_OPTIONS.find((type) => type.value === result.reportType)?.label;
+  const projectionUnavailable = result.diagnostics.includes("report_projection_unavailable");
   return (
     <>
       <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
@@ -115,7 +116,11 @@ function ReportResult(props: {
             <h2 className="text-subheading font-semibold">{title}</h2>
           </div>
           <Badge tone={result.integrity === "healthy" ? "positive" : "warning"}>
-            {result.integrity === "healthy" ? "Đã đối chiếu" : "Cần kiểm tra"}
+            {result.integrity === "healthy"
+              ? "Đã đối chiếu"
+              : projectionUnavailable
+                ? "Đang khóa số liệu"
+                : "Cần kiểm tra"}
           </Badge>
         </div>
         {result.diagnostics.map((diagnostic) => (
@@ -156,7 +161,15 @@ function ReportResult(props: {
         </div>
       </section>
 
-      {result.page.items.length === 0 ? (
+      {projectionUnavailable ? (
+        <div
+          role="alert"
+          className="rounded-card border border-warning/30 bg-warning-soft p-4 text-body-sm text-warning"
+        >
+          Báo cáo đang khóa vì projection chưa đối chiếu được với dữ liệu nguồn. Không hiển thị số
+          cũ; hãy đối chiếu hoặc rebuild projection rồi thử lại.
+        </div>
+      ) : result.page.items.length === 0 ? (
         <EmptyState
           title="Không có dòng phù hợp"
           description="Báo cáo không tự tạo số 0 giả; thay đổi bộ lọc hoặc kiểm tra dữ liệu nguồn."

@@ -104,6 +104,17 @@ export const IntegrityAttention: Story = {
     },
   },
 };
+export const ProjectionBlocked: Story = {
+  args: {
+    result: {
+      ...inventoryReport,
+      integrity: "attention",
+      diagnostics: ["workspace_integrity_attention", "report_projection_unavailable"],
+      totals: { amount: null, quantities: [] },
+      page: { items: [], nextCursor: null },
+    },
+  },
+};
 export const EmptyReport: Story = {
   args: {
     result: {

@@ -6,7 +6,7 @@ import {
 } from "@vuarau/domain-contracts";
 import { ACTOR_ID, WORKSPACE_ID, activeCustomer } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
-import { getOperationalReport } from "./report.queries.ts";
+import { getOperationalReport, getOperationalReportCsv } from "./report.queries.ts";
 
 let harness: Harness;
 
@@ -60,5 +60,61 @@ describe("operational report business-day policy", () => {
       "10000000-0000-4000-8000-000000000003",
     ]);
     expect(result.value.totals.amount?.amountMinor).toBe(2_000);
+  });
+
+  it("fails closed for projection-backed reports when canonical integrity is in attention", async () => {
+    harness.db.seedAccountEntry({
+      id: customerAccountEntryIdSchema.parse("10000000-0000-4000-8000-000000000010"),
+      workspaceId: WORKSPACE_ID,
+      customerId: activeCustomer.id,
+      amount: { amountMinor: 1_000, currency: "VND" },
+      sourceType: "manual_adjustment",
+      sourceId: "10000000-0000-4000-8000-000000000010",
+      reversalOfEntryId: null,
+      reasonCode: "opening_balance",
+      reason: "Projection fail-closed regression",
+      transactionTime: "2026-07-29T01:00:00.000Z",
+      recordedAt: "2026-07-29T01:00:00.000Z",
+      actorId: ACTOR_ID,
+      commandId: commandIdSchema.parse("10000000-0000-4000-8000-000000000011"),
+    });
+    harness.db.overwriteBalance({
+      workspaceId: WORKSPACE_ID,
+      customerId: activeCustomer.id,
+      balance: { amountMinor: 9_999, currency: "VND" },
+      entryCount: 1,
+      lastEntryTransactionTime: "2026-07-29T01:00:00.000Z",
+      updatedAt: "2026-07-29T01:00:00.000Z",
+    });
+
+    const report = await getOperationalReport(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      reportType: "customer_receivables",
+      businessDate: null,
+      productId: null,
+      unit: null,
+      cursor: null,
+      limit: 20,
+    });
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+    expect(report.value).toMatchObject({
+      integrity: "attention",
+      diagnostics: ["workspace_integrity_attention", "report_projection_unavailable"],
+      totals: { amount: null, quantities: [] },
+      page: { items: [], nextCursor: null },
+    });
+
+    const csv = await getOperationalReportCsv(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      reportType: "customer_receivables",
+      businessDate: null,
+      productId: null,
+      unit: null,
+      cursor: null,
+      limit: 20,
+    });
+    expect(csv.ok).toBe(true);
+    if (csv.ok) expect(csv.value.split("\n")).toHaveLength(1);
   });
 });

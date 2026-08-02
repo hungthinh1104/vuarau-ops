@@ -61,4 +61,8 @@ not real-worker adoption.
   reconcile to canonical sums and each row links to its source transaction.
 - **BR-REPORT-004** — Pagination uses a deterministic total order and a cursor,
   and reads expose healthy or integrity-attention state rather than hiding
-  source/projection corruption.
+  source/projection corruption. A projection-backed report returns no numeric
+  rows or totals while workspace integrity is in attention; its CSV is header-only
+  until the projection is reconciled or rebuilt. Canonical activity/movement
+  reports may remain visible with the attention state because they read source
+  facts directly.
