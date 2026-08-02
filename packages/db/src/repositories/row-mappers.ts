@@ -30,8 +30,11 @@ import { derivePaymentStatus } from "@vuarau/domain-kernel";
  * public surface.
  */
 
-export const toIso = (value: Date): IsoInstant => value.toISOString() as IsoInstant;
-export const toIsoOrNull = (value: Date | null): IsoInstant | null =>
+type DateLike = Date | string;
+
+export const toIso = (value: DateLike): IsoInstant =>
+  (value instanceof Date ? value : new Date(value)).toISOString() as IsoInstant;
+export const toIsoOrNull = (value: DateLike | null): IsoInstant | null =>
   value === null ? null : toIso(value);
 export const fromIso = (value: IsoInstant): Date => new Date(value);
 export const fromIsoOrNull = (value: IsoInstant | null): Date | null =>

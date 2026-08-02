@@ -389,8 +389,8 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
       payload: {},
     });
     expect(backup.ok && backup.value).toMatchObject({
-      version: 4,
-      schemaCompatibility: "m23",
+      version: 7,
+      schemaCompatibility: "m25-intake-quality",
     });
     if (backup.ok) {
       expect(backup.value.payload.deliveries).toHaveLength(2);
@@ -590,7 +590,7 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
           payload: {
             saleVoidId: crypto.randomUUID(),
             saleId,
-            reasonCode: "goods_returned",
+            reasonCode: "wrong_customer",
             reason: "Sale đã huỷ sau khi một chuyến rời kho",
           },
         })

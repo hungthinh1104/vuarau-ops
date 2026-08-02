@@ -5,6 +5,7 @@ import {
   createUnitOfWork,
   eq,
   goodsArrivals,
+  products,
   qualityDispositionAllocations,
   skipWithoutDatabase,
   sql,
@@ -80,6 +81,10 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
         version: 2,
       })
       .where(eq(workspaceOperationalProfiles.workspaceId, ctx.workspaceId));
+    await ctx.database.db
+      .update(products)
+      .set({ preferredUnit: "kg" })
+      .where(eq(products.id, ctx.productIds[0]));
 
     expect(
       (
@@ -269,8 +274,8 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
     });
     expect(reconciliation.ok && reconciliation.value).toMatchObject({
       status: "consistent",
-      projected: { quantity: { valueScaled: 80_000, unit: "kg" } },
-      canonical: { quantity: { valueScaled: 80_000, unit: "kg" } },
+      projected: { quantityScaled: 80_000, unit: "kg" },
+      canonical: { quantityScaled: 80_000, unit: "kg" },
       diagnostics: [],
     });
   });
@@ -282,7 +287,7 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
         where workspace_id = ${ctx.workspaceId}::uuid and id = ${arrivalId}::uuid
       `),
     );
-    expect(arrivalError).toContain("immutable");
+    expect(arrivalError).toMatch(/append-only|compensating/i);
 
     const allocationError = await captureDatabaseError(
       ctx.database.db.execute(sql`
@@ -291,7 +296,7 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
           and disposition_id = ${dispositionId}::uuid
       `),
     );
-    expect(allocationError).toContain("immutable");
+    expect(allocationError).toMatch(/append-only|compensating/i);
     expect(
       await ctx.database.db
         .select({ id: goodsArrivals.id })

@@ -132,7 +132,7 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
           and id = ${expenseId}::uuid
       `),
     );
-    expect(expenseError).toContain("immutable");
+    expect(expenseError).toMatch(/append-only|compensating/i);
 
     const movementError = await captureDatabaseError(
       ctx.database.db.execute(sql`
@@ -140,7 +140,7 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
           and source_id = ${expenseId}::uuid
       `),
     );
-    expect(movementError).toContain("immutable");
+    expect(movementError).toMatch(/append-only|compensating/i);
     expect(
       await ctx.database.db
         .select({ id: expenses.id })
