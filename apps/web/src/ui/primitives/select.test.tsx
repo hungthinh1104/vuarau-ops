@@ -96,6 +96,24 @@ describe("Select", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
+  it("keeps a long option list within the available viewport", async () => {
+    const user = userEvent.setup();
+    render(
+      <Select
+        label="Quality grade"
+        options={Array.from({ length: 30 }, (_, index) => ({
+          value: `grade-${index}`,
+          label: `Grade ${index}`,
+        }))}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Quality grade" }));
+
+    const listbox = await screen.findByRole("listbox");
+    expect(listbox).toHaveClass("max-h-[var(--available-height)]", "overflow-y-auto");
+  });
+
   it("integrates with native form submission via the hidden input", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn((e) => {
