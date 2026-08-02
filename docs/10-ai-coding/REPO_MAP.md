@@ -19,7 +19,7 @@ apps/
   web/                                  Next App Router application
     src/app/(app)/                     authenticated route tree: customers, sales, payments,
                                        purchases, suppliers, inventory, intake, delivery,
-                                       reports, operations, quality and workspace surfaces
+                                       pricing, reports, operations, quality and workspace surfaces
     src/app/auth/ and src/app/login/   authentication routes
     src/api/                           session, workspace, tRPC client and command identity
     src/offline/                       IndexedDB cache, sync engine and offline provider

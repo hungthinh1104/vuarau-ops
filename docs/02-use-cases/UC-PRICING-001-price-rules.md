@@ -16,12 +16,18 @@ the final agreed price as its own immutable snapshot.
 - Authorization is checked before repository reads or writes. A retry replays the
   command receipt through the shared command pipeline.
 
+The authenticated Web Admin exposes `/pricing` for `pricing.read` users. It shows
+the workspace-scoped rule history with product, grade, customer, unit, effective
+range and final exact price. `pricing.manage` users may record a new rule from the
+same screen; the screen has no edit or delete path because rules are append-only.
+
 ## Deliberate boundaries
 
 This use case does not infer a price from a Product's legacy default field, does
-not convert units, does not overwrite posted Sale lines and does not claim that a
-discount, fee or customer-precedence choice is field-validated. Those are visible
-policy decisions for depot validation.
+not convert units, does not overwrite posted Sale lines, and does not calculate
+margin warnings. It does not claim that a discount, fee or customer-precedence
+choice is field-validated. Those are visible policy decisions for depot
+validation.
 
 ## Evidence state
 

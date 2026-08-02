@@ -58,6 +58,13 @@ const ACTIONS: readonly TodayAction[] = [
     permission: "report.read",
     area: "more",
   },
+  {
+    label: "Bảng giá",
+    description: "Xem và ghi các rule giá exact-money đã được vựa thống nhất.",
+    href: "/pricing",
+    permission: "pricing.read",
+    area: "more",
+  },
 ];
 
 const PRIMARY_BY_ROLE: Readonly<Record<WorkspaceRole, string>> = {

@@ -21,6 +21,7 @@ lower-level state catalog.
 - [x] Product inventory / movement history — `apps/web/src/ui/screens/product-inventory-view.stories.tsx`
 - [x] Delivery detail / dispatch-return lifecycle — `apps/web/src/ui/screens/delivery-detail-view.stories.tsx`
 - [x] Reports / source navigation — `apps/web/src/ui/screens/reports-view.stories.tsx`
+- [x] Pricing rules / exact-money catalogue — `apps/web/src/ui/screens/pricing-view.stories.tsx`
 - [x] Workspace operations / integrity-recovery — `apps/web/src/ui/screens/operations-view.stories.tsx`
 
 ## Completion rule

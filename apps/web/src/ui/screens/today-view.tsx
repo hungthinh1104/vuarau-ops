@@ -7,6 +7,7 @@ import {
   PackageCheck,
   Settings2,
   ShoppingCart,
+  Tags,
   Truck,
   UsersRound,
   WalletCards,
@@ -24,6 +25,7 @@ const ACTION_ICONS: Readonly<Record<string, LucideIcon>> = {
   "/customers": WalletCards,
   "/workspace/operations": Settings2,
   "/reports": BarChart3,
+  "/pricing": Tags,
 };
 
 export type TodayQueueItem = {

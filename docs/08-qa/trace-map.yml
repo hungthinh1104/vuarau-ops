@@ -533,7 +533,7 @@ use_cases:
     rules:
       [BR-PRICING-001, BR-PRICING-002, BR-AUTH-004, BR-CUSTOMER-002, BR-COMMAND-001, BR-COMMAND-005]
     cases: []
-    tests: [TC-PRICING-001, TC-PRICING-002, TC-PRICING-003, TC-PRICING-004]
+    tests: [TC-PRICING-001, TC-PRICING-002, TC-PRICING-003, TC-PRICING-004, TC-PRICING-005]
     implementation:
       - packages/domain-kernel/src/pricing/index.ts
       - apps/api/src/modules/pricing/pricing.handlers.ts
@@ -541,6 +541,8 @@ use_cases:
       - packages/db/src/schema/pricing.ts
       - packages/db/src/repositories/write/pricing.ts
       - packages/db/src/repositories/read/pricing.ts
+      - apps/web/src/ui/controllers/pricing-controller.tsx
+      - apps/web/src/ui/screens/pricing-view.tsx
 
   UC-QUALITY-001:
     title: Manage commercial grade vocabulary
@@ -2630,6 +2632,9 @@ contract_tests:
   TC-PRICING-004:
     title: PostgreSQL preserves the price rule and exact resolution result
     file: apps/api/src/infrastructure/persistence/drizzle/pricing.db.test.ts
+  TC-PRICING-005:
+    title: Pricing Web Admin renders scoped history, exact final money and read-only capability
+    file: apps/web/src/ui/screens/pricing-view.test.tsx
   TC-INTAKE-001:
     title: Gross minus tare must equal net in one mass unit
     file: packages/domain-kernel/src/intake/intake.test.ts

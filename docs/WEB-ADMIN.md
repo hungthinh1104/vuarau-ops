@@ -92,6 +92,7 @@ Vận hành
 - Nhà cung cấp
 - Sản phẩm
 - Kho hàng
+- Bảng giá
 
 Tài chính
 - Công nợ
