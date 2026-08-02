@@ -104,6 +104,11 @@ pnpm test:db
 CI runs a `postgres:17` service container against an empty database, so migrations
 apply from scratch on every push and the suites execute there.
 
+The repository migration runner reconciles the migration table by content hash in
+journal order, not only by the newest folder timestamp. This keeps an existing
+database from silently skipping a migration generated on a parallel branch; an
+unknown migration hash fails closed.
+
 Playwright owns its API and Next production processes and normally uses ports
 `3102` and `3101`. To run the production-shaped E2E artifact while a local dev
 server is already running, choose isolated ports for both the build and test:
