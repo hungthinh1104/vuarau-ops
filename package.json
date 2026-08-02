@@ -28,7 +28,7 @@
     "context:test": "node --test scripts/context.test.ts",
     "test:fast": "vitest run --project domain --project application --project contract --project web",
     "validate:commit": "pnpm check:static && pnpm test:fast",
-    "check:static": "pnpm format && pnpm lint && pnpm typecheck && pnpm boundary:check && pnpm source:check && pnpm ui:check && pnpm docs:check && pnpm docs:check:test && pnpm truth:check && pnpm context:test && pnpm trace:check",
+    "check:static": "pnpm format && pnpm lint && pnpm typecheck && pnpm boundary:check && pnpm source:check && pnpm ui:check && pnpm docs:check && pnpm docs:check:test && pnpm truth:check && pnpm context:test && pnpm trace:check && pnpm security:m22",
     "boundary:check": "node scripts/boundary-check.ts",
     "source:check": "node --test scripts/source-boundary-check.test.ts && node scripts/source-boundary-check.ts",
     "ui:check": "node --test scripts/ui-architecture-check.test.ts && node scripts/ui-architecture-check-runner.ts",
