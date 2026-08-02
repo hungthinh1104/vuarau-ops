@@ -2,6 +2,7 @@
 
 import type { CommandIdentity } from "@/ui/domain/command-state.ts";
 import { Button } from "@/ui/primitives/button.tsx";
+import { RequestCorrelation } from "./request-correlation.tsx";
 
 export type UnknownNetworkOutcomeProps = {
   /**
@@ -16,6 +17,7 @@ export type UnknownNetworkOutcomeProps = {
   readonly attemptedAction: string;
   readonly onResend: (identity: CommandIdentity) => void;
   readonly onCancel?: () => void;
+  readonly requestId?: string | null;
 };
 
 /**
@@ -43,6 +45,7 @@ export function UnknownNetworkOutcome({
   attemptedAction,
   onResend,
   onCancel,
+  requestId,
 }: UnknownNetworkOutcomeProps) {
   return (
     <div
@@ -69,6 +72,8 @@ export function UnknownNetworkOutcome({
           {identity.idempotencyKey}
         </span>
       </p>
+
+      <RequestCorrelation requestId={requestId} />
 
       <div className="flex flex-wrap justify-end gap-2">
         {onCancel !== undefined ? (

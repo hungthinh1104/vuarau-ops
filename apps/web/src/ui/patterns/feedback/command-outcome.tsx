@@ -40,6 +40,7 @@ export function CommandOutcome({
         identity={command.pending.identity}
         attempts={command.pending.attempts}
         attemptedAction={attemptedAction}
+        requestId={command.requestId}
         onResend={() => void command.resend()}
         {...(onCancel !== undefined ? { onCancel } : {})}
       />
@@ -50,16 +51,28 @@ export function CommandOutcome({
     const state = rejectionStateOf(command.error.code);
 
     if (state === "permission_denied") {
-      return <PermissionDenied error={command.error} attemptedAction={attemptedAction} />;
+      return (
+        <PermissionDenied
+          error={command.error}
+          attemptedAction={attemptedAction}
+          requestId={command.requestId}
+        />
+      );
     }
     if (state === "stale_version") {
       // Reload and show what changed. Never a retry with the new version: that
       // would apply an intention formed against data this user never saw.
-      return <StaleVersionNotice error={command.error} onReload={onReload} />;
+      return (
+        <StaleVersionNotice
+          error={command.error}
+          onReload={onReload}
+          requestId={command.requestId}
+        />
+      );
     }
     // Everything else keeps the form exactly as typed. Nothing here clears a
     // field, and the copy says what to change rather than that something is wrong.
-    return <BusinessRejection error={command.error} />;
+    return <BusinessRejection error={command.error} requestId={command.requestId} />;
   }
 
   return (

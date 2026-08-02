@@ -21,6 +21,7 @@ import {
 } from "./command-identity.ts";
 import { domainErrorOf } from "./domain-error.ts";
 import { useSession } from "./session-gate.tsx";
+import { requestIdOf } from "@/lib/request-id.ts";
 
 /**
  * The one place a command is sent, so that "what happens when it does not come
@@ -59,6 +60,8 @@ export type CommandState<TPayload, TResult> = {
   readonly pending: PendingCommand<TPayload> | null;
   readonly result: TResult | null;
   readonly error: DomainError | null;
+  /** Correlates a definite or malformed transport response with API logs. */
+  readonly requestId: string | null;
   /**
    * True when the server answered a replay with the original result
    * (BR-COMMAND-001). A **success**, and rendered as one — showing an error here
@@ -91,6 +94,7 @@ export function useCommand<TPayload, TResult>(
     pending: null,
     result: null,
     error: null,
+    requestId: null,
     wasDuplicateSafeRetry: false,
   });
 
@@ -127,7 +131,13 @@ export function useCommand<TPayload, TResult>(
   const dispatch = useCallback(
     async (command: PendingCommand<TPayload>, isReplay: boolean): Promise<TResult | null> => {
       inFlight.current = command;
-      setState((current) => ({ ...current, phase: command.phase, pending: command, error: null }));
+      setState((current) => ({
+        ...current,
+        phase: command.phase,
+        pending: command,
+        error: null,
+        requestId: null,
+      }));
 
       try {
         const result = await send({
@@ -150,12 +160,14 @@ export function useCommand<TPayload, TResult>(
           pending: succeeded,
           result,
           error: null,
+          requestId: null,
           // A replay that succeeded returned the original result, not a new one.
           wasDuplicateSafeRetry: isReplay,
         });
         return result;
       } catch (error) {
         const domainError = domainErrorOf(error);
+        const requestId = requestIdOf(error);
 
         if (domainError === null && isUnknownOutcome(error)) {
           // No answer. The command stays pending with its identity intact so a
@@ -163,7 +175,12 @@ export function useCommand<TPayload, TResult>(
           // user typed is lost.
           const unknown = markUnknown(command);
           inFlight.current = unknown;
-          setState((current) => ({ ...current, phase: unknown.phase, pending: unknown }));
+          setState((current) => ({
+            ...current,
+            phase: unknown.phase,
+            pending: unknown,
+            requestId,
+          }));
           return null;
         }
 
@@ -200,6 +217,7 @@ export function useCommand<TPayload, TResult>(
           pending: rejected,
           result: null,
           error: domainError,
+          requestId,
         }));
         return null;
       }
@@ -264,6 +282,7 @@ export function useCommand<TPayload, TResult>(
       pending: null,
       result: null,
       error: null,
+      requestId: null,
       wasDuplicateSafeRetry: false,
     });
   }, []);
@@ -298,6 +317,7 @@ export type CommandOutcomeView = {
     readonly attempts: number;
   } | null;
   readonly error: DomainError | null;
+  readonly requestId: string | null;
   readonly wasDuplicateSafeRetry: boolean;
   readonly resend: () => Promise<unknown>;
 };

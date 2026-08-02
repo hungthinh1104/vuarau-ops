@@ -2,9 +2,11 @@ import type { DomainError } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { messageForCode } from "@/ui/copy.ts";
 import { formatMoney } from "@/ui/format.ts";
+import { RequestCorrelation } from "./request-correlation.tsx";
 
 export type BusinessRejectionProps = {
   readonly error: DomainError;
+  readonly requestId?: string | null;
   /** The valid next action, when there is one. A rejection with no way forward is a dead end. */
   readonly action?: ReactNode;
 };
@@ -22,7 +24,7 @@ export type BusinessRejectionProps = {
  * contract. The server's message is kept as a diagnostic line, small and last, for
  * the support conversation rather than the worker.
  */
-export function BusinessRejection({ error, action }: BusinessRejectionProps) {
+export function BusinessRejection({ error, action, requestId }: BusinessRejectionProps) {
   return (
     <div
       role="alert"
@@ -37,6 +39,7 @@ export function BusinessRejection({ error, action }: BusinessRejectionProps) {
 
       {action !== undefined ? <div className="mt-1 flex justify-end">{action}</div> : null}
 
+      <RequestCorrelation requestId={requestId} />
       <p className="text-caption text-ink-muted">Mã hỗ trợ: {error.code}</p>
     </div>
   );

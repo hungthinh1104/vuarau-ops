@@ -7,6 +7,8 @@ import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Skeleton } from "@/ui/primitives/skeleton.tsx";
 import { BusinessRejection } from "./business-rejection.tsx";
 import { PermissionDenied } from "./permission-denied.tsx";
+import { RequestCorrelation } from "./request-correlation.tsx";
+import { requestIdOf } from "@/lib/request-id.ts";
 
 /** The shape of a TanStack query, narrowed to what this needs. */
 export type QueryLike<TData> = {
@@ -57,24 +59,32 @@ export function QueryStates<TData>({
 
   if (query.isError) {
     const domainError = domainErrorOf(query.error);
+    const requestId = requestIdOf(query.error);
 
     if (domainError === null) {
       return (
-        <EmptyState
-          title="Không kết nối được máy chủ"
-          description="Kiểm tra mạng rồi thử lại. Chưa có gì bị thay đổi."
-          action={onRetry === undefined ? undefined : <Button onClick={onRetry}>Thử lại</Button>}
-        />
+        <div className="flex flex-col gap-2">
+          <EmptyState
+            title="Không kết nối được máy chủ"
+            description="Kiểm tra mạng rồi thử lại. Chưa có gì bị thay đổi."
+            action={onRetry === undefined ? undefined : <Button onClick={onRetry}>Thử lại</Button>}
+          />
+          <RequestCorrelation requestId={requestId} />
+        </div>
       );
     }
 
     if (domainError.code === "PERMISSION_DENIED") {
       return (
-        <PermissionDenied error={domainError} attemptedAction={attemptedAction ?? "Xem mục này"} />
+        <PermissionDenied
+          error={domainError}
+          attemptedAction={attemptedAction ?? "Xem mục này"}
+          requestId={requestId}
+        />
       );
     }
 
-    return <BusinessRejection error={domainError} />;
+    return <BusinessRejection error={domainError} requestId={requestId} />;
   }
 
   // `isPending` false and `isError` false means data is present; the cast is the

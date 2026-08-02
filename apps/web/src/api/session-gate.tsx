@@ -13,6 +13,7 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Skeleton } from "@/ui/primitives/skeleton.tsx";
 import { BusinessRejection } from "@/ui/patterns/feedback/business-rejection.tsx";
+import { RequestCorrelation } from "@/ui/patterns/feedback/request-correlation.tsx";
 import { SignInUnconfigured } from "@/ui/patterns/auth/sign-in.tsx";
 import { ConnectedWorkspaceShell } from "@/ui/controllers/workspace-shell-controller.tsx";
 import { OfflineProvider } from "@/offline/provider.tsx";
@@ -22,6 +23,7 @@ import {
   cachedSession,
   cachedWorkspaces,
 } from "@/offline/session-cache.ts";
+import { requestIdOf } from "@/lib/request-id.ts";
 
 /**
  * What every production route sits behind: a verified identity, an explicitly
@@ -149,19 +151,24 @@ function ChooseWorkspace({
   }
 
   const workspaceError = workspaces.isError ? domainErrorOf(workspaces.error) : null;
+  const workspaceRequestId = workspaces.isError ? requestIdOf(workspaces.error) : null;
   if (workspaces.isError && (offlineWorkspaces === null || workspaceError !== null)) {
     const domainError = workspaceError;
     return (
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-10">
         {domainError === null ? (
-          <EmptyState
-            title="Không kết nối được máy chủ"
-            description="Kiểm tra mạng rồi thử lại. Chưa có gì được ghi."
-            action={<Button onClick={() => void workspaces.refetch()}>Thử lại</Button>}
-          />
+          <>
+            <EmptyState
+              title="Không kết nối được máy chủ"
+              description="Kiểm tra mạng rồi thử lại. Chưa có gì được ghi."
+              action={<Button onClick={() => void workspaces.refetch()}>Thử lại</Button>}
+            />
+            <RequestCorrelation requestId={workspaceRequestId} />
+          </>
         ) : (
           <BusinessRejection
             error={domainError}
+            requestId={workspaceRequestId}
             action={
               <Button tone="secondary" onClick={() => void auth.signOut()}>
                 Đăng xuất
@@ -214,22 +221,27 @@ function ResolveSession({
   }
 
   const sessionError = me.isError ? domainErrorOf(me.error) : null;
+  const sessionRequestId = me.isError ? requestIdOf(me.error) : null;
   if (me.isError && (offlineSession === null || sessionError !== null)) {
     const domainError = sessionError;
     return (
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-10">
         {domainError === null ? (
-          <EmptyState
-            title="Không kết nối được máy chủ"
-            description="Kiểm tra mạng rồi thử lại. Chưa có gì được ghi."
-            action={<Button onClick={() => void me.refetch()}>Thử lại</Button>}
-          />
+          <>
+            <EmptyState
+              title="Không kết nối được máy chủ"
+              description="Kiểm tra mạng rồi thử lại. Chưa có gì được ghi."
+              action={<Button onClick={() => void me.refetch()}>Thử lại</Button>}
+            />
+            <RequestCorrelation requestId={sessionRequestId} />
+          </>
         ) : (
           // Covers membership_revoked, workspace access denied and an invalid
           // token alike: all of them mean this tab may not act, and all of them
           // are answered by a person rather than by a retry.
           <BusinessRejection
             error={domainError}
+            requestId={sessionRequestId}
             action={
               <Button tone="secondary" onClick={onChangeWorkspace}>
                 Chọn vựa khác

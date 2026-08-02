@@ -6,6 +6,7 @@ import { PermissionDenied } from "./permission-denied.tsx";
 import { StaleVersionNotice } from "./stale-version-notice.tsx";
 import { UnknownNetworkOutcome } from "./unknown-network-outcome.tsx";
 import { BusinessRejection } from "./business-rejection.tsx";
+import { QueryStates } from "./query-states.tsx";
 import type { CommandIdentity } from "@/api/command-identity.ts";
 import {
   beginCommand,
@@ -241,6 +242,42 @@ describe("TC-WEB-011 — rejection copy comes from the code", () => {
   it("reads the specifics out of details rather than parsing the prose", () => {
     render(<BusinessRejection error={rejectionReversalExceeds} />);
     expect(screen.getByText("Chỉ còn hoàn được 300.000 ₫.")).toBeInTheDocument();
+  });
+
+  it("surfaces the response request id for support correlation", () => {
+    render(<BusinessRejection error={rejectionReversalExceeds} requestId="req-1234.alpha" />);
+
+    expect(screen.getByTestId("request-id")).toHaveTextContent("req-1234.alpha");
+    expect(
+      screen.getByText("Mã hỗ trợ: PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT"),
+    ).toBeInTheDocument();
+  });
+
+  it("surfaces a request id on an unexpected query failure", () => {
+    render(
+      <QueryStates
+        query={{
+          isPending: false,
+          isError: true,
+          error: {
+            meta: {
+              response: {
+                headers: {
+                  get: (name: string) => (name === "x-request-id" ? "req-query-1" : null),
+                },
+              },
+            },
+          },
+          data: undefined,
+        }}
+        loadingLabel="Đang tải"
+        onRetry={() => undefined}
+        children={() => null}
+      />,
+    );
+
+    expect(screen.getByText("Không kết nối được máy chủ")).toBeInTheDocument();
+    expect(screen.getByTestId("request-id")).toHaveTextContent("req-query-1");
   });
 
   it("unwraps a domain error off a tRPC-shaped failure, and refuses a stray object", () => {

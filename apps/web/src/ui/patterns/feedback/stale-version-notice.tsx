@@ -3,6 +3,7 @@
 import type { DomainError } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { messageForCode } from "@/ui/copy.ts";
+import { RequestCorrelation } from "./request-correlation.tsx";
 
 export type StaleVersionNoticeProps = {
   readonly error: DomainError;
@@ -15,6 +16,7 @@ export type StaleVersionNoticeProps = {
    * accident — it would take deleting this comment and adding a prop.
    */
   readonly onReload: () => void;
+  readonly requestId?: string | null;
 };
 
 /**
@@ -30,7 +32,7 @@ export type StaleVersionNoticeProps = {
  * disguise." The API also refuses to help: `retryable` is false for every version
  * conflict, so a client that only auto-retries retryable codes never reaches here.
  */
-export function StaleVersionNotice({ error, onReload }: StaleVersionNoticeProps) {
+export function StaleVersionNotice({ error, onReload, requestId }: StaleVersionNoticeProps) {
   const expected = readVersion(error, "expectedVersion");
   const actual = readVersion(error, "actualVersion");
 
@@ -59,6 +61,7 @@ export function StaleVersionNotice({ error, onReload }: StaleVersionNoticeProps)
           Tải lại
         </Button>
       </div>
+      <RequestCorrelation requestId={requestId} />
     </div>
   );
 }

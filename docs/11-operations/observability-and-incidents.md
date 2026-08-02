@@ -26,6 +26,11 @@ identifiers from labels to avoid high cardinality and business-data leakage.
 5. Compare the canonical history with its projection/reconciliation; never repair
    by editing a ledger or movement.
 
+The web client renders the response id as `Mã truy vết` on query and command
+failure states whenever a response exists. It does not invent an id when a
+request disappears before a response, so an unknown command outcome continues
+to use its unchanged command identity for safe retry.
+
 ## Actionable alert definitions
 
 | Alert                | Window and threshold                                           | First action                                                        |

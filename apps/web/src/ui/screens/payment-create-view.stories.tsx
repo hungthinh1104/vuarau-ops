@@ -9,6 +9,7 @@ const idle: CommandOutcomeView = {
   phase: { kind: "idle" },
   pending: null,
   error: null,
+  requestId: null,
   wasDuplicateSafeRetry: false,
   resend: async () => undefined,
 };

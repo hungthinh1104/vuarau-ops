@@ -29,6 +29,7 @@ export type CommandOutcomeView = {
     readonly attempts: number;
   } | null;
   readonly error: DomainError | null;
+  readonly requestId: string | null;
   readonly wasDuplicateSafeRetry: boolean;
   readonly resend: () => Promise<unknown>;
 };
