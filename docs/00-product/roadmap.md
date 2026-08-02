@@ -273,8 +273,8 @@ completeness.
 Pilot readiness is **BLOCKED/PENDING** until the real Supabase A→B smoke,
 ASM-023/024/025, ASM-017/018, ASM-030, ASM-032/033/034, ASM-035/036/037/038,
 real-phone deployment and provider PITR/RPO/RTO/restore evidence are actually
-recorded. M24 Cashbook and M25 inspected-intake code are technical candidates only;
-they do not remove those pilot gates.
+recorded. M24 Cashbook and M25 inspected-intake code are technically implemented;
+they do not remove the remaining owner-policy, field-validation or deployment gates.
 
 #### M23.10–M23.13 — Repository truth, UI-state and quality gates (technical closure)
 

@@ -154,6 +154,7 @@ function checkKnownStaleClaims() {
 
   for (const path of [
     "docs/00-product/scope.md",
+    "docs/01-domain/glossary.md",
     "docs/00-product/product-invariants.md",
     "docs/02-use-cases/depot-operations-use-cases.md",
     "docs/04-business-rules/goods-flow-rules.md",
@@ -162,6 +163,49 @@ function checkKnownStaleClaims() {
   ]) {
     if (/inventory by Product\/unit|per-Product\/unit projection/i.test(read(path))) {
       fail(`${path}: current Goods Truth still describes inventory without QualityGrade`);
+    }
+  }
+}
+
+function checkM25WorkflowClaims() {
+  const activeDocPaths = [
+    "docs/00-product/product-brief.md",
+    "docs/00-product/roadmap.md",
+    "docs/00-product/scope.md",
+    "docs/02-use-cases/use-case-catalog.md",
+    "docs/02-use-cases/use-case-completeness-audit.md",
+    "docs/04-business-rules/goods-flow-rules.md",
+    "docs/09-decisions/decision-backlog.md",
+  ];
+  const activeDocs = activeDocPaths.map((path) => [path, read(path)] as const);
+  const adr0025 = read("docs/09-decisions/ADR-0025-cashbook-separate-from-debt.md");
+  const adr0026 = read("docs/09-decisions/ADR-0026-inspected-intake-and-quality-disposition.md");
+
+  if (
+    !/employee-held accounts?\s+name|employee-held accounts?\s+.*CashTransfer|Driver collection does not need a second money system/i.test(
+      adr0025,
+    )
+  ) {
+    fail("ADR-0025: missing employee-held cash handover model");
+  }
+  if (!/GoodsArrival[\s\S]*QualityInspection[\s\S]*QualityDisposition/i.test(adr0026)) {
+    fail("ADR-0026: missing Arrival → Inspection → Disposition workflow");
+  }
+
+  for (const [path, source] of activeDocs) {
+    if (/no\s+(?:arrival|inspection|disposition)\s+workflow|arrival[\s\S]{0,100}(?:not|never)\s+(?:implemented|modelled)/i.test(source)) {
+      fail(`${path}: stale claim that inspected intake is not implemented`);
+    }
+    if (/driver handover has no cash model|delivery cannot record payment/i.test(source)) {
+      fail(`${path}: stale claim that driver cash has no model`);
+    }
+    if (
+      path === "docs/01-domain/glossary.md" &&
+      /condition\s*\|\s*\*\*not modelled\*\*|defect\s*\|\s*\*\*not modelled\*\*|disposition\s*\|\s*\*\*not modelled\*\*/i.test(
+        source,
+      )
+    ) {
+      fail(`${path}: stale claim that inspected-intake evidence is not modelled`);
     }
   }
 }
@@ -214,6 +258,7 @@ checkApiCatalogs();
 checkDataModelTables();
 checkNavigationRoutes();
 checkKnownStaleClaims();
+checkM25WorkflowClaims();
 checkDecisionRegister();
 checkScreenStoryCoverage();
 

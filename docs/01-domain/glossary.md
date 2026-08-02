@@ -8,7 +8,7 @@ term appears in a use case or rule, it means what it means here.
 | Vietnamese         | English                 | Code identifier                      | Notes                                           |
 | ------------------ | ----------------------- | ------------------------------------ | ----------------------------------------------- |
 | vựa                | wholesale depot         | `Workspace`                          | One depot = one workspace = one tenant boundary |
-| chủ vựa            | depot owner             | `Actor` (role)                       | Roles are not modelled yet — see ASM-007        |
+| chủ vựa            | depot owner             | `Actor` (role)                       | Workspace membership roles and permissions are modelled; the depot still validates the role table operationally (ASM-017/018) |
 | khách hàng         | customer                | `Customer`                           | The party that owes money                       |
 | đơn hàng           | sale                    | `Sale`                               | One completed sale to one customer              |
 | nháp               | draft                   | `SaleStatus.draft`                   | Being typed; changes nothing financially        |
@@ -26,13 +26,14 @@ term appears in a use case or rule, it means what it means here.
 | Vietnamese      | English          | Code / status    | Meaning here                                                                                                                   |
 | --------------- | ---------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | phẩm cấp        | commercial grade | `QualityGrade`   | Commercial classification attached to a physical quantity, e.g. Loại 1 / Loại 2 / Dạt. It is not Product identity.             |
-| tình trạng hàng | condition        | **not modelled** | Observed temporary condition such as tươi, héo, dập, úng. Do not store it as a grade merely because no Condition model exists. |
-| lỗi hàng        | defect           | **not modelled** | Specific observed defect/degree, e.g. dập 10%, sâu, quá cỡ.                                                                    |
-| hướng xử lý     | disposition      | **not modelled** | Operational decision such as accept, discount, return to supplier, quarantine or discard.                                      |
+| tình trạng hàng | condition        | `QualityInspection` | Observed temporary condition is captured through inspection evidence; it is not a commercial grade. |
+| lỗi hàng        | defect           | `QualityIssueCode` | Specific observed defect/degree is captured as an immutable issue snapshot; it is not a commercial grade. |
+| hướng xử lý     | disposition      | `QualityDisposition` | Operational outcome such as accepted, quarantined, rejected or disposed; Supplier claim/credit remains a separate policy workflow. |
 
-The current M23 system implements **commercial grade tracking only**. Whether every
-new quantity must have a grade and whether Receiving needs rejected/damaged-arrival
-semantics are open pilot gates ASM-032 and ASM-033.
+The current M25 system implements **commercial grade tracking plus inspected intake**.
+Whether every new quantity must have a grade and which authority may manage grades
+remain pilot gates ASM-032 and ASM-034. Supplier claims, credits and billable-
+quantity settlement remain ASM-033 policy work.
 
 ## Units (đơn vị tính)
 
