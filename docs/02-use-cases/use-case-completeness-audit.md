@@ -80,6 +80,20 @@ answer all five questions below or explicitly say why one does not apply:
 | Bank/cash reconciliation | Match Payments to cash drawer/bank deposits                                      | none to customer debt if only reconciliation                       | none                                                                                     | Payment method exists but settlement reconciliation does not                                          | **deliberately out-of-scope until a depot requests it**                                           |
 | Unit conversion          | Convert one commercial unit to another                                           | none                                                               | could alter quantity meaning                                                             | explicitly forbidden today                                                                            | **deliberately out-of-scope until ASM-011 trigger**                                               |
 
+## Management-capability gaps
+
+These are required for the next decision-operating-system phase, but are not
+silently promoted to implemented use cases by the current transaction surface.
+
+| Capability                  | Business event / user goal                                      | Current evidence                                                               | Missing or blocked semantics                                                                 | Status                                                        |
+| --------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Cost and profit             | Explain inventory cost, COGS, gross profit and margin           | Sale and Purchase lines snapshot prices; inventory movements preserve quantity | No valuation method or reproducible historical cost policy; ADR-0019 remains the boundary    | **policy-blocked — valuation/COGS policy required**           |
+| Pricing                     | Maintain product/grade/unit and customer-effective prices       | Product default price and explicit last-price recall only                      | No dedicated effective-dated price history, quantity tiers, discounts or fee model           | **missing/discovery — field evidence required**               |
+| Debt management             | Explain due dates, aging, allocation and collection priority    | Canonical account ledgers; nullable `dueAt`; payments remain unallocated       | No default terms/aging policy and no payment-allocation semantics                            | **policy-blocked — ASM-004/ASM-016**                          |
+| Inventory planning          | Set minimum/target stock, lead time and reorder state           | Current quantity and movement reports                                          | No planning policy, velocity window, reorder point or approved stocktake session             | **missing/discovery — field evidence required**               |
+| Supplier operations         | Compare supplier roles, products, terms, prices and performance | Supplier master, Purchase, Receiving and supplier ledger                       | No source-linked role/price/quality/claim performance model                                  | **missing/discovery — field evidence required**               |
+| Advanced management metrics | Operate KPI, alert, drill-down and action surfaces              | `report.definitions` documents the 9 current operational reports               | COGS, aging, reorder and supplier-performance metrics remain unavailable until policy closes | **implemented for current reports; advanced metrics blocked** |
+
 ## Umbrella use-case decomposition — technically closed in M23.14b
 
 The catalog was asymmetric: Sale/Account were split by user goal while Goods and
