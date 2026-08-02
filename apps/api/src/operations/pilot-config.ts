@@ -224,6 +224,8 @@ export const pilotConfigSchema = z.object({
   rolePermissionReview: reviewSchema,
   ownerMembershipReview: reviewSchema,
   dataSharingRetentionReview: reviewSchema,
+  /** ASM-020 — whether large voids/adjustments need a second approver. */
+  sensitiveActionApprovalReview: reviewSchema,
   qualityGradePolicyReview: reviewSchema,
   receivingQualitySemanticsReview: reviewSchema,
   qualityRoleReview: reviewSchema,
@@ -231,6 +233,8 @@ export const pilotConfigSchema = z.object({
   purchaseReceivingCorrectionGate: crossDimensionScenarioGateSchema,
   partialCustomerReturnGate: crossDimensionScenarioGateSchema,
   supplierReturnGate: crossDimensionScenarioGateSchema,
+  /** ASM-029 — driver collection/handover is not safe to infer from Cashbook rows. */
+  driverCashCollectionGate: crossDimensionScenarioGateSchema,
   authenticationSmoke: authenticationSmokeSchema,
   deploymentEvidence: deploymentEvidenceSchema,
   recoveryEvidence: recoveryEvidenceSchema,
@@ -291,6 +295,13 @@ export const EXAMPLE_PILOT_CONFIG = {
     worksheetReference: "",
     notes: "",
   },
+  sensitiveActionApprovalReview: {
+    reviewerName: "",
+    date: "",
+    decision: "accepted",
+    worksheetReference: "",
+    notes: "",
+  },
   qualityGradePolicyReview: {
     reviewerName: "",
     date: "",
@@ -337,6 +348,14 @@ export const EXAMPLE_PILOT_CONFIG = {
     notes: "",
   },
   supplierReturnGate: {
+    disposition: "excluded_from_shadow_scope",
+    reviewerName: "",
+    date: "",
+    worksheetReference: "",
+    stopIfEncountered: true,
+    notes: "",
+  },
+  driverCashCollectionGate: {
     disposition: "excluded_from_shadow_scope",
     reviewerName: "",
     date: "",

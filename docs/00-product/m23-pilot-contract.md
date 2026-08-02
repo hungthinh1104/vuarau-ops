@@ -39,6 +39,8 @@ contradiction is recorded as a blocker; it is not silently repaired inside M23.
 | ASM-017 | owner reviews the actual role → permission table                                                           | block member provisioning for unreviewed roles                                      |
 | ASM-018 | operator and owner verify the exact intended owner actor IDs                                               | block pilot while any unintended owner remains                                      |
 | ASM-030 | owner/operator approve sharing and customer retention policy                                               | public document sharing remains blocked                                             |
+| ASM-020 | owner decides whether large voids/adjustments/reclassifications need a second approver                     | block the affected sensitive action when the answer rejects current authority       |
+| ASM-029 | owner/driver/accountant classify driver collection and cash handover authority                             | stop if the scenario is excluded; block if unresolved                               |
 | ASM-032 | owner/workers confirm whether every new physical quantity really requires commercial grade                 | block real Sale/Receiving if current universal-grade behavior is rejected           |
 | ASM-033 | owner/receiver confirm that Receipt means accepted inventory and how damaged/rejected arrivals are handled | block affected Receiving flows if current semantics are rejected                    |
 | ASM-034 | owner/warehouse confirm who may manage/reclassify grade and whether approval is needed                     | block grade-management/reclassification pilot work if current authority is rejected |
@@ -47,7 +49,7 @@ contradiction is recorded as a blocker; it is not silently repaired inside M23.
 | ASM-037 | owner/workers classify partial customer-return money/commercial semantics as excluded or resolved          | physical Return must not infer money; stop if excluded scenario occurs              |
 | ASM-038 | owner/workers classify return of accepted stock to Supplier as excluded or resolved                        | generic adjustment must not masquerade as Supplier return; stop/block as declared   |
 
-Signed evidence stays outside git. A rejected ASM-023/024/025 or ASM-032/033/034
+Signed evidence stays outside git. A rejected ASM-023/024/025, ASM-020, ASM-029 or ASM-032/033/034
 answer preserves the contradiction and blocks the affected workflow; it never
 changes ledger dates, seeds a fake grade, or changes wording to make readiness
 green. ASM-032/033/034 use the

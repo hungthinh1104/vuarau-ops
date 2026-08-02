@@ -183,6 +183,7 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
     ["ASM-017 role-permission review", config.rolePermissionReview],
     ["ASM-018 owner-membership review", config.ownerMembershipReview],
     ["ASM-030 sharing and retention review", config.dataSharingRetentionReview],
+    ["ASM-020 sensitive-action approval review", config.sensitiveActionApprovalReview],
     ["ASM-032 universal grade policy review", config.qualityGradePolicyReview],
     ["ASM-033 receiving quality semantics review", config.receivingQualitySemanticsReview],
     ["ASM-034 quality role/reclassification review", config.qualityRoleReview],
@@ -208,6 +209,7 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
     ["ASM-036 Purchase correction after Receiving", config.purchaseReceivingCorrectionGate],
     ["ASM-037 partial customer-return consequence", config.partialCustomerReturnGate],
     ["ASM-038 Supplier return of accepted stock", config.supplierReturnGate],
+    ["ASM-029 driver cash collection and handover", config.driverCashCollectionGate],
   ] as const) {
     const outcome = evaluateCrossDimensionScenarioGate(gate, config.releaseSha);
     checks.push(

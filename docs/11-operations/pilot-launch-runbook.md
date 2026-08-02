@@ -101,8 +101,11 @@ must stay out of logs shared with the project.
    rehearsal touches the pilot workspace, discard that workspace and repeat the
    clean bootstrap before observation.
 
-6. Complete ASM-023/024/025 and the ASM-017/018/030/032/033/034 reviews, then
-   classify ASM-035/036/037/038 with the cross-dimension correction worksheet.
+6. Complete ASM-023/024/025 and the ASM-017/018/020/029/030/032/033/034
+   reviews, then classify ASM-035/036/037/038 with the cross-dimension correction
+   worksheet. ASM-029 must explicitly exclude driver cash collection with a
+   stop-if-encountered gate or bind a verified implementation to the frozen
+   release; Cashbook rows alone are not authority evidence.
    Record dates, people, notes and worksheet references in the private `pilot.json`;
    do not commit signed material. A populated QualityGrade list is not a substitute
    for ASM-032/033/034 evidence. For ASM-035–038, choose only:

@@ -20,6 +20,7 @@ describe("M23 — pilot declaration is fail-closed", () => {
     rolePermissionReview: review("Chủ vựa"),
     ownerMembershipReview: review("Chủ vựa"),
     dataSharingRetentionReview: review("Chủ vựa"),
+    sensitiveActionApprovalReview: review("Chủ vựa"),
     qualityGradePolicyReview: review("Chủ vựa"),
     receivingQualitySemanticsReview: review("Chủ vựa"),
     qualityRoleReview: review("Chủ vựa"),
@@ -27,6 +28,7 @@ describe("M23 — pilot declaration is fail-closed", () => {
     purchaseReceivingCorrectionGate: excludedScenario("Chủ vựa"),
     partialCustomerReturnGate: excludedScenario("Chủ vựa"),
     supplierReturnGate: excludedScenario("Chủ vựa"),
+    driverCashCollectionGate: excludedScenario("Chủ vựa"),
     authenticationSmoke: {
       status: "pending" as const,
       owner: "platform owner",
@@ -58,6 +60,7 @@ describe("M23 — pilot declaration is fail-closed", () => {
       releaseSha: "603e830",
       commercialRecognitionConfirmation: undefined,
       dataSharingRetentionReview: undefined,
+      sensitiveActionApprovalReview: undefined,
       qualityGradePolicyReview: undefined,
       receivingQualitySemanticsReview: undefined,
       qualityRoleReview: undefined,
@@ -70,6 +73,7 @@ describe("M23 — pilot declaration is fail-closed", () => {
       expect(result.problems.join("\n")).toContain("releaseSha");
       expect(result.problems.join("\n")).toContain("commercialRecognitionConfirmation");
       expect(result.problems.join("\n")).toContain("dataSharingRetentionReview");
+      expect(result.problems.join("\n")).toContain("sensitiveActionApprovalReview");
       expect(result.problems.join("\n")).toContain("qualityGradePolicyReview");
       expect(result.problems.join("\n")).toContain("receivingQualitySemanticsReview");
       expect(result.problems.join("\n")).toContain("qualityRoleReview");
@@ -90,6 +94,14 @@ describe("M23 — pilot declaration is fail-closed", () => {
     const result = readPilotConfig(JSON.stringify(missing));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.problems.join("\n")).toContain("supplierReturnGate");
+  });
+
+  it("requires an explicit stop or release gate for driver cash collection", () => {
+    const result = readPilotConfig(
+      JSON.stringify({ ...filled, driverCashCollectionGate: undefined }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("driverCashCollectionGate");
   });
 
   it("passes an explicitly excluded scenario only with a stop-if-encountered declaration", () => {
