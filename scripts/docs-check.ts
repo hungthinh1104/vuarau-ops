@@ -241,6 +241,18 @@ export function checkRoutingContracts(sources: RoutingContractSources): string[]
     failures.push(`${standardPath}: must not define a second dependency graph`);
   }
 
+  const webAdminPath = "docs/WEB-ADMIN.md";
+  requireText(
+    webAdminPath,
+    "#### Policy gate",
+    "analytics candidates must have an explicit policy gate",
+  );
+  requireText(
+    webAdminPath,
+    "never as zero, a stale projection or a recommendation",
+    "unresolved analytics policy must fail closed",
+  );
+
   return failures;
 }
 
@@ -271,6 +283,7 @@ async function main(): Promise<void> {
     "docs/10-ai-coding/REVIEW_CHECKLIST.md",
     "docs/10-ai-coding/CHANGE_PROTOCOL.md",
     "docs/10-ai-coding/ENGINEERING_STANDARD.md",
+    "docs/WEB-ADMIN.md",
   ];
   const routingSources = Object.fromEntries(
     routingPaths.map((path) => [path, readFileSync(join(ROOT, path), "utf8")]),
