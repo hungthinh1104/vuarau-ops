@@ -23,7 +23,9 @@ test("feature queries include active UI contracts and reasons", async () => {
   const output = await context("quick-sale");
   assert.match(output, /docs\/design\.md/);
   assert.match(output, /docs\/WEB-ADMIN\.md/);
-  assert.match(output, /apps\/web\/src\/app/);
+  // Route wrappers stay intentionally thin; the current feature implementation
+  // is owned by the controller/screen surface under `apps/web/src/ui/`.
+  assert.match(output, /apps\/web\/src\/ui/);
   assert.match(output, /surface-context/);
   assert.doesNotMatch(output, /docs\/design\.md — .*trace-linked/);
   assert.doesNotMatch(output, /docs\/archive\//);

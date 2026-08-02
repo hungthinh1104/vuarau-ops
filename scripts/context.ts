@@ -201,8 +201,13 @@ async function defaultSearchContent(
   candidates: readonly string[],
 ): Promise<readonly string[]> {
   if (candidates.length === 0) return [];
+  const compactQuery = query.replaceAll(/[^a-z0-9]/gi, "");
+  const terms = unique([query, compactQuery]).filter((term) => term.length > 0);
   try {
-    const { stdout } = await execFile("rg", ["-l", "--fixed-strings", "--", query, ...candidates], {
+    const args = ["-l", "-i", "--fixed-strings"];
+    for (const term of terms) args.push("-e", term);
+    args.push("--", ...candidates);
+    const { stdout } = await execFile("rg", args, {
       cwd: ROOT,
       maxBuffer: 4 * 1024 * 1024,
     });
@@ -234,7 +239,10 @@ function validationCommands(files: readonly string[], hasTrace: boolean): string
 
 function classifyFreeText(path: string, query: string, content: string): MatchReason[] {
   const normalizedQuery = query.toLocaleLowerCase("vi");
+  const compactQuery = query.replaceAll(/[^a-z0-9]/gi, "").toLocaleLowerCase("vi");
   const lowerPath = path.toLocaleLowerCase("vi");
+  const lowerContent = content.toLocaleLowerCase("vi");
+  const compactContent = content.replaceAll(/[^a-z0-9]/gi, "").toLocaleLowerCase("vi");
   const reasons: MatchReason[] = [];
   if (lowerPath === normalizedQuery) reasons.push("exact path");
   if (lowerPath.split("/").at(-1)?.includes(normalizedQuery)) reasons.push("filename match");
@@ -248,7 +256,12 @@ function classifyFreeText(path: string, query: string, content: string): MatchRe
   ) {
     reasons.push("heading/symbol match");
   }
-  if (content.toLocaleLowerCase("vi").includes(normalizedQuery)) reasons.push("body-text match");
+  if (
+    lowerContent.includes(normalizedQuery) ||
+    (compactQuery.length >= 3 && compactContent.includes(compactQuery))
+  ) {
+    reasons.push("body-text match");
+  }
   return reasons;
 }
 
