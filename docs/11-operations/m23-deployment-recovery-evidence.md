@@ -112,3 +112,21 @@ existing full Playwright browser/API/PostgreSQL suite. It covers the transaction
 workflows and representative authorization, retry, stale-version, request-size,
 rate-limit and readiness failures without duplicating scenario implementations.
 Its JSON summary says `fieldValidation: NOT_RUN_BY_AUTOMATION`.
+
+### Latest repository-owned run
+
+On 2026-08-03, the disposable run passed on release SHA
+`6bcaba52534bb37e5068226328fd3b67f0ebaf88`:
+
+- 38 application tests and 5 PostgreSQL provisioning/import tests passed;
+- the security inventory found 75 authenticated commands and 64 authenticated
+  queries with the public allowlist unchanged;
+- 86 Playwright tests passed on both mobile and desktop, including the real API,
+  disposable PostgreSQL, workspace isolation, retries, backup/restore and UI
+  performance checks;
+- `repositoryReadiness` was `PASS` and `fieldValidation` remained
+  `NOT_RUN_BY_AUTOMATION`.
+
+This is repository and disposable-stack evidence only. It does not prove a real
+worker session, production provider recovery, or owner approval of unresolved
+business semantics.
