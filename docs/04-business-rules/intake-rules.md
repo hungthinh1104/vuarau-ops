@@ -12,5 +12,5 @@
 - **BR-INTAKE-010** — An active GoodsArrival blocks Purchase void even before any quantity is accepted. Direct receipt and inspected intake are mutually exclusive for new facts.
 - **BR-INTAKE-011** — Changing the operational profile affects new commands only. Historical reads and supported reversals remain available so evidence never becomes unreachable.
 - **BR-INTAKE-012** — `transactionTime` records when the physical event occurred; `recordedAt` records when the system persisted it. Reports and audit retain both.
-- **BR-INTAKE-013** — Backup V7 includes issue masters and every arrival, inspection, disposition, allocation, reversal and resulting inventory movement. Restore validates references and reconciles inventory before success.
+- **BR-INTAKE-013** — Backup V8 includes issue masters, price rules and every arrival, inspection, disposition, allocation, reversal and resulting inventory movement. Restore validates references and reconciles inventory before success.
 - **BR-INTAKE-014** — Rejected or quarantined quantity does not automatically reduce Purchase payable. Supplier claim, credit and settlement are a separate future bounded context.

@@ -29,6 +29,7 @@ current procedure catalog without duplicating every DTO field.
 | `operations` | `integrity`, `validateBackup`                                                                                                         |
 | `cash`       | `searchAccounts`, `getAccount`, `timeline`, `getExpense`, `getTransfer`, `reconciliation`                                             |
 | `intake`     | `searchIssueCodes`, `getArrival`, `listArrivals`, `getInspection`, `getDisposition`, `dispositionSourceSummary`, `arrivalLineHistory` |
+| `pricing`    | `list`, `resolve`                                                                                                                     |
 
 The router source is authoritative for procedure names. Permission policy belongs
 to [authorization-rules.md](../04-business-rules/authorization-rules.md), and DTO

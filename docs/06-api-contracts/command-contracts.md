@@ -63,6 +63,7 @@ command changes, update its schema and tests first, then keep this catalog align
 | `operations` | `exportBackup`, `restoreBackup`                                                                                                                                                                           |
 | `cash`       | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`                                         |
 | `intake`     | `createIssueCode`, `updateIssueCode`, `deactivateIssueCode`, `reactivateIssueCode`, `recordArrival`, `reverseArrival`, `recordInspection`, `reverseInspection`, `recordDisposition`, `reverseDisposition` |
+| `pricing`    | `record`                                                                                                                                                                                                  |
 
 The router source is authoritative for procedure names. Domain-contract modules are
 authoritative for payload and result shapes.

@@ -10,6 +10,7 @@ import {
   inventoryMovements,
   payments,
   products,
+  priceRules,
   purchases,
   qualityGrades,
   qualityIssueCodes,
@@ -26,6 +27,7 @@ export async function targetContainsBusinessData(
     cashRows,
     customerRows,
     productRows,
+    priceRuleRows,
     qualityGradeRows,
     qualityIssueCodeRows,
     goodsArrivalRows,
@@ -52,6 +54,11 @@ export async function targetContainsBusinessData(
       .select({ id: products.id })
       .from(products)
       .where(eq(products.workspaceId, workspaceId))
+      .limit(1),
+    tx
+      .select({ id: priceRules.id })
+      .from(priceRules)
+      .where(eq(priceRules.workspaceId, workspaceId))
       .limit(1),
     tx
       .select({ id: qualityGrades.id })
@@ -110,6 +117,7 @@ export async function targetContainsBusinessData(
       cashRows,
       customerRows,
       productRows,
+      priceRuleRows,
       qualityGradeRows,
       qualityIssueCodeRows,
       goodsArrivalRows,

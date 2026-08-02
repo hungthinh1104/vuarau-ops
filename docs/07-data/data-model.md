@@ -35,6 +35,7 @@ Drizzle definitions and database constraints.
 | Table                        | Purpose                                            | Mutability                                                        |
 | ---------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
 | `products`                   | Workspace product catalog                          | mutable lifecycle                                                 |
+| `price_rules`                | Effective Product/grade/unit/customer price facts  | append-only; no historical rewrite                                |
 | `quality_grades`             | Workspace commercial-grade vocabulary              | mutable lifecycle; historical snapshots remain immutable          |
 | `suppliers`                  | Supplier master data                               | mutable lifecycle                                                 |
 | `supplier_payments`          | Supplier payment aggregate                         | constrained lifecycle/version fields                              |
@@ -227,7 +228,7 @@ symbols:
 `cash_movements` is canonical and append-only; `cash_balances` is disposable and
 rebuildable. `payments.cash_account_id` and
 `supplier_payments.cash_account_id` preserve the immutable source-account link.
-Backup V7 preserves operational profile, CashAccount and all canonical cash source/
+Backup V8 preserves operational profile, price rules, CashAccount and all canonical cash source/
 movement rows; it does not export `cash_balances`.
 
 ## Executable workspace-policy and cashbook names
@@ -245,7 +246,7 @@ Cashbook persistence uses the exact Drizzle symbols `cashAccounts`, `expenses`,
 `cashMovements` and `cashBalances`, corresponding to the snake-case PostgreSQL
 tables listed above. `cashMovements` is canonical append-only truth;
 `cashBalances` is a rebuildable projection. Payment cash-account links are
-immutable after recording. Backup V7 exports CashAccount and canonical source/
+immutable after recording. Backup V8 exports price rules, CashAccount and canonical source/
 movement rows, not the disposable balance projection.
 
 ## Inspected-intake executable names
@@ -266,4 +267,4 @@ movement rows, not the disposable balance projection.
 Arrival, inspection, disposition and reversal tables are append-only. Issue codes are
 versioned master data and cannot be deleted. Only accepted allocations create
 `inventory_movements`; quarantine, rejection and disposal remain non-stock outcomes.
-Backup V7 exports these canonical rows and restore rebuilds inventory balances.
+Backup V8 exports these canonical rows and restore rebuilds inventory balances.

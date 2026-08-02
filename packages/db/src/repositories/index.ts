@@ -3,6 +3,7 @@ import type { PgTransaction } from "drizzle-orm/pg-core";
 import { createWorkspaceWriteRepositories } from "./write/workspace.ts";
 import { createCustomerWriteRepositories } from "./write/customer.ts";
 import { createProductWriteRepositories } from "./write/product.ts";
+import { createPriceRuleWriteRepositories } from "./write/pricing.ts";
 import { createQualityGradeWriteRepositories } from "./write/quality.ts";
 import { createSupplierWriteRepositories } from "./write/supplier.ts";
 import { createPurchaseWriteRepositories } from "./write/purchase.ts";
@@ -26,6 +27,7 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     ...createWorkspaceWriteRepositories(tx),
     ...createCustomerWriteRepositories(tx),
     ...createProductWriteRepositories(tx),
+    ...createPriceRuleWriteRepositories(tx),
     ...createQualityGradeWriteRepositories(tx),
     ...createSupplierWriteRepositories(tx, ids),
     ...createPurchaseWriteRepositories(tx),

@@ -2,19 +2,21 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import type {
   CommandId,
   IdempotencyKey,
+  PriceRuleId,
   ProductId,
   SupplierId,
   SupplierPaymentId,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
 import type {
+  PriceRuleState,
   ProductState,
   SupplierState,
   SupplierPaymentState,
   PurchaseState,
   DeliveryState,
 } from "@vuarau/domain-kernel";
-import type { products, suppliers, supplierPayments } from "../../schema/index.ts";
+import type { priceRules, products, suppliers, supplierPayments } from "../../schema/index.ts";
 import {
   purchases,
   purchaseLines,
@@ -38,6 +40,30 @@ export function toProductState(row: typeof products.$inferSelect): ProductState 
     version: row.version,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
+  };
+}
+
+export function toPriceRuleState(row: typeof priceRules.$inferSelect): PriceRuleState {
+  return {
+    id: row.id as PriceRuleId,
+    workspaceId: row.workspaceId as PriceRuleState["workspaceId"],
+    productId: row.productId as PriceRuleState["productId"],
+    qualityGradeId: row.qualityGradeId as PriceRuleState["qualityGradeId"],
+    customerId: row.customerId as PriceRuleState["customerId"],
+    unit: row.unit,
+    kind: row.kind,
+    priority: row.priority,
+    minimumQuantityScaled: row.minimumQuantityScaled,
+    effectiveFrom: toIso(row.effectiveFrom),
+    effectiveTo: toIsoOrNull(row.effectiveTo),
+    baseUnitPrice: { amountMinor: row.baseUnitPriceMinor, currency: row.currency },
+    discountPerUnit: { amountMinor: row.discountPerUnitMinor, currency: row.currency },
+    feePerUnit: { amountMinor: row.feePerUnitMinor, currency: row.currency },
+    finalUnitPrice: { amountMinor: row.finalUnitPriceMinor, currency: row.currency },
+    reason: row.reason,
+    actorId: row.actorId as PriceRuleState["actorId"],
+    commandId: row.commandId as PriceRuleState["commandId"],
+    recordedAt: toIso(row.recordedAt),
   };
 }
 

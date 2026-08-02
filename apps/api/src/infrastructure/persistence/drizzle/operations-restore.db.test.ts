@@ -11,11 +11,12 @@ import type {
   PurchaseId,
   PurchaseLineId,
   PurchaseReceiptId,
+  PriceRuleId,
   SaleId,
   SaleLineId,
   SupplierId,
   SupplierPaymentId,
-  WorkspaceBackupV7,
+  WorkspaceBackupV8,
   DeliveryId,
   DeliveryLineId,
   DocumentId,
@@ -44,6 +45,7 @@ import {
   createPurchaseDraft,
 } from "../../../modules/purchase/purchase.handlers.ts";
 import { recordPurchaseReceipt } from "../../../modules/inventory/inventory.handlers.ts";
+import { recordPriceRule } from "../../../modules/pricing/pricing.handlers.ts";
 import { getInventoryReconciliation } from "../../../modules/inventory/inventory.queries.ts";
 import {
   createDeliveryDraft,
@@ -82,7 +84,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     await ctx.close();
   });
 
-  async function prepareCanonicalBackup(): Promise<WorkspaceBackupV7> {
+  async function prepareCanonicalBackup(): Promise<WorkspaceBackupV8> {
     const productId = crypto.randomUUID() as ProductId;
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
@@ -96,6 +98,26 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       },
     });
     expect(product.ok).toBe(true);
+    const priceRule = await recordPriceRule(context(), {
+      ...command("recovery-price-rule"),
+      payload: {
+        priceRuleId: crypto.randomUUID() as PriceRuleId,
+        productId,
+        qualityGradeId: ctx.qualityGradeId,
+        customerId: ctx.customerId,
+        unit: "kg",
+        kind: "customer",
+        priority: 10,
+        minimumQuantityScaled: 1_000,
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        effectiveTo: null,
+        baseUnitPrice: { amountMinor: 20_000, currency: "VND" },
+        discountPerUnit: { amountMinor: 500, currency: "VND" },
+        feePerUnit: { amountMinor: 0, currency: "VND" },
+        reason: "Giá phục hồi có truy nguyên",
+      },
+    });
+    expect(priceRule.ok).toBe(true);
     const draft = await createSaleDraft(context(), {
       ...command("recovery-sale-draft"),
       payload: {
@@ -355,6 +377,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       await sql`delete from purchase_receipt_reversals where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from purchase_receipt_lines where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from purchase_receipts where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from price_rules where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from supplier_account_balances where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from supplier_account_entries where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from supplier_payment_reversals where workspace_id = ${ctx.workspaceId}::uuid`;
@@ -414,7 +437,9 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         (select count(*)::int from documents
           where workspace_id = ${ctx.workspaceId}::uuid) as documents,
         (select count(*)::int from document_shares
-          where workspace_id = ${ctx.workspaceId}::uuid) as document_shares
+          where workspace_id = ${ctx.workspaceId}::uuid) as document_shares,
+        (select count(*)::int from price_rules
+          where workspace_id = ${ctx.workspaceId}::uuid) as price_rules
     `;
     return rows[0] as Record<string, number>;
   }
@@ -428,6 +453,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     expect(backup.payload.accountEntries).toHaveLength(2);
     expect(backup.payload.audit.length).toBeGreaterThan(0);
     expect(backup.payload.commandReceipts.length).toBeGreaterThan(0);
+    expect(backup.payload.priceRules).toHaveLength(1);
     expect(backup.payload.suppliers).toHaveLength(1);
     expect(backup.payload.purchases).toHaveLength(1);
     expect(backup.payload.supplierAccountEntries).toHaveLength(2);
@@ -462,6 +488,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       deliveries: 0,
       documents: 0,
       document_shares: 0,
+      price_rules: 0,
     });
 
     const restoreCommand = {
@@ -495,6 +522,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       deliveries: backup.payload.deliveries.length,
       documents: backup.payload.documents.length,
       document_shares: backup.payload.documentShares.length,
+      price_rules: backup.payload.priceRules.length,
     });
 
     const reconciliation = await getAccountReconciliation(context(), {
@@ -535,7 +563,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     const backup = await prepareCanonicalBackup();
     await emptyRecoveryWorkspace();
     const duplicateCustomer = backup.payload.customers[0]!;
-    const malformed: WorkspaceBackupV7 = {
+    const malformed: WorkspaceBackupV8 = {
       ...backup,
       payload: {
         ...backup.payload,
@@ -581,7 +609,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         },
       ],
     };
-    const tampered: WorkspaceBackupV7 = {
+    const tampered: WorkspaceBackupV8 = {
       ...backup,
       payload,
       digest: backupDigest(payload),

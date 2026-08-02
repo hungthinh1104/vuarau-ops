@@ -23,6 +23,7 @@ import { money } from "@vuarau/domain-kernel";
 import type { CommandReceipt } from "../../ports.ts";
 import type {
   CustomerState,
+  PriceRuleState,
   SaleState,
   PaymentState,
   ProductState,
@@ -47,6 +48,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.cashAccounts.values(),
           ...store.customers.values(),
           ...store.products.values(),
+          ...store.priceRules.values(),
           ...store.qualityGrades.values(),
           ...store.qualityIssueCodes.values(),
           ...store.goodsArrivals.values(),
@@ -132,6 +134,10 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         for (const raw of payload.products) {
           const row = remap(raw) as unknown as ProductState;
           store.products.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.priceRules) {
+          const row = remap(raw) as unknown as PriceRuleState;
+          store.priceRules.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.qualityGrades) {
           const row = remap(raw) as unknown as QualityGradeState;

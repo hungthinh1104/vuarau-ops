@@ -47,7 +47,7 @@ no UI or report supplies a second implementation of that policy.
 | Excluded                                                          | Boundary                                                                                                                  |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | AI/LLM transaction entry                                          | AI may propose in a future milestone but may never bypass deterministic commands                                          |
-| Pricing intelligence and automatic recommendations                | Last-price recall is explicit, customer/unit scoped and never auto-applied                                                |
+| Pricing intelligence and automatic recommendations                | The explicit price-rule catalogue is in scope; intelligence, forecasting and automatic application remain out of scope    |
 | Demand forecasting, supplier scoring and customer health scoring  | Require field evidence and enough history to justify a model                                                              |
 | Tax invoicing, allocation and inventory valuation                 | Current documents make no tax claim; Payments are not allocated to Sales                                                  |
 | Supplier quality claims, credits and billable-quantity settlement | Rejected/quarantined intake does not silently rewrite Purchase payable                                                    |

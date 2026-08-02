@@ -22,7 +22,7 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV7,
+  WorkspaceBackupV8,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
@@ -36,6 +36,8 @@ import type {
   InventoryBalanceDto,
   InventoryMovementDto,
   ProductId,
+  PriceRuleListInput,
+  ResolvePriceInput,
   QualityGradeDto,
   QualityGradeId,
   Unit,
@@ -66,7 +68,7 @@ import type {
   QualityInspectionId,
   QualityIssueCodeDto,
 } from "@vuarau/domain-contracts";
-import type { SaleState } from "@vuarau/domain-kernel";
+import type { PriceRuleState, SaleState } from "@vuarau/domain-kernel";
 
 /**
  * Read ports, separate from the write ports on purpose.
@@ -300,6 +302,13 @@ export type ProductReadRepository = {
     page: PageQuery;
   }): Promise<PageResult<ProductDto>>;
   get(workspaceId: WorkspaceId, productId: string): Promise<ProductDto | null>;
+};
+
+export type PriceRuleReadRepository = {
+  list(
+    input: PriceRuleListInput & { readonly after: CursorPosition | null },
+  ): Promise<PageResult<PriceRuleState>>;
+  forResolution(input: ResolvePriceInput): Promise<readonly PriceRuleState[]>;
 };
 
 export type QualityGradeReadRepository = {
@@ -538,7 +547,7 @@ export type IntakeReadRepository = {
 
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV7["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV8["payload"] | null>;
 };
 
 /**
@@ -550,6 +559,7 @@ export type OperationsReadRepository = {
 export type ReadRepositories = {
   readonly customerReads: CustomerReadRepository;
   readonly productReads: ProductReadRepository;
+  readonly priceRuleReads: PriceRuleReadRepository;
   readonly qualityGradeReads: QualityGradeReadRepository;
   readonly supplierReads: SupplierReadRepository;
   readonly supplierAccountReads: SupplierAccountReadRepository;

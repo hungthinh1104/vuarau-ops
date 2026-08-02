@@ -12,6 +12,7 @@ import { createInventoryRepositories } from "./repositories/inventory.ts";
 import { createOperationsRepositories } from "./repositories/operations.ts";
 import { createPaymentRepositories } from "./repositories/payment.ts";
 import { createProductRepositories } from "./repositories/product.ts";
+import { createPriceRuleRepositories } from "./repositories/pricing.ts";
 import { createPurchaseRepositories } from "./repositories/purchase.ts";
 import { createQualityGradeRepositories } from "./repositories/quality.ts";
 import { createReceiptRepositories } from "./repositories/receipt.ts";
@@ -29,6 +30,7 @@ import { createInventoryReads } from "./reads/inventory.ts";
 import { createOperationsReads } from "./reads/operations.ts";
 import { createPaymentReads } from "./reads/payment.ts";
 import { createProductReads } from "./reads/product.ts";
+import { createPriceRuleReads } from "./reads/pricing.ts";
 import { createPurchaseReads } from "./reads/purchase.ts";
 import { createQualityGradeReads } from "./reads/quality.ts";
 import { createReportReads } from "./reads/report.ts";
@@ -39,6 +41,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createWorkspaceRepositories(store),
   ...createCustomerRepositories(store),
   ...createProductRepositories(store),
+  ...createPriceRuleRepositories(store),
   ...createQualityGradeRepositories(store),
   ...createSupplierRepositories(store, ids),
   ...createPurchaseRepositories(store),
@@ -55,6 +58,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createReceiptRepositories(store),
   ...createCustomerReads(store),
   ...createProductReads(store),
+  ...createPriceRuleReads(store),
   ...createQualityGradeReads(store),
   ...createSupplierReads(store),
   ...createPurchaseReads(store),

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type {
   ExportWorkspaceBackupCommand,
   WorkspaceBackup,
-  WorkspaceBackupV7,
+  WorkspaceBackupV8,
   WorkspaceId,
   WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
@@ -32,7 +32,7 @@ export function backupDigest(payload: WorkspaceBackup["payload"]): string {
   return createHash("sha256").update(canonical(payload)).digest("hex");
 }
 
-function orderedPayload(payload: WorkspaceBackupV7["payload"]): WorkspaceBackupV7["payload"] {
+function orderedPayload(payload: WorkspaceBackupV8["payload"]): WorkspaceBackupV8["payload"] {
   return Object.fromEntries(
     Object.entries(payload).map(([name, value]) => [
       name,
@@ -40,7 +40,7 @@ function orderedPayload(payload: WorkspaceBackupV7["payload"]): WorkspaceBackupV
         ? [...value].sort((left, right) => canonical(left).localeCompare(canonical(right)))
         : value,
     ]),
-  ) as WorkspaceBackupV7["payload"];
+  ) as WorkspaceBackupV8["payload"];
 }
 
 export function getWorkspaceIntegrity(
@@ -58,8 +58,8 @@ export function getWorkspaceIntegrity(
 export function exportWorkspaceBackup(
   ctx: CommandContext,
   input: unknown,
-): Promise<DomainResult<WorkspaceBackupV7>> {
-  return runCommand<ExportWorkspaceBackupCommand, WorkspaceBackupV7>({
+): Promise<DomainResult<WorkspaceBackupV8>> {
+  return runCommand<ExportWorkspaceBackupCommand, WorkspaceBackupV8>({
     commandType: "ExportWorkspaceBackup",
     schema: exportWorkspaceBackupCommandSchema,
     input,
@@ -75,12 +75,12 @@ export function exportWorkspaceBackup(
           Array.isArray(rows) ? rows.length : 1,
         ]),
       );
-      const backup: WorkspaceBackupV7 = {
+      const backup: WorkspaceBackupV8 = {
         format: "vuarau.workspace-backup",
-        version: 7,
+        version: 8,
         sourceWorkspaceId: command.workspaceId,
         createdAt: recordedAt,
-        schemaCompatibility: "m25-intake-quality",
+        schemaCompatibility: "m26-pricing",
         recordCounts,
         payload,
         digest: backupDigest(payload),
@@ -95,7 +95,7 @@ export function exportWorkspaceBackup(
         transactionTime: command.occurredAt,
         recordedAt,
         before: null,
-        after: { version: 7, digest: backup.digest, recordCounts },
+        after: { version: 8, digest: backup.digest, recordCounts },
         reason: null,
       });
       return ok(backup);

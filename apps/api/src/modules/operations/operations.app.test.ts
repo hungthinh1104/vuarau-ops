@@ -348,10 +348,10 @@ describe("M14 logical operations evidence", () => {
     });
   });
 
-  it("keeps WorkspaceBackupV1 restore-compatible while exporting V7", async () => {
+  it("keeps WorkspaceBackupV1 restore-compatible while exporting V8", async () => {
     const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
     if (!exported.ok) return;
-    expect(exported.value.version).toBe(7);
+    expect(exported.value.version).toBe(8);
     const {
       suppliers: _suppliers,
       supplierPayments: _supplierPayments,
@@ -370,6 +370,7 @@ describe("M14 logical operations evidence", () => {
       deliveryReturnLines: _deliveryReturnLines,
       documents: _documents,
       documentShares: _documentShares,
+      priceRules: _priceRules,
       qualityGrades: _qualityGrades,
       operationalProfile: _operationalProfile,
       cashAccounts: _cashAccounts,

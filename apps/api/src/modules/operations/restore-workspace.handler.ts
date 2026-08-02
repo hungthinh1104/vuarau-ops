@@ -1,7 +1,7 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV7,
+  WorkspaceBackupV8,
 } from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
@@ -136,6 +136,13 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     qualityDispositionAllocationRows.map((row) => [row["id"], row] as const),
   );
   return (
+    (!("priceRules" in payload) ||
+      payload.priceRules.every(
+        (row) =>
+          products.has(row["productId"]) &&
+          hasGrade(row["qualityGradeId"]) &&
+          (row["customerId"] == null || customers.has(row["customerId"])),
+      )) &&
     payload.sales.every((row) => customers.has(row["customerId"])) &&
     payload.saleLines.every(
       (row) =>
@@ -340,7 +347,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
 }
 
-function v7Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV7["payload"] {
+function v8Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV8["payload"] {
   const payload = command.payload.backup.payload;
   const operationalProfile =
     "operationalProfile" in payload
@@ -390,6 +397,7 @@ function v7Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV7["p
       "qualityDispositionAllocations" in payload ? payload.qualityDispositionAllocations : [],
     qualityDispositionReversals:
       "qualityDispositionReversals" in payload ? payload.qualityDispositionReversals : [],
+    priceRules: "priceRules" in payload ? payload.priceRules : [],
   };
 }
 
@@ -413,7 +421,7 @@ export function restoreWorkspaceBackup(
       }
       const restored = await repos.operations.restoreBackup(
         command.workspaceId,
-        v7Payload(command),
+        v8Payload(command),
       );
       if (restored.kind === "unsafe_target") {
         return err("BACKUP_UNSAFE_TARGET", "Restore requires an empty recovery workspace.", {
@@ -433,7 +441,7 @@ export function restoreWorkspaceBackup(
       }
       const supplierDiagnostics = (
         await Promise.all(
-          v7Payload(command).suppliers.map((row) =>
+          v8Payload(command).suppliers.map((row) =>
             repos.supplierAccountReads.integrity(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.supplierAccountReads.integrity>[1],
@@ -445,7 +453,7 @@ export function restoreWorkspaceBackup(
         string,
         { productId: string; qualityGradeId: string | null; unit: string }
       >();
-      for (const movement of v7Payload(command).inventoryMovements) {
+      for (const movement of v8Payload(command).inventoryMovements) {
         const qualityGradeId =
           movement["qualityGradeId"] === null || movement["qualityGradeId"] === undefined
             ? null
@@ -473,7 +481,7 @@ export function restoreWorkspaceBackup(
       ).flat();
       const cashDiagnostics = (
         await Promise.all(
-          v7Payload(command).cashAccounts.map((row) =>
+          v8Payload(command).cashAccounts.map((row) =>
             repos.cashReads.reconciliation(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.cashReads.reconciliation>[1],

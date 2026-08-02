@@ -152,8 +152,9 @@ integrity read before success. Infrastructure PITR remains a deployment concern.
 ### M15 — Product catalog (technical evidence complete)
 
 Product identity, lifecycle, cursor search, permissions, offline read cache and
-Sale snapshot integration are implemented. This does not authorize supplier,
-purchase, inventory, pricing or unit conversion work.
+Sale snapshot integration are implemented. Pricing rules are now a separate
+append-only catalogue slice; this does not authorize automatic pricing,
+valuation, supplier, purchase, inventory or unit-conversion policy.
 
 ### M16 — Supplier account (technical evidence complete)
 
@@ -319,7 +320,7 @@ partial operations, unknown outcomes and mistakes. The rehearsal may only use
 business events the model can represent truthfully; a fake compensating movement
 to make a screen look complete is a failure.
 
-**Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V7 remain intact. This is not a generic rule builder.
+**Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V8 remain intact. This is not a generic rule builder.
 
 **Document/bill closure:** ADR-0023 and TC-DOCUMENT-003 implement a source-backed
 multi-day customer statement with server-derived opening/change/closing balances and
@@ -327,9 +328,9 @@ print-ready authenticated/public presentation. This does not close the local
 “bông hàng” discovery question, multi-role authorization (ADR-0021), canonical
 lot/expiry traceability or Supplier claim/credit settlement.
 
-**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation and Backup V7 evidence are implemented; shift counting and bank-statement matching remain separate discovery.
+**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation and Backup V8 evidence are implemented; shift counting and bank-statement matching remain separate discovery.
 
-**Inspected-intake closure:** ADR-0026 implements GoodsArrival → optional gross/tare/net → QualityInspection → QualityDisposition. Only accepted allocations create inventory; quarantine may be resolved through an explicit child disposition; correction is downstream-first and Backup V7 preserves the complete lineage. Supplier claims/credits, general lot/expiry and “bông hàng” remain outside this milestone.
+**Inspected-intake closure:** ADR-0026 implements GoodsArrival → optional gross/tare/net → QualityInspection → QualityDisposition. Only accepted allocations create inventory; quarantine may be resolved through an explicit child disposition; correction is downstream-first and Backup V8 preserves the complete lineage. Supplier claims/credits, general lot/expiry and “bông hàng” remain outside this milestone.
 
 **Repository evidence:** `TC-OPS-015` runs the complete application command chain
 with partial Delivery/Return, customer and Supplier payments, exact-identity retry,

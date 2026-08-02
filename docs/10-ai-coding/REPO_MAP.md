@@ -11,6 +11,7 @@ repository, not a desired future architecture.
 apps/
   api/                                  deployable API process
     src/modules/<bounded-context>/      handlers, queries, effects and module tests
+                                       including the append-only pricing catalog and resolver
     src/infrastructure/                auth, ports, persistence adapters, tRPC and logging
     src/operations/                    operator-only scripts and their app/db tests
     src/server.ts                      HTTP entry point
@@ -134,7 +135,8 @@ The root script entry points are implemented in `scripts/dev.ts`,
 | New command             | `packages/domain-contracts/src/<module>/`, then kernel, handler, router                                    |
 | Business rule change    | `packages/domain-kernel/src/<module>/` + business-rule doc + test                                          |
 | New lifecycle state     | state catalog first, then contract/kernel and transition catalog                                           |
-| New table or column     | `packages/db/src/schema/`, `pnpm db:generate`, then data-model docs                                        |
+| New table or column     | `packages/db/src/schema/`, `pnpm db:generate`, backup/restore coverage, then data-model docs               |
+| Price rule behavior     | `packages/domain-contracts/src/pricing/`, `packages/domain-kernel/src/pricing/`, API pricing module        |
 | New query               | `packages/db/src/repositories/` + a port in `apps/api/src/infrastructure/persistence/`                     |
 | New UI state            | `docs/06-api-contracts/ui-state-catalog.md` first, then `apps/web/src/ui/` and a story/test                |
 | New UI screen/flow      | matching `apps/web/src/app/`, `src/ui/patterns/` or `src/ui/screens/` surface + tests/E2E where applicable |

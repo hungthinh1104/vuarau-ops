@@ -26,6 +26,7 @@ import {
   QUALITY_ISSUE_CATEGORIES,
   QUALITY_SEVERITIES,
   QUALITY_DISPOSITION_OUTCOMES,
+  PRICE_RULE_KINDS,
 } from "@vuarau/domain-contracts";
 
 /**
@@ -65,6 +66,7 @@ export const qualityDispositionOutcomeEnum = pgEnum(
   "quality_disposition_outcome",
   QUALITY_DISPOSITION_OUTCOMES,
 );
+export const priceRuleKindEnum = pgEnum("price_rule_kind", PRICE_RULE_KINDS);
 export const qualityDispositionSourceTypeEnum = pgEnum("quality_disposition_source_type", [
   "arrival_line",
   "quarantine_allocation",

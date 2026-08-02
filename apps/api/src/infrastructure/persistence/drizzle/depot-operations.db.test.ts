@@ -392,8 +392,8 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
       payload: {},
     });
     expect(backup.ok && backup.value).toMatchObject({
-      version: 7,
-      schemaCompatibility: "m25-intake-quality",
+      version: 8,
+      schemaCompatibility: "m26-pricing",
     });
     if (backup.ok) {
       expect(backup.value.payload.deliveries).toHaveLength(2);

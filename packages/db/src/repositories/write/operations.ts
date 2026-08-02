@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV7 } from "@vuarau/domain-contracts";
+import type { WorkspaceId, WorkspaceBackupV8 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -21,6 +21,7 @@ import {
   paymentReversals,
   payments,
   products,
+  priceRules,
   qualityGrades,
   suppliers,
   supplierPayments,
@@ -50,7 +51,7 @@ import { targetContainsBusinessData } from "./operations-target.ts";
 
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV7["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV8["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -96,6 +97,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         ...payload.deliveryReturns.map((row) => row["actorId"]),
         ...payload.documents.map((row) => row["generatedBy"]),
         ...payload.documentShares.flatMap((row) => [row["createdBy"], row["revokedBy"]]),
+        ...payload.priceRules.map((row) => row["actorId"]),
       ].filter((value): value is string => typeof value === "string");
       if (actorIds.length > 0) {
         const existing = await tx
@@ -212,6 +214,19 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
               updatedAt: date(row["updatedAt"]),
             };
           }) as unknown as (typeof qualityGrades.$inferInsert)[],
+        );
+      }
+      if (payload.priceRules.length > 0) {
+        await tx.insert(priceRules).values(
+          payload.priceRules.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              effectiveFrom: date(row["effectiveFrom"]),
+              effectiveTo: row["effectiveTo"] == null ? null : date(row["effectiveTo"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof priceRules.$inferInsert)[],
         );
       }
       await restoreQualityIssueCodes(tx, payload, scoped, date);

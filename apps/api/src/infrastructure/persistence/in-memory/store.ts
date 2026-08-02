@@ -28,6 +28,7 @@ import type {
   CustomerState,
   SaleState,
   PaymentState,
+  PriceRuleState,
   ProductState,
   QualityGradeState,
   SupplierState,
@@ -51,6 +52,7 @@ export type Store = {
   actorNames: Map<string, string>;
   customers: Map<string, CustomerState>;
   products: Map<string, ProductState>;
+  priceRules: Map<string, PriceRuleState>;
   qualityGrades: Map<string, QualityGradeState>;
   suppliers: Map<string, SupplierState>;
   supplierPayments: Map<string, SupplierPaymentState>;
@@ -150,6 +152,7 @@ export function emptyStore(): Store {
     actorNames: new Map(),
     customers: new Map(),
     products: new Map(),
+    priceRules: new Map(),
     qualityGrades: new Map(),
     suppliers: new Map(),
     supplierPayments: new Map(),

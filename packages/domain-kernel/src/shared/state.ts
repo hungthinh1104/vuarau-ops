@@ -31,6 +31,7 @@ import type {
   InventoryMovementSourceType,
   PurchaseReceiptReversalId,
   Quantity,
+  Unit,
   WorkspaceId,
   DeliveryId,
   DeliveryLineId,
@@ -92,7 +93,7 @@ export type PriceRuleState = {
   readonly productId: ProductId;
   readonly qualityGradeId: QualityGradeId | null;
   readonly customerId: CustomerId | null;
-  readonly unit: import("@vuarau/domain-contracts").Unit;
+  readonly unit: Unit;
   readonly kind: PriceRuleKind;
   readonly priority: number;
   readonly minimumQuantityScaled: number;

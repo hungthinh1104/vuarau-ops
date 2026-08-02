@@ -16,7 +16,7 @@ import type {
   WorkspaceId,
   WorkspaceRole,
   WorkspaceOperationalProfileDto,
-  WorkspaceBackupV7,
+  WorkspaceBackupV8,
   DeliveryId,
   DocumentDto,
   DocumentShareId,
@@ -67,6 +67,7 @@ import type {
   CashMovementDraft,
 } from "@vuarau/domain-kernel";
 import type { ReadRepositories } from "./read-ports.ts";
+import type { PriceRuleRepository } from "./pricing-ports.ts";
 
 /**
  * Ports are declared by the application layer, which is the layer that needs
@@ -533,7 +534,7 @@ export type QualityDispositionRepository = {
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV7["payload"],
+    payload: WorkspaceBackupV8["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -661,6 +662,7 @@ export type Repositories = ReadRepositories & {
   readonly actors: ActorRepository;
   readonly customers: CustomerRepository;
   readonly products: ProductRepository;
+  readonly priceRules: PriceRuleRepository;
   readonly qualityGrades: QualityGradeRepository;
   readonly suppliers: SupplierRepository;
   readonly supplierPayments: SupplierPaymentRepository;

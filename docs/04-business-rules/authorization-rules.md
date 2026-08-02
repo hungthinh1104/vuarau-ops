@@ -67,40 +67,42 @@ the caller's membership, using the static table in
 `packages/domain-contracts/src/shared/authorization.ts`
 ([ADR-0011](../09-decisions/ADR-0011-role-permission-mapping.md)).
 
-| Command / read                        | Permission                                                 | Roles                                         | Status      |
-| ------------------------------------- | ---------------------------------------------------------- | --------------------------------------------- | ----------- |
-| `CreateCustomer`                      | `customer.create`                                          | owner, sales                                  | implemented |
-| `UpdateCustomer`                      | `customer.update`                                          | owner, sales                                  | implemented |
-| `DeactivateCustomer`                  | `customer.deactivate`                                      | **owner**                                     | implemented |
-| `customer.search`, `customer.get`     | `customer.read`                                            | all roles                                     | implemented |
-| `CreateSaleDraft`                     | `sale.create`; replacement needs `sale.void` by void actor | owner, sales; owner/accountant for correction | implemented |
-| `UpdateSaleDraft`, `DiscardSaleDraft` | `sale.create`                                              | owner, sales                                  | implemented |
-| `PostSale`                            | `sale.post`; replacement needs `sale.void` by void actor   | owner, sales; owner/accountant for correction | implemented |
-| `VoidSale`                            | `sale.void`                                                | **owner, accountant**                         | implemented |
-| `sale.get`, `sale.list`               | `sale.read`                                                | all roles                                     | implemented |
-| `RecordCustomerPayment`               | `payment.record`                                           | owner, accountant, sales                      | implemented |
-| `ReverseCustomerPayment`              | `payment.reverse`                                          | owner, accountant                             | implemented |
-| `payment.get`, `payment.list`         | `payment.read`                                             | owner, accountant, sales                      | implemented |
-| `AdjustCustomerDebt`                  | `debt.adjust`                                              | **owner, accountant**                         | implemented |
-| `account.balance`, `account.timeline` | `debt.read`                                                | owner, accountant, sales                      | implemented |
-| `audit.timeline`                      | `audit.read`                                               | **owner, accountant**                         | implemented |
-| `RevokeWorkspaceMembership`           | `workspace.manage`                                         | **owner**                                     | implemented |
-| Product search/get                    | `product.read`                                             | all operational roles                         | implemented |
-| `CreateProduct`, `UpdateProduct`      | `product.create`, `product.update`                         | owner, sales                                  | implemented |
-| Product deactivate/reactivate         | `product.deactivate`, `product.reactivate`                 | **owner**                                     | implemented |
-| QualityGrade search/get               | `quality.read`                                             | all operational roles                         | implemented |
-| QualityGrade lifecycle                | `quality.manage`                                           | owner, warehouse                              | implemented |
-| Inventory reclassification            | `inventory.reclassify`                                     | owner, warehouse                              | implemented |
-| Operations integrity/export/restore   | `workspace.manage`                                         | **owner**                                     | implemented |
-| Delivery draft/update/cancel          | `delivery.create/update/cancel`                            | owner, sales, warehouse                       | implemented |
-| `DispatchDelivery`                    | `delivery.dispatch`                                        | owner, warehouse                              | implemented |
-| `MarkDeliveryDelivered`               | `delivery.complete`                                        | owner, delivery                               | implemented |
-| `RecordDeliveryReturn`                | `delivery.return`                                          | owner, warehouse, delivery                    | implemented |
-| Document read/generate                | `document.read/generate`                                   | operational roles                             | implemented |
-| Document share/revoke                 | `document.share`                                           | owner, accountant, sales                      | implemented |
-| Operational reports                   | `report.read`                                              | all operational roles                         | implemented |
-| `session.me`                          | — (identity only)                                          | all roles                                     | implemented |
-| `session.workspaces`                  | — (identity only)                                          | all roles                                     | implemented |
+| Command / read                        | Permission                                                 | Roles                                         | Status                            |
+| ------------------------------------- | ---------------------------------------------------------- | --------------------------------------------- | --------------------------------- |
+| `CreateCustomer`                      | `customer.create`                                          | owner, sales                                  | implemented                       |
+| `UpdateCustomer`                      | `customer.update`                                          | owner, sales                                  | implemented                       |
+| `DeactivateCustomer`                  | `customer.deactivate`                                      | **owner**                                     | implemented                       |
+| `customer.search`, `customer.get`     | `customer.read`                                            | all roles                                     | implemented                       |
+| `CreateSaleDraft`                     | `sale.create`; replacement needs `sale.void` by void actor | owner, sales; owner/accountant for correction | implemented                       |
+| `UpdateSaleDraft`, `DiscardSaleDraft` | `sale.create`                                              | owner, sales                                  | implemented                       |
+| `PostSale`                            | `sale.post`; replacement needs `sale.void` by void actor   | owner, sales; owner/accountant for correction | implemented                       |
+| `VoidSale`                            | `sale.void`                                                | **owner, accountant**                         | implemented                       |
+| `sale.get`, `sale.list`               | `sale.read`                                                | all roles                                     | implemented                       |
+| `RecordCustomerPayment`               | `payment.record`                                           | owner, accountant, sales                      | implemented                       |
+| `ReverseCustomerPayment`              | `payment.reverse`                                          | owner, accountant                             | implemented                       |
+| `payment.get`, `payment.list`         | `payment.read`                                             | owner, accountant, sales                      | implemented                       |
+| `AdjustCustomerDebt`                  | `debt.adjust`                                              | **owner, accountant**                         | implemented                       |
+| `account.balance`, `account.timeline` | `debt.read`                                                | owner, accountant, sales                      | implemented                       |
+| `audit.timeline`                      | `audit.read`                                               | **owner, accountant**                         | implemented                       |
+| `RevokeWorkspaceMembership`           | `workspace.manage`                                         | **owner**                                     | implemented                       |
+| Product search/get                    | `product.read`                                             | all operational roles                         | implemented                       |
+| `CreateProduct`, `UpdateProduct`      | `product.create`, `product.update`                         | owner, sales                                  | implemented                       |
+| Product deactivate/reactivate         | `product.deactivate`, `product.reactivate`                 | **owner**                                     | implemented                       |
+| Price rule list/resolve               | `pricing.read`                                             | all operational roles                         | implemented                       |
+| Price rule record                     | `pricing.manage`                                           | **owner, accountant**                         | implemented; field policy pending |
+| QualityGrade search/get               | `quality.read`                                             | all operational roles                         | implemented                       |
+| QualityGrade lifecycle                | `quality.manage`                                           | owner, warehouse                              | implemented                       |
+| Inventory reclassification            | `inventory.reclassify`                                     | owner, warehouse                              | implemented                       |
+| Operations integrity/export/restore   | `workspace.manage`                                         | **owner**                                     | implemented                       |
+| Delivery draft/update/cancel          | `delivery.create/update/cancel`                            | owner, sales, warehouse                       | implemented                       |
+| `DispatchDelivery`                    | `delivery.dispatch`                                        | owner, warehouse                              | implemented                       |
+| `MarkDeliveryDelivered`               | `delivery.complete`                                        | owner, delivery                               | implemented                       |
+| `RecordDeliveryReturn`                | `delivery.return`                                          | owner, warehouse, delivery                    | implemented                       |
+| Document read/generate                | `document.read/generate`                                   | operational roles                             | implemented                       |
+| Document share/revoke                 | `document.share`                                           | owner, accountant, sales                      | implemented                       |
+| Operational reports                   | `report.read`                                              | all operational roles                         | implemented                       |
+| `session.me`                          | — (identity only)                                          | all roles                                     | implemented                       |
+| `session.workspaces`                  | — (identity only)                                          | all roles                                     | implemented                       |
 
 The refusal names the permission, primary role projection and complete role set, so the answer to "why can't I do this" does not require reading the source. `owner` is exclusive; all other role combinations receive only the union of their existing permissions.
 

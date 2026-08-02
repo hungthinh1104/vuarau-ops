@@ -158,9 +158,11 @@ describe("pricing rules", () => {
       10_000,
     ]);
 
-    expect(() => resolvePriceInputSchema.parse({
-      ...resolveInput({}),
-      quantity: { valueScaled: 1_000, unit: "gram" },
-    })).toThrow();
+    expect(() =>
+      resolvePriceInputSchema.parse({
+        ...resolveInput({}),
+        quantity: { valueScaled: 1_000, unit: "gram" },
+      }),
+    ).toThrow();
   });
 });
