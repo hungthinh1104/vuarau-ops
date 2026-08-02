@@ -338,6 +338,15 @@ blocked cross-dimension corrections, reports and three reconciliations. Disposab
 PostgreSQL/browser execution and worker observation remain release/field gates; this
 test does not claim either.
 
+### Next phase — policy closure before management intelligence (blocked)
+
+The decision-operating-system phase cannot begin with COGS, aging, reorder,
+Supplier scoring, recommendations or AI. ASM-039–048 must first be answered with
+field examples and recorded evidence. The [policy-closure worksheet](../09-decisions/m24-policy-closure-worksheet.md)
+is the field instrument; until then these capabilities remain explicitly
+policy-blocked and current canonical transaction/report surfaces remain the only
+available truth.
+
 | Horizon                               | Milestones                                                                | Gate                                                                                   |
 | ------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | 2 — self-service and field resilience | M11–M14 technically complete                                              | Onboard, authorize, operate on weak networks, back up and recover without a developer. |

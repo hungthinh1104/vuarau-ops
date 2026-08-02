@@ -307,6 +307,12 @@ session.
 | Purchase correction after prior Receiving is unresolved (ASM-036)                          | Do not fabricate reverse/re-receive movements; exclude or stop until resolved                        |
 | Partial customer-return money semantics are unresolved (ASM-037)                           | Physical Return does not imply refund/debt movement; exclude or stop before financial action         |
 | Supplier return of accepted stock is unresolved (ASM-038)                                  | Do not use generic adjustment as a fake Supplier-return/payable workflow                             |
+| Valuation and COGS policy is unresolved (ASM-039/040)                                      | Do not publish cost, profit, margin or waste values                                                  |
+| Debt terms, allocation and collection priority are unresolved (ASM-041)                    | Do not label aging or produce collection priorities                                                  |
+| Inventory planning and stocktake semantics are unresolved (ASM-042/043)                    | Do not publish reorder or stock-risk actions                                                         |
+| Walk-in sale semantics are unresolved (ASM-044)                                            | Do not create anonymous/fake customers or infer cash-sale debt                                       |
+| Shift close and bank reconciliation semantics are unresolved (ASM-045/046)                 | Keep close/deposit workflows unavailable                                                             |
+| Supplier catalogue and performance semantics are unresolved (ASM-047/048)                  | Do not score Suppliers or recommend a purchase                                                       |
 
 ## Related
 
@@ -320,4 +326,5 @@ session.
 - [../09-decisions/ASM-024-post-sale-meaning-worksheet.md](../09-decisions/ASM-024-post-sale-meaning-worksheet.md) — Sale recognition validation
 - [../09-decisions/ASM-025-supplier-payable-recognition-worksheet.md](../09-decisions/ASM-025-supplier-payable-recognition-worksheet.md) — supplier recognition validation
 - [../09-decisions/m23-cross-dimension-correction-worksheet.md](../09-decisions/m23-cross-dimension-correction-worksheet.md) — ASM-035–038 scope/resolution evidence
+- [../09-decisions/m24-policy-closure-worksheet.md](../09-decisions/m24-policy-closure-worksheet.md) — ASM-039–048 next-phase field questions
 - [../09-decisions/ADR-0014-debt-recognition-at-posting.md](../09-decisions/ADR-0014-debt-recognition-at-posting.md) — when a customer starts owing

@@ -11,8 +11,9 @@ more convenient prose.
    domain kernel and executable authorization/business rules describe what the
    software actually accepts and persists.
 2. **Recorded business decisions** — accepted ADRs, decision-backlog entries and
-   product invariants describe intentional policy. An unresolved operational action
-   or deferred decision must not be rewritten as settled depot policy.
+   product invariants describe intentional policy. An unresolved operational action,
+   deferred decision or policy-blocked capability must not be rewritten as settled
+   depot policy.
 3. **Normative business documentation** — business rules, use cases and state/
    transition catalogs explain the accepted behavior and must match levels 1–2.
 4. **Published interface contracts** — command contracts, read models, capabilities

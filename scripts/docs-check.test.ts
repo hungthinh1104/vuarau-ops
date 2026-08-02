@@ -98,3 +98,19 @@ test("analytics candidates stay blocked until their business policy exists", () 
     checkRoutingContracts(fixture).some((failure) => failure.includes("analytics candidates")),
   );
 });
+
+test("next-phase management capabilities stay policy-blocked", () => {
+  const backlog = readFileSync("docs/09-decisions/decision-backlog.md", "utf8");
+  const worksheet = readFileSync("docs/09-decisions/m24-policy-closure-worksheet.md", "utf8");
+  const audit = readFileSync("docs/02-use-cases/use-case-completeness-audit.md", "utf8");
+
+  for (let id = 39; id <= 48; id += 1) {
+    const token = `ASM-${String(id).padStart(3, "0")}`;
+    const row = backlog.match(new RegExp(`^\\| ${token} \\|.*$`, "m"))?.[0] ?? "";
+    assert.match(row, /\*\*policy-blocked\*\*/);
+    assert.match(row, /m24-policy-closure-worksheet\.md/);
+    assert.match(worksheet, new RegExp(token));
+  }
+  assert.match(audit, /Cost and profit[\s\S]*ASM-039\/040/);
+  assert.match(audit, /Inventory planning[\s\S]*ASM-042\/ASM-043/);
+});

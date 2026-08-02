@@ -76,6 +76,12 @@ Every known policy question is classified in the
   partial customer-return money semantics and Supplier returns of accepted stock.
   These gaps must not be hidden with invented Return/Dispatch/Receipt/adjustment
   facts.
+- ASM-039–048 keep valuation/COGS, cost effects, debt aging/allocation, inventory
+  planning, stocktake, walk-in sales, shift close, bank reconciliation and Supplier
+  performance unavailable until the field questions in the
+  [next-phase policy worksheet](../09-decisions/m24-policy-closure-worksheet.md)
+  are answered. No dashboard, recommendation or AI surface may turn these gaps
+  into zeros or inferred policy.
 
 ## Related
 

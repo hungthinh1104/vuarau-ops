@@ -234,6 +234,40 @@ function checkDecisionRegister() {
     );
 }
 
+function checkNextPhasePolicyGates() {
+  const backlog = read("docs/09-decisions/decision-backlog.md");
+  const requiredIds = Array.from({ length: 10 }, (_, index) => index + 39);
+  for (const id of requiredIds) {
+    const token = `ASM-${String(id).padStart(3, "0")}`;
+    const row = backlog.match(new RegExp(`^\\| ${token} \\|.*$`, "m"))?.[0];
+    if (row === undefined) {
+      fail(`decision backlog is missing next-phase policy gate ${token}`);
+      continue;
+    }
+    if (!row.includes("**policy-blocked**")) {
+      fail(`${token} must remain policy-blocked until field evidence exists`);
+    }
+    if (!row.includes("m24-policy-closure-worksheet.md")) {
+      fail(`${token} is missing the next-phase field worksheet link`);
+    }
+  }
+
+  for (const path of [
+    "docs/00-product/scope.md",
+    "docs/00-product/roadmap.md",
+    "docs/00-product/validation-plan.md",
+    "docs/02-use-cases/use-case-completeness-audit.md",
+  ]) {
+    const source = read(path);
+    if (
+      !source.includes("ASM-039") ||
+      !(source.includes("ASM-048") || source.includes("ASM-039–048"))
+    ) {
+      fail(`${path}: next-phase policy gates ASM-039–048 are not represented`);
+    }
+  }
+}
+
 function checkScreenStoryCoverage() {
   const docPath = "docs/08-qa/ui-screen-coverage.md";
   const markdown = read(docPath);
@@ -264,6 +298,7 @@ checkNavigationRoutes();
 checkKnownStaleClaims();
 checkM25WorkflowClaims();
 checkDecisionRegister();
+checkNextPhasePolicyGates();
 checkScreenStoryCoverage();
 
 if (failures.length > 0) {
