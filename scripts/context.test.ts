@@ -24,7 +24,8 @@ test("feature queries include active UI contracts and reasons", async () => {
   assert.match(output, /docs\/design\.md/);
   assert.match(output, /docs\/WEB-ADMIN\.md/);
   assert.match(output, /apps\/web\/src\/app/);
-  assert.match(output, /filename match|body-text match|trace-linked/);
+  assert.match(output, /surface-context/);
+  assert.doesNotMatch(output, /docs\/design\.md — .*trace-linked/);
   assert.doesNotMatch(output, /docs\/archive\//);
 });
 
@@ -33,6 +34,53 @@ test("folder queries preserve scope and exclude archive", async () => {
   assert.match(output, /Scope: docs\/10-ai-coding/);
   assert.match(output, /docs\/10-ai-coding\/REPO_MAP\.md/);
   assert.doesNotMatch(output, /docs\/archive\//);
+});
+
+test("folder queries are exhaustive without --all", async () => {
+  const files = Array.from({ length: 15 }, (_, index) => `src/folder/file-${index}.ts`);
+  const result = await runContext(
+    "src/folder",
+    {},
+    {
+      trackedFiles: async () => files,
+      searchContent: async (_query, candidates) => candidates,
+      readText: async () => "export const value = 1;\n",
+    },
+  );
+  assert.equal(result.implementation.length, 15);
+});
+
+test("ordinary free-text queries retain the default implementation limit", async () => {
+  const files = Array.from({ length: 15 }, (_, index) => `src/item-${index}.ts`);
+  const result = await runContext(
+    "item",
+    {},
+    {
+      trackedFiles: async () => files,
+      searchContent: async () => files,
+      readText: async () => "export const item = 1;\n",
+    },
+  );
+  assert.equal(result.implementation.length, 12);
+});
+
+test("direct feature documentation outranks generic UI surface context", async () => {
+  const result = await runContext(
+    "quick-sale",
+    {},
+    {
+      trackedFiles: async () => ["docs/quick-sale.md", "apps/web/src/quick-sale.tsx"],
+      searchContent: async () => ["docs/quick-sale.md", "apps/web/src/quick-sale.tsx"],
+      pathExists: () => true,
+      readText: async (path) =>
+        path === "docs/quick-sale.md" ? "# Quick Sale\n" : "export function QuickSale() {}\n",
+    },
+  );
+  assert.equal(result.docs[0]?.path, "docs/quick-sale.md");
+  assert.ok(result.docs[0]?.reasons.includes("filename match"));
+  const surfaceDocs = result.docs.filter((item) => item.reasons.includes("surface-context"));
+  assert.ok(surfaceDocs.length > 0);
+  assert.ok(surfaceDocs.every((item) => !item.reasons.includes("trace-linked")));
 });
 
 test("JSON output is stable for tooling", async () => {

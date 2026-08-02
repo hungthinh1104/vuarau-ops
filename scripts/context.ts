@@ -37,6 +37,7 @@ type MatchReason =
   | "exact path"
   | "filename match"
   | "heading/symbol match"
+  | "surface-context"
   | "body-text match"
   | "trace-linked";
 
@@ -125,10 +126,11 @@ function addResult(
   const rank: Record<MatchReason, number> = {
     "exact ID": 100,
     "exact path": 90,
+    "trace-linked": 80,
     "filename match": 70,
     "heading/symbol match": 50,
+    "surface-context": 40,
     "body-text match": 30,
-    "trace-linked": 80,
   };
   map.set(path, {
     path,
@@ -143,7 +145,13 @@ function sortResults(results: Iterable<ContextResult>): ContextResult[] {
 
 function limited(results: Iterable<ContextResult>, limit: number, all: boolean): ContextResult[] {
   const sorted = sortResults(results);
-  return all ? sorted : sorted.slice(0, limit);
+  if (all) return sorted;
+
+  // Generic UI contracts provide useful context, but a directly matching
+  // feature document must get its place before surface context fills slots.
+  const direct = sorted.filter((result) => !result.reasons.includes("surface-context"));
+  const surface = sorted.filter((result) => result.reasons.includes("surface-context"));
+  return [...direct.slice(0, limit), ...surface].slice(0, limit);
 }
 
 async function defaultReadText(path: string): Promise<string> {
@@ -323,14 +331,19 @@ export async function runContext(
     if (!folder && candidatePaths.some((path) => path.startsWith("apps/web/"))) {
       for (const path of ["docs/design.md", "docs/WEB-ADMIN.md", "docs/MOBILE-POS.md"]) {
         if (pathExists(path) && !isExcluded(path, includeArchive))
-          addResult(docs, path, ["trace-linked"]);
+          addResult(docs, path, ["surface-context"]);
       }
     }
   }
 
-  const limitedDocs = limited(docs.values(), LIMITS.docs, all);
-  const limitedTests = limited(tests.values(), LIMITS.tests, all);
-  const limitedImplementation = limited(implementation.values(), LIMITS.implementation, all);
+  const exhaustiveScope = all || scope !== null;
+  const limitedDocs = limited(docs.values(), LIMITS.docs, exhaustiveScope);
+  const limitedTests = limited(tests.values(), LIMITS.tests, exhaustiveScope);
+  const limitedImplementation = limited(
+    implementation.values(),
+    LIMITS.implementation,
+    exhaustiveScope,
+  );
   const files = [...limitedDocs, ...limitedTests, ...limitedImplementation].map(
     (result) => result.path,
   );

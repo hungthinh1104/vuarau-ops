@@ -56,6 +56,11 @@ The repository checks are split by feedback speed:
 | `pnpm verify`          | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E |
 | `pnpm context <query>` | targeted docs/tests/implementation retrieval for an agent                                  |
 
+`pnpm context <folder>` is exhaustive for that active tracked folder by default;
+ID and free-text queries use the normal result limits unless `--all` is passed.
+All query types keep archive, generated-output, lockfile and migration-snapshot
+exclusions.
+
 ## Packages and dependency boundaries
 
 ```
