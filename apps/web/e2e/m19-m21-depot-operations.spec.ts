@@ -1,6 +1,11 @@
 import { api } from "./harness/api.ts";
 import { expect, signIn, test } from "./harness/signed-in.ts";
 
+async function chooseOption(page: Parameters<typeof signIn>[0], label: string, option: string) {
+  await page.getByRole("combobox", { name: label }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
+
 test.describe("M19-M21 — depot operations (TC-E2E-030)", () => {
   test("dispatches two partial deliveries, completes them, and records an explicit return", async ({
     page,
@@ -10,7 +15,7 @@ test.describe("M19-M21 — depot operations (TC-E2E-030)", () => {
     const productName = `Bí depot ${Date.now()}`;
     await page.goto("/products/new");
     await page.getByLabel("Tên mặt hàng").fill(productName);
-    await page.getByLabel("Đơn vị gợi ý").selectOption("kg");
+    await chooseOption(page, "Đơn vị gợi ý", "kg");
     await page.getByRole("button", { name: "Tạo mặt hàng" }).click();
     await page.waitForURL(/\/products\/[0-9a-f-]+$/);
     const productId = new URL(page.url()).pathname.split("/").at(-1)!;
@@ -33,9 +38,9 @@ test.describe("M19-M21 — depot operations (TC-E2E-030)", () => {
       await page.waitForURL(/\/deliveries\/[0-9a-f-]+$/);
       deliveryIds.push(new URL(page.url()).pathname.split("/").at(-1)!);
       await page.getByRole("button", { name: "Xuất hàng / Bắt đầu giao" }).click();
-      await expect(page.getByText("dispatched", { exact: true })).toBeVisible();
+      await expect(page.getByText("Đang giao", { exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Đã giao khách" }).click();
-      await expect(page.getByText("delivered", { exact: true })).toBeVisible();
+      await expect(page.getByText("Đã giao", { exact: true })).toBeVisible();
     }
 
     await page.goto(`/deliveries/${deliveryIds[0]}`);
