@@ -88,9 +88,12 @@ without creating a canonical effect. The second additive
 `ReconciliationObservation` slice records separate expected/observed facts
 without calculating a variance or closing a period. Further evidence slices may
 record debt-term evidence, supply/arrival quantities, generic stocktake counts,
-bank-statement matches and supplier relationship or delivery observations. The
-supplier observation slice preserves roles, responsibilities, timing,
-quantities, quality-related wording and price evidence without inferring a score.
+bank-statement matches, supplier relationship or delivery observations and
+customer demand observations. The supplier observation slice preserves roles,
+responsibilities, timing, quantities, quality-related wording and price evidence
+without inferring a score. The demand observation slice preserves requested
+customer/product/grade, quantity, requested-time and counterparty facts without
+creating a Sale or planning result.
 
 Those records must not be presented as COGS, profit, overdue aging, reorder risk,
 supplier score or AI advice until the relevant field policy is decided. ASM-039

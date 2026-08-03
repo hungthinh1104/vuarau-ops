@@ -64,7 +64,7 @@ command changes, update its schema and tests first, then keep this catalog align
 | `cash`       | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`                                         |
 | `intake`     | `createIssueCode`, `updateIssueCode`, `deactivateIssueCode`, `reactivateIssueCode`, `recordArrival`, `reverseArrival`, `recordInspection`, `reverseInspection`, `recordDisposition`, `reverseDisposition` |
 | `pricing`    | `record`                                                                                                                                                                                                  |
-| `evidence`   | `recordCostObservation`, `recordReconciliationObservation`, `recordDebtObservation`, `recordSupplyCommitmentObservation`, `recordSupplierObservation`                                                     |
+| `evidence`   | `recordCostObservation`, `recordReconciliationObservation`, `recordDebtObservation`, `recordSupplyCommitmentObservation`, `recordSupplierObservation`, `recordDemandObservation`                          |
 | `policy`     | `createDraft`, `approve`, `retire`                                                                                                                                                                        |
 
 The router source is authoritative for procedure names. Domain-contract modules are
@@ -251,6 +251,12 @@ responsibilities, source area, lead-time wording, traceability, quantities and
 timing. It does not create a supplier score, ranking, payable, inventory,
 claim settlement or purchase recommendation.
 A correction creates a new row linked to an earlier SupplyCommitmentObservation.
+
+`evidence.recordDemandObservation` preserves source-linked customer/product/grade
+identity, requested and minimum quantities, requested time, counterparty wording
+and demand reference. It does not create a Sale, receivable, inventory, forecast,
+shortage or reorder effect. A correction creates a new immutable row linked to an
+earlier DemandObservation.
 
 ## Inspected-intake commands
 

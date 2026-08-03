@@ -88,6 +88,7 @@ Drizzle definitions and database constraints.
 | `debt_observations`              | Source-linked payment-term, due-date and collection facts by workspace                                      | append-only |
 | `supply_commitment_observations` | Source-linked promised/minimum supply, expected-arrival and counterparty facts by workspace                 | append-only |
 | `supplier_observations`          | Source-linked supplier relationship, responsibility, timing, quantity, quality and price facts by workspace | append-only |
+| `demand_observations`            | Source-linked customer demand, requested quantity/time and counterparty facts by workspace                  | append-only |
 
 `cost_observations` is deliberately not a financial or inventory ledger. A
 correction appends a new row linked to the earlier observation; policy-backed
@@ -111,6 +112,11 @@ linked to the earlier observation.
 inventory, claim settlement or recommendation source. It preserves relationship
 and performance evidence until an approved workspace policy and canonical
 command give that evidence a business meaning.
+
+`demand_observations` is deliberately not a Sale, receivable, inventory,
+shortage, forecast or reorder source. It preserves what a customer or
+counterparty requested or what a worker observed; a correction appends a new row
+linked to the earlier observation.
 
 ### Documents and control
 
@@ -284,10 +290,16 @@ references without becoming an inventory or customer-money source.
 inspected-intake source links without changing payable, quality-policy or
 inventory semantics. `quality_inspections.evidence_references` follows the same
 metadata-only rule.
-Backup V14 preserves operational profile, price rules, CostObservation,
+Backup V15 preserves operational profile, price rules, CostObservation,
 ReconciliationObservation, DebtObservation, CashAccount and all canonical cash source/
 movement rows plus workspace policy versions; it does not export `cash_balances`.
 V1–V11 remain restore-compatible with an empty policy collection.
+
+Backup V15 additionally exports and restores `demand_observations`. These are
+workspace-scoped, append-only source facts with optional customer/product/grade
+references; restore validates correction and identity references without creating
+Sale, receivable, inventory, forecast or reorder state. V1–V14 restore with an
+empty demand-observation collection.
 
 ## Executable workspace-policy and cashbook names
 
@@ -304,7 +316,7 @@ Cashbook persistence uses the exact Drizzle symbols `cashAccounts`, `expenses`,
 `cashMovements` and `cashBalances`, corresponding to the snake-case PostgreSQL
 tables listed above. `cashMovements` is canonical append-only truth;
 `cashBalances` is a rebuildable projection. Payment cash-account links are
-immutable after recording. Backup V14 exports price rules, CostObservation,
+immutable after recording. Backup V15 exports price rules, CostObservation,
 ReconciliationObservation, DebtObservation, CashAccount and canonical source/
 movement rows and workspace policy versions, not the disposable balance projection.
 
@@ -326,4 +338,4 @@ movement rows and workspace policy versions, not the disposable balance projecti
 Arrival, inspection, disposition and reversal tables are append-only. Issue codes are
 versioned master data and cannot be deleted. Only accepted allocations create
 `inventory_movements`; quarantine, rejection and disposal remain non-stock outcomes.
-Backup V14 exports these canonical rows and restore rebuilds inventory balances.
+Backup V15 exports these canonical rows and restore rebuilds inventory balances.

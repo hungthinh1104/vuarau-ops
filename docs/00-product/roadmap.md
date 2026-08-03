@@ -320,12 +320,12 @@ partial operations, unknown outcomes and mistakes. The rehearsal may only use
 business events the model can represent truthfully; a fake compensating movement
 to make a screen look complete is a failure.
 
-**Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V14 remain intact. This is not a generic rule builder.
+**Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V15 remain intact. This is not a generic rule builder.
 
 **Policy-registry closure:** ADR-0028 adds a workspace-scoped versioned registry
 for future policy adapters. Drafts are inactive; approval requires evidence,
 reason, actor and audit; availability fails closed outside an effective window.
-Backup V14 preserves the registry, raw supply commitments and supplier observations while V1–V13 restore with no policy or evidence rows introduced later. This
+Backup V15 preserves the registry, raw supply commitments, supplier observations and customer demand observations while V1–V14 restore with no policy or evidence rows introduced later. This
 does not activate receivable/payable recognition, valuation, COGS/profit, aging,
 reorder, supplier scoring, cash forecasts or AI decisions.
 
@@ -335,9 +335,9 @@ print-ready authenticated/public presentation. This does not close the local
 “bông hàng” discovery question, multi-role authorization (ADR-0021), canonical
 lot/expiry traceability or Supplier claim/credit settlement.
 
-**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation and Backup V14 evidence are implemented. Operational close and bank-statement evidence remain separate next-phase facts; no statement match changes debt by itself.
+**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation and Backup V15 evidence are implemented. Operational close and bank-statement evidence remain separate next-phase facts; no statement match changes debt by itself.
 
-**Inspected-intake closure:** ADR-0026 implements GoodsArrival → optional gross/tare/net → QualityInspection → QualityDisposition. Only accepted allocations create inventory; quarantine may be resolved through an explicit child disposition; correction is downstream-first and Backup V14 preserves the complete lineage. Supplier claims/credits, general lot/expiry and “bông hàng” remain outside this milestone, while raw claim/quality evidence can be captured later without changing payable.
+**Inspected-intake closure:** ADR-0026 implements GoodsArrival → optional gross/tare/net → QualityInspection → QualityDisposition. Only accepted allocations create inventory; quarantine may be resolved through an explicit child disposition; correction is downstream-first and Backup V15 preserves the complete lineage. Supplier claims/credits, general lot/expiry and “bông hàng” remain outside this milestone, while raw claim/quality evidence can be captured later without changing payable.
 
 **Repository evidence:** `TC-OPS-015` runs the complete application command chain
 with partial Delivery/Return, customer and Supplier payments, exact-identity retry,
@@ -353,8 +353,9 @@ workspace-scoped `CostObservation` slice and the second
 `ReconciliationObservation` and `DebtObservation` slices now capture source-linked facts with exact
 amounts/quantities, separate expected/observed values, debt terms, read, idempotent retry and
 logical backup/restore coverage. Promised/arrived/accepted
-quantities, generic stocktake counts, bank statement matching and Supplier
-relationship/performance observations are now available as raw evidence. New records must
+quantities, customer demand/order requests, generic stocktake counts, bank statement
+matching and Supplier relationship/performance observations are now available as raw
+evidence. New records must
 carry actor and transaction/recorded time, remain append-only or explicitly
 superseding, and survive backup/restore.
 

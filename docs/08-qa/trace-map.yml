@@ -1226,6 +1226,25 @@ use_cases:
       - apps/web/src/ui/controllers/supplier-observation-controller.tsx
       - apps/web/src/ui/screens/supplier-observation-view.tsx
 
+  UC-EVIDENCE-006:
+    title: Record and review source-linked customer demand observations
+    risk: P0
+    doc: docs/02-use-cases/UC-EVIDENCE-006-record-demand-observation.md
+    rules: [BR-EVIDENCE-016, BR-EVIDENCE-017, BR-EVIDENCE-018]
+    cases: []
+    tests: [TC-EVIDENCE-064, TC-EVIDENCE-065, TC-EVIDENCE-066, TC-EVIDENCE-067]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/demand-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - apps/api/src/modules/evidence/evidence.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/evidence.ts
+      - packages/db/src/schema/evidence.ts
+      - packages/db/src/repositories/write/demand-observation.ts
+      - packages/db/src/repositories/read/demand-observation.ts
+      - apps/web/src/ui/controllers/demand-observation-controller.tsx
+      - apps/web/src/ui/screens/demand-observation-view.tsx
+
   UC-POLICY-001:
     title: Manage a versioned workspace policy without activating unsupported effects
     risk: P0
@@ -2578,7 +2597,7 @@ business_rules:
     tests: [TC-INTAKE-002, TC-INTAKE-008]
     implementation: [packages/domain-kernel/src/intake/index.ts, packages/db/src/schema/intake.ts]
   BR-INTAKE-013:
-    title: Backup V14 preserves intake lineage and restore reconciles inventory
+    title: Backup V15 preserves intake lineage and restore reconciles inventory
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-007]
@@ -2761,6 +2780,39 @@ business_rules:
       - packages/domain-kernel/src/supplier-observation/index.ts
       - apps/api/src/modules/evidence/evidence.handlers.ts
       - packages/db/src/repositories/write/supplier-observation.ts
+
+  BR-EVIDENCE-016:
+    title: Demand observations preserve source-linked demand facts without inference
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-064, TC-EVIDENCE-066, TC-EVIDENCE-067]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/demand-observation/index.ts
+      - packages/db/src/schema/evidence.ts
+
+  BR-EVIDENCE-017:
+    title: Demand observations never create Sale, receivable, inventory, shortage, forecast or reorder effects
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-064, TC-EVIDENCE-066, TC-EVIDENCE-067]
+    implementation:
+      - packages/domain-kernel/src/demand-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - apps/web/src/ui/screens/demand-observation-view.tsx
+
+  BR-EVIDENCE-018:
+    title: Demand observation corrections append same-workspace linked observations
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-065]
+    implementation:
+      - packages/domain-kernel/src/demand-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - packages/db/src/repositories/write/demand-observation.ts
 
   BR-POLICY-001:
     title: Policy versions are workspace scoped
@@ -3591,7 +3643,7 @@ contract_tests:
     title: PostgreSQL serializes concurrent customer-payment retries into one debt and cash effect
     file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
   TC-OPS-016:
-    title: Backup V14 restores profile cashbook, pricing, operational evidence, workspace policy versions, supply commitments, supplier observations and inspected-intake lineage then reconciles projections
+    title: Backup V15 restores profile cashbook, pricing, operational evidence, workspace policy versions, supply commitments, supplier observations, demand observations and inspected-intake lineage then reconciles projections
     file: apps/api/src/modules/operations/operations.app.test.ts
   TC-OPS-017:
     title: External field observation packets preserve source links without inferring policy effects
@@ -3635,6 +3687,18 @@ contract_tests:
   TC-EVIDENCE-063:
     title: Supplier observation UI shows source facts without supplier intelligence
     file: apps/web/src/ui/screens/supplier-observation-view.test.tsx
+  TC-EVIDENCE-064:
+    title: Customer demand observations remain raw and retry safe
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-065:
+    title: Demand observation corrections and reads remain workspace scoped
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-066:
+    title: PostgreSQL preserves demand observation facts without deriving forecast or reorder
+    file: apps/api/src/infrastructure/persistence/drizzle/evidence.db.test.ts
+  TC-EVIDENCE-067:
+    title: Demand observation UI shows source facts without Sale or planning intelligence
+    file: apps/web/src/ui/screens/demand-observation-view.test.tsx
 
 deprecated:
   - UC-ORDER-001

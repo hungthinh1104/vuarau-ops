@@ -84,6 +84,7 @@ command refuses source or ledger corruption rather than hiding it.
 | UC-EVIDENCE-003   | Record/review debt observations             | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-003](UC-EVIDENCE-003-record-debt-observation.md)              |
 | UC-EVIDENCE-004   | Record/review supply commitments            | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-004](UC-EVIDENCE-004-record-supply-commitment-observation.md) |
 | UC-EVIDENCE-005   | Record/review supplier observations         | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-005](UC-EVIDENCE-005-record-supplier-observation.md)          |
+| UC-EVIDENCE-006   | Record/review customer demand observations  | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-006](UC-EVIDENCE-006-record-demand-observation.md)            |
 | UC-OPERATIONS-001 | Run/observe service under trusted config    | platform operator                   | implemented    | [platform](platform-use-cases.md)                                          |
 | UC-OPERATIONS-002 | Export/validate/restore logical recovery    | workspace/recovery permissions      | implemented    | [platform](platform-use-cases.md)                                          |
 | UC-OPERATIONS-003 | Prepare shadow pilot fail-closed            | pilot operator                      | implemented    | [platform](platform-use-cases.md)                                          |

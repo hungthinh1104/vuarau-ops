@@ -3,10 +3,12 @@
 ## Outcome
 
 An authorized workspace member records source-linked supplier relationship or
-performance facts: role, source area, responsibilities, lead-time wording,
-traceability, promised/actual quantities and timing. The product preserves the
-observation and its evidence without deciding a supplier score, ranking, payable,
-inventory effect, claim settlement or purchase recommendation.
+performance facts: optional supplier/product/grade links, role, source area,
+pickup/packing/transport responsibilities, lead-time wording, payment terms,
+traceability, promised/actual/accepted/rejected quantities and timing, observed
+price and claim reference. The product preserves the observation and its evidence
+without deciding a supplier score, ranking, payable, inventory effect, claim
+settlement or purchase recommendation.
 
 ## Contract
 
@@ -28,7 +30,7 @@ separate canonical command.
 
 ## Recovery
 
-Backup V14 exports and restores supplier observations after validating workspace,
+Backup V15 exports and restores supplier observations after validating workspace,
 supplier, product, grade and correction references. Restore preserves the raw
 facts and does not rebuild a derived supplier result.
 

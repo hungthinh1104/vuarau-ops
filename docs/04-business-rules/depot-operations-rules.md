@@ -144,3 +144,17 @@ not real-worker adoption.
   linked to an existing observation in the same workspace. Identity,
   authorization, idempotency, transaction time and recorded time use the common
   command contract.
+
+## Customer demand observations
+
+- **BR-EVIDENCE-016** — A DemandObservation preserves source-linked customer,
+  product, grade, requested/minimum quantity, requested time, counterparty and
+  demand-reference facts. Missing fields remain `null`; they are not inferred.
+- **BR-EVIDENCE-017** — Recording a DemandObservation never creates a Sale,
+  receivable, inventory movement, shortage state, forecast or reorder
+  recommendation. Those meanings require canonical facts, an accepted workspace
+  policy and a separate command.
+- **BR-EVIDENCE-018** — A correction is a new immutable DemandObservation linked
+  to an existing observation in the same workspace. Identity, authorization,
+  idempotency, transaction time and recorded time use the common command
+  contract.

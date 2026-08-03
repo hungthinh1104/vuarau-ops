@@ -21,7 +21,7 @@ reorder signal or supplier score.
   deterministic recorded-time order.
 - The observation does not create a Purchase, SupplierAccountEntry,
   PurchaseReceipt, InventoryMovement, reorder state or supplier evaluation.
-- Backup V14 includes the observation. V1–V13 restore with an empty supply
+- Backup V15 includes the observation. V1–V14 restore with an empty supply
   commitment collection, and restore validates workspace, master-identity and
   correction references before commit.
 
