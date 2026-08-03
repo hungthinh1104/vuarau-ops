@@ -15,6 +15,7 @@ import { createReconciliationObservationRepositories } from "./repositories/reco
 import { createDebtObservationRepositories } from "./repositories/debt-observation.ts";
 import { createSupplyCommitmentObservationRepositories } from "./repositories/supply-commitment-observation.ts";
 import { createSupplierObservationRepositories } from "./repositories/supplier-observation.ts";
+import { createDemandObservationRepositories } from "./repositories/demand-observation.ts";
 import { createWorkspacePolicyRepositories } from "./repositories/policy.ts";
 import { createPaymentRepositories } from "./repositories/payment.ts";
 import { createProductRepositories } from "./repositories/product.ts";
@@ -39,6 +40,7 @@ import { createReconciliationObservationReads } from "./reads/reconciliation-obs
 import { createDebtObservationReads } from "./reads/debt-observation.ts";
 import { createSupplyCommitmentObservationReads } from "./reads/supply-commitment-observation.ts";
 import { createSupplierObservationReads } from "./reads/supplier-observation.ts";
+import { createDemandObservationReads } from "./reads/demand-observation.ts";
 import { createWorkspacePolicyReads } from "./reads/policy.ts";
 import { createPaymentReads } from "./reads/payment.ts";
 import { createProductReads } from "./reads/product.ts";
@@ -66,6 +68,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createDebtObservationRepositories(store),
   ...createSupplyCommitmentObservationRepositories(store),
   ...createSupplierObservationRepositories(store),
+  ...createDemandObservationRepositories(store),
   ...createWorkspacePolicyRepositories(store),
   ...createCashRepositories(store, ids),
   ...createIntakeRepositories(store),
@@ -93,6 +96,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createDebtObservationReads(store),
   ...createSupplyCommitmentObservationReads(store),
   ...createSupplierObservationReads(store),
+  ...createDemandObservationReads(store),
   ...createWorkspacePolicyReads(store),
   ...createCashReads(store),
   ...createIntakeReads(store),

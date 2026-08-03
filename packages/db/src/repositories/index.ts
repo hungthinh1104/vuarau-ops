@@ -27,6 +27,8 @@ import { createWorkspacePolicyReadRepositories } from "./read/policy.ts";
 import { createSupplyCommitmentObservationReadRepositories } from "./read/supply-commitment-observation.ts";
 import { createSupplierObservationWriteRepositories } from "./write/supplier-observation.ts";
 import { createSupplierObservationReadRepositories } from "./read/supplier-observation.ts";
+import { createDemandObservationWriteRepositories } from "./write/demand-observation.ts";
+import { createDemandObservationReadRepositories } from "./read/demand-observation.ts";
 
 type Tx = PgTransaction<never, never, never>;
 export type IdMinter = { newId(): string };
@@ -59,7 +61,9 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     ...createWorkspacePolicyReadRepositories(tx),
     ...createSupplyCommitmentObservationReadRepositories(tx),
     ...createSupplierObservationWriteRepositories(tx),
+    ...createDemandObservationWriteRepositories(tx),
     ...createSupplierObservationReadRepositories(tx),
+    ...createDemandObservationReadRepositories(tx),
   };
 }
 

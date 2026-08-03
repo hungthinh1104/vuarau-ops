@@ -14,6 +14,9 @@ import {
   supplierObservationGetInputSchema,
   supplierObservationListInputSchema,
   recordSupplierObservationCommandSchema,
+  demandObservationGetInputSchema,
+  demandObservationListInputSchema,
+  recordDemandObservationCommandSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import {
@@ -22,6 +25,7 @@ import {
   recordDebtObservation,
   recordSupplyCommitmentObservation,
   recordSupplierObservation,
+  recordDemandObservation,
 } from "../../../modules/evidence/evidence.handlers.ts";
 import {
   getCostObservation,
@@ -34,6 +38,8 @@ import {
   listSupplyCommitmentObservations,
   getSupplierObservation,
   listSupplierObservations,
+  getDemandObservation,
+  listDemandObservations,
 } from "../../../modules/evidence/evidence.queries.ts";
 
 export const evidenceRouter = router({
@@ -54,6 +60,9 @@ export const evidenceRouter = router({
   recordSupplierObservation: commandProcedure
     .input(recordSupplierObservationCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await recordSupplierObservation(ctx, input))),
+  recordDemandObservation: commandProcedure
+    .input(recordDemandObservationCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await recordDemandObservation(ctx, input))),
   getCostObservation: authenticatedProcedure
     .input(costObservationGetInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getCostObservation(ctx, input))),
@@ -84,4 +93,10 @@ export const evidenceRouter = router({
   listSupplierObservations: authenticatedProcedure
     .input(supplierObservationListInputSchema)
     .query(async ({ ctx, input }) => unwrap(await listSupplierObservations(ctx, input))),
+  getDemandObservation: authenticatedProcedure
+    .input(demandObservationGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getDemandObservation(ctx, input))),
+  listDemandObservations: authenticatedProcedure
+    .input(demandObservationListInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await listDemandObservations(ctx, input))),
 });

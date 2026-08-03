@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV14 } from "@vuarau/domain-contracts";
+import type { WorkspaceId, WorkspaceBackupV15 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -53,11 +53,12 @@ import { restoreInspectedIntake, restoreQualityIssueCodes } from "./operations-i
 import { restoreWorkspacePolicies } from "./operations-policy-restore.ts";
 import { restoreSupplyCommitmentObservations } from "./operations-supply-commitment-restore.ts";
 import { restoreSupplierObservations } from "./operations-supplier-observation-restore.ts";
+import { restoreDemandObservations } from "./operations-demand-observation-restore.ts";
 import { targetContainsBusinessData } from "./operations-target.ts";
 
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV14["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV15["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -108,6 +109,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         ...payload.debtObservations.map((row) => row["actorId"]),
         ...payload.supplyCommitmentObservations.map((row) => row["actorId"]),
         ...payload.supplierObservations.map((row) => row["actorId"]),
+        ...payload.demandObservations.map((row) => row["actorId"]),
         ...payload.workspacePolicies.flatMap((row) => [
           row["createdBy"],
           row["approvedBy"],
@@ -284,6 +286,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
       }
       await restoreSupplyCommitmentObservations(tx, workspaceId, payload, date);
       await restoreSupplierObservations(tx, workspaceId, payload, date);
+      await restoreDemandObservations(tx, workspaceId, payload, date);
       await restoreWorkspacePolicies(tx, workspaceId, payload, date);
       await restoreQualityIssueCodes(tx, payload, scoped, date);
       if (payload.suppliers.length > 0) {

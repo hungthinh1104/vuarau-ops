@@ -16,7 +16,7 @@ import type {
   WorkspaceId,
   WorkspaceRole,
   WorkspaceOperationalProfileDto,
-  WorkspaceBackupV14,
+  WorkspaceBackupV15,
   DeliveryId,
   DocumentDto,
   DocumentShareId,
@@ -76,14 +76,11 @@ import type {
   DebtObservationRepository,
   SupplyCommitmentObservationRepository,
   SupplierObservationRepository,
+  DemandObservationRepository,
 } from "./evidence-ports.ts";
 import type { WorkspacePolicyRepository } from "./policy-ports.ts";
 
-/**
- * Every method takes `workspaceId` as a required argument. Not an optional
- * filter, not a property on a context object that a future query could forget:
- * a required parameter, so that omitting it does not compile (BR-CUSTOMER-002).
- */
+/** Every method takes `workspaceId` as a required argument (BR-CUSTOMER-002). */
 
 export type WorkspaceMembership = {
   readonly workspaceId: WorkspaceId;
@@ -532,7 +529,7 @@ export type QualityDispositionRepository = {
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV14["payload"],
+    payload: WorkspaceBackupV15["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -687,6 +684,7 @@ export type Repositories = ReadRepositories & {
   readonly debtObservations: DebtObservationRepository;
   readonly supplyCommitmentObservations: SupplyCommitmentObservationRepository;
   readonly supplierObservations: SupplierObservationRepository;
+  readonly demandObservations: DemandObservationRepository;
   readonly workspacePolicies: WorkspacePolicyRepository;
   readonly sales: SaleRepository;
   readonly payments: PaymentRepository;

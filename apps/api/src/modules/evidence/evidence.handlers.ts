@@ -9,18 +9,22 @@ import type {
   RecordSupplyCommitmentObservationCommand,
   SupplierObservationDto,
   RecordSupplierObservationCommand,
+  DemandObservationDto,
+  RecordDemandObservationCommand,
 } from "@vuarau/domain-contracts";
 import { recordCostObservationCommandSchema } from "@vuarau/domain-contracts";
 import { recordReconciliationObservationCommandSchema } from "@vuarau/domain-contracts";
 import { recordDebtObservationCommandSchema } from "@vuarau/domain-contracts";
 import { recordSupplyCommitmentObservationCommandSchema } from "@vuarau/domain-contracts";
 import { recordSupplierObservationCommandSchema } from "@vuarau/domain-contracts";
+import { recordDemandObservationCommandSchema } from "@vuarau/domain-contracts";
 import {
   decideRecordCostObservation,
   decideRecordReconciliationObservation,
   decideRecordDebtObservation,
   decideRecordSupplyCommitmentObservation,
   decideRecordSupplierObservation,
+  decideRecordDemandObservation,
   err,
   ok,
 } from "@vuarau/domain-kernel";
@@ -188,6 +192,40 @@ export function recordSupplierObservation(ctx: CommandContext, input: unknown) {
         return err(
           "SUPPLIER_OBSERVATION_ALREADY_RECORDED",
           "Supplier observation identity already exists.",
+        );
+      }
+      await repos.audit.append({
+        ...decision.value.audit,
+        workspaceId: command.workspaceId,
+        actorId: command.actorId,
+        commandId: command.commandId,
+      });
+      return ok(decision.value.observation);
+    },
+  });
+}
+
+export function recordDemandObservation(ctx: CommandContext, input: unknown) {
+  return runCommand<RecordDemandObservationCommand, DemandObservationDto>({
+    commandType: "RecordDemandObservation",
+    schema: recordDemandObservationCommandSchema,
+    input,
+    ctx,
+    requiredPermission: "evidence.record",
+    execute: async ({ command, repos, recordedAt }) => {
+      const target =
+        command.payload.relatedObservationId === null
+          ? null
+          : await repos.demandObservations.findById(
+              command.workspaceId,
+              command.payload.relatedObservationId,
+            );
+      const decision = decideRecordDemandObservation(command, recordedAt, target !== null);
+      if (!decision.ok) return decision;
+      if (!(await repos.demandObservations.insert(decision.value.observation))) {
+        return err(
+          "DEMAND_OBSERVATION_ALREADY_RECORDED",
+          "Demand observation identity already exists.",
         );
       }
       await repos.audit.append({

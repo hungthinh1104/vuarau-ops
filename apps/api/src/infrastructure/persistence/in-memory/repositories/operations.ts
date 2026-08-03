@@ -22,6 +22,7 @@ import type {
   DebtObservationDto,
   SupplyCommitmentObservationDto,
   SupplierObservationDto,
+  DemandObservationDto,
   WorkspacePolicyDto,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
@@ -65,6 +66,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.debtObservations.values(),
           ...store.supplyCommitmentObservations.values(),
           ...store.supplierObservations.values(),
+          ...store.demandObservations.values(),
           ...store.workspacePolicies.values(),
           ...store.sales.values(),
           ...store.suppliers.values(),
@@ -106,6 +108,10 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         for (const raw of payload.supplierObservations) {
           const row = remap(raw) as unknown as SupplierObservationDto;
           store.supplierObservations.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.demandObservations) {
+          const row = remap(raw) as unknown as DemandObservationDto;
+          store.demandObservations.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.workspacePolicies) {
           const row = remap(raw) as unknown as WorkspacePolicyDto;

@@ -10,6 +10,8 @@ import type {
   WorkspaceId,
   SupplierObservationDto,
   SupplierObservationId,
+  DemandObservationDto,
+  DemandObservationId,
 } from "@vuarau/domain-contracts";
 
 export type CostObservationRepository = {
@@ -50,4 +52,12 @@ export type SupplierObservationRepository = {
     observationId: SupplierObservationId,
   ): Promise<SupplierObservationDto | null>;
   insert(observation: SupplierObservationDto): Promise<boolean>;
+};
+
+export type DemandObservationRepository = {
+  findById(
+    workspaceId: WorkspaceId,
+    observationId: DemandObservationId,
+  ): Promise<DemandObservationDto | null>;
+  insert(observation: DemandObservationDto): Promise<boolean>;
 };

@@ -11,6 +11,7 @@ import type {
   ReconciliationObservationId,
   SupplyCommitmentObservationId,
   SupplierObservationId,
+  DemandObservationId,
 } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
@@ -26,6 +27,8 @@ import {
   listSupplyCommitmentObservations,
   getSupplierObservation,
   listSupplierObservations,
+  getDemandObservation,
+  listDemandObservations,
 } from "../../../modules/evidence/evidence.queries.ts";
 import {
   recordCostObservation,
@@ -33,6 +36,7 @@ import {
   recordDebtObservation,
   recordSupplyCommitmentObservation,
   recordSupplierObservation,
+  recordDemandObservation,
 } from "../../../modules/evidence/evidence.handlers.ts";
 
 describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", () => {
@@ -43,6 +47,7 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
   let debtObservationId: DebtObservationId;
   let supplyCommitmentObservationId: SupplyCommitmentObservationId;
   let supplierObservationId: SupplierObservationId;
+  let demandObservationId: DemandObservationId;
 
   const context = (): CommandContext => ({
     deps,
@@ -68,6 +73,7 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     debtObservationId = crypto.randomUUID() as DebtObservationId;
     supplyCommitmentObservationId = crypto.randomUUID() as SupplyCommitmentObservationId;
     supplierObservationId = crypto.randomUUID() as SupplierObservationId;
+    demandObservationId = crypto.randomUUID() as DemandObservationId;
 
     const result = await recordCostObservation(context(), {
       ...envelope("record"),
@@ -193,6 +199,29 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
       },
     });
     expect(supplier.ok).toBe(true);
+    const demand = await recordDemandObservation(context(), {
+      ...envelope("demand-observation-record"),
+      payload: {
+        demandObservationId,
+        kind: "requested_order",
+        caseKind: "normal",
+        description: "Khách hỏi đặt rau cho chuyến giao cuối tuần.",
+        participantWording: "Thứ bảy cần khoảng ba mươi ký, chưa chốt đơn.",
+        facts: {
+          customerId: null,
+          productId: null,
+          qualityGradeId: null,
+          requestedQuantity: { valueScaled: 30_000, unit: "kg" },
+          minimumQuantity: null,
+          requestedForAt: "2026-08-08T02:00:00.000Z",
+          counterpartyLabel: "Quán ăn đầu mối",
+          demandReference: "message://demand/db-001",
+        },
+        evidenceReferences: ["voice://demand/db-001"],
+        relatedObservationId: null,
+      },
+    });
+    expect(demand.ok).toBe(true);
   });
 
   afterEach(async () => {
@@ -235,7 +264,7 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     });
     expect(backup.ok).toBe(true);
     if (!backup.ok) return;
-    expect(backup.value.version).toBe(14);
+    expect(backup.value.version).toBe(15);
     expect(backup.value.payload.costObservations).toContainEqual(
       expect.objectContaining({
         id: observationId,
@@ -264,6 +293,12 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
       expect.objectContaining({
         id: supplierObservationId,
         evidenceReferences: ["photo://supplier/db-001"],
+      }),
+    );
+    expect(backup.value.payload.demandObservations).toContainEqual(
+      expect.objectContaining({
+        id: demandObservationId,
+        evidenceReferences: ["voice://demand/db-001"],
       }),
     );
   });
@@ -374,5 +409,28 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     });
     expect(page.ok).toBe(true);
     if (page.ok) expect(page.value.items.map((item) => item.id)).toContain(supplierObservationId);
+  });
+
+  it("TC-EVIDENCE-066 — reads demand facts without deriving forecast or reorder risk", async () => {
+    const found = await getDemandObservation(context(), {
+      workspaceId: ctx.workspaceId,
+      demandObservationId,
+    });
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value.facts).toMatchObject({
+      requestedQuantity: { valueScaled: 30_000, unit: "kg" },
+      requestedForAt: "2026-08-08T02:00:00.000Z",
+      demandReference: "message://demand/db-001",
+    });
+    expect(found.value).not.toHaveProperty("forecast");
+    const page = await listDemandObservations(context(), {
+      workspaceId: ctx.workspaceId,
+      kind: "requested_order",
+      cursor: null,
+      limit: 50,
+    });
+    expect(page.ok).toBe(true);
+    if (page.ok) expect(page.value.items.map((item) => item.id)).toContain(demandObservationId);
   });
 });

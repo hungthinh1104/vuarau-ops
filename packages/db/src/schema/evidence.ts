@@ -17,6 +17,7 @@ import {
   debtObservationKindEnum,
   supplyCommitmentObservationKindEnum,
   supplierObservationKindEnum,
+  demandObservationKindEnum,
   currencyCodeEnum,
   unitEnum,
 } from "./enums.ts";
@@ -452,6 +453,90 @@ export const supplierObservations = pgTable(
     ),
     check(
       "supplier_observations_correction_link_ck",
+      sql`(${table.caseKind} = 'correction' and ${table.relatedObservationId} is not null)
+        or (${table.caseKind} <> 'correction' and ${table.relatedObservationId} is null)`,
+    ),
+  ],
+);
+
+/** Source-linked customer demand/order facts; no Sale, forecast or reorder effect. */
+export const demandObservations = pgTable(
+  "demand_observations",
+  {
+    id: uuid("id").notNull(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    kind: demandObservationKindEnum("kind").notNull(),
+    caseKind: costObservationCaseKindEnum("case_kind").notNull(),
+    description: text("description").notNull(),
+    participantWording: text("participant_wording").notNull(),
+    customerId: uuid("customer_id"),
+    productId: uuid("product_id"),
+    qualityGradeId: uuid("quality_grade_id"),
+    requestedQuantityScaled: bigint("requested_quantity_scaled", { mode: "number" }),
+    requestedQuantityUnit: unitEnum("requested_quantity_unit"),
+    minimumQuantityScaled: bigint("minimum_quantity_scaled", { mode: "number" }),
+    minimumQuantityUnit: unitEnum("minimum_quantity_unit"),
+    requestedForAt: timestamp("requested_for_at", { withTimezone: true }),
+    counterpartyLabel: text("counterparty_label"),
+    demandReference: text("demand_reference"),
+    evidenceReferences: text("evidence_references").array().notNull(),
+    relatedObservationId: uuid("related_observation_id"),
+    transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    index("demand_observations_workspace_time_idx").on(
+      table.workspaceId,
+      table.recordedAt,
+      table.id,
+    ),
+    index("demand_observations_workspace_kind_idx").on(
+      table.workspaceId,
+      table.kind,
+      table.recordedAt,
+      table.id,
+    ),
+    foreignKey({
+      columns: [table.workspaceId, table.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+      name: "demand_observations_workspace_customer_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "demand_observations_workspace_product_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.qualityGradeId],
+      foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
+      name: "demand_observations_workspace_grade_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.relatedObservationId],
+      foreignColumns: [table.workspaceId, table.id],
+      name: "demand_observations_workspace_related_fk",
+    }),
+    check(
+      "demand_observations_requested_quantity_pair_ck",
+      sql`(${table.requestedQuantityScaled} is null and ${table.requestedQuantityUnit} is null)
+        or (${table.requestedQuantityScaled} is not null and ${table.requestedQuantityUnit} is not null)`,
+    ),
+    check(
+      "demand_observations_minimum_quantity_pair_ck",
+      sql`(${table.minimumQuantityScaled} is null and ${table.minimumQuantityUnit} is null)
+        or (${table.minimumQuantityScaled} is not null and ${table.minimumQuantityUnit} is not null)`,
+    ),
+    check(
+      "demand_observations_correction_link_ck",
       sql`(${table.caseKind} = 'correction' and ${table.relatedObservationId} is not null)
         or (${table.caseKind} <> 'correction' and ${table.relatedObservationId} is null)`,
     ),

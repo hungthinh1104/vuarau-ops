@@ -24,6 +24,7 @@ import type {
   DebtObservationDto,
   SupplyCommitmentObservationDto,
   SupplierObservationDto,
+  DemandObservationDto,
   WorkspacePolicyDto,
 } from "@vuarau/domain-contracts";
 import type {
@@ -149,6 +150,7 @@ export type Store = {
   debtObservations: Map<string, DebtObservationDto>;
   supplyCommitmentObservations: Map<string, SupplyCommitmentObservationDto>;
   supplierObservations: Map<string, SupplierObservationDto>;
+  demandObservations: Map<string, DemandObservationDto>;
   workspacePolicies: Map<string, WorkspacePolicyDto>;
 };
 
@@ -200,6 +202,7 @@ export function emptyStore(): Store {
     debtObservations: new Map(),
     supplyCommitmentObservations: new Map(),
     supplierObservations: new Map(),
+    demandObservations: new Map(),
     workspacePolicies: new Map(),
   };
 }

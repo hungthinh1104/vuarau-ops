@@ -1,7 +1,7 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV14,
+  WorkspaceBackupV15,
 } from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
@@ -134,6 +134,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     "supplyCommitmentObservations" in payload ? payload.supplyCommitmentObservations : [];
   const supplierObservationRows =
     "supplierObservations" in payload ? payload.supplierObservations : [];
+  const demandObservationRows = "demandObservations" in payload ? payload.demandObservations : [];
   const qualityIssueCodes = new Set(qualityIssueRows.map((row) => row["id"]));
   const goodsArrivals = new Set(goodsArrivalRows.map((row) => row["id"]));
   const goodsArrivalLines = new Set(goodsArrivalLineRows.map((row) => row["id"]));
@@ -154,6 +155,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     supplyCommitmentObservationRows.map((row) => row["id"]),
   );
   const supplierObservationIds = new Set(supplierObservationRows.map((row) => row["id"]));
+  const demandObservationIds = new Set(demandObservationRows.map((row) => row["id"]));
   const workspacePoliciesValid = workspacePolicyRows.every(
     (row) => workspacePolicyDtoSchema.safeParse({ ...row, workspaceId: source }).success,
   );
@@ -385,6 +387,16 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
             supplierObservationIds.has(row["relatedObservationId"])
           : row["relatedObservationId"] == null),
     ) &&
+    demandObservationRows.every(
+      (row) =>
+        (row["customerId"] == null || customers.has(row["customerId"])) &&
+        (row["productId"] == null || products.has(row["productId"])) &&
+        (row["qualityGradeId"] == null || qualityGrades.has(row["qualityGradeId"])) &&
+        (row["caseKind"] === "correction"
+          ? row["relatedObservationId"] != null &&
+            demandObservationIds.has(row["relatedObservationId"])
+          : row["relatedObservationId"] == null),
+    ) &&
     (!("cashMovements" in payload) ||
       payload.cashMovements.every((row) => {
         if (!cashAccounts.has(row["cashAccountId"])) return false;
@@ -414,7 +426,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
 }
 
-function v14Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV14["payload"] {
+function v15Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV15["payload"] {
   const payload = command.payload.backup.payload;
   const operationalProfile =
     "operationalProfile" in payload
@@ -473,6 +485,7 @@ function v14Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV14[
     supplyCommitmentObservations:
       "supplyCommitmentObservations" in payload ? payload.supplyCommitmentObservations : [],
     supplierObservations: "supplierObservations" in payload ? payload.supplierObservations : [],
+    demandObservations: "demandObservations" in payload ? payload.demandObservations : [],
   };
 }
 
@@ -496,7 +509,7 @@ export function restoreWorkspaceBackup(
       }
       const restored = await repos.operations.restoreBackup(
         command.workspaceId,
-        v14Payload(command),
+        v15Payload(command),
       );
       if (restored.kind === "unsafe_target") {
         return err("BACKUP_UNSAFE_TARGET", "Restore requires an empty recovery workspace.", {
@@ -516,7 +529,7 @@ export function restoreWorkspaceBackup(
       }
       const supplierDiagnostics = (
         await Promise.all(
-          v14Payload(command).suppliers.map((row) =>
+          v15Payload(command).suppliers.map((row) =>
             repos.supplierAccountReads.integrity(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.supplierAccountReads.integrity>[1],
@@ -528,7 +541,7 @@ export function restoreWorkspaceBackup(
         string,
         { productId: string; qualityGradeId: string | null; unit: string }
       >();
-      for (const movement of v14Payload(command).inventoryMovements) {
+      for (const movement of v15Payload(command).inventoryMovements) {
         const qualityGradeId =
           movement["qualityGradeId"] === null || movement["qualityGradeId"] === undefined
             ? null
@@ -556,7 +569,7 @@ export function restoreWorkspaceBackup(
       ).flat();
       const cashDiagnostics = (
         await Promise.all(
-          v14Payload(command).cashAccounts.map((row) =>
+          v15Payload(command).cashAccounts.map((row) =>
             repos.cashReads.reconciliation(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.cashReads.reconciliation>[1],

@@ -33,6 +33,7 @@ import {
   DEBT_OBSERVATION_KINDS,
   SUPPLY_COMMITMENT_OBSERVATION_KINDS,
   SUPPLIER_OBSERVATION_KINDS,
+  DEMAND_OBSERVATION_KINDS,
   WORKSPACE_POLICY_KINDS,
   WORKSPACE_POLICY_STATES,
 } from "@vuarau/domain-contracts";
@@ -92,6 +93,10 @@ export const supplyCommitmentObservationKindEnum = pgEnum(
 export const supplierObservationKindEnum = pgEnum(
   "supplier_observation_kind",
   SUPPLIER_OBSERVATION_KINDS,
+);
+export const demandObservationKindEnum = pgEnum(
+  "demand_observation_kind",
+  DEMAND_OBSERVATION_KINDS,
 );
 export const workspacePolicyKindEnum = pgEnum("workspace_policy_kind", WORKSPACE_POLICY_KINDS);
 export const workspacePolicyStateEnum = pgEnum("workspace_policy_state", WORKSPACE_POLICY_STATES);

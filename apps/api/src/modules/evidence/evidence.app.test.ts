@@ -5,6 +5,7 @@ import type {
   ReconciliationObservationId,
   SupplyCommitmentObservationId,
   SupplierObservationId,
+  DemandObservationId,
 } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
@@ -23,6 +24,8 @@ import {
   listDebtObservations,
   getSupplierObservation,
   listSupplierObservations,
+  getDemandObservation,
+  listDemandObservations,
 } from "./evidence.queries.ts";
 import {
   recordCostObservation,
@@ -30,6 +33,7 @@ import {
   recordDebtObservation,
   recordSupplyCommitmentObservation,
   recordSupplierObservation,
+  recordDemandObservation,
 } from "./evidence.handlers.ts";
 import {
   getSupplyCommitmentObservation,
@@ -185,6 +189,34 @@ const supplierObservationInput = (overrides: Record<string, unknown> = {}) => ({
       observationReference: "note://supplier/001",
     },
     evidenceReferences: ["photo://supplier/001"],
+    relatedObservationId: null,
+  },
+  ...overrides,
+});
+
+const demandObservationInput = (overrides: Record<string, unknown> = {}) => ({
+  commandId: uuid(),
+  idempotencyKey: `demand-observation-${++sequence}`,
+  workspaceId: WORKSPACE_ID,
+  actorId: ACTOR_ID,
+  occurredAt: TRANSACTION_TIME,
+  payload: {
+    demandObservationId: uuid<DemandObservationId>(),
+    kind: "requested_order",
+    caseKind: "normal",
+    description: "Khách hỏi đặt rau cho chuyến giao cuối tuần.",
+    participantWording: "Thứ bảy cần khoảng ba mươi ký, chưa chốt đơn.",
+    facts: {
+      customerId: null,
+      productId: null,
+      qualityGradeId: null,
+      requestedQuantity: { valueScaled: 30_000, unit: "kg" },
+      minimumQuantity: null,
+      requestedForAt: "2026-08-08T02:00:00.000Z",
+      counterpartyLabel: "Quán ăn đầu mối",
+      demandReference: "message://demand/001",
+    },
+    evidenceReferences: ["voice://demand/001"],
     relatedObservationId: null,
   },
   ...overrides,
@@ -468,5 +500,59 @@ describe("supplier observation application", () => {
     });
     expect(foreign.ok).toBe(false);
     if (!foreign.ok) expect(foreign.error.code).toBe("SUPPLIER_OBSERVATION_NOT_FOUND");
+  });
+});
+
+describe("demand observation application", () => {
+  it("TC-EVIDENCE-064 — records demand facts without creating Sale, stock or forecast meaning", async () => {
+    const command = demandObservationInput();
+    const recorded = await recordDemandObservation(harness.ctx, command);
+    const retry = await recordDemandObservation(harness.ctx, command);
+
+    expect(recorded.ok).toBe(true);
+    expect(retry).toEqual(recorded);
+    if (!recorded.ok) return;
+    expect(recorded.value.facts.requestedQuantity).toEqual({ valueScaled: 30_000, unit: "kg" });
+    expect(recorded.value).not.toHaveProperty("forecast");
+    expect(recorded.value).not.toHaveProperty("reorderRisk");
+    const listed = await listDemandObservations(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      kind: null,
+      cursor: null,
+      limit: 50,
+    });
+    expect(listed.ok && listed.value.items).toEqual([recorded.value]);
+    const found = await getDemandObservation(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      demandObservationId: recorded.value.id,
+    });
+    expect(found).toEqual(recorded);
+    expect(harness.db.accountEntries()).toHaveLength(0);
+    expect(harness.db.inventoryMovementRecords()).toHaveLength(0);
+    expect(harness.db.auditRecords()).toHaveLength(1);
+  });
+
+  it("TC-EVIDENCE-065 — corrections and reads remain workspace scoped", async () => {
+    const first = await recordDemandObservation(harness.ctx, demandObservationInput());
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const correction = await recordDemandObservation(
+      harness.ctx,
+      demandObservationInput({
+        payload: {
+          ...demandObservationInput().payload,
+          demandObservationId: uuid<DemandObservationId>(),
+          caseKind: "correction",
+          relatedObservationId: first.value.id,
+        },
+      }),
+    );
+    expect(correction.ok).toBe(true);
+    const foreign = await getDemandObservation(harness.contextFor(FOREIGN_ACTOR_ID), {
+      workspaceId: OTHER_WORKSPACE_ID,
+      demandObservationId: first.value.id,
+    });
+    expect(foreign.ok).toBe(false);
+    if (!foreign.ok) expect(foreign.error.code).toBe("DEMAND_OBSERVATION_NOT_FOUND");
   });
 });

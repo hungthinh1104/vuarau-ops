@@ -9,6 +9,8 @@ import type {
   SupplyCommitmentObservationListInput,
   SupplierObservationGetInput,
   SupplierObservationListInput,
+  DemandObservationGetInput,
+  DemandObservationListInput,
 } from "@vuarau/domain-contracts";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -180,6 +182,36 @@ export const listSupplierObservations = (
     execute: async ({ repos }) =>
       toPage(
         await repos.supplierObservationReads.list({
+          workspaceId: input.workspaceId,
+          kind: input.kind,
+          page: toPageQuery(input),
+        }),
+        (row) => row,
+      ),
+  });
+
+export async function getDemandObservation(ctx: CommandContext, input: DemandObservationGetInput) {
+  const result = await runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "evidence.read",
+    execute: ({ repos }) =>
+      repos.demandObservationReads.get(input.workspaceId, input.demandObservationId),
+  });
+  if (!result.ok) return result;
+  return result.value === null
+    ? err("DEMAND_OBSERVATION_NOT_FOUND", "No such demand observation.")
+    : ok(result.value);
+}
+
+export const listDemandObservations = (ctx: CommandContext, input: DemandObservationListInput) =>
+  runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "evidence.read",
+    execute: async ({ repos }) =>
+      toPage(
+        await repos.demandObservationReads.list({
           workspaceId: input.workspaceId,
           kind: input.kind,
           page: toPageQuery(input),

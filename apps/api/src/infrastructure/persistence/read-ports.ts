@@ -22,7 +22,7 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV14,
+  WorkspaceBackupV15,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
@@ -84,6 +84,9 @@ import type {
   SupplierObservationDto,
   SupplierObservationId,
   SupplierObservationKind,
+  DemandObservationDto,
+  DemandObservationId,
+  DemandObservationKind,
 } from "@vuarau/domain-contracts";
 import type { PriceRuleState, SaleState } from "@vuarau/domain-kernel";
 import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
@@ -572,7 +575,7 @@ export type IntakeReadRepository = {
 
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV14["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV15["payload"] | null>;
 };
 
 export type CostObservationReadRepository = {
@@ -635,6 +638,18 @@ export type SupplierObservationReadRepository = {
   }): Promise<PageResult<SupplierObservationDto>>;
 };
 
+export type DemandObservationReadRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    observationId: DemandObservationId,
+  ): Promise<DemandObservationDto | null>;
+  list(input: {
+    workspaceId: WorkspaceId;
+    kind: DemandObservationKind | null;
+    page: PageQuery;
+  }): Promise<PageResult<DemandObservationDto>>;
+};
+
 /**
  * The read side's own bundle. It is reachable from a `Repositories` too, so a
  * query runs in the same transaction as the authorization check that guards it —
@@ -665,5 +680,6 @@ export type ReadRepositories = {
   readonly debtObservationReads: DebtObservationReadRepository;
   readonly supplyCommitmentObservationReads: SupplyCommitmentObservationReadRepository;
   readonly supplierObservationReads: SupplierObservationReadRepository;
+  readonly demandObservationReads: DemandObservationReadRepository;
   readonly workspacePolicyReads: WorkspacePolicyReadRepository;
 };

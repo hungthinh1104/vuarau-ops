@@ -60,6 +60,7 @@ import {
   debtObservations,
   supplyCommitmentObservations,
   supplierObservations,
+  demandObservations,
   workspacePolicies,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
@@ -430,6 +431,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         debtObservationRows,
         supplyCommitmentObservationRows,
         supplierObservationRows,
+        demandObservationRows,
         workspacePolicyRows,
       ] = await Promise.all([
         tx
@@ -560,6 +562,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
           .select()
           .from(supplierObservations)
           .where(eq(supplierObservations.workspaceId, workspaceId)),
+        tx.select().from(demandObservations).where(eq(demandObservations.workspaceId, workspaceId)),
         tx.select().from(workspacePolicies).where(eq(workspacePolicies.workspaceId, workspaceId)),
       ]);
       const plain = (value: unknown): Record<string, unknown> =>
@@ -645,6 +648,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         debtObservations: list(debtObservationRows),
         supplyCommitmentObservations: list(supplyCommitmentObservationRows),
         supplierObservations: list(supplierObservationRows),
+        demandObservations: list(demandObservationRows),
         workspacePolicies: list(workspacePolicyRows),
       };
     },
