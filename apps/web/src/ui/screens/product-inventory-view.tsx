@@ -273,6 +273,8 @@ function movementHref(movement: InventoryMovementDto): string | null {
       return `/products/${movement.productId}/inventory`;
     case "quality_disposition":
       return `/quality/dispositions/${source.id}`;
+    case "stocktake":
+      return `/inventory/stocktakes/${source.id}`;
   }
 }
 
@@ -294,5 +296,7 @@ function movementLabel(source: InventoryMovementDto["sourceType"]): string {
       return "Chấp nhận sau kiểm định";
     case "quality_disposition_reversal":
       return "Hoàn tác chấp nhận chất lượng";
+    case "stocktake_variance":
+      return "Chênh lệch kiểm kê";
   }
 }
