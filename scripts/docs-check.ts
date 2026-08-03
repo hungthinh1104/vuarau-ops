@@ -49,6 +49,7 @@ const REQUIRED = [
   "04-business-rules/authorization-rules.md",
   "04-business-rules/read-rules.md",
   "04-business-rules/operations-rules.md",
+  "04-business-rules/extension-boundary-rules.md",
   "05-casebook/sale-cases.md",
   "05-casebook/customer-order-cases.md",
   "05-casebook/payment-cases.md",

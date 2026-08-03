@@ -39,6 +39,11 @@ cash-forecast or AI policy on behalf of a workspace. A future policy adapter mus
 be typed, evidence-linked, versioned, reviewed and separately tested before it can
 affect a canonical fact or derived management outcome.
 
+The same boundary applies to product variants, OCR, forecasting, route
+optimization and experiments: an extension may propose or call a canonical
+command, but it cannot write a core fact directly. See the [extension boundary
+rules](../04-business-rules/extension-boundary-rules.md).
+
 ## Evidence state
 
 `Proposed → Policy infrastructure implemented → Repository verified` is complete

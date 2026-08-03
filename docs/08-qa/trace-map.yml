@@ -1519,7 +1519,16 @@ use_cases:
     risk: P0
     doc: docs/02-use-cases/UC-POLICY-001-manage-workspace-policy-version.md
     rules:
-      [BR-POLICY-001, BR-POLICY-002, BR-POLICY-003, BR-POLICY-004, BR-POLICY-005, BR-POLICY-006]
+      [
+        BR-POLICY-001,
+        BR-POLICY-002,
+        BR-POLICY-003,
+        BR-POLICY-004,
+        BR-POLICY-005,
+        BR-POLICY-006,
+        BR-EXTENSION-001,
+        BR-EXTENSION-002,
+      ]
     cases: []
     tests:
       [
@@ -1533,6 +1542,8 @@ use_cases:
         TC-POLICY-008,
         TC-POLICY-009,
         TC-POLICY-010,
+        TC-EXTENSION-001,
+        TC-EXTENSION-002,
       ]
     implementation:
       - packages/domain-contracts/src/policy/index.ts
@@ -1548,6 +1559,8 @@ use_cases:
       - packages/domain-contracts/src/operations/index.ts
       - apps/web/src/ui/controllers/workspace-policy-controller.tsx
       - apps/web/src/ui/screens/workspace-policy-view.tsx
+      - packages/domain-contracts/src/extension/index.ts
+      - packages/domain-kernel/src/extension/index.ts
 
   UC-OPERATIONS-005:
     title: Sign off and reopen an operational business day
@@ -3515,6 +3528,26 @@ business_rules:
       - packages/domain-contracts/src/operations/index.ts
       - apps/api/src/modules/operations/operations.queries.ts
 
+  BR-EXTENSION-001:
+    title: Extensions cannot write core facts directly
+    risk: P0
+    doc: docs/04-business-rules/extension-boundary-rules.md
+    cases: []
+    tests: [TC-EXTENSION-001, TC-EXTENSION-002]
+    implementation:
+      - packages/domain-contracts/src/extension/index.ts
+      - packages/domain-kernel/src/extension/index.ts
+
+  BR-EXTENSION-002:
+    title: Reserved capabilities stay outside core until complete
+    risk: P0
+    doc: docs/04-business-rules/extension-boundary-rules.md
+    cases: []
+    tests: [TC-EXTENSION-001, TC-EXTENSION-002]
+    implementation:
+      - packages/domain-contracts/src/extension/index.ts
+      - packages/domain-kernel/src/extension/index.ts
+
 cases:
   CASE-CUSTOMER-ORDER-001:
     title: Unpriced account order
@@ -4436,6 +4469,12 @@ contract_tests:
   TC-POLICY-010:
     title: Policy availability selects the highest currently effective approved version
     file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-EXTENSION-001:
+    title: Reserved extension capabilities use proposal-only or canonical-command execution
+    file: packages/domain-kernel/src/extension/extension-boundary.test.ts
+  TC-EXTENSION-002:
+    title: Direct extension effects on core facts are rejected
+    file: packages/domain-kernel/src/extension/extension-boundary.test.ts
   TC-EVIDENCE-060:
     title: Supplier relationship and performance observations remain raw and retry safe
     file: apps/api/src/modules/evidence/evidence.app.test.ts

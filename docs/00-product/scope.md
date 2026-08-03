@@ -98,6 +98,11 @@ Every known policy question is classified in the
   value, fixed-threshold planning and stocktake variance are narrow adapters;
   an approved row still does not activate COGS/profit, advanced aging, forecast
   or other policy-sensitive results until each separate adapter and field gate exists.
+- Product variants, AI transaction entry, OCR, forecasting, supplier scoring,
+  route optimization and experiments remain outside the core fact boundary.
+  They may not write core facts directly; any future activation needs a typed
+  canonical-command adapter and the evidence described in the [extension
+  boundary rules](../04-business-rules/extension-boundary-rules.md).
 
 ## Related
 

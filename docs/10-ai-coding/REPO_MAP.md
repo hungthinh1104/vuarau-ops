@@ -116,8 +116,8 @@ the checker and its regression tests.
 
 | Package                     | Responsibility                                                                                           |
 | --------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `packages/domain-contracts` | IDs, money, commands, DTOs, rejection codes and Zod schemas                                              |
-| `packages/domain-kernel`    | deterministic business decisions and state/effect calculations                                           |
+| `packages/domain-contracts` | IDs, money, commands, DTOs, rejection codes, extension boundary and Zod schemas                          |
+| `packages/domain-kernel`    | deterministic business decisions, state/effect calculations and extension boundary guards                |
 | `packages/db`               | Drizzle schema, migrations, repositories, seeds and PostgreSQL test context                              |
 | `packages/test-fixtures`    | deterministic IDs, timestamps and shared test fixtures                                                   |
 | `packages/config`           | shared TypeScript/Vitest configuration                                                                   |
@@ -133,20 +133,21 @@ The root script entry points are implemented in `scripts/dev.ts`,
 
 ## Where does my change go?
 
-| Change                  | File or first boundary                                                                                     |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
-| New rejection code      | `packages/domain-contracts/src/shared/rejection-codes.ts` + `docs/04-business-rules/error-code-catalog.md` |
-| New command             | `packages/domain-contracts/src/<module>/`, then kernel, handler, router                                    |
-| Business rule change    | `packages/domain-kernel/src/<module>/` + business-rule doc + test                                          |
-| New lifecycle state     | state catalog first, then contract/kernel and transition catalog                                           |
-| New table or column     | `packages/db/src/schema/`, `pnpm db:generate`, backup/restore coverage, then data-model docs               |
-| Price rule behavior     | `packages/domain-contracts/src/pricing/`, `packages/domain-kernel/src/pricing/`, API pricing module        |
-| New query               | `packages/db/src/repositories/` + a port in `apps/api/src/infrastructure/persistence/`                     |
-| New UI state            | `docs/06-api-contracts/ui-state-catalog.md` first, then `apps/web/src/ui/` and a story/test                |
-| New UI screen/flow      | matching `apps/web/src/app/`, `src/ui/patterns/` or `src/ui/screens/` surface + tests/E2E where applicable |
-| Operator tool           | `apps/api/src/operations/` + an `ops:*` script; never a tRPC procedure                                     |
-| Agent context retrieval | `scripts/context.ts`, with regression tests in `scripts/context.test.ts`                                   |
-| Anything touching money | kernel + docs + a P0 test                                                                                  |
+| Change                  | File or first boundary                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| New rejection code      | `packages/domain-contracts/src/shared/rejection-codes.ts` + `docs/04-business-rules/error-code-catalog.md`  |
+| New command             | `packages/domain-contracts/src/<module>/`, then kernel, handler, router                                     |
+| Business rule change    | `packages/domain-kernel/src/<module>/` + business-rule doc + test                                           |
+| New lifecycle state     | state catalog first, then contract/kernel and transition catalog                                            |
+| New table or column     | `packages/db/src/schema/`, `pnpm db:generate`, backup/restore coverage, then data-model docs                |
+| Price rule behavior     | `packages/domain-contracts/src/pricing/`, `packages/domain-kernel/src/pricing/`, API pricing module         |
+| New query               | `packages/db/src/repositories/` + a port in `apps/api/src/infrastructure/persistence/`                      |
+| New UI state            | `docs/06-api-contracts/ui-state-catalog.md` first, then `apps/web/src/ui/` and a story/test                 |
+| New UI screen/flow      | matching `apps/web/src/app/`, `src/ui/patterns/` or `src/ui/screens/` surface + tests/E2E where applicable  |
+| Operator tool           | `apps/api/src/operations/` + an `ops:*` script; never a tRPC procedure                                      |
+| Extension boundary      | `packages/domain-contracts/src/extension/` + `packages/domain-kernel/src/extension/`; no direct core effect |
+| Agent context retrieval | `scripts/context.ts`, with regression tests in `scripts/context.test.ts`                                    |
+| Anything touching money | kernel + docs + a P0 test                                                                                   |
 
 ## Forbidden shapes
 
