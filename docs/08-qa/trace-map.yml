@@ -871,6 +871,25 @@ use_cases:
       - apps/api/src/modules/inventory/inventory.queries.ts
       - apps/api/src/modules/inventory/rebuild-inventory.handler.ts
 
+  UC-INVENTORY-005:
+    title: Read policy-backed inventory valuation
+    risk: P0
+    doc: docs/02-use-cases/UC-INVENTORY-005-value-inventory.md
+    rules: [BR-VALUATION-001, BR-VALUATION-002, BR-VALUATION-003]
+    cases: []
+    tests: [TC-VALUATION-001, TC-VALUATION-002, TC-VALUATION-003, TC-VALUATION-004]
+    implementation:
+      - packages/domain-contracts/src/valuation/index.ts
+      - packages/domain-kernel/src/valuation/index.ts
+      - packages/domain-kernel/src/workspace-policy/index.ts
+      - apps/api/src/modules/inventory/inventory.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/inventory.ts
+      - apps/api/src/infrastructure/persistence/read-ports.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/inventory.ts
+      - packages/db/src/repositories/read/inventory.ts
+      - apps/web/src/ui/controllers/product-inventory-controller.tsx
+      - apps/web/src/ui/screens/product-inventory-view.tsx
+
   UC-DELIVERY-001:
     title: Draft edit or cancel Sale fulfilment
     risk: P0
@@ -1669,6 +1688,38 @@ business_rules:
     cases: []
     tests: [TC-GOODS-001]
     implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
+
+  BR-VALUATION-001:
+    title: Inventory valuation selects only an approved effective workspace policy
+    risk: P0
+    doc: docs/04-business-rules/inventory-valuation-rules.md
+    cases: []
+    tests: [TC-VALUATION-002, TC-VALUATION-003]
+    implementation:
+      - packages/domain-kernel/src/workspace-policy/index.ts
+      - apps/api/src/modules/inventory/inventory.queries.ts
+
+  BR-VALUATION-002:
+    title: Inventory valuation derives from canonical movement and Purchase-line cost facts
+    risk: P0
+    doc: docs/04-business-rules/inventory-valuation-rules.md
+    cases: []
+    tests: [TC-VALUATION-001, TC-VALUATION-002, TC-VALUATION-003]
+    implementation:
+      - packages/domain-kernel/src/valuation/index.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/inventory.ts
+      - packages/db/src/repositories/read/inventory.ts
+
+  BR-VALUATION-003:
+    title: Missing valuation truth fails closed instead of becoming guessed money
+    risk: P0
+    doc: docs/04-business-rules/inventory-valuation-rules.md
+    cases: []
+    tests: [TC-VALUATION-001, TC-VALUATION-002, TC-VALUATION-004]
+    implementation:
+      - packages/domain-kernel/src/valuation/index.ts
+      - apps/api/src/modules/inventory/inventory.queries.ts
+      - apps/web/src/ui/screens/product-inventory-view.tsx
 
   # --- customer order ----------------------------------------------------------
   BR-CUSTOMER-ORDER-001:
@@ -4047,6 +4098,19 @@ contract_tests:
   TC-EVIDENCE-067:
     title: Demand observation UI shows source facts without Sale or planning intelligence
     file: apps/web/src/ui/screens/demand-observation-view.test.tsx
+
+  TC-VALUATION-001:
+    title: Inventory valuation strategies use deterministic integer arithmetic and fail closed
+    file: packages/domain-kernel/src/valuation/valuation.test.ts
+  TC-VALUATION-002:
+    title: Inventory valuation application query requires an effective policy and preserves cost lineage
+    file: apps/api/src/modules/inventory/valuation.app.test.ts
+  TC-VALUATION-003:
+    title: PostgreSQL inventory valuation matches policy selection and Receipt Purchase-line cost
+    file: apps/api/src/infrastructure/persistence/drizzle/valuation.db.test.ts
+  TC-VALUATION-004:
+    title: Inventory valuation UI renders unavailable without inventing money
+    file: apps/web/src/ui/screens/product-inventory-view.test.tsx
 
 deprecated:
   - UC-ORDER-001

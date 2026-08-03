@@ -74,9 +74,11 @@ authoritative for payload and result shapes.
 
 `policy.createDraft`, `policy.approve` and `policy.retire` manage the inactive
 workspace policy registry. Approval requires evidence references and a reason;
-storing or approving a definition does not activate a debt, inventory, cost,
-planning, supplier or management policy. Future policy adapters must own their
-typed effect contract separately.
+storing or approving a definition does not activate a debt, cost, planning,
+supplier or management policy. The inventory valuation read is a separate,
+typed, source-backed adapter and still does not create an inventory movement or
+financial effect. Future policy adapters must own their typed effect contract
+separately.
 
 Supplier payment and reversal payloads accept `evidenceReferences`. The supplier
 payment detail read returns the payment references and append-only reversal references;

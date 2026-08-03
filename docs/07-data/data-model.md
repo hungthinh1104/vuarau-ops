@@ -223,7 +223,9 @@ maintained with the repository implementation, where it can be tested.
 - no Sale `paid/unpaid` status: Payments are not allocated to individual Sales;
 - no hard delete of finalized financial/physical history;
 - no unit conversion engine;
-- no tax-invoice or inventory-valuation subsystem;
+- no general inventory-valuation subsystem; the narrow read-only valuation
+  adapter is documented in the inventory read contract and creates no canonical
+  financial effect;
 - no delivery routing/optimization;
 - no full event-sourcing or general double-entry accounting platform;
 - no general lot/expiry model and no supplier-quality-claim or credit settlement; inspected intake supports evidence references, quarantine and quality issue snapshots;

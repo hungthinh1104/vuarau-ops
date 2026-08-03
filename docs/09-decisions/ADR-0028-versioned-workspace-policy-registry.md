@@ -30,9 +30,10 @@ with no policy rows; Backup V17 carries the registry, commercial supply commitme
 supplier observations and customer demand observations.
 
 The registry is not a generic rule engine. Definitions are stored in a typed
-infrastructure envelope until a future bounded-context adapter supplies a
-policy-specific schema and effect contract. No current transaction or report
-reads an arbitrary definition as a default.
+infrastructure envelope, and a bounded-context adapter may opt in only with its
+own policy-specific schema and effect contract. The first adapter is the
+read-only, source-backed inventory valuation slice; no current transaction or
+report reads an arbitrary definition as a default.
 
 ## Consequences
 
@@ -45,8 +46,9 @@ available. Each policy-backed outcome needs a separate vertical slice and field
 acceptance.
 
 **Not solved:** the registry does not choose receivable/payable recognition,
-valuation, COGS/profit, aging, reorder, supplier score, cash forecast, walk-in
-semantics, universal shifts or AI recommendations.
+COGS/profit, aging, reorder, supplier score, cash forecast, walk-in semantics,
+universal shifts or AI recommendations. Inventory valuation beyond the scoped
+read-only adapter, including broader cost effects, remains unresolved.
 
 ## Alternatives considered
 

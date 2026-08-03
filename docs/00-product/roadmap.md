@@ -323,11 +323,14 @@ to make a screen look complete is a failure.
 **Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V17 remain intact. This is not a generic rule builder.
 
 **Policy-registry closure:** ADR-0028 adds a workspace-scoped versioned registry
-for future policy adapters. Drafts are inactive; approval requires evidence,
-reason, actor and audit; availability fails closed outside an effective window.
-Backup V17 preserves the registry, commercial supply commitments, raw supply commitments, supplier observations and customer demand observations while V1–V16 restore with no policy or evidence rows introduced later. This
-does not activate receivable/payable recognition, valuation, COGS/profit, aging,
-reorder, supplier scoring, cash forecasts or AI decisions.
+with typed bounded-context adapters. Drafts are inactive; approval requires
+evidence, reason, actor and audit; availability fails closed outside an effective
+window. Backup V17 preserves the registry, commercial supply commitments, raw
+supply commitments, supplier observations and customer demand observations while
+V1–V16 restore with no policy or evidence rows introduced later. The narrow
+inventory-valuation adapter is now source-backed, effective-dated and fail-closed;
+it does not activate receivable/payable recognition, COGS/profit, aging, reorder,
+supplier scoring, cash forecasts or AI decisions.
 
 **Document/bill closure:** ADR-0023 and TC-DOCUMENT-003 implement a source-backed
 multi-day customer statement with server-derived opening/change/closing balances and

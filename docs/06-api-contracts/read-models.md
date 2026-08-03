@@ -24,7 +24,7 @@ current procedure catalog without duplicating every DTO field.
 | `supplier`         | `search`, `get`, `priceHistory`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence`                                                                                                                                                                                                                        |
 | `purchase`         | `get`, `list`                                                                                                                                                                                                                                                                                                                              |
 | `receiving`        | `get`, `listForPurchase`, `summaryForPurchase`                                                                                                                                                                                                                                                                                             |
-| `inventory`        | `balances`, `getAdjustment`, `timeline`, `reconciliation`, `evidence`                                                                                                                                                                                                                                                                      |
+| `inventory`        | `balances`, `getAdjustment`, `timeline`, `valuation`, `reconciliation`, `evidence`                                                                                                                                                                                                                                                         |
 | `delivery`         | `get`, `list`, `fulfilment`                                                                                                                                                                                                                                                                                                                |
 | `document`         | `get`, `listForSource`                                                                                                                                                                                                                                                                                                                     |
 | `report`           | `definitions`, `metrics`, `operational`, `csv`                                                                                                                                                                                                                                                                                             |
@@ -79,6 +79,14 @@ rather than being assigned an invented grade.
 `inventory.timeline` can scope by Product, grade and unit and preserves movement
 source attribution. Reclassification remains two canonical movements, not a
 rewritten balance.
+
+`inventory.valuation` is a read-only, workspace-policy-backed result at an
+explicit `asOf` time. It derives inventory value from canonical movement facts
+and Receipt → immutable Purchase-line cost lineage. Missing policy, incomplete
+lineage, mixed currency, negative inventory or missing specific-cost lot
+references return `unavailable`; the client must not substitute a numeric
+estimate. This narrow result does not publish COGS, profit, margin or landed-cost
+effects.
 
 `sale.captureContext` carries canonical historical `productId` when the historical
 line has one. Legacy history with no Product id remains an unresolved suggestion;

@@ -85,17 +85,17 @@ Every known policy question is classified in the
   partial customer-return money semantics and Supplier returns of accepted stock.
   These gaps must not be hidden with invented Return/Dispatch/Receipt/adjustment
   facts.
-- ASM-039–048 keep valuation/COGS, cost effects, debt aging/allocation, inventory
+- ASM-039–048 keep reproducible COGS/profit, cost effects, debt aging/allocation, inventory
   planning, stocktake, walk-in sales, shift close, bank reconciliation and Supplier
   performance unavailable as derived management outcomes until the field questions in the
   [next-phase policy worksheet](../09-decisions/policy-closure-worksheet.md)
   are answered. Raw evidence capture may be implemented independently, but it must
   remain visibly raw and must not be presented as a metric, recommendation or
   settled policy.
-- The versioned policy registry is infrastructure only. It records draft,
-  evidence-backed approval and retirement, but an approved registry row does not
-  activate a policy-sensitive result until a separate adapter and field gate
-  exist.
+- The versioned policy registry is infrastructure for typed adapters. The
+  inventory-value read is the first narrow adapter; an approved row still does
+  not activate COGS/profit, aging, planning or other policy-sensitive results
+  until each separate adapter and field gate exists.
 
 ## Related
 
