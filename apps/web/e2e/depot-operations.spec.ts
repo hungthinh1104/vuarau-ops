@@ -6,7 +6,7 @@ async function chooseOption(page: Parameters<typeof signIn>[0], label: string, o
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
-test.describe("M19-M21 — depot operations (TC-E2E-030)", () => {
+test.describe("Depot operations (TC-E2E-030)", () => {
   test("dispatches two partial deliveries, completes them, and records an explicit return", async ({
     page,
   }) => {

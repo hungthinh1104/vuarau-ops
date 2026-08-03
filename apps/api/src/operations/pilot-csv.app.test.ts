@@ -150,7 +150,7 @@ describe("BR-CUSTOMER-005 / TC-CUSTOMER-011 — import identity", () => {
   });
 });
 
-describe("M23 — deterministic Product onboarding", () => {
+describe("Deterministic Product onboarding", () => {
   const file = "ten,ten_khac,don_vi\nCà chua,cà bi|tomato,kg\nRau muống,rau muon,bo\n";
 
   it("validates Product rows using the command vocabulary", () => {

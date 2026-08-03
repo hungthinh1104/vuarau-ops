@@ -112,5 +112,5 @@ by not looking.
 - [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — the environment the pilot runs in
 - [../11-operations/device-smoke-check.md](../11-operations/device-smoke-check.md) — proving the deployment works on a phone
 - [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — ASM-023 owner worksheet
-- [m23-pilot-contract.md](m23-pilot-contract.md) — frozen gates and incident rules
+- [shadow-pilot-contract.md](shadow-pilot-contract.md) — frozen gates and incident rules
 - [../09-decisions/decision-backlog.md](../09-decisions/decision-backlog.md) — ASM-017, ASM-018, ASM-023

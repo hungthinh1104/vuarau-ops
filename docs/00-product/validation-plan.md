@@ -20,7 +20,7 @@ count of passing tests may be reported as product validation.
 
 M23 freezes the observation fields, assistance labels, independent-reference rule
 and pass criteria in
-[m23-field-validation-protocol.md](m23-field-validation-protocol.md). Do not edit
+[field-validation-protocol.md](field-validation-protocol.md). Do not edit
 those criteria after the first observation; a changed release SHA starts a new
 evidence series.
 
@@ -325,6 +325,6 @@ session.
 - [../09-decisions/ASM-002-debt-recognition-worksheet.md](../09-decisions/ASM-002-debt-recognition-worksheet.md) — the four questions for the owner
 - [../09-decisions/ASM-024-post-sale-meaning-worksheet.md](../09-decisions/ASM-024-post-sale-meaning-worksheet.md) — Sale recognition validation
 - [../09-decisions/ASM-025-supplier-payable-recognition-worksheet.md](../09-decisions/ASM-025-supplier-payable-recognition-worksheet.md) — supplier recognition validation
-- [../09-decisions/m23-cross-dimension-correction-worksheet.md](../09-decisions/m23-cross-dimension-correction-worksheet.md) — ASM-035–038 scope/resolution evidence
-- [../09-decisions/m24-policy-closure-worksheet.md](../09-decisions/m24-policy-closure-worksheet.md) — ASM-039–048 next-phase field questions
+- [../09-decisions/cross-dimension-correction-worksheet.md](../09-decisions/cross-dimension-correction-worksheet.md) — ASM-035–038 scope/resolution evidence
+- [../09-decisions/policy-closure-worksheet.md](../09-decisions/policy-closure-worksheet.md) — ASM-039–048 next-phase field questions
 - [../09-decisions/ADR-0014-debt-recognition-at-posting.md](../09-decisions/ADR-0014-debt-recognition-at-posting.md) — when a customer starts owing

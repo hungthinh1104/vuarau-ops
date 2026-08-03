@@ -1,4 +1,4 @@
-# M23 shadow-pilot contract
+# Shadow-pilot contract
 
 ## Frozen boundary
 
@@ -53,13 +53,13 @@ Signed evidence stays outside git. A rejected ASM-023/024/025, ASM-020, ASM-029 
 answer preserves the contradiction and blocks the affected workflow; it never
 changes ledger dates, seeds a fake grade, or changes wording to make readiness
 green. ASM-032/033/034 use the
-[quality-policy worksheet](../09-decisions/m23-quality-policy-worksheet.md).
+[quality-policy worksheet](../09-decisions/quality-policy-worksheet.md).
 
 ASM-035–038 are scenario gates, not generic “accepted” checkboxes. Each declaration
 must say either `excluded_from_shadow_scope` with `stopIfEncountered: true`, or
 `resolved_in_release` with evidence bound to the exact frozen SHA. `blocked` keeps
 readiness red. Use the
-[cross-dimension correction worksheet](../09-decisions/m23-cross-dimension-correction-worksheet.md).
+[cross-dimension correction worksheet](../09-decisions/cross-dimension-correction-worksheet.md).
 
 ## Incident severity and stop conditions
 
@@ -93,6 +93,6 @@ session stop if encountered; exclusion is not evidence that the workflow exists.
 ## Evidence sources
 
 - [pilot onboarding](pilot-onboarding.md)
-- [field-validation protocol](m23-field-validation-protocol.md)
-- [deployment/recovery evidence](../11-operations/m23-deployment-recovery-evidence.md)
-- [incident runbooks](../11-operations/m23-incident-runbooks.md)
+- [field-validation protocol](field-validation-protocol.md)
+- [deployment/recovery evidence](../11-operations/deployment-recovery-evidence.md)
+- [incident runbooks](../11-operations/pilot-incident-runbooks.md)

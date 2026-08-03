@@ -253,4 +253,4 @@ The following are **not** silently folded into the use cases above:
 - return of previously accepted stock to Supplier — ASM-038.
 
 See [use-case-completeness-audit.md](use-case-completeness-audit.md) and the
-[cross-dimension worksheet](../09-decisions/m23-cross-dimension-correction-worksheet.md).
+[cross-dimension worksheet](../09-decisions/cross-dimension-correction-worksheet.md).

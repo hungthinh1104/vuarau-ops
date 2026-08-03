@@ -141,7 +141,7 @@ export function checkRoutingContracts(sources: RoutingContractSources): string[]
   for (const marker of [
     "apps/web/src/app/(app)/",
     "apps/web/e2e/",
-    "m13-offline-quick-sale.spec.ts",
+    "offline-quick-sale.spec.ts",
     "next start",
     "scripts/context.ts",
     "scripts/dev.ts",

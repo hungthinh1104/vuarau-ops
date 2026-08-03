@@ -44,7 +44,7 @@ to use its unchanged command identity for safe retry.
 | Rejection anomaly    | one rejection code >5× 7-day same-hour baseline for 10 minutes | inspect deploy/client change; do not treat business refusals as 500 |
 | Replay surge         | replayed commands >20% for 10 minutes                          | inspect network/client retry loop; verify exact-one effects         |
 | Integrity attention  | any `attention` result                                         | stop affected workflow and preserve reconciliation evidence         |
-| Latency budget       | p95 above the M22 family budget for 15 minutes                 | capture EXPLAIN/BUFFERS before adding index/cache                   |
+| Latency budget       | p95 above the production-scale budget for 15 minutes           | capture EXPLAIN/BUFFERS before adding index/cache                   |
 | Public rate limit    | 429 >30/minute for 5 minutes                                   | inspect share-token abuse and edge logs; revoke exposed share       |
 | Backup/restore drill | scheduled drill missing or failed                              | production readiness fails; escalate to deployment operator         |
 

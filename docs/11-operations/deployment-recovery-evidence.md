@@ -1,4 +1,4 @@
-# M23 deployment and provider-recovery evidence
+# Deployment and provider-recovery evidence
 
 ## Deployment contract to prove
 

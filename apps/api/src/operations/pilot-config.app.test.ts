@@ -5,7 +5,7 @@ import {
   readPilotConfig,
 } from "./pilot-config.ts";
 
-describe("M23 — pilot declaration is fail-closed", () => {
+describe("Pilot declaration is fail-closed", () => {
   const filled = {
     ...EXAMPLE_PILOT_CONFIG,
     releaseSha: "6".repeat(40),

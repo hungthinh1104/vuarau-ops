@@ -36,7 +36,7 @@ Rollback policy:
 
 ## Rehearsed evidence — 2026-07-29
 
-- `rehearse:m22` creates a disposable empty PostgreSQL database, applies every
+- `rehearse:migrations` creates a disposable empty PostgreSQL database, applies every
   committed migration, reapplies them idempotently, verifies the public schema,
   and removes only the validated `vuarau_m22_rehearsal_<pid>` database. CI runs
   this rehearsal on every verification build.
@@ -71,4 +71,4 @@ incident or deviations:
 
 For the M23 provider execution record, including separate customer, supplier and
 inventory reconciliation fields, use
-[m23-deployment-recovery-evidence.md](m23-deployment-recovery-evidence.md).
+[deployment-recovery-evidence.md](deployment-recovery-evidence.md).

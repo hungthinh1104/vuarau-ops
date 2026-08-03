@@ -13,7 +13,7 @@ import {
 } from "./schema/index.ts";
 import { DATABASE_URL, skipWithoutDatabase } from "./testing/db-test-context.ts";
 
-describe.skipIf(skipWithoutDatabase())("M23 — audited pilot bootstrap", () => {
+describe.skipIf(skipWithoutDatabase())("Audited pilot bootstrap", () => {
   let database: Database;
 
   beforeAll(async () => {

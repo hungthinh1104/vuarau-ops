@@ -2,7 +2,7 @@ import { expect, signIn, test } from "./harness/signed-in.ts";
 import { api } from "./harness/api.ts";
 import { uniqueCustomerName } from "./harness/environment.ts";
 
-test.describe("TC-E2E-025 — M12 customer operations", () => {
+test.describe("TC-E2E-025 — customer operations", () => {
   test("creates despite a surfaced duplicate, edits, archives and restores without moving debt", async ({
     page,
   }) => {

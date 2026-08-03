@@ -213,7 +213,7 @@ make a suite pass is forbidden — see
   of entries, for any sequence of commands". Worth doing; would need `fast-check`.
   Not added in this phase — the invariant is covered by example-based tests today.
 - **Playwright end-to-end.** Reserved for when a UI exists.
-- **Production-shape load evidence.** `pnpm perf:m22` is an explicit PostgreSQL
+- **Production-shape load evidence.** `pnpm perf:production-scale` is an explicit PostgreSQL
   rehearsal rather than part of every unit run: it creates 10k customers/products,
   100k Sales/Purchases and one million ledger/movement rows, checks p95 budgets
   and fails on unexplained sequential scans. CI/release runs it with a disposable

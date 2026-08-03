@@ -1,4 +1,4 @@
-# M23 quality-policy worksheet — ASM-032 / ASM-033 / ASM-034
+# Quality-policy worksheet — ASM-032 / ASM-033 / ASM-034
 
 Use this with the depot owner and the people who actually receive/classify goods.
 It records whether the **current software behavior** matches the depot. It does not

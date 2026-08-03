@@ -1,4 +1,4 @@
-# M23 pilot incident runbooks
+# Pilot incident runbooks
 
 Every incident record includes the full release SHA, UTC/local timestamps,
 workspace, safe request/command/reference IDs, affected workflow and operator.

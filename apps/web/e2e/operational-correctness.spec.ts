@@ -20,7 +20,7 @@ async function chooseProduct(page: Page, productName: string): Promise<void> {
   await product.press("Enter");
 }
 
-test.describe("M23.7-M23.9 — operational correctness (TC-E2E-032)", () => {
+test.describe("Operational correctness (TC-E2E-032)", () => {
   test("preserves Product, grade, fulfilment, inventory and money truth end to end", async ({
     page,
   }) => {

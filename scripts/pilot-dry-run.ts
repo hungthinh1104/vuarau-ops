@@ -48,7 +48,7 @@ const steps: readonly EvidenceStep[] = [
   },
   {
     name: "public and authenticated trust boundaries",
-    command: ["security:m22"],
+    command: ["security:surface"],
     proves: ["authenticated command/query inventory and fixed public route inventory"],
   },
   {
@@ -65,10 +65,10 @@ const steps: readonly EvidenceStep[] = [
 
 for (const required of [
   "apps/web/e2e/quick-sale.spec.ts",
-  "apps/web/e2e/m9-account-ledger.spec.ts",
-  "apps/web/e2e/m16-m18-goods-truth.spec.ts",
-  "apps/web/e2e/m19-m21-depot-operations.spec.ts",
-  "apps/web/e2e/m14-operations.spec.ts",
+  "apps/web/e2e/account-ledger.spec.ts",
+  "apps/web/e2e/goods-flow.spec.ts",
+  "apps/web/e2e/depot-operations.spec.ts",
+  "apps/web/e2e/workspace-operations.spec.ts",
 ]) {
   if (!existsSync(required)) {
     console.error(`M23 dry-run evidence source missing: ${required}`);

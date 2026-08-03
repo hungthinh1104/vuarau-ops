@@ -1,4 +1,4 @@
-# M23 frozen H2–H6 field-validation protocol
+# Frozen H2–H6 field-validation protocol
 
 Freeze the pass/fail criteria and exact pilot release SHA before the first
 observation. Do not change either after observations begin. A new build starts a

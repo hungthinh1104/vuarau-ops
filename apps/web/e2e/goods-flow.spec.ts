@@ -6,7 +6,7 @@ async function chooseOption(page: Parameters<typeof signIn>[0], label: string, o
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
-test.describe("M16-M18 — Goods Truth", () => {
+test.describe("Goods Truth", () => {
   test("keeps Purchase payable and physical receipts separate and attributable", async ({
     page,
   }) => {

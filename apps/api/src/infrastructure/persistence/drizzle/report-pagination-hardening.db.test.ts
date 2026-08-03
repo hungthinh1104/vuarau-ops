@@ -11,7 +11,7 @@ import type { Cursor } from "@vuarau/domain-contracts";
 import { randomIdGenerator } from "../../clock.ts";
 import { getOperationalReport } from "../../../modules/report/report.queries.ts";
 
-describe.skipIf(skipWithoutDatabase())("M22 PostgreSQL report pagination", () => {
+describe.skipIf(skipWithoutDatabase())("PostgreSQL report pagination hardening", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
 
@@ -44,7 +44,7 @@ describe.skipIf(skipWithoutDatabase())("M22 PostgreSQL report pagination", () =>
         sourceId: id,
         reversalOfEntryId: null,
         reasonCode: "opening_balance" as const,
-        reason: "M22 pagination evidence",
+        reason: "PostgreSQL pagination evidence",
         transactionTime,
         recordedAt,
         actorId: ctx.actorId,

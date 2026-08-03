@@ -22,8 +22,8 @@ The record can be kept as an external JSON packet and checked without changing
 product configuration:
 
 ```bash
-pnpm policy:closure --example > m24-policy-closure.json
-pnpm policy:closure --config m24-policy-closure.json
+pnpm policy:closure --example > policy-closure.json
+pnpm policy:closure --config policy-closure.json
 ```
 
 The template is intentionally blank and invalid until a real participant fills

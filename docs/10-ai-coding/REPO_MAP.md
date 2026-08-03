@@ -60,18 +60,18 @@ reconciliation, workspace administration, customer operations, offline quick
 sale, operations, products, goods truth, depot operations and operational
 correctness scenarios. Playwright runs mobile and desktop projects against a
 real API and PostgreSQL process, and uses `next start`, not `next dev`. Representative
-spec files include `apps/web/e2e/m13-offline-quick-sale.spec.ts` and
-`apps/web/e2e/m23-operational-correctness.spec.ts`.
+spec files include `apps/web/e2e/offline-quick-sale.spec.ts` and
+`apps/web/e2e/operational-correctness.spec.ts`.
 
 The repository checks are split by feedback speed:
 
-| Command                               | Scope                                                                                                          |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `pnpm test:fast`                      | domain, application, contract and web Vitest projects                                                          |
-| `pnpm check:static`                   | format, lint, typecheck, boundaries, source, UI/docs/truth checks, context, trace and security-surface checks  |
-| `pnpm verify`                         | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                     |
-| `pnpm context <query>`                | targeted docs/tests/implementation retrieval for an agent                                                      |
-| `pnpm perf:m22` / `pnpm rehearse:m22` | disposable production-shape performance and fresh/idempotent migration evidence; both run as separate CI gates |
+| Command                                                   | Scope                                                                                                          |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:fast`                                          | domain, application, contract and web Vitest projects                                                          |
+| `pnpm check:static`                                       | format, lint, typecheck, boundaries, source, UI/docs/truth checks, context, trace and security-surface checks  |
+| `pnpm verify`                                             | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                     |
+| `pnpm context <query>`                                    | targeted docs/tests/implementation retrieval for an agent                                                      |
+| `pnpm perf:production-scale` / `pnpm rehearse:migrations` | disposable production-shape performance and fresh/idempotent migration evidence; both run as separate CI gates |
 
 `pnpm context <folder>` is exhaustive for that active tracked folder by default;
 ID and free-text queries use the normal result limits unless `--all` is passed.
@@ -123,10 +123,10 @@ the checker and its regression tests.
 
 The root script entry points are implemented in `scripts/dev.ts`,
 `scripts/context.ts`, `scripts/docs-check.ts`, `scripts/trace-check.ts`,
-`scripts/m24-policy-closure.ts`,
+`scripts/policy-closure.ts`,
 `scripts/repository-truth-check.ts`, `scripts/boundary-check.ts`,
-`scripts/source-boundary-check.ts`, `scripts/m22-security-check.ts` and
-`scripts/m23-pilot-dry-run.ts`.
+`scripts/source-boundary-check.ts`, `scripts/security-surface-check.ts` and
+`scripts/pilot-dry-run.ts`.
 
 ## Where does my change go?
 

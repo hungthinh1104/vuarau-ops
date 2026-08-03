@@ -1,7 +1,7 @@
 import { expect, test, signIn } from "./harness/signed-in.ts";
 import { workspaceBackupV8Schema } from "@vuarau/domain-contracts";
 
-test.describe("M14 — owner operations", () => {
+test.describe("Owner workspace operations", () => {
   test("shows integrity and exports a checksummed secret-free backup", async ({ page }) => {
     await signIn(page, "owner");
     await page.goto("/workspace/operations");

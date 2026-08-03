@@ -3,7 +3,7 @@ import { observeOperationalEvent, renderMetrics, resetMetricsForTests } from "./
 
 beforeEach(resetMetricsForTests);
 
-describe("M22 safe operational metrics", () => {
+describe("Safe operational metrics", () => {
   it("counts commands, replays, rejections, queries and integrity without business labels", () => {
     observeOperationalEvent({
       event: "command",

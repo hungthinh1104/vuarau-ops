@@ -342,7 +342,7 @@ test does not claim either.
 
 The decision-operating-system phase cannot begin with COGS, aging, reorder,
 Supplier scoring, recommendations or AI. ASM-039–048 must first be answered with
-field examples and recorded evidence. The [policy-closure worksheet](../09-decisions/m24-policy-closure-worksheet.md)
+field examples and recorded evidence. The [policy-closure worksheet](../09-decisions/policy-closure-worksheet.md)
 is the field instrument; until then these capabilities remain explicitly
 policy-blocked and current canonical transaction/report surfaces remain the only
 available truth.

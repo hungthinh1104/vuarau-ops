@@ -92,12 +92,12 @@ jobs:
           PGPASSWORD: postgres
 
       - name: Production-scale performance budgets
-        run: pnpm perf:m22
+        run: pnpm perf:production-scale
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/vuarau_perf
 
       - name: Fresh migration and idempotent reapply rehearsal
-        run: pnpm rehearse:m22
+        run: pnpm rehearse:migrations
 
       - name: Drop production-scale rehearsal database
         if: always()

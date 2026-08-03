@@ -2,7 +2,7 @@ import { expect, signIn, test } from "./harness/signed-in.ts";
 import { api } from "./harness/api.ts";
 import { uniqueCustomerName } from "./harness/environment.ts";
 
-test.describe("TC-E2E-023 — M10 financial reconciliation", () => {
+test.describe("TC-E2E-023 — account reconciliation", () => {
   test("detects projection drift, exports evidence, and repairs without touching the ledger", async ({
     page,
   }) => {

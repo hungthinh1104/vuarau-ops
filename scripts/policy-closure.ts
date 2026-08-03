@@ -262,4 +262,4 @@ function main(): void {
   process.exitCode = assessment.policyDecisionReady ? 0 : 1;
 }
 
-if (process.argv[1]?.endsWith("scripts/m24-policy-closure.ts")) main();
+if (process.argv[1]?.endsWith("scripts/policy-closure.ts")) main();

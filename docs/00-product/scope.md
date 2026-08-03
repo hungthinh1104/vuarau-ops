@@ -79,7 +79,7 @@ Every known policy question is classified in the
 - ASM-039–048 keep valuation/COGS, cost effects, debt aging/allocation, inventory
   planning, stocktake, walk-in sales, shift close, bank reconciliation and Supplier
   performance unavailable until the field questions in the
-  [next-phase policy worksheet](../09-decisions/m24-policy-closure-worksheet.md)
+  [next-phase policy worksheet](../09-decisions/policy-closure-worksheet.md)
   are answered. No dashboard, recommendation or AI surface may turn these gaps
   into zeros or inferred policy.
 

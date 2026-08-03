@@ -20,7 +20,7 @@ async function chooseOption(page: Page, label: string, option: string): Promise<
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
-test.describe("M13 — durable offline Quick Sale", () => {
+test.describe("Durable offline Quick Sale", () => {
   test("survives offline reload and synchronizes exactly one posting", async ({
     page,
     context,

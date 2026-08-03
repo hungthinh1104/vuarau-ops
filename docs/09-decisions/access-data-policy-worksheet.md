@@ -1,4 +1,4 @@
-# M23 external access and data-policy worksheet
+# External access and data-policy worksheet
 
 This blank worksheet records human decisions; it does not answer them. Store the
 completed copy outside git and reference it from the private pilot declaration.

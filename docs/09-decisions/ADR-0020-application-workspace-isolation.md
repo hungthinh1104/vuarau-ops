@@ -23,7 +23,7 @@ Workspace isolation is enforced by the application transaction boundary:
 3. Repository inputs require `workspaceId`; composite joins and foreign keys keep
    source relationships in that workspace.
 4. The tRPC surface exports no unauthenticated procedure builder.
-5. `pnpm security:m22` fails if a command/query procedure is not rooted in the
+5. `pnpm security:surface` fails if a command/query procedure is not rooted in the
    authenticated builders or if the public-route allowlist changes.
 6. PostgreSQL and API tests exercise foreign workspace identifiers across money,
    goods, document, report, restore and membership boundaries.
@@ -36,7 +36,7 @@ or public networks.
 
 Multi-tenant deployment is refused unless:
 
-- `security:m22`, contract tests and PostgreSQL isolation tests pass in CI;
+- `security:surface`, contract tests and PostgreSQL isolation tests pass in CI;
 - the API database role is private, least-privilege for the application schema,
   and inaccessible to end users;
 - backup/operator access is separately controlled and audited;

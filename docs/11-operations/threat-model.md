@@ -7,7 +7,7 @@
 | Customer debt    | unauthorized read/write, duplicate effect, log leak                   | verified JWT, membership/capability pipeline, append-only source, idempotency, safe logs                                   |
 | Supplier payable | cross-workspace source, over-reversal, duplicate effect               | same pipeline, workspace composite joins, source uniqueness, reconciliation                                                |
 | Inventory        | forged movement, duplicate source, projection drift                   | typed commands, source uniqueness, append-only movement, rebuild/reconciliation                                            |
-| Authorization    | token forgery, inactive/broad role, procedure bypass                  | JWKS in pilot, actor resolution, permission matrix, `security:m22`, ADR-0020                                               |
+| Authorization    | token forgery, inactive/broad role, procedure bypass                  | JWKS in pilot, actor resolution, permission matrix, `security:surface`, ADR-0020                                           |
 | Backup/export    | plaintext loss, formula injection, unsafe restore                     | owner permission, digest, AES-256-GCM envelope, literal CSV cells, empty-target atomic restore                             |
 | Document share   | token disclosure/guessing, replay after revocation, tampered snapshot | high-entropy secret stored only as hash, expiry/revocation, digest verification, no-store/CSP, public rate limit           |
 | Secrets/logs     | browser-published key, bearer/payload in logs, correlation injection  | startup validation, no service key, closed log vocabulary, bounded request id, safe metric labels                          |

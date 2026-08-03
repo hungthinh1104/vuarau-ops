@@ -887,7 +887,7 @@ use_cases:
       - apps/api/src/operations/pilot-csv.ts
       - apps/api/src/operations/pilot-config.ts
       - apps/api/src/operations/pilot-readiness.ts
-      - scripts/m23-pilot-dry-run.ts
+      - scripts/pilot-dry-run.ts
 
   UC-OPERATIONS-004:
     title: Correct a posted Sale through supported command paths
@@ -1592,7 +1592,7 @@ business_rules:
     tests: [TC-OPS-010, TC-OPS-011]
     implementation:
       - packages/db/src/repositories/read/report-scale.ts
-      - packages/db/src/performance/m22-scale.ts
+      - packages/db/src/performance/production-scale-rehearsal.ts
       - packages/db/migrations/0020_white_black_crow.sql
 
   BR-OPS-008:
@@ -1608,7 +1608,7 @@ business_rules:
       - apps/api/src/operations/pilot-csv.ts
       - apps/api/src/operations/pilot-config.ts
       - apps/api/src/operations/pilot-readiness.ts
-      - scripts/m23-pilot-dry-run.ts
+      - scripts/pilot-dry-run.ts
 
   # --- payment ------------------------------------------------------------------
   BR-PAYMENT-001:
@@ -2705,10 +2705,10 @@ contract_tests:
     file: apps/web/src/ui/screens/reports-view.test.tsx
   TC-E2E-030:
     title: Browser API and PostgreSQL prove partial delivery completion and explicit return
-    file: apps/web/e2e/m19-m21-depot-operations.spec.ts
+    file: apps/web/e2e/depot-operations.spec.ts
   TC-E2E-032:
     title: Browser API and PostgreSQL prove split-grade receipt through Sale Delivery Return regrade spoilage and reconciliation
-    file: apps/web/e2e/m23-operational-correctness.spec.ts
+    file: apps/web/e2e/operational-correctness.spec.ts
   TC-GOODS-001:
     title: PostgreSQL proves payable, receipt, reversal, void and retry truth
     file: apps/api/src/infrastructure/persistence/drizzle/goods-truth.db.test.ts
@@ -2744,7 +2744,7 @@ contract_tests:
     file: apps/api/src/modules/quality/quality.app.test.ts
   TC-E2E-029:
     title: Browser API and PostgreSQL prove complete Goods Truth and source navigation
-    file: apps/web/e2e/m16-m18-goods-truth.spec.ts
+    file: apps/web/e2e/goods-flow.spec.ts
   TC-SALE-013:
     title: Sale procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
@@ -2943,16 +2943,16 @@ contract_tests:
     file: apps/web/e2e/sign-in.spec.ts
   TC-E2E-022:
     title: Sale, payment, reversal and adjustment keep the account ledger, source links and permissions coherent
-    file: apps/web/e2e/m9-account-ledger.spec.ts
+    file: apps/web/e2e/account-ledger.spec.ts
   TC-E2E-023:
     title: Projection drift is explained, exported and rebuilt without changing the ledger
-    file: apps/web/e2e/m10-reconciliation.spec.ts
+    file: apps/web/e2e/account-reconciliation.spec.ts
   TC-E2E-024:
     title: Owner membership changes take effect on the next real request
-    file: apps/web/e2e/m11-workspace-admin.spec.ts
+    file: apps/web/e2e/workspace-administration.spec.ts
   TC-E2E-025:
     title: Duplicate warning, edit, deactivate and reactivate preserve customer debt
-    file: apps/web/e2e/m12-customer-operations.spec.ts
+    file: apps/web/e2e/customer-operations.spec.ts
   TC-OFFLINE-001:
     title: Offline command chains are immutable, FIFO, partitioned and exact-identity retry safe
     file: apps/web/src/offline/offline.test.ts
@@ -2973,10 +2973,10 @@ contract_tests:
     file: apps/api/src/infrastructure/metrics.app.test.ts
   TC-OPS-010:
     title: Equal-time PostgreSQL report pages never skip, duplicate or cross workspaces
-    file: apps/api/src/infrastructure/persistence/drizzle/m22-hardening.db.test.ts
+    file: apps/api/src/infrastructure/persistence/drizzle/report-pagination-hardening.db.test.ts
   TC-OPS-011:
     title: Production-shape query plans meet fixed budgets without unexplained full scans
-    file: packages/db/src/performance/m22-scale.ts
+    file: packages/db/src/performance/production-scale-rehearsal.ts
   TC-OPS-012:
     title: Pilot owner bootstrap is atomic, audited and duplicate-safe
     file: packages/db/src/provisioning.db.test.ts
@@ -2991,13 +2991,13 @@ contract_tests:
     file: apps/api/src/infrastructure/persistence/drizzle/pilot-onboarding.db.test.ts
   TC-E2E-026:
     title: Offline Quick Sale survives reload and synchronizes one posting
-    file: apps/web/e2e/m13-offline-quick-sale.spec.ts
+    file: apps/web/e2e/offline-quick-sale.spec.ts
   TC-E2E-027:
     title: Owner inspects integrity and exports a checksummed backup
-    file: apps/web/e2e/m14-operations.spec.ts
+    file: apps/web/e2e/workspace-operations.spec.ts
   TC-E2E-028:
     title: Owner resolves or creates canonical Product inline and inactive Product cannot be posted
-    file: apps/web/e2e/m15-products.spec.ts
+    file: apps/web/e2e/product-catalog.spec.ts
 
   # --- running the thing ------------------------------------------------------
   TC-OPS-001:

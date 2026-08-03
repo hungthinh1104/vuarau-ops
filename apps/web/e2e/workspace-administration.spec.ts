@@ -1,7 +1,7 @@
 import { expect, signIn, signInActor, test } from "./harness/signed-in.ts";
 import { api } from "./harness/api.ts";
 
-test.describe("TC-E2E-024 — M11 workspace administration", () => {
+test.describe("TC-E2E-024 — workspace administration", () => {
   test("an owner adds, changes and revokes a member; permissions change on the next request", async ({
     page,
   }) => {

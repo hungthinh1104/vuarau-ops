@@ -1,4 +1,4 @@
-# M22 production-scale performance evidence
+# Production-scale performance evidence
 
 ## Budgets fixed before optimization
 
@@ -22,7 +22,7 @@ vendor-independent promises.
 
 ## Dataset and method
 
-`pnpm perf:m22` creates one isolated workspace with:
+`pnpm perf:production-scale` creates one isolated workspace with:
 
 ```text
 10,000 customers

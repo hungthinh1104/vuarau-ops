@@ -71,7 +71,7 @@ beforeEach(() => {
   sequence = 0;
 });
 
-describe("M23.17 / TC-OPS-015 full depot day application rehearsal", () => {
+describe("TC-OPS-015 full depot day application rehearsal", () => {
   it("keeps customer money, supplier money, inventory and fulfilment independently reconcilable", async () => {
     const supplierId = crypto.randomUUID() as SupplierId;
     const purchaseId = crypto.randomUUID() as PurchaseId;

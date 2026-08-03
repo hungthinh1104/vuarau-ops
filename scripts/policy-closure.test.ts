@@ -5,14 +5,14 @@ import {
   assessPolicyClosure,
   policyClosurePacketSchema,
   readPolicyClosurePacket,
-} from "./m24-policy-closure.ts";
+} from "./policy-closure.ts";
 
 const validEntry = (policyId: (typeof M24_POLICY_IDS)[number]) => ({
   policyId,
   participants: [{ role: "owner", name: "Chủ vựa" }],
   depotContext: "Vựa thật, ca sáng",
   observedAt: "2026-08-03",
-  releaseOrProcessBoundary: "M24 field policy interview",
+  releaseOrProcessBoundary: "Next-phase field policy interview",
   cases: [
     {
       kind: "normal" as const,
@@ -45,7 +45,7 @@ function packet(overrides: Record<string, unknown> = {}) {
     kind: "M24_POLICY_CLOSURE" as const,
     packetVersion: 1 as const,
     createdAt: "2026-08-03T10:00:00.000Z",
-    releaseOrProcessBoundary: "M24 field policy interview",
+    releaseOrProcessBoundary: "Next-phase field policy interview",
     items: M24_POLICY_IDS.map(validEntry),
     ...overrides,
   };

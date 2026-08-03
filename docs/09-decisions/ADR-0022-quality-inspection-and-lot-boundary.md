@@ -128,7 +128,7 @@ traceability has no operational value for the pilot.
 
 ## Related
 
-- [quality policy worksheet](m23-quality-policy-worksheet.md)
+- [quality policy worksheet](quality-policy-worksheet.md)
 - [ADR-0019](ADR-0019-separate-supplier-and-inventory-ledgers.md)
 - [Goods Truth rules](../04-business-rules/goods-flow-rules.md)
-- [cross-dimension worksheet](m23-cross-dimension-correction-worksheet.md)
+- [cross-dimension worksheet](cross-dimension-correction-worksheet.md)

@@ -211,7 +211,7 @@ owner/provider evidence and never turns a missing external gate into a pass.
 
 - [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — what an environment must satisfy
 - [../11-operations/threat-model.md](../11-operations/threat-model.md)
-- [../11-operations/m22-performance-evidence.md](../11-operations/m22-performance-evidence.md)
+- [../11-operations/production-scale-performance-evidence.md](../11-operations/production-scale-performance-evidence.md)
 - [../11-operations/observability-and-incidents.md](../11-operations/observability-and-incidents.md)
 - [../11-operations/recovery-rehearsal.md](../11-operations/recovery-rehearsal.md)
 - [../09-decisions/ADR-0010-supabase-jwt-verification.md](../09-decisions/ADR-0010-supabase-jwt-verification.md) — why JWKS is preferred

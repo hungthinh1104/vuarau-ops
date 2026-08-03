@@ -247,7 +247,7 @@ function checkNextPhasePolicyGates() {
     if (!row.includes("**policy-blocked**")) {
       fail(`${token} must remain policy-blocked until field evidence exists`);
     }
-    if (!row.includes("m24-policy-closure-worksheet.md")) {
+    if (!row.includes("policy-closure-worksheet.md")) {
       fail(`${token} is missing the next-phase field worksheet link`);
     }
   }

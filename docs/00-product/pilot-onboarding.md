@@ -108,7 +108,7 @@ APP_RELEASE_SHA=<40-character-deployed-sha> \
 The declaration includes ASM-023/024/025, ASM-017/018, ASM-030 and the
 ASM-032/033/034 quality-policy reviews, plus the real two-user Supabase smoke,
 deployment/phone evidence and provider recovery evidence. The quality reviews
-reference the external [quality-policy worksheet](../09-decisions/m23-quality-policy-worksheet.md); configured grades alone are not policy evidence. Passed
+reference the external [quality-policy worksheet](../09-decisions/quality-policy-worksheet.md); configured grades alone are not policy evidence. Passed
 deployment evidence confirms the clean PostgreSQL 17 deployment, private
 API/database, trusted proxy, global edge limiter, health, safe observability and
 absence of server secrets from the browser/runtime. Passed recovery evidence records
@@ -124,7 +124,7 @@ provider evidence.
 
 ## Related
 
-- [M23 pilot contract](m23-pilot-contract.md)
+- [shadow-pilot contract](shadow-pilot-contract.md)
 - [pilot mode](pilot-mode.md)
-- [M23 field protocol](m23-field-validation-protocol.md)
-- [deployment and recovery evidence](../11-operations/m23-deployment-recovery-evidence.md)
+- [field-validation protocol](field-validation-protocol.md)
+- [deployment and recovery evidence](../11-operations/deployment-recovery-evidence.md)

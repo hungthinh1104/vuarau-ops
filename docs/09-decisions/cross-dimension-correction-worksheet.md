@@ -1,4 +1,4 @@
-# M23 cross-dimension correction worksheet — ASM-035 to ASM-038
+# Cross-dimension correction worksheet — ASM-035 to ASM-038
 
 Use this worksheet with the depot owner plus the worker who actually performs the
 relevant flow. Record concrete recent examples, not preferred software behavior.

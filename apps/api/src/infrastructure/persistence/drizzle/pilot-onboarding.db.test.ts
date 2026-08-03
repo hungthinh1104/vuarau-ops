@@ -11,12 +11,12 @@ import { createProduct } from "../../../modules/product/product.handlers.ts";
 import { readCustomerCsv, readProductCsv } from "../../../operations/pilot-csv.ts";
 import { randomIdGenerator } from "../../clock.ts";
 
-describe.skipIf(skipWithoutDatabase())("M23 — canonical pilot imports against Postgres", () => {
+describe.skipIf(skipWithoutDatabase())("Canonical pilot imports against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
 
   beforeAll(async () => {
-    ctx = await createDbTestContext("m23-pilot-import");
+    ctx = await createDbTestContext("pilot-import");
     deps = {
       uow: createUnitOfWork(ctx.database.db, randomIdGenerator) as CommandDeps["uow"],
       clock: { now: () => new Date().toISOString() as ReturnType<CommandDeps["clock"]["now"]> },

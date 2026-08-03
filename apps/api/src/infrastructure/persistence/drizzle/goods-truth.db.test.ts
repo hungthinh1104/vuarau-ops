@@ -43,7 +43,7 @@ import {
 } from "../../../modules/inventory/inventory.queries.ts";
 import { createQualityGrade } from "../../../modules/quality/quality.handlers.ts";
 
-describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", () => {
+describe.skipIf(skipWithoutDatabase())("Goods Truth against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
   const supplierId = crypto.randomUUID() as SupplierId;

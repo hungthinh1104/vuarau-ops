@@ -21,7 +21,7 @@ async function chooseCatalogProduct(
   await product.press("Enter");
 }
 
-test.describe("M15 — Product catalog", () => {
+test.describe("Product catalog", () => {
   test("catalog changes never rewrite a posted Sale snapshot and unresolved text must be resolved", async ({
     page,
   }) => {

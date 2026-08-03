@@ -8,7 +8,7 @@ import {
   safeRequestId,
 } from "./request-guard.ts";
 
-describe("M22 request trust boundary", () => {
+describe("Request trust boundary", () => {
   it("accepts only bounded printable correlation identifiers", () => {
     expect(safeRequestId("req-1234.alpha", "fallback")).toBe("req-1234.alpha");
     expect(safeRequestId("token\nleak", "fallback")).toBe("fallback");
