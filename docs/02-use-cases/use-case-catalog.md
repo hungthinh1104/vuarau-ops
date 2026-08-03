@@ -93,7 +93,7 @@ command refuses source or ledger corruption rather than hiding it.
 | UC-CASH-005              | Inspect/reconcile/rebuild cash              | cash read/rebuild permissions       | implemented    | [cashbook](cash-use-cases.md)                                              |
 | UC-CASH-006              | Match/reverse an external bank statement    | `cash.statement.match`              | implemented    | [bank statement](UC-CASH-006-bank-statement-match.md)                      |
 | UC-REPORT-001            | Inspect source-backed operational reports   | `report.read`                       | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-REPORT-002            | Review management operational snapshot     | `report.read`                       | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-REPORT-002            | Review management operational snapshot      | `report.read`                       | implemented    | [depot operations](depot-operations-use-cases.md)                          |
 | UC-EVIDENCE-001          | Record/review cost or loss observations     | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-001](UC-EVIDENCE-001-record-cost-observation.md)              |
 | UC-EVIDENCE-002          | Record/review reconciliation observations   | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-002](UC-EVIDENCE-002-record-reconciliation-observation.md)    |
 | UC-EVIDENCE-003          | Record/review debt observations             | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-003](UC-EVIDENCE-003-record-debt-observation.md)              |
