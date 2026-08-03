@@ -53,19 +53,19 @@ no UI or report supplies a second implementation of that policy.
 
 ## Deliberately out of scope
 
-| Excluded                                                          | Boundary                                                                                                                  |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| AI/LLM transaction entry                                          | AI may propose in a future milestone but may never bypass deterministic commands                                          |
-| Pricing intelligence and automatic recommendations                | The explicit price-rule catalogue is in scope; intelligence, forecasting and automatic application remain out of scope    |
-| Demand forecasting, supplier scoring and customer health scoring  | Require field evidence and enough history to justify a model                                                              |
-| Tax invoicing and inventory valuation                             | Current documents make no tax claim; payment attribution is a separate policy-backed debt capability, not tax invoicing   |
-| Supplier quality claims, credits and billable-quantity settlement | Rejected/quarantined intake does not silently rewrite Purchase payable                                                    |
-| General lot/expiry traceability and “bông hàng”                   | Supplier lot text is evidence only; canonical lot/expiry and “bông hàng” require separate definitions                     |
-| Delivery route optimization                                       | Delivery truth exists; routing is a separate product problem                                                              |
-| Offline mutation beyond Quick Sale                                | Payment, correction, catalog, goods and control commands remain online-only                                               |
-| General rule builders, microservices, Kafka and Kubernetes        | The modular monolith and explicit rules remain sufficient                                                                 |
-| Full event sourcing or double-entry accounting                    | Append-only account ledgers and inventory movements are canonical for their bounded purposes, not a general ledger        |
-| Production policy invented by software                            | M22 defines minimum recovery targets; provider evidence/acceptance and public-read/retention policy remain explicit gates |
+| Excluded                                                                         | Boundary                                                                                                                                             |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AI/LLM transaction entry                                                         | AI may propose in a future milestone but may never bypass deterministic commands                                                                     |
+| Pricing intelligence and automatic recommendations                               | The explicit price-rule catalogue is in scope; intelligence, forecasting and automatic application remain out of scope                               |
+| Demand forecasting, supplier ranking/recommendations and customer health scoring | Require field evidence and enough history to justify a model; descriptive policy-backed Supplier performance facts are available but are not a score |
+| Tax invoicing and inventory valuation                                            | Current documents make no tax claim; payment attribution is a separate policy-backed debt capability, not tax invoicing                              |
+| Supplier quality claims, credits and billable-quantity settlement                | Rejected/quarantined intake does not silently rewrite Purchase payable                                                                               |
+| General lot/expiry traceability and “bông hàng”                                  | Supplier lot text is evidence only; canonical lot/expiry and “bông hàng” require separate definitions                                                |
+| Delivery route optimization                                                      | Delivery truth exists; routing is a separate product problem                                                                                         |
+| Offline mutation beyond Quick Sale                                               | Payment, correction, catalog, goods and control commands remain online-only                                                                          |
+| General rule builders, microservices, Kafka and Kubernetes                       | The modular monolith and explicit rules remain sufficient                                                                                            |
+| Full event sourcing or double-entry accounting                                   | Append-only account ledgers and inventory movements are canonical for their bounded purposes, not a general ledger                                   |
+| Production policy invented by software                                           | M22 defines minimum recovery targets; provider evidence/acceptance and public-read/retention policy remain explicit gates                            |
 
 ## Open policy boundary
 
@@ -86,13 +86,14 @@ Every known policy question is classified in the
   These gaps must not be hidden with invented Return/Dispatch/Receipt/adjustment
   facts.
 - ASM-039–048 keep reproducible COGS/profit, cost effects, debt aging/allocation,
-  advanced inventory planning, walk-in sales, broader shift-close/bank-settlement and
-  Supplier performance unavailable as derived management outcomes until the field
-  questions in the [next-phase policy worksheet](../09-decisions/policy-closure-worksheet.md)
+  advanced inventory planning, walk-in sales, broader shift-close/bank-settlement,
+  Supplier scoring and Supplier recommendations unavailable as derived management
+  outcomes until the field questions in the [next-phase policy worksheet](../09-decisions/policy-closure-worksheet.md)
   are answered. The narrow fixed-threshold planning read, policy-backed stocktake
-  session, observation-signoff close and exact cash-movement match are implemented as
-  explicit source-backed adapters; they do not close the broader field decisions or
-  publish forecast, variance, settlement or stock-risk intelligence.
+  session, observation-signoff close, exact cash-movement match and descriptive
+  policy-backed Supplier performance read are implemented as explicit source-backed
+  adapters; they do not close the broader field decisions or publish forecast,
+  variance, settlement, ranking or stock-risk intelligence.
 - The versioned policy registry is infrastructure for typed adapters. Inventory
   value, fixed-threshold planning and stocktake variance are narrow adapters;
   an approved row still does not activate COGS/profit, advanced aging, forecast

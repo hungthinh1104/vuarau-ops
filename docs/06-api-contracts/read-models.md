@@ -21,7 +21,7 @@ current procedure catalog without duplicating every DTO field.
 | `audit`            | `timeline`                                                                                                                                                                                                                                                                                                                                 |
 | `product`          | `search`, `get`                                                                                                                                                                                                                                                                                                                            |
 | `quality`          | `list`, `get`                                                                                                                                                                                                                                                                                                                              |
-| `supplier`         | `search`, `get`, `priceHistory`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence`                                                                                                                                                                                                                        |
+| `supplier`         | `search`, `get`, `priceHistory`, `performance`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence`                                                                                                                                                                                                         |
 | `purchase`         | `get`, `list`                                                                                                                                                                                                                                                                                                                              |
 | `receiving`        | `get`, `listForPurchase`, `summaryForPurchase`                                                                                                                                                                                                                                                                                             |
 | `inventory`        | `balances`, `getAdjustment`, `timeline`, `valuation`, `planning`, `stocktakeGet`, `reconciliation`, `evidence`                                                                                                                                                                                                                             |
@@ -96,7 +96,14 @@ display name is never promoted to canonical identity implicitly.
 snapshots. It preserves Product identity, quantity, unit price, Purchase id and
 business/recording timestamps, with optional Product filtering and keyset
 pagination. Draft/discarded Purchases are excluded. It is not a normalized price,
-margin, recommendation or supplier-performance metric.
+margin, recommendation or supplier-performance score.
+
+`supplier.performance` is a policy-backed descriptive read over non-superseded
+`SupplierObservation` facts for one Supplier and one workspace. It resolves the
+effective approved `supplier_evaluation` policy, returns integer quantities/rates,
+policy and calculation versions, and exposes `sourceObservationIds` for lineage.
+Missing or invalid policy/evidence returns `unavailable`; the read never ranks,
+recommends or creates a financial, inventory or claim effect.
 
 `delivery.fulfilment` is derived from Sale, Dispatch and Return facts and exposes
 ordered, dispatched, returned, net-fulfilled and remaining quantities plus an
@@ -114,8 +121,9 @@ outstanding delivery work.
 currently implemented operational reports. Each entry states its measure,
 canonical or rebuildable source relations, business-time semantics, supported
 and ignored filters, integrity behavior and drill-down action. The registry does
-not claim that COGS, margin, debt aging, reorder risk or supplier-performance
-metrics exist. `report.metrics` makes those candidates explicit as
+not claim that COGS, margin, debt aging or reorder-risk metrics exist. Supplier
+performance is a separate descriptive, policy-backed read and is not a score or
+recommendation. `report.metrics` makes the remaining candidates explicit as
 `unavailable`, with their policy gates and next evidence, until their business
 policies and source facts are agreed and implemented. Neither read returns a
 numeric fallback for an unavailable metric. The contract rejects an `available` or

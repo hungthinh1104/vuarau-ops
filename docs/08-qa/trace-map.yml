@@ -813,6 +813,25 @@ use_cases:
       - apps/api/src/infrastructure/persistence/read-ports.ts
       - packages/db/src/repositories/read/supplier.ts
 
+  UC-SUPPLIER-006:
+    title: Review policy-backed Supplier performance facts
+    risk: P1
+    doc: docs/02-use-cases/goods-flow-use-cases.md
+    rules: [BR-SUPPLIER-007]
+    cases: []
+    tests: [TC-SUPPLIER-PERFORMANCE-001]
+    implementation:
+      - packages/domain-contracts/src/supplier/index.ts
+      - packages/domain-contracts/src/policy/index.ts
+      - packages/domain-kernel/src/supplier-performance/index.ts
+      - apps/api/src/modules/supplier/supplier-performance.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/supplier.ts
+      - apps/api/src/infrastructure/persistence/read-ports.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/supplier-observation.ts
+      - packages/db/src/repositories/read/supplier-observation.ts
+      - apps/web/src/ui/controllers/supplier-detail-controller.tsx
+      - apps/web/src/ui/screens/supplier-detail-view.tsx
+
   UC-PURCHASE-001:
     title: Draft edit and discard a Purchase
     risk: P1
@@ -1668,6 +1687,16 @@ business_rules:
       - packages/domain-contracts/src/supplier/index.ts
       - apps/api/src/modules/supplier/supplier.queries.ts
       - packages/db/src/repositories/read/supplier.ts
+  BR-SUPPLIER-007:
+    title: Supplier performance summaries are policy-backed descriptive reads
+    risk: P1
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: []
+    tests: [TC-SUPPLIER-PERFORMANCE-001]
+    implementation:
+      - packages/domain-kernel/src/supplier-performance/index.ts
+      - apps/api/src/modules/supplier/supplier-performance.queries.ts
+      - packages/db/src/repositories/read/supplier-observation.ts
   BR-PURCHASE-001:
     title: Confirmed Purchase snapshots are immutable
     risk: P0
@@ -4016,6 +4045,9 @@ contract_tests:
   TC-SUPPLIER-005:
     title: Supplier payment detail preserves source evidence for payment and reversal
     file: apps/web/src/ui/screens/supplier-payment-detail-view.test.tsx
+  TC-SUPPLIER-PERFORMANCE-001:
+    title: PostgreSQL preserves policy-backed Supplier performance lineage and exact rates
+    file: apps/api/src/infrastructure/persistence/drizzle/supplier-performance.db.test.ts
   TC-PRODUCT-001:
     title: Product application tests prove lifecycle search duplicate identity and workspace authority
     file: apps/api/src/modules/product/product.app.test.ts

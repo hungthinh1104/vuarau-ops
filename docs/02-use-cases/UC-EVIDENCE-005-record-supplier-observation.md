@@ -25,8 +25,10 @@ settlement or purchase recommendation.
 
 This slice is field-evidence infrastructure. It does not activate ASM-047/048,
 supplier scoring, commercial terms, overdue conclusions, inventory, payable,
-reorder or recommendations. Those require an approved workspace policy and a
-separate canonical command.
+reorder or recommendations. A separate `supplier.performance` read may
+summarize delivery, acceptance and timing facts only under an approved workspace
+policy; it remains descriptive, source-linked and effect-free. Those other
+outcomes still require their own approved policy and canonical command.
 
 ## Recovery
 

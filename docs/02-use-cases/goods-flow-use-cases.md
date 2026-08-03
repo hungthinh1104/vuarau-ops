@@ -109,6 +109,21 @@ Product.
 - **Effects:** none. The read does not mutate Supplier, Purchase, ledger or stock.
 - **Rules/tests:** BR-SUPPLIER-006 · TC-SUPPLIER-003/004 · TC-E2E-029.
 
+## UC-SUPPLIER-006 — Review policy-backed Supplier performance facts
+
+**Actor:** authorized purchasing, accounting or warehouse reader. **Trigger:** review
+source-linked delivery, acceptance and timing facts for one Supplier.
+
+- **Read:** `supplier.performance` resolves the effective approved
+  `supplier_evaluation` policy and summarizes non-superseded observations in its
+  policy window.
+- **Lineage:** the response preserves policy version, calculation version and
+  source observation IDs; quantities and rates are derived with integer arithmetic.
+- **Boundary:** insufficient or invalid policy/evidence returns `unavailable`.
+  The read never ranks a Supplier, recommends a Purchase or creates a payable,
+  inventory, claim or other mutation.
+- **Rules/tests:** BR-SUPPLIER-007 · TC-SUPPLIER-PERFORMANCE-001.
+
 ## UC-PURCHASE-001 — Draft, edit and discard a Purchase
 
 **Actor:** owner/accountant/warehouse according to current permission table.

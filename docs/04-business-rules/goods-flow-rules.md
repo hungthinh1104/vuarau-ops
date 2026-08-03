@@ -23,6 +23,13 @@ claim that a depot has validated the workflow in live operations.
   unit price and both business/recording timestamps; draft or discarded Purchases
   are excluded. It does not infer a normalized supplier price, recommendation or
   performance score.
+- **BR-SUPPLIER-007** — Supplier performance is a read-only, workspace-scoped
+  summary of non-superseded `SupplierObservation` facts inside the effective
+  `supplier_evaluation` policy window. It preserves the policy version, uses
+  integer quantity/rate arithmetic and returns source observation IDs. Missing
+  or invalid policy/evidence fails closed. It never ranks a Supplier,
+  recommends a Purchase or creates payable, inventory, claim or other command
+  effects.
 
 ## Purchase
 
