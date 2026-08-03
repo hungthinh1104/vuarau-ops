@@ -15,6 +15,11 @@ const beVietnamPro = Be_Vietnam_Pro({
 export const metadata: Metadata = {
   title: "Vựa Rau — sổ vựa",
   description: "Hệ thống vận hành cho vựa rau đầu mối.",
+  icons: {
+    icon: "/icon/cauliflower-svgrepo-com.svg",
+    shortcut: "/icon/cauliflower-svgrepo-com.svg",
+    apple: "/icon/cauliflower-svgrepo-com.svg",
+  },
 };
 
 /**
@@ -24,8 +29,8 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="vi">
-      <body className={`${beVietnamPro.variable} min-h-screen bg-canvas text-ink antialiased`}>
+    <html lang="vi" className={beVietnamPro.variable}>
+      <body className="min-h-screen bg-canvas text-ink antialiased">
         <AuthProvider>{children}</AuthProvider>
         <Toaster />
       </body>
