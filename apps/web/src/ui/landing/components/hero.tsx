@@ -18,13 +18,14 @@ export function Hero() {
 
       mm.add(
         {
+          desktop: "(min-width: 1024px)",
           reduceMotion: "(prefers-reduced-motion: reduce)",
           noReduceMotion: "(prefers-reduced-motion: no-preference)",
         },
         (context) => {
-          const { reduceMotion } = context.conditions!;
+          const { desktop, reduceMotion } = context.conditions!;
 
-          if (reduceMotion) {
+          if (reduceMotion || !desktop) {
             gsap.set(
               [
                 headlineRef.current,
@@ -124,6 +125,8 @@ export function Hero() {
           };
         },
       );
+
+      return () => mm.revert();
     },
     { scope: containerRef },
   );
@@ -153,11 +156,11 @@ export function Hero() {
           </h1>
           <p
             ref={subcopyRef}
-            className="mt-8 max-w-xl text-ink-muted text-lg lg:text-xl leading-relaxed invisible"
+            className="mt-8 max-w-xl text-ink-muted text-lg lg:text-xl leading-relaxed"
           >
-            Ghi đơn nhanh, đối soát công nợ minh bạch, không bao giờ mất dấu dữ liệu.
+            Ghi đơn nhanh, đối soát công nợ minh bạch, lưu lại nguồn của từng thay đổi.
           </p>
-          <div ref={ctaRef} className="mt-10 flex flex-col sm:flex-row gap-4 invisible">
+          <div ref={ctaRef} className="mt-10 flex flex-col sm:flex-row gap-4">
             <LinkButton
               href="/login"
               className="px-8 py-4 text-body font-semibold shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
@@ -178,7 +181,7 @@ export function Hero() {
         <div className="relative mt-20 lg:mt-28 flex justify-center">
           <div
             ref={phoneRef}
-            className="relative z-10 h-[580px] w-[280px] lg:h-[680px] lg:w-[330px] rounded-[48px] border-[6px] border-zinc-900 bg-zinc-900 shadow-2xl invisible ring-1 ring-white/10"
+            className="relative z-10 h-[580px] w-[280px] lg:h-[680px] lg:w-[330px] rounded-[48px] border-[6px] border-zinc-900 bg-zinc-900 shadow-2xl ring-1 ring-white/10"
           >
             <Image
               src="/images/2.jpg"
@@ -192,7 +195,7 @@ export function Hero() {
           </div>
 
           {/* Floating Cards */}
-          <div className="absolute top-[15%] -left-4 z-20 lg:left-[18%] float-card invisible">
+          <div className="absolute top-[15%] -left-4 z-20 hidden sm:block lg:left-[18%] float-card">
             <div className="rounded-2xl border border-border bg-surface/80 px-5 py-4 shadow-xl backdrop-blur-2xl flex items-center gap-3 ring-1 ring-ink/5">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
                 <svg
@@ -212,7 +215,7 @@ export function Hero() {
             </div>
           </div>
 
-          <div className="absolute top-[45%] -right-4 z-20 lg:right-[18%] float-card invisible">
+          <div className="absolute top-[45%] -right-4 z-20 hidden sm:block lg:right-[18%] float-card">
             <div className="rounded-2xl border border-border bg-surface/80 px-5 py-4 shadow-xl backdrop-blur-2xl flex items-center gap-3 ring-1 ring-ink/5">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
                 <svg
@@ -236,7 +239,7 @@ export function Hero() {
             </div>
           </div>
 
-          <div className="absolute bottom-[18%] -left-2 z-20 lg:left-[22%] float-card invisible">
+          <div className="absolute bottom-[18%] -left-2 z-20 hidden sm:block lg:left-[22%] float-card">
             <div className="rounded-2xl border border-border bg-surface/80 px-5 py-4 shadow-xl backdrop-blur-2xl flex items-center gap-3 ring-1 ring-ink/5">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400">
                 <svg

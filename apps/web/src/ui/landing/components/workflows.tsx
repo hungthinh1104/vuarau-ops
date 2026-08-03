@@ -9,7 +9,12 @@ const CARDS = [
   { title: "Nhận hàng", desc: "Ghi nhận số lượng chính xác", img: "4.jpg", accent: "bg-sky-500" },
   { title: "Công nợ", desc: "Theo dõi dư nợ rõ ràng", img: "5.jpg", accent: "bg-amber-500" },
   { title: "Tồn kho", desc: "Quản lý sức chứa vựa", img: "6.jpg", accent: "bg-violet-500" },
-  { title: "Giao hàng", desc: "Sắp xếp xe tối ưu", img: "7.jpg", accent: "bg-rose-500" },
+  {
+    title: "Giao hàng",
+    desc: "Theo dõi trạng thái chuyến giao",
+    img: "7.jpg",
+    accent: "bg-rose-500",
+  },
   { title: "Bảng giá", desc: "Cập nhật giá mỗi ngày", img: "8.jpg", accent: "bg-teal-500" },
 ];
 
@@ -70,6 +75,8 @@ export function Workflows() {
           });
         },
       );
+
+      return () => mm.revert();
     },
     { scope: containerRef },
   );

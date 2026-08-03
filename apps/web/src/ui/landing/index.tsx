@@ -1,8 +1,3 @@
-"use client";
-
-import { useEffect } from "react";
-import { useAuth } from "@/api/auth.tsx";
-import { useRouter } from "next/navigation";
 import { Hero } from "./components/hero.tsx";
 import { ProblemMarquee } from "./components/problem-marquee.tsx";
 import { Workflows } from "./components/workflows.tsx";
@@ -12,17 +7,6 @@ import { ThemeToggle } from "@/ui/components/theme-toggle.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 
 export function LandingPage() {
-  const auth = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (auth.status === "signed_in") {
-      router.replace("/customers");
-    }
-  }, [auth.status, router]);
-
-  if (auth.status === "checking") return null;
-
   return (
     <div className="bg-canvas text-ink selection:bg-primary/20">
       {/* FLOATING NAV */}
@@ -79,7 +63,7 @@ export function LandingPage() {
             Bắt đầu sổ vựa số.
           </h2>
           <p className="mt-4 mb-10 text-ink-muted lg:text-lg max-w-md">
-            Dữ liệu an toàn, thao tác nhanh nhẹn, giảm thiểu rủi ro vận hành.
+            Có nguồn, có lịch sử, có đối soát — để người vận hành quyết định rõ hơn.
           </p>
           <LinkButton
             href="/login"

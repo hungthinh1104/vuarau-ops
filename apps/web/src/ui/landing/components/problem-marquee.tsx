@@ -30,6 +30,8 @@ export function ProblemMarquee() {
           });
         },
       );
+
+      return () => mm.revert();
     },
     { scope: containerRef },
   );

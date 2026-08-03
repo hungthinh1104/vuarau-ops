@@ -11,7 +11,7 @@ const STATEMENTS = [
   },
   {
     title: "Không trùng lặp",
-    desc: "Mất mạng và bấm tải lại? Đơn hàng không bao giờ bị tạo hai lần.",
+    desc: "Mất mạng và bấm tải lại? Cùng một lệnh không tạo thêm bản ghi.",
     num: "02",
   },
   {
@@ -21,7 +21,7 @@ const STATEMENTS = [
   },
   {
     title: "Sửa sai an toàn",
-    desc: "Sai được sửa, nhưng không bao giờ mất dấu lịch sử thay đổi.",
+    desc: "Sai được sửa bằng bản ghi bù, vẫn giữ nguyên lịch sử thay đổi.",
     num: "04",
   },
   {
@@ -73,6 +73,8 @@ export function Trust() {
           });
         },
       );
+
+      return () => mm.revert();
     },
     { scope: containerRef },
   );
@@ -97,7 +99,7 @@ export function Trust() {
             không thoả hiệp.
           </h2>
           <p className="mt-6 text-ink-muted text-lg max-w-lg mx-auto">
-            Năm nguyên tắc vận hành mà hệ thống Vựa Rau cam kết tuân thủ tuyệt đối.
+            Năm nguyên tắc vận hành được thể hiện bằng command, audit và nguồn dữ liệu.
           </p>
         </div>
       </div>

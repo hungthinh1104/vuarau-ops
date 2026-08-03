@@ -7,7 +7,7 @@ import { gsap, ScrollTrigger, useGSAP } from "../motion/gsap.ts";
 const SCENES = [
   {
     title: "Ghi đơn siêu tốc",
-    desc: "Ghi một đơn nhiều mặt hàng trong vài thao tác, tự động nhảy giá cho từng khách.",
+    desc: "Ghi một đơn nhiều mặt hàng trong vài thao tác, áp dụng mức giá đã cấu hình cho từng khách.",
     img: "1.jpg",
     icon: (
       <svg
@@ -126,6 +126,8 @@ export function ProductShowcase() {
           }
         },
       );
+
+      return () => mm.revert();
     },
     { scope: containerRef },
   );
@@ -147,8 +149,9 @@ export function ProductShowcase() {
               {SCENES.map((scene, i) => (
                 <div
                   key={i}
-                  className="scene-text flex flex-col justify-center"
-                  style={{ opacity: i === 0 ? 1 : 0.15 }}
+                  className={`scene-text flex flex-col justify-center ${
+                    i === 0 ? "lg:opacity-100" : "lg:opacity-[0.15]"
+                  }`}
                 >
                   <div className="flex items-center gap-3 mb-4">
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -184,11 +187,9 @@ export function ProductShowcase() {
                 {SCENES.map((scene, i) => (
                   <div
                     key={i}
-                    className="scene-image absolute inset-0 top-[44px] overflow-hidden bg-surface-muted"
-                    style={{
-                      opacity: i === 0 ? 1 : 0,
-                      visibility: i === 0 ? "inherit" : "hidden",
-                    }}
+                    className={`scene-image absolute inset-0 top-[44px] overflow-hidden bg-surface-muted ${
+                      i === 0 ? "visible opacity-100" : "invisible opacity-0"
+                    }`}
                   >
                     <Image
                       src={`/images/${scene.img}`}
