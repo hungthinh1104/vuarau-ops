@@ -1,15 +1,16 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runContext, TRACE_PATH } from "./context.ts";
-
-const run = promisify(execFile);
-const root = process.cwd();
+import { formatResult, runContext, TRACE_PATH } from "./context.ts";
 
 async function context(...args: string[]): Promise<string> {
-  const result = await run("node", ["scripts/context.ts", ...args], { cwd: root });
-  return result.stdout;
+  const jsonOutput = args.includes("--json");
+  const includeArchive = args.includes("--include-archive");
+  const all = args.includes("--all");
+  const query = args
+    .filter((arg) => !arg.startsWith("--"))
+    .join(" ")
+    .trim();
+  return formatResult(await runContext(query, { includeArchive, all }), jsonOutput);
 }
 
 test("exact IDs resolve trace context without archive files", async () => {

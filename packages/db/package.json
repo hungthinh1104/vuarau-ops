@@ -10,8 +10,8 @@
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node src/migrate.ts",
-    "db:seed": "node src/seeds/seed.ts",
+    "db:migrate": "node --env-file-if-exists=../../.env src/migrate.ts",
+    "db:seed": "node --env-file-if-exists=../../.env src/seeds/seed.ts",
     "perf:production-scale": "node src/performance/production-scale-rehearsal.ts",
     "rehearse:migrations": "node src/performance/migration-rehearsal.ts"
   },

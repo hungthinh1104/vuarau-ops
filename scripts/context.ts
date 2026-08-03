@@ -380,28 +380,32 @@ export async function runContext(
   };
 }
 
-function printResult(result: ContextOutput, jsonOutput: boolean): void {
+export function formatResult(result: ContextOutput, jsonOutput: boolean): string {
   if (jsonOutput) {
-    console.log(JSON.stringify(result, null, 2));
-    return;
+    return JSON.stringify(result, null, 2);
   }
-  console.log(`Context: ${result.query}`);
-  console.log(`Archive: ${result.archive}`);
-  console.log(`Scope: ${result.scope ?? "repository"}`);
-  console.log(`\nExact IDs: ${result.exactIds.length ? result.exactIds.join(", ") : "none"}`);
-  console.log(
+  const lines = [
+    `Context: ${result.query}`,
+    `Archive: ${result.archive}`,
+    `Scope: ${result.scope ?? "repository"}`,
+    `\nExact IDs: ${result.exactIds.length ? result.exactIds.join(", ") : "none"}`,
     `Trace entries: ${result.traceEntries.length ? result.traceEntries.join(", ") : "none"}`,
-  );
+  ];
   for (const [label, values] of [
     ["Relevant docs", result.docs],
     ["Tests", result.tests],
     ["Implementation", result.implementation],
   ] as const) {
-    console.log(`\n${label} (${values.length}):`);
-    for (const value of values) console.log(`  ${value.path} — ${value.reasons.join(", ")}`);
+    lines.push(`\n${label} (${values.length}):`);
+    for (const value of values) lines.push(`  ${value.path} — ${value.reasons.join(", ")}`);
   }
-  console.log("\nValidation:");
-  for (const command of result.validation) console.log(`  ${command}`);
+  lines.push("\nValidation:");
+  for (const command of result.validation) lines.push(`  ${command}`);
+  return lines.join("\n");
+}
+
+function printResult(result: ContextOutput, jsonOutput: boolean): void {
+  console.log(formatResult(result, jsonOutput));
 }
 
 async function main(): Promise<void> {
