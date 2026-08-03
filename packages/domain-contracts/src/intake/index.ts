@@ -22,6 +22,7 @@ import {
 import { isoInstantSchema } from "../shared/time.ts";
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema } from "../shared/quantity.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 export const QUALITY_ISSUE_CATEGORIES = ["condition", "defect"] as const;
 export const qualityIssueCategorySchema = z.enum(QUALITY_ISSUE_CATEGORIES);
@@ -119,6 +120,7 @@ export const recordGoodsArrivalCommandSchema = defineCommand(
       vehicleReference: z.string().trim().max(200).nullable().default(null),
       lines: z.array(goodsArrivalLineInputSchema).min(1).max(200),
       note: z.string().trim().max(2_000).nullable().default(null),
+      evidenceReferences: evidenceReferencesInputSchema,
     })
     .superRefine((payload, ctx) => {
       const linked = payload.purchaseId !== null;
@@ -139,6 +141,7 @@ export const reverseGoodsArrivalCommandSchema = defineCommand(
     reversalId: goodsArrivalReversalIdSchema,
     arrivalId: goodsArrivalIdSchema,
     reason: z.string().trim().min(1).max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type ReverseGoodsArrivalCommand = z.infer<typeof reverseGoodsArrivalCommandSchema>;
@@ -150,6 +153,7 @@ export const goodsArrivalReversalDtoSchema = z.object({
   recordedAt: isoInstantSchema,
   actorId: actorIdSchema,
   commandId: commandIdSchema,
+  evidenceReferences: evidenceReferencesDtoSchema,
 });
 export const goodsArrivalDtoSchema = z.object({
   id: goodsArrivalIdSchema,
@@ -163,6 +167,7 @@ export const goodsArrivalDtoSchema = z.object({
   recordedAt: isoInstantSchema,
   actorId: actorIdSchema,
   commandId: commandIdSchema,
+  evidenceReferences: evidenceReferencesDtoSchema,
   reversal: goodsArrivalReversalDtoSchema.nullable(),
 });
 export type GoodsArrivalDto = z.infer<typeof goodsArrivalDtoSchema>;
@@ -181,7 +186,7 @@ export const recordQualityInspectionCommandSchema = defineCommand(
     inspectedQuantity: quantitySchema,
     issues: z.array(qualityInspectionIssueInputSchema).max(50).default([]),
     note: z.string().trim().max(2_000).nullable().default(null),
-    evidenceReferences: z.array(z.string().trim().min(1).max(1_000)).max(20).default([]),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type RecordQualityInspectionCommand = z.infer<typeof recordQualityInspectionCommandSchema>;
@@ -201,7 +206,7 @@ export const qualityInspectionDtoSchema = z.object({
   inspectedQuantity: quantitySchema,
   issues: z.array(qualityInspectionIssueInputSchema),
   note: z.string().nullable(),
-  evidenceReferences: z.array(z.string()),
+  evidenceReferences: evidenceReferencesDtoSchema,
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,
   actorId: actorIdSchema,
@@ -266,6 +271,7 @@ export const recordQualityDispositionCommandSchema = defineCommand(
     source: qualityDispositionSourceSchema,
     allocations: z.array(qualityDispositionAllocationInputSchema).min(1).max(50),
     note: z.string().trim().max(2_000).nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type RecordQualityDispositionCommand = z.infer<typeof recordQualityDispositionCommandSchema>;
@@ -274,6 +280,7 @@ export const reverseQualityDispositionCommandSchema = defineCommand(
     reversalId: qualityDispositionReversalIdSchema,
     dispositionId: qualityDispositionIdSchema,
     reason: z.string().trim().min(1).max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type ReverseQualityDispositionCommand = z.infer<
@@ -297,9 +304,11 @@ export const qualityDispositionDtoSchema = z.object({
       recordedAt: isoInstantSchema,
       actorId: actorIdSchema,
       commandId: commandIdSchema,
+      evidenceReferences: evidenceReferencesDtoSchema,
     })
     .nullable(),
   commandId: commandIdSchema,
+  evidenceReferences: evidenceReferencesDtoSchema,
 });
 export type QualityDispositionDto = z.infer<typeof qualityDispositionDtoSchema>;
 

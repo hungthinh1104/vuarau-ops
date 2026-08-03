@@ -81,6 +81,8 @@ export const PERMISSIONS = [
   "debt.read",
   /** Reading who did what. Held by the roles that answer for the books. */
   "audit.read",
+  "evidence.read",
+  "evidence.record",
   /** Managing who is a member of the workspace. Owner only. */
   "workspace.manage",
   "product.read",
@@ -159,6 +161,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
   accountant: [
     "customer.read",
     "audit.read",
+    "evidence.read",
+    "evidence.record",
     "sale.void",
     "sale.read",
     "payment.record",
@@ -232,6 +236,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "document.generate",
     "document.share",
     "report.read",
+    "evidence.read",
+    "evidence.record",
     "cash.read",
   ],
 
@@ -272,6 +278,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "document.read",
     "document.generate",
     "report.read",
+    "evidence.read",
+    "evidence.record",
   ],
 
   /**
@@ -292,6 +300,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "document.read",
     "document.generate",
     "report.read",
+    "evidence.read",
+    "evidence.record",
   ],
 };
 

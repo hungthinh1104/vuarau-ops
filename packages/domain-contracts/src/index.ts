@@ -18,3 +18,4 @@ export * from "./workspace-profile/index.ts";
 export * from "./cash/index.ts";
 export * from "./intake/index.ts";
 export * from "./pricing/index.ts";
+export * from "./evidence/index.ts";

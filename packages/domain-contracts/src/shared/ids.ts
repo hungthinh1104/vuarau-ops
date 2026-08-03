@@ -119,6 +119,13 @@ export type QualityDispositionAllocationId = z.infer<typeof qualityDispositionAl
 export const qualityDispositionReversalIdSchema = z.uuid().brand<"QualityDispositionReversalId">();
 export type QualityDispositionReversalId = z.infer<typeof qualityDispositionReversalIdSchema>;
 
+export const costObservationIdSchema = z.uuid().brand<"CostObservationId">();
+export type CostObservationId = z.infer<typeof costObservationIdSchema>;
+export const reconciliationObservationIdSchema = z.uuid().brand<"ReconciliationObservationId">();
+export type ReconciliationObservationId = z.infer<typeof reconciliationObservationIdSchema>;
+export const debtObservationIdSchema = z.uuid().brand<"DebtObservationId">();
+export type DebtObservationId = z.infer<typeof debtObservationIdSchema>;
+
 export const cashAccountIdSchema = z.uuid().brand<"CashAccountId">();
 export type CashAccountId = z.infer<typeof cashAccountIdSchema>;
 export const cashMovementIdSchema = z.uuid().brand<"CashMovementId">();

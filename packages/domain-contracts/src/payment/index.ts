@@ -11,6 +11,7 @@ import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand, defineVersionedCommand } from "../shared/command.ts";
 import { capabilitySchema } from "../shared/capability.ts";
 import { pageRequestSchema } from "../shared/pagination.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 /**
  * Payment lifecycle: recorded → partially_reversed → reversed.
@@ -41,6 +42,7 @@ export const recordCustomerPaymentPayloadSchema = z.object({
    */
   payerName: z.string().trim().max(200).nullable().default(null),
   note: z.string().trim().max(1000).nullable().default(null),
+  evidenceReferences: evidenceReferencesInputSchema,
 });
 export type RecordCustomerPaymentPayload = z.infer<typeof recordCustomerPaymentPayloadSchema>;
 
@@ -61,6 +63,7 @@ export const reverseCustomerPaymentPayloadSchema = z.object({
    * `PAYMENT_REVERSAL_REASON_REQUIRED`, which the UI can act on.
    */
   reason: z.string().max(500),
+  evidenceReferences: evidenceReferencesInputSchema,
 });
 export type ReverseCustomerPaymentPayload = z.infer<typeof reverseCustomerPaymentPayloadSchema>;
 
@@ -84,6 +87,7 @@ export const paymentDtoSchema = z.object({
   cashAccountId: cashAccountIdSchema.nullable(),
   payerName: z.string().nullable(),
   note: z.string().nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   status: paymentStatusSchema,
   /** Cumulative amount reversed so far. Monotonically increasing. */
   reversedAmount: moneySchema,
@@ -102,6 +106,7 @@ export const paymentReversalDtoSchema = z.object({
   paymentId: paymentIdSchema,
   amount: moneySchema,
   reason: z.string(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,
 });
@@ -155,6 +160,7 @@ export const paymentSummaryDtoSchema = z.object({
   payerName: z.string().nullable(),
   /** Server-stored capture note; receipt UI never relies on local form state. */
   note: z.string().nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   version: z.int().nonnegative(),
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,

@@ -15,6 +15,7 @@ import { defineCommand, defineVersionedCommand } from "../shared/command.ts";
 import { capabilitySchema } from "../shared/capability.ts";
 import { pageRequestSchema } from "../shared/pagination.ts";
 import { balanceClassificationSchema } from "../account/index.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 /**
  * A **sale** is the depot's recognized commercial transaction under its validated
@@ -102,6 +103,8 @@ export const createSaleDraftPayloadSchema = z.object({
   /** A draft may legitimately be empty — the worker is still typing. */
   lines: z.array(saleLineInputSchema).max(200),
   note: z.string().trim().max(1000).nullable().default(null),
+  /** Source-linked operational evidence; it has no money or fulfilment effect. */
+  evidenceReferences: evidenceReferencesInputSchema,
   /**
    * Optional payment term. Null means no term was agreed, and a sale with no term
    * is never overdue (BR-SALE-017). Most depot sales are this case.
@@ -145,6 +148,7 @@ export const updateSaleDraftPayloadSchema = z.object({
   saleId: saleIdSchema,
   lines: z.array(saleLineInputSchema).max(200),
   note: z.string().trim().max(1000).nullable().default(null),
+  evidenceReferences: evidenceReferencesInputSchema,
   dueAt: isoInstantSchema.nullable().default(null),
 });
 export type UpdateSaleDraftPayload = z.infer<typeof updateSaleDraftPayloadSchema>;
@@ -199,6 +203,7 @@ export const voidSalePayloadSchema = z.object({
    * (BR-SALE-014) rather than by this schema.
    */
   reason: z.string().max(500),
+  evidenceReferences: evidenceReferencesInputSchema,
 });
 export type VoidSalePayload = z.infer<typeof voidSalePayloadSchema>;
 
@@ -215,6 +220,7 @@ export const saleVoidDtoSchema = z.object({
   saleId: saleIdSchema,
   reasonCode: saleVoidReasonCodeSchema,
   reason: z.string(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   /** The amount put back on the account. Always the full posted total. */
   amount: moneySchema,
   transactionTime: isoInstantSchema,
@@ -242,6 +248,7 @@ export const saleDtoSchema = z.object({
   lines: z.array(saleLineDtoSchema),
   totalAmount: moneySchema,
   note: z.string().nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   version: z.int().nonnegative(),
   /** When the sale happened, per the worker. Drives aging. */
   transactionTime: isoInstantSchema,

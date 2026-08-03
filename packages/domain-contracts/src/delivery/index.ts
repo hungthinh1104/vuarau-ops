@@ -15,6 +15,7 @@ import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { capabilitySchema } from "../shared/capability.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 export const DELIVERY_STATUSES = ["draft", "cancelled", "dispatched", "delivered"] as const;
 export const deliveryStatusSchema = z.enum(DELIVERY_STATUSES);
@@ -35,6 +36,7 @@ export const createDeliveryDraftCommandSchema = defineCommand(
     saleId: saleIdSchema,
     lines: z.array(deliveryLineInputSchema).min(1).max(100),
     note: z.string().trim().max(2_000).nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type CreateDeliveryDraftCommand = z.infer<typeof createDeliveryDraftCommandSchema>;
@@ -43,6 +45,7 @@ export const updateDeliveryDraftCommandSchema = defineVersionedCommand(
     deliveryId: deliveryIdSchema,
     lines: z.array(deliveryLineInputSchema).min(1).max(100),
     note: z.string().trim().max(2_000).nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type UpdateDeliveryDraftCommand = z.infer<typeof updateDeliveryDraftCommandSchema>;
@@ -74,6 +77,7 @@ export const recordDeliveryReturnCommandSchema = defineCommand(
       .min(1)
       .max(100),
     reason: z.string().trim().max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type RecordDeliveryReturnCommand = z.infer<typeof recordDeliveryReturnCommandSchema>;
@@ -81,6 +85,7 @@ export type RecordDeliveryReturnCommand = z.infer<typeof recordDeliveryReturnCom
 export const deliveryReturnDtoSchema = z.object({
   id: deliveryReturnIdSchema,
   reason: z.string(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   lines: z.array(
     z.object({
       deliveryLineId: deliveryLineIdSchema,
@@ -109,6 +114,7 @@ export const deliveryDtoSchema = z.object({
     }),
   ),
   note: z.string().nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   cancellationReason: z.string().nullable(),
   version: z.int().positive(),
   transactionTime: isoInstantSchema,

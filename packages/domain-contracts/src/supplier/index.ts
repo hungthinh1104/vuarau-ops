@@ -18,6 +18,7 @@ import {
 import { isoInstantSchema } from "../shared/time.ts";
 import { paymentMethodSchema } from "../payment/index.ts";
 import { quantitySchema } from "../shared/quantity.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 const supplierFields = z.object({
   supplierId: supplierIdSchema,
@@ -118,6 +119,7 @@ export const recordSupplierPaymentCommandSchema = defineCommand(
     method: paymentMethodSchema,
     cashAccountId: cashAccountIdSchema.nullable().optional(),
     note: z.string().trim().max(2_000).nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type RecordSupplierPaymentCommand = z.infer<typeof recordSupplierPaymentCommandSchema>;
@@ -129,6 +131,7 @@ export const reverseSupplierPaymentCommandSchema = defineVersionedCommand(
     amount: moneySchema,
     cashAccountId: cashAccountIdSchema.nullable().optional(),
     reason: z.string().trim().max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type ReverseSupplierPaymentCommand = z.infer<typeof reverseSupplierPaymentCommandSchema>;
@@ -153,6 +156,18 @@ export const adjustSupplierAccountCommandSchema = defineCommand(
 );
 export type AdjustSupplierAccountCommand = z.infer<typeof adjustSupplierAccountCommandSchema>;
 
+export const supplierPaymentReversalDtoSchema = z.object({
+  id: supplierPaymentReversalIdSchema,
+  workspaceId: workspaceIdSchema,
+  supplierPaymentId: supplierPaymentIdSchema,
+  amount: moneySchema,
+  reason: z.string(),
+  evidenceReferences: evidenceReferencesDtoSchema,
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+});
+export type SupplierPaymentReversalDto = z.infer<typeof supplierPaymentReversalDtoSchema>;
+
 export const supplierPaymentDtoSchema = z.object({
   id: supplierPaymentIdSchema,
   workspaceId: workspaceIdSchema,
@@ -161,6 +176,8 @@ export const supplierPaymentDtoSchema = z.object({
   method: paymentMethodSchema,
   cashAccountId: cashAccountIdSchema.nullable(),
   note: z.string().nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
+  reversals: z.array(supplierPaymentReversalDtoSchema),
   reversedAmount: moneySchema,
   status: z.enum(["recorded", "partially_reversed", "reversed"]),
   version: z.int().positive(),

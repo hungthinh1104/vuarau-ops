@@ -15,6 +15,7 @@ import {
 import { currencyCodeSchema, moneySchema } from "../shared/money.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 export const CASH_ACCOUNT_KINDS = [
   "cash_drawer",
@@ -91,6 +92,7 @@ export const recordExpenseCommandSchema = defineCommand(
     amount: moneySchema,
     payee: z.string().trim().max(200).nullable().default(null),
     note: z.string().trim().min(1).max(2_000),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type RecordExpenseCommand = z.infer<typeof recordExpenseCommandSchema>;
@@ -99,6 +101,7 @@ export const reverseExpenseCommandSchema = defineCommand(
     reversalId: expenseReversalIdSchema,
     expenseId: expenseIdSchema,
     reason: z.string().trim().min(1).max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type ReverseExpenseCommand = z.infer<typeof reverseExpenseCommandSchema>;
@@ -110,6 +113,7 @@ export const recordCashTransferCommandSchema = defineCommand(
     toCashAccountId: cashAccountIdSchema,
     amount: moneySchema,
     note: z.string().trim().max(1_000).nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type RecordCashTransferCommand = z.infer<typeof recordCashTransferCommandSchema>;
@@ -118,6 +122,7 @@ export const reverseCashTransferCommandSchema = defineCommand(
     reversalId: cashTransferReversalIdSchema,
     transferId: cashTransferIdSchema,
     reason: z.string().trim().min(1).max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type ReverseCashTransferCommand = z.infer<typeof reverseCashTransferCommandSchema>;
@@ -139,6 +144,7 @@ export const adjustCashCommandSchema = defineCommand(
     amount: moneySchema,
     reasonCode: cashAdjustmentReasonCodeSchema,
     reason: z.string().trim().min(1).max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type AdjustCashCommand = z.infer<typeof adjustCashCommandSchema>;
@@ -197,6 +203,7 @@ export const expenseDtoSchema = z.object({
   recordedAt: isoInstantSchema,
   actorId: actorIdSchema,
   commandId: commandIdSchema,
+  evidenceReferences: evidenceReferencesDtoSchema,
   reversal: z
     .object({
       id: expenseReversalIdSchema,
@@ -205,6 +212,7 @@ export const expenseDtoSchema = z.object({
       recordedAt: isoInstantSchema,
       actorId: actorIdSchema,
       commandId: commandIdSchema,
+      evidenceReferences: evidenceReferencesDtoSchema,
     })
     .nullable(),
 });
@@ -221,6 +229,7 @@ export const cashTransferDtoSchema = z.object({
   recordedAt: isoInstantSchema,
   actorId: actorIdSchema,
   commandId: commandIdSchema,
+  evidenceReferences: evidenceReferencesDtoSchema,
   reversal: z
     .object({
       id: cashTransferReversalIdSchema,
@@ -229,6 +238,7 @@ export const cashTransferDtoSchema = z.object({
       recordedAt: isoInstantSchema,
       actorId: actorIdSchema,
       commandId: commandIdSchema,
+      evidenceReferences: evidenceReferencesDtoSchema,
     })
     .nullable(),
 });
