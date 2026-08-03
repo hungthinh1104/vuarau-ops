@@ -338,7 +338,7 @@ print-ready authenticated/public presentation. This does not close the local
 “bông hàng” discovery question, multi-role authorization (ADR-0021), canonical
 lot/expiry traceability or Supplier claim/credit settlement.
 
-**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation and Backup V17 evidence are implemented. Operational close and bank-statement evidence remain separate next-phase facts; no statement match changes debt by itself.
+**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation, policy-backed operational close, exact bank-statement match/reversal and Backup V19 evidence are implemented. Broader variance/settlement semantics remain separate field-policy work; no statement match changes debt by itself.
 
 **Inspected-intake closure:** ADR-0026 implements GoodsArrival → optional gross/tare/net → QualityInspection → QualityDisposition. Only accepted allocations create inventory; quarantine may be resolved through an explicit child disposition; correction is downstream-first and Backup V17 preserves the complete lineage. Supplier claims/credits, general lot/expiry and “bông hàng” remain outside this milestone, while raw claim/quality evidence can be captured later without changing payable.
 

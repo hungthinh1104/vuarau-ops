@@ -1515,6 +1515,40 @@ use_cases:
       - apps/web/src/ui/controllers/workspace-policy-controller.tsx
       - apps/web/src/ui/screens/workspace-policy-view.tsx
 
+  UC-OPERATIONS-005:
+    title: Sign off and reopen an operational business day
+    risk: P0
+    doc: docs/02-use-cases/UC-OPERATIONS-005-operational-close.md
+    rules: [BR-CLOSE-001, BR-CLOSE-002, BR-CLOSE-003, BR-CASH-014]
+    cases: []
+    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-003, TC-CLOSE-004]
+    implementation:
+      - packages/domain-contracts/src/close/index.ts
+      - packages/domain-kernel/src/close/index.ts
+      - apps/api/src/modules/close/close.handlers.ts
+      - apps/api/src/modules/close/close.queries.ts
+      - packages/db/src/schema/close.ts
+      - apps/web/src/ui/controllers/operations-controller.tsx
+      - apps/web/src/ui/screens/operations-view.tsx
+
+  UC-CASH-006:
+    title: Match and reverse an external bank statement line
+    risk: P0
+    doc: docs/02-use-cases/UC-CASH-006-bank-statement-match.md
+    rules: [BR-CASH-012, BR-CASH-013, BR-CASH-014]
+    cases: []
+    tests: [TC-CLOSE-003, TC-CLOSE-005]
+    implementation:
+      - packages/domain-contracts/src/close/index.ts
+      - packages/domain-kernel/src/close/index.ts
+      - apps/api/src/modules/close/close.handlers.ts
+      - apps/api/src/modules/close/close.queries.ts
+      - packages/db/src/schema/close.ts
+      - packages/db/src/repositories/write/close.ts
+      - packages/db/src/repositories/read/close.ts
+      - apps/web/src/ui/controllers/operations-controller.tsx
+      - apps/web/src/ui/screens/operations-view.tsx
+
 business_rules:
   BR-PRODUCT-001:
     title: Product is catalogue identity never monetary authority
@@ -3301,6 +3335,68 @@ business_rules:
       - apps/api/src/modules/evidence/evidence.handlers.ts
       - packages/db/src/repositories/write/demand-observation.ts
 
+  BR-CLOSE-001:
+    title: Operational close signs off exact source observations without ledger effects
+    risk: P0
+    doc: docs/04-business-rules/close-and-bank-rules.md
+    cases: []
+    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-003]
+    implementation:
+      - packages/domain-kernel/src/close/index.ts
+      - apps/api/src/modules/close/close.handlers.ts
+
+  BR-CLOSE-002:
+    title: Operational close requires an effective supported policy and measurable scopes
+    risk: P0
+    doc: docs/04-business-rules/close-and-bank-rules.md
+    cases: []
+    tests: [TC-CLOSE-001, TC-CLOSE-002]
+    implementation:
+      - packages/domain-contracts/src/policy/index.ts
+      - packages/domain-kernel/src/workspace-policy/index.ts
+      - packages/domain-kernel/src/close/index.ts
+
+  BR-CLOSE-003:
+    title: Operational close reopen is an append-only expected-version transition
+    risk: P0
+    doc: docs/04-business-rules/close-and-bank-rules.md
+    cases: []
+    tests: [TC-CLOSE-002, TC-CLOSE-003]
+    implementation:
+      - packages/domain-kernel/src/close/index.ts
+      - packages/db/src/schema/close.ts
+
+  BR-CASH-012:
+    title: Statement match uses exact source identity and does not change financial truth
+    risk: P0
+    doc: docs/04-business-rules/close-and-bank-rules.md
+    cases: []
+    tests: [TC-CLOSE-003, TC-CLOSE-005]
+    implementation:
+      - packages/domain-kernel/src/close/index.ts
+      - apps/api/src/modules/close/close.handlers.ts
+
+  BR-CASH-013:
+    title: Statement correction appends one reversal without mutating cash or debt
+    risk: P0
+    doc: docs/04-business-rules/close-and-bank-rules.md
+    cases: []
+    tests: [TC-CLOSE-003, TC-CLOSE-005]
+    implementation:
+      - packages/domain-kernel/src/close/index.ts
+      - packages/db/src/schema/close.ts
+
+  BR-CASH-014:
+    title: Backup and restore preserve close and statement reconciliation lineage
+    risk: P0
+    doc: docs/04-business-rules/close-and-bank-rules.md
+    cases: []
+    tests: [TC-OPS-018, TC-CLOSE-005]
+    implementation:
+      - packages/domain-contracts/src/operations/index.ts
+      - apps/api/src/modules/operations/restore-workspace.handler.ts
+      - packages/db/src/repositories/write/operations-close-restore.ts
+
   BR-POLICY-001:
     title: Policy versions are workspace scoped
     risk: P0
@@ -4330,6 +4426,25 @@ contract_tests:
   TC-CREDIT-004:
     title: PostgreSQL backup and restore preserves credit policy lineage on a Sale
     file: apps/api/src/infrastructure/persistence/drizzle/operations-restore.db.test.ts
+
+  TC-CLOSE-001:
+    title: Close domain requires exact measurable observation scopes
+    file: packages/domain-kernel/src/close/close.test.ts
+  TC-CLOSE-002:
+    title: Close application policy, workspace, duplicate-date and version invariants hold
+    file: apps/api/src/modules/close/close.app.test.ts
+  TC-CLOSE-003:
+    title: Statement matching retries and reverses without a cash effect
+    file: apps/api/src/modules/close/close.app.test.ts
+  TC-CLOSE-004:
+    title: Operations UI renders persisted close and statement state without inferred settlement
+    file: apps/web/src/ui/screens/operations-view.test.tsx
+  TC-CLOSE-005:
+    title: PostgreSQL persists exact statement match and append-only reversal
+    file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
+  TC-OPS-018:
+    title: Backup V19 carries close, reopen, statement-match and reversal lineage
+    file: apps/api/src/modules/operations/operations.app.test.ts
 
 deprecated:
   - UC-ORDER-001

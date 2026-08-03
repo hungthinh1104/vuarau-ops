@@ -86,12 +86,13 @@ Every known policy question is classified in the
   These gaps must not be hidden with invented Return/Dispatch/Receipt/adjustment
   facts.
 - ASM-039–048 keep reproducible COGS/profit, cost effects, debt aging/allocation,
-  advanced inventory planning, walk-in sales, shift close, bank reconciliation and
+  advanced inventory planning, walk-in sales, broader shift-close/bank-settlement and
   Supplier performance unavailable as derived management outcomes until the field
   questions in the [next-phase policy worksheet](../09-decisions/policy-closure-worksheet.md)
-  are answered. The narrow fixed-threshold planning read and policy-backed stocktake
-  session are implemented as explicit source-backed adapters; they do not close the
-  broader field decisions or publish forecast/stock-risk intelligence.
+  are answered. The narrow fixed-threshold planning read, policy-backed stocktake
+  session, observation-signoff close and exact cash-movement match are implemented as
+  explicit source-backed adapters; they do not close the broader field decisions or
+  publish forecast, variance, settlement or stock-risk intelligence.
 - The versioned policy registry is infrastructure for typed adapters. Inventory
   value, fixed-threshold planning and stocktake variance are narrow adapters;
   an approved row still does not activate COGS/profit, advanced aging, forecast

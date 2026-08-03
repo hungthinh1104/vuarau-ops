@@ -76,16 +76,20 @@ Drizzle definitions and database constraints.
 
 ### Cashbook
 
-| Table                     | Purpose                                               | Mutability        |
-| ------------------------- | ----------------------------------------------------- | ----------------- |
-| `cash_accounts`           | Named drawer/bank/wallet/employee-held money location | mutable lifecycle |
-| `expenses`                | Operating-expense source facts                        | append-only       |
-| `expense_reversals`       | Expense compensation facts                            | append-only       |
-| `cash_transfers`          | Internal money-location transfer source               | append-only       |
-| `cash_transfer_reversals` | Transfer compensation facts                           | append-only       |
-| `cash_adjustments`        | Explained source facts without a better source type   | append-only       |
-| `cash_movements`          | Canonical signed money-location ledger                | append-only       |
-| `cash_balances`           | Rebuildable per-account projection                    | recomputable      |
+| Table                            | Purpose                                                  | Mutability                |
+| -------------------------------- | -------------------------------------------------------- | ------------------------- |
+| `cash_accounts`                  | Named drawer/bank/wallet/employee-held money location    | mutable lifecycle         |
+| `expenses`                       | Operating-expense source facts                           | append-only               |
+| `expense_reversals`              | Expense compensation facts                               | append-only               |
+| `cash_transfers`                 | Internal money-location transfer source                  | append-only               |
+| `cash_transfer_reversals`        | Transfer compensation facts                              | append-only               |
+| `cash_adjustments`               | Explained source facts without a better source type      | append-only               |
+| `cash_movements`                 | Canonical signed money-location ledger                   | append-only               |
+| `cash_balances`                  | Rebuildable per-account projection                       | recomputable              |
+| `cash_statement_matches`         | Exact external-statement link to a CashMovement          | append-only               |
+| `cash_statement_match_reversals` | Compensation for a statement match                       | append-only               |
+| `operational_closes`             | Policy-linked business-day close and observation signoff | append-only state history |
+| `operational_close_reopens`      | Explicit close reopen fact and reason                    | append-only               |
 
 ### Source-linked operational evidence
 
@@ -300,7 +304,7 @@ references without becoming an inventory or customer-money source.
 inspected-intake source links without changing payable, quality-policy or
 inventory semantics. `quality_inspections.evidence_references` follows the same
 metadata-only rule.
-Backup V17 preserves operational profile, price rules, CostObservation,
+Backup V19 preserves operational profile, price rules, CostObservation,
 ReconciliationObservation, DebtObservation, CashAccount and all canonical cash source/
 movement rows plus workspace policy versions; it does not export `cash_balances`.
 V1–V11 remain restore-compatible with an empty policy collection.
@@ -324,7 +328,8 @@ policy includes `purchasingMode`, `inventoryMode`, `qualityGradeMode`,
 
 Cashbook persistence uses the exact Drizzle symbols `cashAccounts`, `expenses`,
 `expenseReversals`, `cashTransfers`, `cashTransferReversals`, `cashAdjustments`,
-`cashMovements` and `cashBalances`, corresponding to the snake-case PostgreSQL
+`cashMovements`, `cashBalances`, `cashStatementMatches`,
+`cashStatementMatchReversals`, `operationalCloses` and `operationalCloseReopens`, corresponding to the snake-case PostgreSQL
 tables listed above. `cashMovements` is canonical append-only truth;
 `cashBalances` is a rebuildable projection. Payment cash-account links are
 immutable after recording. Backup V17 exports price rules, CostObservation,

@@ -80,8 +80,11 @@ Cash location is explainable independently from customer debt and supplier payab
 - Revenue and profit are not cash balance.
 - Customer/Supplier debt allocation is not cash movement.
 - Inventory valuation/COGS is not inferred from cash out.
-- Bank-statement matching and physical cash-count sessions are later reconciliation
-  workflows, not hidden fields on CashMovement.
+- Bank-statement matching and physical cash-count sessions are separate
+  policy-backed reconciliation workflows, not hidden fields on CashMovement. The
+  current narrow adapters store exact source-linked match/close facts without
+  changing CashMovement, debt or payable; broader settlement and variance semantics
+  remain a field-policy decision.
 
 ## Alternatives considered
 

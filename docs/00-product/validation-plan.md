@@ -311,7 +311,7 @@ session.
 | Collection action history and priority remain unresolved (ASM-041)                               | Aging is allowed only through effective approved terms/allocation policies; do not produce collection priorities or action recommendations                                               |
 | Advanced inventory planning and stocktake field semantics remain unresolved (ASM-042/043)        | Fixed-threshold planning and policy-backed count sessions are allowed; do not publish forecast, lead-time or broader stock-risk actions                                                  |
 | Walk-in sale semantics are unresolved (ASM-044)                                                  | Do not create anonymous/fake customers or infer cash-sale debt                                                                                                                           |
-| Shift close and bank reconciliation semantics are unresolved (ASM-045/046)                       | Keep close/deposit workflows unavailable                                                                                                                                                 |
+| Shift close and bank reconciliation semantics are only narrowly closed (ASM-045/046)             | Approved `observation_signoff` and `exact_cash_movement` adapters are available; broader variance, settlement and field semantics remain unavailable                                     |
 | Supplier catalogue and performance semantics are unresolved (ASM-047/048)                        | Do not score Suppliers or recommend a purchase                                                                                                                                           |
 
 ## Related

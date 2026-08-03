@@ -44,30 +44,30 @@ rejection codes.
 The table is a navigation catalog, not a second payload specification. When a
 command changes, update its schema and tests first, then keep this catalog aligned.
 
-| Namespace          | Commands                                                                                                                                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `session`          | `revokeMembership`, `addMember`, `changeMemberRole`, `updateOperationalProfile`, `reactivateMember`                                                                                                       |
-| `customer`         | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                            |
-| `account`          | `rebuildProjection`                                                                                                                                                                                       |
-| `debt`             | `adjust`, `allocate`, `reverseAllocation`                                                                                                                                                                 |
-| `sale`             | `createDraft`, `updateDraft`, `discardDraft`, `post`, `void`                                                                                                                                              |
-| `customerOrder`    | `createDraft`, `updateDraft`, `confirm`, `cancel`                                                                                                                                                         |
-| `supplyCommitment` | `createDraft`, `updateDraft`, `confirm`, `cancel`                                                                                                                                                         |
-| `payment`          | `record`, `reverse`                                                                                                                                                                                       |
-| `product`          | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                            |
-| `quality`          | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                            |
-| `supplier`         | `create`, `update`, `deactivate`, `reactivate`, `recordPayment`, `reversePayment`, `adjustAccount`, `rebuildAccount`                                                                                      |
-| `purchase`         | `createDraft`, `updateDraft`, `discardDraft`, `confirm`, `void`                                                                                                                                           |
-| `receiving`        | `record`, `reverse`                                                                                                                                                                                       |
-| `inventory`        | `adjust`, `reclassify`, `stocktakeStart`, `stocktakeCount`, `stocktakeApprove`, `stocktakeReopen`, `rebuild`                                                                                              |
-| `delivery`         | `createDraft`, `updateDraft`, `cancelDraft`, `dispatch`, `markDelivered`, `recordReturn`                                                                                                                  |
-| `document`         | `generate`, `share`, `revokeShare`                                                                                                                                                                        |
-| `operations`       | `exportBackup`, `restoreBackup`                                                                                                                                                                           |
-| `cash`             | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`                                         |
-| `intake`           | `createIssueCode`, `updateIssueCode`, `deactivateIssueCode`, `reactivateIssueCode`, `recordArrival`, `reverseArrival`, `recordInspection`, `reverseInspection`, `recordDisposition`, `reverseDisposition` |
-| `pricing`          | `record`                                                                                                                                                                                                  |
-| `evidence`         | `recordCostObservation`, `recordReconciliationObservation`, `recordDebtObservation`, `recordSupplyCommitmentObservation`, `recordSupplierObservation`, `recordDemandObservation`                          |
-| `policy`           | `createDraft`, `approve`, `retire`                                                                                                                                                                        |
+| Namespace          | Commands                                                                                                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `session`          | `revokeMembership`, `addMember`, `changeMemberRole`, `updateOperationalProfile`, `reactivateMember`                                                                                                                |
+| `customer`         | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                                     |
+| `account`          | `rebuildProjection`                                                                                                                                                                                                |
+| `debt`             | `adjust`, `allocate`, `reverseAllocation`                                                                                                                                                                          |
+| `sale`             | `createDraft`, `updateDraft`, `discardDraft`, `post`, `void`                                                                                                                                                       |
+| `customerOrder`    | `createDraft`, `updateDraft`, `confirm`, `cancel`                                                                                                                                                                  |
+| `supplyCommitment` | `createDraft`, `updateDraft`, `confirm`, `cancel`                                                                                                                                                                  |
+| `payment`          | `record`, `reverse`                                                                                                                                                                                                |
+| `product`          | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                                     |
+| `quality`          | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                                     |
+| `supplier`         | `create`, `update`, `deactivate`, `reactivate`, `recordPayment`, `reversePayment`, `adjustAccount`, `rebuildAccount`                                                                                               |
+| `purchase`         | `createDraft`, `updateDraft`, `discardDraft`, `confirm`, `void`                                                                                                                                                    |
+| `receiving`        | `record`, `reverse`                                                                                                                                                                                                |
+| `inventory`        | `adjust`, `reclassify`, `stocktakeStart`, `stocktakeCount`, `stocktakeApprove`, `stocktakeReopen`, `rebuild`                                                                                                       |
+| `delivery`         | `createDraft`, `updateDraft`, `cancelDraft`, `dispatch`, `markDelivered`, `recordReturn`                                                                                                                           |
+| `document`         | `generate`, `share`, `revokeShare`                                                                                                                                                                                 |
+| `operations`       | `exportBackup`, `restoreBackup`, `recordClose`, `reopenClose`                                                                                                                                                      |
+| `cash`             | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`, `recordStatementMatch`, `reverseStatementMatch` |
+| `intake`           | `createIssueCode`, `updateIssueCode`, `deactivateIssueCode`, `reactivateIssueCode`, `recordArrival`, `reverseArrival`, `recordInspection`, `reverseInspection`, `recordDisposition`, `reverseDisposition`          |
+| `pricing`          | `record`                                                                                                                                                                                                           |
+| `evidence`         | `recordCostObservation`, `recordReconciliationObservation`, `recordDebtObservation`, `recordSupplyCommitmentObservation`, `recordSupplierObservation`, `recordDemandObservation`                                   |
+| `policy`           | `createDraft`, `approve`, `retire`                                                                                                                                                                                 |
 
 The router source is authoritative for procedure names. Domain-contract modules are
 authoritative for payload and result shapes.
@@ -97,24 +97,31 @@ references and their reversal references; adjustment references are persisted wi
 append-only adjustment source. These links are attribution metadata only and do not
 create, allocate or reinterpret a cash effect.
 
+Operational close and bank-statement matching are separate typed commands. Close
+signs off exact reconciliation observations under `operating_cycle_reconciliation`;
+statement matching links an exact CashMovement under `cash_custody_deposit`. Neither
+command creates or rewrites a financial or physical ledger effect.
+
 ## Cross-context effect boundaries
 
 Commands are named for the business event whose consequences they own. A command
 must not borrow the meaning of a neighbouring context.
 
-| Command/event                            | Commercial / account effect                                         | Physical effect                                          |
-| ---------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------- |
-| `sale.post`                              | freezes the Sale and creates the configured customer-account effect | none                                                     |
-| `sale.void`                              | appends the Sale compensation                                       | none                                                     |
-| `payment.record` / `payment.reverse`     | changes customer account only                                       | none                                                     |
-| `debt.allocate`                          | records or compensates payment-to-sale attribution                  | `PAYMENT_ALLOCATION_*`                                   |
-| `purchase.confirm` / `purchase.void`     | changes supplier account according to current policy                | none                                                     |
-| `receiving.record` / `receiving.reverse` | none                                                                | appends inbound/inverse movements                        |
-| `inventory.adjust`                       | none                                                                | explicit attributable quantity adjustment                |
-| `inventory.reclassify`                   | none                                                                | equal source-grade decrease + destination-grade increase |
-| `delivery.dispatch`                      | none                                                                | appends outbound movements                               |
-| `delivery.recordReturn`                  | none                                                                | appends compensating inbound movements                   |
-| `delivery.markDelivered`                 | none                                                                | acknowledgement only; dispatch already moved stock       |
+| Command/event                                              | Commercial / account effect                                         | Physical effect                                          |
+| ---------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------- |
+| `sale.post`                                                | freezes the Sale and creates the configured customer-account effect | none                                                     |
+| `sale.void`                                                | appends the Sale compensation                                       | none                                                     |
+| `payment.record` / `payment.reverse`                       | changes customer account only                                       | none                                                     |
+| `debt.allocate`                                            | records or compensates payment-to-sale attribution                  | `PAYMENT_ALLOCATION_*`                                   |
+| `purchase.confirm` / `purchase.void`                       | changes supplier account according to current policy                | none                                                     |
+| `receiving.record` / `receiving.reverse`                   | none                                                                | appends inbound/inverse movements                        |
+| `inventory.adjust`                                         | none                                                                | explicit attributable quantity adjustment                |
+| `inventory.reclassify`                                     | none                                                                | equal source-grade decrease + destination-grade increase |
+| `delivery.dispatch`                                        | none                                                                | appends outbound movements                               |
+| `delivery.recordReturn`                                    | none                                                                | appends compensating inbound movements                   |
+| `delivery.markDelivered`                                   | none                                                                | acknowledgement only; dispatch already moved stock       |
+| `operations.recordClose` / `operations.reopenClose`        | none                                                                | none; signs off or reopens source observations           |
+| `cash.recordStatementMatch` / `cash.reverseStatementMatch` | none                                                                | none; links or compensates reconciliation metadata       |
 
 The recognition moments for Sale and Purchase are technically implemented but
 remain subject to the owner-validation gates recorded in the decision backlog.

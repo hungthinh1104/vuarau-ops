@@ -91,6 +91,7 @@ command refuses source or ledger corruption rather than hiding it.
 | UC-CASH-003              | Transfer/reverse money between accounts     | `cash.transfer`                     | implemented    | [cashbook](cash-use-cases.md)                                              |
 | UC-CASH-004              | Record explained cash adjustment            | `cash.adjust`                       | implemented    | [cashbook](cash-use-cases.md)                                              |
 | UC-CASH-005              | Inspect/reconcile/rebuild cash              | cash read/rebuild permissions       | implemented    | [cashbook](cash-use-cases.md)                                              |
+| UC-CASH-006              | Match/reverse an external bank statement    | `cash.statement.match`              | implemented    | [bank statement](UC-CASH-006-bank-statement-match.md)                      |
 | UC-REPORT-001            | Inspect source-backed operational reports   | `report.read`                       | implemented    | [depot operations](depot-operations-use-cases.md)                          |
 | UC-EVIDENCE-001          | Record/review cost or loss observations     | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-001](UC-EVIDENCE-001-record-cost-observation.md)              |
 | UC-EVIDENCE-002          | Record/review reconciliation observations   | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-002](UC-EVIDENCE-002-record-reconciliation-observation.md)    |
@@ -102,6 +103,7 @@ command refuses source or ledger corruption rather than hiding it.
 | UC-OPERATIONS-002        | Export/validate/restore logical recovery    | workspace/recovery permissions      | implemented    | [platform](platform-use-cases.md)                                          |
 | UC-OPERATIONS-003        | Prepare shadow pilot fail-closed            | pilot operator                      | implemented    | [platform](platform-use-cases.md)                                          |
 | UC-OPERATIONS-004        | Correct posted Sale through supported paths | support + business permission       | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-OPERATIONS-005        | Sign off/reopen an operational business day | `operations.close`                  | implemented    | [operational close](UC-OPERATIONS-005-operational-close.md)                |
 | UC-POLICY-001            | Manage a versioned workspace policy         | `policy.manage` / `policy.read`     | infrastructure | [UC-POLICY-001](UC-POLICY-001-manage-workspace-policy-version.md)          |
 
 ## The template every use case answers

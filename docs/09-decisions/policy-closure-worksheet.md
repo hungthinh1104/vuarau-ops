@@ -89,6 +89,13 @@ command pass.
 
 ## ASM-045 — Shift or business-day close
 
+The repository now supports the narrow `observation_signoff` adapter: an approved
+workspace policy chooses the exact observation kinds, one close is recorded per
+business date, and reopen is an append-only expected-version transition. This does
+not answer which wider field roles, variance thresholds, delivery work or financial
+settlement semantics the depot wants; those still require owner validation before
+broader rollout.
+
 What must be signed off at the end of a shift or business day: cash count,
 customer/supplier balances, stock, deliveries, unresolved work or another set?
 Define the close boundary, authority, variance handling, reopen/correction path and
@@ -96,6 +103,11 @@ whether the close is an auditable canonical fact. ASM-026 only defines the curre
 business-day boundary; it does not decide a close workflow.
 
 ## ASM-046 — Bank and deposit reconciliation
+
+The repository now supports the narrow `exact_cash_movement` adapter: an approved
+policy chooses allowed CashMovement sources and an exact external reference,
+account, amount and currency are stored as a financially-neutral match. This does
+not settle a bank account, derive a variance or alter debt/payable/cash.
 
 How are cash transfers, bank deposits and payment evidence matched? Define the
 external statement input, matching key, settlement time, unresolved-item state,

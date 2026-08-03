@@ -186,6 +186,22 @@ Postgres, and returned by a command that a test exercises.
 | `DOCUMENT_SHARE_REVOKED`                             | Public share was explicitly revoked                                                                                                                                        |
 | `DOCUMENT_SHARE_EXPIRED`                             | Public share passed its expiry                                                                                                                                             |
 | `REPORT_INTEGRITY_FAILURE`                           | Canonical source or projection is inconsistent                                                                                                                             |
+| `OPERATIONAL_CLOSE_POLICY_UNAVAILABLE`               | No approved effective close policy or invalid policy lineage                                                                                                               |
+| `OPERATIONAL_CLOSE_NOT_FOUND`                        | Close does not resolve in this workspace                                                                                                                                   |
+| `OPERATIONAL_CLOSE_ALREADY_EXISTS`                   | Business date already has a close                                                                                                                                          |
+| `OPERATIONAL_CLOSE_VERSION_CONFLICT`                 | Close was changed by another command                                                                                                                                       |
+| `OPERATIONAL_CLOSE_OBSERVATIONS_INVALID`             | Required measurable observations are missing, duplicated or foreign                                                                                                        |
+| `OPERATIONAL_CLOSE_REOPEN_UNAVAILABLE`               | Effective close policy does not allow reopen                                                                                                                               |
+| `OPERATIONAL_CLOSE_ALREADY_REOPENED`                 | Close already has its append-only reopen fact                                                                                                                              |
+| `CASH_MOVEMENT_NOT_FOUND`                            | Statement match target does not resolve in this workspace                                                                                                                  |
+| `CASH_STATEMENT_ACCOUNT_MISMATCH`                    | Statement account differs from the target CashMovement account                                                                                                             |
+| `CASH_STATEMENT_AMOUNT_MISMATCH`                     | Statement amount or currency differs from the target CashMovement                                                                                                          |
+| `CASH_STATEMENT_SOURCE_NOT_ALLOWED`                  | CashMovement source is not allowed by the effective policy                                                                                                                 |
+| `CASH_STATEMENT_MATCH_ALREADY_EXISTS`                | Movement or external reference already has another match                                                                                                                   |
+| `CASH_STATEMENT_MATCH_NOT_FOUND`                     | Statement match does not resolve in this workspace                                                                                                                         |
+| `CASH_STATEMENT_MATCH_VERSION_CONFLICT`              | Statement match was changed by another command                                                                                                                             |
+| `CASH_STATEMENT_MATCH_ALREADY_REVERSED`              | Statement match already has its reversal                                                                                                                                   |
+| `CASH_STATEMENT_REVERSE_UNAVAILABLE`                 | Effective statement policy does not allow reversal                                                                                                                         |
 
 ## Rules for changing this catalog
 

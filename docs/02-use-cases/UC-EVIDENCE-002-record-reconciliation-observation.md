@@ -36,4 +36,6 @@ inventory counts.
 
 This workflow does not define a variance formula, stocktake session, close state,
 bank settlement, payable/receivable adjustment or management recommendation.
-ASM-043, ASM-045 and ASM-046 remain policy gates.
+ASM-043 remains a field-policy gate. Close and statement-match commands are separate
+typed adapters that require their own approved policies; this observation command
+still never creates a close, settlement, cash, debt, payable or inventory effect.
