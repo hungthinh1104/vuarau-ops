@@ -56,11 +56,12 @@ payment allocation, due-date semantics or any additional cash effect.
 - Debt summary reduced by exactly that amount.
 - One audit record `payment.recorded`.
 
-## Not modelled in this phase
+## Allocation boundary
 
-Payments are **not allocated to specific orders** (ASM-004). A payment reduces the
-customer's balance as a whole. Allocation is a reporting concern that can be added
-later without changing any existing ledger row.
+Recording a Payment never allocates it to a Sale. The payment reduces the
+customer's canonical balance as a whole. A payment may remain unallocated, or a
+separate approved `manual`/`specific_sale` allocation policy may add an append-only
+attribution later without changing any ledger row.
 
 ## Business rules
 

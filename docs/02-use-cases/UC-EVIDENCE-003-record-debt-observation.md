@@ -29,8 +29,9 @@ screen. The screen states the fact-only boundary explicitly.
 ## Deliberate boundary
 
 This use case does not decide default terms, aging, allocation order, credit
-limits, collection priority or anonymous-sale semantics. Those are ASM-041 and
-other policy gates requiring field evidence before implementation.
+limits, collection priority or anonymous-sale semantics. Those remain separate
+policy gates; the implemented debt-aging adapter may be activated only with an
+approved workspace policy and does not turn this observation into a ledger effect.
 
 ## Evidence state
 

@@ -29,7 +29,8 @@ choose the accounting model.
 4. Generating, printing, sharing or regenerating the statement moves no money and
    no goods. A new version is a new presentation snapshot, not a new transaction.
 5. The statement does not allocate one Payment across individual Sales. Allocation
-   remains a separate future decision if field evidence proves it is needed.
+   remains a separate policy-backed command and its facts are not rewritten by a
+   presentation snapshot.
 6. “Bông hàng” remains a discovery term. A future Bông aggregate is justified only
    if workers need a lifecycle not represented by Sale, Delivery or Statement.
    Candidate evidence includes who opens/closes it, what source transactions it

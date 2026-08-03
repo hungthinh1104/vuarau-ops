@@ -97,12 +97,12 @@ Computed by exactly one function. No command sets `status` directly. See
 
 ## Explicitly permitted, not an error
 
-| Situation                            | Rule                                        | Reference                                 |
-| ------------------------------------ | ------------------------------------------- | ----------------------------------------- |
-| Payment larger than current debt     | Allowed; balance goes negative              | ASM-001, TC-PAYMENT-011, CASE-PAYMENT-003 |
-| Payment not tied to any sale         | Allowed; allocation is not modelled         | ASM-004, CASE-PAYMENT-005                 |
-| Someone other than the customer pays | Allowed; `payerName` records it             | CASE-PAYMENT-004                          |
-| Payment back-dated to yesterday      | Allowed; `transactionTime` is authoritative | BR-COMMAND-003, CASE-PAYMENT-008          |
+| Situation                            | Rule                                                                          | Reference                                 |
+| ------------------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------- |
+| Payment larger than current debt     | Allowed; balance goes negative                                                | ASM-001, TC-PAYMENT-011, CASE-PAYMENT-003 |
+| Payment not tied to any sale         | Allowed; it remains unallocated unless a policy-backed allocation is recorded | ASM-004, CASE-PAYMENT-005                 |
+| Someone other than the customer pays | Allowed; `payerName` records it                                               | CASE-PAYMENT-004                          |
+| Payment back-dated to yesterday      | Allowed; `transactionTime` is authoritative                                   | BR-COMMAND-003, CASE-PAYMENT-008          |
 
 ## Deprecated rules
 

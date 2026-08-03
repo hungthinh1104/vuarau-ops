@@ -105,7 +105,7 @@ uncommitted command or one atomic committed receipt and result.
 
 | Tempting value                      | Why it is not a state                                             |
 | ----------------------------------- | ----------------------------------------------------------------- |
-| paid/unpaid Sale                    | Payments are not allocated to Sales; customer balance is separate |
+| paid/unpaid Sale                    | Sale has no paid/unpaid state; account balance and optional policy-backed payment allocations remain separate |
 | delivered/returned Sale             | Delivery and Return are physical facts, not Sale lifecycle        |
 | received Purchase                   | Receipts are physical facts, not Purchase lifecycle               |
 | voided Sale/Purchase column         | Void is an immutable adjacent record and compensating effect      |

@@ -58,7 +58,7 @@ no UI or report supplies a second implementation of that policy.
 | AI/LLM transaction entry                                          | AI may propose in a future milestone but may never bypass deterministic commands                                          |
 | Pricing intelligence and automatic recommendations                | The explicit price-rule catalogue is in scope; intelligence, forecasting and automatic application remain out of scope    |
 | Demand forecasting, supplier scoring and customer health scoring  | Require field evidence and enough history to justify a model                                                              |
-| Tax invoicing, allocation and inventory valuation                 | Current documents make no tax claim; Payments are not allocated to Sales                                                  |
+| Tax invoicing and inventory valuation                              | Current documents make no tax claim; payment attribution is a separate policy-backed debt capability, not tax invoicing |
 | Supplier quality claims, credits and billable-quantity settlement | Rejected/quarantined intake does not silently rewrite Purchase payable                                                    |
 | General lot/expiry traceability and “bông hàng”                   | Supplier lot text is evidence only; canonical lot/expiry and “bông hàng” require separate definitions                     |
 | Delivery route optimization                                       | Delivery truth exists; routing is a separate product problem                                                              |

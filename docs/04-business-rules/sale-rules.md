@@ -236,8 +236,11 @@ rather than at retrying.
 
 **Risk:** P1 · **Code:** — · **Tests:** TC-SALE-018 · **Cases:** CASE-SALE-012
 
-`sale.dueAt` is nullable. When it is null the sale carries no payment term, and no
-read, report, or classification may describe the resulting receivable as overdue.
+`sale.dueAt` is nullable. A posted Sale with an explicit due date is a
+`sale_override`; otherwise posting may derive and snapshot a due date from the
+effective workspace `payment_terms_aging` policy at `transactionTime`. When no
+term exists, no read, report, or classification may describe the receivable as
+overdue.
 
 Depots sell on open account far more often than on terms. Treating "no stated due
 date" as "due immediately" would put most customers on a chase list the day they
@@ -245,8 +248,9 @@ buy, which is not what anybody agreed. Aging — _how old_ is this balance — s
 computable from `transactionTime` and needs no due date; **overdue** is a judgement
 about a promise, and where there is no promise there is nothing to break.
 
-This rule fixes the boundary of ASM-016 rather than closing it: what payment terms
-mean, and whether a depot wants them at all, still needs the owner.
+Policy-backed terms are versioned and retained on the posted Sale so later policy
+changes cannot rewrite historical aging. An aging read still fails closed when its
+effective terms or allocation policy is missing or invalid.
 
 ---
 

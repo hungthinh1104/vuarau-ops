@@ -103,9 +103,10 @@ negative. **Decided** (previously ASM-001 / ASM-003): paying ahead for tomorrow'
 load is a real thing depots do, and refusing it would reject a genuine business
 event while leaving no record that it was attempted.
 
-The credit is not allocated to anything. It sits on the account and is consumed by
-the next sale arithmetically, because the balance is a sum (ASM-004 — allocation is
-not modelled).
+Any remaining credit is not forced onto a Sale. It sits on the account and is
+consumed by the next sale arithmetically, because the balance is a sum; a separate
+approved allocation policy may attribute a payment to a posted Sale without
+changing the ledger.
 
 ---
 
