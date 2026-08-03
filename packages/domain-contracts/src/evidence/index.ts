@@ -3,10 +3,13 @@ import {
   costObservationIdSchema,
   reconciliationObservationIdSchema,
   debtObservationIdSchema,
+  supplyCommitmentObservationIdSchema,
+  supplierObservationIdSchema,
   workspaceIdSchema,
   actorIdSchema,
   commandIdSchema,
   customerIdSchema,
+  supplierIdSchema,
   productIdSchema,
   qualityGradeIdSchema,
 } from "../shared/ids.ts";
@@ -256,3 +259,187 @@ export const debtObservationListInputSchema = pageRequestSchema.extend({
 });
 export type DebtObservationListInput = z.infer<typeof debtObservationListInputSchema>;
 export const debtObservationPageSchema = pageOf(debtObservationDtoSchema);
+
+/**
+ * Supply commitments preserve what a supplier, farmer or collector said was
+ * available or expected. They are raw source facts only: they do not create a
+ * purchase, payable, receipt, inventory movement, reorder signal or supplier
+ * score. A free-text counterparty label keeps capture possible before a
+ * supplier master record exists; a known supplierId is optional and scoped by
+ * the command workspace.
+ */
+export const SUPPLY_COMMITMENT_OBSERVATION_KINDS = [
+  "promised_supply",
+  "expected_arrival",
+  "minimum_order",
+  "availability_note",
+  "other",
+] as const;
+export const supplyCommitmentObservationKindSchema = z.enum(SUPPLY_COMMITMENT_OBSERVATION_KINDS);
+export type SupplyCommitmentObservationKind = z.infer<typeof supplyCommitmentObservationKindSchema>;
+
+export const supplyCommitmentObservationFactsSchema = z.object({
+  supplierId: supplierIdSchema.nullable().default(null),
+  productId: productIdSchema.nullable().default(null),
+  qualityGradeId: qualityGradeIdSchema.nullable().default(null),
+  promisedQuantity: quantitySchema.nullable().default(null),
+  minimumOrder: quantitySchema.nullable().default(null),
+  expectedArrivalAt: isoInstantSchema.nullable().default(null),
+  counterpartyLabel: z.string().trim().max(500).nullable().default(null),
+  commitmentReference: z.string().trim().max(500).nullable().default(null),
+});
+export type SupplyCommitmentObservationFacts = z.infer<
+  typeof supplyCommitmentObservationFactsSchema
+>;
+
+const supplyCommitmentObservationPayloadSchema = z.object({
+  supplyCommitmentObservationId: supplyCommitmentObservationIdSchema,
+  kind: supplyCommitmentObservationKindSchema,
+  caseKind: costObservationCaseKindSchema,
+  description: z.string().trim().min(1).max(2_000),
+  participantWording: z.string().trim().min(1).max(2_000),
+  facts: supplyCommitmentObservationFactsSchema,
+  evidenceReferences: z.array(evidenceReferenceSchema).min(1).max(20),
+  relatedObservationId: supplyCommitmentObservationIdSchema.nullable().default(null),
+});
+
+export const recordSupplyCommitmentObservationCommandSchema = defineCommand(
+  supplyCommitmentObservationPayloadSchema,
+);
+export type RecordSupplyCommitmentObservationCommand = z.infer<
+  typeof recordSupplyCommitmentObservationCommandSchema
+>;
+
+export const supplyCommitmentObservationDtoSchema = z.object({
+  id: supplyCommitmentObservationIdSchema,
+  workspaceId: workspaceIdSchema,
+  kind: supplyCommitmentObservationKindSchema,
+  caseKind: costObservationCaseKindSchema,
+  description: z.string(),
+  participantWording: z.string(),
+  facts: supplyCommitmentObservationFactsSchema,
+  evidenceReferences: z.array(z.string()),
+  relatedObservationId: supplyCommitmentObservationIdSchema.nullable(),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+});
+export type SupplyCommitmentObservationDto = z.infer<typeof supplyCommitmentObservationDtoSchema>;
+
+export const supplyCommitmentObservationGetInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  supplyCommitmentObservationId: supplyCommitmentObservationIdSchema,
+});
+export type SupplyCommitmentObservationGetInput = z.infer<
+  typeof supplyCommitmentObservationGetInputSchema
+>;
+
+export const supplyCommitmentObservationListInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  kind: supplyCommitmentObservationKindSchema.nullable().default(null),
+});
+export type SupplyCommitmentObservationListInput = z.infer<
+  typeof supplyCommitmentObservationListInputSchema
+>;
+export const supplyCommitmentObservationPageSchema = pageOf(supplyCommitmentObservationDtoSchema);
+
+/**
+ * Supplier relationship and performance observations preserve what a worker,
+ * supplier or owner said or observed. They do not create a supplier role,
+ * payable, inventory movement, claim settlement, score or recommendation.
+ */
+export const SUPPLIER_OBSERVATION_KINDS = [
+  "role",
+  "product_supplied",
+  "source_area",
+  "pickup_responsibility",
+  "packing_responsibility",
+  "transport_responsibility",
+  "expected_lead_time",
+  "payment_arrangement",
+  "traceability_level",
+  "promised_quantity",
+  "actual_quantity",
+  "expected_arrival",
+  "actual_arrival",
+  "accepted_quantity",
+  "rejected_quantity",
+  "claim",
+  "price",
+  "other",
+] as const;
+export const supplierObservationKindSchema = z.enum(SUPPLIER_OBSERVATION_KINDS);
+export type SupplierObservationKind = z.infer<typeof supplierObservationKindSchema>;
+
+export const supplierObservationFactsSchema = z.object({
+  supplierId: supplierIdSchema.nullable().default(null),
+  productId: productIdSchema.nullable().default(null),
+  qualityGradeId: qualityGradeIdSchema.nullable().default(null),
+  role: z.string().trim().max(200).nullable().default(null),
+  sourceArea: z.string().trim().max(500).nullable().default(null),
+  pickupResponsibility: z.string().trim().max(500).nullable().default(null),
+  packingResponsibility: z.string().trim().max(500).nullable().default(null),
+  transportResponsibility: z.string().trim().max(500).nullable().default(null),
+  expectedLeadTimeText: z.string().trim().max(500).nullable().default(null),
+  paymentArrangement: z.string().trim().max(1_000).nullable().default(null),
+  traceabilityLevel: z.string().trim().max(200).nullable().default(null),
+  promisedQuantity: quantitySchema.nullable().default(null),
+  actualQuantity: quantitySchema.nullable().default(null),
+  acceptedQuantity: quantitySchema.nullable().default(null),
+  rejectedQuantity: quantitySchema.nullable().default(null),
+  expectedAt: isoInstantSchema.nullable().default(null),
+  actualAt: isoInstantSchema.nullable().default(null),
+  price: moneySchema.nullable().default(null),
+  claimReference: z.string().trim().max(500).nullable().default(null),
+  observationReference: z.string().trim().max(500).nullable().default(null),
+});
+export type SupplierObservationFacts = z.infer<typeof supplierObservationFactsSchema>;
+
+const supplierObservationPayloadSchema = z.object({
+  supplierObservationId: supplierObservationIdSchema,
+  kind: supplierObservationKindSchema,
+  caseKind: costObservationCaseKindSchema,
+  description: z.string().trim().min(1).max(2_000),
+  participantWording: z.string().trim().min(1).max(2_000),
+  facts: supplierObservationFactsSchema,
+  evidenceReferences: z.array(evidenceReferenceSchema).min(1).max(20),
+  relatedObservationId: supplierObservationIdSchema.nullable().default(null),
+});
+
+export const recordSupplierObservationCommandSchema = defineCommand(
+  supplierObservationPayloadSchema,
+);
+export type RecordSupplierObservationCommand = z.infer<
+  typeof recordSupplierObservationCommandSchema
+>;
+
+export const supplierObservationDtoSchema = z.object({
+  id: supplierObservationIdSchema,
+  workspaceId: workspaceIdSchema,
+  kind: supplierObservationKindSchema,
+  caseKind: costObservationCaseKindSchema,
+  description: z.string(),
+  participantWording: z.string(),
+  facts: supplierObservationFactsSchema,
+  evidenceReferences: z.array(z.string()),
+  relatedObservationId: supplierObservationIdSchema.nullable(),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+});
+export type SupplierObservationDto = z.infer<typeof supplierObservationDtoSchema>;
+
+export const supplierObservationGetInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  supplierObservationId: supplierObservationIdSchema,
+});
+export type SupplierObservationGetInput = z.infer<typeof supplierObservationGetInputSchema>;
+
+export const supplierObservationListInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  kind: supplierObservationKindSchema.nullable().default(null),
+});
+export type SupplierObservationListInput = z.infer<typeof supplierObservationListInputSchema>;
+export const supplierObservationPageSchema = pageOf(supplierObservationDtoSchema);

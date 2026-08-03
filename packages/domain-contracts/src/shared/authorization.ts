@@ -83,6 +83,9 @@ export const PERMISSIONS = [
   "audit.read",
   "evidence.read",
   "evidence.record",
+  /** Policy registry access is narrower than workspace membership management. */
+  "policy.read",
+  "policy.manage",
   /** Managing who is a member of the workspace. Owner only. */
   "workspace.manage",
   "product.read",
@@ -163,6 +166,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "audit.read",
     "evidence.read",
     "evidence.record",
+    "policy.read",
+    "policy.manage",
     "sale.void",
     "sale.read",
     "payment.record",

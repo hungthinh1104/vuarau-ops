@@ -45,6 +45,9 @@ export const AUDIT_AGGREGATE_TYPES = [
   "cost_observation",
   "reconciliation_observation",
   "debt_observation",
+  "supply_commitment_observation",
+  "supplier_observation",
+  "workspace_policy",
 ] as const;
 export const auditAggregateTypeSchema = z.enum(AUDIT_AGGREGATE_TYPES);
 export type AuditAggregateType = z.infer<typeof auditAggregateTypeSchema>;
@@ -129,6 +132,11 @@ export const AUDIT_ACTIONS = [
   "cost_observation.recorded",
   "reconciliation_observation.recorded",
   "debt_observation.recorded",
+  "supply_commitment_observation.recorded",
+  "supplier_observation.recorded",
+  "workspace_policy.draft_created",
+  "workspace_policy.approved",
+  "workspace_policy.retired",
 ] as const;
 export const auditActionSchema = z.enum(AUDIT_ACTIONS);
 export type AuditAction = z.infer<typeof auditActionSchema>;

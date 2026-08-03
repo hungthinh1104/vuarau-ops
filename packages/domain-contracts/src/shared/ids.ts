@@ -125,6 +125,14 @@ export const reconciliationObservationIdSchema = z.uuid().brand<"ReconciliationO
 export type ReconciliationObservationId = z.infer<typeof reconciliationObservationIdSchema>;
 export const debtObservationIdSchema = z.uuid().brand<"DebtObservationId">();
 export type DebtObservationId = z.infer<typeof debtObservationIdSchema>;
+export const supplyCommitmentObservationIdSchema = z
+  .uuid()
+  .brand<"SupplyCommitmentObservationId">();
+export type SupplyCommitmentObservationId = z.infer<typeof supplyCommitmentObservationIdSchema>;
+export const supplierObservationIdSchema = z.uuid().brand<"SupplierObservationId">();
+export type SupplierObservationId = z.infer<typeof supplierObservationIdSchema>;
+export const workspacePolicyVersionIdSchema = z.uuid().brand<"WorkspacePolicyVersionId">();
+export type WorkspacePolicyVersionId = z.infer<typeof workspacePolicyVersionIdSchema>;
 
 export const cashAccountIdSchema = z.uuid().brand<"CashAccountId">();
 export type CashAccountId = z.infer<typeof cashAccountIdSchema>;

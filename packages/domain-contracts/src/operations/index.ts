@@ -214,6 +214,48 @@ export const workspaceBackupV11Schema = z.object({
   digest: z.string().regex(/^[a-f0-9]{64}$/),
 });
 export type WorkspaceBackupV11 = z.infer<typeof workspaceBackupV11Schema>;
+export const workspaceBackupPayloadV12Schema = workspaceBackupPayloadV11Schema.extend({
+  workspacePolicies: z.array(backupRecordSchema),
+});
+export const workspaceBackupV12Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(12),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m28-policy-registry"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV12Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV12 = z.infer<typeof workspaceBackupV12Schema>;
+export const workspaceBackupPayloadV13Schema = workspaceBackupPayloadV12Schema.extend({
+  supplyCommitmentObservations: z.array(backupRecordSchema),
+});
+export const workspaceBackupV13Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(13),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m29-supply-commitment-observation"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV13Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV13 = z.infer<typeof workspaceBackupV13Schema>;
+export const workspaceBackupPayloadV14Schema = workspaceBackupPayloadV13Schema.extend({
+  supplierObservations: z.array(backupRecordSchema),
+});
+export const workspaceBackupV14Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(14),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m30-supplier-observation"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV14Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV14 = z.infer<typeof workspaceBackupV14Schema>;
 export const workspaceBackupSchema = z.discriminatedUnion("version", [
   workspaceBackupV1Schema,
   workspaceBackupV2Schema,
@@ -226,6 +268,9 @@ export const workspaceBackupSchema = z.discriminatedUnion("version", [
   workspaceBackupV9Schema,
   workspaceBackupV10Schema,
   workspaceBackupV11Schema,
+  workspaceBackupV12Schema,
+  workspaceBackupV13Schema,
+  workspaceBackupV14Schema,
 ]);
 export type WorkspaceBackup = z.infer<typeof workspaceBackupSchema>;
 export const exportWorkspaceBackupCommandSchema = defineCommand(z.object({}));
