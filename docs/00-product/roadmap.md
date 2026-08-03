@@ -356,9 +356,10 @@ workspace-scoped `CostObservation` slice and the second
 `ReconciliationObservation` and `DebtObservation` slices now capture source-linked facts with exact
 amounts/quantities, separate expected/observed values, debt terms, read, idempotent retry and
 logical backup/restore coverage. Promised/arrived/accepted
-quantities, customer demand/order requests, generic stocktake counts, bank statement
-matching and Supplier relationship/performance observations are now available as raw
-evidence. New records must
+quantities, customer demand/order requests and Supplier relationship/performance
+observations are now available as raw evidence; policy-backed stocktake sessions
+and fixed-threshold planning are now separate traced adapters. Bank statement
+matching remains raw evidence only. New records must
 carry actor and transaction/recorded time, remain append-only or explicitly
 superseding, and survive backup/restore.
 

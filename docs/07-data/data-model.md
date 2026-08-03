@@ -55,13 +55,15 @@ Drizzle definitions and database constraints.
 
 ### Receiving and inventory
 
-| Table                        | Purpose                                                 | Mutability                  |
-| ---------------------------- | ------------------------------------------------------- | --------------------------- |
-| `purchase_receipts`          | Physical inbound source document with source references | append-only business source |
-| `purchase_receipt_lines`     | Received Product/grade/unit quantities                  | append-only                 |
-| `purchase_receipt_reversals` | Explicit Receipt reversal facts                         | append-only                 |
-| `inventory_movements`        | Canonical physical ledger by Product/QualityGrade/unit  | append-only                 |
-| `inventory_balances`         | Rebuildable Product/QualityGrade/unit projection        | recomputable                |
+| Table                        | Purpose                                                   | Mutability                  |
+| ---------------------------- | --------------------------------------------------------- | --------------------------- |
+| `purchase_receipts`          | Physical inbound source document with source references   | append-only business source |
+| `purchase_receipt_lines`     | Received Product/grade/unit quantities                    | append-only                 |
+| `purchase_receipt_reversals` | Explicit Receipt reversal facts                           | append-only                 |
+| `inventory_movements`        | Canonical physical ledger by Product/QualityGrade/unit    | append-only                 |
+| `inventory_balances`         | Rebuildable Product/QualityGrade/unit projection          | recomputable                |
+| `stocktake_sessions`         | Policy-linked physical count session and variance lineage | append-only state history   |
+| `stocktake_counts`           | Product/QualityGrade/unit count facts within a session    | append-only                 |
 
 ### Delivery
 

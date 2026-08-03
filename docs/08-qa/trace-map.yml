@@ -971,6 +971,39 @@ use_cases:
       - apps/web/src/ui/controllers/product-inventory-controller.tsx
       - apps/web/src/ui/screens/product-inventory-view.tsx
 
+  UC-INVENTORY-006:
+    title: Read policy-backed stock planning
+    risk: P0
+    doc: docs/02-use-cases/UC-INVENTORY-006-stock-planning.md
+    rules: [BR-INVENTORY-005, BR-INVENTORY-013]
+    cases: []
+    tests: [TC-PLANNING-001, TC-PLANNING-002]
+    implementation:
+      - packages/domain-contracts/src/inventory/index.ts
+      - packages/domain-kernel/src/inventory/stock-planning.ts
+      - apps/api/src/modules/inventory/inventory.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/inventory.ts
+      - apps/web/src/ui/controllers/product-inventory-controller.tsx
+      - apps/web/src/ui/screens/product-inventory-view.tsx
+
+  UC-INVENTORY-007:
+    title: Count and approve a stocktake session
+    risk: P0
+    doc: docs/02-use-cases/UC-INVENTORY-007-stocktake.md
+    rules: [BR-INVENTORY-005, BR-INVENTORY-014]
+    cases: []
+    tests: [TC-STOCKTAKE-001, TC-STOCKTAKE-002, TC-STOCKTAKE-003]
+    implementation:
+      - packages/domain-contracts/src/inventory/index.ts
+      - packages/domain-kernel/src/inventory/stocktake.ts
+      - apps/api/src/modules/inventory/stocktake.handlers.ts
+      - packages/db/src/schema/stocktake.ts
+      - packages/db/src/repositories/write/stocktake.ts
+      - packages/db/src/repositories/read/stocktake.ts
+      - apps/web/src/ui/controllers/product-inventory-controller.tsx
+      - apps/web/src/ui/patterns/inventory/inventory-stocktake-panel.tsx
+      - apps/web/src/ui/screens/product-inventory-view.tsx
+
   UC-DELIVERY-001:
     title: Draft edit or cancel Sale fulfilment
     risk: P0
@@ -1769,6 +1802,27 @@ business_rules:
     cases: []
     tests: [TC-GOODS-001]
     implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
+
+  BR-INVENTORY-013:
+    title: Stock planning is an approved exact fixed-threshold read
+    risk: P0
+    doc: docs/04-business-rules/inventory-planning-rules.md
+    cases: []
+    tests: [TC-PLANNING-001, TC-PLANNING-002]
+    implementation:
+      - packages/domain-kernel/src/inventory/stock-planning.ts
+      - apps/api/src/modules/inventory/inventory.queries.ts
+
+  BR-INVENTORY-014:
+    title: Stocktake approval and reopen append exact variance compensation
+    risk: P0
+    doc: docs/04-business-rules/inventory-planning-rules.md
+    cases: []
+    tests: [TC-STOCKTAKE-001, TC-STOCKTAKE-002, TC-STOCKTAKE-003]
+    implementation:
+      - packages/domain-kernel/src/inventory/stocktake.ts
+      - apps/api/src/modules/inventory/stocktake.handlers.ts
+      - packages/db/src/repositories/write/stocktake.ts
 
   BR-VALUATION-001:
     title: Inventory valuation selects only an approved effective workspace policy

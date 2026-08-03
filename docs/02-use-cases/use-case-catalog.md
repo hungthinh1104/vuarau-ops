@@ -76,6 +76,8 @@ command refuses source or ledger corruption rather than hiding it.
 | UC-INVENTORY-002         | Record explained physical adjustment        | inventory adjustment permission     | implemented    | [goods](goods-flow-use-cases.md)                                           |
 | UC-INVENTORY-003         | Reclassify accepted stock between grades    | `inventory.reclassify`              | implemented    | [goods](goods-flow-use-cases.md)                                           |
 | UC-INVENTORY-004         | Reconcile/rebuild inventory projection      | inventory recovery permissions      | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-INVENTORY-006         | Read policy-backed stock planning           | `inventory.read`                    | implemented    | [stock planning](UC-INVENTORY-006-stock-planning.md)                       |
+| UC-INVENTORY-007         | Count and approve a stocktake session       | `inventory.adjust`                  | implemented    | [stocktake](UC-INVENTORY-007-stocktake.md)                                 |
 | UC-DELIVERY-001          | Draft/edit/cancel Sale fulfilment           | delivery draft permissions          | implemented    | [depot operations](depot-operations-use-cases.md)                          |
 | UC-DELIVERY-002          | Dispatch goods                              | `delivery.dispatch`                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |
 | UC-DELIVERY-003          | Acknowledge delivered handover              | `delivery.complete`                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |

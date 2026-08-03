@@ -85,17 +85,17 @@ Every known policy question is classified in the
   partial customer-return money semantics and Supplier returns of accepted stock.
   These gaps must not be hidden with invented Return/Dispatch/Receipt/adjustment
   facts.
-- ASM-039–048 keep reproducible COGS/profit, cost effects, debt aging/allocation, inventory
-  planning, stocktake, walk-in sales, shift close, bank reconciliation and Supplier
-  performance unavailable as derived management outcomes until the field questions in the
-  [next-phase policy worksheet](../09-decisions/policy-closure-worksheet.md)
-  are answered. Raw evidence capture may be implemented independently, but it must
-  remain visibly raw and must not be presented as a metric, recommendation or
-  settled policy.
-- The versioned policy registry is infrastructure for typed adapters. The
-  inventory-value read is the first narrow adapter; an approved row still does
-  not activate COGS/profit, aging, planning or other policy-sensitive results
-  until each separate adapter and field gate exists.
+- ASM-039–048 keep reproducible COGS/profit, cost effects, debt aging/allocation,
+  advanced inventory planning, walk-in sales, shift close, bank reconciliation and
+  Supplier performance unavailable as derived management outcomes until the field
+  questions in the [next-phase policy worksheet](../09-decisions/policy-closure-worksheet.md)
+  are answered. The narrow fixed-threshold planning read and policy-backed stocktake
+  session are implemented as explicit source-backed adapters; they do not close the
+  broader field decisions or publish forecast/stock-risk intelligence.
+- The versioned policy registry is infrastructure for typed adapters. Inventory
+  value, fixed-threshold planning and stocktake variance are narrow adapters;
+  an approved row still does not activate COGS/profit, advanced aging, forecast
+  or other policy-sensitive results until each separate adapter and field gate exists.
 
 ## Related
 

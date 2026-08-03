@@ -89,6 +89,9 @@ claim that a depot has validated the workflow in live operations.
 
 ## Backup and operations
 
+Planning and stocktake extensions are defined in
+[inventory-planning-rules.md](inventory-planning-rules.md).
+
 WorkspaceBackupV4 adds QualityGrade and grade snapshots to the V3 canonical
 boundary but no derived projections. Restore continues to accept V1–V3; missing
 historical grades remain explicitly unclassified and are never assigned an

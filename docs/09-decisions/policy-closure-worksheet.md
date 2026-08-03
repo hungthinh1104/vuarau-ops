@@ -60,12 +60,20 @@ an unallocated payment or negative balance into an overdue amount.
 
 ## ASM-042 — Inventory planning and stock-risk semantics
 
+The technical slice now supports an approved fixed-threshold policy over
+Product/grade/unit facts. This worksheet still decides whether the depot wants
+lead-time, velocity, forecast, stock-risk and action semantics beyond that slice.
+
 Which Product/grade/unit combinations have minimum stock, target stock, supplier
 lead time, velocity window, days-of-stock and reorder-point values? Define the
 stock-risk states, their business-time basis, freshness and action. Lot, harvest
 date and expiry remain separate discovery questions until field evidence exists.
 
 ## ASM-043 — Stocktake sessions and variance approval
+
+The technical slice now supports a persisted policy-linked session, count facts,
+approval variance and policy-controlled reopen compensation. This worksheet still
+records the depot's field authority, evidence and rollout acceptance.
 
 Does the depot need a persisted stocktake session, count evidence, variance
 approval and reopen/correction path beyond attributable inventory adjustments?
