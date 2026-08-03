@@ -22,11 +22,12 @@ Technical completion is not field validation. The distinction is defined in the
 | Engineering         | Strict TypeScript, architecture boundaries, source-size/composition gates, docs and trace checks, Vitest projects, PostgreSQL integration, Next/Storybook builds and real-stack Playwright                                                                                                                                                                                         |
 | Operating model     | Universal fact vocabulary plus workspace policy boundaries; the current runtime implements only the fact/policy slices listed above, not every stage of the full distribution chain                                                                                                                                                                                                |
 
-The runtime exposes **49 authenticated command procedures** and **48 authenticated
-query procedures** across 16 bounded-context router namespaces. These counts
-describe the current router modules; the authoritative contracts remain
+The runtime exposes authenticated command and query procedures across the
+bounded-context router namespaces. The live inventory is derived by
+`pnpm security:surface` and mirrored in the authoritative contracts:
 [command-contracts.md](../06-api-contracts/command-contracts.md) and
-[read-models.md](../06-api-contracts/read-models.md).
+[read-models.md](../06-api-contracts/read-models.md). This document intentionally
+does not repeat a manually maintained procedure count.
 
 ## End-to-end depot workflow
 

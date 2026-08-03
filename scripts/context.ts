@@ -172,19 +172,18 @@ async function defaultTrackedFiles(): Promise<readonly string[]> {
 
 async function defaultSearchTests(ids: readonly string[]): Promise<readonly string[]> {
   if (ids.length === 0) return [];
-  const args = [
-    "-l",
-    "--fixed-strings",
-    "--hidden",
-    "--glob",
-    "!docs/archive/**",
-    "--glob",
-    "!packages/db/migrations/meta/**",
-  ];
+  const args = ["grep", "-l", "-I", "--fixed-strings"];
   for (const id of ids) args.push("-e", id);
-  args.push("--glob", "*.test.*", "--glob", "*.spec.*", "--glob", "**/e2e/**", ".");
+  args.push(
+    "--",
+    ":(glob)**/*.test.*",
+    ":(glob)**/*.spec.*",
+    ":(glob)**/e2e/**",
+    ":(exclude)docs/archive/**",
+    ":(exclude)packages/db/migrations/meta/**",
+  );
   try {
-    const { stdout } = await execFile("rg", args, { cwd: ROOT, maxBuffer: 2 * 1024 * 1024 });
+    const { stdout } = await execFile("git", args, { cwd: ROOT, maxBuffer: 2 * 1024 * 1024 });
     return stdout
       .split("\n")
       .filter(Boolean)
@@ -204,10 +203,10 @@ async function defaultSearchContent(
   const compactQuery = query.replaceAll(/[^a-z0-9]/gi, "");
   const terms = unique([query, compactQuery]).filter((term) => term.length > 0);
   try {
-    const args = ["-l", "-i", "--fixed-strings"];
+    const args = ["grep", "-l", "-I", "-i", "--fixed-strings"];
     for (const term of terms) args.push("-e", term);
     args.push("--", ...candidates);
-    const { stdout } = await execFile("rg", args, {
+    const { stdout } = await execFile("git", args, {
       cwd: ROOT,
       maxBuffer: 4 * 1024 * 1024,
     });
