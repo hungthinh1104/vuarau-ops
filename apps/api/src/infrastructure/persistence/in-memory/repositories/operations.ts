@@ -17,6 +17,8 @@ import type {
   QualityDispositionDto,
   QualityInspectionDto,
   QualityIssueCodeDto,
+  CostObservationDto,
+  ReconciliationObservationDto,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import { money } from "@vuarau/domain-kernel";
@@ -54,6 +56,8 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.goodsArrivals.values(),
           ...store.qualityInspections.values(),
           ...store.qualityDispositions.values(),
+          ...store.costObservations.values(),
+          ...store.reconciliationObservations.values(),
           ...store.sales.values(),
           ...store.suppliers.values(),
           ...store.purchases.values(),
@@ -75,6 +79,14 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           workspaceId,
           remap(payload.operationalProfile) as unknown as WorkspaceOperationalProfileDto,
         );
+        for (const raw of payload.costObservations) {
+          const row = remap(raw) as unknown as CostObservationDto;
+          store.costObservations.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.reconciliationObservations) {
+          const row = remap(raw) as unknown as ReconciliationObservationDto;
+          store.reconciliationObservations.set(key(workspaceId, row.id), row);
+        }
         for (const raw of payload.cashAccounts) {
           const row = remap(raw) as unknown as CashAccountDto;
           store.cashAccounts.set(key(workspaceId, row.id), row);
@@ -85,6 +97,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           );
           const row = remap({
             ...raw,
+            evidenceReferences: raw["evidenceReferences"] ?? [],
             reversal:
               reversal === undefined
                 ? null
@@ -95,6 +108,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
                     recordedAt: reversal["recordedAt"],
                     actorId: reversal["actorId"],
                     commandId: reversal["commandId"],
+                    evidenceReferences: reversal["evidenceReferences"] ?? [],
                   },
           }) as unknown as ExpenseDto;
           store.expenses.set(key(workspaceId, row.id), row);
@@ -105,6 +119,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           );
           const row = remap({
             ...raw,
+            evidenceReferences: raw["evidenceReferences"] ?? [],
             reversal:
               reversal === undefined
                 ? null
@@ -115,13 +130,18 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
                     recordedAt: reversal["recordedAt"],
                     actorId: reversal["actorId"],
                     commandId: reversal["commandId"],
+                    evidenceReferences: reversal["evidenceReferences"] ?? [],
                   },
           }) as unknown as CashTransferDto;
           store.cashTransfers.set(key(workspaceId, row.id), row);
         }
         store.cashAdjustments.push(
           ...payload.cashAdjustments.map(
-            (raw) => remap(raw) as unknown as Store["cashAdjustments"][number],
+            (raw) =>
+              remap({
+                ...raw,
+                evidenceReferences: raw["evidenceReferences"] ?? [],
+              }) as unknown as Store["cashAdjustments"][number],
           ),
         );
         store.cashMovements.push(
@@ -196,12 +216,14 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
             recordedAt: raw["recordedAt"],
             actorId: raw["actorId"],
             commandId: raw["commandId"],
+            evidenceReferences: raw["evidenceReferences"] ?? [],
           } as unknown as NonNullable<GoodsArrivalDto["reversal"]>);
         }
         for (const raw of payload.goodsArrivals) {
           const id = String(raw["id"]);
           const row = remap({
             ...raw,
+            evidenceReferences: raw["evidenceReferences"] ?? [],
             lines: arrivalLines.get(id) ?? [],
             reversal: arrivalReversals.get(id) ?? null,
           }) as unknown as GoodsArrivalDto;
@@ -274,6 +296,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
             recordedAt: raw["recordedAt"],
             actorId: raw["actorId"],
             commandId: raw["commandId"],
+            evidenceReferences: raw["evidenceReferences"] ?? [],
           } as unknown as NonNullable<QualityDispositionDto["reversal"]>);
         }
         for (const raw of payload.qualityDispositions) {
@@ -287,6 +310,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
                 };
           const row = remap({
             ...raw,
+            evidenceReferences: raw["evidenceReferences"] ?? [],
             source,
             allocations: dispositionAllocations.get(id) ?? [],
             reversal: dispositionReversals.get(id) ?? null,
@@ -294,18 +318,35 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           store.qualityDispositions.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.sales) {
-          const row = remap(raw) as unknown as SaleState;
+          const row = remap({
+            ...raw,
+            evidenceReferences: raw["evidenceReferences"] ?? [],
+          }) as unknown as SaleState;
           store.sales.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.saleVoids) {
-          store.saleVoids.push(remap(raw) as unknown as SaleVoidState);
+          store.saleVoids.push(
+            remap({
+              ...raw,
+              evidenceReferences: raw["evidenceReferences"] ?? [],
+            }) as unknown as SaleVoidState,
+          );
         }
         for (const raw of payload.payments) {
-          const row = remap(raw) as unknown as PaymentState;
+          const row = remap({
+            ...raw,
+            // V8 backups created before source evidence was added remain restorable.
+            evidenceReferences: raw["evidenceReferences"] ?? [],
+          }) as unknown as PaymentState;
           store.payments.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.paymentReversals) {
-          store.reversals.push(remap(raw) as unknown as PaymentReversalState);
+          store.reversals.push(
+            remap({
+              ...raw,
+              evidenceReferences: raw["evidenceReferences"] ?? [],
+            }) as unknown as PaymentReversalState,
+          );
         }
         for (const raw of payload.accountEntries) {
           store.accountEntries.push(remap(raw) as unknown as CustomerAccountEntryDto);
@@ -322,37 +363,79 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           store.suppliers.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.supplierPayments) {
-          const row = remap(raw) as unknown as SupplierPaymentState;
+          const row = remap({
+            ...raw,
+            evidenceReferences: raw["evidenceReferences"] ?? [],
+          }) as unknown as SupplierPaymentState;
           store.supplierPayments.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.supplierPaymentReversals) {
           store.supplierPaymentReversals.push(
-            remap(raw) as unknown as Store["supplierPaymentReversals"][number],
+            remap({
+              ...raw,
+              evidenceReferences: raw["evidenceReferences"] ?? [],
+            }) as unknown as Store["supplierPaymentReversals"][number],
           );
         }
         for (const raw of payload.supplierAccountEntries) {
           store.supplierAccountEntries.push(remap(raw) as unknown as SupplierAccountEntryDto);
         }
         for (const raw of payload.purchases) {
-          const row = remap(raw) as unknown as PurchaseState;
+          const row = remap({
+            ...raw,
+            evidenceReferences: raw["evidenceReferences"] ?? [],
+          }) as unknown as PurchaseState;
           store.purchases.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.purchaseVoids) {
-          store.purchaseVoids.push(remap(raw) as unknown as PurchaseVoidState);
+          store.purchaseVoids.push(
+            remap({
+              ...raw,
+              evidenceReferences: raw["evidenceReferences"] ?? [],
+            }) as unknown as PurchaseVoidState,
+          );
         }
         for (const raw of payload.receipts) {
-          const row = remap(raw) as unknown as PurchaseReceiptState;
+          const reversal = payload.receiptReversals.find(
+            (candidate) => candidate["receiptId"] === raw["id"],
+          );
+          const row = remap({
+            ...raw,
+            evidenceReferences: raw["evidenceReferences"] ?? [],
+            reversal:
+              reversal === undefined
+                ? null
+                : {
+                    id: reversal["id"],
+                    workspaceId,
+                    receiptId: reversal["receiptId"],
+                    reasonCode: reversal["reasonCode"],
+                    reason: reversal["reason"],
+                    transactionTime: reversal["transactionTime"],
+                    recordedAt: reversal["recordedAt"],
+                    actorId: reversal["actorId"],
+                    evidenceReferences: reversal["evidenceReferences"] ?? [],
+                  },
+          }) as unknown as PurchaseReceiptState;
           store.purchaseReceipts.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.inventoryMovements) {
           store.inventoryMovements.push(remap(raw) as unknown as InventoryMovementState);
         }
         for (const raw of payload.deliveries) {
-          const row = remap(raw) as unknown as DeliveryState;
+          const row = remap({
+            ...raw,
+            evidenceReferences: raw["evidenceReferences"] ?? [],
+          }) as unknown as DeliveryState;
           store.deliveries.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.deliveryReturns)
-          store.deliveryReturns.push(remap(raw) as unknown as DeliveryReturnState);
+          store.deliveryReturns.push(
+            remap({
+              ...raw,
+              evidenceReferences: raw["evidenceReferences"] ?? [],
+            }) as unknown as DeliveryReturnState,
+          );
         for (const raw of payload.documents) {
           const row = remap(raw) as unknown as DocumentDto;
           store.documents.set(key(workspaceId, row.id), row);

@@ -43,9 +43,11 @@ function dto(delivery: DeliveryState): DeliveryDto {
         unit: line.quantity.unit,
       },
     })),
+    evidenceReferences: [...(delivery.evidenceReferences ?? [])],
     returns: delivery.returns.map((record) => ({
       id: record.id,
       reason: record.reason,
+      evidenceReferences: [...(record.evidenceReferences ?? [])],
       lines: record.lines.map((line) => ({ ...line })),
       transactionTime: record.transactionTime,
       recordedAt: record.recordedAt,

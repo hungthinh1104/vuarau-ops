@@ -37,7 +37,7 @@ import {
   updateDeliveryDraft,
 } from "../../../modules/delivery/delivery.handlers.ts";
 import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
-import { getSaleFulfilment } from "../../../modules/delivery/delivery.queries.ts";
+import { getDelivery, getSaleFulfilment } from "../../../modules/delivery/delivery.queries.ts";
 import {
   createDocumentShare,
   generateDocument,
@@ -218,6 +218,8 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
                 },
               ],
               note: null,
+              evidenceReferences:
+                index === 0 ? ["dispatch-sheet://delivery/001", "photo://loading/001"] : [],
             },
           })
         ).ok,
@@ -254,10 +256,23 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
               },
             ],
             reason: "Khách trả 10 kg",
+            evidenceReferences: ["photo://return/001"],
           },
         })
       ).ok,
     ).toBe(true);
+
+    const deliveryRead = await getDelivery(context(), {
+      workspaceId: ctx.workspaceId,
+      deliveryId: deliveries[0]!.id,
+    });
+    expect(deliveryRead.ok && deliveryRead.value.evidenceReferences).toEqual([
+      "dispatch-sheet://delivery/001",
+      "photo://loading/001",
+    ]);
+    expect(deliveryRead.ok && deliveryRead.value.returns[0]?.evidenceReferences).toEqual([
+      "photo://return/001",
+    ]);
 
     const movements = await deps.uow.transaction((repos) =>
       repos.inventoryMovements.listByProduct(ctx.workspaceId, productId, "kg"),
@@ -392,8 +407,8 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       payload: {},
     });
     expect(backup.ok && backup.value).toMatchObject({
-      version: 8,
-      schemaCompatibility: "m26-pricing",
+      version: 10,
+      schemaCompatibility: "m26-operational-evidence-2",
     });
     if (backup.ok) {
       expect(backup.value.payload.deliveries).toHaveLength(2);

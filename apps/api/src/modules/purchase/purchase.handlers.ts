@@ -31,6 +31,7 @@ import { applySupplierAccountEffects } from "../supplier/supplier-account-effect
 const dto = (purchase: PurchaseState): PurchaseDto => ({
   ...purchase,
   lines: purchase.lines.map((line) => ({ ...line })),
+  evidenceReferences: [...(purchase.evidenceReferences ?? [])],
   voidRecord:
     purchase.voidRecord === null
       ? null
@@ -39,6 +40,7 @@ const dto = (purchase: PurchaseState): PurchaseDto => ({
           purchaseId: purchase.voidRecord.purchaseId,
           reasonCode: purchase.voidRecord.reasonCode,
           reason: purchase.voidRecord.reason,
+          evidenceReferences: [...(purchase.voidRecord.evidenceReferences ?? [])],
           amount: purchase.voidRecord.amount,
           transactionTime: purchase.voidRecord.transactionTime,
           recordedAt: purchase.voidRecord.recordedAt,

@@ -28,6 +28,7 @@ import {
 } from "./supplier.handlers.ts";
 import {
   getSupplierBalance,
+  getSupplierPayment,
   getSupplierPriceHistory,
   getSupplierTimeline,
   searchSuppliers,
@@ -90,6 +91,7 @@ async function seedPurchase(input: {
       ],
       totalAmount: { amountMinor: input.unitPriceMinor * 10, currency: "VND" },
       note: null,
+      evidenceReferences: [],
       dueAt: null,
       version: 1,
       transactionTime: input.transactionTime,
@@ -211,6 +213,7 @@ describe("M16 Supplier Account", () => {
         amount: { amountMinor: 150_000, currency: "VND" },
         method: "cash",
         note: null,
+        evidenceReferences: ["receipt://supplier-payment/806", "photo://cash/806"],
       },
     });
     expect(paid.ok).toBe(true);
@@ -223,6 +226,7 @@ describe("M16 Supplier Account", () => {
         amount: { amountMinor: 150_000, currency: "VND" },
         method: "cash",
         note: null,
+        evidenceReferences: ["receipt://supplier-payment/806", "photo://cash/806"],
       },
     });
     expect(replay.ok).toBe(true);
@@ -235,9 +239,23 @@ describe("M16 Supplier Account", () => {
         supplierPaymentId: paymentId,
         amount: { amountMinor: 20_000, currency: "VND" },
         reason: "Trả nhầm phần tiền",
+        evidenceReferences: ["receipt://supplier-reversal/807"],
       },
     });
     expect(reversed.ok).toBe(true);
+
+    const detail = await getSupplierPayment(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      supplierPaymentId: paymentId,
+    });
+    expect(detail.ok && detail.value).toMatchObject({
+      evidenceReferences: ["receipt://supplier-payment/806", "photo://cash/806"],
+      reversals: [
+        {
+          evidenceReferences: ["receipt://supplier-reversal/807"],
+        },
+      ],
+    });
 
     const balance = await getSupplierBalance(harness.ctx, {
       workspaceId: WORKSPACE_ID,

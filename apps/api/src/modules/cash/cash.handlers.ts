@@ -383,6 +383,7 @@ export function adjustCash(ctx: CommandContext, input: unknown) {
           recordedAt,
           actorId: command.actorId,
           commandId: command.commandId,
+          evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
         }))
       ) {
         return err(

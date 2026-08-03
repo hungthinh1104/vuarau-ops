@@ -1,7 +1,7 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV8,
+  WorkspaceBackupV11,
 } from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
@@ -124,6 +124,9 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     "qualityDispositionAllocations" in payload ? payload.qualityDispositionAllocations : [];
   const qualityDispositionReversalRows =
     "qualityDispositionReversals" in payload ? payload.qualityDispositionReversals : [];
+  const costObservationRows = "costObservations" in payload ? payload.costObservations : [];
+  const reconciliationObservationRows =
+    "reconciliationObservations" in payload ? payload.reconciliationObservations : [];
   const qualityIssueCodes = new Set(qualityIssueRows.map((row) => row["id"]));
   const goodsArrivals = new Set(goodsArrivalRows.map((row) => row["id"]));
   const goodsArrivalLines = new Set(goodsArrivalLineRows.map((row) => row["id"]));
@@ -134,6 +137,10 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
   const allocationById = new Map(
     qualityDispositionAllocationRows.map((row) => [row["id"], row] as const),
+  );
+  const costObservationIds = new Set(costObservationRows.map((row) => row["id"]));
+  const reconciliationObservationIds = new Set(
+    reconciliationObservationRows.map((row) => row["id"]),
   );
   return (
     (!("priceRules" in payload) ||
@@ -221,6 +228,24 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
         (row["qualityGradeId"] == null || hasGrade(row["qualityGradeId"])),
     ) &&
     qualityDispositionReversalRows.every((row) => qualityDispositions.has(row["dispositionId"])) &&
+    costObservationRows.every(
+      (row) =>
+        (row["productId"] == null || products.has(row["productId"])) &&
+        hasGrade(row["qualityGradeId"]) &&
+        (row["caseKind"] === "correction"
+          ? row["relatedObservationId"] != null &&
+            costObservationIds.has(row["relatedObservationId"])
+          : row["relatedObservationId"] == null),
+    ) &&
+    reconciliationObservationRows.every(
+      (row) =>
+        (row["productId"] == null || products.has(row["productId"])) &&
+        hasGrade(row["qualityGradeId"]) &&
+        (row["caseKind"] === "correction"
+          ? row["relatedObservationId"] != null &&
+            reconciliationObservationIds.has(row["relatedObservationId"])
+          : row["relatedObservationId"] == null),
+    ) &&
     (!("supplierAccountEntries" in payload) ||
       payload.supplierAccountEntries.every((row) => {
         if (!suppliers.has(row["supplierId"])) return false;
@@ -347,7 +372,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
 }
 
-function v8Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV8["payload"] {
+function v11Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV11["payload"] {
   const payload = command.payload.backup.payload;
   const operationalProfile =
     "operationalProfile" in payload
@@ -398,6 +423,10 @@ function v8Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV8["p
     qualityDispositionReversals:
       "qualityDispositionReversals" in payload ? payload.qualityDispositionReversals : [],
     priceRules: "priceRules" in payload ? payload.priceRules : [],
+    costObservations: "costObservations" in payload ? payload.costObservations : [],
+    reconciliationObservations:
+      "reconciliationObservations" in payload ? payload.reconciliationObservations : [],
+    debtObservations: "debtObservations" in payload ? payload.debtObservations : [],
   };
 }
 
@@ -421,7 +450,7 @@ export function restoreWorkspaceBackup(
       }
       const restored = await repos.operations.restoreBackup(
         command.workspaceId,
-        v8Payload(command),
+        v11Payload(command),
       );
       if (restored.kind === "unsafe_target") {
         return err("BACKUP_UNSAFE_TARGET", "Restore requires an empty recovery workspace.", {
@@ -441,7 +470,7 @@ export function restoreWorkspaceBackup(
       }
       const supplierDiagnostics = (
         await Promise.all(
-          v8Payload(command).suppliers.map((row) =>
+        v11Payload(command).suppliers.map((row) =>
             repos.supplierAccountReads.integrity(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.supplierAccountReads.integrity>[1],
@@ -453,7 +482,7 @@ export function restoreWorkspaceBackup(
         string,
         { productId: string; qualityGradeId: string | null; unit: string }
       >();
-      for (const movement of v8Payload(command).inventoryMovements) {
+      for (const movement of v11Payload(command).inventoryMovements) {
         const qualityGradeId =
           movement["qualityGradeId"] === null || movement["qualityGradeId"] === undefined
             ? null
@@ -481,7 +510,7 @@ export function restoreWorkspaceBackup(
       ).flat();
       const cashDiagnostics = (
         await Promise.all(
-          v8Payload(command).cashAccounts.map((row) =>
+          v11Payload(command).cashAccounts.map((row) =>
             repos.cashReads.reconciliation(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.cashReads.reconciliation>[1],

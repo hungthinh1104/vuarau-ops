@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { PriceRuleId } from "@vuarau/domain-contracts";
+import { saleIdSchema, saleLineIdSchema, type PriceRuleId } from "@vuarau/domain-contracts";
 import {
   CUSTOMER_ID,
   ACTOR_ID,
@@ -13,6 +13,9 @@ import {
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { recordPriceRule } from "./pricing.handlers.ts";
 import { listPriceRules, resolvePrice } from "./pricing.queries.ts";
+import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
+import { getSale } from "../sale/sale.queries.ts";
+import { postSale } from "../sale/post-sale.handler.ts";
 
 let harness: Harness;
 
@@ -97,6 +100,73 @@ describe("pricing catalog application slice", () => {
       asOf: "2026-02-01T00:00:00.000Z",
     });
     expect(resolved.ok && resolved.value).toMatchObject({ status: "ambiguous", selected: null });
+  });
+
+  it("keeps a resolved rule's final agreed price in the posted Sale snapshot", async () => {
+    const priceRuleId = "00000000-0000-4000-8000-000000000905" as PriceRuleId;
+    const created = await recordPriceRule(
+      harness.ctx,
+      input(priceRuleId, { baseUnitPrice: { amountMinor: 120_000, currency: "VND" } }),
+    );
+    expect(created.ok).toBe(true);
+
+    const resolved = await resolvePrice(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      productId: PRODUCT_CA_CHUA_ID,
+      qualityGradeId: QUALITY_GRADE_1_ID,
+      customerId: CUSTOMER_ID,
+      unit: "kg",
+      quantity: { valueScaled: 1_000, unit: "kg" },
+      asOf: "2026-02-01T00:00:00.000Z",
+    });
+    expect(resolved.ok && resolved.value.status).toBe("selected");
+    if (!resolved.ok || resolved.value.selected === null) return;
+
+    const saleId = saleIdSchema.parse("00000000-0000-4000-8000-000000000951");
+    const lineId = saleLineIdSchema.parse("00000000-0000-4000-8000-000000000952");
+    const draft = await createSaleDraft(harness.ctx, {
+      commandId: crypto.randomUUID(),
+      idempotencyKey: "pricing-sale-snapshot-draft",
+      workspaceId: WORKSPACE_ID,
+      actorId: ACTOR_ID,
+      occurredAt: LATER_TRANSACTION_TIME,
+      payload: {
+        saleId,
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [
+          {
+            lineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            productName: "Cà chua",
+            qualityGradeId: QUALITY_GRADE_1_ID,
+            qualityGradeName: "Loại 1",
+            quantity: { valueScaled: 1_000, unit: "kg" },
+            unitPrice: resolved.value.selected.finalUnitPrice,
+          },
+        ],
+        note: null,
+      },
+    });
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+
+    const posted = await postSale(harness.ctx, {
+      commandId: crypto.randomUUID(),
+      idempotencyKey: "pricing-sale-snapshot-post",
+      workspaceId: WORKSPACE_ID,
+      actorId: ACTOR_ID,
+      occurredAt: LATER_TRANSACTION_TIME,
+      expectedVersion: draft.value.version,
+      payload: { saleId },
+    });
+    expect(posted.ok).toBe(true);
+
+    const read = await getSale(harness.ctx, { workspaceId: WORKSPACE_ID, saleId });
+    expect(read.ok && read.value.status).toBe("posted");
+    expect(read.ok && read.value.lines[0]?.unitPrice).toEqual(
+      resolved.value.selected.finalUnitPrice,
+    );
   });
 
   it("separates management from read access and scopes reads to the workspace", async () => {

@@ -22,6 +22,7 @@ import {
   reverseExpense,
 } from "./cash.handlers.ts";
 import { getCashReconciliation } from "./cash.queries.ts";
+import { getCashTransfer, getExpense } from "./cash.queries.ts";
 import { getOperationalReport } from "../report/report.queries.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { reverseCustomerPayment } from "../payment/reverse-payment.handler.ts";
@@ -157,6 +158,7 @@ describe("cashbook application", () => {
             amount: { amountMinor: 150_000, currency: "VND" },
             payee: "Cây xăng",
             note: "Đổ dầu",
+            evidenceReferences: ["receipt://cash/expense/030", "photo://cash/expense/030"],
           },
         })
       ).ok,
@@ -170,6 +172,7 @@ describe("cashbook application", () => {
             reversalId: expenseReversalIdSchema.parse("90000000-0000-4000-8000-000000000031"),
             expenseId,
             reason: "Ghi nhầm",
+            evidenceReferences: ["note://cash/reversal/031"],
           },
         })
       ).ok,
@@ -185,6 +188,7 @@ describe("cashbook application", () => {
         toCashAccountId: bank,
         amount: { amountMinor: 250_000, currency: "VND" as const },
         note: "Nộp tiền vào ngân hàng",
+        evidenceReferences: ["bank-slip://cash/transfer/032"],
       },
     };
     const first = await recordCashTransfer(harness.ctx, command);
@@ -200,9 +204,31 @@ describe("cashbook application", () => {
         reversalId: "90000000-0000-4000-8000-000000000033",
         transferId,
         reason: "Chuyển nhầm",
+        evidenceReferences: ["note://cash/transfer-reversal/033"],
       },
     });
     expect(reverse.ok).toBe(true);
+    const expense = await getExpense(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      expenseId,
+    });
+    expect(expense.ok && expense.value.evidenceReferences).toEqual([
+      "receipt://cash/expense/030",
+      "photo://cash/expense/030",
+    ]);
+    expect(expense.ok && expense.value.reversal?.evidenceReferences).toEqual([
+      "note://cash/reversal/031",
+    ]);
+    const transfer = await getCashTransfer(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      transferId,
+    });
+    expect(transfer.ok && transfer.value.evidenceReferences).toEqual([
+      "bank-slip://cash/transfer/032",
+    ]);
+    expect(transfer.ok && transfer.value.reversal?.evidenceReferences).toEqual([
+      "note://cash/transfer-reversal/033",
+    ]);
     expect(harness.db.cashBalanceFor(WORKSPACE_ID, drawer)?.balance.amountMinor).toBe(0);
     expect(harness.db.cashBalanceFor(WORKSPACE_ID, bank)?.balance.amountMinor).toBe(0);
 
@@ -223,6 +249,7 @@ describe("cashbook application", () => {
         amount: { amountMinor: 600_000, currency: "VND" },
         reasonCode: "owner_contribution",
         reason: "Chủ bổ sung vốn lưu động",
+        evidenceReferences: ["cash-count://cash/adjustment/040"],
       },
     });
     expect(result.ok).toBe(true);

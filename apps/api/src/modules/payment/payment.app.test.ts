@@ -119,6 +119,29 @@ describe("UC-PAYMENT-003 — payment detail read model", () => {
 
     expect(result).toMatchObject({ ok: true, value: { note: "Khách chuyển khoản buổi sáng" } });
   });
+
+  it("returns source evidence without turning it into a financial effect", async () => {
+    await recordCustomerPayment(
+      harness.ctx,
+      recordInput({
+        payload: {
+          ...recordInput().payload,
+          evidenceReferences: ["receipt://cashier/001", "photo://device/001"],
+        },
+      }),
+    );
+
+    const result = await getPayment(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      paymentId: PAYMENT_ID,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { evidenceReferences: ["receipt://cashier/001", "photo://device/001"] },
+    });
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(1);
+  });
 });
 
 describe("BR-COMMAND-001 / TC-PAYMENT-002", () => {
@@ -157,7 +180,15 @@ describe("BR-PAYMENT-005 / TC-PAYMENT-004", () => {
 
   it("preserves the original payment and its entry rather than removing them", async () => {
     await recordCustomerPayment(harness.ctx, recordInput());
-    await reverseCustomerPayment(harness.ctx, reverseInput());
+    await reverseCustomerPayment(
+      harness.ctx,
+      reverseInput({
+        payload: {
+          ...reverseInput().payload,
+          evidenceReferences: ["receipt://reversal/001"],
+        },
+      }),
+    );
 
     const entries = harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID);
     const original = entries.find((entry) => entry.sourceType === "payment");
@@ -169,6 +200,7 @@ describe("BR-PAYMENT-005 / TC-PAYMENT-004", () => {
     // One payment row, one reversal row — never two payments (BR-PAYMENT-005).
     expect(harness.db.payments()).toHaveLength(1);
     expect(harness.db.reversals()).toHaveLength(1);
+    expect(harness.db.reversals()[0]?.evidenceReferences).toEqual(["receipt://reversal/001"]);
   });
 
   it("marks the payment reversed without touching its amount", async () => {

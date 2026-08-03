@@ -163,6 +163,7 @@ describe.skipIf(skipWithoutDatabase())("full slice against Postgres", () => {
         method: "cash",
         payerName: "Tài xế anh Hùng",
         note: null,
+        evidenceReferences: ["receipt://full-slice/payment"],
       },
     });
 

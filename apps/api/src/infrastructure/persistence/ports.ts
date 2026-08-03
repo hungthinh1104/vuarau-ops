@@ -16,7 +16,7 @@ import type {
   WorkspaceId,
   WorkspaceRole,
   WorkspaceOperationalProfileDto,
-  WorkspaceBackupV8,
+  WorkspaceBackupV11,
   DeliveryId,
   DocumentDto,
   DocumentShareId,
@@ -31,6 +31,7 @@ import type {
   CashTransferId,
   ExpenseDto,
   ExpenseId,
+  EvidenceReferences,
   GoodsArrivalDto,
   GoodsArrivalId,
   GoodsArrivalLineId,
@@ -57,6 +58,7 @@ import type {
   QualityGradeState,
   SupplierState,
   SupplierPaymentState,
+  SupplierPaymentReversalState,
   PurchaseState,
   PurchaseVoidState,
   PurchaseReceiptState,
@@ -68,6 +70,11 @@ import type {
 } from "@vuarau/domain-kernel";
 import type { ReadRepositories } from "./read-ports.ts";
 import type { PriceRuleRepository } from "./pricing-ports.ts";
+import type {
+  CostObservationRepository,
+  ReconciliationObservationRepository,
+  DebtObservationRepository,
+} from "./evidence-ports.ts";
 
 /**
  * Ports are declared by the application layer, which is the layer that needs
@@ -224,15 +231,7 @@ export type SupplierPaymentRepository = {
   ): Promise<SupplierPaymentState | null>;
   insert(payment: SupplierPaymentState): Promise<void>;
   update(payment: SupplierPaymentState, expectedVersion: number): Promise<boolean>;
-  insertReversal(reversal: {
-    id: string;
-    workspaceId: WorkspaceId;
-    supplierPaymentId: SupplierPaymentId;
-    amount: SupplierPaymentState["amount"];
-    reason: string;
-    transactionTime: IsoInstant;
-    recordedAt: IsoInstant;
-  }): Promise<void>;
+  insertReversal(reversal: SupplierPaymentReversalState): Promise<void>;
 };
 
 export type SupplierAccountEntryDraft = Omit<SupplierAccountEntryDto, "id">;
@@ -423,6 +422,7 @@ export type CashAdjustmentRepository = {
     recordedAt: IsoInstant;
     actorId: ActorId;
     commandId: CommandId;
+    evidenceReferences: EvidenceReferences;
   }): Promise<boolean>;
 };
 
@@ -534,7 +534,7 @@ export type QualityDispositionRepository = {
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV8["payload"],
+    payload: WorkspaceBackupV11["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -656,7 +656,6 @@ export type CommandReceiptRepository = {
     result: unknown,
   ): Promise<void>;
 };
-
 export type Repositories = ReadRepositories & {
   readonly workspaces: WorkspaceRepository;
   readonly actors: ActorRepository;
@@ -685,6 +684,9 @@ export type Repositories = ReadRepositories & {
   readonly goodsArrivals: GoodsArrivalRepository;
   readonly qualityInspections: QualityInspectionRepository;
   readonly qualityDispositions: QualityDispositionRepository;
+  readonly costObservations: CostObservationRepository;
+  readonly reconciliationObservations: ReconciliationObservationRepository;
+  readonly debtObservations: DebtObservationRepository;
   readonly sales: SaleRepository;
   readonly payments: PaymentRepository;
   readonly accountEntries: CustomerAccountEntryRepository;

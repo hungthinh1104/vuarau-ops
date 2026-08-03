@@ -151,6 +151,24 @@ async function dispatchAndReturn(returnedScaled: number): Promise<void> {
 }
 
 describe("BR-SALE-012 / TC-SALE-021", () => {
+  it("TC-EVIDENCE-002 — keeps correction evidence beside the compensation", async () => {
+    await postASale();
+    const result = await voidSale(
+      harness.ctx,
+      voidInput("void-with-evidence", {
+        evidenceReferences: ["return://customer/001", "note://correction/001"],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.voidRecord?.evidenceReferences).toEqual([
+      "return://customer/001",
+      "note://correction/001",
+    ]);
+    expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(0);
+  });
+
   it("offsets the posting exactly, leaving the customer owing nothing", async () => {
     await postASale();
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(SALE_TOTAL.amountMinor);

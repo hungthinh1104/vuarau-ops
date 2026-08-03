@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { saleIdSchema, saleLineIdSchema } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import {
   createDbTestContext,
@@ -9,6 +10,9 @@ import {
 import { randomIdGenerator } from "../../clock.ts";
 import { recordPriceRule } from "../../../modules/pricing/pricing.handlers.ts";
 import { listPriceRules, resolvePrice } from "../../../modules/pricing/pricing.queries.ts";
+import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
+import { getSale } from "../../../modules/sale/sale.queries.ts";
+import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 
 describe.skipIf(skipWithoutDatabase())("pricing catalog against PostgreSQL", () => {
   // TC-PRICING-004
@@ -87,6 +91,45 @@ describe.skipIf(skipWithoutDatabase())("pricing catalog against PostgreSQL", () 
       limit: 20,
     });
     expect(listed.ok && listed.value.items.map((row) => row.id)).toEqual([priceRuleId]);
+
+    const saleId = saleIdSchema.parse(crypto.randomUUID());
+    const lineId = saleLineIdSchema.parse(crypto.randomUUID());
+    const draft = await createSaleDraft(owner, {
+      ...envelope("pricing-sale-snapshot-draft"),
+      payload: {
+        saleId,
+        customerId: ctx.customerId,
+        currency: "VND",
+        lines: [
+          {
+            lineId,
+            productId: ctx.productIds[0],
+            productName: "Cà chua",
+            qualityGradeId: ctx.qualityGradeId,
+            qualityGradeName: "Loại 1",
+            quantity: { valueScaled: 12_000, unit: "kg" },
+            unitPrice: { amountMinor: 121_000, currency: "VND" },
+          },
+        ],
+        note: null,
+        evidenceReferences: ["order://pricing/001"],
+      },
+    });
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+    const posted = await postSale(owner, {
+      ...envelope("pricing-sale-snapshot-post"),
+      expectedVersion: draft.value.version,
+      payload: { saleId },
+    });
+    expect(posted.ok).toBe(true);
+    const read = await getSale(owner, { workspaceId: ctx.workspaceId, saleId });
+    expect(read.ok && read.value.status).toBe("posted");
+    expect(read.ok && read.value.lines[0]?.unitPrice).toEqual({
+      amountMinor: 121_000,
+      currency: "VND",
+    });
+    expect(read.ok && read.value.evidenceReferences).toEqual(["order://pricing/001"]);
     expect(await ctx.auditActions()).toContain("price_rule.recorded");
   });
 });

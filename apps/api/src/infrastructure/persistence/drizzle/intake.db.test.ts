@@ -160,6 +160,7 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
               },
             ],
             note: null,
+            evidenceReferences: ["photo://db-arrival"],
           },
         })
       ).ok,
@@ -206,6 +207,7 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
               },
             ],
             note: null,
+            evidenceReferences: ["note://db-disposition"],
           },
         })
       ).ok,
@@ -231,6 +233,7 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
               },
             ],
             note: null,
+            evidenceReferences: ["note://db-quarantine"],
           },
         })
       ).ok,
@@ -249,6 +252,10 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
     expect(history.ok && history.value).toMatchObject({
       arrivalLineId,
       inspections: [{ id: inspectionId, reversal: null }],
+      dispositions: [
+        { id: dispositionId, evidenceReferences: ["note://db-disposition"] },
+        { id: childDispositionId, evidenceReferences: ["note://db-quarantine"] },
+      ],
     });
     expect(history.ok && history.value.dispositions.map((row) => row.id)).toEqual([
       dispositionId,

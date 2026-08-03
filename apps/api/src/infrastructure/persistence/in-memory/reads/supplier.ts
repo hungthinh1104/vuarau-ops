@@ -157,6 +157,23 @@ export const createSupplierReads = (
       return {
         ...row,
         cashAccountId: row.cashAccountId ?? null,
+        evidenceReferences: [...row.evidenceReferences],
+        reversals: store.supplierPaymentReversals
+          .filter(
+            (reversal) =>
+              reversal.workspaceId === workspaceId && reversal.supplierPaymentId === paymentId,
+          )
+          .sort((a, b) =>
+            a.transactionTime !== b.transactionTime
+              ? a.transactionTime.localeCompare(b.transactionTime)
+              : a.recordedAt !== b.recordedAt
+                ? a.recordedAt.localeCompare(b.recordedAt)
+                : a.id.localeCompare(b.id),
+          )
+          .map((reversal) => ({
+            ...reversal,
+            evidenceReferences: [...reversal.evidenceReferences],
+          })),
         status:
           row.reversedAmount.amountMinor === 0
             ? "recorded"

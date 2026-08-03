@@ -16,6 +16,7 @@ import {
 } from "../../../modules/supplier/supplier.handlers.ts";
 import {
   getSupplierBalance,
+  getSupplierPayment,
   getSupplierTimeline,
 } from "../../../modules/supplier/supplier.queries.ts";
 
@@ -84,6 +85,7 @@ describe.skipIf(skipWithoutDatabase())("M16 Supplier Account against Postgres", 
         amount: { amountMinor: 600_000, currency: "VND" as const },
         method: "bank_transfer" as const,
         note: null,
+        evidenceReferences: ["receipt://supplier-db/payment"],
       },
     };
     expect((await recordSupplierPayment(context(), payment)).ok).toBe(true);
@@ -99,6 +101,7 @@ describe.skipIf(skipWithoutDatabase())("M16 Supplier Account against Postgres", 
             supplierPaymentId: paymentId,
             amount: { amountMinor: 50_000, currency: "VND" },
             reason: "Hoàn lại phần chuyển thừa",
+            evidenceReferences: ["receipt://supplier-db/reversal"],
           },
         })
       ).ok,
@@ -130,6 +133,36 @@ describe.skipIf(skipWithoutDatabase())("M16 Supplier Account against Postgres", 
     });
     expect(timeline.ok && timeline.value.items).toHaveLength(2);
     expect(timeline.ok && timeline.value.nextCursor).not.toBeNull();
+
+    const detail = await getSupplierPayment(context(), {
+      workspaceId: ctx.workspaceId,
+      supplierPaymentId: paymentId,
+    });
+    expect(detail.ok && detail.value).toMatchObject({
+      cashAccountId: null,
+      evidenceReferences: ["receipt://supplier-db/payment"],
+      reversals: [
+        {
+          evidenceReferences: ["receipt://supplier-db/reversal"],
+        },
+      ],
+    });
+    const evidenceRows = await ctx.database.sql<
+      readonly { payment_evidence: string[]; reversal_evidence: string[] }[]
+    >`select sp.evidence_references as payment_evidence,
+              spr.evidence_references as reversal_evidence
+       from supplier_payments sp
+       join supplier_payment_reversals spr
+         on spr.workspace_id = sp.workspace_id
+        and spr.supplier_payment_id = sp.id
+      where sp.workspace_id = ${ctx.workspaceId}::uuid
+        and sp.id = ${paymentId}::uuid`;
+    expect(evidenceRows).toEqual([
+      {
+        payment_evidence: ["receipt://supplier-db/payment"],
+        reversal_evidence: ["receipt://supplier-db/reversal"],
+      },
+    ]);
   });
 
   it("does not leak a supplier across workspaces", async () => {

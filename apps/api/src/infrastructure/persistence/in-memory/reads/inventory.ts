@@ -11,6 +11,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         ? null
         : {
             ...row,
+            evidenceReferences: [...(row.evidenceReferences ?? [])],
             lines: row.lines.map((line) => ({ ...line })),
             reversal:
               row.reversal === null
@@ -21,6 +22,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
                     reason: row.reversal.reason,
                     transactionTime: row.reversal.transactionTime,
                     recordedAt: row.reversal.recordedAt,
+                    evidenceReferences: [...(row.reversal.evidenceReferences ?? [])],
                   },
           };
     },
@@ -29,6 +31,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         .filter((row) => row.workspaceId === workspaceId && row.purchaseId === purchaseId)
         .map((row) => ({
           ...row,
+          evidenceReferences: [...(row.evidenceReferences ?? [])],
           lines: row.lines.map((line) => ({ ...line })),
           reversal:
             row.reversal === null
@@ -39,6 +42,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
                   reason: row.reversal.reason,
                   transactionTime: row.reversal.transactionTime,
                   recordedAt: row.reversal.recordedAt,
+                  evidenceReferences: [...(row.reversal.evidenceReferences ?? [])],
                 },
         })),
     adjustment: async (workspaceId, adjustmentId) => {

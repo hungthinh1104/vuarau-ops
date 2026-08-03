@@ -39,6 +39,7 @@ import {
 import {
   getInventoryBalances,
   getInventoryTimeline,
+  getReceipt,
   getPurchaseReceivingSummary,
 } from "../../../modules/inventory/inventory.queries.ts";
 import { createQualityGrade } from "../../../modules/quality/quality.handlers.ts";
@@ -73,7 +74,7 @@ describe.skipIf(skipWithoutDatabase())("Goods Truth against Postgres", () => {
   });
   afterAll(async () => ctx?.close());
 
-  it("keeps payable and physical truth separate, attributable, and duplicate-safe", async () => {
+  it("TC-EVIDENCE-003 — keeps Purchase supply evidence separate from payable and inventory", async () => {
     const secondGradeId = crypto.randomUUID() as QualityGradeId;
     expect(
       (
@@ -112,6 +113,7 @@ describe.skipIf(skipWithoutDatabase())("Goods Truth against Postgres", () => {
           },
         ],
         note: null,
+        evidenceReferences: ["supply://commitment/001", "photo://purchase/001"],
         dueAt: null,
         replacesPurchaseId: null,
       },
@@ -171,6 +173,7 @@ describe.skipIf(skipWithoutDatabase())("Goods Truth against Postgres", () => {
           },
         ],
         note: null,
+        evidenceReferences: [`photo://${label}`],
       },
     });
     const receiptACommand = receipt(
@@ -212,6 +215,17 @@ describe.skipIf(skipWithoutDatabase())("Goods Truth against Postgres", () => {
     );
     const purchase = await getPurchase(context(), { workspaceId: ctx.workspaceId, purchaseId });
     expect(purchase.ok && purchase.value?.totalAmount.amountMinor).toBe(1_000_000);
+    expect(purchase.ok && purchase.value?.evidenceReferences).toEqual([
+      "supply://commitment/001",
+      "photo://purchase/001",
+    ]);
+    const storedReceipt = await getReceipt(context(), {
+      workspaceId: ctx.workspaceId,
+      receiptId: receiptA,
+    });
+    expect(storedReceipt.ok && storedReceipt.value?.evidenceReferences).toEqual([
+      "photo://goods-receipt-a",
+    ]);
 
     const over = await recordPurchaseReceipt(
       context(),

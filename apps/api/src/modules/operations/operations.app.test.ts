@@ -348,10 +348,10 @@ describe("M14 logical operations evidence", () => {
     });
   });
 
-  it("keeps WorkspaceBackupV1 restore-compatible while exporting V8", async () => {
+  it("keeps WorkspaceBackupV1 restore-compatible while exporting V10", async () => {
     const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
     if (!exported.ok) return;
-    expect(exported.value.version).toBe(8);
+    expect(exported.value.version).toBe(10);
     const {
       suppliers: _suppliers,
       supplierPayments: _supplierPayments,
@@ -390,8 +390,18 @@ describe("M14 logical operations evidence", () => {
       qualityDispositions: _qualityDispositions,
       qualityDispositionAllocations: _qualityDispositionAllocations,
       qualityDispositionReversals: _qualityDispositionReversals,
+      costObservations: _costObservations,
+      reconciliationObservations: _reconciliationObservations,
       ...payload
     } = exported.value.payload;
+    const legacyPayload = {
+      ...payload,
+      // Pre-source-evidence V1 backups did not have these metadata columns.
+      payments: payload.payments.map(({ evidenceReferences: _evidenceReferences, ...row }) => row),
+      paymentReversals: payload.paymentReversals.map(
+        ({ evidenceReferences: _evidenceReferences, ...row }) => row,
+      ),
+    };
     const legacy: WorkspaceBackupV1 = {
       format: "vuarau.workspace-backup",
       version: 1,
@@ -399,13 +409,13 @@ describe("M14 logical operations evidence", () => {
       createdAt: exported.value.createdAt,
       schemaCompatibility: "m15",
       recordCounts: Object.fromEntries(
-        Object.entries(payload).map(([name, rows]) => [
+        Object.entries(legacyPayload).map(([name, rows]) => [
           name,
           Array.isArray(rows) ? rows.length : 1,
         ]),
       ),
-      payload,
-      digest: backupDigest(payload),
+      payload: legacyPayload,
+      digest: backupDigest(legacyPayload),
     };
     const target = workspaceIdSchema.parse("00000000-0000-4000-8000-000000000797");
     harness.db.registerWorkspace(target, "Vựa phục hồi V1");

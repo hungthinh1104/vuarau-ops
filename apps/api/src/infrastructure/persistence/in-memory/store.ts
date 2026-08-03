@@ -19,8 +19,15 @@ import type {
   QualityDispositionDto,
   QualityInspectionDto,
   QualityIssueCodeDto,
+  CostObservationDto,
+  ReconciliationObservationDto,
+  DebtObservationDto,
 } from "@vuarau/domain-contracts";
-import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
+import type {
+  PaymentReversalState,
+  SaleVoidState,
+  SupplierPaymentReversalState,
+} from "@vuarau/domain-kernel";
 import type { IdGenerator } from "../../clock.ts";
 import type { CommandReceipt, WorkspaceMembership } from "../ports.ts";
 import type {
@@ -56,15 +63,7 @@ export type Store = {
   qualityGrades: Map<string, QualityGradeState>;
   suppliers: Map<string, SupplierState>;
   supplierPayments: Map<string, SupplierPaymentState>;
-  supplierPaymentReversals: Array<{
-    id: string;
-    workspaceId: WorkspaceId;
-    supplierPaymentId: SupplierPaymentState["id"];
-    amount: Money;
-    reason: string;
-    transactionTime: IsoInstant;
-    recordedAt: IsoInstant;
-  }>;
+  supplierPaymentReversals: SupplierPaymentReversalState[];
   supplierAccountEntries: SupplierAccountEntryDto[];
   supplierAccountBalances: Map<
     string,
@@ -134,6 +133,7 @@ export type Store = {
     recordedAt: IsoInstant;
     actorId: ActorId;
     commandId: string;
+    evidenceReferences: readonly string[];
   }>;
   cashMovements: CashMovementDto[];
   cashBalances: Map<string, CashBalanceDto>;
@@ -141,6 +141,9 @@ export type Store = {
   goodsArrivals: Map<string, GoodsArrivalDto>;
   qualityInspections: Map<string, QualityInspectionDto>;
   qualityDispositions: Map<string, QualityDispositionDto>;
+  costObservations: Map<string, CostObservationDto>;
+  reconciliationObservations: Map<string, ReconciliationObservationDto>;
+  debtObservations: Map<string, DebtObservationDto>;
 };
 
 export function emptyStore(): Store {
@@ -186,6 +189,9 @@ export function emptyStore(): Store {
     goodsArrivals: new Map(),
     qualityInspections: new Map(),
     qualityDispositions: new Map(),
+    costObservations: new Map(),
+    reconciliationObservations: new Map(),
+    debtObservations: new Map(),
   };
 }
 
@@ -252,6 +258,7 @@ export function toPaymentSummaryRow(store: Store, payment: PaymentState) {
     reversedAmount: payment.reversedAmount,
     payerName: payment.payerName,
     note: payment.note,
+    evidenceReferences: [...payment.evidenceReferences],
     version: payment.version,
     transactionTime: payment.transactionTime,
     recordedAt: payment.recordedAt,
@@ -261,6 +268,7 @@ export function toPaymentSummaryRow(store: Store, payment: PaymentState) {
 export function toPurchaseDto(purchase: PurchaseState) {
   return {
     ...purchase,
+    evidenceReferences: [...purchase.evidenceReferences],
     lines: purchase.lines.map((line) => ({ ...line })),
     voidRecord:
       purchase.voidRecord === null
@@ -270,6 +278,7 @@ export function toPurchaseDto(purchase: PurchaseState) {
             purchaseId: purchase.voidRecord.purchaseId,
             reasonCode: purchase.voidRecord.reasonCode,
             reason: purchase.voidRecord.reason,
+            evidenceReferences: [...purchase.voidRecord.evidenceReferences],
             amount: purchase.voidRecord.amount,
             transactionTime: purchase.voidRecord.transactionTime,
             recordedAt: purchase.voidRecord.recordedAt,
@@ -300,6 +309,7 @@ export function toDeliveryDto(delivery: DeliveryState): DeliveryDto {
       },
     })),
     note: delivery.note,
+    evidenceReferences: [...(delivery.evidenceReferences ?? [])],
     cancellationReason: delivery.cancellationReason,
     version: delivery.version,
     transactionTime: delivery.transactionTime,
@@ -309,6 +319,7 @@ export function toDeliveryDto(delivery: DeliveryState): DeliveryDto {
     returns: delivery.returns.map((record) => ({
       id: record.id,
       reason: record.reason,
+      evidenceReferences: [...(record.evidenceReferences ?? [])],
       lines: record.lines.map((line) => ({
         deliveryLineId: line.deliveryLineId,
         quantity: line.quantity,

@@ -8,6 +8,7 @@ import type {
   ReverseSupplierPaymentCommand,
   SupplierDto,
   SupplierPaymentDto,
+  SupplierPaymentReversalDto,
   UpdateSupplierCommand,
 } from "@vuarau/domain-contracts";
 import {
@@ -36,9 +37,14 @@ import { applySupplierAccountEffects } from "./supplier-account-effects.ts";
 import { applyCashMovements } from "../cash/cash-effects.ts";
 
 const supplierDto = (state: SupplierState): SupplierDto => ({ ...state });
-const paymentDto = (state: SupplierPaymentState): SupplierPaymentDto => ({
+const paymentDto = (
+  state: SupplierPaymentState,
+  reversals: readonly SupplierPaymentReversalDto[] = [],
+): SupplierPaymentDto => ({
   ...state,
   cashAccountId: state.cashAccountId ?? null,
+  evidenceReferences: [...state.evidenceReferences],
+  reversals: [...reversals],
   status:
     state.reversedAmount.amountMinor === 0
       ? "recorded"
@@ -354,6 +360,7 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
         supplierPaymentId: current.id,
         amount: command.payload.amount,
         reason: command.payload.reason.trim(),
+        evidenceReferences: [...command.payload.evidenceReferences],
         transactionTime: command.occurredAt,
         recordedAt,
       });
@@ -407,7 +414,20 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
         after: { version: decision.value.version },
         reason: command.payload.reason.trim(),
       });
-      return ok(paymentDto(decision.value));
+      return ok(
+        paymentDto(decision.value, [
+          {
+            id: command.payload.reversalId,
+            workspaceId: command.workspaceId,
+            supplierPaymentId: current.id,
+            amount: command.payload.amount,
+            reason: command.payload.reason.trim(),
+            evidenceReferences: [...command.payload.evidenceReferences],
+            transactionTime: command.occurredAt,
+            recordedAt,
+          },
+        ]),
+      );
     },
   });
 }

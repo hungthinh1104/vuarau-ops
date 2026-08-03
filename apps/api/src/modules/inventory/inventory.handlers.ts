@@ -26,6 +26,7 @@ import { applyInventoryMovements } from "./inventory-effects.ts";
 
 const dto = (receipt: PurchaseReceiptState): PurchaseReceiptDto => ({
   ...receipt,
+  evidenceReferences: [...(receipt.evidenceReferences ?? [])],
   lines: receipt.lines.map((line) => ({ ...line })),
   reversal:
     receipt.reversal === null
@@ -36,6 +37,7 @@ const dto = (receipt: PurchaseReceiptState): PurchaseReceiptDto => ({
           reason: receipt.reversal.reason,
           transactionTime: receipt.reversal.transactionTime,
           recordedAt: receipt.reversal.recordedAt,
+          evidenceReferences: [...(receipt.reversal.evidenceReferences ?? [])],
         },
 });
 

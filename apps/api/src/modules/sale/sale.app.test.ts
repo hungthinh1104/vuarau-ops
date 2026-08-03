@@ -147,6 +147,30 @@ describe("BR-COMMAND-003 / TC-SALE-011", () => {
 });
 
 describe("BR-SALE-007 / TC-SALE-003", () => {
+  it("TC-EVIDENCE-001 — keeps source-linked order evidence without changing the receivable", async () => {
+    const created = await createSaleDraft(harness.ctx, {
+      ...createInput(),
+      payload: {
+        ...createInput().payload,
+        evidenceReferences: ["order://customer/2026-08-03-001", "photo://order/001"],
+      },
+    });
+
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    expect(created.value.evidenceReferences).toEqual([
+      "order://customer/2026-08-03-001",
+      "photo://order/001",
+    ]);
+    expect(harness.db.accountEntries()).toHaveLength(0);
+
+    const posted = await postSale(harness.ctx, postInput());
+    expect(posted.ok).toBe(true);
+    if (!posted.ok) return;
+    expect(posted.value.evidenceReferences).toEqual(created.value.evidenceReferences);
+    expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(875_000);
+  });
+
   it("moves the customer's balance by exactly the sale total, once", async () => {
     await createSaleDraft(harness.ctx, createInput());
     await postSale(harness.ctx, postInput());

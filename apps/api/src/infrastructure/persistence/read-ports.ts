@@ -22,7 +22,7 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV8,
+  WorkspaceBackupV10,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
@@ -69,6 +69,15 @@ import type {
   QualityInspectionDto,
   QualityInspectionId,
   QualityIssueCodeDto,
+  CostObservationDto,
+  CostObservationId,
+  CostObservationKind,
+  ReconciliationObservationDto,
+  ReconciliationObservationId,
+  ReconciliationObservationKind,
+  DebtObservationDto,
+  DebtObservationId,
+  DebtObservationKind,
 } from "@vuarau/domain-contracts";
 import type { PriceRuleState, SaleState } from "@vuarau/domain-kernel";
 
@@ -197,6 +206,7 @@ export type PaymentSummaryRow = {
   readonly reversedAmount: Money;
   readonly payerName: string | null;
   readonly note: string | null;
+  readonly evidenceReferences: readonly string[];
   readonly version: number;
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
@@ -555,7 +565,40 @@ export type IntakeReadRepository = {
 
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV8["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV10["payload"] | null>;
+};
+
+export type CostObservationReadRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    observationId: CostObservationId,
+  ): Promise<CostObservationDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    kind: CostObservationKind | null;
+    page: PageQuery;
+  }): Promise<PageResult<CostObservationDto>>;
+};
+
+export type ReconciliationObservationReadRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    observationId: ReconciliationObservationId,
+  ): Promise<ReconciliationObservationDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    kind: ReconciliationObservationKind | null;
+    page: PageQuery;
+  }): Promise<PageResult<ReconciliationObservationDto>>;
+};
+
+export type DebtObservationReadRepository = {
+  get(workspaceId: WorkspaceId, observationId: DebtObservationId): Promise<DebtObservationDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    kind: DebtObservationKind | null;
+    page: PageQuery;
+  }): Promise<PageResult<DebtObservationDto>>;
 };
 
 /**
@@ -583,4 +626,7 @@ export type ReadRepositories = {
   readonly operationsReads: OperationsReadRepository;
   readonly cashReads: CashReadRepository;
   readonly intakeReads: IntakeReadRepository;
+  readonly costObservationReads: CostObservationReadRepository;
+  readonly reconciliationObservationReads: ReconciliationObservationReadRepository;
+  readonly debtObservationReads: DebtObservationReadRepository;
 };

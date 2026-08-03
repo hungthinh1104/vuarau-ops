@@ -10,6 +10,9 @@ import { createDocumentRepositories } from "./repositories/document.ts";
 import { createIntakeRepositories } from "./repositories/intake.ts";
 import { createInventoryRepositories } from "./repositories/inventory.ts";
 import { createOperationsRepositories } from "./repositories/operations.ts";
+import { createCostObservationRepositories } from "./repositories/cost-observation.ts";
+import { createReconciliationObservationRepositories } from "./repositories/reconciliation-observation.ts";
+import { createDebtObservationRepositories } from "./repositories/debt-observation.ts";
 import { createPaymentRepositories } from "./repositories/payment.ts";
 import { createProductRepositories } from "./repositories/product.ts";
 import { createPriceRuleRepositories } from "./repositories/pricing.ts";
@@ -28,6 +31,9 @@ import { createDocumentReads } from "./reads/document.ts";
 import { createIntakeReads } from "./reads/intake.ts";
 import { createInventoryReads } from "./reads/inventory.ts";
 import { createOperationsReads } from "./reads/operations.ts";
+import { createCostObservationReads } from "./reads/cost-observation.ts";
+import { createReconciliationObservationReads } from "./reads/reconciliation-observation.ts";
+import { createDebtObservationReads } from "./reads/debt-observation.ts";
 import { createPaymentReads } from "./reads/payment.ts";
 import { createProductReads } from "./reads/product.ts";
 import { createPriceRuleReads } from "./reads/pricing.ts";
@@ -49,6 +55,9 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createDeliveryRepositories(store),
   ...createDocumentRepositories(store),
   ...createOperationsRepositories(store),
+  ...createCostObservationRepositories(store),
+  ...createReconciliationObservationRepositories(store),
+  ...createDebtObservationRepositories(store),
   ...createCashRepositories(store, ids),
   ...createIntakeRepositories(store),
   ...createSaleRepositories(store),
@@ -70,6 +79,9 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createPaymentReads(store),
   ...createAccountReads(store),
   ...createOperationsReads(store),
+  ...createCostObservationReads(store),
+  ...createReconciliationObservationReads(store),
+  ...createDebtObservationReads(store),
   ...createCashReads(store),
   ...createIntakeReads(store),
   ...createAuditReads(store),

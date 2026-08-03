@@ -34,6 +34,7 @@ function toSummaryDto(row: PaymentSummaryRow): PaymentSummaryDto {
     remainingReversibleAmount: remaining,
     payerName: row.payerName,
     note: row.note,
+    evidenceReferences: [...row.evidenceReferences],
     version: row.version,
     transactionTime: row.transactionTime,
     recordedAt: row.recordedAt,

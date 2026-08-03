@@ -15,6 +15,7 @@ import { operationsRouter, auditRouter } from "./routers/operations.ts";
 import { cashRouter } from "./routers/cash.ts";
 import { intakeRouter } from "./routers/intake.ts";
 import { pricingRouter } from "./routers/pricing.ts";
+import { evidenceRouter } from "./routers/evidence.ts";
 
 export const appRouter = router({
   session: sessionRouter,
@@ -37,6 +38,7 @@ export const appRouter = router({
   cash: cashRouter,
   intake: intakeRouter,
   pricing: pricingRouter,
+  evidence: evidenceRouter,
 });
 
 export type AppRouter = typeof appRouter;

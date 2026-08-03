@@ -75,7 +75,7 @@ beforeEach(async () => {
 });
 
 describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
-  it("dispatches once, completes without another movement, returns explicitly, and never changes debt", async () => {
+  it("TC-EVIDENCE-004 — keeps delivery and return evidence beside physical facts without changing debt", async () => {
     const debtBefore = harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID).length;
     const create = await createDeliveryDraft(harness.ctx, {
       ...base("d12"),
@@ -92,9 +92,15 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
           },
         ],
         note: "Chuyến sáng",
+        evidenceReferences: ["dispatch-sheet://delivery/001", "photo://loading/001"],
       },
     });
     expect(create.ok).toBe(true);
+    if (create.ok)
+      expect(create.value.evidenceReferences).toEqual([
+        "dispatch-sheet://delivery/001",
+        "photo://loading/001",
+      ]);
     const dispatchInput = {
       ...base("d13"),
       expectedVersion: 1,
@@ -123,10 +129,14 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
           },
         ],
         reason: "Khách trả lại",
+        evidenceReferences: ["photo://return/001"],
       },
     };
     const returned = await recordDeliveryReturn(harness.ctx, returnInput);
     expect(await recordDeliveryReturn(harness.ctx, returnInput)).toEqual(returned);
+    expect(returned.ok && returned.value.returns[0]?.evidenceReferences).toEqual([
+      "photo://return/001",
+    ]);
     expect(harness.db.inventoryMovementRecords().map((row) => row.quantity.valueScaled)).toEqual([
       -60_000, 10_000,
     ]);
