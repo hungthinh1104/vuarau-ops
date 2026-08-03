@@ -64,10 +64,17 @@ command changes, update its schema and tests first, then keep this catalog align
 | `cash`       | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`                                         |
 | `intake`     | `createIssueCode`, `updateIssueCode`, `deactivateIssueCode`, `reactivateIssueCode`, `recordArrival`, `reverseArrival`, `recordInspection`, `reverseInspection`, `recordDisposition`, `reverseDisposition` |
 | `pricing`    | `record`                                                                                                                                                                                                  |
-| `evidence`   | `recordCostObservation`, `recordReconciliationObservation`, `recordDebtObservation`                                                                                                                       |
+| `evidence`   | `recordCostObservation`, `recordReconciliationObservation`, `recordDebtObservation`, `recordSupplyCommitmentObservation`, `recordSupplierObservation`                                                     |
+| `policy`     | `createDraft`, `approve`, `retire`                                                                                                                                                                        |
 
 The router source is authoritative for procedure names. Domain-contract modules are
 authoritative for payload and result shapes.
+
+`policy.createDraft`, `policy.approve` and `policy.retire` manage the inactive
+workspace policy registry. Approval requires evidence references and a reason;
+storing or approving a definition does not activate a debt, inventory, cost,
+planning, supplier or management policy. Future policy adapters must own their
+typed effect contract separately.
 
 Supplier payment and reversal payloads accept `evidenceReferences`. The supplier
 payment detail read returns the payment references and append-only reversal references;
@@ -233,6 +240,17 @@ preserves payment-term, due-date, promise-to-pay and collection facts when
 present. It does not label a debt overdue, allocate a payment, or append a
 ledger/cash row. A correction creates a new row linked to an earlier
 DebtObservation.
+
+`evidence.recordSupplyCommitmentObservation` requires at least one source
+reference and preserves promised/minimum quantities, optional expected arrival,
+counterparty wording and known identity when present. It does not create a
+Purchase, payable, receipt, inventory, reorder or supplier-performance effect.
+
+`evidence.recordSupplierObservation` preserves source-linked supplier roles,
+responsibilities, source area, lead-time wording, traceability, quantities and
+timing. It does not create a supplier score, ranking, payable, inventory,
+claim settlement or purchase recommendation.
+A correction creates a new row linked to an earlier SupplyCommitmentObservation.
 
 ## Inspected-intake commands
 

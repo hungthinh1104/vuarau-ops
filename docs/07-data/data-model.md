@@ -9,13 +9,14 @@ Drizzle definitions and database constraints.
 
 ### Identity and workspace
 
-| Table                            | Purpose                                                              | Mutability             |
-| -------------------------------- | -------------------------------------------------------------------- | ---------------------- |
-| `workspaces`                     | Depot/tenant identity                                                | mutable master data    |
-| `workspace_operational_profiles` | Versioned depot workflow and business-day policy                     | mutable audited policy |
-| `actors`                         | Attributed command actors; optional Supabase subject link            | mutable master data    |
-| `workspace_memberships`          | One actor access lifecycle plus transitional primary-role projection | mutable lifecycle      |
-| `workspace_membership_roles`     | Normalized fixed-role assignments and assignment attribution         | replaceable set        |
+| Table                            | Purpose                                                              | Mutability                              |
+| -------------------------------- | -------------------------------------------------------------------- | --------------------------------------- |
+| `workspaces`                     | Depot/tenant identity                                                | mutable master data                     |
+| `workspace_operational_profiles` | Versioned depot workflow and business-day policy                     | mutable audited policy                  |
+| `actors`                         | Attributed command actors; optional Supabase subject link            | mutable master data                     |
+| `workspace_memberships`          | One actor access lifecycle plus transitional primary-role projection | mutable lifecycle                       |
+| `workspace_membership_roles`     | Normalized fixed-role assignments and assignment attribution         | replaceable set                         |
+| `workspace_policies`             | Versioned, evidence-linked workspace policy registry                 | state transition with immutable version |
 
 ### Customer, Sale and customer money
 
@@ -80,11 +81,13 @@ Drizzle definitions and database constraints.
 
 ### Source-linked operational evidence
 
-| Table                         | Purpose                                                                                   | Mutability  |
-| ----------------------------- | ----------------------------------------------------------------------------------------- | ----------- |
-| `cost_observations`           | Exact observed cost/loss wording, money/quantity facts and source references by workspace | append-only |
-| `reconciliation_observations` | Separate expected/observed reconciliation facts, scope and source references by workspace | append-only |
-| `debt_observations`           | Source-linked payment-term, due-date and collection facts by workspace                    | append-only |
+| Table                            | Purpose                                                                                                     | Mutability  |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------- |
+| `cost_observations`              | Exact observed cost/loss wording, money/quantity facts and source references by workspace                   | append-only |
+| `reconciliation_observations`    | Separate expected/observed reconciliation facts, scope and source references by workspace                   | append-only |
+| `debt_observations`              | Source-linked payment-term, due-date and collection facts by workspace                                      | append-only |
+| `supply_commitment_observations` | Source-linked promised/minimum supply, expected-arrival and counterparty facts by workspace                 | append-only |
+| `supplier_observations`          | Source-linked supplier relationship, responsibility, timing, quantity, quality and price facts by workspace | append-only |
 
 `cost_observations` is deliberately not a financial or inventory ledger. A
 correction appends a new row linked to the earlier observation; policy-backed
@@ -98,6 +101,16 @@ separately; a correction appends a new row linked to the earlier observation.
 `debt_observations` is deliberately not an overdue, allocation, customer
 ledger or cashbook source. It preserves what was agreed or observed; a
 correction appends a new row linked to the earlier observation.
+
+`supply_commitment_observations` is deliberately not a Purchase, payable,
+receipt, inventory, reorder or supplier-score source. It preserves what a
+counterparty said or what a worker observed; a correction appends a new row
+linked to the earlier observation.
+
+`supplier_observations` is deliberately not a supplier score, ranking, payable,
+inventory, claim settlement or recommendation source. It preserves relationship
+and performance evidence until an approved workspace policy and canonical
+command give that evidence a business meaning.
 
 ### Documents and control
 
@@ -271,9 +284,10 @@ references without becoming an inventory or customer-money source.
 inspected-intake source links without changing payable, quality-policy or
 inventory semantics. `quality_inspections.evidence_references` follows the same
 metadata-only rule.
-Backup V11 preserves operational profile, price rules, CostObservation,
+Backup V14 preserves operational profile, price rules, CostObservation,
 ReconciliationObservation, DebtObservation, CashAccount and all canonical cash source/
-movement rows; it does not export `cash_balances`.
+movement rows plus workspace policy versions; it does not export `cash_balances`.
+V1–V11 remain restore-compatible with an empty policy collection.
 
 ## Executable workspace-policy and cashbook names
 
@@ -290,9 +304,9 @@ Cashbook persistence uses the exact Drizzle symbols `cashAccounts`, `expenses`,
 `cashMovements` and `cashBalances`, corresponding to the snake-case PostgreSQL
 tables listed above. `cashMovements` is canonical append-only truth;
 `cashBalances` is a rebuildable projection. Payment cash-account links are
-immutable after recording. Backup V11 exports price rules, CostObservation,
+immutable after recording. Backup V14 exports price rules, CostObservation,
 ReconciliationObservation, DebtObservation, CashAccount and canonical source/
-movement rows, not the disposable balance projection.
+movement rows and workspace policy versions, not the disposable balance projection.
 
 ## Inspected-intake executable names
 
@@ -312,4 +326,4 @@ movement rows, not the disposable balance projection.
 Arrival, inspection, disposition and reversal tables are append-only. Issue codes are
 versioned master data and cannot be deleted. Only accepted allocations create
 `inventory_movements`; quarantine, rejection and disposal remain non-stock outcomes.
-Backup V11 exports these canonical rows and restore rebuilds inventory balances.
+Backup V14 exports these canonical rows and restore rebuilds inventory balances.

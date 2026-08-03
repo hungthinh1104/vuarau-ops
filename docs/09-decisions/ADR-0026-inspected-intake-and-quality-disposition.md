@@ -26,7 +26,7 @@ Only accepted allocations create sellable inventory. Corrections use explicit re
 
 ## Consequences
 
-Physical truth no longer implies inventory truth. Quarantine remains visible without becoming sellable stock. Purchase void is blocked once active goods arrival exists. Backup V11 and reconciliation include the new lineage.
+Physical truth no longer implies inventory truth. Quarantine remains visible without becoming sellable stock. Purchase void is blocked once active goods arrival exists. Backup V14 and reconciliation include the new lineage.
 
 Supplier payable still originates from Purchase confirmation. Claims, credits and billable-quantity settlement are intentionally deferred to a separate bounded context. “Bông hàng” is not defined by this decision.
 

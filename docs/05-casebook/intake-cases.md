@@ -26,4 +26,4 @@ A depot changes from inspected intake back to direct receipt. New inspected fact
 
 ## CASE-INTAKE-007 — Backup and recovery
 
-Backup V11 exports master codes, price rules, cost/reconciliation/debt observations and every physical fact as canonical table-shaped records. Restore rejects missing cross-references, rebuilds inventory projections and succeeds only when source lineage reconciles.
+Backup V14 exports master codes, price rules, cost/reconciliation/debt/supply-commitment/supplier observations, workspace policy versions and every physical fact as canonical table-shaped records. Restore rejects missing cross-references, rebuilds inventory projections and succeeds only when source lineage reconciles.

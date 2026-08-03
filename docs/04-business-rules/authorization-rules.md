@@ -90,6 +90,8 @@ the caller's membership, using the static table in
 | Product deactivate/reactivate         | `product.deactivate`, `product.reactivate`                 | **owner**                                     | implemented                       |
 | Price rule list/resolve               | `pricing.read`                                             | all operational roles                         | implemented                       |
 | Price rule record                     | `pricing.manage`                                           | **owner, accountant**                         | implemented; field policy pending |
+| Workspace policy read                 | `policy.read`                                              | owner, accountant                             | infrastructure; no policy effect  |
+| Workspace policy draft/approve/retire | `policy.manage`                                            | **owner, accountant**                         | infrastructure; evidence required |
 | QualityGrade search/get               | `quality.read`                                             | all operational roles                         | implemented                       |
 | QualityGrade lifecycle                | `quality.manage`                                           | owner, warehouse                              | implemented                       |
 | Inventory reclassification            | `inventory.reclassify`                                     | owner, warehouse                              | implemented                       |

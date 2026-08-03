@@ -114,3 +114,33 @@ not real-worker adoption.
   to an existing observation in the same workspace. Identity, authorization,
   idempotency, transaction time and recorded time use the common command
   contract.
+
+## Supply commitment observations
+
+- **BR-EVIDENCE-010** — A SupplyCommitmentObservation preserves exact
+  source-linked wording, optional known supplier/product/grade identity,
+  promised and minimum quantities, expected arrival, counterparty label and
+  commitment reference. Missing fields remain `null`; they are not inferred.
+- **BR-EVIDENCE-011** — Recording a SupplyCommitmentObservation never creates a
+  Purchase, SupplierAccountEntry, PurchaseReceipt, InventoryMovement, reorder
+  state, supplier score or recommendation. Those meanings require field
+  evidence, an accepted workspace policy and a separate canonical command.
+- **BR-EVIDENCE-012** — A correction is a new immutable
+  SupplyCommitmentObservation linked to an existing observation in the same
+  workspace. Identity, authorization, idempotency, transaction time and
+  recorded time use the common command contract.
+
+## Supplier relationship and performance observations
+
+- **BR-EVIDENCE-013** — A SupplierObservation preserves source-linked wording,
+  optional known supplier/product/grade identity, relationship and responsibility
+  wording, source area, lead-time wording, traceability, quantities, timing and
+  price/claim references. Missing fields remain `null`; they are not inferred.
+- **BR-EVIDENCE-014** — Recording a SupplierObservation never creates a Supplier
+  score, ranking, payable, inventory movement, claim settlement or purchase
+  recommendation. Those meanings require field evidence, an accepted workspace
+  policy and a separate canonical command.
+- **BR-EVIDENCE-015** — A correction is a new immutable SupplierObservation
+  linked to an existing observation in the same workspace. Identity,
+  authorization, idempotency, transaction time and recorded time use the common
+  command contract.

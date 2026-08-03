@@ -1188,6 +1188,78 @@ use_cases:
       - apps/web/src/ui/controllers/debt-evidence-controller.tsx
       - apps/web/src/ui/screens/debt-evidence-view.tsx
 
+  UC-EVIDENCE-004:
+    title: Record and review a source-linked supply commitment observation
+    risk: P0
+    doc: docs/02-use-cases/UC-EVIDENCE-004-record-supply-commitment-observation.md
+    rules: [BR-EVIDENCE-010, BR-EVIDENCE-011, BR-EVIDENCE-012]
+    cases: []
+    tests: [TC-EVIDENCE-050, TC-EVIDENCE-051, TC-EVIDENCE-052, TC-EVIDENCE-053]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/supply-commitment-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - apps/api/src/modules/evidence/evidence.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/evidence.ts
+      - packages/db/src/schema/evidence.ts
+      - packages/db/src/repositories/write/supply-commitment-observation.ts
+      - packages/db/src/repositories/read/supply-commitment-observation.ts
+      - apps/web/src/ui/controllers/supply-commitment-evidence-controller.tsx
+      - apps/web/src/ui/screens/supply-commitment-evidence-view.tsx
+
+  UC-EVIDENCE-005:
+    title: Record and review source-linked supplier relationship and performance observations
+    risk: P0
+    doc: docs/02-use-cases/UC-EVIDENCE-005-record-supplier-observation.md
+    rules: [BR-EVIDENCE-013, BR-EVIDENCE-014, BR-EVIDENCE-015]
+    cases: []
+    tests: [TC-EVIDENCE-060, TC-EVIDENCE-061, TC-EVIDENCE-062, TC-EVIDENCE-063]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/supplier-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - apps/api/src/modules/evidence/evidence.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/evidence.ts
+      - packages/db/src/schema/evidence.ts
+      - packages/db/src/repositories/write/supplier-observation.ts
+      - packages/db/src/repositories/read/supplier-observation.ts
+      - apps/web/src/ui/controllers/supplier-observation-controller.tsx
+      - apps/web/src/ui/screens/supplier-observation-view.tsx
+
+  UC-POLICY-001:
+    title: Manage a versioned workspace policy without activating unsupported effects
+    risk: P0
+    doc: docs/02-use-cases/UC-POLICY-001-manage-workspace-policy-version.md
+    rules:
+      [BR-POLICY-001, BR-POLICY-002, BR-POLICY-003, BR-POLICY-004, BR-POLICY-005, BR-POLICY-006]
+    cases: []
+    tests:
+      [
+        TC-POLICY-001,
+        TC-POLICY-002,
+        TC-POLICY-003,
+        TC-POLICY-004,
+        TC-POLICY-005,
+        TC-POLICY-006,
+        TC-POLICY-007,
+        TC-POLICY-008,
+        TC-POLICY-009,
+      ]
+    implementation:
+      - packages/domain-contracts/src/policy/index.ts
+      - packages/domain-kernel/src/workspace-policy/index.ts
+      - apps/api/src/modules/policy/policy.handlers.ts
+      - apps/api/src/modules/policy/policy.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/policy.ts
+      - packages/db/src/schema/policy.ts
+      - packages/db/src/repositories/write/policy.ts
+      - packages/db/src/repositories/read/policy.ts
+      - apps/api/src/infrastructure/persistence/in-memory/repositories/policy.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/policy.ts
+      - packages/domain-contracts/src/operations/index.ts
+      - apps/web/src/ui/controllers/workspace-policy-controller.tsx
+      - apps/web/src/ui/screens/workspace-policy-view.tsx
+
 business_rules:
   BR-PRODUCT-001:
     title: Product is catalogue identity never monetary authority
@@ -2506,7 +2578,7 @@ business_rules:
     tests: [TC-INTAKE-002, TC-INTAKE-008]
     implementation: [packages/domain-kernel/src/intake/index.ts, packages/db/src/schema/intake.ts]
   BR-INTAKE-013:
-    title: Backup V11 preserves intake lineage and restore reconciles inventory
+    title: Backup V14 preserves intake lineage and restore reconciles inventory
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-007]
@@ -2623,6 +2695,136 @@ business_rules:
     implementation:
       - packages/domain-kernel/src/debt-observation/index.ts
       - packages/db/src/repositories/write/debt-observation.ts
+
+  BR-EVIDENCE-010:
+    title: Supply commitments preserve exact source-linked facts without inference
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-050, TC-EVIDENCE-052, TC-EVIDENCE-053]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/supply-commitment-observation/index.ts
+      - packages/db/src/schema/evidence.ts
+
+  BR-EVIDENCE-011:
+    title: Supply commitments never create payable, inventory, planning or supplier outcomes
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-050, TC-EVIDENCE-052, TC-EVIDENCE-053]
+    implementation:
+      - packages/domain-kernel/src/supply-commitment-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - apps/web/src/ui/screens/supply-commitment-evidence-view.tsx
+
+  BR-EVIDENCE-012:
+    title: Supply commitment corrections append same-workspace linked observations
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-051]
+    implementation:
+      - packages/domain-kernel/src/supply-commitment-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - packages/db/src/repositories/write/supply-commitment-observation.ts
+
+  BR-EVIDENCE-013:
+    title: Supplier observations preserve relationship and performance evidence without inference
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-060, TC-EVIDENCE-062, TC-EVIDENCE-063]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/supplier-observation/index.ts
+      - packages/db/src/schema/evidence.ts
+
+  BR-EVIDENCE-014:
+    title: Supplier observations never create scores, rankings, payable, inventory or recommendations
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-060, TC-EVIDENCE-062, TC-EVIDENCE-063]
+    implementation:
+      - packages/domain-kernel/src/supplier-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - apps/web/src/ui/screens/supplier-observation-view.tsx
+
+  BR-EVIDENCE-015:
+    title: Supplier observation corrections append same-workspace linked observations
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-061]
+    implementation:
+      - packages/domain-kernel/src/supplier-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - packages/db/src/repositories/write/supplier-observation.ts
+
+  BR-POLICY-001:
+    title: Policy versions are workspace scoped
+    risk: P0
+    doc: docs/04-business-rules/workspace-policy-rules.md
+    cases: []
+    tests: [TC-POLICY-003, TC-POLICY-007, TC-POLICY-004]
+    implementation:
+      - apps/api/src/infrastructure/persistence/policy-ports.ts
+      - packages/db/src/repositories/write/policy.ts
+      - packages/db/src/repositories/read/policy.ts
+
+  BR-POLICY-002:
+    title: Versions and effective ranges are explicit
+    risk: P0
+    doc: docs/04-business-rules/workspace-policy-rules.md
+    cases: []
+    tests: [TC-POLICY-002, TC-POLICY-004]
+    implementation:
+      - packages/domain-contracts/src/policy/index.ts
+      - packages/domain-kernel/src/workspace-policy/index.ts
+      - packages/db/src/schema/policy.ts
+
+  BR-POLICY-003:
+    title: Drafts have no business effect
+    risk: P0
+    doc: docs/04-business-rules/workspace-policy-rules.md
+    cases: []
+    tests: [TC-POLICY-001, TC-POLICY-003, TC-POLICY-008]
+    implementation:
+      - packages/domain-kernel/src/workspace-policy/index.ts
+      - apps/api/src/modules/policy/policy.queries.ts
+
+  BR-POLICY-004:
+    title: Approval requires evidence and accountability
+    risk: P0
+    doc: docs/04-business-rules/workspace-policy-rules.md
+    cases: []
+    tests: [TC-POLICY-001, TC-POLICY-006]
+    implementation:
+      - packages/domain-kernel/src/workspace-policy/index.ts
+      - apps/api/src/modules/policy/policy.handlers.ts
+      - packages/db/src/schema/policy.ts
+
+  BR-POLICY-005:
+    title: Missing policy fails closed
+    risk: P0
+    doc: docs/04-business-rules/workspace-policy-rules.md
+    cases: []
+    tests: [TC-POLICY-003, TC-POLICY-004, TC-POLICY-008, TC-POLICY-009]
+    implementation:
+      - packages/domain-kernel/src/workspace-policy/index.ts
+      - apps/api/src/modules/policy/policy.queries.ts
+
+  BR-POLICY-006:
+    title: Policy infrastructure is not activated policy
+    risk: P0
+    doc: docs/04-business-rules/workspace-policy-rules.md
+    cases: []
+    tests: [TC-POLICY-003, TC-POLICY-005, TC-POLICY-008, TC-POLICY-009]
+    implementation:
+      - packages/domain-contracts/src/policy/index.ts
+      - packages/domain-contracts/src/operations/index.ts
+      - apps/api/src/modules/operations/operations.queries.ts
 
 cases:
   CASE-SALE-001:
@@ -3389,11 +3591,50 @@ contract_tests:
     title: PostgreSQL serializes concurrent customer-payment retries into one debt and cash effect
     file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
   TC-OPS-016:
-    title: Backup V11 restores profile cashbook, pricing, operational evidence and inspected-intake lineage then reconciles projections
+    title: Backup V14 restores profile cashbook, pricing, operational evidence, workspace policy versions, supply commitments, supplier observations and inspected-intake lineage then reconciles projections
     file: apps/api/src/modules/operations/operations.app.test.ts
   TC-OPS-017:
     title: External field observation packets preserve source links without inferring policy effects
     file: scripts/field-observation.test.ts
+  TC-POLICY-001:
+    title: Policy draft remains inactive until evidence-backed approval
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-002:
+    title: Policy effective ranges and retired transitions fail closed
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-003:
+    title: Application policy registry retries safely and keeps capabilities unavailable
+    file: apps/api/src/modules/policy/policy.app.test.ts
+  TC-POLICY-004:
+    title: PostgreSQL persists policy evidence and effective availability
+    file: apps/api/src/infrastructure/persistence/drizzle/policy.db.test.ts
+  TC-POLICY-005:
+    title: Backup restore preserves workspace policy versions
+    file: apps/api/src/infrastructure/persistence/drizzle/operations-restore.db.test.ts
+  TC-POLICY-006:
+    title: Policy approval requires evidence and retirement is explicit
+    file: apps/api/src/modules/policy/policy.app.test.ts
+  TC-POLICY-007:
+    title: Policy reads and writes remain workspace scoped
+    file: apps/api/src/modules/policy/policy.app.test.ts
+  TC-POLICY-008:
+    title: Every policy capability is unavailable without an effective approval
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-009:
+    title: Policy UI renders unavailable state without inventing a business result
+    file: apps/web/src/ui/screens/workspace-policy-view.test.tsx
+  TC-EVIDENCE-060:
+    title: Supplier relationship and performance observations remain raw and retry safe
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-061:
+    title: Supplier observation corrections and reads remain workspace scoped
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-062:
+    title: PostgreSQL preserves supplier observation facts without deriving score or payable
+    file: apps/api/src/infrastructure/persistence/drizzle/evidence.db.test.ts
+  TC-EVIDENCE-063:
+    title: Supplier observation UI shows source facts without supplier intelligence
+    file: apps/web/src/ui/screens/supplier-observation-view.test.tsx
 
 deprecated:
   - UC-ORDER-001

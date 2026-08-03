@@ -8,8 +8,9 @@ commands.
 The packet can capture source-linked facts before the repository has a product
 workflow for them, including orders, supply commitments, arrivals, weighing,
 inspection, disposition, grading, packing, allocation, dispatch, delivery,
-payment/cash custody, returns, claims/credits, cost observations and
-pricing observations and reconciliation observations.
+payment/cash custody, returns, claims/credits, cost observations, pricing
+observations, supplier relationship/performance observations and reconciliation
+observations.
 
 It does not decide:
 

@@ -17,7 +17,7 @@ Technical completion is not field validation. The distinction is defined in the
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Money Truth         | Customer lifecycle; Quick Sale; cash accounts, expenses, transfers and cash reconciliation; Sale correction; customer Payment/reversal/adjustment; account timeline, reconciliation and rebuild; supplier payable, Payment/reversal/adjustment and Purchase correction                                                                                                             |
 | Goods Flow          | Product, Supplier and commercial QualityGrade lifecycle; direct Receiving or inspected GoodsArrival; quantity-only or gross/tare/net weighing; issue-code inspection evidence; accepted/quarantined/rejected/disposed disposition and reversal; per-Product/grade/unit inventory; adjustment, reclassification and reconciliation; exact-grade Delivery dispatch/completion/return |
-| Operational Control | Supabase identity; workspace roles and capabilities; versioned operational profile; audit; immutable digest-verified documents; revocable sharing; customer-account activity and source-backed reports; logical export/restore and integrity checks                                                                                                                                |
+| Operational Control | Supabase identity; workspace roles and capabilities; versioned operational profile and inactive policy registry; audit; immutable digest-verified documents; revocable sharing; customer-account activity and source-backed reports; logical export/restore and integrity checks                                                                                                   |
 | Reliability         | Client command identity, idempotent receipts, optimistic concurrency, transactional writes, append-only money/goods facts, offline Quick Sale queue and retry recovery                                                                                                                                                                                                             |
 | Engineering         | Strict TypeScript, architecture boundaries, source-size/composition gates, docs and trace checks, Vitest projects, PostgreSQL integration, Next/Storybook builds and real-stack Playwright                                                                                                                                                                                         |
 | Operating model     | Universal fact vocabulary plus workspace policy boundaries; the current runtime implements only the fact/policy slices listed above, not every stage of the full distribution chain                                                                                                                                                                                                |
@@ -91,6 +91,10 @@ Every known policy question is classified in the
   are answered. Raw evidence capture may be implemented independently, but it must
   remain visibly raw and must not be presented as a metric, recommendation or
   settled policy.
+- The versioned policy registry is infrastructure only. It records draft,
+  evidence-backed approval and retirement, but an approved registry row does not
+  activate a policy-sensitive result until a separate adapter and field gate
+  exist.
 
 ## Related
 

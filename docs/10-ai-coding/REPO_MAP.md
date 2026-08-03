@@ -11,7 +11,7 @@ repository, not a desired future architecture.
 apps/
   api/                                  deployable API process
     src/modules/<bounded-context>/      handlers, queries, effects and module tests
-                                       including the append-only pricing catalog and resolver
+                                       including the append-only pricing catalog, resolver and raw evidence slices
     src/infrastructure/                auth, ports, persistence adapters, tRPC and logging
     src/operations/                    operator-only scripts and their app/db tests
     src/server.ts                      HTTP entry point
@@ -19,14 +19,14 @@ apps/
   web/                                  Next App Router application
     src/app/(app)/                     authenticated route tree: customers, sales, payments,
                                        purchases, suppliers, inventory, intake, delivery,
-                                       pricing, reports, operations, quality, evidence and workspace surfaces
+                                       pricing, reports, operations, quality, evidence, policy and workspace surfaces
     src/app/auth/ and src/app/login/   authentication routes
     src/api/                           session, workspace, tRPC client and command identity
     src/offline/                       IndexedDB cache, sync engine and offline provider
     src/ui/primitives/                 reusable accessible controls and stories/tests
     src/ui/patterns/                   domain workflows, layouts and feedback states
     src/ui/domain/                     UI-only value/state transformations and presentation contracts
-    src/ui/controllers/                route orchestration: params, queries, commands, offline and navigation; evidence/reconciliation controllers stay here
+    src/ui/controllers/                route orchestration: params, queries, commands, offline and navigation; evidence, reconciliation and supply-commitment controllers stay here
     src/ui/screens/                    route-level visual compositions; no API or offline imports
     src/fixtures/ and src/testing/     typed UI fixtures and test helpers
     e2e/                               Playwright real-stack specs and harness
@@ -77,6 +77,8 @@ The repository checks are split by feedback speed:
 ID and free-text queries use the normal result limits unless `--all` is passed.
 All query types keep archive, generated-output, lockfile and migration-snapshot
 exclusions.
+Policy queries resolve the versioned registry implementation and its disabled
+availability tests; they do not imply that policy-sensitive metrics are active.
 
 ## Packages and dependency boundaries
 

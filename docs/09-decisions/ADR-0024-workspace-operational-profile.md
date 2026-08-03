@@ -51,7 +51,7 @@ Dependencies are structural:
   therefore have historical graded facts and later ungraded facts, each retaining
   the policy under which it was recorded.
 - Reports use `businessDayStartMinute` with `transactionTime`, not `recordedAt`.
-- Backup V6 introduced and Backup V11 preserves the profile, pricing and operational-evidence facts; restore applies them to the recovery workspace before
+- Backup V6 introduced and Backup V14 preserves the profile, pricing and operational-evidence facts plus workspace policy versions, supply commitments and supplier observations; restore applies them to the recovery workspace before
   restoring business data. V1–V4 remain restore-compatible using the legacy full-
   depot default.
 

@@ -26,5 +26,5 @@
 - **BR-CASH-010** — Operational cash and expense reports are source-backed, use
   `transactionTime` plus the workspace business-day boundary and never become a
   second ledger.
-- **BR-CASH-011** — Backup V11 includes price rules, CashAccount, reconciliation/debt observations and all canonical cash sources/
+- **BR-CASH-011** — Backup V14 includes price rules, CashAccount, reconciliation/debt/supply-commitment/supplier observations, workspace policy versions and all canonical cash sources/
   movements. Restore rebuilds projections and must reconcile before commit success.
