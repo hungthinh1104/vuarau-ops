@@ -155,11 +155,16 @@ what has been accepted and what remains.
   replacement is a fresh Purchase linked to the voided original.
 - **Source evidence:** the Purchase and its void may retain field references; these
   links do not change payable or manufacture inventory movement.
-- **Guard:** a Purchase with net active Receipts cannot currently be voided.
+- **Guard:** an ordinary void with net active Receipts is blocked. A commercial
+  correction requires an approved, effective workspace `purchase_correction`
+  policy using `commercial_replacement_only`.
 - **Goods effect:** none. Commercial correction must not manufacture inventory movement.
-- **Cross-dimension stop:** correction after accepted Receiving is ASM-036; do not
-  reverse/re-receive goods that did not physically move.
-- **Rules/tests:** BR-PURCHASE-004…006 · TC-GOODS-001/003 · TC-E2E-029.
+- **After Receiving:** the void records the policy version and exact payable
+  compensation; source Receipts and inventory remain unchanged. A replacement
+  starts with fresh Receiving progress.
+- **Rules/tests:** BR-PURCHASE-004…008 · CASE-PURCHASE-CORRECTION-001 ·
+  TC-GOODS-001/003 · TC-PURCHASE-CORRECTION-001…004 ·
+  TC-E2E-029 · TC-E2E-PURCHASE-CORRECTION-001.
 
 ## UC-RECEIVING-001 — Record accepted physical goods
 
@@ -254,7 +259,8 @@ balance that may not match canonical movement history.
 The following are **not** silently folded into the use cases above:
 
 - rejected/damaged goods before acceptance — ASM-033;
-- Purchase replacement after already-accepted Receiving — ASM-036;
+- Purchase correction after already-accepted Receiving without an approved
+  effective policy, or outside the supported strategy — ASM-036;
 - customer Return financial consequence — ASM-037;
 - return of previously accepted stock to Supplier — ASM-038.
 

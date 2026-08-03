@@ -109,14 +109,21 @@ the unresolved business decision.
 
 ## D7 — Purchase correction after Receiving
 
+**Case ID:** CASE-PURCHASE-CORRECTION-001
+
 After R1 already accepted stock, accountant discovers P1 has the wrong price,
 Supplier or commercial document.
 
 The current void/replacement path can correct supplier payable; existing Receipts
 remain sourced to P1 and replacement P2 begins with fresh receiving progress.
 
-**STOP until ASM-036 is decided.** Do not reverse and re-receive 90 kg unless the
-goods actually cross the accepted-stock boundary again.
+If an approved, effective workspace `purchase_correction` policy authorizes the
+supported `commercial_replacement_only` strategy, append a commercial void for
+P1 and record the policy version. Keep R1 attached to P1, keep its inventory
+movement unchanged, and let replacement P2 begin at zero received quantity.
+Compensate supplier payable exactly once. If the policy is absent, expired,
+unsupported or not yet field-authorized, stop; never reverse and re-receive 90 kg
+unless the goods actually cross the accepted-stock boundary again.
 
 ## D8 — return accepted stock to Supplier
 

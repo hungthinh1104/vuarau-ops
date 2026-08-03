@@ -106,85 +106,86 @@ Postgres, and returned by a command that a test exercises.
 
 ## Goods Truth codes
 
-| Code                                                 | Meaning                                                     |
-| ---------------------------------------------------- | ----------------------------------------------------------- |
-| `SUPPLIER_NOT_FOUND`                                 | Supplier does not resolve in this workspace                 |
-| `SUPPLIER_INACTIVE`                                  | Inactive Supplier cannot start a new Purchase               |
-| `SUPPLIER_VERSION_CONFLICT`                          | Supplier or supplier payment version is stale               |
-| `SUPPLIER_PAYMENT_AMOUNT_INVALID`                    | Supplier payment is not positive                            |
-| `SUPPLIER_PAYMENT_NOT_FOUND`                         | Supplier payment does not resolve                           |
-| `SUPPLIER_PAYMENT_ALREADY_REVERSED`                  | Supplier payment has no reversible remainder                |
-| `SUPPLIER_PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT` | Reversal exceeds the remaining cash-out                     |
-| `SUPPLIER_PAYMENT_REVERSAL_REASON_REQUIRED`          | Supplier payment reversal lacks explanation                 |
-| `SUPPLIER_ACCOUNT_ADJUSTMENT_REASON_REQUIRED`        | Supplier adjustment lacks explanation                       |
-| `SUPPLIER_ACCOUNT_ADJUSTMENT_AMOUNT_INVALID`         | Supplier adjustment amount is not positive                  |
-| `SUPPLIER_ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE`  | Canonical supplier source is corrupt                        |
-| `SUPPLIER_ACCOUNT_RECONCILIATION_REBUILD_UNSAFE`     | Rebuild would hide canonical corruption                     |
-| `PURCHASE_NOT_FOUND`                                 | Purchase does not resolve in this workspace                 |
-| `PURCHASE_EMPTY`                                     | Purchase has no line to confirm                             |
-| `PURCHASE_LINE_INVALID`                              | Purchase line reference, quantity, unit or money is invalid |
-| `PURCHASE_VERSION_CONFLICT`                          | Purchase draft version is stale                             |
-| `PURCHASE_ALREADY_CONFIRMED`                         | Confirmed Purchase cannot be changed                        |
-| `PURCHASE_ALREADY_DISCARDED`                         | Discarded Purchase cannot be changed                        |
-| `PURCHASE_ALREADY_VOIDED`                            | Purchase already has a void record                          |
-| `PURCHASE_NOT_CONFIRMED`                             | Only a confirmed Purchase may be voided                     |
-| `PURCHASE_REPLACEMENT_INVALID`                       | Replacement source is not one eligible voided Purchase      |
-| `PURCHASE_HAS_ACTIVE_RECEIPTS`                       | Active received quantity must be reversed before void       |
-| `PURCHASE_VOID_REASON_REQUIRED`                      | Purchase void lacks explanation                             |
-| `RECEIPT_NOT_FOUND`                                  | Receipt does not resolve in this workspace                  |
-| `RECEIPT_ALREADY_REVERSED`                           | Receipt already has a reversal                              |
-| `RECEIPT_QUANTITY_EXCEEDS_PURCHASE`                  | Net received quantity exceeds purchased quantity            |
-| `RECEIPT_UNIT_MISMATCH`                              | Receipt unit differs from immutable Purchase line           |
-| `RECEIPT_REVERSAL_REASON_REQUIRED`                   | Receipt reversal lacks explanation                          |
-| `QUALITY_GRADE_NOT_FOUND`                            | QualityGrade does not resolve in this workspace             |
-| `QUALITY_GRADE_INACTIVE`                             | Inactive QualityGrade cannot receive new physical quantity  |
-| `QUALITY_GRADE_VERSION_CONFLICT`                     | QualityGrade lifecycle version is stale                     |
-| `QUALITY_ISSUE_CODE_NOT_FOUND`                       | Quality issue code does not resolve in this workspace       |
-| `QUALITY_ISSUE_CODE_INACTIVE`                        | Inactive issue code cannot be used by a new inspection      |
-| `QUALITY_ISSUE_CODE_VERSION_CONFLICT`                | Issue-code lifecycle version is stale                       |
-| `QUALITY_ISSUE_CODE_ALREADY_ACTIVE`                  | Reactivation targeted an active issue code                  |
-| `QUALITY_ISSUE_CODE_ALREADY_INACTIVE`                | Deactivation targeted an inactive issue code                |
-| `GOODS_ARRIVAL_NOT_FOUND`                            | GoodsArrival does not resolve in this workspace             |
-| `GOODS_ARRIVAL_ALREADY_REVERSED`                     | GoodsArrival already has a reversal                         |
-| `GOODS_ARRIVAL_HAS_DOWNSTREAM_FACTS`                 | Active inspection/disposition must reverse before arrival   |
-| `GOODS_ARRIVAL_LINE_INVALID`                         | Arrival line identity, quantity or product is invalid       |
-| `GOODS_ARRIVAL_PURCHASE_MISMATCH`                    | Arrival supplier/line does not match immutable Purchase     |
-| `WEIGHING_REQUIRED`                                  | Gross/tare/net mode requires complete weighing evidence     |
-| `WEIGHING_NOT_USED`                                  | Quantity-only mode rejects weighing evidence                |
-| `WEIGHING_INVALID`                                   | Gross, tare, net, unit or arrived quantity is inconsistent  |
-| `QUALITY_INSPECTION_NOT_FOUND`                       | Inspection does not resolve in this workspace               |
-| `QUALITY_INSPECTION_ALREADY_REVERSED`                | Inspection already has a reversal                           |
-| `QUALITY_INSPECTION_QUANTITY_EXCEEDS_ARRIVAL`        | Active inspected quantity exceeds arrival quantity          |
-| `QUALITY_INSPECTION_INVALID`                         | Inspection issue snapshots or quantity are invalid          |
-| `QUALITY_INSPECTION_HAS_DOWNSTREAM_FACTS`            | Active disposition must reverse before inspection           |
-| `QUALITY_DISPOSITION_SOURCE_NOT_FOUND`               | Arrival line or quarantine allocation does not resolve      |
-| `QUALITY_DISPOSITION_SOURCE_REVERSED`                | Disposition source is no longer active                      |
-| `QUALITY_DISPOSITION_QUANTITY_EXCEEDS_REMAINING`     | Allocation exceeds currently eligible source quantity       |
-| `QUALITY_DISPOSITION_INVALID`                        | Outcome, grade, unit or allocation identity is invalid      |
-| `QUALITY_DISPOSITION_NOT_FOUND`                      | Disposition does not resolve in this workspace              |
-| `QUALITY_DISPOSITION_ALREADY_REVERSED`               | Disposition already has a reversal                          |
-| `QUALITY_DISPOSITION_HAS_DOWNSTREAM_FACTS`           | Active quarantine child must reverse before its parent      |
-| `INVENTORY_ADJUSTMENT_REASON_REQUIRED`               | Inventory adjustment lacks explanation                      |
-| `INVENTORY_RECLASSIFICATION_INVALID`                 | Grade reclassification identity or quantity is invalid      |
-| `INVENTORY_RECLASSIFICATION_REASON_REQUIRED`         | Grade reclassification lacks explanation                    |
-| `INVENTORY_RECONCILIATION_INTEGRITY_FAILURE`         | Canonical movement source is corrupt                        |
-| `DELIVERY_NOT_FOUND`                                 | Delivery does not resolve in this workspace                 |
-| `DELIVERY_LINE_INVALID`                              | Delivery line does not match its immutable Sale line        |
-| `DELIVERY_VERSION_CONFLICT`                          | Delivery draft version is stale                             |
-| `DELIVERY_ALREADY_DISPATCHED`                        | Draft-only operation targeted a dispatched Delivery         |
-| `DELIVERY_ALREADY_CANCELLED`                         | Operation targeted a cancelled Delivery                     |
-| `DELIVERY_ALREADY_DELIVERED`                         | Completion targeted an already delivered Delivery           |
-| `DELIVERY_QUANTITY_EXCEEDS_SALE`                     | Dispatch exceeds remaining Sale quantity                    |
-| `DELIVERY_RETURN_EXCEEDS_DISPATCH`                   | Return exceeds dispatched quantity                          |
-| `DELIVERY_PRODUCT_REQUIRED`                          | Sale line lacks Product identity for inventory movement     |
-| `DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED`            | Replacement predecessor has active physical fulfilment      |
-| `DELIVERY_REASON_REQUIRED`                           | Cancellation or return lacks explanation                    |
-| `DOCUMENT_NOT_FOUND`                                 | Immutable document does not resolve                         |
-| `DOCUMENT_SOURCE_INVALID`                            | Document type/source pair is missing or incompatible        |
-| `DOCUMENT_SHARE_NOT_FOUND`                           | Share identity or public token does not resolve             |
-| `DOCUMENT_SHARE_REVOKED`                             | Public share was explicitly revoked                         |
-| `DOCUMENT_SHARE_EXPIRED`                             | Public share passed its expiry                              |
-| `REPORT_INTEGRITY_FAILURE`                           | Canonical source or projection is inconsistent              |
+| Code                                                 | Meaning                                                                                                                                                                    |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPPLIER_NOT_FOUND`                                 | Supplier does not resolve in this workspace                                                                                                                                |
+| `SUPPLIER_INACTIVE`                                  | Inactive Supplier cannot start a new Purchase                                                                                                                              |
+| `SUPPLIER_VERSION_CONFLICT`                          | Supplier or supplier payment version is stale                                                                                                                              |
+| `SUPPLIER_PAYMENT_AMOUNT_INVALID`                    | Supplier payment is not positive                                                                                                                                           |
+| `SUPPLIER_PAYMENT_NOT_FOUND`                         | Supplier payment does not resolve                                                                                                                                          |
+| `SUPPLIER_PAYMENT_ALREADY_REVERSED`                  | Supplier payment has no reversible remainder                                                                                                                               |
+| `SUPPLIER_PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT` | Reversal exceeds the remaining cash-out                                                                                                                                    |
+| `SUPPLIER_PAYMENT_REVERSAL_REASON_REQUIRED`          | Supplier payment reversal lacks explanation                                                                                                                                |
+| `SUPPLIER_ACCOUNT_ADJUSTMENT_REASON_REQUIRED`        | Supplier adjustment lacks explanation                                                                                                                                      |
+| `SUPPLIER_ACCOUNT_ADJUSTMENT_AMOUNT_INVALID`         | Supplier adjustment amount is not positive                                                                                                                                 |
+| `SUPPLIER_ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE`  | Canonical supplier source is corrupt                                                                                                                                       |
+| `SUPPLIER_ACCOUNT_RECONCILIATION_REBUILD_UNSAFE`     | Rebuild would hide canonical corruption                                                                                                                                    |
+| `PURCHASE_NOT_FOUND`                                 | Purchase does not resolve in this workspace                                                                                                                                |
+| `PURCHASE_EMPTY`                                     | Purchase has no line to confirm                                                                                                                                            |
+| `PURCHASE_LINE_INVALID`                              | Purchase line reference, quantity, unit or money is invalid                                                                                                                |
+| `PURCHASE_VERSION_CONFLICT`                          | Purchase draft version is stale                                                                                                                                            |
+| `PURCHASE_ALREADY_CONFIRMED`                         | Confirmed Purchase cannot be changed                                                                                                                                       |
+| `PURCHASE_ALREADY_DISCARDED`                         | Discarded Purchase cannot be changed                                                                                                                                       |
+| `PURCHASE_ALREADY_VOIDED`                            | Purchase already has a void record                                                                                                                                         |
+| `PURCHASE_NOT_CONFIRMED`                             | Only a confirmed Purchase may be voided                                                                                                                                    |
+| `PURCHASE_REPLACEMENT_INVALID`                       | Replacement source is not one eligible voided Purchase                                                                                                                     |
+| `PURCHASE_HAS_ACTIVE_RECEIPTS`                       | Ordinary void is blocked while active received quantity remains; use an approved commercial-correction policy or reverse the Receipt when that physical correction is true |
+| `PURCHASE_CORRECTION_POLICY_UNAVAILABLE`             | Active-receiving commercial correction has no approved effective supported policy                                                                                          |
+| `PURCHASE_VOID_REASON_REQUIRED`                      | Purchase void lacks explanation                                                                                                                                            |
+| `RECEIPT_NOT_FOUND`                                  | Receipt does not resolve in this workspace                                                                                                                                 |
+| `RECEIPT_ALREADY_REVERSED`                           | Receipt already has a reversal                                                                                                                                             |
+| `RECEIPT_QUANTITY_EXCEEDS_PURCHASE`                  | Net received quantity exceeds purchased quantity                                                                                                                           |
+| `RECEIPT_UNIT_MISMATCH`                              | Receipt unit differs from immutable Purchase line                                                                                                                          |
+| `RECEIPT_REVERSAL_REASON_REQUIRED`                   | Receipt reversal lacks explanation                                                                                                                                         |
+| `QUALITY_GRADE_NOT_FOUND`                            | QualityGrade does not resolve in this workspace                                                                                                                            |
+| `QUALITY_GRADE_INACTIVE`                             | Inactive QualityGrade cannot receive new physical quantity                                                                                                                 |
+| `QUALITY_GRADE_VERSION_CONFLICT`                     | QualityGrade lifecycle version is stale                                                                                                                                    |
+| `QUALITY_ISSUE_CODE_NOT_FOUND`                       | Quality issue code does not resolve in this workspace                                                                                                                      |
+| `QUALITY_ISSUE_CODE_INACTIVE`                        | Inactive issue code cannot be used by a new inspection                                                                                                                     |
+| `QUALITY_ISSUE_CODE_VERSION_CONFLICT`                | Issue-code lifecycle version is stale                                                                                                                                      |
+| `QUALITY_ISSUE_CODE_ALREADY_ACTIVE`                  | Reactivation targeted an active issue code                                                                                                                                 |
+| `QUALITY_ISSUE_CODE_ALREADY_INACTIVE`                | Deactivation targeted an inactive issue code                                                                                                                               |
+| `GOODS_ARRIVAL_NOT_FOUND`                            | GoodsArrival does not resolve in this workspace                                                                                                                            |
+| `GOODS_ARRIVAL_ALREADY_REVERSED`                     | GoodsArrival already has a reversal                                                                                                                                        |
+| `GOODS_ARRIVAL_HAS_DOWNSTREAM_FACTS`                 | Active inspection/disposition must reverse before arrival                                                                                                                  |
+| `GOODS_ARRIVAL_LINE_INVALID`                         | Arrival line identity, quantity or product is invalid                                                                                                                      |
+| `GOODS_ARRIVAL_PURCHASE_MISMATCH`                    | Arrival supplier/line does not match immutable Purchase                                                                                                                    |
+| `WEIGHING_REQUIRED`                                  | Gross/tare/net mode requires complete weighing evidence                                                                                                                    |
+| `WEIGHING_NOT_USED`                                  | Quantity-only mode rejects weighing evidence                                                                                                                               |
+| `WEIGHING_INVALID`                                   | Gross, tare, net, unit or arrived quantity is inconsistent                                                                                                                 |
+| `QUALITY_INSPECTION_NOT_FOUND`                       | Inspection does not resolve in this workspace                                                                                                                              |
+| `QUALITY_INSPECTION_ALREADY_REVERSED`                | Inspection already has a reversal                                                                                                                                          |
+| `QUALITY_INSPECTION_QUANTITY_EXCEEDS_ARRIVAL`        | Active inspected quantity exceeds arrival quantity                                                                                                                         |
+| `QUALITY_INSPECTION_INVALID`                         | Inspection issue snapshots or quantity are invalid                                                                                                                         |
+| `QUALITY_INSPECTION_HAS_DOWNSTREAM_FACTS`            | Active disposition must reverse before inspection                                                                                                                          |
+| `QUALITY_DISPOSITION_SOURCE_NOT_FOUND`               | Arrival line or quarantine allocation does not resolve                                                                                                                     |
+| `QUALITY_DISPOSITION_SOURCE_REVERSED`                | Disposition source is no longer active                                                                                                                                     |
+| `QUALITY_DISPOSITION_QUANTITY_EXCEEDS_REMAINING`     | Allocation exceeds currently eligible source quantity                                                                                                                      |
+| `QUALITY_DISPOSITION_INVALID`                        | Outcome, grade, unit or allocation identity is invalid                                                                                                                     |
+| `QUALITY_DISPOSITION_NOT_FOUND`                      | Disposition does not resolve in this workspace                                                                                                                             |
+| `QUALITY_DISPOSITION_ALREADY_REVERSED`               | Disposition already has a reversal                                                                                                                                         |
+| `QUALITY_DISPOSITION_HAS_DOWNSTREAM_FACTS`           | Active quarantine child must reverse before its parent                                                                                                                     |
+| `INVENTORY_ADJUSTMENT_REASON_REQUIRED`               | Inventory adjustment lacks explanation                                                                                                                                     |
+| `INVENTORY_RECLASSIFICATION_INVALID`                 | Grade reclassification identity or quantity is invalid                                                                                                                     |
+| `INVENTORY_RECLASSIFICATION_REASON_REQUIRED`         | Grade reclassification lacks explanation                                                                                                                                   |
+| `INVENTORY_RECONCILIATION_INTEGRITY_FAILURE`         | Canonical movement source is corrupt                                                                                                                                       |
+| `DELIVERY_NOT_FOUND`                                 | Delivery does not resolve in this workspace                                                                                                                                |
+| `DELIVERY_LINE_INVALID`                              | Delivery line does not match its immutable Sale line                                                                                                                       |
+| `DELIVERY_VERSION_CONFLICT`                          | Delivery draft version is stale                                                                                                                                            |
+| `DELIVERY_ALREADY_DISPATCHED`                        | Draft-only operation targeted a dispatched Delivery                                                                                                                        |
+| `DELIVERY_ALREADY_CANCELLED`                         | Operation targeted a cancelled Delivery                                                                                                                                    |
+| `DELIVERY_ALREADY_DELIVERED`                         | Completion targeted an already delivered Delivery                                                                                                                          |
+| `DELIVERY_QUANTITY_EXCEEDS_SALE`                     | Dispatch exceeds remaining Sale quantity                                                                                                                                   |
+| `DELIVERY_RETURN_EXCEEDS_DISPATCH`                   | Return exceeds dispatched quantity                                                                                                                                         |
+| `DELIVERY_PRODUCT_REQUIRED`                          | Sale line lacks Product identity for inventory movement                                                                                                                    |
+| `DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED`            | Replacement predecessor has active physical fulfilment                                                                                                                     |
+| `DELIVERY_REASON_REQUIRED`                           | Cancellation or return lacks explanation                                                                                                                                   |
+| `DOCUMENT_NOT_FOUND`                                 | Immutable document does not resolve                                                                                                                                        |
+| `DOCUMENT_SOURCE_INVALID`                            | Document type/source pair is missing or incompatible                                                                                                                       |
+| `DOCUMENT_SHARE_NOT_FOUND`                           | Share identity or public token does not resolve                                                                                                                            |
+| `DOCUMENT_SHARE_REVOKED`                             | Public share was explicitly revoked                                                                                                                                        |
+| `DOCUMENT_SHARE_EXPIRED`                             | Public share passed its expiry                                                                                                                                             |
+| `REPORT_INTEGRITY_FAILURE`                           | Canonical source or projection is inconsistent                                                                                                                             |
 
 ## Rules for changing this catalog
 

@@ -37,7 +37,18 @@ claim that a depot has validated the workflow in live operations.
   Purchase and creates exactly one negative payable compensation.
 - **BR-PURCHASE-005** — A replacement may reference one confirmed, voided
   Purchase that has no existing replacement.
-- **BR-PURCHASE-006** — A Purchase with net active Receipts cannot be voided.
+- **BR-PURCHASE-006** — An ordinary Purchase void is blocked when the Purchase
+  has net active Receipts. A commercial correction is allowed only through the
+  explicit policy-backed strategy in BR-PURCHASE-007.
+- **BR-PURCHASE-007** — A Purchase with active Receiving may use commercial
+  correction only when the workspace has an approved, effective
+  `purchase_correction` policy using the supported
+  `commercial_replacement_only` strategy. The void stores that policy version,
+  compensates supplier payable exactly once, and leaves the original Receipt
+  and inventory movement unchanged.
+- **BR-PURCHASE-008** — A commercial correction replacement references one
+  eligible voided Purchase and starts independent receiving progress. It does
+  not inherit, reverse or re-receive the source Purchase's physical fulfilment.
 
 ## Receiving and inventory
 

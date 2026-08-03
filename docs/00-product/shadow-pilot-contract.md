@@ -45,7 +45,7 @@ contradiction is recorded as a blocker; it is not silently repaired inside M23.
 | ASM-033 | owner/receiver confirm that Receipt means accepted inventory and how damaged/rejected arrivals are handled | block affected Receiving flows if current semantics are rejected                    |
 | ASM-034 | owner/warehouse confirm who may manage/reclassify grade and whether approval is needed                     | block grade-management/reclassification pilot work if current authority is rejected |
 | ASM-035 | owner/workers classify Sale correction after prior fulfilment as excluded or resolved in the exact release | stop if encountered when excluded; block if unresolved                              |
-| ASM-036 | owner/workers classify Purchase correction after prior Receiving as excluded or resolved                   | stop if encountered when excluded; block if unresolved                              |
+| ASM-036 | owner/workers validate the policy-backed Purchase correction after prior Receiving                         | stop when the approved effective policy or field operating contract is absent       |
 | ASM-037 | owner/workers classify partial customer-return money/commercial semantics as excluded or resolved          | physical Return must not infer money; stop if excluded scenario occurs              |
 | ASM-038 | owner/workers classify return of accepted stock to Supplier as excluded or resolved                        | generic adjustment must not masquerade as Supplier return; stop/block as declared   |
 

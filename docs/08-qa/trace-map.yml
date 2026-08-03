@@ -770,12 +770,27 @@ use_cases:
     title: Void and optionally replace a confirmed Purchase
     risk: P0
     doc: docs/02-use-cases/goods-flow-use-cases.md
-    rules: [BR-PURCHASE-004, BR-PURCHASE-005, BR-PURCHASE-006]
-    cases: []
-    tests: [TC-GOODS-001, TC-GOODS-003, TC-E2E-029]
+    rules: [BR-PURCHASE-004, BR-PURCHASE-005, BR-PURCHASE-006, BR-PURCHASE-007, BR-PURCHASE-008]
+    cases: [CASE-PURCHASE-CORRECTION-001]
+    tests:
+      [
+        TC-GOODS-001,
+        TC-GOODS-003,
+        TC-PURCHASE-CORRECTION-001,
+        TC-PURCHASE-CORRECTION-002,
+        TC-PURCHASE-CORRECTION-003,
+        TC-PURCHASE-CORRECTION-004,
+        TC-E2E-029,
+        TC-E2E-PURCHASE-CORRECTION-001,
+      ]
     implementation:
       - apps/api/src/modules/purchase/purchase.handlers.ts
       - apps/api/src/modules/supplier/supplier-account-effects.ts
+      - packages/domain-contracts/src/policy/index.ts
+      - packages/domain-contracts/src/purchase/index.ts
+      - packages/domain-kernel/src/purchase/index.ts
+      - apps/api/src/modules/inventory/inventory.queries.ts
+      - packages/db/src/schema/purchase.ts
 
   UC-RECEIVING-001:
     title: Record accepted physical goods
@@ -1522,12 +1537,48 @@ business_rules:
     tests: [TC-GOODS-001]
     implementation: [apps/api/src/modules/purchase/purchase.handlers.ts]
   BR-PURCHASE-006:
-    title: Active Receipts block Purchase void
+    title: Ordinary Purchase void is blocked by active Receipts
     risk: P0
     doc: docs/04-business-rules/goods-flow-rules.md
-    cases: []
+    cases: [CASE-PURCHASE-CORRECTION-001]
     tests: [TC-GOODS-001, TC-E2E-029]
     implementation: [apps/api/src/modules/purchase/purchase.handlers.ts]
+  BR-PURCHASE-007:
+    title: Effective purchase-correction policy authorizes commercial correction and preserves physical truth
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: [CASE-PURCHASE-CORRECTION-001]
+    tests:
+      [
+        TC-PURCHASE-CORRECTION-001,
+        TC-PURCHASE-CORRECTION-002,
+        TC-PURCHASE-CORRECTION-003,
+        TC-PURCHASE-CORRECTION-004,
+        TC-E2E-PURCHASE-CORRECTION-001,
+      ]
+    implementation:
+      - packages/domain-contracts/src/policy/index.ts
+      - packages/domain-contracts/src/purchase/index.ts
+      - packages/domain-kernel/src/purchase/index.ts
+      - apps/api/src/modules/purchase/purchase.handlers.ts
+      - apps/api/src/modules/inventory/inventory.queries.ts
+      - packages/db/src/schema/purchase.ts
+  BR-PURCHASE-008:
+    title: Commercial correction replacement starts independent receiving progress
+    risk: P0
+    doc: docs/04-business-rules/goods-flow-rules.md
+    cases: [CASE-PURCHASE-CORRECTION-001]
+    tests:
+      [
+        TC-PURCHASE-CORRECTION-001,
+        TC-PURCHASE-CORRECTION-002,
+        TC-PURCHASE-CORRECTION-004,
+        TC-E2E-PURCHASE-CORRECTION-001,
+      ]
+    implementation:
+      - apps/api/src/modules/purchase/purchase.handlers.ts
+      - apps/api/src/modules/inventory/inventory.queries.ts
+      - packages/db/src/schema/purchase.ts
   BR-INVENTORY-001:
     title: Receipt references exact Purchase Product and unit
     risk: P0
@@ -3088,6 +3139,17 @@ cases:
     doc: docs/05-casebook/supply-commitment-cases.md
     rules: [BR-SUPPLY-COMMITMENT-002, BR-SUPPLY-COMMITMENT-003, BR-SUPPLY-COMMITMENT-005]
     tests: [TC-SUPPLY-COMMITMENT-002, TC-SUPPLY-COMMITMENT-007]
+  CASE-PURCHASE-CORRECTION-001:
+    title: Commercial correction after accepted receiving
+    doc: docs/05-casebook/depot-day-cases.md
+    rules: [BR-PURCHASE-006, BR-PURCHASE-007, BR-PURCHASE-008]
+    tests:
+      [
+        TC-PURCHASE-CORRECTION-001,
+        TC-PURCHASE-CORRECTION-002,
+        TC-PURCHASE-CORRECTION-004,
+        TC-E2E-PURCHASE-CORRECTION-001,
+      ]
   CASE-SUPPLY-COMMITMENT-003:
     title: Retry, cancellation and workspace boundary
     doc: docs/05-casebook/supply-commitment-cases.md
@@ -3574,6 +3636,18 @@ contract_tests:
   TC-GOODS-003:
     title: Purchase domain tests prove exact arithmetic and immutable confirmation
     file: packages/domain-kernel/src/purchase/purchase.test.ts
+  TC-PURCHASE-CORRECTION-001:
+    title: Purchase domain requires an effective correction strategy and records policy lineage
+    file: packages/domain-kernel/src/purchase/purchase.test.ts
+  TC-PURCHASE-CORRECTION-002:
+    title: Purchase application correction compensates payable without changing received stock
+    file: apps/api/src/modules/purchase/purchase-correction.app.test.ts
+  TC-PURCHASE-CORRECTION-003:
+    title: Purchase application fails closed when correction policy is unavailable
+    file: apps/api/src/modules/purchase/purchase-correction.app.test.ts
+  TC-PURCHASE-CORRECTION-004:
+    title: PostgreSQL purchase correction preserves policy lineage and physical truth
+    file: apps/api/src/infrastructure/persistence/drizzle/purchase-correction.db.test.ts
   TC-GOODS-004:
     title: Inventory domain tests prove receipt limits and signed adjustment
     file: packages/domain-kernel/src/inventory/inventory.test.ts
@@ -3603,6 +3677,9 @@ contract_tests:
     file: apps/api/src/modules/quality/quality.app.test.ts
   TC-E2E-029:
     title: Browser API and PostgreSQL prove complete Goods Truth and source navigation
+    file: apps/web/e2e/goods-flow.spec.ts
+  TC-E2E-PURCHASE-CORRECTION-001:
+    title: Browser proves policy-backed commercial Purchase correction after receiving
     file: apps/web/e2e/goods-flow.spec.ts
   TC-SALE-013:
     title: Sale procedures return DTOs matching the published schema

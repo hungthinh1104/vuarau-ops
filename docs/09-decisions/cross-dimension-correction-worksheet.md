@@ -20,6 +20,14 @@ physically moved merely to make the replacement appear fulfilled.
 
 ## ASM-036 — Purchase correction after Receiving
 
+The core system strategy is now explicit: an approved, effective workspace
+`purchase_correction` policy may authorize `commercial_replacement_only`. That
+strategy corrects commercial payable truth, records the policy version on the
+void, preserves the original Receipt/inventory truth, and starts a replacement
+Purchase with fresh Receiving progress. The questions below remain the field
+validation and operating-contract worksheet; they do not authorize inventing a
+reverse/re-receive movement.
+
 Ask about a confirmed Purchase whose price/supplier/document is found wrong after
 goods were already accepted into stock.
 
