@@ -19,14 +19,14 @@ apps/
   web/                                  Next App Router application
     src/app/(app)/                     authenticated route tree: customers, sales, payments,
                                        purchases, suppliers, inventory, intake, delivery,
-                                       pricing, reports, operations, quality and workspace surfaces
+                                       pricing, reports, operations, quality, evidence and workspace surfaces
     src/app/auth/ and src/app/login/   authentication routes
     src/api/                           session, workspace, tRPC client and command identity
     src/offline/                       IndexedDB cache, sync engine and offline provider
     src/ui/primitives/                 reusable accessible controls and stories/tests
     src/ui/patterns/                   domain workflows, layouts and feedback states
     src/ui/domain/                     UI-only value/state transformations and presentation contracts
-    src/ui/controllers/                route orchestration: params, queries, commands, offline and navigation
+    src/ui/controllers/                route orchestration: params, queries, commands, offline and navigation; evidence/reconciliation controllers stay here
     src/ui/screens/                    route-level visual compositions; no API or offline imports
     src/fixtures/ and src/testing/     typed UI fixtures and test helpers
     e2e/                               Playwright real-stack specs and harness
@@ -112,18 +112,19 @@ the checker and its regression tests.
 
 ## Package roles
 
-| Package                     | Responsibility                                                                |
-| --------------------------- | ----------------------------------------------------------------------------- |
-| `packages/domain-contracts` | IDs, money, commands, DTOs, rejection codes and Zod schemas                   |
-| `packages/domain-kernel`    | deterministic business decisions and state/effect calculations                |
-| `packages/db`               | Drizzle schema, migrations, repositories, seeds and PostgreSQL test context   |
-| `packages/test-fixtures`    | deterministic IDs, timestamps and shared test fixtures                        |
-| `packages/config`           | shared TypeScript/Vitest configuration                                        |
-| `scripts/`                  | repository checks, dev orchestration, context retrieval and operator dry-runs |
+| Package                     | Responsibility                                                                                           |
+| --------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `packages/domain-contracts` | IDs, money, commands, DTOs, rejection codes and Zod schemas                                              |
+| `packages/domain-kernel`    | deterministic business decisions and state/effect calculations                                           |
+| `packages/db`               | Drizzle schema, migrations, repositories, seeds and PostgreSQL test context                              |
+| `packages/test-fixtures`    | deterministic IDs, timestamps and shared test fixtures                                                   |
+| `packages/config`           | shared TypeScript/Vitest configuration                                                                   |
+| `scripts/`                  | repository checks, dev orchestration, context retrieval, field-observation packets and operator dry-runs |
 
 The root script entry points are implemented in `scripts/dev.ts`,
 `scripts/context.ts`, `scripts/docs-check.ts`, `scripts/trace-check.ts`,
 `scripts/policy-closure.ts`,
+`scripts/field-observation.ts`,
 `scripts/repository-truth-check.ts`, `scripts/boundary-check.ts`,
 `scripts/source-boundary-check.ts`, `scripts/security-surface-check.ts` and
 `scripts/pilot-dry-run.ts`.

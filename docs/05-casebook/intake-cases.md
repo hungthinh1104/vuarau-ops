@@ -26,4 +26,4 @@ A depot changes from inspected intake back to direct receipt. New inspected fact
 
 ## CASE-INTAKE-007 — Backup and recovery
 
-Backup V8 exports master codes, price rules and every physical fact as canonical table-shaped records. Restore rejects missing cross-references, rebuilds inventory projections and succeeds only when source lineage reconciles.
+Backup V10 exports master codes, price rules, cost/reconciliation observations and every physical fact as canonical table-shaped records. Restore rejects missing cross-references, rebuilds inventory projections and succeeds only when source lineage reconciles.

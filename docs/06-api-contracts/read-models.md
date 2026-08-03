@@ -30,6 +30,7 @@ current procedure catalog without duplicating every DTO field.
 | `cash`       | `searchAccounts`, `getAccount`, `timeline`, `getExpense`, `getTransfer`, `reconciliation`                                             |
 | `intake`     | `searchIssueCodes`, `getArrival`, `listArrivals`, `getInspection`, `getDisposition`, `dispositionSourceSummary`, `arrivalLineHistory` |
 | `pricing`    | `list`, `resolve`                                                                                                                     |
+| `evidence`   | `getCostObservation`, `listCostObservations`, `getReconciliationObservation`, `listReconciliationObservations`                        |
 
 The router source is authoritative for procedure names. Permission policy belongs
 to [authorization-rules.md](../04-business-rules/authorization-rules.md), and DTO
@@ -201,3 +202,16 @@ The `intake` router exposes:
 
 The line-history read model is the correction surface: clients show active/reversed facts and
 reverse downstream facts before upstream facts. It is not an inventory projection.
+
+## Source-linked cost observations
+
+`evidence.getCostObservation` and `evidence.listCostObservations` return exact
+source-linked observations. They expose the observed wording, optional exact
+money/quantity facts, source references and correction link without deriving COGS,
+profit, payable, receivable or inventory.
+
+`evidence.getReconciliationObservation` and
+`evidence.listReconciliationObservations` return separate expected/observed
+money/quantity facts, item count, scope reference, source references and
+correction link. They do not return a derived variance or close status and do not
+reconstruct cash, debt, payable or inventory.

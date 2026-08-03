@@ -351,9 +351,15 @@ use_cases:
       - TC-PAYMENT-003
       - TC-PAYMENT-011
       - TC-PAYMENT-012
+      - TC-PAYMENT-013
     implementation:
       - packages/domain-kernel/src/payment/record-payment.ts
+      - packages/domain-contracts/src/payment/index.ts
+      - packages/domain-contracts/src/shared/evidence.ts
       - apps/api/src/modules/payment/record-payment.handler.ts
+      - packages/db/src/schema/payment.ts
+      - packages/db/src/repositories/write/payment.ts
+      - apps/web/src/ui/controllers/payment-create-controller.tsx
 
   UC-PAYMENT-002:
     title: Reverse a customer payment, fully or partly
@@ -382,7 +388,11 @@ use_cases:
     implementation:
       - packages/domain-kernel/src/payment/reverse-payment.ts
       - packages/domain-kernel/src/payment/payment-status.ts
+      - packages/domain-contracts/src/payment/index.ts
       - apps/api/src/modules/payment/reverse-payment.handler.ts
+      - packages/db/src/schema/payment.ts
+      - packages/db/src/repositories/write/payment.ts
+      - apps/web/src/ui/controllers/payment-detail-controller.tsx
 
   UC-PAYMENT-003:
     title: View a payment
@@ -533,7 +543,16 @@ use_cases:
     rules:
       [BR-PRICING-001, BR-PRICING-002, BR-AUTH-004, BR-CUSTOMER-002, BR-COMMAND-001, BR-COMMAND-005]
     cases: []
-    tests: [TC-PRICING-001, TC-PRICING-002, TC-PRICING-003, TC-PRICING-004, TC-PRICING-005]
+    tests:
+      [
+        TC-PRICING-001,
+        TC-PRICING-002,
+        TC-PRICING-003,
+        TC-PRICING-004,
+        TC-PRICING-005,
+        TC-PRICING-006,
+        TC-PRICING-007,
+      ]
     implementation:
       - packages/domain-kernel/src/pricing/index.ts
       - apps/api/src/modules/pricing/pricing.handlers.ts
@@ -542,7 +561,16 @@ use_cases:
       - packages/db/src/repositories/write/pricing.ts
       - packages/db/src/repositories/read/pricing.ts
       - apps/web/src/ui/controllers/pricing-controller.tsx
+      - apps/web/src/ui/domain/pricing-form.ts
       - apps/web/src/ui/screens/pricing-view.tsx
+      - apps/web/src/ui/controllers/quick-sale-form-model.ts
+      - apps/web/src/ui/controllers/quick-sale-form-interactions.ts
+      - apps/web/src/ui/controllers/quick-sale-payload.ts
+      - apps/web/src/ui/patterns/sale/quick-sale-lines-section.tsx
+      - apps/web/src/ui/patterns/sale/sale-line-editor.tsx
+      - apps/web/src/ui/screens/quick-sale-form-view.tsx
+      - apps/api/src/modules/sale/create-sale-draft.handler.ts
+      - apps/api/src/modules/sale/post-sale.handler.ts
 
   UC-QUALITY-001:
     title: Manage commercial grade vocabulary
@@ -573,10 +601,15 @@ use_cases:
     doc: docs/02-use-cases/goods-flow-use-cases.md
     rules: [BR-SUPPLIER-002, BR-SUPPLIER-003]
     cases: []
-    tests: [TC-GOODS-001, TC-GOODS-002]
+    tests: [TC-GOODS-001, TC-GOODS-002, TC-SUPPLIER-005]
     implementation:
       - apps/api/src/modules/supplier/supplier.handlers.ts
       - apps/api/src/modules/supplier/supplier-account-effects.ts
+      - packages/domain-contracts/src/supplier/index.ts
+      - packages/db/src/schema/supplier.ts
+      - packages/db/src/repositories/read/supplier.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/supplier.ts
+      - apps/web/src/ui/screens/supplier-payment-detail-view.tsx
 
   UC-SUPPLIER-003:
     title: Adjust Supplier account without a Purchase
@@ -937,6 +970,8 @@ use_cases:
       - apps/api/src/modules/cash/cash.handlers.ts
       - apps/api/src/modules/cash/cash-effects.ts
       - packages/db/src/repositories/write/cash.ts
+      - packages/db/src/repositories/read/cash.ts
+      - packages/db/src/schema/cash.ts
 
   UC-CASH-003:
     title: Transfer and reverse money between cash accounts
@@ -944,11 +979,13 @@ use_cases:
     doc: docs/02-use-cases/cash-use-cases.md
     rules: [BR-CASH-002, BR-CASH-007, BR-CASH-009]
     cases: [CASE-CASH-002]
-    tests: [TC-CASH-003, TC-CASH-006]
+    tests: [TC-CASH-003, TC-CASH-006, TC-CASH-009]
     implementation:
       - packages/domain-kernel/src/cash/index.ts
       - apps/api/src/modules/cash/cash.handlers.ts
       - packages/db/src/repositories/write/cash.ts
+      - packages/db/src/repositories/read/cash.ts
+      - packages/db/src/schema/cash.ts
 
   UC-CASH-004:
     title: Record an explained cash adjustment
@@ -956,11 +993,13 @@ use_cases:
     doc: docs/02-use-cases/cash-use-cases.md
     rules: [BR-CASH-002, BR-CASH-008, BR-CASH-010]
     cases: []
-    tests: [TC-CASH-007]
+    tests: [TC-CASH-007, TC-CASH-009]
     implementation:
       - packages/domain-kernel/src/cash/index.ts
       - apps/api/src/modules/cash/cash.handlers.ts
       - apps/api/src/modules/report/report.queries.ts
+      - packages/db/src/repositories/write/cash.ts
+      - packages/db/src/schema/cash.ts
 
   UC-CASH-005:
     title: Inspect reconcile and rebuild cash truth
@@ -1052,12 +1091,74 @@ use_cases:
     doc: docs/02-use-cases/intake-use-cases.md
     rules: [BR-INTAKE-006, BR-INTAKE-011, BR-INTAKE-012, BR-INTAKE-013]
     cases: [CASE-INTAKE-006, CASE-INTAKE-007]
-    tests: [TC-INTAKE-008, TC-INTAKE-009, TC-OPS-016]
+    tests: [TC-INTAKE-008, TC-INTAKE-009, TC-INTAKE-011, TC-OPS-016]
     implementation:
       - apps/api/src/modules/intake/intake.queries.ts
       - packages/db/src/repositories/read/intake.ts
       - apps/web/src/app/(app)/intake/[arrivalId]/page.tsx
+      - apps/web/src/ui/patterns/intake/fact-history.tsx
       - apps/api/src/modules/operations/restore-workspace.handler.ts
+
+  UC-EVIDENCE-001:
+    title: Record and review a source-linked cost or loss observation
+    risk: P1
+    doc: docs/02-use-cases/UC-EVIDENCE-001-record-cost-observation.md
+    rules: [BR-EVIDENCE-001, BR-EVIDENCE-002, BR-EVIDENCE-003]
+    cases: []
+    tests:
+      [
+        TC-EVIDENCE-015,
+        TC-EVIDENCE-016,
+        TC-EVIDENCE-017,
+        TC-EVIDENCE-018,
+        TC-EVIDENCE-019,
+        TC-EVIDENCE-020,
+        TC-EVIDENCE-021,
+        TC-EVIDENCE-022,
+        TC-EVIDENCE-023,
+        TC-EVIDENCE-024,
+      ]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/cost-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - apps/api/src/modules/evidence/evidence.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/evidence.ts
+      - packages/db/src/schema/evidence.ts
+      - packages/db/src/repositories/write/cost-observation.ts
+      - packages/db/src/repositories/read/cost-observation.ts
+      - apps/web/src/ui/controllers/evidence-controller.tsx
+      - apps/web/src/ui/screens/evidence-view.tsx
+
+  UC-EVIDENCE-002:
+    title: Record and review a source-linked operational reconciliation observation
+    risk: P0
+    doc: docs/02-use-cases/UC-EVIDENCE-002-record-reconciliation-observation.md
+    rules: [BR-EVIDENCE-004, BR-EVIDENCE-005, BR-EVIDENCE-006]
+    cases: []
+    tests:
+      [
+        TC-EVIDENCE-024,
+        TC-EVIDENCE-025,
+        TC-EVIDENCE-026,
+        TC-EVIDENCE-027,
+        TC-EVIDENCE-028,
+        TC-EVIDENCE-029,
+        TC-EVIDENCE-030,
+        TC-EVIDENCE-031,
+        TC-EVIDENCE-032,
+      ]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/reconciliation-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - apps/api/src/modules/evidence/evidence.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/evidence.ts
+      - packages/db/src/schema/evidence.ts
+      - packages/db/src/repositories/write/reconciliation-observation.ts
+      - packages/db/src/repositories/read/reconciliation-observation.ts
+      - apps/web/src/ui/controllers/reconciliation-evidence-controller.tsx
+      - apps/web/src/ui/screens/reconciliation-evidence-view.tsx
 
 business_rules:
   BR-PRODUCT-001:
@@ -1130,6 +1231,8 @@ business_rules:
       - packages/domain-kernel/src/pricing/index.ts
       - apps/api/src/modules/pricing/pricing.queries.ts
       - packages/db/src/repositories/read/pricing.ts
+      - apps/web/src/ui/controllers/quick-sale-form-model.ts
+      - apps/web/src/ui/patterns/sale/sale-line-editor.tsx
 
   BR-SUPPLIER-001:
     title: Supplier lifecycle is workspace scoped and versioned
@@ -2155,6 +2258,8 @@ business_rules:
       - packages/domain-kernel/src/cash/index.ts
       - apps/api/src/modules/cash/cash.handlers.ts
       - packages/db/src/schema/cash.ts
+      - packages/db/src/repositories/read/cash.ts
+      - packages/db/src/repositories/write/cash.ts
 
   BR-CASH-002:
     title: CashMovement is the append-only canonical money-location ledger
@@ -2207,26 +2312,32 @@ business_rules:
       - packages/domain-kernel/src/cash/index.ts
       - apps/api/src/modules/cash/cash.handlers.ts
       - packages/db/src/schema/cash.ts
+      - packages/db/src/repositories/read/cash.ts
+      - packages/db/src/repositories/write/cash.ts
 
   BR-CASH-007:
     title: Cash transfer conserves total cash and reversal is the exact inverse pair
     risk: P0
     doc: docs/04-business-rules/cash-rules.md
     cases: [CASE-CASH-002]
-    tests: [TC-CASH-003, TC-CASH-006]
+    tests: [TC-CASH-003, TC-CASH-006, TC-CASH-009]
     implementation:
       - packages/domain-kernel/src/cash/index.ts
       - apps/api/src/modules/cash/cash.handlers.ts
+      - packages/db/src/schema/cash.ts
+      - packages/db/src/repositories/write/cash.ts
 
   BR-CASH-008:
     title: Cash adjustment is explicit explained and never substitutes for a better source
     risk: P0
     doc: docs/04-business-rules/cash-rules.md
     cases: []
-    tests: [TC-CASH-007]
+    tests: [TC-CASH-007, TC-CASH-009]
     implementation:
       - packages/domain-kernel/src/cash/index.ts
       - apps/api/src/modules/cash/cash.handlers.ts
+      - packages/db/src/schema/cash.ts
+      - packages/db/src/repositories/write/cash.ts
 
   BR-CASH-009:
     title: CashBalance is rebuildable only from healthy canonical sources
@@ -2367,7 +2478,7 @@ business_rules:
     tests: [TC-INTAKE-002, TC-INTAKE-008]
     implementation: [packages/domain-kernel/src/intake/index.ts, packages/db/src/schema/intake.ts]
   BR-INTAKE-013:
-    title: Backup V8 preserves intake lineage and restore reconciles inventory
+    title: Backup V10 preserves intake lineage and restore reconciles inventory
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-007]
@@ -2388,6 +2499,71 @@ business_rules:
         apps/api/src/modules/intake/intake.handlers.ts,
         apps/api/src/modules/purchase/purchase.handlers.ts,
       ]
+
+  BR-EVIDENCE-001:
+    title: Cost observations preserve exact source-linked facts without zero-filling
+    risk: P1
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-015, TC-EVIDENCE-018, TC-EVIDENCE-023]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/cost-observation/index.ts
+      - packages/db/src/schema/evidence.ts
+
+  BR-EVIDENCE-002:
+    title: Cost observations never create canonical money or goods effects
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-015, TC-EVIDENCE-018, TC-EVIDENCE-022]
+    implementation:
+      - packages/domain-kernel/src/cost-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+
+  BR-EVIDENCE-003:
+    title: Corrections append a same-workspace linked observation
+    risk: P1
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-016, TC-EVIDENCE-017, TC-EVIDENCE-020, TC-EVIDENCE-021]
+    implementation:
+      - packages/domain-kernel/src/cost-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - packages/db/src/repositories/write/cost-observation.ts
+
+  BR-EVIDENCE-004:
+    title: Reconciliation observations preserve separate expected and observed facts
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-027, TC-EVIDENCE-030, TC-EVIDENCE-025, TC-EVIDENCE-026]
+    implementation:
+      - packages/domain-contracts/src/evidence/index.ts
+      - packages/domain-kernel/src/reconciliation-observation/index.ts
+      - packages/db/src/schema/evidence.ts
+
+  BR-EVIDENCE-005:
+    title: Reconciliation observations do not calculate variance or canonical effects
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-027, TC-EVIDENCE-030, TC-EVIDENCE-032]
+    implementation:
+      - packages/domain-kernel/src/reconciliation-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - apps/web/src/ui/screens/reconciliation-evidence-view.tsx
+
+  BR-EVIDENCE-006:
+    title: Reconciliation corrections append a same-workspace linked observation
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    cases: []
+    tests: [TC-EVIDENCE-028, TC-EVIDENCE-029, TC-EVIDENCE-031]
+    implementation:
+      - packages/domain-kernel/src/reconciliation-observation/index.ts
+      - apps/api/src/modules/evidence/evidence.handlers.ts
+      - packages/db/src/repositories/write/reconciliation-observation.ts
 
 cases:
   CASE-SALE-001:
@@ -2634,11 +2810,17 @@ contract_tests:
     title: Pricing management is authorized separately and reads stay workspace scoped
     file: apps/api/src/modules/pricing/pricing.app.test.ts
   TC-PRICING-004:
-    title: PostgreSQL preserves the price rule and exact resolution result
+    title: PostgreSQL preserves the price rule, exact resolution and posted Sale snapshot
     file: apps/api/src/infrastructure/persistence/drizzle/pricing.db.test.ts
   TC-PRICING-005:
     title: Pricing Web Admin renders scoped history, exact final money and read-only capability
     file: apps/web/src/ui/screens/pricing-view.test.tsx
+  TC-PRICING-006:
+    title: Pricing Web Admin rejects unsafe precedence, tier, adjustment and override input before submit
+    file: apps/web/src/ui/domain/pricing-form.test.ts
+  TC-PRICING-007:
+    title: Resolved final price is retained as the immutable posted Sale snapshot
+    file: apps/api/src/modules/pricing/pricing.app.test.ts
   TC-INTAKE-001:
     title: Gross minus tare must equal net in one mass unit
     file: packages/domain-kernel/src/intake/intake.test.ts
@@ -2669,6 +2851,18 @@ contract_tests:
   TC-INTAKE-010:
     title: PostgreSQL guards canonical intake facts from mutation
     file: apps/api/src/infrastructure/persistence/drizzle/intake.db.test.ts
+  TC-INTAKE-011:
+    title: Intake history surfaces source evidence references without changing fact semantics
+    file: apps/web/src/ui/patterns/intake/fact-history.test.tsx
+  TC-EVIDENCE-001:
+    title: Sale preserves source-linked order evidence without changing receivable
+    file: apps/api/src/modules/sale/sale.app.test.ts
+  TC-EVIDENCE-002:
+    title: Sale correction preserves source-linked evidence beside compensation
+    file: apps/api/src/modules/sale/void-sale.app.test.ts
+  TC-EVIDENCE-003:
+    title: PostgreSQL preserves Purchase source-linked supply evidence independently of payable and inventory
+    file: apps/api/src/infrastructure/persistence/drizzle/goods-truth.db.test.ts
 
   TC-DELIVERY-001:
     title: Domain decisions enforce Sale line, quantity, state, and replacement boundaries
@@ -2679,6 +2873,66 @@ contract_tests:
   TC-DELIVERY-003:
     title: PostgreSQL proves partial fulfilment, void protection, returns, retries and dispatch concurrency
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
+  TC-EVIDENCE-004:
+    title: Delivery and return preserve source-linked evidence beside physical facts without changing debt
+    file: apps/api/src/modules/delivery/delivery.app.test.ts
+  TC-EVIDENCE-005:
+    title: PostgreSQL preserves arrival, disposition and receipt source evidence beside physical facts
+    file: apps/api/src/infrastructure/persistence/drizzle/intake.db.test.ts
+  TC-EVIDENCE-015:
+    title: Cost observation preserves exact source-linked facts without canonical effects
+    file: packages/domain-kernel/src/cost-observation/cost-observation.test.ts
+  TC-EVIDENCE-016:
+    title: Cost observation correction appends a linked observation
+    file: packages/domain-kernel/src/cost-observation/cost-observation.test.ts
+  TC-EVIDENCE-017:
+    title: Invalid cost observation correction links are refused
+    file: packages/domain-kernel/src/cost-observation/cost-observation.test.ts
+  TC-EVIDENCE-018:
+    title: Application persists and reads cost observations without canonical effects
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-019:
+    title: Cost observation retry returns one original result
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-020:
+    title: Cost observation corrections stay linked within the workspace
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-021:
+    title: Cost observation commands refuse cross-workspace writes
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-022:
+    title: Evidence screen shows the fact-only boundary and source reference
+    file: apps/web/src/ui/screens/evidence-view.test.tsx
+  TC-EVIDENCE-023:
+    title: PostgreSQL preserves cost observations through write and read ports
+    file: apps/api/src/infrastructure/persistence/drizzle/evidence.db.test.ts
+  TC-EVIDENCE-024:
+    title: PostgreSQL logical backup includes cost observations
+    file: apps/api/src/infrastructure/persistence/drizzle/evidence.db.test.ts
+  TC-EVIDENCE-025:
+    title: PostgreSQL logical backup includes reconciliation observations
+    file: apps/api/src/infrastructure/persistence/drizzle/evidence.db.test.ts
+  TC-EVIDENCE-026:
+    title: PostgreSQL reads reconciliation observations without calculating variance
+    file: apps/api/src/infrastructure/persistence/drizzle/evidence.db.test.ts
+  TC-EVIDENCE-027:
+    title: Reconciliation observation preserves expected and observed facts without variance
+    file: packages/domain-kernel/src/reconciliation-observation/reconciliation-observation.test.ts
+  TC-EVIDENCE-028:
+    title: Reconciliation observation correction appends a linked observation
+    file: packages/domain-kernel/src/reconciliation-observation/reconciliation-observation.test.ts
+  TC-EVIDENCE-029:
+    title: Invalid reconciliation observation correction links are refused
+    file: packages/domain-kernel/src/reconciliation-observation/reconciliation-observation.test.ts
+  TC-EVIDENCE-030:
+    title: Application persists and retries reconciliation observations without canonical effects
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-031:
+    title: Reconciliation observation corrections stay linked within the workspace
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-032:
+    title: Reconciliation screen keeps expected and observed values separate
+    file: apps/web/src/ui/screens/reconciliation-evidence-view.test.tsx
   TC-DOCUMENT-001:
     title: Application proves immutable versions, digest, token hashing, expiry, revoke and tamper refusal
     file: apps/api/src/modules/document/document.app.test.ts
@@ -2730,6 +2984,9 @@ contract_tests:
   TC-SUPPLIER-004:
     title: PostgreSQL read repository preserves confirmed Supplier price snapshots
     file: packages/db/src/repositories/supplier-price-history.db.test.ts
+  TC-SUPPLIER-005:
+    title: Supplier payment detail preserves source evidence for payment and reversal
+    file: apps/web/src/ui/screens/supplier-payment-detail-view.test.tsx
   TC-PRODUCT-001:
     title: Product application tests prove lifecycle search duplicate identity and workspace authority
     file: apps/api/src/modules/product/product.app.test.ts
@@ -2751,6 +3008,9 @@ contract_tests:
   TC-PAYMENT-012:
     title: Payment procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
+  TC-PAYMENT-013:
+    title: Payment detail renders source evidence safely without changing money semantics
+    file: apps/web/src/ui/screens/payment-detail-view.test.tsx
   TC-ACCOUNT-008:
     title: Customer account procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
@@ -3049,8 +3309,11 @@ contract_tests:
     title: PostgreSQL serializes concurrent customer-payment retries into one debt and cash effect
     file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
   TC-OPS-016:
-    title: Backup V8 restores profile cashbook, pricing and inspected-intake lineage then reconciles projections
+    title: Backup V10 restores profile cashbook, pricing, operational evidence and inspected-intake lineage then reconciles projections
     file: apps/api/src/modules/operations/operations.app.test.ts
+  TC-OPS-017:
+    title: External field observation packets preserve source links without inferring policy effects
+    file: scripts/field-observation.test.ts
 
 deprecated:
   - UC-ORDER-001

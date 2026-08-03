@@ -320,7 +320,7 @@ partial operations, unknown outcomes and mistakes. The rehearsal may only use
 business events the model can represent truthfully; a fake compensating movement
 to make a screen look complete is a failure.
 
-**Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V8 remain intact. This is not a generic rule builder.
+**Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V10 remain intact. This is not a generic rule builder.
 
 **Document/bill closure:** ADR-0023 and TC-DOCUMENT-003 implement a source-backed
 multi-day customer statement with server-derived opening/change/closing balances and
@@ -328,15 +328,33 @@ print-ready authenticated/public presentation. This does not close the local
 “bông hàng” discovery question, multi-role authorization (ADR-0021), canonical
 lot/expiry traceability or Supplier claim/credit settlement.
 
-**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation and Backup V8 evidence are implemented; shift counting and bank-statement matching remain separate discovery.
+**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation and Backup V10 evidence are implemented. Operational close and bank-statement evidence remain separate next-phase facts; no statement match changes debt by itself.
 
-**Inspected-intake closure:** ADR-0026 implements GoodsArrival → optional gross/tare/net → QualityInspection → QualityDisposition. Only accepted allocations create inventory; quarantine may be resolved through an explicit child disposition; correction is downstream-first and Backup V8 preserves the complete lineage. Supplier claims/credits, general lot/expiry and “bông hàng” remain outside this milestone.
+**Inspected-intake closure:** ADR-0026 implements GoodsArrival → optional gross/tare/net → QualityInspection → QualityDisposition. Only accepted allocations create inventory; quarantine may be resolved through an explicit child disposition; correction is downstream-first and Backup V10 preserves the complete lineage. Supplier claims/credits, general lot/expiry and “bông hàng” remain outside this milestone, while raw claim/quality evidence can be captured later without changing payable.
 
 **Repository evidence:** `TC-OPS-015` runs the complete application command chain
 with partial Delivery/Return, customer and Supplier payments, exact-identity retry,
 blocked cross-dimension corrections, reports and three reconciliations. Disposable
 PostgreSQL/browser execution and worker observation remain release/field gates; this
 test does not claim either.
+
+### Evidence capture foundation — first slice delivered, remainder pending
+
+The configurable operating model in [ADR-0027](../09-decisions/ADR-0027-configurable-fresh-produce-operating-model.md)
+opens a narrow additive slice before management intelligence. The first
+workspace-scoped `CostObservation` slice and the second
+`ReconciliationObservation` slice now capture source-linked facts with exact
+amounts/quantities, separate expected/observed values, read, idempotent retry and
+logical backup/restore coverage. Debt terms, promised/arrived/accepted
+quantities, generic stocktake counts, bank statement matching and Supplier
+relationship/performance observations remain pending. New records must
+carry actor and transaction/recorded time, remain append-only or explicitly
+superseding, and survive backup/restore.
+
+The delivered slice is still not a COGS/profit implementation. It must not create
+COGS, overdue aging, reorder risk, supplier scores or AI advice. Each remaining
+fact will be added as a small traced slice with in-memory, PostgreSQL and recovery
+evidence.
 
 ### Next phase — policy closure before management intelligence (blocked)
 

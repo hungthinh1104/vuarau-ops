@@ -19,51 +19,51 @@ Drizzle definitions and database constraints.
 
 ### Customer, Sale and customer money
 
-| Table                       | Purpose                                         | Mutability                                                     |
-| --------------------------- | ----------------------------------------------- | -------------------------------------------------------------- |
-| `customers`                 | Buyer master data                               | mutable lifecycle                                              |
-| `sales`                     | Sale aggregate (`draft → posted/discarded`)     | draft/status/version only; posted commercial content immutable |
-| `sale_lines`                | Product/grade/quantity/price snapshots for Sale | replaceable while draft; finalized snapshots preserved         |
-| `sale_voids`                | Posted-Sale compensation/reason                 | append-only adjacent fact                                      |
-| `payments`                  | Customer money received and reversal summary    | constrained lifecycle/version fields                           |
-| `payment_reversals`         | Customer-payment compensation facts             | append-only                                                    |
-| `customer_account_entries`  | Canonical customer debt ledger                  | append-only                                                    |
-| `customer_account_balances` | Rebuildable customer balance projection         | recomputable                                                   |
+| Table                       | Purpose                                                            | Mutability                                                     |
+| --------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `customers`                 | Buyer master data                                                  | mutable lifecycle                                              |
+| `sales`                     | Sale aggregate (`draft → posted/discarded`) with source references | draft/status/version only; posted commercial content immutable |
+| `sale_lines`                | Product/grade/quantity/price snapshots for Sale                    | replaceable while draft; finalized snapshots preserved         |
+| `sale_voids`                | Posted-Sale compensation/reason with source references             | append-only adjacent fact                                      |
+| `payments`                  | Customer money, source references and reversal summary             | constrained lifecycle/version fields                           |
+| `payment_reversals`         | Customer-payment compensation and source references                | append-only                                                    |
+| `customer_account_entries`  | Canonical customer debt ledger                                     | append-only                                                    |
+| `customer_account_balances` | Rebuildable customer balance projection                            | recomputable                                                   |
 
 ### Product, supplier and Purchase
 
-| Table                        | Purpose                                            | Mutability                                                        |
-| ---------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
-| `products`                   | Workspace product catalog                          | mutable lifecycle                                                 |
-| `price_rules`                | Effective Product/grade/unit/customer price facts  | append-only; no historical rewrite                                |
-| `quality_grades`             | Workspace commercial-grade vocabulary              | mutable lifecycle; historical snapshots remain immutable          |
-| `suppliers`                  | Supplier master data                               | mutable lifecycle                                                 |
-| `supplier_payments`          | Supplier payment aggregate                         | constrained lifecycle/version fields                              |
-| `supplier_payment_reversals` | Supplier-payment compensation facts                | append-only                                                       |
-| `supplier_account_entries`   | Canonical supplier payable ledger                  | append-only                                                       |
-| `supplier_account_balances`  | Rebuildable supplier balance projection            | recomputable                                                      |
-| `purchases`                  | Purchase aggregate (`draft → confirmed/discarded`) | draft/status/version only; confirmed commercial content immutable |
-| `purchase_lines`             | Purchase quantity/price snapshots                  | replaceable while draft; finalized snapshots preserved            |
-| `purchase_voids`             | Confirmed-Purchase compensation/reason             | append-only adjacent fact                                         |
+| Table                        | Purpose                                                                   | Mutability                                                        |
+| ---------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `products`                   | Workspace product catalog                                                 | mutable lifecycle                                                 |
+| `price_rules`                | Effective Product/grade/unit/customer price facts                         | append-only; no historical rewrite                                |
+| `quality_grades`             | Workspace commercial-grade vocabulary                                     | mutable lifecycle; historical snapshots remain immutable          |
+| `suppliers`                  | Supplier master data                                                      | mutable lifecycle                                                 |
+| `supplier_payments`          | Supplier payment aggregate and source references                          | constrained lifecycle/version fields                              |
+| `supplier_payment_reversals` | Supplier-payment compensation and source references                       | append-only                                                       |
+| `supplier_account_entries`   | Canonical supplier payable ledger                                         | append-only                                                       |
+| `supplier_account_balances`  | Rebuildable supplier balance projection                                   | recomputable                                                      |
+| `purchases`                  | Purchase aggregate (`draft → confirmed/discarded`) with source references | draft/status/version only; confirmed commercial content immutable |
+| `purchase_lines`             | Purchase quantity/price snapshots                                         | replaceable while draft; finalized snapshots preserved            |
+| `purchase_voids`             | Confirmed-Purchase compensation/reason with source references             | append-only adjacent fact                                         |
 
 ### Receiving and inventory
 
-| Table                        | Purpose                                                | Mutability                  |
-| ---------------------------- | ------------------------------------------------------ | --------------------------- |
-| `purchase_receipts`          | Physical inbound source document                       | append-only business source |
-| `purchase_receipt_lines`     | Received Product/grade/unit quantities                 | append-only                 |
-| `purchase_receipt_reversals` | Explicit Receipt reversal facts                        | append-only                 |
-| `inventory_movements`        | Canonical physical ledger by Product/QualityGrade/unit | append-only                 |
-| `inventory_balances`         | Rebuildable Product/QualityGrade/unit projection       | recomputable                |
+| Table                        | Purpose                                                 | Mutability                  |
+| ---------------------------- | ------------------------------------------------------- | --------------------------- |
+| `purchase_receipts`          | Physical inbound source document with source references | append-only business source |
+| `purchase_receipt_lines`     | Received Product/grade/unit quantities                  | append-only                 |
+| `purchase_receipt_reversals` | Explicit Receipt reversal facts                         | append-only                 |
+| `inventory_movements`        | Canonical physical ledger by Product/QualityGrade/unit  | append-only                 |
+| `inventory_balances`         | Rebuildable Product/QualityGrade/unit projection        | recomputable                |
 
 ### Delivery
 
-| Table                   | Purpose                                                 | Mutability                                                 |
-| ----------------------- | ------------------------------------------------------- | ---------------------------------------------------------- |
-| `deliveries`            | Sale-linked fulfilment lifecycle                        | draft/status/version only                                  |
-| `delivery_lines`        | Exact Sale-line Product/grade/unit quantities to fulfil | mutable only with draft workflow; preserved after dispatch |
-| `delivery_returns`      | Return source facts against dispatched Delivery         | append-only                                                |
-| `delivery_return_lines` | Exact returned physical quantities                      | append-only                                                |
+| Table                   | Purpose                                                                | Mutability                                                 |
+| ----------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `deliveries`            | Sale-linked fulfilment lifecycle with source references                | draft/status/version only                                  |
+| `delivery_lines`        | Exact Sale-line Product/grade/unit quantities to fulfil                | mutable only with draft workflow; preserved after dispatch |
+| `delivery_returns`      | Return source facts against dispatched Delivery with source references | append-only                                                |
+| `delivery_return_lines` | Exact returned physical quantities                                     | append-only                                                |
 
 ### Cashbook
 
@@ -77,6 +77,22 @@ Drizzle definitions and database constraints.
 | `cash_adjustments`        | Explained source facts without a better source type   | append-only       |
 | `cash_movements`          | Canonical signed money-location ledger                | append-only       |
 | `cash_balances`           | Rebuildable per-account projection                    | recomputable      |
+
+### Source-linked operational evidence
+
+| Table                         | Purpose                                                                                   | Mutability  |
+| ----------------------------- | ----------------------------------------------------------------------------------------- | ----------- |
+| `cost_observations`           | Exact observed cost/loss wording, money/quantity facts and source references by workspace | append-only |
+| `reconciliation_observations` | Separate expected/observed reconciliation facts, scope and source references by workspace | append-only |
+
+`cost_observations` is deliberately not a financial or inventory ledger. A
+correction appends a new row linked to the earlier observation; policy-backed
+valuation or settlement commands must consume this evidence explicitly after
+workspace policy closure.
+
+`reconciliation_observations` is deliberately not a variance, close, cash,
+debt, payable or inventory ledger. It preserves expected and observed facts
+separately; a correction appends a new row linked to the earlier observation.
 
 ### Documents and control
 
@@ -228,7 +244,30 @@ symbols:
 `cash_movements` is canonical and append-only; `cash_balances` is disposable and
 rebuildable. `payments.cash_account_id` and
 `supplier_payments.cash_account_id` preserve the immutable source-account link.
-Backup V8 preserves operational profile, price rules, CashAccount and all canonical cash source/
+`payments.evidence_references` and `payment_reversals.evidence_references` preserve
+source-linked field evidence without changing the canonical money effect.
+`supplier_payments.evidence_references` and
+`supplier_payment_reversals.evidence_references` do the same for supplier-money
+facts. `expenses.evidence_references`, `expense_reversals.evidence_references`,
+`cash_transfers.evidence_references`, `cash_transfer_reversals.evidence_references`
+and `cash_adjustments.evidence_references` preserve the same source-linked metadata
+for standalone cash custody facts. Evidence is metadata only; it does not recognize
+payable, imply goods movement or change the canonical cash effect. The same applies
+to `sales.evidence_references`, `sale_voids.evidence_references`,
+`purchases.evidence_references` and `purchase_voids.evidence_references`: they link
+external field evidence without becoming a receivable, payable, inventory or
+compensation source. `deliveries.evidence_references` and
+`delivery_returns.evidence_references` preserve loading, handover and return
+references without becoming an inventory or customer-money source.
+`purchase_receipts.evidence_references`, `purchase_receipt_reversals.evidence_references`,
+`goods_arrivals.evidence_references`, `goods_arrival_reversals.evidence_references`,
+`quality_dispositions.evidence_references` and
+`quality_disposition_reversals.evidence_references` preserve receiving and
+inspected-intake source links without changing payable, quality-policy or
+inventory semantics. `quality_inspections.evidence_references` follows the same
+metadata-only rule.
+Backup V10 preserves operational profile, price rules, CostObservation,
+ReconciliationObservation, CashAccount and all canonical cash source/
 movement rows; it does not export `cash_balances`.
 
 ## Executable workspace-policy and cashbook names
@@ -246,7 +285,8 @@ Cashbook persistence uses the exact Drizzle symbols `cashAccounts`, `expenses`,
 `cashMovements` and `cashBalances`, corresponding to the snake-case PostgreSQL
 tables listed above. `cashMovements` is canonical append-only truth;
 `cashBalances` is a rebuildable projection. Payment cash-account links are
-immutable after recording. Backup V8 exports price rules, CashAccount and canonical source/
+immutable after recording. Backup V10 exports price rules, CostObservation,
+ReconciliationObservation, CashAccount and canonical source/
 movement rows, not the disposable balance projection.
 
 ## Inspected-intake executable names
@@ -267,4 +307,4 @@ movement rows, not the disposable balance projection.
 Arrival, inspection, disposition and reversal tables are append-only. Issue codes are
 versioned master data and cannot be deleted. Only accepted allocations create
 `inventory_movements`; quarantine, rejection and disposal remain non-stock outcomes.
-Backup V8 exports these canonical rows and restore rebuilds inventory balances.
+Backup V10 exports these canonical rows and restore rebuilds inventory balances.

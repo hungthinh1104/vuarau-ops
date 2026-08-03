@@ -11,19 +11,23 @@ stale edit from silently changing custody or account kind.
 An authorized money role records a positive expense source against one active
 same-currency account. The command appends a negative CashMovement. Reversal is a
 separate source fact and positive inverse movement; the original remains visible.
+Both facts may carry source-linked evidence references, which are stored and
+returned as attribution metadata only.
 
 ## UC-CASH-003 — Transfer money between accounts
 
 An authorized money role transfers a positive amount between different active
 same-currency accounts. One command appends the source fact and an equal negative/
 positive movement pair. Reversal appends the exact inverse pair. Retry preserves
-identity and cannot duplicate either side.
+identity and cannot duplicate either side. Transfer and reversal facts may carry
+source-linked evidence references without changing the money effect.
 
 ## UC-CASH-004 — Record an explained cash adjustment
 
 Opening balance, owner contribution/draw, count correction or unidentified cash is
 recorded as one explained signed source. It is used only where no better business
-source exists.
+source exists. Its source-linked evidence references are stored with the adjustment
+and do not substitute for a stronger source or change the signed effect.
 
 ## UC-CASH-005 — Inspect and reconcile cash
 

@@ -1,12 +1,16 @@
-# Product brief — the depot transaction operating system
+# Product brief — the configurable fresh-produce operating system
 
-**vuarau-ops** records and explains the operational transactions of a wholesale
-vegetable depot (vựa rau) in Vietnam.
+**vuarau-ops** records and explains fresh-produce operations across production
+regions, wholesale markets, regional hubs and contract distribution chains.
 
 It is not a general ERP, accounting package, or warehouse-management suite. Its
-job is narrower and stricter: capture depot events quickly, preserve the
-commercial, money, and goods facts that resulted, and let an authorized worker
-trace or correct them without erasing history.
+job is narrower and stricter: capture operational facts quickly, preserve the
+commercial, money, and goods truth that resulted, and apply a workspace's
+explicit policy without erasing history or guessing an effect that did not occur.
+
+The product does not assume one national depot pattern. Operating hours, channels,
+source, packing, transport responsibility, recognition, payment terms, valuation,
+planning and close routines are workspace policy questions, not global defaults.
 
 ## Who uses it
 
@@ -21,24 +25,39 @@ trace or correct them without erasing history.
 These role boundaries are technically enforced. Their fit with each depot remains
 field-unvalidated until ASM-017 and the relevant validation hypotheses are closed.
 
-## The three operating loops
+## The operating model
 
-### Money Truth
+The universal vocabulary is a chain of distinct facts:
+
+```text
+Demand / Customer Order → Supply Commitment → Arrival → Weighing / Inspection
+→ Acceptance / Rejection / Quarantine → Grading / Packing → Allocation
+→ Loading / Dispatch → Delivery / Handover → Receivable / Payable / Payment
+→ Return / Claim / Reconciliation
+```
+
+The chain is implemented incrementally. A command must not collapse multiple
+states simply because they often happen together in one operation.
+
+### The three truth dimensions
+
+#### Money Truth
 
 Customer Sale posting, customer Payment, reversal, void, replacement and debt
 adjustment produce an append-only customer account history. Purchase confirmation,
 supplier Payment, reversal, Purchase void and supplier adjustment do the same for
 supplier accounts. Every total must resolve to canonical, attributable sources.
 
-### Goods Flow
+#### Goods Flow
 
 Products, workspace QualityGrades and units anchor Purchase Receiving, receipt
 reversal, inventory adjustment/reclassification, Sale Delivery, dispatch and
-return. Grade belongs to physical quantity rather than Product identity. Physical
-movement remains separate from the commercial agreement and from customer or
-supplier money.
+return. Where a workspace needs them, Source and Packing specification are also
+first-class identity dimensions. Grade belongs to physical quantity rather than
+Product identity. Physical movement remains separate from the commercial
+agreement and from customer or supplier money.
 
-### Operational Control
+#### Operational Control
 
 Workspace membership and capabilities, audit, immutable generated documents,
 controlled sharing, source-backed reports, export, restore, reconciliation and
@@ -108,8 +127,8 @@ field evidence.
 
 ## Delivered boundary
 
-The technical workflow surface through M21.5 is implemented across the three
-loops:
+The technical workflow surface through the current technical candidate is
+implemented across the three truth dimensions:
 
 ```text
 Customer → Sale → customer account → Payment/correction
@@ -117,6 +136,11 @@ Supplier → Purchase → supplier account → Receiving → Inventory
 Sale → Delivery → Return
 Canonical sources → Documents/shares/reports → Export/restore/integrity
 ```
+
+The full product vocabulary also recognizes packing, allocation, loading, handover,
+claims, cost observations and operational reconciliation. Those are added as
+separate facts when a workspace needs them; the current runtime must not imply
+that an existing Arrival or Delivery command already represents every stage.
 
 M21.6 closes product-policy classification, vision, catalog and traceability
 gaps. It adds no runtime behavior and does not open M22.

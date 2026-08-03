@@ -72,3 +72,30 @@ not real-worker adoption.
   not be rendered as zero, estimated truth or a recommendation. A future metric
   becomes available only after its formula, canonical sources, time semantics,
   integrity behavior, drill-down and action are defined and verified.
+
+## Source-linked cost observations
+
+- **BR-EVIDENCE-001** — A CostObservation preserves exact observed wording, money,
+  quantity and source references as an append-only workspace fact. Missing values
+  stay `null`; they are not interpreted as zero.
+- **BR-EVIDENCE-002** — Recording a CostObservation creates no COGS, profit,
+  payable, receivable or inventory effect. Those meanings require explicit
+  workspace policy and a separate canonical command.
+- **BR-EVIDENCE-003** — A correction is a new immutable CostObservation linked to an
+  existing observation in the same workspace. Identity, authorization,
+  idempotency, transaction time and recorded time use the common command contract.
+
+## Operational reconciliation observations
+
+- **BR-EVIDENCE-004** — A ReconciliationObservation preserves separate expected and
+  observed money/quantity facts, optional item count, scope reference, wording and
+  source references. Missing values remain `null`; they are not zero-filled or
+  inferred from another source.
+- **BR-EVIDENCE-005** — Recording a ReconciliationObservation does not calculate a
+  variance, approve a close, match a statement, change cash/debt/payable or append
+  an inventory movement. Those effects require explicit workspace policy and a
+  separate canonical command.
+- **BR-EVIDENCE-006** — A correction is a new immutable ReconciliationObservation
+  linked to an existing observation in the same workspace. Identity,
+  authorization, idempotency, transaction time and recorded time use the common
+  command contract.

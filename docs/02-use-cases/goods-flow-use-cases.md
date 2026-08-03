@@ -65,6 +65,8 @@ of that payment record wrong.
 - **Repeated action:** separate real payments/reversals use fresh business identities;
   unknown outcome retries the identical command identity.
 - **Reconciliation:** supplier timeline explains both original and compensation.
+- **Source evidence:** payment and reversal may carry source references; the detail
+  read returns them without changing the supplier-ledger or cash effect.
 - **Rules/tests:** BR-SUPPLIER-002, BR-SUPPLIER-003 · TC-GOODS-001/002.
 
 ## UC-SUPPLIER-003 — Adjust Supplier account without a Purchase
@@ -126,6 +128,8 @@ ASM-025 recognition policy.
 
 - **State:** `draft → confirmed`; confirmed snapshot becomes immutable.
 - **Money effect:** exactly one supplier payable `+total`; **goods effect:** none.
+- **Source evidence:** draft creation/update may retain source-linked references for
+  the supplier commitment or commercial document; they do not recognize payable.
 - **Guards:** active Supplier, exact arithmetic, current version, valid stored draft.
 - **Unknown outcome:** retry identical confirmation; never create a second payable.
 - **Policy:** ASM-025 must validate that confirmation is the depot's payable moment.
@@ -149,6 +153,8 @@ what has been accepted and what remains.
 
 - **Correction:** append Purchase void with supplier payable `-original total`; optional
   replacement is a fresh Purchase linked to the voided original.
+- **Source evidence:** the Purchase and its void may retain field references; these
+  links do not change payable or manufacture inventory movement.
 - **Guard:** a Purchase with net active Receipts cannot currently be voided.
 - **Goods effect:** none. Commercial correction must not manufacture inventory movement.
 - **Cross-dimension stop:** correction after accepted Receiving is ASM-036; do not

@@ -19,7 +19,7 @@ Any authenticated member of the workspace.
 ## Main flow
 
 1. Client sends `RecordCustomerPayment`: `paymentId`, `customerId`, `amount`,
-   `method`, optional `payerName` and `note`.
+   `method`, optional `payerName`, `note` and source `evidenceReferences`.
 2. Backend validates the schema; `amount.amountMinor` must be positive
    (BR-PAYMENT-001).
 3. Backend checks the idempotency record. A replay of the same payload returns the
@@ -45,6 +45,9 @@ Any authenticated member of the workspace.
 | Payment exceeds current debt                         | **Accepted.** Balance goes negative — the customer is in credit (ASM-001, CASE-PAYMENT-003)                        |
 | Payment recorded offline last night, submitted now   | Accepted; `transactionTime` is last night (CASE-PAYMENT-008)                                                       |
 | Someone else paid on the customer's behalf           | Accepted; `payerName` records who handed over the money, the debt still belongs to `customerId` (CASE-PAYMENT-004) |
+
+Source references are retained as attributable evidence only. They do not choose
+payment allocation, due-date semantics or any additional cash effect.
 
 ## Postconditions
 
@@ -76,3 +79,4 @@ TC-PAYMENT-001, TC-PAYMENT-002, TC-PAYMENT-003, TC-PAYMENT-011
 
 - `packages/domain-kernel/src/payment/record-payment.ts`
 - `apps/api/src/modules/payment/record-payment.handler.ts`
+- `packages/domain-contracts/src/shared/evidence.ts`

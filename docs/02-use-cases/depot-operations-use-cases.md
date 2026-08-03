@@ -14,6 +14,8 @@ validation, tax-invoice compliance, route optimisation, valuation or forecasting
   quantity may not exceed currently remaining fulfilment.
 - **Money/goods effect:** none until Dispatch. A draft/cancel does not move inventory
   and never changes customer debt.
+- **Source evidence:** draft creation/update may retain loading or handover references;
+  these are attributable metadata and do not move inventory.
 - **Concurrency/retry:** optimistic draft version plus command idempotency.
 - **UI:** editable draft, cancelled, permission denial, stale version, legacy line attention.
 - **Rules/tests:** BR-DELIVERY-001/002/006/007 · TC-DELIVERY-001/002/003 · TC-E2E-030/032.
@@ -27,6 +29,8 @@ validation, tax-invoice compliance, route optimisation, valuation or forecasting
 - **Guards:** serialize against Sale/Delivery truth; cannot exceed remaining quantity;
   current negative-stock policy preserves rather than clamps attributable movement.
 - **Unknown outcome:** lock a new dispatch intent and retry the identical command.
+- **Source evidence:** the Delivery read preserves references attached to the physical
+  handover packet; Dispatch remains the only canonical inventory effect.
 - **Correction:** a later real Return is UC-DELIVERY-004; never silently reverse Dispatch.
 - **Rules/tests:** BR-DELIVERY-002/003/005/006/007 · TC-DELIVERY-001/002/003 · TC-E2E-030/032.
 
@@ -54,6 +58,8 @@ physically return to accepted depot inventory.
   compensate the entire receivable.
 - **Repeated action:** multiple genuine returns use fresh return identities; unknown
   outcome retries identical command identity.
+- **Source evidence:** each Return may retain its own photo, receipt or handover
+  reference without implying a refund, debt reduction or exchange value.
 - **Rules/tests:** BR-DELIVERY-003/004/005/006/007 · TC-DELIVERY-001/002/003 · TC-SALE-030 · TC-E2E-030/032.
 
 ## UC-DELIVERY-005 — Inspect Sale fulfilment

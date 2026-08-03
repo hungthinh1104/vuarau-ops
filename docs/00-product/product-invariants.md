@@ -29,10 +29,10 @@ rules refine them but may not weaken them.
    validate recognition semantics, usability and operational fit.
 8. **A posted Sale has a fulfilment identity.** Draft text may be unresolved
    while a worker is typing, but posting always requires an active canonical
-   workspace Product. The current M23 implementation also requires an active
-   QualityGrade for every new line; that universal grade requirement is an
-   explicit pre-pilot policy assumption awaiting ASM-032, not a claim about every
-   depot. Immutable lines keep canonical ids and human-readable snapshots.
+   workspace Product. Quality/Grade is a workspace policy and is optional for a
+   workspace that records ungraded quantity; the current grade-aware path keeps
+   that choice explicit rather than claiming that every depot needs a Grade.
+   Immutable lines keep canonical ids and human-readable snapshots.
 9. **Commercial grade belongs to physical quantity, not Product identity.** Under
    the current grade-aware model, Inventory, Receiving, Sale fulfilment, Delivery
    and Return preserve exact `Product + QualityGrade + unit`; reclassification

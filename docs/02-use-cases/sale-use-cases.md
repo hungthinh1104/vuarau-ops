@@ -210,7 +210,7 @@ it says.
 ### Inputs
 
 ```
-payload: { saleVoidId, saleId, reasonCode, reason }
+payload: { saleVoidId, saleId, reasonCode, reason, evidenceReferences? }
 ```
 
 No `expectedVersion`: a posted sale's version never moves, so there is no lost
@@ -219,6 +219,10 @@ theatre ([state catalog](../03-state-machines/state-catalog.md)).
 
 No amount either. The compensation is computed from the stored posted total, so a
 void cannot be used to move an arbitrary sum (BR-SALE-012).
+
+`evidenceReferences` is optional source-linked field evidence (for example a paper
+document, photo or message reference). It is returned with the Sale/void record but
+does not change the compensation or create another business effect.
 
 ### Happy path
 

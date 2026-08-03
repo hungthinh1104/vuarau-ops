@@ -64,9 +64,27 @@ command changes, update its schema and tests first, then keep this catalog align
 | `cash`       | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`                                         |
 | `intake`     | `createIssueCode`, `updateIssueCode`, `deactivateIssueCode`, `reactivateIssueCode`, `recordArrival`, `reverseArrival`, `recordInspection`, `reverseInspection`, `recordDisposition`, `reverseDisposition` |
 | `pricing`    | `record`                                                                                                                                                                                                  |
+| `evidence`   | `recordCostObservation`, `recordReconciliationObservation`                                                                                                                                                |
 
 The router source is authoritative for procedure names. Domain-contract modules are
 authoritative for payload and result shapes.
+
+Supplier payment and reversal payloads accept `evidenceReferences`. The supplier
+payment detail read returns the payment references and append-only reversal references;
+they are source-linked metadata only and do not recognize payable or imply goods movement.
+
+Sale draft creation/update and Sale void payloads, plus Purchase draft
+creation/update and Purchase void payloads, also accept `evidenceReferences`. The
+Sale/Purchase reads return these source links, including the adjacent void record
+when one exists. They preserve links to field packets, photos, messages or paper
+documents only; they do not recognize receivable/payable, inventory or correction
+effects. A correction still uses the canonical void/compensation command.
+
+Cash expense, expense-reversal, transfer, transfer-reversal and adjustment payloads
+also accept `evidenceReferences`. Expense and transfer detail reads return the source
+references and their reversal references; adjustment references are persisted with the
+append-only adjustment source. These links are attribution metadata only and do not
+create, allocate or reinterpret a cash effect.
 
 ## Cross-context effect boundaries
 
@@ -179,6 +197,37 @@ Every cash mutation requires `OperationalProfile.cashbookMode=accounts_ledger`.
 Canonical source facts and `CashMovement` rows are append-only. Payment and Supplier
 Payment remain in their existing routers; when Cashbook is enabled they require a
 CashAccount and append the debt/payable and cash effects atomically.
+
+Customer payment and payment-reversal commands may carry `evidenceReferences`.
+The server stores and returns these source links with the immutable payment or
+reversal fact. They are attribution metadata only: they do not allocate debt,
+choose due dates, or create an additional ledger/cash effect.
+
+Delivery draft creation/update and customer-return commands also accept
+`evidenceReferences`. Delivery reads return the delivery references and each
+return's references. These links preserve loading, handover or return evidence;
+they do not create inventory movements, customer credit, refunds or other money
+effects. Dispatch and return movement semantics remain owned by the canonical
+Delivery commands.
+
+Goods-arrival, quality-disposition and direct purchase-receipt commands also accept
+`evidenceReferences`; their reversal commands preserve a separate reference list.
+The corresponding reads return these links beside the immutable physical fact.
+They are source-linked metadata only: they do not recognize payable, choose a
+quality policy, or create an additional inventory movement.
+
+`evidence.recordCostObservation` requires at least one `evidenceReference` and
+preserves exact observed money/quantity facts, participant wording and optional
+source references. A `correction` creates a new row linked to an earlier
+CostObservation. It is a fact-capture command only: it has no ledger, inventory,
+COGS or profit effect.
+
+`evidence.recordReconciliationObservation` requires at least one
+`evidenceReference` and preserves separate expected/observed money and quantity
+facts, optional item count, scope reference and participant wording. It is a
+fact-capture command only: it does not calculate variance, close a period, match
+a bank statement or change cash, debt, payable or inventory. A `correction`
+creates a new row linked to an earlier ReconciliationObservation.
 
 ## Inspected-intake commands
 

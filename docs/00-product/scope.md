@@ -1,10 +1,11 @@
-# Current scope — depot transaction operating system
+# Current scope — configurable fresh-produce operating system
 
-This is the delivered technical boundary of the current M25 technical candidate.
-Core workflows through inspected intake, quality disposition, cashbook and workspace
-operational profiles have automated implementation evidence. Technical completion is
-still distinct from field readiness: provider PITR, owner policy acceptance, real-phone
-deployment and H2–H6 observations remain external pilot gates.
+This is the delivered technical boundary of the current technical candidate. Core
+workflows through inspected intake, quality disposition, cashbook and workspace
+operational profiles have automated implementation evidence. The broader operating
+model is intentionally configurable; technical completion is still distinct from
+field readiness: provider PITR, owner policy acceptance, real-phone deployment and
+H2–H6 observations remain external pilot gates.
 
 Technical completion is not field validation. The distinction is defined in the
 [product invariants](product-invariants.md) and measured by the
@@ -19,6 +20,7 @@ Technical completion is not field validation. The distinction is defined in the
 | Operational Control | Supabase identity; workspace roles and capabilities; versioned operational profile; audit; immutable digest-verified documents; revocable sharing; customer-account activity and source-backed reports; logical export/restore and integrity checks                                                                                                                                |
 | Reliability         | Client command identity, idempotent receipts, optimistic concurrency, transactional writes, append-only money/goods facts, offline Quick Sale queue and retry recovery                                                                                                                                                                                                             |
 | Engineering         | Strict TypeScript, architecture boundaries, source-size/composition gates, docs and trace checks, Vitest projects, PostgreSQL integration, Next/Storybook builds and real-stack Playwright                                                                                                                                                                                         |
+| Operating model     | Universal fact vocabulary plus workspace policy boundaries; the current runtime implements only the fact/policy slices listed above, not every stage of the full distribution chain                                                                                                                                                                                                |
 
 The runtime exposes **49 authenticated command procedures** and **48 authenticated
 query procedures** across 16 bounded-context router namespaces. These counts
@@ -37,6 +39,12 @@ Identity and workspace
   → Sale → Delivery → Return
   → Source documents → sharing/reports → reconciliation/export/restore
 ```
+
+The full product vocabulary also recognizes demand/order, supply commitment,
+packing, allocation, loading, handover, claims, cost observations and operational
+reconciliation. Those are added as separate facts when a workspace needs them; the
+current runtime must not imply that an existing Arrival or Delivery command already
+represents every stage.
 
 Commercial truth, financial truth and physical truth remain separate. A named
 command may create a cross-dimension effect only where a business rule says so;
@@ -78,10 +86,11 @@ Every known policy question is classified in the
   facts.
 - ASM-039–048 keep valuation/COGS, cost effects, debt aging/allocation, inventory
   planning, stocktake, walk-in sales, shift close, bank reconciliation and Supplier
-  performance unavailable until the field questions in the
+  performance unavailable as derived management outcomes until the field questions in the
   [next-phase policy worksheet](../09-decisions/policy-closure-worksheet.md)
-  are answered. No dashboard, recommendation or AI surface may turn these gaps
-  into zeros or inferred policy.
+  are answered. Raw evidence capture may be implemented independently, but it must
+  remain visibly raw and must not be presented as a metric, recommendation or
+  settled policy.
 
 ## Related
 
