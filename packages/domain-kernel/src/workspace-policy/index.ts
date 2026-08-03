@@ -162,42 +162,48 @@ export function resolveWorkspacePolicyAvailability(
   asOf: IsoInstant,
 ): readonly WorkspacePolicyAvailability[] {
   return [...WORKSPACE_POLICY_KINDS].map((policyKind) => {
-    const approved = policies
+    const approvedVersions = policies
       .filter((policy) => policy.policyKind === policyKind && policy.state === "approved")
-      .sort((left, right) => right.version - left.version)[0];
-    if (approved === undefined) {
-      return {
-        policyKind,
-        availability: "unavailable",
-        reason: "no_approved_version",
-        policyVersionId: null,
-        version: null,
-      } satisfies WorkspacePolicyAvailability;
-    }
-    if (Date.parse(asOf) < Date.parse(approved.effectiveFrom)) {
-      return {
-        policyKind,
-        availability: "unavailable",
-        reason: "effective_window_not_started",
-        policyVersionId: approved.id,
-        version: approved.version,
-      } satisfies WorkspacePolicyAvailability;
-    }
-    if (approved.effectiveTo !== null && Date.parse(asOf) >= Date.parse(approved.effectiveTo)) {
+      .sort((left, right) => right.version - left.version);
+    const effective = approvedVersions.filter(
+      (policy) =>
+        Date.parse(asOf) >= Date.parse(policy.effectiveFrom) &&
+        (policy.effectiveTo === null || Date.parse(asOf) < Date.parse(policy.effectiveTo)),
+    )[0];
+    const latest = approvedVersions[0];
+    if (effective === undefined) {
+      if (latest === undefined) {
+        return {
+          policyKind,
+          availability: "unavailable",
+          reason: "no_approved_version",
+          policyVersionId: null,
+          version: null,
+        } satisfies WorkspacePolicyAvailability;
+      }
+      if (Date.parse(asOf) < Date.parse(latest.effectiveFrom)) {
+        return {
+          policyKind,
+          availability: "unavailable",
+          reason: "effective_window_not_started",
+          policyVersionId: latest.id,
+          version: latest.version,
+        } satisfies WorkspacePolicyAvailability;
+      }
       return {
         policyKind,
         availability: "unavailable",
         reason: "effective_window_closed",
-        policyVersionId: approved.id,
-        version: approved.version,
+        policyVersionId: latest.id,
+        version: latest.version,
       } satisfies WorkspacePolicyAvailability;
     }
     return {
       policyKind,
       availability: "available",
       reason: "approved",
-      policyVersionId: approved.id,
-      version: approved.version,
+      policyVersionId: effective.id,
+      version: effective.version,
     } satisfies WorkspacePolicyAvailability;
   });
 }

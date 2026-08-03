@@ -34,6 +34,9 @@ draft; a retired or already-approved version cannot be approved again.
 Availability returns `unavailable` with a reason when no approved effective
 version exists. The system must not infer a global default, zero, healthy state,
 overdue label, reorder recommendation, supplier score, COGS/profit or AI advice.
+When multiple approved versions exist, the highest version whose effective
+window contains `asOf` is selected; a future or expired higher version must not
+hide a lower version that is currently effective.
 
 ### BR-POLICY-006 — Policy infrastructure is not activated policy
 

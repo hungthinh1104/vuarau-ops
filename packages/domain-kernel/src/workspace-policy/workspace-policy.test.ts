@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   approveWorkspacePolicyCommandSchema,
+  actorIdSchema,
+  commandIdSchema,
   createWorkspacePolicyDraftCommandSchema,
   retireWorkspacePolicyCommandSchema,
+  workspaceIdSchema,
+  workspacePolicyVersionIdSchema,
 } from "@vuarau/domain-contracts";
+import type { WorkspacePolicyDto } from "@vuarau/domain-contracts";
 import {
   decideApproveWorkspacePolicy,
   decideCreateWorkspacePolicyDraft,
@@ -34,6 +39,32 @@ function createCommand() {
       reason: "Ghi nhận bản nháp để review.",
     },
   });
+}
+
+function approvedPolicy(
+  version: number,
+  effectiveFrom: string,
+  effectiveTo: string | null,
+): WorkspacePolicyDto {
+  return {
+    id: workspacePolicyVersionIdSchema.parse(id(String(200 + version))),
+    workspaceId: workspaceIdSchema.parse(WORKSPACE),
+    policyKind: "payment_terms_aging",
+    version,
+    state: "approved",
+    effectiveFrom,
+    effectiveTo,
+    definition: { contractVersion: 1, parameters: { source: "field-review" } },
+    evidenceReferences: ["field://policy/version-selection"],
+    createdBy: actorIdSchema.parse(ACTOR),
+    createdAt: RECORDED_AT,
+    approvedBy: actorIdSchema.parse(ACTOR),
+    approvedAt: RECORDED_AT,
+    retiredBy: null,
+    retiredAt: null,
+    commandId: commandIdSchema.parse(id(String(300 + version))),
+    reason: "Đã được phê duyệt.",
+  };
 }
 
 describe("workspace policy registry", () => {
@@ -128,5 +159,29 @@ describe("workspace policy registry", () => {
     expect(before.find((entry) => entry.policyKind === "payment_terms_aging")?.reason).toBe(
       "no_approved_version",
     );
+  });
+
+  it("TC-POLICY-010 selects the highest approved version that is effective at the requested time", () => {
+    const current = approvedPolicy(1, "2026-08-01T00:00:00.000Z", null);
+    const future = approvedPolicy(2, "2026-08-10T00:00:00.000Z", null);
+    const expired = approvedPolicy(3, "2026-07-01T00:00:00.000Z", "2026-08-02T00:00:00.000Z");
+
+    const withFuture = resolveWorkspacePolicyAvailability(
+      [current, future],
+      "2026-08-03T00:00:00.000Z",
+    );
+    expect(withFuture.find((entry) => entry.policyKind === "payment_terms_aging")).toMatchObject({
+      availability: "available",
+      version: 1,
+    });
+
+    const withExpired = resolveWorkspacePolicyAvailability(
+      [current, expired],
+      "2026-08-03T00:00:00.000Z",
+    );
+    expect(withExpired.find((entry) => entry.policyKind === "payment_terms_aging")).toMatchObject({
+      availability: "available",
+      version: 1,
+    });
   });
 });

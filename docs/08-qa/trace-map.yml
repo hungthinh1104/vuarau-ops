@@ -1263,6 +1263,7 @@ use_cases:
         TC-POLICY-007,
         TC-POLICY-008,
         TC-POLICY-009,
+        TC-POLICY-010,
       ]
     implementation:
       - packages/domain-contracts/src/policy/index.ts
@@ -2862,7 +2863,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/workspace-policy-rules.md
     cases: []
-    tests: [TC-POLICY-003, TC-POLICY-004, TC-POLICY-008, TC-POLICY-009]
+    tests: [TC-POLICY-003, TC-POLICY-004, TC-POLICY-008, TC-POLICY-009, TC-POLICY-010]
     implementation:
       - packages/domain-kernel/src/workspace-policy/index.ts
       - apps/api/src/modules/policy/policy.queries.ts
@@ -3675,6 +3676,9 @@ contract_tests:
   TC-POLICY-009:
     title: Policy UI renders unavailable state without inventing a business result
     file: apps/web/src/ui/screens/workspace-policy-view.test.tsx
+  TC-POLICY-010:
+    title: Policy availability selects the highest currently effective approved version
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
   TC-EVIDENCE-060:
     title: Supplier relationship and performance observations remain raw and retry safe
     file: apps/api/src/modules/evidence/evidence.app.test.ts
