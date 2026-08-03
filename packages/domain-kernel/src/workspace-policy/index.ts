@@ -8,8 +8,11 @@ import type {
 } from "@vuarau/domain-contracts";
 import {
   WORKSPACE_POLICY_KINDS,
+  creditLimitPolicyDefinitionSchema,
   costAllocationPolicyDefinitionSchema,
   inventoryValuationPolicyDefinitionSchema,
+  paymentAllocationPolicyDefinitionSchema,
+  paymentTermsAgingPolicyDefinitionSchema,
   purchaseCorrectionPolicyDefinitionSchema,
 } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
@@ -82,6 +85,33 @@ export function decideCreateWorkspacePolicyDraft(
     return err(
       "WORKSPACE_POLICY_DEFINITION_INVALID",
       "Cost allocation policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "payment_terms_aging" &&
+    !paymentTermsAgingPolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Payment terms and aging policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "payment_allocation" &&
+    !paymentAllocationPolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Payment allocation policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "credit_limit" &&
+    !creditLimitPolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Credit control policy definition is not a supported contract.",
     );
   }
   const policy: WorkspacePolicyDto = {

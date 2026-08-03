@@ -3,10 +3,12 @@ import { defineCommand } from "../shared/command.ts";
 import {
   actorIdSchema,
   commandIdSchema,
+  customerIdSchema,
   workspaceIdSchema,
   workspacePolicyVersionIdSchema,
 } from "../shared/ids.ts";
 import { evidenceReferencesInputSchema, evidenceReferencesDtoSchema } from "../shared/evidence.ts";
+import { moneySchema } from "../shared/money.ts";
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 
@@ -49,6 +51,74 @@ export const purchaseCorrectionPolicyDefinitionSchema = z.object({
 export type PurchaseCorrectionPolicyDefinition = z.infer<
   typeof purchaseCorrectionPolicyDefinitionSchema
 >;
+
+export const PAYMENT_ALLOCATION_STRATEGIES = [
+  "unallocated",
+  "manual",
+  "oldest_due_first",
+  "oldest_transaction_first",
+  "specific_sale",
+] as const;
+export const paymentAllocationStrategySchema = z.enum(PAYMENT_ALLOCATION_STRATEGIES);
+export type PaymentAllocationStrategy = z.infer<typeof paymentAllocationStrategySchema>;
+
+export const CREDIT_CONTROL_MODES = [
+  "information_only",
+  "warning",
+  "approval_required",
+  "hard_block",
+] as const;
+export const creditControlModeSchema = z.enum(CREDIT_CONTROL_MODES);
+export type CreditControlMode = z.infer<typeof creditControlModeSchema>;
+
+const paymentTermOverrideSchema = z.object({
+  customerId: customerIdSchema,
+  label: z.string().trim().min(1).max(100),
+  termDays: z.int().nonnegative(),
+});
+export type PaymentTermOverride = z.infer<typeof paymentTermOverrideSchema>;
+
+const agingBucketDefinitionSchema = z.object({
+  code: z.string().trim().min(1).max(40),
+  label: z.string().trim().min(1).max(100),
+  minDaysOverdue: z.int().nonnegative(),
+  maxDaysOverdue: z.int().nonnegative().nullable(),
+});
+export type AgingBucketDefinition = z.infer<typeof agingBucketDefinitionSchema>;
+
+export const paymentTermsAgingPolicyDefinitionSchema = z.object({
+  contractVersion: z.literal(1),
+  parameters: z.object({
+    defaultTermDays: z.int().nonnegative().nullable(),
+    defaultTermLabel: z.string().trim().min(1).max(100),
+    customerTerms: z.array(paymentTermOverrideSchema).max(10_000),
+    graceDays: z.int().nonnegative(),
+    agingBuckets: z.array(agingBucketDefinitionSchema).min(1).max(20),
+    creditControl: creditControlModeSchema,
+  }),
+});
+export type PaymentTermsAgingPolicyDefinition = z.infer<
+  typeof paymentTermsAgingPolicyDefinitionSchema
+>;
+
+export const paymentAllocationPolicyDefinitionSchema = z.object({
+  contractVersion: z.literal(1),
+  parameters: z.object({
+    strategy: paymentAllocationStrategySchema,
+  }),
+});
+export type PaymentAllocationPolicyDefinition = z.infer<
+  typeof paymentAllocationPolicyDefinitionSchema
+>;
+
+export const creditLimitPolicyDefinitionSchema = z.object({
+  contractVersion: z.literal(1),
+  parameters: z.object({
+    mode: creditControlModeSchema,
+    limit: moneySchema.nullable(),
+  }),
+});
+export type CreditLimitPolicyDefinition = z.infer<typeof creditLimitPolicyDefinitionSchema>;
 
 export const WORKSPACE_POLICY_STATES = ["draft", "approved", "retired"] as const;
 export const workspacePolicyStateSchema = z.enum(WORKSPACE_POLICY_STATES);
