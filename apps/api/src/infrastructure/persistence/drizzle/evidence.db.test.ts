@@ -9,6 +9,8 @@ import type {
   CostObservationId,
   DebtObservationId,
   ReconciliationObservationId,
+  SupplyCommitmentObservationId,
+  SupplierObservationId,
 } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
@@ -20,11 +22,17 @@ import {
   listReconciliationObservations,
   getDebtObservation,
   listDebtObservations,
+  getSupplyCommitmentObservation,
+  listSupplyCommitmentObservations,
+  getSupplierObservation,
+  listSupplierObservations,
 } from "../../../modules/evidence/evidence.queries.ts";
 import {
   recordCostObservation,
   recordReconciliationObservation,
   recordDebtObservation,
+  recordSupplyCommitmentObservation,
+  recordSupplierObservation,
 } from "../../../modules/evidence/evidence.handlers.ts";
 
 describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", () => {
@@ -33,6 +41,8 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
   let observationId: CostObservationId;
   let reconciliationObservationId: ReconciliationObservationId;
   let debtObservationId: DebtObservationId;
+  let supplyCommitmentObservationId: SupplyCommitmentObservationId;
+  let supplierObservationId: SupplierObservationId;
 
   const context = (): CommandContext => ({
     deps,
@@ -56,6 +66,8 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     observationId = crypto.randomUUID() as CostObservationId;
     reconciliationObservationId = crypto.randomUUID() as ReconciliationObservationId;
     debtObservationId = crypto.randomUUID() as DebtObservationId;
+    supplyCommitmentObservationId = crypto.randomUUID() as SupplyCommitmentObservationId;
+    supplierObservationId = crypto.randomUUID() as SupplierObservationId;
 
     const result = await recordCostObservation(context(), {
       ...envelope("record"),
@@ -123,6 +135,64 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
       },
     });
     expect(debt.ok).toBe(true);
+    const supplyCommitment = await recordSupplyCommitmentObservation(context(), {
+      ...envelope("supply-commitment-record"),
+      payload: {
+        supplyCommitmentObservationId,
+        kind: "promised_supply",
+        caseKind: "normal",
+        description: "Đầu mối báo có thể giao hàng vào sáng mai.",
+        participantWording: "Mai có thể giao khoảng hai tạ nếu xe về đúng giờ.",
+        facts: {
+          supplierId: null,
+          productId: null,
+          qualityGradeId: null,
+          promisedQuantity: { valueScaled: 200_000, unit: "kg" },
+          minimumOrder: null,
+          expectedArrivalAt: "2026-08-04T02:00:00.000Z",
+          counterpartyLabel: "Đầu mối chợ sớm",
+          commitmentReference: "message://supply/db-001",
+        },
+        evidenceReferences: ["voice://supply/db-001"],
+        relatedObservationId: null,
+      },
+    });
+    expect(supplyCommitment.ok).toBe(true);
+    const supplier = await recordSupplierObservation(context(), {
+      ...envelope("supplier-observation-record"),
+      payload: {
+        supplierObservationId,
+        kind: "role",
+        caseKind: "normal",
+        description: "Nhà cung cấp tự giao hàng từ vùng sản xuất.",
+        participantWording: "Bên tôi đóng gói rồi đưa lên xe.",
+        facts: {
+          supplierId: null,
+          productId: null,
+          qualityGradeId: null,
+          role: "hợp tác xã",
+          sourceArea: "Đức Trọng",
+          pickupResponsibility: "nhà cung cấp",
+          packingResponsibility: "nhà cung cấp",
+          transportResponsibility: "nhà cung cấp",
+          expectedLeadTimeText: "mỗi ngày",
+          paymentArrangement: "trao đổi",
+          traceabilityLevel: "phiếu lô giấy",
+          promisedQuantity: { valueScaled: 200_000, unit: "kg" },
+          actualQuantity: { valueScaled: 190_000, unit: "kg" },
+          acceptedQuantity: null,
+          rejectedQuantity: null,
+          expectedAt: "2026-08-04T02:00:00.000Z",
+          actualAt: "2026-08-04T03:00:00.000Z",
+          price: null,
+          claimReference: null,
+          observationReference: "note://supplier/db-001",
+        },
+        evidenceReferences: ["photo://supplier/db-001"],
+        relatedObservationId: null,
+      },
+    });
+    expect(supplier.ok).toBe(true);
   });
 
   afterEach(async () => {
@@ -165,7 +235,7 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     });
     expect(backup.ok).toBe(true);
     if (!backup.ok) return;
-    expect(backup.value.version).toBe(11);
+    expect(backup.value.version).toBe(14);
     expect(backup.value.payload.costObservations).toContainEqual(
       expect.objectContaining({
         id: observationId,
@@ -182,6 +252,18 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
       expect.objectContaining({
         id: debtObservationId,
         evidenceReferences: ["note://debt/db-001"],
+      }),
+    );
+    expect(backup.value.payload.supplyCommitmentObservations).toContainEqual(
+      expect.objectContaining({
+        id: supplyCommitmentObservationId,
+        evidenceReferences: ["voice://supply/db-001"],
+      }),
+    );
+    expect(backup.value.payload.supplierObservations).toContainEqual(
+      expect.objectContaining({
+        id: supplierObservationId,
+        evidenceReferences: ["photo://supplier/db-001"],
       }),
     );
   });
@@ -240,5 +322,57 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     });
     expect(page.ok).toBe(true);
     if (page.ok) expect(page.value.items.map((item) => item.id)).toContain(debtObservationId);
+  });
+
+  it("TC-EVIDENCE-052 — reads supply commitments without deriving payable or inventory", async () => {
+    const found = await getSupplyCommitmentObservation(context(), {
+      workspaceId: ctx.workspaceId,
+      supplyCommitmentObservationId,
+    });
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value.facts).toEqual({
+      supplierId: null,
+      productId: null,
+      qualityGradeId: null,
+      promisedQuantity: { valueScaled: 200_000, unit: "kg" },
+      minimumOrder: null,
+      expectedArrivalAt: "2026-08-04T02:00:00.000Z",
+      counterpartyLabel: "Đầu mối chợ sớm",
+      commitmentReference: "message://supply/db-001",
+    });
+    const page = await listSupplyCommitmentObservations(context(), {
+      workspaceId: ctx.workspaceId,
+      kind: "promised_supply",
+      cursor: null,
+      limit: 50,
+    });
+    expect(page.ok).toBe(true);
+    if (page.ok)
+      expect(page.value.items.map((item) => item.id)).toContain(supplyCommitmentObservationId);
+  });
+
+  it("TC-EVIDENCE-062 — reads supplier relationship facts without deriving score or payable", async () => {
+    const found = await getSupplierObservation(context(), {
+      workspaceId: ctx.workspaceId,
+      supplierObservationId,
+    });
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value.facts).toMatchObject({
+      role: "hợp tác xã",
+      sourceArea: "Đức Trọng",
+      promisedQuantity: { valueScaled: 200_000, unit: "kg" },
+      actualQuantity: { valueScaled: 190_000, unit: "kg" },
+    });
+    expect(found.value).not.toHaveProperty("score");
+    const page = await listSupplierObservations(context(), {
+      workspaceId: ctx.workspaceId,
+      kind: "role",
+      cursor: null,
+      limit: 50,
+    });
+    expect(page.ok).toBe(true);
+    if (page.ok) expect(page.value.items.map((item) => item.id)).toContain(supplierObservationId);
   });
 });

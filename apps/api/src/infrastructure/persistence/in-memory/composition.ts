@@ -13,6 +13,9 @@ import { createOperationsRepositories } from "./repositories/operations.ts";
 import { createCostObservationRepositories } from "./repositories/cost-observation.ts";
 import { createReconciliationObservationRepositories } from "./repositories/reconciliation-observation.ts";
 import { createDebtObservationRepositories } from "./repositories/debt-observation.ts";
+import { createSupplyCommitmentObservationRepositories } from "./repositories/supply-commitment-observation.ts";
+import { createSupplierObservationRepositories } from "./repositories/supplier-observation.ts";
+import { createWorkspacePolicyRepositories } from "./repositories/policy.ts";
 import { createPaymentRepositories } from "./repositories/payment.ts";
 import { createProductRepositories } from "./repositories/product.ts";
 import { createPriceRuleRepositories } from "./repositories/pricing.ts";
@@ -34,6 +37,9 @@ import { createOperationsReads } from "./reads/operations.ts";
 import { createCostObservationReads } from "./reads/cost-observation.ts";
 import { createReconciliationObservationReads } from "./reads/reconciliation-observation.ts";
 import { createDebtObservationReads } from "./reads/debt-observation.ts";
+import { createSupplyCommitmentObservationReads } from "./reads/supply-commitment-observation.ts";
+import { createSupplierObservationReads } from "./reads/supplier-observation.ts";
+import { createWorkspacePolicyReads } from "./reads/policy.ts";
 import { createPaymentReads } from "./reads/payment.ts";
 import { createProductReads } from "./reads/product.ts";
 import { createPriceRuleReads } from "./reads/pricing.ts";
@@ -58,6 +64,9 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createCostObservationRepositories(store),
   ...createReconciliationObservationRepositories(store),
   ...createDebtObservationRepositories(store),
+  ...createSupplyCommitmentObservationRepositories(store),
+  ...createSupplierObservationRepositories(store),
+  ...createWorkspacePolicyRepositories(store),
   ...createCashRepositories(store, ids),
   ...createIntakeRepositories(store),
   ...createSaleRepositories(store),
@@ -82,6 +91,9 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createCostObservationReads(store),
   ...createReconciliationObservationReads(store),
   ...createDebtObservationReads(store),
+  ...createSupplyCommitmentObservationReads(store),
+  ...createSupplierObservationReads(store),
+  ...createWorkspacePolicyReads(store),
   ...createCashReads(store),
   ...createIntakeReads(store),
   ...createAuditReads(store),

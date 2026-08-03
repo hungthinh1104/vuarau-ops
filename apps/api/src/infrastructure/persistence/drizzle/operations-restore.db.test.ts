@@ -18,7 +18,8 @@ import type {
   SaleLineId,
   SupplierId,
   SupplierPaymentId,
-  WorkspaceBackupV11,
+  WorkspaceBackupV14,
+  WorkspacePolicyVersionId,
   DeliveryId,
   DeliveryLineId,
   DocumentId,
@@ -61,6 +62,11 @@ import {
   recordCostObservation,
   recordReconciliationObservation,
 } from "../../../modules/evidence/evidence.handlers.ts";
+import {
+  approveWorkspacePolicy,
+  createWorkspacePolicyDraft,
+} from "../../../modules/policy/policy.handlers.ts";
+import { getWorkspacePolicy } from "../../../modules/policy/policy.queries.ts";
 
 describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => {
   let ctx: DbTestContext;
@@ -90,7 +96,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     await ctx.close();
   });
 
-  async function prepareCanonicalBackup(): Promise<WorkspaceBackupV11> {
+  async function prepareCanonicalBackup(): Promise<WorkspaceBackupV14> {
     const productId = crypto.randomUUID() as ProductId;
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
@@ -367,6 +373,31 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         })
       ).ok,
     ).toBe(true);
+    const policyDraft = await createWorkspacePolicyDraft(context(), {
+      ...command("recovery-policy-draft"),
+      payload: {
+        policyVersionId: crypto.randomUUID(),
+        policyKind: "inventory_valuation",
+        version: 1,
+        effectiveFrom: "2026-08-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition: { contractVersion: 1, parameters: { basis: "field-review" } },
+        evidenceReferences: [],
+        reason: "Policy bản nháp phục hồi.",
+      },
+    });
+    expect(policyDraft.ok).toBe(true);
+    if (policyDraft.ok) {
+      const policyApproval = await approveWorkspacePolicy(context(), {
+        ...command("recovery-policy-approve"),
+        payload: {
+          policyVersionId: policyDraft.value.id,
+          evidenceReferences: ["field://recovery/policy-001"],
+          reason: "Policy có evidence phục hồi.",
+        },
+      });
+      expect(policyApproval.ok).toBe(true);
+    }
     const exported = await exportWorkspaceBackup(context(), {
       ...command("recovery-export"),
       payload: {},
@@ -431,6 +462,8 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       await sql`delete from customers where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from audit_logs where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from reconciliation_observations
+        where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from workspace_policies
         where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from cost_observations where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from command_receipts where workspace_id = ${ctx.workspaceId}::uuid`;
@@ -503,12 +536,14 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         (select count(*)::int from cost_observations
           where workspace_id = ${ctx.workspaceId}::uuid) as cost_observations,
         (select count(*)::int from reconciliation_observations
-          where workspace_id = ${ctx.workspaceId}::uuid) as reconciliation_observations
+          where workspace_id = ${ctx.workspaceId}::uuid) as reconciliation_observations,
+        (select count(*)::int from workspace_policies
+          where workspace_id = ${ctx.workspaceId}::uuid) as workspace_policies
     `;
     return rows[0] as Record<string, number>;
   }
 
-  it("restores canonical history, rebuilds projections, and replays without duplicates", async () => {
+  it("TC-POLICY-005 restores canonical history, rebuilds projections, and replays without duplicates", async () => {
     const backup = await prepareCanonicalBackup();
     expect(backup.payload.customers.length).toBeGreaterThan(0);
     expect(backup.payload.products.length).toBeGreaterThan(0);
@@ -528,6 +563,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     expect(backup.payload.documentShares).toHaveLength(1);
     expect(backup.payload.costObservations).toHaveLength(1);
     expect(backup.payload.reconciliationObservations).toHaveLength(1);
+    expect(backup.payload.workspacePolicies).toHaveLength(1);
 
     await emptyRecoveryWorkspace();
     expect(await canonicalCounts()).toMatchObject({
@@ -557,6 +593,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       price_rules: 0,
       cost_observations: 0,
       reconciliation_observations: 0,
+      workspace_policies: 0,
     });
 
     const restoreCommand = {
@@ -592,7 +629,15 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       document_shares: backup.payload.documentShares.length,
       price_rules: backup.payload.priceRules.length,
       cost_observations: backup.payload.costObservations.length,
+      workspace_policies: backup.payload.workspacePolicies.length,
     });
+
+    const restoredPolicy = await getWorkspacePolicy(context(), {
+      workspaceId: ctx.workspaceId,
+      policyVersionId: backup.payload.workspacePolicies[0]?.["id"] as WorkspacePolicyVersionId,
+    });
+    expect(restoredPolicy.ok).toBe(true);
+    if (restoredPolicy.ok) expect(restoredPolicy.value.state).toBe("approved");
 
     const reconciliation = await getAccountReconciliation(context(), {
       workspaceId: ctx.workspaceId,
@@ -632,7 +677,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     const backup = await prepareCanonicalBackup();
     await emptyRecoveryWorkspace();
     const duplicateCustomer = backup.payload.customers[0]!;
-    const malformed: WorkspaceBackupV11 = {
+    const malformed: WorkspaceBackupV14 = {
       ...backup,
       payload: {
         ...backup.payload,
@@ -678,7 +723,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         },
       ],
     };
-    const tampered: WorkspaceBackupV11 = {
+    const tampered: WorkspaceBackupV14 = {
       ...backup,
       payload,
       digest: backupDigest(payload),

@@ -5,6 +5,10 @@ import type {
   ReconciliationObservationListInput,
   DebtObservationGetInput,
   DebtObservationListInput,
+  SupplyCommitmentObservationGetInput,
+  SupplyCommitmentObservationListInput,
+  SupplierObservationGetInput,
+  SupplierObservationListInput,
 } from "@vuarau/domain-contracts";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -101,6 +105,81 @@ export const listDebtObservations = (ctx: CommandContext, input: DebtObservation
     execute: async ({ repos }) =>
       toPage(
         await repos.debtObservationReads.list({
+          workspaceId: input.workspaceId,
+          kind: input.kind,
+          page: toPageQuery(input),
+        }),
+        (row) => row,
+      ),
+  });
+
+export async function getSupplyCommitmentObservation(
+  ctx: CommandContext,
+  input: SupplyCommitmentObservationGetInput,
+) {
+  const result = await runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "evidence.read",
+    execute: ({ repos }) =>
+      repos.supplyCommitmentObservationReads.get(
+        input.workspaceId,
+        input.supplyCommitmentObservationId,
+      ),
+  });
+  if (!result.ok) return result;
+  return result.value === null
+    ? err("SUPPLY_COMMITMENT_OBSERVATION_NOT_FOUND", "No such supply commitment observation.")
+    : ok(result.value);
+}
+
+export const listSupplyCommitmentObservations = (
+  ctx: CommandContext,
+  input: SupplyCommitmentObservationListInput,
+) =>
+  runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "evidence.read",
+    execute: async ({ repos }) =>
+      toPage(
+        await repos.supplyCommitmentObservationReads.list({
+          workspaceId: input.workspaceId,
+          kind: input.kind,
+          page: toPageQuery(input),
+        }),
+        (row) => row,
+      ),
+  });
+
+export async function getSupplierObservation(
+  ctx: CommandContext,
+  input: SupplierObservationGetInput,
+) {
+  const result = await runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "evidence.read",
+    execute: ({ repos }) =>
+      repos.supplierObservationReads.get(input.workspaceId, input.supplierObservationId),
+  });
+  if (!result.ok) return result;
+  return result.value === null
+    ? err("SUPPLIER_OBSERVATION_NOT_FOUND", "No such supplier observation.")
+    : ok(result.value);
+}
+
+export const listSupplierObservations = (
+  ctx: CommandContext,
+  input: SupplierObservationListInput,
+) =>
+  runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "evidence.read",
+    execute: async ({ repos }) =>
+      toPage(
+        await repos.supplierObservationReads.list({
           workspaceId: input.workspaceId,
           kind: input.kind,
           page: toPageQuery(input),

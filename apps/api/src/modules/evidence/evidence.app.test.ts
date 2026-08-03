@@ -3,6 +3,8 @@ import type {
   CostObservationId,
   DebtObservationId,
   ReconciliationObservationId,
+  SupplyCommitmentObservationId,
+  SupplierObservationId,
 } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
@@ -19,12 +21,20 @@ import {
   listReconciliationObservations,
   getDebtObservation,
   listDebtObservations,
+  getSupplierObservation,
+  listSupplierObservations,
 } from "./evidence.queries.ts";
 import {
   recordCostObservation,
   recordReconciliationObservation,
   recordDebtObservation,
+  recordSupplyCommitmentObservation,
+  recordSupplierObservation,
 } from "./evidence.handlers.ts";
+import {
+  getSupplyCommitmentObservation,
+  listSupplyCommitmentObservations,
+} from "./evidence.queries.ts";
 
 let harness: Harness;
 let sequence = 0;
@@ -107,6 +117,74 @@ const debtInput = (overrides: Record<string, unknown> = {}) => ({
       customerId: null,
     },
     evidenceReferences: ["note://debt/001"],
+    relatedObservationId: null,
+  },
+  ...overrides,
+});
+
+const supplyCommitmentInput = (overrides: Record<string, unknown> = {}) => ({
+  commandId: uuid(),
+  idempotencyKey: `supply-commitment-observation-${++sequence}`,
+  workspaceId: WORKSPACE_ID,
+  actorId: ACTOR_ID,
+  occurredAt: TRANSACTION_TIME,
+  payload: {
+    supplyCommitmentObservationId: uuid<SupplyCommitmentObservationId>(),
+    kind: "promised_supply",
+    caseKind: "normal",
+    description: "Đầu mối báo có thể giao rau vào sáng mai.",
+    participantWording: "Mai có khoảng hai tạ, nếu xe về đúng giờ.",
+    facts: {
+      supplierId: null,
+      productId: null,
+      qualityGradeId: null,
+      promisedQuantity: { valueScaled: 200_000, unit: "kg" },
+      minimumOrder: { valueScaled: 50_000, unit: "kg" },
+      expectedArrivalAt: "2026-08-04T02:00:00.000Z",
+      counterpartyLabel: "Anh Tư đầu mối chợ sớm",
+      commitmentReference: "message://supply/001",
+    },
+    evidenceReferences: ["voice://supply/001"],
+    relatedObservationId: null,
+  },
+  ...overrides,
+});
+
+const supplierObservationInput = (overrides: Record<string, unknown> = {}) => ({
+  commandId: uuid(),
+  idempotencyKey: `supplier-observation-${++sequence}`,
+  workspaceId: WORKSPACE_ID,
+  actorId: ACTOR_ID,
+  occurredAt: TRANSACTION_TIME,
+  payload: {
+    supplierObservationId: uuid<SupplierObservationId>(),
+    kind: "role",
+    caseKind: "normal",
+    description: "Nhà cung cấp tự giao hàng từ vùng sản xuất.",
+    participantWording: "Bên tôi đóng gói rồi đưa lên xe.",
+    facts: {
+      supplierId: null,
+      productId: null,
+      qualityGradeId: null,
+      role: "hợp tác xã",
+      sourceArea: "Đức Trọng",
+      pickupResponsibility: "nhà cung cấp",
+      packingResponsibility: "nhà cung cấp",
+      transportResponsibility: "nhà cung cấp",
+      expectedLeadTimeText: "mỗi ngày",
+      paymentArrangement: "trao đổi, chưa chốt quy tắc hệ thống",
+      traceabilityLevel: "phiếu lô giấy",
+      promisedQuantity: { valueScaled: 200_000, unit: "kg" },
+      actualQuantity: { valueScaled: 190_000, unit: "kg" },
+      acceptedQuantity: null,
+      rejectedQuantity: null,
+      expectedAt: "2026-08-04T02:00:00.000Z",
+      actualAt: "2026-08-04T03:00:00.000Z",
+      price: null,
+      claimReference: null,
+      observationReference: "note://supplier/001",
+    },
+    evidenceReferences: ["photo://supplier/001"],
     relatedObservationId: null,
   },
   ...overrides,
@@ -246,6 +324,54 @@ describe("reconciliation observation application", () => {
   });
 });
 
+describe("supply commitment observation application", () => {
+  it("TC-EVIDENCE-050 — captures source-linked supply facts without payable or inventory effects", async () => {
+    const command = supplyCommitmentInput();
+    const recorded = await recordSupplyCommitmentObservation(harness.ctx, command);
+    const retry = await recordSupplyCommitmentObservation(harness.ctx, command);
+
+    expect(recorded.ok).toBe(true);
+    expect(retry).toEqual(recorded);
+    if (!recorded.ok) return;
+    expect(recorded.value.facts.promisedQuantity).toEqual({ valueScaled: 200_000, unit: "kg" });
+    expect(recorded.value.facts.counterpartyLabel).toBe("Anh Tư đầu mối chợ sớm");
+
+    const listed = await listSupplyCommitmentObservations(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      kind: null,
+      cursor: null,
+      limit: 50,
+    });
+    expect(listed.ok && listed.value.items).toEqual([recorded.value]);
+    expect(harness.db.inventoryMovementRecords()).toHaveLength(0);
+    expect(harness.db.auditRecords()).toHaveLength(1);
+  });
+
+  it("TC-EVIDENCE-051 — correction target and reads remain workspace-scoped", async () => {
+    const first = await recordSupplyCommitmentObservation(harness.ctx, supplyCommitmentInput());
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const correction = await recordSupplyCommitmentObservation(
+      harness.ctx,
+      supplyCommitmentInput({
+        payload: {
+          ...supplyCommitmentInput().payload,
+          supplyCommitmentObservationId: uuid<SupplyCommitmentObservationId>(),
+          caseKind: "correction",
+          relatedObservationId: first.value.id,
+        },
+      }),
+    );
+    expect(correction.ok).toBe(true);
+    const foreign = await getSupplyCommitmentObservation(harness.contextFor(FOREIGN_ACTOR_ID), {
+      workspaceId: OTHER_WORKSPACE_ID,
+      supplyCommitmentObservationId: first.value.id,
+    });
+    expect(foreign.ok).toBe(false);
+    if (!foreign.ok) expect(foreign.error.code).toBe("SUPPLY_COMMITMENT_OBSERVATION_NOT_FOUND");
+  });
+});
+
 describe("debt observation application", () => {
   it("TC-EVIDENCE-035 — records, lists and retries term evidence without debt effects", async () => {
     const command = debtInput();
@@ -293,5 +419,54 @@ describe("debt observation application", () => {
     });
     expect(foreignRead.ok).toBe(false);
     if (!foreignRead.ok) expect(foreignRead.error.code).toBe("DEBT_OBSERVATION_NOT_FOUND");
+  });
+});
+
+describe("supplier observation application", () => {
+  it("TC-EVIDENCE-060 — records raw relationship/performance facts without score or canonical effects", async () => {
+    const command = supplierObservationInput();
+    const recorded = await recordSupplierObservation(harness.ctx, command);
+    const retry = await recordSupplierObservation(harness.ctx, command);
+
+    expect(recorded.ok).toBe(true);
+    expect(retry).toEqual(recorded);
+    if (!recorded.ok) return;
+    expect(recorded.value.facts.sourceArea).toBe("Đức Trọng");
+    expect(recorded.value.facts.promisedQuantity).toEqual({ valueScaled: 200_000, unit: "kg" });
+    expect(recorded.value).not.toHaveProperty("score");
+    const listed = await listSupplierObservations(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      kind: null,
+      cursor: null,
+      limit: 50,
+    });
+    expect(listed.ok && listed.value.items).toEqual([recorded.value]);
+    expect(harness.db.accountEntries()).toHaveLength(0);
+    expect(harness.db.inventoryMovementRecords()).toHaveLength(0);
+    expect(harness.db.auditRecords()).toHaveLength(1);
+  });
+
+  it("TC-EVIDENCE-061 — correction links and reads remain workspace scoped", async () => {
+    const first = await recordSupplierObservation(harness.ctx, supplierObservationInput());
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const correction = await recordSupplierObservation(
+      harness.ctx,
+      supplierObservationInput({
+        payload: {
+          ...supplierObservationInput().payload,
+          supplierObservationId: uuid<SupplierObservationId>(),
+          caseKind: "correction",
+          relatedObservationId: first.value.id,
+        },
+      }),
+    );
+    expect(correction.ok).toBe(true);
+    const foreign = await getSupplierObservation(harness.contextFor(FOREIGN_ACTOR_ID), {
+      workspaceId: OTHER_WORKSPACE_ID,
+      supplierObservationId: first.value.id,
+    });
+    expect(foreign.ok).toBe(false);
+    if (!foreign.ok) expect(foreign.error.code).toBe("SUPPLIER_OBSERVATION_NOT_FOUND");
   });
 });

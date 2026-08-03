@@ -16,7 +16,7 @@ import type {
   WorkspaceId,
   WorkspaceRole,
   WorkspaceOperationalProfileDto,
-  WorkspaceBackupV11,
+  WorkspaceBackupV14,
   DeliveryId,
   DocumentDto,
   DocumentShareId,
@@ -74,12 +74,12 @@ import type {
   CostObservationRepository,
   ReconciliationObservationRepository,
   DebtObservationRepository,
+  SupplyCommitmentObservationRepository,
+  SupplierObservationRepository,
 } from "./evidence-ports.ts";
+import type { WorkspacePolicyRepository } from "./policy-ports.ts";
 
 /**
- * Application-owned ports keep `packages/db` behind the dependency arrow
- * (docs/01-domain/context-map.md).
- *
  * Every method takes `workspaceId` as a required argument. Not an optional
  * filter, not a property on a context object that a future query could forget:
  * a required parameter, so that omitting it does not compile (BR-CUSTOMER-002).
@@ -532,7 +532,7 @@ export type QualityDispositionRepository = {
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV11["payload"],
+    payload: WorkspaceBackupV14["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -685,6 +685,9 @@ export type Repositories = ReadRepositories & {
   readonly costObservations: CostObservationRepository;
   readonly reconciliationObservations: ReconciliationObservationRepository;
   readonly debtObservations: DebtObservationRepository;
+  readonly supplyCommitmentObservations: SupplyCommitmentObservationRepository;
+  readonly supplierObservations: SupplierObservationRepository;
+  readonly workspacePolicies: WorkspacePolicyRepository;
   readonly sales: SaleRepository;
   readonly payments: PaymentRepository;
   readonly accountEntries: CustomerAccountEntryRepository;
@@ -692,8 +695,5 @@ export type Repositories = ReadRepositories & {
   readonly audit: AuditRepository;
   readonly receipts: CommandReceiptRepository;
 };
-
 /** One atomic transaction per command (BR-COMMAND-005). */
-export type UnitOfWork = {
-  transaction<T>(work: (repos: Repositories) => Promise<T>): Promise<T>;
-};
+export type UnitOfWork = { transaction<T>(work: (repos: Repositories) => Promise<T>): Promise<T> };

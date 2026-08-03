@@ -5,14 +5,22 @@ import type {
   RecordReconciliationObservationCommand,
   DebtObservationDto,
   RecordDebtObservationCommand,
+  SupplyCommitmentObservationDto,
+  RecordSupplyCommitmentObservationCommand,
+  SupplierObservationDto,
+  RecordSupplierObservationCommand,
 } from "@vuarau/domain-contracts";
 import { recordCostObservationCommandSchema } from "@vuarau/domain-contracts";
 import { recordReconciliationObservationCommandSchema } from "@vuarau/domain-contracts";
 import { recordDebtObservationCommandSchema } from "@vuarau/domain-contracts";
+import { recordSupplyCommitmentObservationCommandSchema } from "@vuarau/domain-contracts";
+import { recordSupplierObservationCommandSchema } from "@vuarau/domain-contracts";
 import {
   decideRecordCostObservation,
   decideRecordReconciliationObservation,
   decideRecordDebtObservation,
+  decideRecordSupplyCommitmentObservation,
+  decideRecordSupplierObservation,
   err,
   ok,
 } from "@vuarau/domain-kernel";
@@ -108,6 +116,78 @@ export function recordDebtObservation(ctx: CommandContext, input: unknown) {
         return err(
           "DEBT_OBSERVATION_ALREADY_RECORDED",
           "Debt observation identity already exists.",
+        );
+      }
+      await repos.audit.append({
+        ...decision.value.audit,
+        workspaceId: command.workspaceId,
+        actorId: command.actorId,
+        commandId: command.commandId,
+      });
+      return ok(decision.value.observation);
+    },
+  });
+}
+
+export function recordSupplyCommitmentObservation(ctx: CommandContext, input: unknown) {
+  return runCommand<RecordSupplyCommitmentObservationCommand, SupplyCommitmentObservationDto>({
+    commandType: "RecordSupplyCommitmentObservation",
+    schema: recordSupplyCommitmentObservationCommandSchema,
+    input,
+    ctx,
+    requiredPermission: "evidence.record",
+    execute: async ({ command, repos, recordedAt }) => {
+      const target =
+        command.payload.relatedObservationId === null
+          ? null
+          : await repos.supplyCommitmentObservations.findById(
+              command.workspaceId,
+              command.payload.relatedObservationId,
+            );
+      const decision = decideRecordSupplyCommitmentObservation(
+        command,
+        recordedAt,
+        target !== null,
+      );
+      if (!decision.ok) return decision;
+      if (!(await repos.supplyCommitmentObservations.insert(decision.value.observation))) {
+        return err(
+          "SUPPLY_COMMITMENT_OBSERVATION_ALREADY_RECORDED",
+          "Supply commitment observation identity already exists.",
+        );
+      }
+      await repos.audit.append({
+        ...decision.value.audit,
+        workspaceId: command.workspaceId,
+        actorId: command.actorId,
+        commandId: command.commandId,
+      });
+      return ok(decision.value.observation);
+    },
+  });
+}
+
+export function recordSupplierObservation(ctx: CommandContext, input: unknown) {
+  return runCommand<RecordSupplierObservationCommand, SupplierObservationDto>({
+    commandType: "RecordSupplierObservation",
+    schema: recordSupplierObservationCommandSchema,
+    input,
+    ctx,
+    requiredPermission: "evidence.record",
+    execute: async ({ command, repos, recordedAt }) => {
+      const target =
+        command.payload.relatedObservationId === null
+          ? null
+          : await repos.supplierObservations.findById(
+              command.workspaceId,
+              command.payload.relatedObservationId,
+            );
+      const decision = decideRecordSupplierObservation(command, recordedAt, target !== null);
+      if (!decision.ok) return decision;
+      if (!(await repos.supplierObservations.insert(decision.value.observation))) {
+        return err(
+          "SUPPLIER_OBSERVATION_ALREADY_RECORDED",
+          "Supplier observation identity already exists.",
         );
       }
       await repos.audit.append({

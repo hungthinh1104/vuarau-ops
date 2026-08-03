@@ -22,6 +22,9 @@ import type {
   CostObservationDto,
   ReconciliationObservationDto,
   DebtObservationDto,
+  SupplyCommitmentObservationDto,
+  SupplierObservationDto,
+  WorkspacePolicyDto,
 } from "@vuarau/domain-contracts";
 import type {
   PaymentReversalState,
@@ -144,6 +147,9 @@ export type Store = {
   costObservations: Map<string, CostObservationDto>;
   reconciliationObservations: Map<string, ReconciliationObservationDto>;
   debtObservations: Map<string, DebtObservationDto>;
+  supplyCommitmentObservations: Map<string, SupplyCommitmentObservationDto>;
+  supplierObservations: Map<string, SupplierObservationDto>;
+  workspacePolicies: Map<string, WorkspacePolicyDto>;
 };
 
 export function emptyStore(): Store {
@@ -192,6 +198,9 @@ export function emptyStore(): Store {
     costObservations: new Map(),
     reconciliationObservations: new Map(),
     debtObservations: new Map(),
+    supplyCommitmentObservations: new Map(),
+    supplierObservations: new Map(),
+    workspacePolicies: new Map(),
   };
 }
 

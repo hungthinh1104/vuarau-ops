@@ -22,7 +22,7 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV11,
+  WorkspaceBackupV14,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
@@ -78,8 +78,15 @@ import type {
   DebtObservationDto,
   DebtObservationId,
   DebtObservationKind,
+  SupplyCommitmentObservationDto,
+  SupplyCommitmentObservationId,
+  SupplyCommitmentObservationKind,
+  SupplierObservationDto,
+  SupplierObservationId,
+  SupplierObservationKind,
 } from "@vuarau/domain-contracts";
 import type { PriceRuleState, SaleState } from "@vuarau/domain-kernel";
+import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
 
 /**
  * Read ports, separate from the write ports on purpose.
@@ -565,7 +572,7 @@ export type IntakeReadRepository = {
 
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV11["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV14["payload"] | null>;
 };
 
 export type CostObservationReadRepository = {
@@ -604,6 +611,30 @@ export type DebtObservationReadRepository = {
   }): Promise<PageResult<DebtObservationDto>>;
 };
 
+export type SupplyCommitmentObservationReadRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    observationId: SupplyCommitmentObservationId,
+  ): Promise<SupplyCommitmentObservationDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    kind: SupplyCommitmentObservationKind | null;
+    page: PageQuery;
+  }): Promise<PageResult<SupplyCommitmentObservationDto>>;
+};
+
+export type SupplierObservationReadRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    observationId: SupplierObservationId,
+  ): Promise<SupplierObservationDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    kind: SupplierObservationKind | null;
+    page: PageQuery;
+  }): Promise<PageResult<SupplierObservationDto>>;
+};
+
 /**
  * The read side's own bundle. It is reachable from a `Repositories` too, so a
  * query runs in the same transaction as the authorization check that guards it —
@@ -632,4 +663,7 @@ export type ReadRepositories = {
   readonly costObservationReads: CostObservationReadRepository;
   readonly reconciliationObservationReads: ReconciliationObservationReadRepository;
   readonly debtObservationReads: DebtObservationReadRepository;
+  readonly supplyCommitmentObservationReads: SupplyCommitmentObservationReadRepository;
+  readonly supplierObservationReads: SupplierObservationReadRepository;
+  readonly workspacePolicyReads: WorkspacePolicyReadRepository;
 };

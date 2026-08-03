@@ -20,6 +20,9 @@ import type {
   CostObservationDto,
   ReconciliationObservationDto,
   DebtObservationDto,
+  SupplyCommitmentObservationDto,
+  SupplierObservationDto,
+  WorkspacePolicyDto,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import { money } from "@vuarau/domain-kernel";
@@ -60,6 +63,9 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.costObservations.values(),
           ...store.reconciliationObservations.values(),
           ...store.debtObservations.values(),
+          ...store.supplyCommitmentObservations.values(),
+          ...store.supplierObservations.values(),
+          ...store.workspacePolicies.values(),
           ...store.sales.values(),
           ...store.suppliers.values(),
           ...store.purchases.values(),
@@ -92,6 +98,18 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         for (const raw of payload.debtObservations) {
           const row = remap(raw) as unknown as DebtObservationDto;
           store.debtObservations.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.supplyCommitmentObservations) {
+          const row = remap(raw) as unknown as SupplyCommitmentObservationDto;
+          store.supplyCommitmentObservations.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.supplierObservations) {
+          const row = remap(raw) as unknown as SupplierObservationDto;
+          store.supplierObservations.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.workspacePolicies) {
+          const row = remap(raw) as unknown as WorkspacePolicyDto;
+          store.workspacePolicies.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.cashAccounts) {
           const row = remap(raw) as unknown as CashAccountDto;
