@@ -5,6 +5,8 @@ import {
   exportWorkspaceBackupCommandSchema,
   restoreWorkspaceBackupCommandSchema,
   type WorkspaceBackup,
+  type CashStatementMatchDto,
+  type OperationalCloseDto,
 } from "@vuarau/domain-contracts";
 import { workspaceBackupSchema } from "@vuarau/domain-contracts";
 import { useEffect, useState } from "react";
@@ -24,6 +26,18 @@ export function OperationsController() {
   const [fileError, setFileError] = useState<string | null>(null);
 
   const integrity = useQuery(trpc.operations.integrity.queryOptions({ workspaceId }));
+  const operationalCloses = useQuery(
+    trpc.operations.listCloses.queryOptions({ workspaceId, cursor: null, limit: 10 }),
+  );
+  const statementMatches = useQuery(
+    trpc.cash.statementMatches.queryOptions({
+      workspaceId,
+      cursor: null,
+      limit: 10,
+      cashAccountId: null,
+      sourceType: null,
+    }),
+  );
   const exportMutation = useMutation(trpc.operations.exportBackup.mutationOptions());
   const exportCommand = useContractCommand(
     exportWorkspaceBackupCommandSchema,
@@ -88,6 +102,19 @@ export function OperationsController() {
       lastSuccessfulSync={offline.lastSuccessfulSync}
       integrityState={integrity.isPending ? "loading" : integrity.isError ? "error" : "ready"}
       integrity={integrity.data ?? null}
+      operationalCloses={operationalCloses.data?.items ?? ([] as OperationalCloseDto[])}
+      statementMatches={statementMatches.data?.items ?? ([] as CashStatementMatchDto[])}
+      reconciliationState={
+        operationalCloses.isPending || statementMatches.isPending
+          ? "loading"
+          : operationalCloses.isError || statementMatches.isError
+            ? "error"
+            : "ready"
+      }
+      onRetryReconciliation={() => {
+        void operationalCloses.refetch();
+        void statementMatches.refetch();
+      }}
       exportLocked={exportLocked}
       exportCompleted={exportCommand.phase.kind === "succeeded"}
       backupSelected={backup !== null}

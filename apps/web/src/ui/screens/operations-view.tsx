@@ -1,6 +1,10 @@
 "use client";
 
-import type { WorkspaceIntegrityDto } from "@vuarau/domain-contracts";
+import type {
+  CashStatementMatchDto,
+  OperationalCloseDto,
+  WorkspaceIntegrityDto,
+} from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -14,6 +18,9 @@ export function OperationsView(props: {
   readonly lastSuccessfulSync: string | null;
   readonly integrityState: "loading" | "ready" | "error";
   readonly integrity: WorkspaceIntegrityDto | null;
+  readonly operationalCloses?: readonly OperationalCloseDto[];
+  readonly statementMatches?: readonly CashStatementMatchDto[];
+  readonly reconciliationState?: "loading" | "ready" | "error";
   readonly exportLocked: boolean;
   readonly exportCompleted: boolean;
   readonly backupSelected: boolean;
@@ -27,6 +34,7 @@ export function OperationsView(props: {
   readonly restoreOutcome?: ReactNode;
   readonly onRetrySync: () => void;
   readonly onRetryIntegrity: () => void;
+  readonly onRetryReconciliation?: () => void;
   readonly onExport: () => void;
   readonly onResetExport: () => void;
   readonly onBackupFileSelected: (file: File) => void;
@@ -34,6 +42,10 @@ export function OperationsView(props: {
   readonly onRestore: () => void;
 }) {
   if (!props.canManage) return <p role="alert">Chỉ chủ vựa được mở khu vực vận hành.</p>;
+
+  const operationalCloses = props.operationalCloses ?? [];
+  const statementMatches = props.statementMatches ?? [];
+  const reconciliationState = props.reconciliationState ?? "ready";
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -61,6 +73,13 @@ export function OperationsView(props: {
         state={props.integrityState}
         integrity={props.integrity}
         onRetry={props.onRetryIntegrity}
+      />
+
+      <ReconciliationPanel
+        state={reconciliationState}
+        operationalCloses={operationalCloses}
+        statementMatches={statementMatches}
+        onRetry={props.onRetryReconciliation ?? (() => undefined)}
       />
 
       <section className="rounded-card border border-border bg-surface p-4">
@@ -139,6 +158,87 @@ export function OperationsView(props: {
         </p>
       </section>
     </div>
+  );
+}
+
+function ReconciliationPanel(props: {
+  readonly state: "loading" | "ready" | "error";
+  readonly operationalCloses: readonly OperationalCloseDto[];
+  readonly statementMatches: readonly CashStatementMatchDto[];
+  readonly onRetry: () => void;
+}) {
+  return (
+    <section className="rounded-card border border-border bg-surface p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-subheading font-semibold">Chốt vận hành và đối chiếu sao kê</h2>
+          <p className="text-body-sm text-ink-muted">
+            Chỉ hiển thị các signoff và match đã ghi nhận; không suy ra “đã chốt” từ projection.
+          </p>
+        </div>
+        {props.state === "error" ? (
+          <Button tone="secondary" onClick={props.onRetry}>
+            Thử lại
+          </Button>
+        ) : null}
+      </div>
+      {props.state === "loading" ? <p role="status">Đang tải bằng chứng đối chiếu…</p> : null}
+      {props.state === "error" ? (
+        <p role="alert" className="mt-3 text-body-sm text-danger">
+          Không đọc được dữ liệu đối chiếu. Trạng thái close/match chưa được xác định.
+        </p>
+      ) : null}
+      {props.state === "ready" ? (
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <h3 className="text-label font-semibold">Ngày vận hành</h3>
+            {props.operationalCloses.length === 0 ? (
+              <p className="text-body-sm text-ink-muted">Chưa có ngày nào được signoff.</p>
+            ) : (
+              <ul className="mt-2 space-y-2" aria-label="Các ngày vận hành đã chốt">
+                {props.operationalCloses.map((close) => (
+                  <li key={close.id} className="rounded-input border border-border-subtle p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{close.businessDate}</span>
+                      <Badge tone={close.state === "closed" ? "positive" : "warning"}>
+                        {close.state === "closed" ? "Đã chốt" : "Đã mở lại"}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-caption text-ink-muted">
+                      {close.observationIds.length} phạm vi · policy{" "}
+                      {close.policyVersionId.slice(0, 8)} · v{close.version}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div>
+            <h3 className="text-label font-semibold">Sao kê đã match</h3>
+            {props.statementMatches.length === 0 ? (
+              <p className="text-body-sm text-ink-muted">Chưa có dòng sao kê nào được match.</p>
+            ) : (
+              <ul className="mt-2 space-y-2" aria-label="Các dòng sao kê đã đối chiếu">
+                {props.statementMatches.map((match) => (
+                  <li key={match.id} className="rounded-input border border-border-subtle p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{match.externalReference}</span>
+                      <Badge tone={match.reversal === null ? "positive" : "warning"}>
+                        {match.reversal === null ? "Đã match" : "Đã đảo"}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-caption text-ink-muted">
+                      {match.amount.amountMinor.toLocaleString("vi-VN")} {match.amount.currency} ·{" "}
+                      {match.statementAt}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

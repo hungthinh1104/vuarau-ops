@@ -1,5 +1,9 @@
 import { render, screen } from "@testing-library/react";
-import type { WorkspaceIntegrityDto } from "@vuarau/domain-contracts";
+import type {
+  CashStatementMatchDto,
+  OperationalCloseDto,
+  WorkspaceIntegrityDto,
+} from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
 import { WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
 import { OperationsView } from "./operations-view.tsx";
@@ -77,5 +81,32 @@ describe("OperationsView", () => {
       restoreCompleted: true,
     });
     expect(screen.getByRole("button", { name: "Đã phục hồi" })).toBeDisabled();
+  });
+
+  it("renders persisted close and statement state without inferring settlement", () => {
+    renderView({
+      operationalCloses: [
+        {
+          id: "close-001",
+          businessDate: "2026-08-03",
+          state: "closed",
+          version: 1,
+          observationIds: ["observation-001"],
+          policyVersionId: "policy-001",
+        } as unknown as OperationalCloseDto,
+      ],
+      statementMatches: [
+        {
+          id: "match-001",
+          externalReference: "BANK-001",
+          amount: { amountMinor: 125_000, currency: "VND" },
+          statementAt: "2026-08-03T05:00:00.000Z",
+          reversal: null,
+        } as unknown as CashStatementMatchDto,
+      ],
+    });
+    expect(screen.getByText("2026-08-03")).toBeInTheDocument();
+    expect(screen.getByText("BANK-001")).toBeInTheDocument();
+    expect(screen.getByText(/không suy ra “đã chốt”/i)).toBeInTheDocument();
   });
 });
