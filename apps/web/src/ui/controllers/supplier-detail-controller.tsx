@@ -28,6 +28,14 @@ export function SupplierDetailController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const supplier = useQuery(trpc.supplier.get.queryOptions({ workspaceId, supplierId }));
+  const [performanceAsOf] = useState(() => new Date().toISOString());
+  const performance = useQuery(
+    trpc.supplier.performance.queryOptions({
+      workspaceId,
+      supplierId,
+      asOf: performanceAsOf,
+    }),
+  );
   const balance = useQuery(trpc.supplier.balance.queryOptions({ workspaceId, supplierId }));
   const reconciliation = useQuery(
     trpc.supplier.reconciliation.queryOptions({ workspaceId, supplierId }),
@@ -72,6 +80,7 @@ export function SupplierDetailController() {
     setPriceHistoryPages([]);
     void Promise.all([
       supplier.refetch(),
+      performance.refetch(),
       balance.refetch(),
       reconciliation.refetch(),
       timeline.refetch(),
@@ -80,6 +89,7 @@ export function SupplierDetailController() {
   }, [
     balance.refetch,
     priceHistory.refetch,
+    performance.refetch,
     reconciliation.refetch,
     supplier.refetch,
     timeline.refetch,
@@ -112,6 +122,7 @@ export function SupplierDetailController() {
       query={supplier}
       balance={balance}
       reconciliation={reconciliation}
+      performance={performance}
       timeline={timeline}
       entries={entries}
       nextCursor={nextCursor}
@@ -171,6 +182,7 @@ export function SupplierDetailController() {
       onRetry={() => void supplier.refetch()}
       onBalanceRetry={() => void balance.refetch()}
       onReconciliationRetry={() => void reconciliation.refetch()}
+      onPerformanceRetry={() => void performance.refetch()}
       onTimelineRetry={() => void timeline.refetch()}
       onPriceHistoryRetry={() => void priceHistory.refetch()}
       onLoadMore={() => {

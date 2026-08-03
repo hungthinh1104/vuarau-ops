@@ -6,6 +6,7 @@ import type {
   SupplierAccountEntryDto,
   SupplierDto,
   SupplierPriceHistoryRowDto,
+  SupplierPerformanceDto,
   SupplierReconciliationDto,
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
@@ -29,6 +30,7 @@ export type SupplierDetailViewProps = {
   readonly query: QueryLike<SupplierDto>;
   readonly balance: QueryLike<SupplierAccountBalanceDto | null>;
   readonly reconciliation: QueryLike<SupplierReconciliationDto>;
+  readonly performance: QueryLike<SupplierPerformanceDto>;
   readonly timeline: QueryLike<Page<SupplierAccountEntryDto>>;
   readonly entries: readonly SupplierAccountEntryDto[];
   readonly nextCursor: string | null;
@@ -44,6 +46,7 @@ export type SupplierDetailViewProps = {
   readonly onRetry: () => void;
   readonly onBalanceRetry: () => void;
   readonly onReconciliationRetry: () => void;
+  readonly onPerformanceRetry: () => void;
   readonly onTimelineRetry: () => void;
   readonly onPriceHistoryRetry: () => void;
   readonly onLoadMore: () => void;
@@ -76,6 +79,13 @@ export function SupplierDetailView(props: SupplierDetailViewProps) {
               <LinkButton href={`/purchases/new?supplierId=${record.id}`}>Tạo đơn mua</LinkButton>
             ) : null}
           </div>
+          <QueryStates
+            query={props.performance}
+            loadingLabel="Đang dựng hiệu quả nhà cung cấp"
+            onRetry={props.onPerformanceRetry}
+          >
+            {(performance) => <SupplierPerformanceSection performance={performance} />}
+          </QueryStates>
           <section aria-labelledby="supplier-price-history-title" className="flex flex-col gap-3">
             <div>
               <h2 id="supplier-price-history-title" className="text-subheading font-semibold">
@@ -247,6 +257,133 @@ export function SupplierDetailView(props: SupplierDetailViewProps) {
       )}
     </QueryStates>
   );
+}
+
+function SupplierPerformanceSection({
+  performance,
+}: {
+  readonly performance: SupplierPerformanceDto;
+}) {
+  return (
+    <section
+      aria-labelledby="supplier-performance-title"
+      className="flex flex-col gap-3 rounded-card border border-border bg-surface p-4"
+    >
+      <div>
+        <h2 id="supplier-performance-title" className="text-subheading font-semibold">
+          Hiệu quả nhà cung cấp
+        </h2>
+        <p className="text-caption text-ink-muted">
+          Tóm tắt dữ kiện giao, nhận và thời gian theo policy đã duyệt; không phải điểm xếp hạng hay
+          đề xuất mua hàng.
+        </p>
+      </div>
+      {performance.status === "unavailable" ? (
+        <div role="status" className="rounded-input bg-warning-soft px-3 py-2 text-body-sm">
+          <p>Chưa có kết quả hiệu quả nhà cung cấp.</p>
+          <p className="text-caption text-ink-muted">
+            {performance.diagnostics.join(", ") || "Nguồn dữ kiện chưa đủ để tính."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <PerformanceValue
+              label="Quan sát dùng được"
+              value={String(performance.measurementObservationCount)}
+            />
+            <PerformanceValue
+              label="Đúng hẹn"
+              value={
+                performance.timing === null
+                  ? "Chưa có số"
+                  : `${performance.timing.onTimeCount}/${performance.timing.measuredCount}`
+              }
+            />
+            <PerformanceValue
+              label="Trễ hẹn"
+              value={
+                performance.timing === null ? "Chưa có số" : String(performance.timing.lateCount)
+              }
+            />
+          </div>
+          {performance.quantityMetrics.length === 0 ? (
+            <p className="text-body-sm text-ink-muted">Chưa có dữ kiện số lượng đủ cùng đơn vị.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-card border border-border">
+              <table className="data-table min-w-full text-body-sm">
+                <caption className="sr-only">Dữ kiện số lượng nhà cung cấp</caption>
+                <thead>
+                  <tr>
+                    <th scope="col" className="px-3 py-2 text-left font-medium">
+                      Đơn vị
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">
+                      Đã hứa
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">
+                      Đã giao
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">
+                      Tỷ lệ giao
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">
+                      Tỷ lệ nhận
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {performance.quantityMetrics.map((metric) => (
+                    <tr key={metric.unit}>
+                      <th scope="row" className="px-3 py-2 text-left font-medium">
+                        {metric.unit}
+                      </th>
+                      <td className="px-3 py-2 text-right">
+                        {metric.promisedQuantity === null
+                          ? "Chưa có số"
+                          : formatQuantity(metric.promisedQuantity)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {metric.actualQuantity === null
+                          ? "Chưa có số"
+                          : formatQuantity(metric.actualQuantity)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatBasisPoints(metric.fulfilmentRateBasisPoints)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatBasisPoints(metric.acceptanceRateBasisPoints)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+      <p className="text-caption text-ink-muted">
+        Policy v{performance.policyVersion ?? "chưa có"} · nguồn{" "}
+        {performance.sourceObservationIds.length}
+      </p>
+    </section>
+  );
+}
+
+function PerformanceValue({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div className="rounded-input border border-border bg-surface-muted/50 p-3">
+      <span className="block text-caption text-ink-muted">{label}</span>
+      <strong className="tabular mt-1 block text-subheading text-ink">{value}</strong>
+    </div>
+  );
+}
+
+function formatBasisPoints(value: number | null): string {
+  if (value === null) return "Chưa có số";
+  const whole = Math.floor(value / 100);
+  const fractional = String(value % 100).padStart(2, "0");
+  return `${whole}.${fractional}%`;
 }
 
 function sourceHref(entry: SupplierAccountEntryDto): string | null {

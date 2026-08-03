@@ -4,6 +4,7 @@ import type {
   SupplierAccountEntryDto,
   SupplierDto,
   SupplierPriceHistoryRowDto,
+  SupplierPerformanceDto,
   SupplierReconciliationDto,
 } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
@@ -42,6 +43,24 @@ const priceHistoryRow: SupplierPriceHistoryRowDto = {
   confirmedAt: RECORDED_AT,
 };
 
+const performance: SupplierPerformanceDto = {
+  workspaceId: WORKSPACE_ID,
+  supplierId,
+  asOf: RECORDED_AT,
+  windowStart: RECORDED_AT,
+  status: "unavailable",
+  policyVersionId: null,
+  policyVersion: null,
+  strategy: null,
+  calculationVersion: "supplier-performance-v1",
+  diagnostics: ["no_effective_supplier_evaluation_policy"],
+  observationCount: 0,
+  measurementObservationCount: 0,
+  sourceObservationIds: [],
+  quantityMetrics: [],
+  timing: null,
+};
+
 const ready = <T,>(data: T) => ({
   isPending: false,
   isError: false,
@@ -66,6 +85,7 @@ function renderView(
         canonical: null,
         diagnostics: [],
       } satisfies SupplierReconciliationDto)}
+      performance={ready(performance)}
       timeline={ready({ items: [], nextCursor: null } satisfies Page<SupplierAccountEntryDto>)}
       entries={[]}
       nextCursor={null}
@@ -81,6 +101,7 @@ function renderView(
       onRetry={() => undefined}
       onBalanceRetry={() => undefined}
       onReconciliationRetry={() => undefined}
+      onPerformanceRetry={() => undefined}
       onTimelineRetry={() => undefined}
       onPriceHistoryRetry={() => undefined}
       onLoadMore={() => undefined}
