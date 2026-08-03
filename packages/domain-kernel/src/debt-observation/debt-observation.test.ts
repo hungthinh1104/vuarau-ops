@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { it } from "vitest";
 import assert from "node:assert/strict";
 import { recordDebtObservationCommandSchema } from "@vuarau/domain-contracts";
 import { decideRecordDebtObservation } from "./index.ts";
@@ -15,28 +15,30 @@ function command(overrides: Record<string, unknown> = {}) {
     commandId: id("100"),
     occurredAt: RECORDED_AT,
     idempotencyKey: "debt-observation-1",
-    debtObservationId: id("101"),
-    kind: "agreed_due_date",
-    caseKind: "normal",
-    description: "Khách hẹn thanh toán sau chuyến giao.",
-    participantWording: "Chiều thứ sáu tôi chuyển khoản.",
-    facts: {
-      amount: { amountMinor: 250_000, currency: "VND" },
-      agreedDueAt: "2026-08-07T17:00:00.000Z",
-      promiseToPayAt: null,
-      termCode: "FRIDAY",
-      termText: "Thanh toán cuối tuần",
-      paymentReference: null,
-      allocationProposal: null,
-      customerId: null,
+    payload: {
+      debtObservationId: id("101"),
+      kind: "agreed_due_date",
+      caseKind: "normal",
+      description: "Khách hẹn thanh toán sau chuyến giao.",
+      participantWording: "Chiều thứ sáu tôi chuyển khoản.",
+      facts: {
+        amount: { amountMinor: 250_000, currency: "VND" },
+        agreedDueAt: "2026-08-07T17:00:00.000Z",
+        promiseToPayAt: null,
+        termCode: "FRIDAY",
+        termText: "Thanh toán cuối tuần",
+        paymentReference: null,
+        allocationProposal: null,
+        customerId: null,
+      },
+      evidenceReferences: ["external://field/debt-001"],
+      relatedObservationId: null,
     },
-    evidenceReferences: ["external://field/debt-001"],
-    relatedObservationId: null,
     ...overrides,
   });
 }
 
-test("TC-EVIDENCE-033 preserves debt evidence without a ledger effect", () => {
+it("TC-EVIDENCE-033 preserves debt evidence without a ledger effect", () => {
   const result = decideRecordDebtObservation(command(), RECORDED_AT, false);
   assert.equal(result.ok, true);
   if (!result.ok) return;
@@ -44,13 +46,22 @@ test("TC-EVIDENCE-033 preserves debt evidence without a ledger effect", () => {
   assert.equal(result.value.observation.facts.termText, "Thanh toán cuối tuần");
   assert.equal(result.value.audit.aggregateType, "debt_observation");
   assert.equal(result.value.audit.action, "debt_observation.recorded");
-  assert.equal("overdue" in result.value.audit.after, false);
-  assert.equal("ledgerEffect" in result.value.audit.after, false);
+  assert.equal(result.value.audit.after === null || "overdue" in result.value.audit.after, false);
+  assert.equal(
+    result.value.audit.after === null || "ledgerEffect" in result.value.audit.after,
+    false,
+  );
 });
 
-test("TC-EVIDENCE-034 requires a same-workspace correction target", () => {
+it("TC-EVIDENCE-034 requires a same-workspace correction target", () => {
   const missing = decideRecordDebtObservation(
-    command({ caseKind: "correction", relatedObservationId: id("102") }),
+    command({
+      payload: {
+        ...command().payload,
+        caseKind: "correction",
+        relatedObservationId: id("102"),
+      },
+    }),
     RECORDED_AT,
     false,
   );
@@ -58,7 +69,13 @@ test("TC-EVIDENCE-034 requires a same-workspace correction target", () => {
   if (!missing.ok) assert.equal(missing.error.code, "DEBT_OBSERVATION_CORRECTION_TARGET_NOT_FOUND");
 
   const linked = decideRecordDebtObservation(
-    command({ caseKind: "correction", relatedObservationId: id("102") }),
+    command({
+      payload: {
+        ...command().payload,
+        caseKind: "correction",
+        relatedObservationId: id("102"),
+      },
+    }),
     RECORDED_AT,
     true,
   );
