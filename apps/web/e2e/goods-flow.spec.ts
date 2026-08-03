@@ -28,10 +28,11 @@ test.describe("Goods Truth", () => {
     await page.goto("/quality-grades");
     const qualityGradeName = `Loại 2 Goods ${Date.now()}`;
     await page.getByLabel("Tên phẩm cấp").fill(qualityGradeName);
-    await page.getByLabel("Thứ tự").fill("20");
+    await page.getByLabel("Thứ tự").fill("-10000");
     const addGrade = page.getByRole("button", { name: "Thêm phẩm cấp" });
     await addGrade.focus();
     await addGrade.press("Enter");
+    await page.getByLabel("Tìm phẩm cấp").fill(qualityGradeName);
     await expect(page.getByText(qualityGradeName, { exact: true })).toBeVisible();
 
     const productName = `${String(Number.MAX_SAFE_INTEGER - Date.now()).padStart(16, "0")} Cải Goods`;

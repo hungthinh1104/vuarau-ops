@@ -8,6 +8,12 @@ async function chooseOption(scope: Page | Locator, label: string, option: string
   await scope.getByRole("option", { name: option, exact: true }).click();
 }
 
+async function chooseSupplierOption(page: Page, supplierName: string): Promise<void> {
+  await page.getByRole("combobox", { name: "Nhà cung cấp", exact: true }).click();
+  await page.getByRole("searchbox", { name: "Tìm nhà cung cấp" }).fill(supplierName);
+  await page.getByRole("option", { name: supplierName, exact: true }).click();
+}
+
 async function chooseProductOption(page: Page, productName: string): Promise<void> {
   await page.getByRole("combobox", { name: "Mặt hàng", exact: true }).click();
   await page.getByRole("searchbox", { name: "Tìm mặt hàng" }).fill(productName);
@@ -36,10 +42,11 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     const secondGrade = `Hạng B ${suffix}`;
     await page.goto("/quality-grades");
     await page.getByLabel("Tên phẩm cấp").fill(secondGrade);
-    await page.getByLabel("Thứ tự").fill("20");
+    await page.getByLabel("Thứ tự").fill("-10000");
     const addGrade = page.getByRole("button", { name: "Thêm phẩm cấp" });
     await addGrade.focus();
     await addGrade.press("Enter");
+    await page.getByLabel("Tìm phẩm cấp").fill(secondGrade);
     await expect(page.getByText(secondGrade, { exact: true })).toBeVisible();
     const secondGradeId = await api.qualityGradeIdByName(secondGrade);
 
@@ -58,7 +65,7 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await page.waitForURL(/\/suppliers\/[0-9a-f-]+$/);
 
     await page.goto("/purchases/new");
-    await chooseOption(page, "Nhà cung cấp", supplierName);
+    await chooseSupplierOption(page, supplierName);
     await chooseProductOption(page, productName);
     await page.getByLabel("Số lượng").fill("100");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
