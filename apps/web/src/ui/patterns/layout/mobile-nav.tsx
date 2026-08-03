@@ -78,35 +78,51 @@ export function MobileNavView({
   return (
     <nav
       aria-label="Điều hướng di động"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface lg:hidden"
+      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-2 right-2 sm:left-4 sm:right-4 z-40 lg:hidden pointer-events-none"
     >
-      <ul className="mx-auto flex max-w-xl">
-        {visibleItems.map((item) => {
-          const active = item.activeHref !== null && activeHref === item.activeHref;
-          const Icon = item.icon;
-          return (
-            <li key={`${item.label}:${item.href}`} className="flex-1">
-              <Link
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={[
-                  "touch-target relative flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 text-center text-caption font-medium transition-colors",
-                  active ? "text-brand" : "text-ink-muted hover:text-ink",
-                ].join(" ")}
-              >
-                <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} />
-                <span>{item.label}</span>
-                {active ? (
-                  <span
+      <div className="mx-auto max-w-[420px] pointer-events-auto p-1.5 rounded-[24px] sm:rounded-3xl border border-border bg-surface/70 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-ink/5">
+        <ul className="flex items-center justify-between gap-1">
+          {visibleItems.map((item) => {
+            const active = item.activeHref !== null && activeHref === item.activeHref;
+            const Icon = item.icon;
+            return (
+              <li key={`${item.label}:${item.href}`} className="flex-1">
+                <Link
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={[
+                    "touch-target relative flex min-h-[60px] w-full flex-col items-center justify-center gap-1 rounded-[18px] sm:rounded-[20px] transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    active ? "bg-surface shadow-sm ring-1 ring-ink/5" : "hover:bg-surface/50",
+                  ].join(" ")}
+                >
+                  <Icon
                     aria-hidden="true"
-                    className="absolute bottom-1 h-1 w-5 rounded-pill bg-brand"
+                    className={[
+                      "h-[20px] w-[20px] sm:h-[22px] sm:w-[22px] transition-colors duration-200",
+                      active ? "text-primary" : "text-ink-muted/60",
+                    ].join(" ")}
+                    strokeWidth={active ? 2.2 : 1.8}
                   />
-                ) : null}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+                  <span
+                    className={[
+                      "text-[9px] sm:text-[10px] font-bold transition-colors duration-200 tracking-tight whitespace-nowrap",
+                      active ? "text-primary" : "text-ink-muted/80",
+                    ].join(" ")}
+                  >
+                    {item.label}
+                  </span>
+                  {active ? (
+                    <span
+                      aria-hidden="true"
+                      className="absolute -top-[5px] h-1.5 w-5 sm:w-6 rounded-full bg-primary shadow-[0_2px_8px_rgba(59,166,241,0.6)]"
+                    />
+                  ) : null}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </nav>
   );
 }
