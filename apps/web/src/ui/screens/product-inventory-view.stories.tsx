@@ -5,6 +5,7 @@ import type {
   InventoryValuationResult,
   ProductDto,
   QualityGradeDto,
+  StockPlanningDto,
   WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
 import {
@@ -186,6 +187,28 @@ const readyValuation: {
   },
 };
 
+const readyPlanning: {
+  readonly isPending: false;
+  readonly isError: false;
+  readonly error: null;
+  readonly data: StockPlanningDto;
+} = {
+  isPending: false,
+  isError: false,
+  error: null,
+  data: {
+    status: "unavailable",
+    workspaceId: WORKSPACE_ID,
+    asOf: LATER_TRANSACTION_TIME,
+    policyVersionId: null,
+    strategy: null,
+    calculationVersion: "stock-planning-v1",
+    calculatedAt: LATER_RECORDED_AT,
+    diagnostics: ["no_effective_stock_planning_policy"],
+    rows: [],
+  },
+};
+
 const adjustment = (
   <InventoryAdjustmentPanel
     grades={grades}
@@ -213,6 +236,7 @@ const meta = {
     productQuery: readyProduct,
     balancesQuery: readyBalances,
     valuationQuery: readyValuation,
+    planningQuery: readyPlanning,
     timelineQuery: readyTimeline,
     balances,
     grades,

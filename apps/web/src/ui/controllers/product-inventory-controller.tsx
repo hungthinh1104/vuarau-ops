@@ -10,11 +10,17 @@ import type {
   ProductId,
   QualityGradeDto,
   QualityGradeId,
+  StocktakeCountId,
+  StocktakeDto,
+  StocktakeSessionId,
   Unit,
 } from "@vuarau/domain-contracts";
 import {
   adjustInventoryCommandSchema,
+  approveStocktakeCommandSchema,
+  recordStocktakeCountCommandSchema,
   reclassifyInventoryCommandSchema,
+  startStocktakeCommandSchema,
 } from "@vuarau/domain-contracts";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -30,6 +36,7 @@ import {
   InventoryReclassificationPanel,
   type InventoryReclassificationIntent,
 } from "@/ui/patterns/inventory/inventory-reclassification-panel.tsx";
+import { InventoryStocktakePanel } from "@/ui/patterns/inventory/inventory-stocktake-panel.tsx";
 import { ProductInventoryView } from "@/ui/screens/product-inventory-view.tsx";
 
 export function ProductInventoryController() {
@@ -45,6 +52,12 @@ export function ProductInventoryController() {
       productId,
       qualityGradeId: null,
       unit: null,
+      asOf: valuationAsOf,
+    }),
+  );
+  const planning = useQuery(
+    trpc.inventory.planning.queryOptions({
+      workspaceId,
       asOf: valuationAsOf,
     }),
   );
@@ -86,6 +99,7 @@ export function ProductInventoryController() {
       productQuery={product}
       balancesQuery={balances}
       valuationQuery={valuation}
+      planningQuery={planning}
       timelineQuery={timeline}
       balances={balances.data ?? []}
       grades={activeGrades}
@@ -127,6 +141,108 @@ export function ProductInventoryController() {
           />
         ) : undefined
       }
+      stocktake={
+        session.permissions.includes("inventory.adjust") ? (
+          <InventoryStocktakeCommandPanel productId={productId} grades={activeGrades} />
+        ) : undefined
+      }
+    />
+  );
+}
+
+function InventoryStocktakeCommandPanel(props: {
+  readonly productId: ProductId;
+  readonly grades: readonly QualityGradeDto[];
+}) {
+  const trpc = useTRPC();
+  const [session, setSession] = useState<StocktakeDto | null>(null);
+  const sessionId = useRef(crypto.randomUUID() as StocktakeSessionId);
+  const countId = useRef(crypto.randomUUID() as StocktakeCountId);
+  const startMutation = useMutation(trpc.inventory.stocktakeStart.mutationOptions());
+  const countMutation = useMutation(trpc.inventory.stocktakeCount.mutationOptions());
+  const approveMutation = useMutation(trpc.inventory.stocktakeApprove.mutationOptions());
+  const startCommand = useContractCommand(startStocktakeCommandSchema, startMutation.mutateAsync);
+  const countCommand = useContractCommand(
+    recordStocktakeCountCommandSchema,
+    countMutation.mutateAsync,
+  );
+  const approveCommand = useContractCommand(
+    approveStocktakeCommandSchema,
+    approveMutation.mutateAsync,
+  );
+  const latestCommand =
+    approveCommand.result !== null
+      ? approveCommand
+      : countCommand.result !== null
+        ? countCommand
+        : startCommand;
+  const locked = [startCommand, countCommand, approveCommand].some(
+    (command) => command.phase.kind === "sending" || command.phase.kind === "unknown",
+  );
+
+  function feedback() {
+    return (
+      <CommandOutcome
+        command={latestCommand}
+        attemptedAction="Kiểm kê tồn kho"
+        onReload={() => undefined}
+      />
+    );
+  }
+
+  return (
+    <InventoryStocktakePanel
+      productId={props.productId}
+      grades={props.grades}
+      session={session}
+      locked={locked}
+      onStart={({ scopeReference, note }) => {
+        void startCommand
+          .submit({
+            stocktakeSessionId: sessionId.current,
+            asOf: new Date().toISOString(),
+            scopeReference,
+            note,
+            evidenceReferences: [],
+          })
+          .then((result) => {
+            if (result !== null) setSession(result);
+          });
+      }}
+      onCount={({ qualityGradeId, qualityGradeName, quantity }) => {
+        if (session === null) return;
+        void countCommand
+          .submit({
+            stocktakeCountId: countId.current,
+            stocktakeSessionId: session.id,
+            productId: props.productId,
+            qualityGradeId,
+            qualityGradeName,
+            quantity,
+            supersedesCountId: null,
+            evidenceReferences: [],
+          })
+          .then((result) => {
+            if (result !== null) {
+              countId.current = crypto.randomUUID() as StocktakeCountId;
+              setSession(result);
+            }
+          });
+      }}
+      onApprove={(reason) => {
+        if (session === null) return;
+        void approveCommand
+          .submit({
+            stocktakeSessionId: session.id,
+            expectedVersion: session.version,
+            evidenceReferences: [],
+            reason,
+          })
+          .then((result) => {
+            if (result !== null) setSession(result);
+          });
+      }}
+      feedback={feedback()}
     />
   );
 }

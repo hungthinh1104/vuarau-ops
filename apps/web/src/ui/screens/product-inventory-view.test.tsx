@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import type {
   InventoryValuationResult,
   ProductDto,
+  StockPlanningDto,
   WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
@@ -33,6 +34,17 @@ const baseProps = (valuation: InventoryValuationResult): ProductInventoryViewPro
   productQuery: ready(product),
   balancesQuery: ready([]),
   valuationQuery: ready(valuation),
+  planningQuery: ready({
+    status: "unavailable",
+    workspaceId: WORKSPACE_ID,
+    asOf: TRANSACTION_TIME,
+    policyVersionId: null,
+    strategy: null,
+    calculationVersion: "stock-planning-v1",
+    calculatedAt: RECORDED_AT,
+    diagnostics: ["no_effective_stock_planning_policy"],
+    rows: [],
+  } satisfies StockPlanningDto),
   timelineQuery: { ...ready({}), isFetching: false },
   balances: [],
   grades: [],

@@ -7,6 +7,7 @@ import type {
   ProductDto,
   QualityGradeDto,
   QualityGradeId,
+  StockPlanningDto,
   Unit,
 } from "@vuarau/domain-contracts";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
@@ -25,6 +26,7 @@ export type ProductInventoryViewProps = {
   readonly productQuery: QueryLike<ProductDto>;
   readonly balancesQuery: QueryLike<readonly InventoryBalanceDto[]>;
   readonly valuationQuery: QueryLike<InventoryValuationResult>;
+  readonly planningQuery: QueryLike<StockPlanningDto>;
   readonly timelineQuery: QueryLike<unknown> & { readonly isFetching: boolean };
   readonly balances: readonly InventoryBalanceDto[];
   readonly grades: readonly QualityGradeDto[];
@@ -34,6 +36,7 @@ export type ProductInventoryViewProps = {
   readonly hasMore: boolean;
   readonly adjustment?: ReactNode;
   readonly reclassification?: ReactNode;
+  readonly stocktake?: ReactNode;
   readonly onGradeFilterChange: (value: QualityGradeId | null | undefined) => void;
   readonly onUnitFilterChange: (value: Unit | null) => void;
   readonly onLoadMore: () => void;
@@ -49,6 +52,7 @@ export function ProductInventoryView({
   productQuery,
   balancesQuery,
   valuationQuery,
+  planningQuery,
   timelineQuery,
   balances,
   grades,
@@ -58,6 +62,7 @@ export function ProductInventoryView({
   hasMore,
   adjustment,
   reclassification,
+  stocktake,
   onGradeFilterChange,
   onUnitFilterChange,
   onLoadMore,
@@ -105,6 +110,20 @@ export function ProductInventoryView({
         </div>
         <QueryStates query={valuationQuery} loadingLabel="Đang tính giá trị tồn kho">
           {(valuation) => <InventoryValuationResultView result={valuation} />}
+        </QueryStates>
+      </section>
+
+      <section aria-labelledby="planning-title" className="grid gap-3">
+        <div>
+          <h2 id="planning-title" className="text-subheading font-semibold">
+            Kế hoạch tồn kho
+          </h2>
+          <p className="text-body-sm text-ink-muted">
+            Chỉ hiển thị khuyến nghị khi workspace đã duyệt policy lập kế hoạch.
+          </p>
+        </div>
+        <QueryStates query={planningQuery} loadingLabel="Đang tính kế hoạch tồn kho">
+          {(result) => <StockPlanningResultView productId={productId} result={result} />}
         </QueryStates>
       </section>
 
@@ -170,6 +189,40 @@ export function ProductInventoryView({
 
       {adjustment}
       {reclassification}
+      {stocktake}
+    </div>
+  );
+}
+
+function StockPlanningResultView({
+  productId,
+  result,
+}: {
+  readonly productId: ProductDto["id"];
+  readonly result: StockPlanningDto;
+}) {
+  if (result.status === "unavailable") {
+    return (
+      <p className="rounded-card border border-border bg-canvas p-3 text-body-sm">
+        Kế hoạch chưa sẵn sàng: {result.diagnostics.join(", ") || "chưa có policy hiệu lực"}.
+      </p>
+    );
+  }
+  const rows = result.rows.filter((row) => row.productId === productId);
+  return rows.length === 0 ? (
+    <p className="text-body-sm text-ink-muted">Mặt hàng này chưa có rule tồn kho.</p>
+  ) : (
+    <div className="grid gap-2">
+      {rows.map((row) => (
+        <div
+          key={`${row.qualityGradeId ?? "legacy"}:${row.unit}`}
+          className="grid gap-1 rounded-card border border-border bg-surface p-3 sm:grid-cols-3"
+        >
+          <span>{row.qualityGradeId ?? "Chưa phân loại"}</span>
+          <span className="tabular-nums">Hiện tại: {formatQuantity(row.currentQuantity)}</span>
+          <span className="tabular-nums">Đề xuất: {formatQuantity(row.suggestedQuantity)}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -274,7 +327,7 @@ function movementHref(movement: InventoryMovementDto): string | null {
     case "quality_disposition":
       return `/quality/dispositions/${source.id}`;
     case "stocktake":
-      return `/inventory/stocktakes/${source.id}`;
+      return null;
   }
 }
 
