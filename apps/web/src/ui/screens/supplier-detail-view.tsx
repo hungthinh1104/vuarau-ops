@@ -94,10 +94,10 @@ export function SupplierDetailView(props: SupplierDetailViewProps) {
                 props.priceHistoryItems.length === 0 ? (
                   <p>Chưa có dòng mua đã chốt.</p>
                 ) : (
-                  <div className="overflow-x-auto rounded-card border border-border bg-surface">
-                    <table className="min-w-full text-body-sm">
-                      <caption className="sr-only">Lịch sử giá mua đã chốt</caption>
-                      <thead className="border-b border-border text-left text-caption text-ink-muted">
+                    <div className="overflow-x-auto rounded-card border border-border bg-surface shadow-sm">
+                      <table className="data-table min-w-full text-body-sm">
+                        <caption className="sr-only">Lịch sử giá mua đã chốt</caption>
+                        <thead className="sticky top-0 z-10">
                         <tr>
                           <th scope="col" className="px-4 py-3 font-medium">
                             Mặt hàng

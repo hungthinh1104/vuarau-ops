@@ -256,10 +256,10 @@ function ReportResult(props: {
       ) : (
         <div
           id="report-sources"
-          className="overflow-x-auto rounded-card border border-border bg-surface"
+          className="overflow-x-auto rounded-card border border-border bg-surface shadow-sm"
         >
           <table className="data-table min-w-[820px] text-left text-body-sm">
-            <thead className="sticky top-0 z-10 bg-surface-muted text-label">
+            <thead className="sticky top-0 z-10">
               <tr>
                 <th className="p-3">Nguồn</th>
                 <th className="p-3">Phẩm cấp</th>

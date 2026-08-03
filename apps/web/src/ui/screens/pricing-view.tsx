@@ -151,7 +151,7 @@ export function PricingView(props: PricingViewProps) {
                     />
                   ))}
                 </ul>
-                <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
+                <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
                   <table className="data-table w-full min-w-[1050px] table-fixed text-left text-body-sm">
                     <caption className="sr-only">Lịch sử rule giá</caption>
                     <colgroup>
@@ -163,7 +163,7 @@ export function PricingView(props: PricingViewProps) {
                       <col className="w-[16%]" />
                       <col className="w-[10%]" />
                     </colgroup>
-                    <thead className="border-b border-border bg-surface-muted text-label">
+                    <thead className="sticky top-0 z-10">
                       <tr>
                         <th scope="col" className="px-3 py-3">
                           Mặt hàng

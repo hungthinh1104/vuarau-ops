@@ -129,9 +129,9 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
         ))}
       </ul>
 
-      <div className="hidden overflow-x-auto rounded-card border border-border lg:block">
+      <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
         <table className="data-table min-w-[1060px] text-left text-body-sm">
-          <thead className="sticky top-0 z-10 bg-surface-muted text-label">
+          <thead className="sticky top-0 z-10">
             <tr>
               <th className="px-3 py-2">Thời điểm</th>
               <th className="px-3 py-2">Khách hàng</th>
