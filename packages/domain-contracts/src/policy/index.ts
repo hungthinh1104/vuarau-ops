@@ -17,7 +17,6 @@ import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { supplierEvaluationPolicyDefinitionSchema } from "../supplier/index.ts";
-import { managementIntelligencePolicyDefinitionSchema } from "../management/index.ts";
 
 /**
  * Policy capabilities are named contracts, not a generic rule engine. A policy
