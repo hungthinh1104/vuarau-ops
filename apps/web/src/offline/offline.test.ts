@@ -106,6 +106,27 @@ describe("offline Quick Sale outbox", () => {
     );
   });
 
+  it("retains the customer snapshot needed to reopen a queued sale offline", () => {
+    const snapshot = {
+      customer: { id: "customer-a", displayName: "Khách A" },
+      balance: { amountMinor: 0, currency: "VND" },
+    } as never;
+    const built = buildOfflineSaleChain({
+      partition,
+      occurredAt: "2026-07-29T01:02:03.000Z",
+      sale: {
+        saleId: "sale-a",
+        customerId: "customer-a",
+        lines: [{ lineId: "line-a" }],
+        note: null,
+        replacesSaleId: null,
+        customerSnapshot: snapshot,
+      },
+    });
+
+    expect(built.draft.customerSnapshot).toBe(snapshot);
+  });
+
   it("derives a queued draft from its pending outbox chain after an autosave race", async () => {
     const built = chain("sale-a");
     const database = new OfflineDatabase();

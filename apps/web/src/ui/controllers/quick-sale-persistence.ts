@@ -50,6 +50,10 @@ export function useQuickSalePersistence(props: QuickSalePersistenceProps) {
         props.setNote(saved.note ?? "");
         props.setEvidenceReferences(saved.evidenceReferences.join("\n"));
         props.setLocallyQueued(saved.syncState !== "local");
+        if (saved.customerSnapshot !== undefined) {
+          setCachedCustomer(saved.customerSnapshot);
+          setCacheFetchedAt(saved.updatedAt);
+        }
       }
       setLocalHydrated(true);
     });
@@ -74,6 +78,7 @@ export function useQuickSalePersistence(props: QuickSalePersistenceProps) {
       lines: props.lines,
       note: props.note.trim().length === 0 ? null : props.note,
       evidenceReferences: [...props.evidenceReferences],
+      ...(props.customer.data === undefined ? {} : { customerSnapshot: props.customer.data }),
       occurredAt: new Date().toISOString(),
       syncState: "local",
       updatedAt: new Date().toISOString(),

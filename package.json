@@ -48,7 +48,7 @@
     "policy:closure:test": "node --test scripts/policy-closure.test.ts",
     "field:observation": "node scripts/field-observation.ts",
     "field:observation:test": "node --test scripts/field-observation.test.ts",
-    "verify": "pnpm check:static && pnpm test && pnpm web:build && pnpm web:storybook && pnpm web:e2e",
+    "verify": "pnpm check:static && pnpm test && pnpm web:build && pnpm web:storybook && pnpm web:e2e:build && pnpm web:e2e",
     "web:build": "pnpm --filter @vuarau/web build",
     "web:e2e:build": "NEXT_DIST_DIR=.next-e2e NEXT_PUBLIC_E2E_AUTH_BRIDGE=1 NEXT_PUBLIC_API_ORIGIN=http://127.0.0.1:${E2E_API_PORT:-3102} NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY= NEXT_PUBLIC_SUPABASE_ANON_KEY= pnpm --filter @vuarau/web build",
     "web:storybook": "pnpm --filter @vuarau/web storybook:build",

@@ -1,3 +1,4 @@
+import type { CustomerDetailDto } from "@vuarau/domain-contracts";
 import type { OfflinePartition, OfflineSaleDraft, OutboxRecord } from "./types.ts";
 
 function identity(partition: OfflinePartition, occurredAt: string) {
@@ -26,6 +27,7 @@ export function buildOfflineSaleChain(args: {
     /** Optional for legacy callers and V1 IndexedDB drafts. */
     readonly evidenceReferences?: readonly string[];
     readonly replacesSaleId: string | null;
+    readonly customerSnapshot?: CustomerDetailDto;
   };
   /** Editable UI snapshot; command lines above are already parsed domain values. */
   draftLines?: readonly unknown[];
@@ -90,6 +92,9 @@ export function buildOfflineSaleChain(args: {
       lines: args.draftLines ?? args.sale.lines,
       note: args.sale.note,
       evidenceReferences: [...(args.sale.evidenceReferences ?? [])],
+      ...(args.sale.customerSnapshot === undefined
+        ? {}
+        : { customerSnapshot: args.sale.customerSnapshot }),
       occurredAt: args.occurredAt,
       syncState: "queued",
       updatedAt: createdAt,

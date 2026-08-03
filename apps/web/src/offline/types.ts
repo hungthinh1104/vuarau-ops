@@ -40,6 +40,8 @@ export type OfflineSaleDraft = {
   readonly lines: readonly unknown[];
   readonly note: string | null;
   readonly evidenceReferences: readonly string[];
+  /** Server-authored customer context needed to reopen a queued sale offline. */
+  readonly customerSnapshot?: CustomerDetailDto;
   readonly occurredAt: string;
   readonly syncState: "local" | OfflineCommandState;
   readonly updatedAt: string;

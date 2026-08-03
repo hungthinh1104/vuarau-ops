@@ -17,7 +17,7 @@ test.describe("Owner workspace operations", () => {
     const parsedBackup = workspaceBackupV17Schema.safeParse(JSON.parse(text));
     expect(parsedBackup.success).toBe(true);
     if (!parsedBackup.success) throw new Error(parsedBackup.error.message);
-    expect(parsedBackup.data.version).toBe(16);
+    expect(parsedBackup.data.version).toBe(17);
     expect(parsedBackup.data.payload.priceRules).toBeDefined();
     expect(parsedBackup.data.digest).toMatch(/^[a-f0-9]{64}$/);
     expect(text).not.toMatch(/SUPABASE|bearer|password|jwt/i);

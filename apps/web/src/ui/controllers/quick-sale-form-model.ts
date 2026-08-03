@@ -390,6 +390,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
       if (queueingRef.current) return;
       queueingRef.current = true;
       try {
+        const customerSnapshot = customer.data ?? cachedCustomer;
         await offline.queueSale({
           ...(pendingCustomerCreate === null ? {} : { customerCommand: pendingCustomerCreate }),
           sale: {
@@ -408,6 +409,9 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
             note: note.trim().length === 0 ? null : note.trim(),
             evidenceReferences: parseSourceEvidence(evidence),
             replacesSaleId: null,
+            ...(customerSnapshot === undefined || customerSnapshot === null
+              ? {}
+              : { customerSnapshot }),
           },
           draftLines: lines,
           occurredAt: new Date().toISOString(),
