@@ -13,6 +13,9 @@ import { getCustomerDebtAging } from "./account.queries.ts";
 import { createWorkspacePolicyDraft, approveWorkspacePolicy } from "../policy/policy.handlers.ts";
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
+import { exportWorkspaceBackup } from "../operations/operations.queries.ts";
+import { restoreWorkspaceBackup } from "../operations/restore-workspace.handler.ts";
+import { workspaceIdSchema } from "@vuarau/domain-contracts";
 
 function envelope(key: string) {
   return {
@@ -202,5 +205,37 @@ describe("UC-ACCOUNT-004 / BR-AGING-001 / TC-AGING-002", () => {
         termPolicyVersionId: termsPolicy.id,
       });
     }
+
+    const backup = await exportWorkspaceBackup(harness.ctx, {
+      ...envelope("debt-derived-sale-backup"),
+      payload: {},
+    });
+    expect(backup.ok).toBe(true);
+    if (!backup.ok) return;
+    expect(backup.value.payload.sales).toContainEqual(
+      expect.objectContaining({
+        id: created.value.id,
+        paymentTermsPolicyVersionId: termsPolicy.id,
+        paymentTermsSource: "workspace_policy",
+      }),
+    );
+
+    const target = workspaceIdSchema.parse("00000000-0000-4000-8000-0000000008b1");
+    harness.db.registerWorkspace(target, "Vựa phục hồi debt terms");
+    harness.db.grantMembership(target, ACTOR_ID, "owner", true);
+    const restored = await restoreWorkspaceBackup(harness.ctx, {
+      ...envelope("debt-derived-sale-restore"),
+      workspaceId: target,
+      payload: { backup: backup.value, reason: "Kiểm tra phục hồi term lineage." },
+    });
+    expect(restored.ok).toBe(true);
+    const restoredSale = await harness.deps.uow.transaction((repos) =>
+      repos.saleReads.get(target, created.value.id),
+    );
+    expect(restoredSale).toMatchObject({
+      paymentTermsPolicyVersionId: termsPolicy.id,
+      paymentTermsSource: "workspace_policy",
+      dueAt: "2026-07-26T22:00:00.000Z",
+    });
   });
 });

@@ -43,7 +43,7 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
     await ctx?.close();
   });
 
-  it("BR-AGING-003 / TC-AGING-003 — derives aging from real SQL sources", async () => {
+  it("BR-AGING-003 / BR-AGING-005 / TC-AGING-003 — derives aging and term lineage from real SQL sources", async () => {
     const policyEnvelope = (key: string) => envelope(key, "2026-07-01T00:00:00.000Z");
     const termsDraft = await createWorkspacePolicyDraft(owner, {
       ...policyEnvelope("db-aging-terms-draft"),
@@ -128,7 +128,7 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
         ],
         note: null,
         evidenceReferences: [],
-        dueAt: "2026-07-25T05:00:00.000Z",
+        dueAt: null,
         replacesSaleId: null,
       },
     });
@@ -178,6 +178,9 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
       expect(result.value.status).toBe("available");
       expect(result.value.status === "available" && result.value.rows[0]).toMatchObject({
         state: "overdue",
+        dueAt: "2026-07-27T05:00:00.000Z",
+        termSource: "workspace_policy",
+        termPolicyVersionId: terms.value.id,
         allocatedAmount: { amountMinor: 50_000, currency: "VND" },
         outstandingAmount: { amountMinor: 50_000, currency: "VND" },
       });
