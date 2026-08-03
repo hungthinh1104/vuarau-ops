@@ -84,6 +84,7 @@ export async function readArrival(
     supplierId: row.supplierId as GoodsArrivalDto["supplierId"],
     purchaseId: row.purchaseId as GoodsArrivalDto["purchaseId"],
     vehicleReference: row.vehicleReference,
+    evidenceReferences: row.evidenceReferences ?? [],
     lines: lines.map((line) => ({
       arrivalLineId: line.id as GoodsArrivalDto["lines"][number]["arrivalLineId"],
       purchaseLineId: line.purchaseLineId as GoodsArrivalDto["lines"][number]["purchaseLineId"],
@@ -122,6 +123,7 @@ export async function readArrival(
             commandId: reversalRow.commandId as NonNullable<
               GoodsArrivalDto["reversal"]
             >["commandId"],
+            evidenceReferences: reversalRow.evidenceReferences ?? [],
           },
   };
 }
@@ -294,6 +296,7 @@ export async function readDisposition(
       note: allocation.note,
     })),
     note: row.note,
+    evidenceReferences: row.evidenceReferences ?? [],
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
     actorId: row.actorId as QualityDispositionDto["actorId"],
@@ -310,6 +313,7 @@ export async function readDisposition(
             commandId: reversal.commandId as NonNullable<
               QualityDispositionDto["reversal"]
             >["commandId"],
+            evidenceReferences: reversal.evidenceReferences ?? [],
           },
   };
 }

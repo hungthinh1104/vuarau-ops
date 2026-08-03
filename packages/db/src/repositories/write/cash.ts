@@ -92,6 +92,7 @@ async function expenseDto(
     recordedAt: toIso(row.recordedAt),
     actorId: row.actorId as ExpenseDto["actorId"],
     commandId: row.commandId as ExpenseDto["commandId"],
+    evidenceReferences: row.evidenceReferences,
     reversal:
       reversal === undefined
         ? null
@@ -102,6 +103,7 @@ async function expenseDto(
             recordedAt: toIso(reversal.recordedAt),
             actorId: reversal.actorId as ExpenseDto["actorId"],
             commandId: reversal.commandId as NonNullable<ExpenseDto["reversal"]>["commandId"],
+            evidenceReferences: reversal.evidenceReferences,
           },
   };
 }
@@ -143,6 +145,7 @@ async function transferDto(
     recordedAt: toIso(row.recordedAt),
     actorId: row.actorId as CashTransferDto["actorId"],
     commandId: row.commandId as CashTransferDto["commandId"],
+    evidenceReferences: row.evidenceReferences,
     reversal:
       reversal === undefined
         ? null
@@ -153,6 +156,7 @@ async function transferDto(
             recordedAt: toIso(reversal.recordedAt),
             actorId: reversal.actorId as CashTransferDto["actorId"],
             commandId: reversal.commandId as NonNullable<CashTransferDto["reversal"]>["commandId"],
+            evidenceReferences: reversal.evidenceReferences,
           },
   };
 }
@@ -255,6 +259,7 @@ export const createCashWriteRepositories = (tx: Tx, ids: IdMinter) => ({
           recordedAt: fromIso(expense.recordedAt),
           actorId: expense.actorId,
           commandId: expense.commandId,
+          evidenceReferences: [...expense.evidenceReferences],
         })
         .onConflictDoNothing()
         .returning({ id: expenses.id });
@@ -273,6 +278,7 @@ export const createCashWriteRepositories = (tx: Tx, ids: IdMinter) => ({
           recordedAt: fromIso(expense.reversal.recordedAt),
           actorId: expense.reversal.actorId,
           commandId: expense.reversal.commandId,
+          evidenceReferences: [...expense.reversal.evidenceReferences],
         })
         .onConflictDoNothing()
         .returning({ id: expenseReversals.id });
@@ -299,6 +305,7 @@ export const createCashWriteRepositories = (tx: Tx, ids: IdMinter) => ({
           recordedAt: fromIso(transfer.recordedAt),
           actorId: transfer.actorId,
           commandId: transfer.commandId,
+          evidenceReferences: [...transfer.evidenceReferences],
         })
         .onConflictDoNothing()
         .returning({ id: cashTransfers.id });
@@ -317,6 +324,7 @@ export const createCashWriteRepositories = (tx: Tx, ids: IdMinter) => ({
           recordedAt: fromIso(transfer.reversal.recordedAt),
           actorId: transfer.reversal.actorId,
           commandId: transfer.reversal.commandId,
+          evidenceReferences: [...transfer.reversal.evidenceReferences],
         })
         .onConflictDoNothing()
         .returning({ id: cashTransferReversals.id });
@@ -335,6 +343,7 @@ export const createCashWriteRepositories = (tx: Tx, ids: IdMinter) => ({
       recordedAt: CashMovementDto["recordedAt"];
       actorId: CashMovementDto["actorId"];
       commandId: CashMovementDto["commandId"];
+      evidenceReferences: readonly string[];
     }) {
       const rows = await tx
         .insert(cashAdjustments)
@@ -350,6 +359,7 @@ export const createCashWriteRepositories = (tx: Tx, ids: IdMinter) => ({
           recordedAt: fromIso(adjustment.recordedAt),
           actorId: adjustment.actorId,
           commandId: adjustment.commandId,
+          evidenceReferences: [...adjustment.evidenceReferences],
         })
         .onConflictDoNothing()
         .returning({ id: cashAdjustments.id });

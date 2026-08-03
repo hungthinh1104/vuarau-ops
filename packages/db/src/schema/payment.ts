@@ -38,6 +38,7 @@ export const payments = pgTable(
     /** Who physically handed over the money, when that is not the customer. */
     payerName: text("payer_name"),
     note: text("note"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     status: paymentStatusEnum("status").notNull(),
     reversedAmountMinor: bigint("reversed_amount_minor", { mode: "number" }).notNull().default(0),
     version: integer("version").notNull(),
@@ -76,6 +77,7 @@ export const paymentReversals = pgTable(
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },

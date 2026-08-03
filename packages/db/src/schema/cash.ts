@@ -72,6 +72,7 @@ export const expenses = pgTable(
     commandId: uuid("command_id")
       .notNull()
       .references(() => commandReceipts.commandId),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -106,6 +107,7 @@ export const expenseReversals = pgTable(
     commandId: uuid("command_id")
       .notNull()
       .references(() => commandReceipts.commandId),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -136,6 +138,7 @@ export const cashTransfers = pgTable(
     commandId: uuid("command_id")
       .notNull()
       .references(() => commandReceipts.commandId),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -178,6 +181,7 @@ export const cashTransferReversals = pgTable(
     commandId: uuid("command_id")
       .notNull()
       .references(() => commandReceipts.commandId),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -208,6 +212,7 @@ export const cashAdjustments = pgTable(
     commandId: uuid("command_id")
       .notNull()
       .references(() => commandReceipts.commandId),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),

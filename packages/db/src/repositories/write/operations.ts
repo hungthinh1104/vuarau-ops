@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV8 } from "@vuarau/domain-contracts";
+import type { WorkspaceId, WorkspaceBackupV10 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -44,6 +44,8 @@ import {
   documentShares,
   workspaceOperationalProfiles,
   workspaces,
+  costObservations,
+  reconciliationObservations,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 import { restoreInspectedIntake, restoreQualityIssueCodes } from "./operations-intake-restore.ts";
@@ -51,7 +53,7 @@ import { targetContainsBusinessData } from "./operations-target.ts";
 
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV8["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV10["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -98,6 +100,8 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         ...payload.documents.map((row) => row["generatedBy"]),
         ...payload.documentShares.flatMap((row) => [row["createdBy"], row["revokedBy"]]),
         ...payload.priceRules.map((row) => row["actorId"]),
+        ...payload.costObservations.map((row) => row["actorId"]),
+        ...payload.reconciliationObservations.map((row) => row["actorId"]),
       ].filter((value): value is string => typeof value === "string");
       if (actorIds.length > 0) {
         const existing = await tx
@@ -185,6 +189,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
               updatedAt: date(row["updatedAt"]),
@@ -229,6 +234,30 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           }) as unknown as (typeof priceRules.$inferInsert)[],
         );
       }
+      if (payload.costObservations.length > 0) {
+        await tx.insert(costObservations).values(
+          payload.costObservations.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof costObservations.$inferInsert)[],
+        );
+      }
+      if (payload.reconciliationObservations.length > 0) {
+        await tx.insert(reconciliationObservations).values(
+          payload.reconciliationObservations.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof reconciliationObservations.$inferInsert)[],
+        );
+      }
       await restoreQualityIssueCodes(tx, payload, scoped, date);
       if (payload.suppliers.length > 0) {
         await tx.insert(suppliers).values(
@@ -248,6 +277,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
               postedAt: row["postedAt"] == null ? null : date(row["postedAt"]),
@@ -267,6 +297,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
               dispatchedAt: row["dispatchedAt"] == null ? null : date(row["dispatchedAt"]),
@@ -287,6 +318,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -305,6 +337,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
               confirmedAt: row["confirmedAt"] == null ? null : date(row["confirmedAt"]),
@@ -327,6 +360,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -339,6 +373,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -351,6 +386,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -363,6 +399,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -375,6 +412,8 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              cashAccountId: row["cashAccountId"] ?? null,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -387,6 +426,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };

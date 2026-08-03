@@ -114,6 +114,7 @@ async function readExpense(
     recordedAt: toIso(row.recordedAt),
     actorId: row.actorId as ExpenseDto["actorId"],
     commandId: row.commandId as ExpenseDto["commandId"],
+    evidenceReferences: row.evidenceReferences,
     reversal:
       reversal === undefined
         ? null
@@ -124,6 +125,7 @@ async function readExpense(
             recordedAt: toIso(reversal.recordedAt),
             actorId: reversal.actorId as NonNullable<ExpenseDto["reversal"]>["actorId"],
             commandId: reversal.commandId as NonNullable<ExpenseDto["reversal"]>["commandId"],
+            evidenceReferences: reversal.evidenceReferences,
           },
   };
 }
@@ -164,6 +166,7 @@ async function readTransfer(
     recordedAt: toIso(row.recordedAt),
     actorId: row.actorId as CashTransferDto["actorId"],
     commandId: row.commandId as CashTransferDto["commandId"],
+    evidenceReferences: row.evidenceReferences,
     reversal:
       reversal === undefined
         ? null
@@ -174,6 +177,7 @@ async function readTransfer(
             recordedAt: toIso(reversal.recordedAt),
             actorId: reversal.actorId as NonNullable<CashTransferDto["reversal"]>["actorId"],
             commandId: reversal.commandId as NonNullable<CashTransferDto["reversal"]>["commandId"],
+            evidenceReferences: reversal.evidenceReferences,
           },
   };
 }

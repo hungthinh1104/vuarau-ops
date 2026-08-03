@@ -296,13 +296,29 @@ export const createSupplierReadRepositories = (tx: Tx) => ({
       );
     },
     async payment(workspaceId: string, paymentId: string) {
-      const rows = await tx
-        .select()
-        .from(supplierPayments)
-        .where(
-          and(eq(supplierPayments.workspaceId, workspaceId), eq(supplierPayments.id, paymentId)),
-        )
-        .limit(1);
+      const [rows, reversalRows] = await Promise.all([
+        tx
+          .select()
+          .from(supplierPayments)
+          .where(
+            and(eq(supplierPayments.workspaceId, workspaceId), eq(supplierPayments.id, paymentId)),
+          )
+          .limit(1),
+        tx
+          .select()
+          .from(supplierPaymentReversals)
+          .where(
+            and(
+              eq(supplierPaymentReversals.workspaceId, workspaceId),
+              eq(supplierPaymentReversals.supplierPaymentId, paymentId),
+            ),
+          )
+          .orderBy(
+            asc(supplierPaymentReversals.transactionTime),
+            asc(supplierPaymentReversals.recordedAt),
+            asc(supplierPaymentReversals.id),
+          ),
+      ]);
       const row = rows[0];
       if (row === undefined) return null;
       const status =
@@ -317,7 +333,19 @@ export const createSupplierReadRepositories = (tx: Tx) => ({
         supplierId: row.supplierId,
         amount: money(row.amountMinor, row.currency),
         method: row.method,
+        cashAccountId: row.cashAccountId,
         note: row.note,
+        evidenceReferences: row.evidenceReferences,
+        reversals: reversalRows.map((reversal) => ({
+          id: reversal.id,
+          workspaceId: reversal.workspaceId,
+          supplierPaymentId: reversal.supplierPaymentId,
+          amount: money(reversal.amountMinor, reversal.currency),
+          reason: reversal.reason,
+          evidenceReferences: reversal.evidenceReferences,
+          transactionTime: toIso(reversal.transactionTime),
+          recordedAt: toIso(reversal.recordedAt),
+        })),
         reversedAmount: money(row.reversedAmountMinor, row.currency),
         status,
         version: row.version,

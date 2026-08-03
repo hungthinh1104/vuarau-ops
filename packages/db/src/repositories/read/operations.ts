@@ -55,6 +55,8 @@ import {
   workspaceMembershipRoles,
   workspaceMemberships,
   workspaceOperationalProfiles,
+  costObservations,
+  reconciliationObservations,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -419,6 +421,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         deliveryReturnLineRows,
         documentRows,
         documentShareRows,
+        costObservationRows,
+        reconciliationObservationRows,
       ] = await Promise.all([
         tx
           .select()
@@ -534,6 +538,11 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
           .where(eq(deliveryReturns.workspaceId, workspaceId)),
         tx.select().from(documents).where(eq(documents.workspaceId, workspaceId)),
         tx.select().from(documentShares).where(eq(documentShares.workspaceId, workspaceId)),
+        tx.select().from(costObservations).where(eq(costObservations.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(reconciliationObservations)
+          .where(eq(reconciliationObservations.workspaceId, workspaceId)),
       ]);
       const plain = (value: unknown): Record<string, unknown> =>
         JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
@@ -613,6 +622,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         deliveryReturnLines: list(deliveryReturnLineRows.map((row) => row.line)),
         documents: list(documentRows),
         documentShares: list(documentShareRows),
+        costObservations: list(costObservationRows),
+        reconciliationObservations: list(reconciliationObservationRows),
       };
     },
   },

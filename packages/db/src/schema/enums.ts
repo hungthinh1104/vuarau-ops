@@ -27,6 +27,10 @@ import {
   QUALITY_SEVERITIES,
   QUALITY_DISPOSITION_OUTCOMES,
   PRICE_RULE_KINDS,
+  COST_OBSERVATION_KINDS,
+  RECONCILIATION_OBSERVATION_KINDS,
+  COST_OBSERVATION_CASE_KINDS,
+  DEBT_OBSERVATION_KINDS,
 } from "@vuarau/domain-contracts";
 
 /**
@@ -67,6 +71,16 @@ export const qualityDispositionOutcomeEnum = pgEnum(
   QUALITY_DISPOSITION_OUTCOMES,
 );
 export const priceRuleKindEnum = pgEnum("price_rule_kind", PRICE_RULE_KINDS);
+export const costObservationKindEnum = pgEnum("cost_observation_kind", COST_OBSERVATION_KINDS);
+export const costObservationCaseKindEnum = pgEnum(
+  "cost_observation_case_kind",
+  COST_OBSERVATION_CASE_KINDS,
+);
+export const reconciliationObservationKindEnum = pgEnum(
+  "reconciliation_observation_kind",
+  RECONCILIATION_OBSERVATION_KINDS,
+);
+export const debtObservationKindEnum = pgEnum("debt_observation_kind", DEBT_OBSERVATION_KINDS);
 export const qualityDispositionSourceTypeEnum = pgEnum("quality_disposition_source_type", [
   "arrival_line",
   "quarantine_allocation",

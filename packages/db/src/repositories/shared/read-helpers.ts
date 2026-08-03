@@ -85,6 +85,7 @@ export async function readPurchaseDto(tx: Tx, workspaceId: string, purchaseId: s
     })),
     totalAmount: money(row.totalAmountMinor, row.currency),
     note: row.note,
+    evidenceReferences: [...row.evidenceReferences],
     dueAt: toIsoOrNull(row.dueAt),
     version: row.version,
     transactionTime: toIso(row.transactionTime),
@@ -106,6 +107,7 @@ export async function readPurchaseDto(tx: Tx, workspaceId: string, purchaseId: s
               | "duplicate"
               | "other",
             reason: voidRow.reason,
+            evidenceReferences: [...voidRow.evidenceReferences],
             amount: money(voidRow.amountMinor, voidRow.currency),
             transactionTime: toIso(voidRow.transactionTime),
             recordedAt: toIso(voidRow.recordedAt),
@@ -157,6 +159,7 @@ export async function readReceiptDto(tx: Tx, workspaceId: string, receiptId: str
       quantity: { valueScaled: line.quantityScaled, unit: line.unit },
     })),
     note: row.note,
+    evidenceReferences: row.evidenceReferences ?? [],
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
     actorId: row.actorId,
@@ -169,6 +172,8 @@ export async function readReceiptDto(tx: Tx, workspaceId: string, receiptId: str
             reason: reversal.reason,
             transactionTime: toIso(reversal.transactionTime),
             recordedAt: toIso(reversal.recordedAt),
+            actorId: reversal.actorId,
+            evidenceReferences: reversal.evidenceReferences ?? [],
           },
   };
 }
@@ -234,6 +239,7 @@ export async function readDeliveryDto(tx: Tx, workspaceId: string, deliveryId: s
     }),
     note: row.note,
     cancellationReason: row.cancellationReason,
+    evidenceReferences: row.evidenceReferences ?? [],
     version: row.version,
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
@@ -242,6 +248,7 @@ export async function readDeliveryDto(tx: Tx, workspaceId: string, deliveryId: s
     returns: returnRows.map((record) => ({
       id: record.id,
       reason: record.reason,
+      evidenceReferences: record.evidenceReferences ?? [],
       lines: returnLineRows
         .filter((item) => item.returnId === record.id)
         .map((item) => ({
@@ -283,6 +290,7 @@ export function paymentSelect(tx: Tx) {
       reversedAmountMinor: payments.reversedAmountMinor,
       payerName: payments.payerName,
       note: payments.note,
+      evidenceReferences: payments.evidenceReferences,
       version: payments.version,
       transactionTime: payments.transactionTime,
       recordedAt: payments.recordedAt,
@@ -304,6 +312,7 @@ export function toPaymentSummary(row: {
   reversedAmountMinor: number;
   payerName: string | null;
   note: string | null;
+  evidenceReferences: string[];
   version: number;
   transactionTime: Date;
   recordedAt: Date;
@@ -320,6 +329,7 @@ export function toPaymentSummary(row: {
     reversedAmount: money(row.reversedAmountMinor, row.currency),
     payerName: row.payerName,
     note: row.note,
+    evidenceReferences: row.evidenceReferences,
     version: row.version,
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),

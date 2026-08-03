@@ -81,6 +81,7 @@ export type SaleRow = {
   currency: CurrencyCode;
   totalAmountMinor: number;
   note: string | null;
+  evidenceReferences: string[];
   version: number;
   transactionTime: Date;
   recordedAt: Date;
@@ -109,6 +110,7 @@ export type SaleVoidRow = {
   saleId: string;
   reasonCode: SaleVoidState["reasonCode"];
   reason: string;
+  evidenceReferences: string[];
   amountMinor: number;
   currency: CurrencyCode;
   transactionTime: Date;
@@ -123,6 +125,7 @@ export function toSaleVoidState(row: SaleVoidRow): SaleVoidState {
     saleId: row.saleId as SaleId,
     reasonCode: row.reasonCode,
     reason: row.reason,
+    evidenceReferences: [...row.evidenceReferences],
     amount: money(row.amountMinor, row.currency),
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
@@ -158,6 +161,7 @@ export function toSaleState(
     })),
     totalAmount: money(row.totalAmountMinor, row.currency),
     note: row.note,
+    evidenceReferences: [...row.evidenceReferences],
     version: row.version,
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
@@ -179,6 +183,7 @@ export type PaymentRow = {
   cashAccountId: string | null;
   payerName: string | null;
   note: string | null;
+  evidenceReferences: string[];
   reversedAmountMinor: number;
   version: number;
   transactionTime: Date;
@@ -197,6 +202,7 @@ export function toPaymentState(row: PaymentRow): PaymentState {
     cashAccountId: row.cashAccountId as NonNullable<PaymentState["cashAccountId"]> | null,
     payerName: row.payerName,
     note: row.note,
+    evidenceReferences: row.evidenceReferences,
     // Recomputed from `reversed_amount` rather than read from the stored column.
     // The column exists so queries can filter; this is the definition
     // (BR-PAYMENT-008), and reading it back this way means a drifted column can

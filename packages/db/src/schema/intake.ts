@@ -65,6 +65,7 @@ export const goodsArrivals = pgTable(
     purchaseId: uuid("purchase_id"),
     vehicleReference: text("vehicle_reference"),
     note: text("note"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")
@@ -168,6 +169,7 @@ export const goodsArrivalReversals = pgTable(
     workspaceId: uuid("workspace_id").notNull(),
     arrivalId: uuid("arrival_id").notNull(),
     reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")
@@ -292,6 +294,7 @@ export const qualityDispositions = pgTable(
     sourceArrivalLineId: uuid("source_arrival_line_id"),
     sourceQuarantineAllocationId: uuid("source_quarantine_allocation_id"),
     note: text("note"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")
@@ -371,6 +374,7 @@ export const qualityDispositionReversals = pgTable(
     workspaceId: uuid("workspace_id").notNull(),
     dispositionId: uuid("disposition_id").notNull(),
     reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")

@@ -18,6 +18,9 @@ import { createAuditWriteRepositories } from "./write/audit.ts";
 import { createReceiptWriteRepositories } from "./write/receipt.ts";
 import { createCashWriteRepositories } from "./write/cash.ts";
 import { createIntakeWriteRepositories } from "./write/intake.ts";
+import { createCostObservationWriteRepositories } from "./write/cost-observation.ts";
+import { createReconciliationObservationWriteRepositories } from "./write/reconciliation-observation.ts";
+import { createDebtObservationWriteRepositories } from "./write/debt-observation.ts";
 
 type Tx = PgTransaction<never, never, never>;
 export type IdMinter = { newId(): string };
@@ -42,6 +45,9 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     ...createReceiptWriteRepositories(tx),
     ...createCashWriteRepositories(tx, ids),
     ...createIntakeWriteRepositories(tx),
+    ...createCostObservationWriteRepositories(tx),
+    ...createReconciliationObservationWriteRepositories(tx),
+    ...createDebtObservationWriteRepositories(tx),
   };
 }
 

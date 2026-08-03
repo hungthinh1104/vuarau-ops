@@ -1,0 +1,2 @@
+ALTER TABLE "supplier_payment_reversals" ADD COLUMN "evidence_references" text[] DEFAULT '{}' NOT NULL;--> statement-breakpoint
+ALTER TABLE "supplier_payments" ADD COLUMN "evidence_references" text[] DEFAULT '{}' NOT NULL;

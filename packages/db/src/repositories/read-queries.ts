@@ -16,6 +16,9 @@ import { createOperationsReadRepositories } from "./read/operations.ts";
 import { createAuditReadRepositories } from "./read/audit.ts";
 import { createCashReadRepositories } from "./read/cash.ts";
 import { createIntakeReadRepositories } from "./read/intake.ts";
+import { createCostObservationReadRepositories } from "./read/cost-observation.ts";
+import { createReconciliationObservationReadRepositories } from "./read/reconciliation-observation.ts";
+import { createDebtObservationReadRepositories } from "./read/debt-observation.ts";
 
 export function createReadRepositories(tx: Tx) {
   return {
@@ -36,6 +39,9 @@ export function createReadRepositories(tx: Tx) {
     ...createAuditReadRepositories(tx),
     ...createCashReadRepositories(tx),
     ...createIntakeReadRepositories(tx),
+    ...createCostObservationReadRepositories(tx),
+    ...createReconciliationObservationReadRepositories(tx),
+    ...createDebtObservationReadRepositories(tx),
   };
 }
 

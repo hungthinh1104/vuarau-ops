@@ -92,6 +92,7 @@ export function toSupplierPaymentState(
     method: row.method,
     cashAccountId: row.cashAccountId as NonNullable<SupplierPaymentState["cashAccountId"]> | null,
     note: row.note,
+    evidenceReferences: row.evidenceReferences,
     reversedAmount: { amountMinor: row.reversedAmountMinor, currency: row.currency },
     version: row.version,
     transactionTime: toIso(row.transactionTime),
@@ -224,6 +225,7 @@ export async function loadDelivery(tx: Tx, workspaceId: WorkspaceId, deliveryId:
     dispatchedAt: toIsoOrNull(row.dispatchedAt),
     deliveredAt: toIsoOrNull(row.deliveredAt),
     actorId: row.actorId,
+    evidenceReferences: row.evidenceReferences ?? [],
     returns: returnRows.map((record) => ({
       id: record.id,
       workspaceId: record.workspaceId,
@@ -235,6 +237,7 @@ export async function loadDelivery(tx: Tx, workspaceId: WorkspaceId, deliveryId:
           quantity: { valueScaled: line.quantityScaled, unit: line.unit },
         })),
       reason: record.reason,
+      evidenceReferences: record.evidenceReferences ?? [],
       transactionTime: toIso(record.transactionTime),
       recordedAt: toIso(record.recordedAt),
       actorId: record.actorId,

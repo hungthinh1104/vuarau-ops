@@ -76,6 +76,7 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
               quantity: { valueScaled: line.quantityScaled, unit: line.unit },
             })),
           note: row.note,
+          evidenceReferences: row.evidenceReferences ?? [],
           transactionTime: toIso(row.transactionTime),
           recordedAt: toIso(row.recordedAt),
           actorId: row.actorId,
@@ -88,6 +89,8 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
                   reason: reversal.reason,
                   transactionTime: toIso(reversal.transactionTime),
                   recordedAt: toIso(reversal.recordedAt),
+                  actorId: reversal.actorId,
+                  evidenceReferences: reversal.evidenceReferences ?? [],
                 },
         };
       });
