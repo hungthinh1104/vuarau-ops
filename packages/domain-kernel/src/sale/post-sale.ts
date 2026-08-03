@@ -1,4 +1,9 @@
-import type { IsoInstant, PostSaleCommand } from "@vuarau/domain-contracts";
+import type {
+  IsoInstant,
+  PostSaleCommand,
+  PaymentTermSource,
+  WorkspacePolicyVersionId,
+} from "@vuarau/domain-contracts";
 import type { AccountEntryDraft, Decision } from "../shared/effects.ts";
 import type { SaleState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
@@ -10,6 +15,12 @@ export type PostSaleInput = {
   readonly sale: SaleState;
   readonly recordedAt: IsoInstant;
   readonly qualityGradeRequired?: boolean;
+  /** Resolved by the application from the effective policy at sale.transactionTime. */
+  readonly paymentTermSnapshot?: {
+    readonly dueAt: IsoInstant;
+    readonly source: Exclude<PaymentTermSource, "sale_override" | "none">;
+    readonly policyVersionId: WorkspacePolicyVersionId;
+  } | null;
 };
 
 /**
@@ -33,6 +44,7 @@ export function decidePostSale({
   sale,
   recordedAt,
   qualityGradeRequired = true,
+  paymentTermSnapshot = null,
 }: PostSaleInput): DomainResult<Decision<SaleState>> {
   if (command.expectedVersion !== sale.version) {
     return err(
@@ -95,11 +107,19 @@ export function decidePostSale({
 
   const totalAmount = calculateSaleTotal(lines.value, sale.currency);
 
+  const paymentTermsPolicyVersionId =
+    sale.dueAt === null ? (paymentTermSnapshot?.policyVersionId ?? null) : null;
+  const paymentTermsSource: PaymentTermSource =
+    sale.dueAt !== null ? "sale_override" : (paymentTermSnapshot?.source ?? "none");
+
   const posted: SaleState = {
     ...sale,
     status: "posted",
     lines: lines.value,
     totalAmount,
+    dueAt: sale.dueAt ?? paymentTermSnapshot?.dueAt ?? null,
+    paymentTermsPolicyVersionId,
+    paymentTermsSource,
     version: sale.version + 1,
     postedAt: command.occurredAt,
   };

@@ -108,6 +108,8 @@ export const saleDraft: SaleDto = {
   postedAt: null,
   discardedAt: null,
   dueAt: null,
+  paymentTermsPolicyVersionId: null,
+  paymentTermsSource: null,
   replacesSaleId: null,
   voidRecord: null,
   capabilities: draftCapabilities,

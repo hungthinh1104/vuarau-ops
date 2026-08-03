@@ -140,4 +140,67 @@ describe("UC-ACCOUNT-004 / BR-AGING-001 / TC-AGING-002", () => {
       });
     }
   });
+
+  it("BR-AGING-005 / TC-AGING-005 — derives and persists the payment term from the effective policy at sale time", async () => {
+    const harness = createHarness();
+    const termsPolicy = await approvePolicy(harness, "payment_terms_aging", {
+      contractVersion: 1,
+      parameters: {
+        defaultTermDays: 7,
+        defaultTermLabel: "7 ngày",
+        customerTerms: [],
+        graceDays: 0,
+        agingBuckets: [{ code: "1-30", label: "1–30 ngày", minDaysOverdue: 1, maxDaysOverdue: 30 }],
+        creditControl: "information_only",
+      },
+    });
+    await approvePolicy(harness, "payment_allocation", {
+      contractVersion: 1,
+      parameters: { strategy: "oldest_due_first" },
+    });
+
+    const created = await createSaleDraft(harness.ctx, {
+      ...envelope("debt-derived-sale-create"),
+      payload: {
+        saleId: crypto.randomUUID(),
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [...saleLineInputs],
+        note: null,
+        evidenceReferences: [],
+        dueAt: null,
+        replacesSaleId: null,
+      },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const posted = await postSale(harness.ctx, {
+      ...envelope("debt-derived-sale-post"),
+      expectedVersion: 1,
+      payload: { saleId: created.value.id },
+    });
+    expect(posted.ok).toBe(true);
+    if (!posted.ok) return;
+    expect(posted.value).toMatchObject({
+      dueAt: "2026-07-26T22:00:00.000Z",
+      paymentTermsPolicyVersionId: termsPolicy.id,
+      paymentTermsSource: "workspace_policy",
+    });
+
+    const result = await getCustomerDebtAging(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+      asOf: "2026-08-01T00:00:00.000Z",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok && result.value.status === "available") {
+      expect(result.value.rows[0]).toMatchObject({
+        saleId: created.value.id,
+        dueAt: "2026-07-26T22:00:00.000Z",
+        termSource: "workspace_policy",
+        termPolicyVersionId: termsPolicy.id,
+      });
+    }
+  });
 });

@@ -1,7 +1,18 @@
 import type { PostSaleCommand, SaleDto } from "@vuarau/domain-contracts";
-import { postSaleCommandSchema, roleHasPermission } from "@vuarau/domain-contracts";
+import {
+  paymentTermsAgingPolicyDefinitionSchema,
+  postSaleCommandSchema,
+  roleHasPermission,
+} from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
-import { decidePostSale, err, ok } from "@vuarau/domain-kernel";
+import {
+  addPaymentTermDays,
+  decidePostSale,
+  err,
+  ok,
+  resolveEffectiveWorkspacePolicy,
+  resolvePaymentTerm,
+} from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyAccountEffects } from "../shared/account-effects.ts";
@@ -145,11 +156,34 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
         }
       }
 
+      let paymentTermSnapshot = null;
+      if (sale.dueAt === null) {
+        const policy = resolveEffectiveWorkspacePolicy(
+          await repos.workspacePolicyReads.listAll(command.workspaceId),
+          "payment_terms_aging",
+          sale.transactionTime,
+        );
+        if (policy !== null) {
+          const definition = paymentTermsAgingPolicyDefinitionSchema.safeParse(policy.definition);
+          if (definition.success) {
+            const term = resolvePaymentTerm(definition.data, sale.customerId, policy.id);
+            if (term !== null) {
+              paymentTermSnapshot = {
+                dueAt: addPaymentTermDays(sale.transactionTime, term.termDays),
+                source: term.source,
+                policyVersionId: term.policyVersionId,
+              };
+            }
+          }
+        }
+      }
+
       const decision = decidePostSale({
         command,
         sale,
         recordedAt,
         qualityGradeRequired: operationalProfile.qualityGradeMode === "required",
+        paymentTermSnapshot,
       });
       if (!decision.ok) {
         return decision;

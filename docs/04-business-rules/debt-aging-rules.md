@@ -33,9 +33,19 @@ entry. Reversing an attribution creates one compensation record, is bounded by
 the remaining allocation, and is included in historical aging only at its
 `transactionTime`.
 
+### BR-AGING-005 — Payment terms are snapshotted at Sale posting
+
+When a posted Sale has no explicit `dueAt`, the application resolves the
+effective `payment_terms_aging` policy at the Sale's `transactionTime`, derives
+the due date, and stores the policy version and source beside the immutable Sale.
+Debt aging reads that stored lineage instead of re-resolving a later policy. A
+legacy policy-derived row without its policy version is `attention` and fails
+closed; an explicit Sale due date is always `sale_override` with no policy ID.
+
 ### Evidence
 
 - `packages/domain-kernel/src/debt/debt.test.ts`
 - `apps/api/src/modules/account/debt-aging.app.test.ts`
 - `packages/db/src/repositories/read/account.ts`
 - `apps/api/src/modules/account/payment-allocation.app.test.ts`
+- `packages/domain-kernel/src/sale/sale.test.ts`

@@ -71,6 +71,16 @@ export const CREDIT_CONTROL_MODES = [
 export const creditControlModeSchema = z.enum(CREDIT_CONTROL_MODES);
 export type CreditControlMode = z.infer<typeof creditControlModeSchema>;
 
+/** How a Sale's payment term was established, kept with the historical Sale. */
+export const PAYMENT_TERM_SOURCES = [
+  "sale_override",
+  "customer_policy",
+  "workspace_policy",
+  "none",
+] as const;
+export const paymentTermSourceSchema = z.enum(PAYMENT_TERM_SOURCES);
+export type PaymentTermSource = z.infer<typeof paymentTermSourceSchema>;
+
 const paymentTermOverrideSchema = z.object({
   customerId: customerIdSchema,
   label: z.string().trim().min(1).max(100),

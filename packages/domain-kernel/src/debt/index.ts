@@ -3,6 +3,7 @@ import type {
   DebtAgingSaleRow,
   DebtAgingState,
   PaymentAllocationStrategy,
+  PaymentTermSource,
   PaymentTermsAgingPolicyDefinition,
   WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
@@ -23,6 +24,8 @@ export type DebtAgingSaleSource = {
   readonly amount: Money;
   readonly transactionTime: IsoInstant;
   readonly dueAt: IsoInstant | null;
+  readonly paymentTermsPolicyVersionId?: WorkspacePolicyVersionId | null;
+  readonly paymentTermsSource?: PaymentTermSource | null;
 };
 
 export type DebtAgingPaymentSource = {
@@ -89,7 +92,7 @@ type TermSource = "sale_override" | "customer_policy" | "workspace_policy" | "no
 export type ResolvedPaymentTerm = {
   readonly label: string;
   readonly termDays: number;
-  readonly source: Exclude<TermSource, "none">;
+  readonly source: Exclude<TermSource, "sale_override" | "none">;
   readonly policyVersionId: WorkspacePolicyVersionId;
 };
 
@@ -305,6 +308,14 @@ export function calculateDebtAging(
     const overdueDays =
       outstandingMinor === 0 ? 0 : daysOverdue(sale.dueAt, asOf, terms.parameters.graceDays);
     const bucketCode = outstandingMinor === 0 ? null : bucketFor(overdueDays, terms);
+    const termSource = sale.paymentTermsSource ?? (sale.dueAt === null ? "none" : "sale_override");
+    const termPolicyVersionId = sale.paymentTermsPolicyVersionId ?? null;
+    if (
+      (termSource === "customer_policy" || termSource === "workspace_policy") &&
+      termPolicyVersionId === null
+    ) {
+      diagnostics.add("sale_term_policy_lineage_missing");
+    }
     return {
       saleId: sale.saleId,
       customerId: sale.customerId,
@@ -316,7 +327,8 @@ export function calculateDebtAging(
       state: outstandingMinor === 0 ? "settled" : state,
       bucketCode,
       daysOverdue: overdueDays,
-      termSource: sale.dueAt === null ? "none" : "sale_override",
+      termSource,
+      termPolicyVersionId,
       sourceReferences: [{ type: "sale_posting", id: sale.saleId, entryId: null }],
     };
   });

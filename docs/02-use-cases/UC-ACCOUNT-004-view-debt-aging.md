@@ -28,6 +28,10 @@ diagnostics. No global term, bucket, or allocation strategy is inferred.
 5. Return policy version IDs, source references, totals, calculation version and
    integrity diagnostics.
 
+Posted Sales without an explicit term carry a payment-term snapshot resolved at
+posting time. Each aging row returns its term source and policy version, so a
+later policy change cannot rewrite historical due dates.
+
 The current supported automatic strategies are `oldest_due_first` and
 `oldest_transaction_first`. `manual` and `specific_sale` are available when
 append-only allocation records exist; missing records remain unavailable rather
@@ -35,7 +39,7 @@ than being inferred from UI state.
 
 ## Business rules
 
-BR-AGING-001, BR-AGING-002, BR-AGING-003, BR-POLICY-003, BR-POLICY-005,
+BR-AGING-001, BR-AGING-002, BR-AGING-003, BR-AGING-005, BR-POLICY-003, BR-POLICY-005,
 BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002
 
 ## Tests
@@ -49,6 +53,8 @@ TC-AGING-001, TC-AGING-002, TC-AGING-003, TC-AGING-004
 - `apps/api/src/modules/account/account.queries.ts`
 - `apps/api/src/infrastructure/trpc/routers/customer.ts`
 - `packages/db/src/repositories/read/account.ts`
+- `apps/api/src/modules/sale/post-sale.handler.ts`
+- `packages/db/src/schema/sale.ts`
 - `apps/api/src/modules/account/payment-allocation.handlers.ts`
 - `packages/db/src/schema/payment.ts`
 

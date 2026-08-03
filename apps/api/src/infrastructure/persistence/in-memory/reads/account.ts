@@ -220,6 +220,8 @@ export const createAccountReads = (store: Store): Pick<Repositories, "accountRea
           amount: sale.totalAmount,
           transactionTime: sale.transactionTime,
           dueAt: sale.dueAt,
+          paymentTermsPolicyVersionId: sale.paymentTermsPolicyVersionId ?? null,
+          paymentTermsSource: sale.paymentTermsSource ?? null,
         })),
       payments: [...store.payments.values()]
         .filter(

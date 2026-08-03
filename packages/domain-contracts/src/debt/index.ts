@@ -56,6 +56,7 @@ export const debtAgingSaleRowSchema = z.object({
   bucketCode: z.string().nullable(),
   daysOverdue: z.int().nonnegative(),
   termSource: z.enum(["sale_override", "customer_policy", "workspace_policy", "none"]),
+  termPolicyVersionId: workspacePolicyVersionIdSchema.nullable(),
   sourceReferences: z.array(debtAgingSourceReferenceSchema),
 });
 export type DebtAgingSaleRow = z.infer<typeof debtAgingSaleRowSchema>;

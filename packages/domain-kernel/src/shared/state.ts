@@ -12,6 +12,7 @@ import type {
   SupplyCommitmentStatus,
   IsoInstant,
   Money,
+  PaymentTermSource,
   SaleId,
   SaleLineId,
   SaleStatus,
@@ -417,6 +418,9 @@ export type SaleState = {
   readonly discardedAt: IsoInstant | null;
   /** Null means no payment term was agreed, and nothing is overdue (BR-SALE-017). */
   readonly dueAt: IsoInstant | null;
+  /** Snapshot of how the due date was established at posting. */
+  readonly paymentTermsPolicyVersionId?: WorkspacePolicyVersionId | null;
+  readonly paymentTermsSource?: PaymentTermSource | null;
   /** Set at draft creation when this sale corrects a voided one (BR-SALE-016). */
   readonly replacesSaleId: SaleId | null;
   /**

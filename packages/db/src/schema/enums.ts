@@ -36,6 +36,7 @@ import {
   DEMAND_OBSERVATION_KINDS,
   WORKSPACE_POLICY_KINDS,
   WORKSPACE_POLICY_STATES,
+  PAYMENT_TERM_SOURCES,
 } from "@vuarau/domain-contracts";
 
 /**
@@ -100,6 +101,7 @@ export const demandObservationKindEnum = pgEnum(
 );
 export const workspacePolicyKindEnum = pgEnum("workspace_policy_kind", WORKSPACE_POLICY_KINDS);
 export const workspacePolicyStateEnum = pgEnum("workspace_policy_state", WORKSPACE_POLICY_STATES);
+export const paymentTermSourceEnum = pgEnum("payment_term_source", PAYMENT_TERM_SOURCES);
 export const qualityDispositionSourceTypeEnum = pgEnum("quality_disposition_source_type", [
   "arrival_line",
   "quarantine_allocation",

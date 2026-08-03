@@ -10,11 +10,18 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { currencyCodeEnum, saleStatusEnum, saleVoidReasonCodeEnum, unitEnum } from "./enums.ts";
+import {
+  currencyCodeEnum,
+  paymentTermSourceEnum,
+  saleStatusEnum,
+  saleVoidReasonCodeEnum,
+  unitEnum,
+} from "./enums.ts";
 import { customers } from "./customer.ts";
 import { products } from "./customer.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { qualityGrades } from "./quality.ts";
+import { workspacePolicies } from "./policy.ts";
 
 /**
  * A completed sale. `status` and `version` are the only mutable columns, and only
@@ -51,6 +58,8 @@ export const sales = pgTable(
     discardedAt: timestamp("discarded_at", { withTimezone: true }),
     /** Nullable, and a null is never overdue (BR-SALE-017). Most sales are null. */
     dueAt: timestamp("due_at", { withTimezone: true }),
+    paymentTermsPolicyVersionId: uuid("payment_terms_policy_version_id"),
+    paymentTermsSource: paymentTermSourceEnum("payment_terms_source"),
     /** Set once, at draft creation, when this sale corrects a voided one. */
     replacesSaleId: uuid("replaces_sale_id"),
   },
@@ -69,6 +78,11 @@ export const sales = pgTable(
     /** Following a correction chain forwards, from the voided sale (BR-SALE-016). */
     /** A voided sale has at most one correction successor, even under a race. */
     unique("sales_replaces_unique").on(table.replacesSaleId),
+    foreignKey({
+      columns: [table.workspaceId, table.paymentTermsPolicyVersionId],
+      foreignColumns: [workspacePolicies.workspaceId, workspacePolicies.id],
+      name: "sales_workspace_payment_terms_policy_fk",
+    }),
   ],
 );
 

@@ -266,6 +266,8 @@ export const createAccountReadRepositories = (tx: Tx) => ({
           currency: sales.currency,
           transactionTime: sales.transactionTime,
           dueAt: sales.dueAt,
+          paymentTermsPolicyVersionId: sales.paymentTermsPolicyVersionId,
+          paymentTermsSource: sales.paymentTermsSource,
         })
         .from(sales)
         .leftJoin(
@@ -405,6 +407,8 @@ export const createAccountReadRepositories = (tx: Tx) => ({
           amount: money(sale.amountMinor, sale.currency),
           transactionTime: toIso(sale.transactionTime),
           dueAt: toIsoOrNull(sale.dueAt),
+          paymentTermsPolicyVersionId: sale.paymentTermsPolicyVersionId,
+          paymentTermsSource: sale.paymentTermsSource,
         })),
         payments: paymentRows.map((payment) => ({
           paymentId: payment.id,

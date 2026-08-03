@@ -7,6 +7,7 @@ import {
   saleLineIdSchema,
   saleVoidIdSchema,
   workspaceIdSchema,
+  workspacePolicyVersionIdSchema,
 } from "../shared/ids.ts";
 import { currencyCodeSchema, moneySchema } from "../shared/money.ts";
 import { quantitySchema } from "../shared/quantity.ts";
@@ -257,6 +258,10 @@ export const saleDtoSchema = z.object({
   postedAt: isoInstantSchema.nullable(),
   discardedAt: isoInstantSchema.nullable(),
   dueAt: isoInstantSchema.nullable(),
+  paymentTermsPolicyVersionId: workspacePolicyVersionIdSchema.nullable(),
+  paymentTermsSource: z
+    .enum(["sale_override", "customer_policy", "workspace_policy", "none"])
+    .nullable(),
   replacesSaleId: saleIdSchema.nullable(),
   /** Present iff this sale was voided. The sale row itself is never touched. */
   voidRecord: saleVoidDtoSchema.nullable(),

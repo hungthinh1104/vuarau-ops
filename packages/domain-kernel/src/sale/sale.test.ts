@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { PostSaleCommand, CreateSaleDraftCommand } from "@vuarau/domain-contracts";
+import type {
+  CreateSaleDraftCommand,
+  PostSaleCommand,
+  WorkspacePolicyVersionId,
+} from "@vuarau/domain-contracts";
 import { ACCOUNT_ENTRY_SOURCE_TYPES } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
@@ -125,6 +129,28 @@ describe("BR-SALE-004 / TC-SALE-002", () => {
 });
 
 describe("BR-SALE-007 / TC-SALE-003", () => {
+  it("snapshots a policy-derived payment term at posting", () => {
+    const policyVersionId = "00000000-0000-4000-8000-000000000099" as WorkspacePolicyVersionId;
+    const result = decidePostSale({
+      command: postSaleCommand(validDraftSale.version),
+      sale: validDraftSale,
+      recordedAt: RECORDED_AT,
+      paymentTermSnapshot: {
+        dueAt: "2026-07-27T05:00:00.000Z",
+        source: "workspace_policy",
+        policyVersionId,
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.aggregate).toMatchObject({
+      dueAt: "2026-07-27T05:00:00.000Z",
+      paymentTermsSource: "workspace_policy",
+      paymentTermsPolicyVersionId: policyVersionId,
+    });
+  });
+
   it("refuses an unresolved Product before producing a customer account effect", () => {
     const result = decidePostSale({
       command: postSaleCommand(validDraftSale.version),

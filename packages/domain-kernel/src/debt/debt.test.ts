@@ -140,6 +140,33 @@ describe("BR-AGING-001 / BR-AGING-002 / TC-AGING-001", () => {
     expect(result.diagnostics).toContain("manual_allocation_not_recorded");
   });
 
+  it("fails closed when a policy-derived sale has no policy lineage", () => {
+    const result = calculateDebtAging(
+      {
+        sales: [
+          {
+            saleId: saleId("6"),
+            customerId,
+            amount: vnd(100_000),
+            transactionTime: "2026-01-01T00:00:00.000Z",
+            dueAt: "2026-01-08T00:00:00.000Z",
+            paymentTermsSource: "workspace_policy",
+            paymentTermsPolicyVersionId: null,
+          },
+        ],
+        payments: [],
+        ledgerEntries: [],
+        allocations: [],
+        allocationReversals: [],
+      },
+      terms,
+      "oldest_due_first",
+      "2026-01-10T00:00:00.000Z",
+    );
+
+    expect(result.diagnostics).toContain("sale_term_policy_lineage_missing");
+  });
+
   it("uses persisted allocation facts and compensation for a manual policy", () => {
     const result = calculateDebtAging(
       {

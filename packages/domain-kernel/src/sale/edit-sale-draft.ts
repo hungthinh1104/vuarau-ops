@@ -81,6 +81,8 @@ export function decideUpdateSaleDraft({
     note: command.payload.note,
     evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     dueAt: command.payload.dueAt,
+    paymentTermsPolicyVersionId: null,
+    paymentTermsSource: null,
     version: sale.version + 1,
   };
 

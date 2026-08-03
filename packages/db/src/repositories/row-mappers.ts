@@ -88,6 +88,8 @@ export type SaleRow = {
   postedAt: Date | null;
   discardedAt: Date | null;
   dueAt: Date | null;
+  paymentTermsPolicyVersionId: string | null;
+  paymentTermsSource: SaleState["paymentTermsSource"];
   replacesSaleId: string | null;
 };
 
@@ -168,6 +170,9 @@ export function toSaleState(
     postedAt: toIsoOrNull(row.postedAt),
     discardedAt: toIsoOrNull(row.discardedAt),
     dueAt: toIsoOrNull(row.dueAt),
+    paymentTermsPolicyVersionId:
+      (row.paymentTermsPolicyVersionId as SaleState["paymentTermsPolicyVersionId"]) ?? null,
+    paymentTermsSource: row.paymentTermsSource ?? null,
     replacesSaleId: row.replacesSaleId as SaleId | null,
     voidRecord: voidRow === null ? null : toSaleVoidState(voidRow),
   };

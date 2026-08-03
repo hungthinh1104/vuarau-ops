@@ -54,6 +54,8 @@ export const createSaleWriteRepositories = (tx: Tx) => ({
         recordedAt: fromIso(sale.recordedAt),
         postedAt: fromIsoOrNull(sale.postedAt),
         dueAt: fromIsoOrNull(sale.dueAt),
+        paymentTermsPolicyVersionId: sale.paymentTermsPolicyVersionId ?? null,
+        paymentTermsSource: sale.paymentTermsSource ?? null,
         replacesSaleId: sale.replacesSaleId,
       });
 
@@ -95,6 +97,9 @@ export const createSaleWriteRepositories = (tx: Tx) => ({
           totalAmountMinor: sale.totalAmount.amountMinor,
           version: sale.version,
           postedAt: fromIsoOrNull(sale.postedAt),
+          dueAt: fromIsoOrNull(sale.dueAt),
+          paymentTermsPolicyVersionId: sale.paymentTermsPolicyVersionId ?? null,
+          paymentTermsSource: sale.paymentTermsSource ?? null,
         })
         .where(
           and(
@@ -125,6 +130,8 @@ export const createSaleWriteRepositories = (tx: Tx) => ({
           totalAmountMinor: sale.totalAmount.amountMinor,
           note: sale.note,
           dueAt: fromIsoOrNull(sale.dueAt),
+          paymentTermsPolicyVersionId: sale.paymentTermsPolicyVersionId ?? null,
+          paymentTermsSource: sale.paymentTermsSource ?? null,
           discardedAt: fromIsoOrNull(sale.discardedAt),
           version: sale.version,
         })
