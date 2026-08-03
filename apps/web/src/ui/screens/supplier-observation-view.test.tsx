@@ -27,12 +27,12 @@ const observation: SupplierObservationDto = {
     traceabilityLevel: "phiếu lô giấy",
     promisedQuantity: { valueScaled: 200_000, unit: "kg" },
     actualQuantity: { valueScaled: 190_000, unit: "kg" },
-    acceptedQuantity: null,
-    rejectedQuantity: null,
+    acceptedQuantity: { valueScaled: 185_000, unit: "kg" },
+    rejectedQuantity: { valueScaled: 5_000, unit: "kg" },
     expectedAt: null,
     actualAt: null,
-    price: null,
-    claimReference: null,
+    price: { amountMinor: 18_500, currency: "VND" },
+    claimReference: "claim://supplier/ui-002",
     observationReference: "note://supplier/ui-001",
   },
   evidenceReferences: ["photo://supplier/ui-001"],
@@ -61,21 +61,33 @@ describe("SupplierObservationView", () => {
         canRecord
         query={ready(page)}
         items={[observation]}
+        supplierId=""
+        productId=""
+        qualityGradeId=""
+        supplierOptions={[]}
+        productOptions={[]}
+        qualityGradeOptions={[]}
         kind="role"
         caseKind="normal"
         description=""
         participantWording=""
         role=""
         sourceArea=""
-        responsibility=""
+        pickupResponsibility=""
+        packingResponsibility=""
+        transportResponsibility=""
         leadTime=""
         paymentArrangement=""
         traceabilityLevel=""
         promisedQuantity=""
         actualQuantity=""
+        acceptedQuantity=""
+        rejectedQuantity=""
         unit="kg"
         expectedAt=""
         actualAt=""
+        price=""
+        claimReference=""
         evidenceReferences=""
         relatedObservationId=""
         formError={null}
@@ -84,17 +96,26 @@ describe("SupplierObservationView", () => {
         onCaseKind={() => undefined}
         onDescription={() => undefined}
         onParticipantWording={() => undefined}
+        onSupplierId={() => undefined}
+        onProductId={() => undefined}
+        onQualityGradeId={() => undefined}
         onRole={() => undefined}
         onSourceArea={() => undefined}
-        onResponsibility={() => undefined}
+        onPickupResponsibility={() => undefined}
+        onPackingResponsibility={() => undefined}
+        onTransportResponsibility={() => undefined}
         onLeadTime={() => undefined}
         onPaymentArrangement={() => undefined}
         onTraceabilityLevel={() => undefined}
         onPromisedQuantity={() => undefined}
         onActualQuantity={() => undefined}
+        onAcceptedQuantity={() => undefined}
+        onRejectedQuantity={() => undefined}
         onUnit={() => undefined}
         onExpectedAt={() => undefined}
         onActualAt={() => undefined}
+        onPrice={() => undefined}
+        onClaimReference={() => undefined}
         onEvidenceReferences={() => undefined}
         onRelatedObservationId={() => undefined}
         onSubmit={() => undefined}
@@ -104,8 +125,13 @@ describe("SupplierObservationView", () => {
     expect(
       screen.getByRole("heading", { name: "Quan sát quan hệ nhà cung cấp" }),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Nhà cung cấp liên quan")).toBeInTheDocument();
+    expect(screen.getByLabelText("Số lượng được nhận")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mã claim / khiếu nại")).toBeInTheDocument();
     expect(screen.getByText("Nguồn hàng: Đức Trọng")).toBeInTheDocument();
     expect(screen.getByText("Đã hứa: 200 kg")).toBeInTheDocument();
+    expect(screen.getByText("Được nhận: 185 kg")).toBeInTheDocument();
+    expect(screen.getByText("Claim: claim://supplier/ui-002")).toBeInTheDocument();
     expect(screen.getByText(/Chưa kết luận score, ranking/)).toBeInTheDocument();
     expect(screen.getByText("photo://supplier/ui-001")).toBeInTheDocument();
   });

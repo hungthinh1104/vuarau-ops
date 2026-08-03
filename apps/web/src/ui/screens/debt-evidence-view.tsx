@@ -96,6 +96,12 @@ export function DebtEvidenceView(props: {
             >
               Quan sát nhà cung cấp
             </Link>
+            <Link
+              href="/evidence/demand"
+              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
+            >
+              Nhu cầu khách hàng
+            </Link>
           </>
         }
       />

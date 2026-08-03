@@ -3,11 +3,11 @@
 import type {
   CostObservationCaseKind,
   Page,
-  SelectOption,
   SupplierObservationDto,
   SupplierObservationKind,
   Unit,
 } from "@vuarau/domain-contracts";
+import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
@@ -19,7 +19,7 @@ import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
-import { Select } from "@/ui/primitives/select.tsx";
+import { Select, type SelectOption } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
@@ -53,21 +53,33 @@ export function SupplierObservationView(props: {
   readonly canRecord: boolean;
   readonly query: QueryLike<Page<SupplierObservationDto>>;
   readonly items: readonly SupplierObservationDto[];
+  readonly supplierId: string;
+  readonly productId: string;
+  readonly qualityGradeId: string;
+  readonly supplierOptions: readonly SelectOption[];
+  readonly productOptions: readonly SelectOption[];
+  readonly qualityGradeOptions: readonly SelectOption[];
   readonly kind: SupplierObservationKind;
   readonly caseKind: CostObservationCaseKind;
   readonly description: string;
   readonly participantWording: string;
   readonly role: string;
   readonly sourceArea: string;
-  readonly responsibility: string;
+  readonly pickupResponsibility: string;
+  readonly packingResponsibility: string;
+  readonly transportResponsibility: string;
   readonly leadTime: string;
   readonly paymentArrangement: string;
   readonly traceabilityLevel: string;
   readonly promisedQuantity: string;
   readonly actualQuantity: string;
+  readonly acceptedQuantity: string;
+  readonly rejectedQuantity: string;
   readonly unit: Unit;
   readonly expectedAt: string;
   readonly actualAt: string;
+  readonly price: string;
+  readonly claimReference: string;
   readonly evidenceReferences: string;
   readonly relatedObservationId: string;
   readonly formError: string | null;
@@ -76,17 +88,26 @@ export function SupplierObservationView(props: {
   readonly onCaseKind: (value: CostObservationCaseKind) => void;
   readonly onDescription: (value: string) => void;
   readonly onParticipantWording: (value: string) => void;
+  readonly onSupplierId: (value: string) => void;
+  readonly onProductId: (value: string) => void;
+  readonly onQualityGradeId: (value: string) => void;
   readonly onRole: (value: string) => void;
   readonly onSourceArea: (value: string) => void;
-  readonly onResponsibility: (value: string) => void;
+  readonly onPickupResponsibility: (value: string) => void;
+  readonly onPackingResponsibility: (value: string) => void;
+  readonly onTransportResponsibility: (value: string) => void;
   readonly onLeadTime: (value: string) => void;
   readonly onPaymentArrangement: (value: string) => void;
   readonly onTraceabilityLevel: (value: string) => void;
   readonly onPromisedQuantity: (value: string) => void;
   readonly onActualQuantity: (value: string) => void;
+  readonly onAcceptedQuantity: (value: string) => void;
+  readonly onRejectedQuantity: (value: string) => void;
   readonly onUnit: (value: Unit) => void;
   readonly onExpectedAt: (value: string) => void;
   readonly onActualAt: (value: string) => void;
+  readonly onPrice: (value: string) => void;
+  readonly onClaimReference: (value: string) => void;
   readonly onEvidenceReferences: (value: string) => void;
   readonly onRelatedObservationId: (value: string) => void;
   readonly onSubmit: () => void;
@@ -173,6 +194,27 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
         onChange={(event) => props.onParticipantWording(event.target.value)}
       />
       <div className="grid gap-4 sm:grid-cols-2">
+        <Select
+          label="Nhà cung cấp liên quan"
+          value={props.supplierId}
+          options={props.supplierOptions}
+          placeholder="Không gắn hồ sơ"
+          onChange={(event) => props.onSupplierId(event.target.value)}
+        />
+        <Select
+          label="Mặt hàng liên quan"
+          value={props.productId}
+          options={props.productOptions}
+          placeholder="Không gắn hồ sơ"
+          onChange={(event) => props.onProductId(event.target.value)}
+        />
+        <Select
+          label="Phẩm cấp liên quan"
+          value={props.qualityGradeId}
+          options={props.qualityGradeOptions}
+          placeholder="Không gắn phẩm cấp"
+          onChange={(event) => props.onQualityGradeId(event.target.value)}
+        />
         <TextInput
           label="Vai trò / quan hệ"
           value={props.role}
@@ -184,9 +226,19 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           onChange={(event) => props.onSourceArea(event.target.value)}
         />
         <TextInput
-          label="Trách nhiệm lấy / đóng gói / vận chuyển"
-          value={props.responsibility}
-          onChange={(event) => props.onResponsibility(event.target.value)}
+          label="Trách nhiệm lấy hàng"
+          value={props.pickupResponsibility}
+          onChange={(event) => props.onPickupResponsibility(event.target.value)}
+        />
+        <TextInput
+          label="Trách nhiệm đóng gói"
+          value={props.packingResponsibility}
+          onChange={(event) => props.onPackingResponsibility(event.target.value)}
+        />
+        <TextInput
+          label="Trách nhiệm vận chuyển"
+          value={props.transportResponsibility}
+          onChange={(event) => props.onTransportResponsibility(event.target.value)}
         />
         <TextInput
           label="Lead time theo lời người tham gia"
@@ -215,13 +267,22 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           value={props.actualQuantity}
           onChange={(event) => props.onActualQuantity(event.target.value)}
         />
+        <TextInput
+          label="Số lượng được nhận"
+          inputMode="decimal"
+          value={props.acceptedQuantity}
+          onChange={(event) => props.onAcceptedQuantity(event.target.value)}
+        />
+        <TextInput
+          label="Số lượng bị từ chối"
+          inputMode="decimal"
+          value={props.rejectedQuantity}
+          onChange={(event) => props.onRejectedQuantity(event.target.value)}
+        />
         <Select
           label="Đơn vị"
           value={props.unit}
-          options={["kg", "gram", "lang", "bo", "thung", "ro", "kien", "cai"].map((value) => ({
-            value,
-            label: value,
-          }))}
+          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
           onChange={(event) => props.onUnit(event.target.value as Unit)}
         />
         <TextInput
@@ -235,6 +296,17 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           type="datetime-local"
           value={props.actualAt}
           onChange={(event) => props.onActualAt(event.target.value)}
+        />
+        <TextInput
+          label="Giá được quan sát (VND)"
+          inputMode="numeric"
+          value={props.price}
+          onChange={(event) => props.onPrice(event.target.value)}
+        />
+        <TextInput
+          label="Mã claim / khiếu nại"
+          value={props.claimReference}
+          onChange={(event) => props.onClaimReference(event.target.value)}
         />
       </div>
       <Textarea
@@ -285,11 +357,32 @@ function SupplierObservationCard({ item }: { readonly item: SupplierObservationD
       <div className="mt-3 grid gap-1 text-body-sm">
         {item.facts.role === null ? null : <span>Vai trò: {item.facts.role}</span>}
         {item.facts.sourceArea === null ? null : <span>Nguồn hàng: {item.facts.sourceArea}</span>}
+        {item.facts.pickupResponsibility === null ? null : (
+          <span>Trách nhiệm lấy: {item.facts.pickupResponsibility}</span>
+        )}
+        {item.facts.packingResponsibility === null ? null : (
+          <span>Trách nhiệm đóng gói: {item.facts.packingResponsibility}</span>
+        )}
+        {item.facts.transportResponsibility === null ? null : (
+          <span>Trách nhiệm vận chuyển: {item.facts.transportResponsibility}</span>
+        )}
         {item.facts.promisedQuantity === null ? null : (
           <span>Đã hứa: {formatQuantity(item.facts.promisedQuantity)}</span>
         )}
         {item.facts.actualQuantity === null ? null : (
           <span>Thực tế: {formatQuantity(item.facts.actualQuantity)}</span>
+        )}
+        {item.facts.acceptedQuantity === null ? null : (
+          <span>Được nhận: {formatQuantity(item.facts.acceptedQuantity)}</span>
+        )}
+        {item.facts.rejectedQuantity === null ? null : (
+          <span>Bị từ chối: {formatQuantity(item.facts.rejectedQuantity)}</span>
+        )}
+        {item.facts.price === null ? null : (
+          <span>Giá quan sát: {item.facts.price.amountMinor.toLocaleString("vi-VN")} VND</span>
+        )}
+        {item.facts.claimReference === null ? null : (
+          <span>Claim: {item.facts.claimReference}</span>
         )}
       </div>
       <p className="mt-3 text-caption text-ink-muted">
