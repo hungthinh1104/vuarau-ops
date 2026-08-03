@@ -77,12 +77,26 @@ export function DebtEvidenceView(props: {
         title="Bằng chứng công nợ"
         description="Lưu điều khoản, ngày hẹn và tham chiếu thu hồi từ hiện trường. Bản ghi không tự tạo overdue, phân bổ thanh toán hay thay đổi sổ công nợ."
         actions={
-          <Link
-            href="/evidence"
-            className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-          >
-            Bằng chứng chi phí
-          </Link>
+          <>
+            <Link
+              href="/evidence"
+              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
+            >
+              Bằng chứng chi phí
+            </Link>
+            <Link
+              href="/evidence/supply"
+              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
+            >
+              Cam kết nguồn cung
+            </Link>
+            <Link
+              href="/evidence/supplier"
+              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
+            >
+              Quan sát nhà cung cấp
+            </Link>
+          </>
         }
       />
       {props.canRecord ? <DebtObservationForm {...props} /> : null}

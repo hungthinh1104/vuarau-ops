@@ -88,6 +88,9 @@ export function WorkspaceView(props: {
       <Link href="/workspace/operations" className="text-info underline">
         Vận hành, kiểm tra và sao lưu
       </Link>
+      <Link href="/workspace/policies" className="text-info underline">
+        Chính sách theo vựa
+      </Link>
     </div>
   );
 }

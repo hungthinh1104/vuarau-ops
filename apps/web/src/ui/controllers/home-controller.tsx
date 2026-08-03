@@ -1,7 +1,7 @@
 "use client";
 
-import { HomeView } from "@/ui/screens/home-view.tsx";
+import { LandingPage } from "@/ui/landing/index.tsx";
 
 export function HomeController() {
-  return <HomeView />;
+  return <LandingPage />;
 }

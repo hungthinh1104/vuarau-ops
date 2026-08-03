@@ -2,13 +2,13 @@
 
 import type {
   CostObservationCaseKind,
-  CostObservationDto,
-  CostObservationKind,
   Page,
+  SupplyCommitmentObservationDto,
+  SupplyCommitmentObservationKind,
   Unit,
 } from "@vuarau/domain-contracts";
 import Link from "next/link";
-import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
+import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -22,39 +22,33 @@ import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
-const KIND_COPY: Readonly<Record<CostObservationKind, string>> = {
-  purchase_price: "Giá mua được quan sát",
-  accepted_quantity: "Số lượng nhận đạt",
-  rejected_quantity: "Số lượng từ chối",
-  packing_material: "Chi phí bao bì",
-  labor_handling: "Chi phí công / xử lý",
-  transport: "Chi phí vận chuyển",
-  spoilage: "Hao hụt / hư hỏng",
-  damage: "Hư hại",
-  customer_return: "Hàng khách trả",
-  supplier_claim: "Khiếu nại nhà cung cấp",
-  supplier_credit: "Khoản ghi có nhà cung cấp",
-  other: "Quan sát chi phí khác",
+const KIND_COPY: Readonly<Record<SupplyCommitmentObservationKind, string>> = {
+  promised_supply: "Nguồn cung được hứa",
+  expected_arrival: "Thời điểm dự kiến về",
+  minimum_order: "Số lượng tối thiểu",
+  availability_note: "Ghi chú khả năng cung ứng",
+  other: "Quan sát nguồn cung khác",
 };
-
 const CASE_COPY: Readonly<Record<CostObservationCaseKind, string>> = {
   normal: "Thông thường",
   partial_or_exception: "Một phần / ngoại lệ",
   correction: "Điều chỉnh bản ghi trước",
 };
 
-export function EvidenceView(props: {
+export function SupplyCommitmentEvidenceView(props: {
   readonly canRecord: boolean;
-  readonly query: QueryLike<Page<CostObservationDto>>;
-  readonly items: readonly CostObservationDto[];
-  readonly kind: CostObservationKind;
+  readonly query: QueryLike<Page<SupplyCommitmentObservationDto>>;
+  readonly items: readonly SupplyCommitmentObservationDto[];
+  readonly kind: SupplyCommitmentObservationKind;
   readonly caseKind: CostObservationCaseKind;
   readonly description: string;
   readonly participantWording: string;
-  readonly amount: string;
-  readonly quantity: string;
+  readonly counterpartyLabel: string;
+  readonly promisedQuantity: string;
+  readonly minimumOrder: string;
+  readonly expectedArrivalAt: string;
   readonly unit: Unit;
-  readonly sourceReference: string;
+  readonly commitmentReference: string;
   readonly evidenceReferences: string;
   readonly relatedObservationId: string;
   readonly formError: string | null;
@@ -63,10 +57,12 @@ export function EvidenceView(props: {
   readonly onCaseKind: (value: CostObservationCaseKind) => void;
   readonly onDescription: (value: string) => void;
   readonly onParticipantWording: (value: string) => void;
-  readonly onAmount: (value: string) => void;
-  readonly onQuantity: (value: string) => void;
+  readonly onCounterpartyLabel: (value: string) => void;
+  readonly onPromisedQuantity: (value: string) => void;
+  readonly onMinimumOrder: (value: string) => void;
+  readonly onExpectedArrivalAt: (value: string) => void;
   readonly onUnit: (value: Unit) => void;
-  readonly onSourceReference: (value: string) => void;
+  readonly onCommitmentReference: (value: string) => void;
   readonly onEvidenceReferences: (value: string) => void;
   readonly onRelatedObservationId: (value: string) => void;
   readonly onSubmit: () => void;
@@ -75,58 +71,50 @@ export function EvidenceView(props: {
   return (
     <div className="flex max-w-5xl flex-col gap-6">
       <PageHeader
-        title="Ghi nhận bằng chứng chi phí"
-        description="Lưu quan sát nguồn cho chi phí, hao hụt và số lượng. Bản ghi này không tự tạo COGS, lợi nhuận, công nợ hay tồn kho."
+        title="Cam kết nguồn cung"
+        description="Ghi lại lời hứa, khả năng có hàng và thời điểm dự kiến từ nhà cung cấp, nông hộ hoặc đầu mối. Bản ghi chưa tạo mua hàng, phải trả, tồn kho, reorder hay điểm nhà cung cấp."
         actions={
           <div className="flex flex-wrap gap-2">
+            <Link
+              href="/evidence"
+              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
+            >
+              Chi phí / hao hụt
+            </Link>
             <Link
               href="/evidence/reconciliation"
               className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
             >
               Đối soát hiện trường
             </Link>
-            <Link
-              href="/evidence/supply"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Cam kết nguồn cung
-            </Link>
-            <Link
-              href="/evidence/supplier"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Quan sát nhà cung cấp
-            </Link>
-            <Link
-              href="/evidence/debt"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Bằng chứng công nợ
-            </Link>
           </div>
         }
       />
-      {props.canRecord ? <ObservationForm {...props} /> : null}
-      <section aria-labelledby="evidence-history-title" className="grid gap-3">
+      {props.canRecord ? <SupplyCommitmentForm {...props} /> : null}
+      <section aria-labelledby="supply-commitment-history-title" className="grid gap-3">
         <div>
-          <h2 id="evidence-history-title" className="text-subheading font-semibold">
-            Lịch sử quan sát nguồn
+          <h2 id="supply-commitment-history-title" className="text-subheading font-semibold">
+            Lịch sử quan sát nguồn cung
           </h2>
           <p className="text-caption text-ink-muted">
-            Các bản ghi là append-only; sửa sai bằng một bản ghi điều chỉnh có liên kết.
+            Append-only; sửa sai bằng một bản ghi mới có liên kết tới quan sát trước.
           </p>
         </div>
-        <QueryStates query={props.query} loadingLabel="Đang tải bằng chứng" onRetry={props.onRetry}>
+        <QueryStates
+          query={props.query}
+          loadingLabel="Đang tải cam kết nguồn cung"
+          onRetry={props.onRetry}
+        >
           {() =>
             props.items.length === 0 ? (
               <EmptyState
-                title="Chưa có quan sát"
-                description="Chỉ ghi điều bạn quan sát được và luôn đính kèm nguồn tham chiếu."
+                title="Chưa có quan sát nguồn cung"
+                description="Chỉ ghi điều đã được nói hoặc quan sát và đính kèm nguồn tham chiếu."
               />
             ) : (
               <ul className="grid gap-3">
                 {props.items.map((item) => (
-                  <ObservationCard key={item.id} item={item} />
+                  <SupplyCommitmentCard key={item.id} item={item} />
                 ))}
               </ul>
             )
@@ -137,7 +125,7 @@ export function EvidenceView(props: {
   );
 }
 
-function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
+function SupplyCommitmentForm(props: Parameters<typeof SupplyCommitmentEvidenceView>[0]) {
   const locked = props.command.phase.kind === "sending" || props.command.phase.kind === "unknown";
   return (
     <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
@@ -168,47 +156,51 @@ function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
         value={props.participantWording}
         onChange={(event) => props.onParticipantWording(event.target.value)}
       />
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <TextInput
-          label="Số tiền quan sát (₫)"
-          inputMode="numeric"
-          value={props.amount}
-          onChange={(event) => props.onAmount(event.target.value)}
+          label="Tên nhà cung cấp / nông hộ / đầu mối"
+          value={props.counterpartyLabel}
+          onChange={(event) => props.onCounterpartyLabel(event.target.value)}
         />
         <TextInput
-          label="Số lượng quan sát"
+          label="Thời điểm dự kiến về"
+          type="datetime-local"
+          value={props.expectedArrivalAt}
+          onChange={(event) => props.onExpectedArrivalAt(event.target.value)}
+        />
+        <TextInput
+          label="Số lượng được hứa"
           inputMode="decimal"
-          value={props.quantity}
-          onChange={(event) => props.onQuantity(event.target.value)}
+          value={props.promisedQuantity}
+          onChange={(event) => props.onPromisedQuantity(event.target.value)}
+        />
+        <TextInput
+          label="Số lượng tối thiểu"
+          inputMode="decimal"
+          value={props.minimumOrder}
+          onChange={(event) => props.onMinimumOrder(event.target.value)}
         />
         <Select
           label="Đơn vị"
           value={props.unit}
-          options={[
-            { value: "kg", label: "kg" },
-            { value: "gram", label: "gram" },
-            { value: "lang", label: "lạng" },
-            { value: "bo", label: "bó" },
-            { value: "thung", label: "thùng" },
-            { value: "ro", label: "rổ" },
-            { value: "kien", label: "kiện" },
-            { value: "cai", label: "cái" },
-          ]}
+          options={["kg", "gram", "lang", "bo", "thung", "ro", "kien", "cai"].map((value) => ({
+            value,
+            label: value,
+          }))}
           onChange={(event) => props.onUnit(event.target.value as Unit)}
         />
+        <TextInput
+          label="Mã / tham chiếu cam kết"
+          value={props.commitmentReference}
+          onChange={(event) => props.onCommitmentReference(event.target.value)}
+        />
       </div>
-      <TextInput
-        label="Tham chiếu nguồn nội bộ (tuỳ chọn)"
-        value={props.sourceReference}
-        onChange={(event) => props.onSourceReference(event.target.value)}
-        hint="Mã phiếu hoặc liên kết canonical nếu có; không tự suy ra effect."
-      />
       <Textarea
         label="Nguồn bằng chứng"
         required
         value={props.evidenceReferences}
         onChange={(event) => props.onEvidenceReferences(event.target.value)}
-        hint="Mỗi dòng một ảnh, phiếu giấy, biên nhận hoặc link tới kho evidence được phê duyệt."
+        hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết tới kho evidence được phê duyệt."
       />
       {props.caseKind === "correction" ? (
         <TextInput
@@ -220,18 +212,18 @@ function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
       ) : null}
       {props.formError === null ? null : <p role="alert">{props.formError}</p>}
       <Button disabled={locked} onClick={props.onSubmit}>
-        {locked ? "Đang xác định kết quả…" : "Lưu quan sát nguồn"}
+        {locked ? "Đang xác định kết quả…" : "Lưu quan sát nguồn cung"}
       </Button>
       <CommandOutcome
         command={props.command}
-        attemptedAction="Lưu quan sát nguồn"
+        attemptedAction="Lưu quan sát nguồn cung"
         onReload={() => undefined}
       />
     </section>
   );
 }
 
-function ObservationCard({ item }: { readonly item: CostObservationDto }) {
+function SupplyCommitmentCard({ item }: { readonly item: SupplyCommitmentObservationDto }) {
   return (
     <li className="rounded-card border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -248,11 +240,26 @@ function ObservationCard({ item }: { readonly item: CostObservationDto }) {
       </div>
       <p className="mt-3">{item.description}</p>
       <p className="mt-1 text-body-sm text-ink-muted">“{item.participantWording}”</p>
-      <div className="mt-3 flex flex-wrap gap-3 text-body-sm">
-        {item.facts.amount === null ? null : <span>{formatMoney(item.facts.amount)}</span>}
-        {item.facts.quantity === null ? null : <span>{formatQuantity(item.facts.quantity)}</span>}
-        {item.facts.sourceReference === null ? null : <code>{item.facts.sourceReference}</code>}
+      <div className="mt-3 grid gap-1 text-body-sm">
+        {item.facts.counterpartyLabel === null ? null : (
+          <span>Đầu mối: {item.facts.counterpartyLabel}</span>
+        )}
+        {item.facts.promisedQuantity === null ? null : (
+          <span>Số lượng hứa: {formatQuantity(item.facts.promisedQuantity)}</span>
+        )}
+        {item.facts.minimumOrder === null ? null : (
+          <span>Tối thiểu: {formatQuantity(item.facts.minimumOrder)}</span>
+        )}
+        {item.facts.expectedArrivalAt === null ? null : (
+          <span>Dự kiến về: {formatInstant(item.facts.expectedArrivalAt)}</span>
+        )}
+        {item.facts.commitmentReference === null ? null : (
+          <span>Tham chiếu: {item.facts.commitmentReference}</span>
+        )}
       </div>
+      <p className="mt-3 text-caption text-ink-muted">
+        Chưa kết luận phải trả, tồn kho, reorder hoặc hiệu suất nhà cung cấp.
+      </p>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (
         <p className="mt-2 text-caption text-warning">

@@ -19,7 +19,7 @@ import type {
  * Each entry says what happened and what to do next. "Dữ liệu không hợp lệ" tells
  * a worker at 3 a.m. nothing they can act on.
  */
-const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
+const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   AUTHENTICATION_REQUIRED: "Cần đăng nhập để tiếp tục.",
   AUTHENTICATION_INVALID: "Phiên đăng nhập không còn hiệu lực. Hãy đăng nhập lại.",
   ACTOR_NOT_FOUND: "Tài khoản này chưa được thêm vào hệ thống. Hãy báo chủ vựa.",
@@ -39,6 +39,13 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
     "Cấu hình vận hành vừa được người khác thay đổi. Hãy tải lại.",
   WORKSPACE_PROFILE_UNCHANGED: "Cấu hình vận hành không có thay đổi.",
   WORKSPACE_WORKFLOW_DISABLED: "Quy trình này đang tắt trong cấu hình của vựa.",
+  WORKSPACE_POLICY_ALREADY_EXISTS: "Phiên bản policy này đã tồn tại trong vựa.",
+  WORKSPACE_POLICY_NOT_FOUND: "Không tìm thấy phiên bản policy này.",
+  WORKSPACE_POLICY_NOT_DRAFT: "Chỉ policy ở trạng thái nháp mới có thể được duyệt.",
+  WORKSPACE_POLICY_NOT_APPROVED: "Policy này đã được ngừng hiệu lực.",
+  WORKSPACE_POLICY_EVIDENCE_REQUIRED: "Cần ít nhất một tham chiếu bằng chứng để duyệt policy.",
+  WORKSPACE_POLICY_VERSION_CONFLICT: "Policy vừa được người khác thay đổi. Hãy tải lại.",
+  WORKSPACE_POLICY_EFFECTIVE_RANGE_INVALID: "Khoảng hiệu lực của policy không hợp lệ.",
 
   CUSTOMER_NOT_FOUND: "Không tìm thấy khách hàng này.",
   CUSTOMER_NAME_REQUIRED: "Tên khách hàng không được để trống.",
@@ -242,6 +249,14 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
     "Chỉ bản quan sát điều chỉnh mới được liên kết quan sát trước đó.",
   DEBT_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát điều khoản công nợ.",
   DEBT_OBSERVATION_ALREADY_RECORDED: "Quan sát điều khoản công nợ đã được ghi nhận.",
+  SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_TARGET_REQUIRED:
+    "Quan sát điều chỉnh nguồn cung phải chỉ rõ quan sát gốc.",
+  SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
+    "Không tìm thấy quan sát nguồn cung cần điều chỉnh trong vựa này.",
+  SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_LINK_INVALID:
+    "Chỉ quan sát điều chỉnh mới được liên kết tới quan sát trước đó.",
+  SUPPLY_COMMITMENT_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát cam kết nguồn cung.",
+  SUPPLY_COMMITMENT_OBSERVATION_ALREADY_RECORDED: "Quan sát cam kết nguồn cung đã được ghi nhận.",
   COMMAND_NOT_AVAILABLE: "Chức năng này chưa có.",
 };
 
