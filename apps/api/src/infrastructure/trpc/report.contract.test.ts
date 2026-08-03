@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   REPORT_TYPES,
+  managementIntelligenceDtoSchema,
   reportDefinitionsDtoSchema,
   reportMetricDefinitionsDtoSchema,
 } from "@vuarau/domain-contracts";
@@ -43,5 +44,23 @@ describe("report definitions procedure", () => {
     expect(
       metrics.definitions.find((definition) => definition.metricId === "supplier_performance"),
     ).toMatchObject({ availability: "available" });
+  });
+
+  it("publishes management intelligence as unavailable without an effective policy", async () => {
+    const caller = appRouter.createCaller(
+      createTrustedContext(harness.deps, principalFor(ACTOR_ID)),
+    );
+    const intelligence = await caller.report.intelligence({
+      workspaceId: WORKSPACE_ID,
+      asOf: "2026-08-04T09:00:00.000Z",
+      businessDate: null,
+    });
+
+    expect(managementIntelligenceDtoSchema.safeParse(intelligence).success).toBe(true);
+    expect(intelligence).toMatchObject({
+      status: "unavailable",
+      diagnostics: ["no_effective_management_intelligence_policy"],
+      indicators: [],
+    });
   });
 });
