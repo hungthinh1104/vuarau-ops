@@ -93,12 +93,12 @@ import type { DebtAgingSources, InventoryValuationMovement } from "@vuarau/domai
 import type { CustomerOrderReadRepository } from "./customer-order-read-ports.ts";
 import type { SupplyCommitmentReadRepository } from "./supply-commitment-read-ports.ts";
 import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
+import type { CloseReadRepositories } from "./close-read-ports.ts";
 import type { OperationsReadRepository } from "./operations-read-ports.ts";
 /**
  * Read ports, separate from the write ports on purpose.
  *
- * The write side loads aggregates: whole, locked, consistent, one at a time. The
- * read side answers screens: paged, joined, projected, and never locked. Sharing
+ * The write side loads aggregates: whole, locked, consistent, one at a time. The read side answers screens: paged, joined, projected, and never locked. Sharing
  * one repository between them ends with `findById` growing a `withCustomerName`
  * flag, and then a command loading data it has no business loading.
  *
@@ -696,4 +696,4 @@ export type ReadRepositories = {
   readonly supplierObservationReads: SupplierObservationReadRepository;
   readonly demandObservationReads: DemandObservationReadRepository;
   readonly workspacePolicyReads: WorkspacePolicyReadRepository;
-};
+} & CloseReadRepositories;

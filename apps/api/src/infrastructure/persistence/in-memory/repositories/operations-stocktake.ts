@@ -1,11 +1,11 @@
-import type { WorkspaceBackupV18, WorkspaceId } from "@vuarau/domain-contracts";
+import type { WorkspaceBackupV19, WorkspaceId } from "@vuarau/domain-contracts";
 import type { StocktakeCountState, StocktakeSessionState } from "@vuarau/domain-kernel";
 import { key, type Store } from "../store.ts";
 
 export function restoreStocktakes(
   store: Store,
   workspaceId: WorkspaceId,
-  payload: WorkspaceBackupV18["payload"],
+  payload: WorkspaceBackupV19["payload"],
 ): void {
   for (const raw of payload.stocktakeSessions) {
     const row = {

@@ -72,7 +72,7 @@ import {
   stocktakeCounts,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
-
+import { readOperationsCloseBackup } from "./operations-close-backup.ts";
 export const createOperationsReadRepositories = (tx: Tx) => ({
   operationsReads: {
     async integrity(workspaceId: string) {
@@ -595,6 +595,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         tx.select().from(stocktakeSessions).where(eq(stocktakeSessions.workspaceId, workspaceId)),
         tx.select().from(stocktakeCounts).where(eq(stocktakeCounts.workspaceId, workspaceId)),
       ]);
+      const closeBackup = await readOperationsCloseBackup(tx, workspaceId);
       const plain = (value: unknown): Record<string, unknown> =>
         JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
       const list = (values: readonly unknown[]) => values.map(plain);
@@ -688,6 +689,10 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         workspacePolicies: list(workspacePolicyRows),
         stocktakeSessions: list(stocktakeSessionRows),
         stocktakeCounts: list(stocktakeCountRows),
+        operationalCloses: closeBackup.operationalCloses,
+        operationalCloseReopens: closeBackup.operationalCloseReopens,
+        cashStatementMatches: closeBackup.cashStatementMatches,
+        cashStatementMatchReversals: closeBackup.cashStatementMatchReversals,
       };
     },
   },

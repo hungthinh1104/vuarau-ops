@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type {
   ExportWorkspaceBackupCommand,
   WorkspaceBackup,
-  WorkspaceBackupV18,
+  WorkspaceBackupV19,
   WorkspaceId,
   WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
@@ -32,7 +32,7 @@ export function backupDigest(payload: WorkspaceBackup["payload"]): string {
   return createHash("sha256").update(canonical(payload)).digest("hex");
 }
 
-function orderedPayload(payload: WorkspaceBackupV18["payload"]): WorkspaceBackupV18["payload"] {
+function orderedPayload(payload: WorkspaceBackupV19["payload"]): WorkspaceBackupV19["payload"] {
   return Object.fromEntries(
     Object.entries(payload).map(([name, value]) => [
       name,
@@ -40,7 +40,7 @@ function orderedPayload(payload: WorkspaceBackupV18["payload"]): WorkspaceBackup
         ? [...value].sort((left, right) => canonical(left).localeCompare(canonical(right)))
         : value,
     ]),
-  ) as WorkspaceBackupV18["payload"];
+  ) as WorkspaceBackupV19["payload"];
 }
 
 export function getWorkspaceIntegrity(
@@ -58,8 +58,8 @@ export function getWorkspaceIntegrity(
 export function exportWorkspaceBackup(
   ctx: CommandContext,
   input: unknown,
-): Promise<DomainResult<WorkspaceBackupV18>> {
-  return runCommand<ExportWorkspaceBackupCommand, WorkspaceBackupV18>({
+): Promise<DomainResult<WorkspaceBackupV19>> {
+  return runCommand<ExportWorkspaceBackupCommand, WorkspaceBackupV19>({
     commandType: "ExportWorkspaceBackup",
     schema: exportWorkspaceBackupCommandSchema,
     input,
@@ -68,19 +68,19 @@ export function exportWorkspaceBackup(
     execute: async ({ command, repos, recordedAt }) => {
       const found = await repos.operationsReads.backupPayload(command.workspaceId);
       if (found === null) return err("WORKSPACE_ACCESS_DENIED", "Workspace not found.");
-      const payload = orderedPayload(found as unknown as WorkspaceBackupV18["payload"]);
+      const payload = orderedPayload(found as unknown as WorkspaceBackupV19["payload"]);
       const recordCounts = Object.fromEntries(
         Object.entries(payload).map(([name, rows]) => [
           name,
           Array.isArray(rows) ? rows.length : 1,
         ]),
       );
-      const backup: WorkspaceBackupV18 = {
+      const backup: WorkspaceBackupV19 = {
         format: "vuarau.workspace-backup",
-        version: 18,
+        version: 19,
         sourceWorkspaceId: command.workspaceId,
         createdAt: recordedAt,
-        schemaCompatibility: "m34-stocktake-planning",
+        schemaCompatibility: "m35-close-bank-reconciliation",
         recordCounts,
         payload,
         digest: backupDigest(payload),
@@ -95,7 +95,7 @@ export function exportWorkspaceBackup(
         transactionTime: command.occurredAt,
         recordedAt,
         before: null,
-        after: { version: 18, digest: backup.digest, recordCounts },
+        after: { version: 19, digest: backup.digest, recordCounts },
         reason: null,
       });
       return ok(backup);

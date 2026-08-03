@@ -18,6 +18,7 @@ import { createSupplierObservationRepositories } from "./repositories/supplier-o
 import { createDemandObservationRepositories } from "./repositories/demand-observation.ts";
 import { createWorkspacePolicyRepositories } from "./repositories/policy.ts";
 import { createStocktakeRepositories } from "./repositories/stocktake.ts";
+import { createCloseRepositories } from "./repositories/close.ts";
 import { createPaymentRepositories } from "./repositories/payment.ts";
 import { createPaymentAllocationRepositories } from "./repositories/payment-allocation.ts";
 import { createProductRepositories } from "./repositories/product.ts";
@@ -47,6 +48,7 @@ import { createSupplierObservationReads } from "./reads/supplier-observation.ts"
 import { createDemandObservationReads } from "./reads/demand-observation.ts";
 import { createWorkspacePolicyReads } from "./reads/policy.ts";
 import { createStocktakeReads } from "./reads/stocktake.ts";
+import { createCloseReads } from "./reads/close.ts";
 import { createPaymentReads } from "./reads/payment.ts";
 import { createProductReads } from "./reads/product.ts";
 import { createPriceRuleReads } from "./reads/pricing.ts";
@@ -80,6 +82,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createDemandObservationRepositories(store),
   ...createWorkspacePolicyRepositories(store),
   ...createStocktakeRepositories(store),
+  ...createCloseRepositories(store),
   ...createCashRepositories(store, ids),
   ...createIntakeRepositories(store),
   ...createSaleRepositories(store),
@@ -112,6 +115,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createDemandObservationReads(store),
   ...createWorkspacePolicyReads(store),
   ...createStocktakeReads(store),
+  ...createCloseReads(store),
   ...createCashReads(store),
   ...createIntakeReads(store),
   ...createAuditReads(store),

@@ -407,8 +407,8 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       payload: {},
     });
     expect(backup.ok && backup.value).toMatchObject({
-      version: 18,
-      schemaCompatibility: "m34-stocktake-planning",
+      version: 19,
+      schemaCompatibility: "m35-close-bank-reconciliation",
     });
     if (backup.ok) {
       expect(backup.value.payload.deliveries).toHaveLength(2);

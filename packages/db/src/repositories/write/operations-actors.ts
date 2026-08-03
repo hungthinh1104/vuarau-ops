@@ -1,6 +1,6 @@
-import type { WorkspaceBackupV18 } from "@vuarau/domain-contracts";
+import type { WorkspaceBackupV19 } from "@vuarau/domain-contracts";
 
-export function backupActorIds(payload: WorkspaceBackupV18["payload"]): string[] {
+export function backupActorIds(payload: WorkspaceBackupV19["payload"]): string[] {
   return [
     ...payload.cashAccounts.map((row) => row["custodianActorId"]),
     ...payload.expenses.map((row) => row["actorId"]),

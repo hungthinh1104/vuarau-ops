@@ -22,6 +22,8 @@ import {
   supplierObservations,
   demandObservations,
   stocktakeSessions,
+  operationalCloses,
+  cashStatementMatches,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -46,6 +48,8 @@ export async function targetContainsBusinessData(
     purchaseRows,
     movementRows,
     stocktakeRows,
+    operationalCloseRows,
+    cashStatementMatchRows,
     deliveryRows,
     documentRows,
     supplyCommitmentObservationRows,
@@ -129,6 +133,16 @@ export async function targetContainsBusinessData(
       .where(eq(stocktakeSessions.workspaceId, workspaceId))
       .limit(1),
     tx
+      .select({ id: operationalCloses.id })
+      .from(operationalCloses)
+      .where(eq(operationalCloses.workspaceId, workspaceId))
+      .limit(1),
+    tx
+      .select({ id: cashStatementMatches.id })
+      .from(cashStatementMatches)
+      .where(eq(cashStatementMatches.workspaceId, workspaceId))
+      .limit(1),
+    tx
       .select({ id: deliveries.id })
       .from(deliveries)
       .where(eq(deliveries.workspaceId, workspaceId))
@@ -172,6 +186,8 @@ export async function targetContainsBusinessData(
       purchaseRows,
       movementRows,
       stocktakeRows,
+      operationalCloseRows,
+      cashStatementMatchRows,
       deliveryRows,
       documentRows,
       supplyCommitmentObservationRows,

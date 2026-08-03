@@ -20,3 +20,4 @@ export * from "./intake.ts";
 export * from "./evidence.ts";
 export * from "./policy.ts";
 export * from "./stocktake.ts";
+export * from "./close.ts";

@@ -22,6 +22,7 @@ import { createDebtObservationReadRepositories } from "./read/debt-observation.t
 import { createWorkspacePolicyReadRepositories } from "./read/policy.ts";
 import { createCustomerOrderReadRepositories } from "./read/customer-order.ts";
 import { createSupplyCommitmentReadRepositories } from "./read/supply-commitment.ts";
+import { createCloseReadRepositories } from "./read/close.ts";
 
 export function createReadRepositories(tx: Tx) {
   return {
@@ -48,6 +49,7 @@ export function createReadRepositories(tx: Tx) {
     ...createWorkspacePolicyReadRepositories(tx),
     ...createCustomerOrderReadRepositories(tx),
     ...createSupplyCommitmentReadRepositories(tx),
+    ...createCloseReadRepositories(tx),
   };
 }
 

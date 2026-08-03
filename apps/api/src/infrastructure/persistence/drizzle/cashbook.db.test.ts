@@ -5,6 +5,8 @@ import {
   sql,
   cashBalances,
   cashMovements,
+  cashStatementMatches,
+  cashStatementMatchReversals,
   cashAdjustments,
   cashTransferReversals,
   cashTransfers,
@@ -39,6 +41,14 @@ import {
 } from "../../../modules/cash/cash.handlers.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
 import { getCashReconciliation } from "../../../modules/cash/cash.queries.ts";
+import {
+  approveWorkspacePolicy,
+  createWorkspacePolicyDraft,
+} from "../../../modules/policy/policy.handlers.ts";
+import {
+  recordCashStatementMatch,
+  reverseCashStatementMatch,
+} from "../../../modules/close/close.handlers.ts";
 
 describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
   let ctx: DbTestContext;
@@ -333,5 +343,124 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
       .where(eq(customerAccountEntries.sourceId, paymentId));
     expect(movements).toHaveLength(1);
     expect(entries).toHaveLength(1);
+  });
+
+  it("TC-CLOSE-DB-001 — statement match is PostgreSQL-backed, exact and non-financial", async () => {
+    const policyVersionId = crypto.randomUUID();
+    expect(
+      (
+        await createWorkspacePolicyDraft(context(), {
+          ...command("close-policy-draft"),
+          payload: {
+            policyVersionId,
+            policyKind: "cash_custody_deposit",
+            version: 1,
+            effectiveFrom: "2020-01-01T00:00:00.000Z",
+            effectiveTo: null,
+            definition: {
+              contractVersion: 1,
+              parameters: {
+                strategy: "exact_cash_movement",
+                allowedSourceTypes: ["customer_payment"],
+                allowReverse: true,
+              },
+            },
+            evidenceReferences: [],
+            reason: "Policy đối chiếu sao kê kiểm thử.",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await approveWorkspacePolicy(context(), {
+          ...command("close-policy-approve"),
+          payload: {
+            policyVersionId,
+            evidenceReferences: ["policy://close/db-001"],
+            reason: "Đã duyệt policy đối chiếu sao kê.",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+
+    const paymentId = crypto.randomUUID() as PaymentId;
+    expect(
+      (
+        await recordCustomerPayment(context(), {
+          ...command("close-db-payment"),
+          payload: {
+            paymentId,
+            customerId: ctx.customerId,
+            amount: { amountMinor: 222_000, currency: "VND" as const },
+            method: "cash" as const,
+            cashAccountId: bankAccountId,
+            payerName: null,
+            note: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const movement = (
+      await ctx.database.db
+        .select()
+        .from(cashMovements)
+        .where(eq(cashMovements.sourceId, paymentId))
+    )[0];
+    expect(movement).toBeDefined();
+    if (movement === undefined) return;
+    const balanceBefore = (
+      await ctx.database.db
+        .select({ balanceMinor: cashBalances.balanceMinor })
+        .from(cashBalances)
+        .where(eq(cashBalances.cashAccountId, bankAccountId))
+    )[0]?.balanceMinor;
+    const matchId = crypto.randomUUID();
+    const matchCommand = {
+      ...command("close-db-match"),
+      payload: {
+        cashStatementMatchId: matchId,
+        cashAccountId: bankAccountId,
+        cashMovementId: movement.id,
+        externalReference: "BANK-DB-001",
+        statementAt: movement.transactionTime.toISOString(),
+        amount: { amountMinor: 222_000, currency: "VND" as const },
+        evidenceReferences: ["bank-statement://db-001"],
+      },
+    };
+    expect((await recordCashStatementMatch(context(), matchCommand)).ok).toBe(true);
+    expect((await recordCashStatementMatch(context(), matchCommand)).ok).toBe(true);
+    const matchRows = await ctx.database.db
+      .select({ id: cashStatementMatches.id })
+      .from(cashStatementMatches)
+      .where(eq(cashStatementMatches.id, matchId));
+    expect(matchRows).toHaveLength(1);
+    expect(
+      (
+        await ctx.database.db
+          .select({ balanceMinor: cashBalances.balanceMinor })
+          .from(cashBalances)
+          .where(eq(cashBalances.cashAccountId, bankAccountId))
+      )[0]?.balanceMinor,
+    ).toBe(balanceBefore);
+    expect(
+      (
+        await reverseCashStatementMatch(context(), {
+          ...command("close-db-reverse"),
+          expectedVersion: 1,
+          payload: {
+            cashStatementMatchId: matchId,
+            reversalId: crypto.randomUUID(),
+            reason: "Đảo match kiểm thử.",
+            evidenceReferences: ["bank-statement://db-001-reversal"],
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const reversalRows = await ctx.database.db
+      .select({ id: cashStatementMatchReversals.id })
+      .from(cashStatementMatchReversals)
+      .where(eq(cashStatementMatchReversals.cashStatementMatchId, matchId));
+    expect(reversalRows).toHaveLength(1);
   });
 });

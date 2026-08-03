@@ -35,6 +35,8 @@ import { createSupplyCommitmentWriteRepositories } from "./write/supply-commitme
 import { createSupplyCommitmentReadRepositories } from "./read/supply-commitment.ts";
 import { createStocktakeReadRepositories } from "./read/stocktake.ts";
 import { createStocktakeWriteRepositories } from "./write/stocktake.ts";
+import { createCloseWriteRepositories } from "./write/close.ts";
+import { createCloseReadRepositories } from "./read/close.ts";
 
 type Tx = PgTransaction<never, never, never>;
 export type IdMinter = { newId(): string };
@@ -76,6 +78,8 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     ...createSupplyCommitmentReadRepositories(tx),
     ...createStocktakeWriteRepositories(tx),
     ...createStocktakeReadRepositories(tx),
+    ...createCloseWriteRepositories(tx),
+    ...createCloseReadRepositories(tx),
   };
 }
 

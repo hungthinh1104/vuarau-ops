@@ -518,6 +518,22 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
           unit: quantity.unit,
           evidenceReferences: [...count.evidenceReferences],
         })),
+        operationalCloses: rows(store.operationalCloses.values()).map(
+          ({ reopen: _reopen, ...close }) => close,
+        ),
+        operationalCloseReopens: rows(store.operationalCloses.values()).flatMap((close) =>
+          close.reopen === null
+            ? []
+            : [{ ...close.reopen, workspaceId, operationalCloseId: close.id }],
+        ),
+        cashStatementMatches: rows(store.cashStatementMatches.values()).map(
+          ({ reversal: _reversal, ...match }) => match,
+        ),
+        cashStatementMatchReversals: rows(store.cashStatementMatches.values()).flatMap((match) =>
+          match.reversal === null
+            ? []
+            : [{ ...match.reversal, workspaceId, cashStatementMatchId: match.id }],
+        ),
       };
     },
   },

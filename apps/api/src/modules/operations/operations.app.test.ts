@@ -27,6 +27,8 @@ import type {
   QualityInspectionId,
   SupplierId,
   WorkspaceBackupV1,
+  OperationalCloseId,
+  ReconciliationObservationId,
 } from "@vuarau/domain-contracts";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import {
@@ -46,6 +48,10 @@ import {
   recordQualityInspection,
 } from "../intake/intake.handlers.ts";
 import { getDispositionSourceSummary, getGoodsArrival } from "../intake/intake.queries.ts";
+import { approveWorkspacePolicy, createWorkspacePolicyDraft } from "../policy/policy.handlers.ts";
+import { recordReconciliationObservation } from "../evidence/evidence.handlers.ts";
+import { recordOperationalClose } from "../close/close.handlers.ts";
+import { getOperationalClose } from "../close/close.queries.ts";
 
 let harness: Harness;
 beforeEach(() => {
@@ -348,10 +354,10 @@ describe("M14 logical operations evidence", () => {
     });
   });
 
-  it("keeps WorkspaceBackupV1 restore-compatible while exporting V18", async () => {
+  it("keeps WorkspaceBackupV1 restore-compatible while exporting V19", async () => {
     const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
     if (!exported.ok) return;
-    expect(exported.value.version).toBe(18);
+    expect(exported.value.version).toBe(19);
     const {
       suppliers: _suppliers,
       supplierPayments: _supplierPayments,
@@ -405,6 +411,10 @@ describe("M14 logical operations evidence", () => {
       workspacePolicies: _workspacePolicies,
       stocktakeSessions: _stocktakeSessions,
       stocktakeCounts: _stocktakeCounts,
+      operationalCloses: _operationalCloses,
+      operationalCloseReopens: _operationalCloseReopens,
+      cashStatementMatches: _cashStatementMatches,
+      cashStatementMatchReversals: _cashStatementMatchReversals,
       ...payload
     } = exported.value.payload;
     const legacyPayload = {
@@ -442,6 +452,119 @@ describe("M14 logical operations evidence", () => {
       payload: { backup: legacy, reason: "Kiểm tra tương thích V1" },
     });
     expect(restored.ok).toBe(true);
+  });
+
+  it("TC-OPS-018 — Backup V19 preserves operational close policy and observation lineage", async () => {
+    const envelope = (label: string) => ({
+      commandId: crypto.randomUUID(),
+      idempotencyKey: `backup-close-${label}-${crypto.randomUUID()}`,
+      workspaceId: WORKSPACE_ID,
+      actorId: ACTOR_ID,
+      occurredAt: LATEST_TRANSACTION_TIME,
+    });
+    const policyVersionId = crypto.randomUUID();
+    expect(
+      (
+        await createWorkspacePolicyDraft(harness.ctx, {
+          ...envelope("policy-draft"),
+          payload: {
+            policyVersionId,
+            policyKind: "operating_cycle_reconciliation",
+            version: 1,
+            effectiveFrom: "2020-01-01T00:00:00.000Z",
+            effectiveTo: null,
+            definition: {
+              contractVersion: 1,
+              parameters: {
+                strategy: "observation_signoff",
+                requiredObservationKinds: ["cash_count"],
+                allowReopen: true,
+              },
+            },
+            evidenceReferences: [],
+            reason: "Policy close cho diễn tập backup.",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await approveWorkspacePolicy(harness.ctx, {
+          ...envelope("policy-approve"),
+          payload: {
+            policyVersionId,
+            evidenceReferences: ["policy://backup-close/001"],
+            reason: "Đã duyệt policy close cho diễn tập.",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const observationId = crypto.randomUUID() as ReconciliationObservationId;
+    expect(
+      (
+        await recordReconciliationObservation(harness.ctx, {
+          ...envelope("observation"),
+          payload: {
+            reconciliationObservationId: observationId,
+            kind: "cash_count",
+            caseKind: "normal",
+            description: "Đếm tiền cuối ngày.",
+            participantWording: "Đã kiểm tra cùng thủ quỹ.",
+            facts: {
+              expectedAmount: { amountMinor: 900_000, currency: "VND" },
+              observedAmount: { amountMinor: 900_000, currency: "VND" },
+              expectedQuantity: null,
+              observedQuantity: null,
+              itemCount: 1,
+              productId: null,
+              qualityGradeId: null,
+              scopeReference: "cash://backup-close",
+            },
+            evidenceReferences: ["photo://backup-close/001"],
+            relatedObservationId: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const operationalCloseId = crypto.randomUUID() as OperationalCloseId;
+    const closed = await recordOperationalClose(harness.ctx, {
+      ...envelope("close"),
+      payload: {
+        operationalCloseId,
+        businessDate: "2026-08-03",
+        observationIds: [observationId],
+        evidenceReferences: ["review://backup-close/001"],
+        reason: "Đã signoff cuối ngày.",
+      },
+    });
+    expect(closed).toMatchObject({ ok: true, value: { policyVersionId, state: "closed" } });
+
+    const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
+    expect(exported).toMatchObject({
+      ok: true,
+      value: {
+        version: 19,
+        payload: {
+          operationalCloses: [expect.objectContaining({ id: operationalCloseId })],
+          operationalCloseReopens: [],
+        },
+      },
+    });
+    if (!exported.ok) return;
+    const target = workspaceIdSchema.parse("00000000-0000-4000-8000-000000000805");
+    harness.db.registerWorkspace(target, "Vựa phục hồi close");
+    harness.db.grantMembership(target, ACTOR_ID, "owner", true);
+    const restored = await restoreWorkspaceBackup(harness.ctx, {
+      ...envelope("restore"),
+      workspaceId: target,
+      payload: { backup: exported.value, reason: "Phục hồi lineage close" },
+    });
+    expect(restored).toMatchObject({ ok: true });
+    const read = await getOperationalClose(harness.ctx, {
+      workspaceId: target,
+      operationalCloseId,
+    });
+    expect(read).toMatchObject({ ok: true, value: { workspaceId: target, policyVersionId } });
   });
 
   it("reports a ledger entry whose canonical source is missing", async () => {

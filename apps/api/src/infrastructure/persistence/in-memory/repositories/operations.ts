@@ -1,13 +1,10 @@
-import type { Repositories } from "../../ports.ts";
+import type { CommandReceipt, Repositories } from "../../ports.ts";
 import type {
-  ActorId,
   AuditRecordDto,
   CustomerAccountEntryDto,
   IsoInstant,
-  WorkspaceId,
   SupplierAccountEntryDto,
   DocumentDto,
-  DocumentShareId,
   WorkspaceOperationalProfileDto,
   CashAccountDto,
   CashMovementDto,
@@ -25,9 +22,7 @@ import type {
   DemandObservationDto,
   WorkspacePolicyDto,
 } from "@vuarau/domain-contracts";
-import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import { money } from "@vuarau/domain-kernel";
-import type { CommandReceipt } from "../../ports.ts";
 import type {
   CustomerState,
   PriceRuleState,
@@ -45,11 +40,13 @@ import type {
   DeliveryReturnState,
   CustomerOrderState,
   SupplyCommitmentState,
+  PaymentReversalState,
+  SaleVoidState,
 } from "@vuarau/domain-kernel";
-import { key } from "../store.ts";
-import type { Store } from "../store.ts";
+import { key, type Store } from "../store.ts";
 import { restorePaymentAllocationFacts } from "./payment-allocation.ts";
 import { restoreStocktakes } from "./operations-stocktake.ts";
+import { restoreCloseFacts } from "./operations-close-restore.ts";
 export const createOperationsRepositories = (store: Store): Pick<Repositories, "operations"> => ({
   operations: {
     restoreBackup: async (workspaceId, payload) => {
@@ -82,6 +79,8 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.supplyCommitments.values(),
           ...store.stocktakeSessions.values(),
           ...store.stocktakeCounts.values(),
+          ...store.operationalCloses.values(),
+          ...store.cashStatementMatches.values(),
         ].some((row) => row.workspaceId === workspaceId) ||
         store.accountEntries.some((row) => row.workspaceId === workspaceId) ||
         store.inventoryMovements.some((row) => row.workspaceId === workspaceId) ||
@@ -187,6 +186,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         store.cashMovements.push(
           ...payload.cashMovements.map((raw) => remap(raw) as unknown as CashMovementDto),
         );
+        restoreCloseFacts(store, workspaceId, payload);
         for (const raw of payload.customers) {
           const row = remap(raw) as unknown as CustomerState;
           store.customers.set(key(workspaceId, row.id), row);
@@ -555,18 +555,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           store.documents.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.documentShares) {
-          const row = remap(raw) as unknown as {
-            id: DocumentShareId;
-            workspaceId: WorkspaceId;
-            documentId: DocumentDto["id"];
-            tokenHash: string;
-            expiresAt: IsoInstant | null;
-            createdAt: IsoInstant;
-            createdBy: ActorId;
-            revokedAt: IsoInstant | null;
-            revokedBy: ActorId | null;
-            revokeReason: string | null;
-          };
+          const row = remap(raw) as unknown as Parameters<Store["documentShares"]["set"]>[1];
           store.documentShares.set(key(workspaceId, row.id), row);
         }
         for (const customer of [...store.customers.values()].filter(

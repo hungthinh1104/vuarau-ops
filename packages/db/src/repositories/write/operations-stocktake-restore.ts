@@ -1,11 +1,11 @@
-import type { WorkspaceBackupV18 } from "@vuarau/domain-contracts";
+import type { WorkspaceBackupV19 } from "@vuarau/domain-contracts";
 import { stocktakeCounts, stocktakeSessions } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 import type { ScopedRow } from "./operations-payment-allocation.ts";
 
 export async function restoreStocktakes(
   tx: Tx,
-  payload: WorkspaceBackupV18["payload"],
+  payload: WorkspaceBackupV19["payload"],
   scoped: ScopedRow,
   date: (value: unknown) => Date,
 ): Promise<void> {
