@@ -28,7 +28,7 @@ describe("report definitions procedure", () => {
     );
   });
 
-  it("publishes policy-blocked metric availability through tRPC", async () => {
+  it("publishes policy-blocked and descriptive metric availability through tRPC", async () => {
     const caller = appRouter.createCaller(
       createTrustedContext(harness.deps, principalFor(ACTOR_ID)),
     );
@@ -36,7 +36,12 @@ describe("report definitions procedure", () => {
 
     expect(reportMetricDefinitionsDtoSchema.safeParse(metrics).success).toBe(true);
     expect(
-      metrics.definitions.every((definition) => definition.availability === "unavailable"),
+      metrics.definitions
+        .filter((definition) => definition.metricId !== "supplier_performance")
+        .every((definition) => definition.availability === "unavailable"),
     ).toBe(true);
+    expect(
+      metrics.definitions.find((definition) => definition.metricId === "supplier_performance"),
+    ).toMatchObject({ availability: "available" });
   });
 });

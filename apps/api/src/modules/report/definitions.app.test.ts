@@ -33,7 +33,7 @@ describe("report semantic definitions", () => {
   });
 
   // TC-REPORT-002
-  it("publishes unavailable metric candidates with policy gates and no values", async () => {
+  it("publishes blocked candidates beside the descriptive supplier summary", async () => {
     const result = await getReportMetricDefinitions(harness.ctx, { workspaceId: WORKSPACE_ID });
 
     expect(result.ok).toBe(true);
@@ -41,8 +41,18 @@ describe("report semantic definitions", () => {
     expect(reportMetricDefinitionsDtoSchema.safeParse(result.value).success).toBe(true);
     expect(result.value.definitions.length).toBeGreaterThan(0);
     expect(
-      result.value.definitions.every((definition) => definition.availability === "unavailable"),
+      result.value.definitions
+        .filter((definition) => definition.metricId !== "supplier_performance")
+        .every((definition) => definition.availability === "unavailable"),
     ).toBe(true);
+    expect(
+      result.value.definitions.find((definition) => definition.metricId === "supplier_performance"),
+    ).toMatchObject({
+      availability: "available",
+      canonicalSources: ["supplier_observations"],
+      integrity: "derived_canonical",
+      onIntegrityAttention: "fail_closed",
+    });
     expect(
       result.value.definitions.find((definition) => definition.metricId === "cogs"),
     ).toMatchObject({
