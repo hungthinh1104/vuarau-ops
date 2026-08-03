@@ -10,6 +10,8 @@ import {
   workspacePolicyVersionIdSchema,
 } from "../shared/ids.ts";
 import { evidenceReferencesInputSchema, evidenceReferencesDtoSchema } from "../shared/evidence.ts";
+import { reconciliationObservationKindSchema } from "../evidence/index.ts";
+import { cashMovementSourceTypeSchema } from "../cash/index.ts";
 import { moneySchema } from "../shared/money.ts";
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
@@ -204,6 +206,47 @@ export const stocktakeVariancePolicyDefinitionSchema = z.object({
 });
 export type StocktakeVariancePolicyDefinition = z.infer<
   typeof stocktakeVariancePolicyDefinitionSchema
+>;
+
+export const OPERATIONAL_CLOSE_STRATEGIES = ["observation_signoff"] as const;
+export const operationalCloseStrategySchema = z.enum(OPERATIONAL_CLOSE_STRATEGIES);
+export type OperationalCloseStrategy = z.infer<typeof operationalCloseStrategySchema>;
+export const operationalClosePolicyDefinitionSchema = z.object({
+  contractVersion: z.literal(1),
+  parameters: z.object({
+    strategy: operationalCloseStrategySchema,
+    requiredObservationKinds: z
+      .array(reconciliationObservationKindSchema)
+      .min(1)
+      .max(9)
+      .refine((kinds) => new Set(kinds).size === kinds.length, {
+        message: "Required close observation kinds must be unique.",
+      }),
+    allowReopen: z.boolean(),
+  }),
+});
+export type OperationalClosePolicyDefinition = z.infer<
+  typeof operationalClosePolicyDefinitionSchema
+>;
+
+export const CASH_CUSTODY_DEPOSIT_STRATEGIES = ["exact_cash_movement"] as const;
+export const cashCustodyDepositStrategySchema = z.enum(CASH_CUSTODY_DEPOSIT_STRATEGIES);
+export type CashCustodyDepositStrategy = z.infer<typeof cashCustodyDepositStrategySchema>;
+export const cashCustodyDepositPolicyDefinitionSchema = z.object({
+  contractVersion: z.literal(1),
+  parameters: z.object({
+    strategy: cashCustodyDepositStrategySchema,
+    allowedSourceTypes: z
+      .array(cashMovementSourceTypeSchema)
+      .min(1)
+      .refine((types) => new Set(types).size === types.length, {
+        message: "Allowed cash movement source types must be unique.",
+      }),
+    allowReverse: z.boolean(),
+  }),
+});
+export type CashCustodyDepositPolicyDefinition = z.infer<
+  typeof cashCustodyDepositPolicyDefinitionSchema
 >;
 
 export const WORKSPACE_POLICY_STATES = ["draft", "approved", "retired"] as const;

@@ -8,6 +8,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import {
   WORKSPACE_POLICY_KINDS,
+  cashCustodyDepositPolicyDefinitionSchema,
   creditLimitPolicyDefinitionSchema,
   costAllocationPolicyDefinitionSchema,
   inventoryValuationPolicyDefinitionSchema,
@@ -16,6 +17,7 @@ import {
   purchaseCorrectionPolicyDefinitionSchema,
   stockPlanningPolicyDefinitionSchema,
   stocktakeVariancePolicyDefinitionSchema,
+  operationalClosePolicyDefinitionSchema,
 } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
@@ -132,6 +134,24 @@ export function decideCreateWorkspacePolicyDraft(
     return err(
       "WORKSPACE_POLICY_DEFINITION_INVALID",
       "Stocktake variance policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "operating_cycle_reconciliation" &&
+    !operationalClosePolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Operational close policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "cash_custody_deposit" &&
+    !cashCustodyDepositPolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Cash custody and deposit policy definition is not a supported contract.",
     );
   }
   const policy: WorkspacePolicyDto = {

@@ -99,6 +99,7 @@ export const PERMISSIONS = [
   "policy.manage",
   /** Managing who is a member of the workspace. Owner only. */
   "workspace.manage",
+  "operations.close",
   "product.read",
   "product.create",
   "product.update",
@@ -149,6 +150,7 @@ export const PERMISSIONS = [
   "cash.transfer",
   "cash.adjust",
   "cash.rebuild",
+  "cash.statement.match",
   "intake.read",
   "intake.record",
   "intake.reverse",
@@ -179,6 +181,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "evidence.record",
     "policy.read",
     "policy.manage",
+    "operations.close",
     "sale.void",
     "sale.read",
     "customer_order.read",
@@ -231,6 +234,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "cash.transfer",
     "cash.adjust",
     "cash.rebuild",
+    "cash.statement.match",
     "intake.read",
   ],
 

@@ -15,6 +15,10 @@ import {
   reverseCashTransferCommandSchema,
   reverseExpenseCommandSchema,
   updateCashAccountCommandSchema,
+  cashStatementMatchGetInputSchema,
+  cashStatementMatchListInputSchema,
+  recordCashStatementMatchCommandSchema,
+  reverseCashStatementMatchCommandSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import {
@@ -37,6 +41,14 @@ import {
   getExpense,
   searchCashAccounts,
 } from "../../../modules/cash/cash.queries.ts";
+import {
+  getCashStatementMatch,
+  listCashStatementMatches,
+} from "../../../modules/close/close.queries.ts";
+import {
+  recordCashStatementMatch,
+  reverseCashStatementMatch,
+} from "../../../modules/close/close.handlers.ts";
 
 export const cashRouter = router({
   createAccount: commandProcedure
@@ -87,4 +99,16 @@ export const cashRouter = router({
   rebuild: commandProcedure
     .input(rebuildCashBalanceCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await rebuildCashBalance(ctx, input))),
+  statementMatches: authenticatedProcedure
+    .input(cashStatementMatchListInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await listCashStatementMatches(ctx, input))),
+  getStatementMatch: authenticatedProcedure
+    .input(cashStatementMatchGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getCashStatementMatch(ctx, input))),
+  recordStatementMatch: commandProcedure
+    .input(recordCashStatementMatchCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await recordCashStatementMatch(ctx, input))),
+  reverseStatementMatch: commandProcedure
+    .input(reverseCashStatementMatchCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reverseCashStatementMatch(ctx, input))),
 });

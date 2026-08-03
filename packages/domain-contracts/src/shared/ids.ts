@@ -172,6 +172,14 @@ export const cashTransferReversalIdSchema = z.uuid().brand<"CashTransferReversal
 export type CashTransferReversalId = z.infer<typeof cashTransferReversalIdSchema>;
 export const cashAdjustmentIdSchema = z.uuid().brand<"CashAdjustmentId">();
 export type CashAdjustmentId = z.infer<typeof cashAdjustmentIdSchema>;
+export const operationalCloseIdSchema = z.uuid().brand<"OperationalCloseId">();
+export type OperationalCloseId = z.infer<typeof operationalCloseIdSchema>;
+export const operationalCloseReopenIdSchema = z.uuid().brand<"OperationalCloseReopenId">();
+export type OperationalCloseReopenId = z.infer<typeof operationalCloseReopenIdSchema>;
+export const cashStatementMatchIdSchema = z.uuid().brand<"CashStatementMatchId">();
+export type CashStatementMatchId = z.infer<typeof cashStatementMatchIdSchema>;
+export const cashStatementMatchReversalIdSchema = z.uuid().brand<"CashStatementMatchReversalId">();
+export type CashStatementMatchReversalId = z.infer<typeof cashStatementMatchReversalIdSchema>;
 
 export const commandIdSchema = z.uuid().brand<"CommandId">();
 export type CommandId = z.infer<typeof commandIdSchema>;
