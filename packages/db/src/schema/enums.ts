@@ -114,6 +114,17 @@ export const supplierAccountSourceTypeEnum = pgEnum(
   SUPPLIER_ACCOUNT_SOURCE_TYPES,
 );
 export const purchaseStatusEnum = pgEnum("purchase_status", PURCHASE_STATUSES);
+export const customerOrderStatusEnum = pgEnum("customer_order_status", [
+  "draft",
+  "confirmed",
+  "cancelled",
+]);
+export const customerOrderChannelEnum = pgEnum("customer_order_channel", [
+  "account_customer",
+  "walk_in",
+  "contract_customer",
+  "internal_transfer",
+]);
 export const inventoryMovementSourceTypeEnum = pgEnum(
   "inventory_movement_source_type",
   inventoryMovementSourceTypeSchema.options as [

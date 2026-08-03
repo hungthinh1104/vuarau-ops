@@ -3,9 +3,16 @@ import type {
   DomainRejectionCode,
   PaymentStatus,
   PurchaseStatus,
+  CustomerOrderStatus,
   SaleDueState,
   SaleStatus,
 } from "@vuarau/domain-contracts";
+
+export const CUSTOMER_ORDER_STATUS_COPY: Readonly<Record<CustomerOrderStatus, string>> = {
+  draft: "Nháp",
+  confirmed: "Đã xác nhận",
+  cancelled: "Đã huỷ",
+};
 
 /**
  * Vietnamese copy, keyed by the stable rejection code.

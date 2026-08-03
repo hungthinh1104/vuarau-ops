@@ -16,6 +16,12 @@ export const NAVIGATION_REGISTRY: readonly NavigationItem[] = [
   { label: "Hôm nay", href: "/today", activeMode: "exact" },
   { label: "Ghi đơn nhanh", href: "/sales/new", activeMode: "exact", permission: "sale.create" },
   { label: "Đơn hàng", href: "/sales", activeMode: "section", permission: "sale.read" },
+  {
+    label: "Đơn đặt hàng",
+    href: "/customer-orders",
+    activeMode: "section",
+    permission: "customer_order.read",
+  },
   { label: "Đơn mua", href: "/purchases", activeMode: "section", permission: "receiving.read" },
   { label: "Hàng đến", href: "/intake", activeMode: "section", permission: "intake.read" },
   { label: "Bằng chứng", href: "/evidence", activeMode: "section", permission: "evidence.read" },
@@ -65,6 +71,7 @@ const DESKTOP_STRUCTURE = [
     refs: [
       "/sales/new",
       "/sales",
+      "/customer-orders",
       "/purchases",
       "/intake",
       "/evidence",

@@ -89,6 +89,12 @@ export type SaleLineId = z.infer<typeof saleLineIdSchema>;
 export const saleVoidIdSchema = z.uuid().brand<"SaleVoidId">();
 export type SaleVoidId = z.infer<typeof saleVoidIdSchema>;
 
+export const customerOrderIdSchema = z.uuid().brand<"CustomerOrderId">();
+export type CustomerOrderId = z.infer<typeof customerOrderIdSchema>;
+
+export const customerOrderLineIdSchema = z.uuid().brand<"CustomerOrderLineId">();
+export type CustomerOrderLineId = z.infer<typeof customerOrderLineIdSchema>;
+
 export const paymentIdSchema = z.uuid().brand<"PaymentId">();
 export type PaymentId = z.infer<typeof paymentIdSchema>;
 

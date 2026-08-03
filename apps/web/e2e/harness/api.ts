@@ -68,6 +68,23 @@ function envelope(extra: Envelope = {}): Envelope {
 }
 
 export const api = {
+  async customerOrder(orderId: string): Promise<{
+    id: string;
+    status: string;
+    totalAmount: { amountMinor: number; currency: string } | null;
+  }> {
+    return (await call(
+      "customerOrder.get",
+      "query",
+      { workspaceId: E2E_WORKSPACE_ID, customerOrderId: orderId },
+      "owner",
+    )) as {
+      id: string;
+      status: string;
+      totalAmount: { amountMinor: number; currency: string } | null;
+    };
+  },
+
   async supplierBalance(supplierId: string): Promise<{
     balance: { amountMinor: number };
     entryCount: number;

@@ -73,6 +73,11 @@ export const PERMISSIONS = [
   /** Removes a receivable without a payment arriving. Sits with `debt.adjust`. */
   "sale.void",
   "sale.read",
+  "customer_order.read",
+  "customer_order.create",
+  "customer_order.update",
+  "customer_order.confirm",
+  "customer_order.cancel",
   "payment.record",
   "payment.reverse",
   "payment.read",
@@ -170,6 +175,11 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "policy.manage",
     "sale.void",
     "sale.read",
+    "customer_order.read",
+    "customer_order.create",
+    "customer_order.update",
+    "customer_order.confirm",
+    "customer_order.cancel",
     "payment.record",
     "payment.reverse",
     "payment.read",
@@ -224,6 +234,11 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "sale.create",
     "sale.post",
     "sale.read",
+    "customer_order.read",
+    "customer_order.create",
+    "customer_order.update",
+    "customer_order.confirm",
+    "customer_order.cancel",
     "payment.record",
     "payment.read",
     "debt.read",
@@ -250,6 +265,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
   // read customers because a load has to be handed to somebody by name.
   warehouse: [
     "sale.read",
+    "customer_order.read",
     "customer.read",
     "product.read",
     "pricing.read",
@@ -294,6 +310,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
    */
   delivery: [
     "sale.read",
+    "customer_order.read",
     "customer.read",
     "product.read",
     "pricing.read",

@@ -16,7 +16,7 @@ import type {
   WorkspaceId,
   WorkspaceRole,
   WorkspaceOperationalProfileDto,
-  WorkspaceBackupV15,
+  WorkspaceBackupV16,
   DeliveryId,
   DocumentDto,
   DocumentShareId,
@@ -68,6 +68,7 @@ import type {
   DeliveryReturnState,
   CashMovementDraft,
 } from "@vuarau/domain-kernel";
+import type { CustomerOrderRepository } from "./customer-order-ports.ts";
 import type { ReadRepositories } from "./read-ports.ts";
 import type { PriceRuleRepository } from "./pricing-ports.ts";
 import type {
@@ -529,7 +530,7 @@ export type QualityDispositionRepository = {
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV15["payload"],
+    payload: WorkspaceBackupV16["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -663,6 +664,7 @@ export type Repositories = ReadRepositories & {
   readonly supplierAccountEntries: SupplierAccountEntryRepository;
   readonly supplierAccountBalances: SupplierAccountBalanceRepository;
   readonly purchases: PurchaseRepository;
+  readonly customerOrders: CustomerOrderRepository;
   readonly purchaseReceipts: ReceiptRepository;
   readonly inventoryMovements: InventoryMovementRepository;
   readonly inventoryBalances: InventoryBalanceRepository;

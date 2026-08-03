@@ -19,6 +19,7 @@ import { domainRejectionCodeSchema } from "../shared/rejection-codes.ts";
 export const AUDIT_AGGREGATE_TYPES = [
   "customer",
   "sale",
+  "customer_order",
   "payment",
   "debt",
   "membership",
@@ -63,6 +64,10 @@ export const AUDIT_ACTIONS = [
   "sale.discarded",
   "sale.posted",
   "sale.voided",
+  "customer_order.draft_created",
+  "customer_order.draft_edited",
+  "customer_order.confirmed",
+  "customer_order.cancelled",
   "payment.recorded",
   "payment.reversed",
   "debt.adjusted",

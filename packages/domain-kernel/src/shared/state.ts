@@ -3,6 +3,10 @@ import type {
   CurrencyCode,
   CommandId,
   CustomerId,
+  CustomerOrderChannel,
+  CustomerOrderId,
+  CustomerOrderLineId,
+  CustomerOrderStatus,
   IsoInstant,
   Money,
   SaleId,
@@ -199,6 +203,39 @@ export type PurchaseState = {
   readonly discardedAt: IsoInstant | null;
   readonly replacesPurchaseId: PurchaseId | null;
   readonly voidRecord: PurchaseVoidState | null;
+};
+
+export type CustomerOrderLineState = {
+  readonly lineId: CustomerOrderLineId;
+  readonly productId: ProductId | null;
+  readonly productName: string;
+  readonly quantity: Quantity;
+  readonly agreedUnitPrice: Money | null;
+  readonly lineTotal: Money | null;
+};
+
+export type CustomerOrderState = {
+  readonly id: CustomerOrderId;
+  readonly workspaceId: WorkspaceId;
+  readonly customerId: CustomerId | null;
+  readonly channel: CustomerOrderChannel;
+  readonly status: CustomerOrderStatus;
+  readonly currency: CurrencyCode;
+  readonly lines: readonly CustomerOrderLineState[];
+  readonly totalAmount: Money | null;
+  readonly note: string | null;
+  readonly paymentTermsSnapshot: {
+    readonly label: string;
+    readonly dueAt: IsoInstant | null;
+  } | null;
+  readonly evidenceReferences: readonly string[];
+  readonly version: number;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly confirmedAt: IsoInstant | null;
+  readonly cancelledAt: IsoInstant | null;
+  readonly cancellationReason: string | null;
+  readonly replacesCustomerOrderId: CustomerOrderId | null;
 };
 
 export type PurchaseReceiptLineState = {

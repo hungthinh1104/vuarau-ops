@@ -43,6 +43,7 @@ import type {
   QualityGradeState,
   DeliveryState,
   DeliveryReturnState,
+  CustomerOrderState,
 } from "@vuarau/domain-kernel";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
@@ -73,6 +74,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.purchases.values(),
           ...store.deliveries.values(),
           ...store.documents.values(),
+          ...store.customerOrders.values(),
         ].some((row) => row.workspaceId === workspaceId) ||
         store.accountEntries.some((row) => row.workspaceId === workspaceId) ||
         store.inventoryMovements.some((row) => row.workspaceId === workspaceId) ||
@@ -184,6 +186,43 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         for (const raw of payload.products) {
           const row = remap(raw) as unknown as ProductState;
           store.products.set(key(workspaceId, row.id), row);
+        }
+        const orderLines = new Map<string, CustomerOrderState["lines"]>();
+        for (const raw of payload.customerOrderLines) {
+          const orderId = String(raw["customerOrderId"]);
+          const line = {
+            lineId: raw["id"],
+            productId: raw["productId"] ?? null,
+            productName: raw["productName"],
+            quantity: {
+              valueScaled: Number(raw["quantityScaled"]),
+              unit: raw["unit"],
+            },
+            agreedUnitPrice:
+              raw["agreedUnitPriceMinor"] == null
+                ? null
+                : { amountMinor: Number(raw["agreedUnitPriceMinor"]), currency: raw["currency"] },
+            lineTotal:
+              raw["lineTotalMinor"] == null
+                ? null
+                : { amountMinor: Number(raw["lineTotalMinor"]), currency: raw["currency"] },
+          } as unknown as CustomerOrderState["lines"][number];
+          orderLines.set(orderId, [...(orderLines.get(orderId) ?? []), line]);
+        }
+        for (const raw of payload.customerOrders) {
+          const row = remap({
+            ...raw,
+            totalAmount:
+              raw["totalAmountMinor"] == null
+                ? null
+                : { amountMinor: Number(raw["totalAmountMinor"]), currency: raw["currency"] },
+            paymentTermsSnapshot:
+              raw["paymentTermsLabel"] == null
+                ? null
+                : { label: raw["paymentTermsLabel"], dueAt: raw["paymentTermsDueAt"] ?? null },
+            lines: orderLines.get(String(raw["id"])) ?? [],
+          }) as unknown as CustomerOrderState;
+          store.customerOrders.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.priceRules) {
           const row = remap(raw) as unknown as PriceRuleState;

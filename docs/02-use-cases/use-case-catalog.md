@@ -4,7 +4,7 @@ Every implemented use case in the depot transaction workflow:
 
 ```
 Identity/workspace
-  → Customer → Sale → customer account → Payment/correction
+  → Customer → Customer Order → Sale → customer account → Payment/correction
   → Supplier → Purchase → supplier account → Receiving → Inventory
   → Delivery → Return
   → Audit → Documents/sharing/reports → Export/restore/integrity
@@ -23,73 +23,77 @@ command refuses source or ledger corruption rather than hiding it.
 
 ## The catalog
 
-| ID                | Use case                                    | Permission                          | Status         | Document                                                                   |
-| ----------------- | ------------------------------------------- | ----------------------------------- | -------------- | -------------------------------------------------------------------------- |
-| UC-AUTH-001       | Authenticate, resolve actor, authorize      | —                                   | implemented    | [UC-AUTH-001](UC-AUTH-001-authenticate-and-authorize.md)                   |
-| UC-AUTH-002       | Revoke a workspace membership               | `workspace.manage`                  | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-AUTH-003       | View my capabilities                        | —                                   | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-AUTH-004       | List the depots I may work in               | —                                   | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-AUTH-005       | Manage workspace members and roles          | `workspace.manage`                  | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-CUSTOMER-001   | Create a customer                           | `customer.create`                   | implemented    | [UC-CUSTOMER-001](UC-CUSTOMER-001-create-customer.md)                      |
-| UC-CUSTOMER-002   | Search and list customers                   | `customer.read`                     | implemented    | [customer](customer-use-cases.md)                                          |
-| UC-CUSTOMER-003   | View a customer                             | `customer.read`                     | implemented    | [customer](customer-use-cases.md)                                          |
-| UC-CUSTOMER-004   | Update a customer                           | `customer.update`                   | implemented    | [customer](customer-use-cases.md)                                          |
-| UC-CUSTOMER-005   | Deactivate a customer                       | `customer.deactivate`               | implemented    | [customer](customer-use-cases.md)                                          |
-| UC-CUSTOMER-006   | Reactivate a customer                       | `customer.reactivate`               | implemented    | [customer](customer-use-cases.md)                                          |
-| UC-SALE-001       | Create, edit, discard a sale draft          | `sale.create`                       | implemented    | [sale](sale-use-cases.md)                                                  |
-| UC-SALE-002       | **Post a sale**                             | `sale.post`                         | implemented    | [UC-SALE-002](UC-SALE-002-post-sale.md)                                    |
-| UC-SALE-003       | View and list sales                         | `sale.read`                         | implemented    | [sale](sale-use-cases.md)                                                  |
-| UC-SALE-004       | **Void a sale**, and post a replacement     | `sale.void`                         | implemented    | [sale](sale-use-cases.md)                                                  |
-| UC-PAYMENT-001    | Record a customer payment                   | `payment.record`                    | implemented    | [UC-PAYMENT-001](UC-PAYMENT-001-record-customer-payment.md)                |
-| UC-PAYMENT-002    | Reverse a payment, fully or partly          | `payment.reverse`                   | implemented    | [UC-PAYMENT-002](UC-PAYMENT-002-reverse-customer-payment.md)               |
-| UC-PAYMENT-003    | View a payment                              | `payment.read`                      | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-ACCOUNT-001    | View the balance and timeline               | `debt.read`                         | implemented    | [account](customer-account-use-cases.md)                                   |
-| UC-ACCOUNT-002    | Adjust a customer account by hand           | `debt.adjust`                       | implemented    | [UC-ACCOUNT-002](UC-ACCOUNT-002-adjust-customer-account.md)                |
-| UC-ACCOUNT-003    | Reconcile and rebuild the projection        | `debt.adjust`                       | implemented    | [account](customer-account-use-cases.md)                                   |
-| UC-COMMAND-001    | Retries, duplicates, stale versions         | inherits                            | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-AUDIT-001      | Trace a transaction and its corrections     | `audit.read`                        | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-PRODUCT-001    | Manage and identify Product catalogue       | product permissions                 | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-QUALITY-001    | Manage commercial grade vocabulary          | quality permissions                 | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-SUPPLIER-001   | Manage Supplier master data                 | supplier lifecycle permissions      | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-SUPPLIER-002   | Record/reverse Supplier payment             | supplier payment permissions        | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-SUPPLIER-003   | Adjust Supplier account                     | supplier adjustment permission      | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-SUPPLIER-004   | Explain/reconcile/rebuild Supplier payable  | supplier account permissions        | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-PURCHASE-001   | Draft/edit/discard Purchase                 | purchase draft permissions          | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-PURCHASE-002   | Confirm Purchase                            | `purchase.confirm`                  | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-PURCHASE-003   | View Purchase and Receiving progress        | `purchase.read`                     | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-PURCHASE-004   | Void/replace confirmed Purchase             | `purchase.void`                     | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-RECEIVING-001  | Record accepted physical goods              | `receiving.record`                  | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-RECEIVING-002  | Reverse wrong Receipt                       | `receiving.reverse`                 | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-RECEIVING-003  | Inspect Receiving progress                  | receiving read permission           | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-INVENTORY-001  | Inspect balance and movement history        | inventory read permission           | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-INVENTORY-002  | Record explained physical adjustment        | inventory adjustment permission     | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-INVENTORY-003  | Reclassify accepted stock between grades    | `inventory.reclassify`              | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-INVENTORY-004  | Reconcile/rebuild inventory projection      | inventory recovery permissions      | implemented    | [goods](goods-flow-use-cases.md)                                           |
-| UC-DELIVERY-001   | Draft/edit/cancel Sale fulfilment           | delivery draft permissions          | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-DELIVERY-002   | Dispatch goods                              | `delivery.dispatch`                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-DELIVERY-003   | Acknowledge delivered handover              | `delivery.complete`                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-DELIVERY-004   | Record physical customer return             | `delivery.return`                   | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-DELIVERY-005   | Inspect Sale fulfilment                     | `delivery.read`                     | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-DOCUMENT-001   | Generate immutable source snapshot          | `document.generate`                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-DOCUMENT-002   | Share/revoke document snapshot              | document share permissions          | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-DOCUMENT-003   | Read/validate document snapshot             | auth or share token                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-CASH-001       | Manage cash accounts                        | `cash.account.manage`               | implemented    | [cashbook](cash-use-cases.md)                                              |
-| UC-CASH-002       | Record/reverse operating expense            | cash expense permissions            | implemented    | [cashbook](cash-use-cases.md)                                              |
-| UC-CASH-003       | Transfer/reverse money between accounts     | `cash.transfer`                     | implemented    | [cashbook](cash-use-cases.md)                                              |
-| UC-CASH-004       | Record explained cash adjustment            | `cash.adjust`                       | implemented    | [cashbook](cash-use-cases.md)                                              |
-| UC-CASH-005       | Inspect/reconcile/rebuild cash              | cash read/rebuild permissions       | implemented    | [cashbook](cash-use-cases.md)                                              |
-| UC-REPORT-001     | Inspect source-backed operational reports   | `report.read`                       | implemented    | [depot operations](depot-operations-use-cases.md)                          |
-| UC-EVIDENCE-001   | Record/review cost or loss observations     | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-001](UC-EVIDENCE-001-record-cost-observation.md)              |
-| UC-EVIDENCE-002   | Record/review reconciliation observations   | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-002](UC-EVIDENCE-002-record-reconciliation-observation.md)    |
-| UC-EVIDENCE-003   | Record/review debt observations             | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-003](UC-EVIDENCE-003-record-debt-observation.md)              |
-| UC-EVIDENCE-004   | Record/review supply commitments            | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-004](UC-EVIDENCE-004-record-supply-commitment-observation.md) |
-| UC-EVIDENCE-005   | Record/review supplier observations         | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-005](UC-EVIDENCE-005-record-supplier-observation.md)          |
-| UC-EVIDENCE-006   | Record/review customer demand observations  | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-006](UC-EVIDENCE-006-record-demand-observation.md)            |
-| UC-OPERATIONS-001 | Run/observe service under trusted config    | platform operator                   | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-OPERATIONS-002 | Export/validate/restore logical recovery    | workspace/recovery permissions      | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-OPERATIONS-003 | Prepare shadow pilot fail-closed            | pilot operator                      | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-OPERATIONS-004 | Correct posted Sale through supported paths | support + business permission       | implemented    | [platform](platform-use-cases.md)                                          |
-| UC-POLICY-001     | Manage a versioned workspace policy         | `policy.manage` / `policy.read`     | infrastructure | [UC-POLICY-001](UC-POLICY-001-manage-workspace-policy-version.md)          |
+| ID                    | Use case                                    | Permission                          | Status         | Document                                                                   |
+| --------------------- | ------------------------------------------- | ----------------------------------- | -------------- | -------------------------------------------------------------------------- |
+| UC-AUTH-001           | Authenticate, resolve actor, authorize      | —                                   | implemented    | [UC-AUTH-001](UC-AUTH-001-authenticate-and-authorize.md)                   |
+| UC-AUTH-002           | Revoke a workspace membership               | `workspace.manage`                  | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-AUTH-003           | View my capabilities                        | —                                   | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-AUTH-004           | List the depots I may work in               | —                                   | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-AUTH-005           | Manage workspace members and roles          | `workspace.manage`                  | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-CUSTOMER-001       | Create a customer                           | `customer.create`                   | implemented    | [UC-CUSTOMER-001](UC-CUSTOMER-001-create-customer.md)                      |
+| UC-CUSTOMER-002       | Search and list customers                   | `customer.read`                     | implemented    | [customer](customer-use-cases.md)                                          |
+| UC-CUSTOMER-003       | View a customer                             | `customer.read`                     | implemented    | [customer](customer-use-cases.md)                                          |
+| UC-CUSTOMER-004       | Update a customer                           | `customer.update`                   | implemented    | [customer](customer-use-cases.md)                                          |
+| UC-CUSTOMER-005       | Deactivate a customer                       | `customer.deactivate`               | implemented    | [customer](customer-use-cases.md)                                          |
+| UC-CUSTOMER-006       | Reactivate a customer                       | `customer.reactivate`               | implemented    | [customer](customer-use-cases.md)                                          |
+| UC-SALE-001           | Create, edit, discard a sale draft          | `sale.create`                       | implemented    | [sale](sale-use-cases.md)                                                  |
+| UC-CUSTOMER-ORDER-001 | Create and edit a Customer Order draft      | `customer_order.create`             | implemented    | [customer order](customer-order-use-cases.md)                              |
+| UC-CUSTOMER-ORDER-002 | Confirm a Customer Order                    | `customer_order.confirm`            | implemented    | [customer order](customer-order-use-cases.md)                              |
+| UC-CUSTOMER-ORDER-003 | Cancel or supersede a Customer Order        | `customer_order.cancel`             | implemented    | [customer order](customer-order-use-cases.md)                              |
+| UC-CUSTOMER-ORDER-004 | View and list Customer Orders               | `customer_order.read`               | implemented    | [customer order](customer-order-use-cases.md)                              |
+| UC-SALE-002           | **Post a sale**                             | `sale.post`                         | implemented    | [UC-SALE-002](UC-SALE-002-post-sale.md)                                    |
+| UC-SALE-003           | View and list sales                         | `sale.read`                         | implemented    | [sale](sale-use-cases.md)                                                  |
+| UC-SALE-004           | **Void a sale**, and post a replacement     | `sale.void`                         | implemented    | [sale](sale-use-cases.md)                                                  |
+| UC-PAYMENT-001        | Record a customer payment                   | `payment.record`                    | implemented    | [UC-PAYMENT-001](UC-PAYMENT-001-record-customer-payment.md)                |
+| UC-PAYMENT-002        | Reverse a payment, fully or partly          | `payment.reverse`                   | implemented    | [UC-PAYMENT-002](UC-PAYMENT-002-reverse-customer-payment.md)               |
+| UC-PAYMENT-003        | View a payment                              | `payment.read`                      | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-ACCOUNT-001        | View the balance and timeline               | `debt.read`                         | implemented    | [account](customer-account-use-cases.md)                                   |
+| UC-ACCOUNT-002        | Adjust a customer account by hand           | `debt.adjust`                       | implemented    | [UC-ACCOUNT-002](UC-ACCOUNT-002-adjust-customer-account.md)                |
+| UC-ACCOUNT-003        | Reconcile and rebuild the projection        | `debt.adjust`                       | implemented    | [account](customer-account-use-cases.md)                                   |
+| UC-COMMAND-001        | Retries, duplicates, stale versions         | inherits                            | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-AUDIT-001          | Trace a transaction and its corrections     | `audit.read`                        | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-PRODUCT-001        | Manage and identify Product catalogue       | product permissions                 | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-QUALITY-001        | Manage commercial grade vocabulary          | quality permissions                 | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-SUPPLIER-001       | Manage Supplier master data                 | supplier lifecycle permissions      | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-SUPPLIER-002       | Record/reverse Supplier payment             | supplier payment permissions        | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-SUPPLIER-003       | Adjust Supplier account                     | supplier adjustment permission      | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-SUPPLIER-004       | Explain/reconcile/rebuild Supplier payable  | supplier account permissions        | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-PURCHASE-001       | Draft/edit/discard Purchase                 | purchase draft permissions          | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-PURCHASE-002       | Confirm Purchase                            | `purchase.confirm`                  | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-PURCHASE-003       | View Purchase and Receiving progress        | `purchase.read`                     | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-PURCHASE-004       | Void/replace confirmed Purchase             | `purchase.void`                     | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-RECEIVING-001      | Record accepted physical goods              | `receiving.record`                  | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-RECEIVING-002      | Reverse wrong Receipt                       | `receiving.reverse`                 | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-RECEIVING-003      | Inspect Receiving progress                  | receiving read permission           | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-INVENTORY-001      | Inspect balance and movement history        | inventory read permission           | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-INVENTORY-002      | Record explained physical adjustment        | inventory adjustment permission     | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-INVENTORY-003      | Reclassify accepted stock between grades    | `inventory.reclassify`              | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-INVENTORY-004      | Reconcile/rebuild inventory projection      | inventory recovery permissions      | implemented    | [goods](goods-flow-use-cases.md)                                           |
+| UC-DELIVERY-001       | Draft/edit/cancel Sale fulfilment           | delivery draft permissions          | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-DELIVERY-002       | Dispatch goods                              | `delivery.dispatch`                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-DELIVERY-003       | Acknowledge delivered handover              | `delivery.complete`                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-DELIVERY-004       | Record physical customer return             | `delivery.return`                   | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-DELIVERY-005       | Inspect Sale fulfilment                     | `delivery.read`                     | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-DOCUMENT-001       | Generate immutable source snapshot          | `document.generate`                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-DOCUMENT-002       | Share/revoke document snapshot              | document share permissions          | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-DOCUMENT-003       | Read/validate document snapshot             | auth or share token                 | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-CASH-001           | Manage cash accounts                        | `cash.account.manage`               | implemented    | [cashbook](cash-use-cases.md)                                              |
+| UC-CASH-002           | Record/reverse operating expense            | cash expense permissions            | implemented    | [cashbook](cash-use-cases.md)                                              |
+| UC-CASH-003           | Transfer/reverse money between accounts     | `cash.transfer`                     | implemented    | [cashbook](cash-use-cases.md)                                              |
+| UC-CASH-004           | Record explained cash adjustment            | `cash.adjust`                       | implemented    | [cashbook](cash-use-cases.md)                                              |
+| UC-CASH-005           | Inspect/reconcile/rebuild cash              | cash read/rebuild permissions       | implemented    | [cashbook](cash-use-cases.md)                                              |
+| UC-REPORT-001         | Inspect source-backed operational reports   | `report.read`                       | implemented    | [depot operations](depot-operations-use-cases.md)                          |
+| UC-EVIDENCE-001       | Record/review cost or loss observations     | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-001](UC-EVIDENCE-001-record-cost-observation.md)              |
+| UC-EVIDENCE-002       | Record/review reconciliation observations   | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-002](UC-EVIDENCE-002-record-reconciliation-observation.md)    |
+| UC-EVIDENCE-003       | Record/review debt observations             | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-003](UC-EVIDENCE-003-record-debt-observation.md)              |
+| UC-EVIDENCE-004       | Record/review supply commitments            | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-004](UC-EVIDENCE-004-record-supply-commitment-observation.md) |
+| UC-EVIDENCE-005       | Record/review supplier observations         | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-005](UC-EVIDENCE-005-record-supplier-observation.md)          |
+| UC-EVIDENCE-006       | Record/review customer demand observations  | `evidence.record` / `evidence.read` | implemented    | [UC-EVIDENCE-006](UC-EVIDENCE-006-record-demand-observation.md)            |
+| UC-OPERATIONS-001     | Run/observe service under trusted config    | platform operator                   | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-OPERATIONS-002     | Export/validate/restore logical recovery    | workspace/recovery permissions      | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-OPERATIONS-003     | Prepare shadow pilot fail-closed            | pilot operator                      | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-OPERATIONS-004     | Correct posted Sale through supported paths | support + business permission       | implemented    | [platform](platform-use-cases.md)                                          |
+| UC-POLICY-001         | Manage a versioned workspace policy         | `policy.manage` / `policy.read`     | infrastructure | [UC-POLICY-001](UC-POLICY-001-manage-workspace-policy-version.md)          |
 
 ## The template every use case answers
 

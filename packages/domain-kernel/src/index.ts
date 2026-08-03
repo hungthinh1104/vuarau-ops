@@ -8,6 +8,7 @@ export * from "./product/index.ts";
 export * from "./quality/index.ts";
 export * from "./supplier/index.ts";
 export * from "./purchase/index.ts";
+export * from "./customer-order/index.ts";
 export * from "./inventory/index.ts";
 export * from "./delivery/index.ts";
 export * from "./workspace-profile/index.ts";

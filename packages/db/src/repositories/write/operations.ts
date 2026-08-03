@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV15 } from "@vuarau/domain-contracts";
+import type { WorkspaceId, WorkspaceBackupV16 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -54,11 +54,11 @@ import { restoreWorkspacePolicies } from "./operations-policy-restore.ts";
 import { restoreSupplyCommitmentObservations } from "./operations-supply-commitment-restore.ts";
 import { restoreSupplierObservations } from "./operations-supplier-observation-restore.ts";
 import { restoreDemandObservations } from "./operations-demand-observation-restore.ts";
+import { restoreCustomerOrders } from "./operations-customer-order-restore.ts";
 import { targetContainsBusinessData } from "./operations-target.ts";
-
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV15["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV16["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -221,6 +221,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           }) as unknown as (typeof products.$inferInsert)[],
         );
       }
+      await restoreCustomerOrders(tx, workspaceId, payload, date);
       if (payload.qualityGrades.length > 0) {
         await tx.insert(qualityGrades).values(
           payload.qualityGrades.map((raw) => {

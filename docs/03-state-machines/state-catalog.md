@@ -79,6 +79,7 @@ These are read-time views of canonical facts, never independent truth.
 | Purchase receiving         | remaining/complete quantities per line                                             | Purchase line quantity minus active Receipts plus reversals; no stored status       |
 | Receipt                    | active/reversed condition                                                          | Receipt plus absence/presence of its immutable reversal; no stored status           |
 | Delivery fulfilment        | `unfulfilled`, `partially_fulfilled`, `fulfilled`, `returned_partial`, `attention` | ordered Sale line minus exact-grade dispatch plus return facts                      |
+| Customer Order             | `draft`, `confirmed`, `cancelled`                                                  | explicit commercial request lifecycle; no financial or physical effect              |
 | Document share             | available, expired or revoked condition                                            | token digest, `expiresAt` and `revokedAt`; no stored public-read status             |
 | Customer balance           | `receivable`, `settled`, `customer_credit`                                         | sign of canonical customer account sum                                              |
 | Supplier balance           | `payable`, `settled`, `supplier_credit`                                            | sign of canonical supplier account sum                                              |

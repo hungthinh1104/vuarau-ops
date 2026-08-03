@@ -447,6 +447,26 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
         ),
         documents: rows(store.documents.values()),
         documentShares: rows(store.documentShares.values()),
+        customerOrders: rows(store.customerOrders.values()).map(({ lines: _lines, ...order }) => ({
+          ...order,
+          totalAmountMinor: order.totalAmount?.amountMinor ?? null,
+          paymentTermsLabel: order.paymentTermsSnapshot?.label ?? null,
+          paymentTermsDueAt: order.paymentTermsSnapshot?.dueAt ?? null,
+        })),
+        customerOrderLines: rows(store.customerOrders.values()).flatMap((order) =>
+          order.lines.map((line) => ({
+            id: line.lineId,
+            workspaceId,
+            customerOrderId: order.id,
+            productId: line.productId,
+            productName: line.productName,
+            quantityScaled: line.quantity.valueScaled,
+            unit: line.quantity.unit,
+            agreedUnitPriceMinor: line.agreedUnitPrice?.amountMinor ?? null,
+            lineTotalMinor: line.lineTotal?.amountMinor ?? null,
+            currency: order.currency,
+          })),
+        ),
       };
     },
   },

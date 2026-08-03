@@ -30,6 +30,8 @@ Drizzle definitions and database constraints.
 | `payment_reversals`         | Customer-payment compensation and source references                | append-only                                                    |
 | `customer_account_entries`  | Canonical customer debt ledger                                     | append-only                                                    |
 | `customer_account_balances` | Rebuildable customer balance projection                            | recomputable                                                   |
+| `customer_orders`           | Commercial Customer Order lifecycle and commercial snapshots       | draft fields replaceable; confirmed/cancelled state explicit   |
+| `customer_order_lines`      | Customer Order product/name/quantity/price snapshots               | replaceable while draft; preserved on confirmation             |
 
 ### Product, supplier and Purchase
 

@@ -264,7 +264,7 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     });
     expect(backup.ok).toBe(true);
     if (!backup.ok) return;
-    expect(backup.value.version).toBe(15);
+    expect(backup.value.version).toBe(16);
     expect(backup.value.payload.costObservations).toContainEqual(
       expect.objectContaining({
         id: observationId,

@@ -10,6 +10,7 @@ export * from "./account.ts";
 export * from "./command.ts";
 export * from "./supplier.ts";
 export * from "./purchase.ts";
+export * from "./customer-order.ts";
 export * from "./inventory.ts";
 export * from "./delivery.ts";
 export * from "./document.ts";

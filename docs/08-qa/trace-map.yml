@@ -196,6 +196,49 @@ use_cases:
       - packages/domain-kernel/src/customer/update-customer.ts
       - apps/api/src/modules/customer/update-customer.handler.ts
 
+  UC-CUSTOMER-ORDER-001:
+    title: Create and edit a Customer Order draft
+    risk: P1
+    doc: docs/02-use-cases/customer-order-use-cases.md
+    rules: [BR-CUSTOMER-ORDER-001, BR-CUSTOMER-ORDER-002, BR-CUSTOMER-ORDER-005]
+    cases: [CASE-CUSTOMER-ORDER-001, CASE-CUSTOMER-ORDER-002]
+    tests: [TC-CUSTOMER-ORDER-001, TC-CUSTOMER-ORDER-003]
+    implementation:
+      - packages/domain-contracts/src/customer-order/index.ts
+      - packages/domain-kernel/src/customer-order/index.ts
+
+  UC-CUSTOMER-ORDER-002:
+    title: Confirm a Customer Order
+    risk: P0
+    doc: docs/02-use-cases/customer-order-use-cases.md
+    rules: [BR-CUSTOMER-ORDER-002, BR-CUSTOMER-ORDER-005]
+    cases: [CASE-CUSTOMER-ORDER-003]
+    tests: [TC-CUSTOMER-ORDER-002]
+    implementation:
+      - packages/domain-contracts/src/customer-order/index.ts
+      - packages/domain-kernel/src/customer-order/index.ts
+
+  UC-CUSTOMER-ORDER-003:
+    title: Cancel or supersede a Customer Order
+    risk: P0
+    doc: docs/02-use-cases/customer-order-use-cases.md
+    rules: [BR-CUSTOMER-ORDER-003, BR-CUSTOMER-ORDER-004, BR-CUSTOMER-ORDER-005]
+    cases: [CASE-CUSTOMER-ORDER-004]
+    tests: [TC-CUSTOMER-ORDER-003]
+    implementation:
+      - packages/domain-contracts/src/customer-order/index.ts
+      - packages/domain-kernel/src/customer-order/index.ts
+
+  UC-CUSTOMER-ORDER-004:
+    title: View and list Customer Orders
+    risk: P2
+    doc: docs/02-use-cases/customer-order-use-cases.md
+    rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002]
+    cases: []
+    tests: []
+    implementation:
+      - packages/domain-contracts/src/customer-order/index.ts
+
   UC-SALE-001:
     title: Create, edit and discard a sale draft
     risk: P1
@@ -1531,6 +1574,43 @@ business_rules:
     cases: []
     tests: [TC-GOODS-001]
     implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
+
+  # --- customer order ----------------------------------------------------------
+  BR-CUSTOMER-ORDER-001:
+    title: Order channels never require a fake customer
+    risk: P0
+    doc: docs/04-business-rules/customer-order-rules.md
+    cases: [CASE-CUSTOMER-ORDER-001, CASE-CUSTOMER-ORDER-002]
+    tests: [TC-CUSTOMER-ORDER-001]
+    implementation: [packages/domain-kernel/src/customer-order/index.ts]
+  BR-CUSTOMER-ORDER-002:
+    title: Confirmation preserves agreed price and payment-term snapshots without effects
+    risk: P0
+    doc: docs/04-business-rules/customer-order-rules.md
+    cases: [CASE-CUSTOMER-ORDER-001, CASE-CUSTOMER-ORDER-003]
+    tests: [TC-CUSTOMER-ORDER-001, TC-CUSTOMER-ORDER-002]
+    implementation: [packages/domain-kernel/src/customer-order/index.ts]
+  BR-CUSTOMER-ORDER-003:
+    title: Existing order changes require optimistic version and explicit lifecycle transition
+    risk: P0
+    doc: docs/04-business-rules/customer-order-rules.md
+    cases: [CASE-CUSTOMER-ORDER-004]
+    tests: [TC-CUSTOMER-ORDER-003]
+    implementation: [packages/domain-kernel/src/customer-order/index.ts]
+  BR-CUSTOMER-ORDER-004:
+    title: Corrections supersede cancelled orders without rewriting history
+    risk: P1
+    doc: docs/04-business-rules/customer-order-rules.md
+    cases: [CASE-CUSTOMER-ORDER-004]
+    tests: []
+    implementation: [packages/domain-contracts/src/customer-order/index.ts]
+  BR-CUSTOMER-ORDER-005:
+    title: Customer Order is a workspace-scoped commercial fact with no debt or goods effect
+    risk: P0
+    doc: docs/04-business-rules/customer-order-rules.md
+    cases: [CASE-CUSTOMER-ORDER-003]
+    tests: [TC-CUSTOMER-ORDER-002]
+    implementation: [packages/domain-kernel/src/customer-order/index.ts]
 
   # --- sale ---------------------------------------------------------------------
   BR-SALE-001:
@@ -2880,6 +2960,26 @@ business_rules:
       - apps/api/src/modules/operations/operations.queries.ts
 
 cases:
+  CASE-CUSTOMER-ORDER-001:
+    title: Unpriced account order
+    doc: docs/05-casebook/customer-order-cases.md
+    rules: [BR-CUSTOMER-ORDER-001, BR-CUSTOMER-ORDER-002]
+    tests: [TC-CUSTOMER-ORDER-001]
+  CASE-CUSTOMER-ORDER-002:
+    title: Walk-in request without a fake customer
+    doc: docs/05-casebook/customer-order-cases.md
+    rules: [BR-CUSTOMER-ORDER-001]
+    tests: [TC-CUSTOMER-ORDER-001]
+  CASE-CUSTOMER-ORDER-003:
+    title: Confirmed priced order
+    doc: docs/05-casebook/customer-order-cases.md
+    rules: [BR-CUSTOMER-ORDER-002, BR-CUSTOMER-ORDER-005]
+    tests: [TC-CUSTOMER-ORDER-002]
+  CASE-CUSTOMER-ORDER-004:
+    title: Stale edit and explicit cancellation
+    doc: docs/05-casebook/customer-order-cases.md
+    rules: [BR-CUSTOMER-ORDER-003, BR-CUSTOMER-ORDER-004]
+    tests: [TC-CUSTOMER-ORDER-003]
   CASE-SALE-001:
     title: A valid multi-line sale
     doc: docs/05-casebook/sale-cases.md
@@ -3114,6 +3214,30 @@ cases:
     tests: [TC-INTAKE-009, TC-OPS-016]
 
 contract_tests:
+  TC-CUSTOMER-ORDER-001:
+    title: Customer Order drafts preserve channel, snapshots and commercial-only effects
+    file: packages/domain-kernel/src/customer-order/customer-order.test.ts
+  TC-CUSTOMER-ORDER-002:
+    title: Customer Order confirmation requires canonical priced lines and no account effect
+    file: packages/domain-kernel/src/customer-order/customer-order.test.ts
+  TC-CUSTOMER-ORDER-003:
+    title: Customer Order version conflicts and cancellation preserve explicit lifecycle
+    file: packages/domain-kernel/src/customer-order/customer-order.test.ts
+  TC-CUSTOMER-ORDER-004:
+    title: Application commands replay safely and keep Customer Order commercial-only
+    file: apps/api/src/modules/customer-order/customer-order.app.test.ts
+  TC-CUSTOMER-ORDER-005:
+    title: Application Customer Order writes enforce authorization and scoped reads
+    file: apps/api/src/modules/customer-order/customer-order.app.test.ts
+  TC-CUSTOMER-ORDER-006:
+    title: PostgreSQL persists Customer Order snapshots, retries, cancellation and workspace scope
+    file: apps/api/src/infrastructure/persistence/drizzle/customer-order.db.test.ts
+  TC-WEB-CUSTOMER-ORDER-001:
+    title: Customer Order directory shows commercial-only unpriced facts and semantic detail links
+    file: apps/web/src/ui/screens/customer-orders-directory-view.test.tsx
+  TC-E2E-CUSTOMER-ORDER-001:
+    title: Browser flow creates and cancels a commercial-only Customer Order draft
+    file: apps/web/e2e/customer-order.spec.ts
   TC-PRICING-001:
     title: Price rule recording computes exact final money and writes one audit fact
     file: apps/api/src/modules/pricing/pricing.app.test.ts

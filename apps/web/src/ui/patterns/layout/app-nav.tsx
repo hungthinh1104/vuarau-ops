@@ -28,6 +28,7 @@ const ICONS: Readonly<Record<string, LucideIcon>> = {
   "/today": House,
   "/sales/new": ShoppingCart,
   "/sales": ClipboardList,
+  "/customer-orders": ClipboardList,
   "/purchases": PackageCheck,
   "/intake": PackageOpen,
   "/evidence": FileCheck,
