@@ -30,6 +30,7 @@ import { randomIdGenerator } from "../../clock.ts";
 import { createProduct } from "../../../modules/product/product.handlers.ts";
 import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
+import { getSale } from "../../../modules/sale/sale.queries.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
 import {
   backupDigest,
@@ -105,6 +106,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     const saleLineId = crypto.randomUUID() as SaleLineId;
     const termsPolicyVersionId = crypto.randomUUID() as WorkspacePolicyVersionId;
     const allocationPolicyVersionId = crypto.randomUUID() as WorkspacePolicyVersionId;
+    const creditPolicyVersionId = crypto.randomUUID() as WorkspacePolicyVersionId;
     const policyEffectiveFrom = "2020-01-01T00:00:00.000Z";
     const termsDraft = await createWorkspacePolicyDraft(context(), {
       ...command("recovery-terms-policy-draft"),
@@ -167,6 +169,37 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         },
       });
       expect(allocationApproval.ok).toBe(true);
+    }
+    const creditDraft = await createWorkspacePolicyDraft(context(), {
+      ...command("recovery-credit-policy-draft"),
+      payload: {
+        policyVersionId: creditPolicyVersionId,
+        policyKind: "credit_limit",
+        version: 1,
+        effectiveFrom: policyEffectiveFrom,
+        effectiveTo: null,
+        definition: {
+          contractVersion: 1,
+          parameters: {
+            mode: "information_only",
+            limit: { amountMinor: 1_000_000, currency: "VND" },
+          },
+        },
+        evidenceReferences: [],
+        reason: "Policy credit phục hồi có lineage.",
+      },
+    });
+    expect(creditDraft.ok).toBe(true);
+    if (creditDraft.ok) {
+      const creditApproval = await approveWorkspacePolicy(context(), {
+        ...command("recovery-credit-policy-approve"),
+        payload: {
+          policyVersionId: creditPolicyVersionId,
+          evidenceReferences: ["field://recovery/credit-limit-001"],
+          reason: "Duyệt policy credit phục hồi.",
+        },
+      });
+      expect(creditApproval.ok).toBe(true);
     }
     const product = await createProduct(context(), {
       ...command("recovery-product"),
@@ -231,6 +264,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       expect(posted.value).toMatchObject({
         paymentTermsPolicyVersionId: termsPolicyVersionId,
         paymentTermsSource: "workspace_policy",
+        creditLimitPolicyVersionId: creditPolicyVersionId,
       });
     }
     const payment = await recordCustomerPayment(context(), {
@@ -620,7 +654,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     return rows[0] as Record<string, number>;
   }
 
-  it("TC-POLICY-005 restores canonical history, rebuilds projections, and replays without duplicates", async () => {
+  it("TC-CREDIT-004 / TC-POLICY-005 restores canonical history, credit lineage, rebuilds projections, and replays without duplicates", async () => {
     const backup = await prepareCanonicalBackup();
     expect(backup.payload.customers.length).toBeGreaterThan(0);
     expect(backup.payload.products.length).toBeGreaterThan(0);
@@ -640,16 +674,23 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     expect(backup.payload.documentShares).toHaveLength(1);
     expect(backup.payload.costObservations).toHaveLength(1);
     expect(backup.payload.reconciliationObservations).toHaveLength(1);
-    expect(backup.payload.workspacePolicies).toHaveLength(3);
+    expect(backup.payload.workspacePolicies).toHaveLength(4);
     const restoredTermsPolicyVersionId = backup.payload.workspacePolicies.find(
       (row) => row["policyKind"] === "payment_terms_aging",
     )?.["id"];
     expect(restoredTermsPolicyVersionId).toBeTypeOf("string");
+    const restoredCreditPolicyVersionId = backup.payload.workspacePolicies.find(
+      (row) => row["policyKind"] === "credit_limit",
+    )?.["id"];
+    expect(restoredCreditPolicyVersionId).toBeTypeOf("string");
     expect(backup.payload.sales).toContainEqual(
       expect.objectContaining({
         id: backup.payload.sales[0]?.["id"],
         paymentTermsPolicyVersionId: restoredTermsPolicyVersionId,
         paymentTermsSource: "workspace_policy",
+        creditLimitPolicyVersionId: backup.payload.workspacePolicies.find(
+          (row) => row["policyKind"] === "credit_limit",
+        )?.["id"],
       }),
     );
 
@@ -739,6 +780,14 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         termPolicyVersionId: restoredTermsPolicyVersionId,
         termSource: "workspace_policy",
       });
+    }
+    const restoredSale = await getSale(context(), {
+      workspaceId: ctx.workspaceId,
+      saleId: backup.payload.sales[0]?.["id"] as SaleId,
+    });
+    expect(restoredSale.ok).toBe(true);
+    if (restoredSale.ok) {
+      expect(restoredSale.value.creditLimitPolicyVersionId).toBe(restoredCreditPolicyVersionId);
     }
 
     const reconciliation = await getAccountReconciliation(context(), {

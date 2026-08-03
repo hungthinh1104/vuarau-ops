@@ -623,6 +623,38 @@ use_cases:
       - packages/db/src/schema/payment.ts
       - packages/db/src/repositories/write/payment-allocation.ts
 
+  UC-ACCOUNT-006:
+    title: Apply explicit credit control at Sale posting
+    risk: P0
+    doc: docs/02-use-cases/UC-ACCOUNT-006-credit-control.md
+    rules:
+      - BR-CREDIT-001
+      - BR-SALE-001
+      - BR-SALE-006
+      - BR-SALE-007
+      - BR-COMMAND-001
+      - BR-COMMAND-005
+      - BR-AUTH-001
+      - BR-AUTH-004
+      - BR-CUSTOMER-002
+    cases: []
+    tests:
+      - TC-CREDIT-001
+      - TC-CREDIT-002
+      - TC-CREDIT-003
+      - TC-CREDIT-004
+    implementation:
+      - packages/domain-contracts/src/policy/index.ts
+      - packages/domain-kernel/src/debt/credit-limit.ts
+      - apps/api/src/modules/sale/post-sale.handler.ts
+      - apps/api/src/modules/payment/record-payment.handler.ts
+      - apps/api/src/modules/payment/reverse-payment.handler.ts
+      - apps/api/src/modules/account/adjust-debt.handler.ts
+      - apps/api/src/modules/sale/void-sale.handler.ts
+      - packages/db/src/schema/sale.ts
+      - packages/db/src/repositories/write/sale.ts
+      - apps/web/src/ui/copy.ts
+
   UC-COMMAND-001:
     title: Handle a retry, a duplicate, or a stale version
     risk: P0
@@ -2383,6 +2415,24 @@ business_rules:
       - packages/domain-kernel/src/sale/post-sale.ts
       - packages/db/src/schema/sale.ts
       - packages/db/src/repositories/read/account.ts
+
+  BR-CREDIT-001:
+    title: Credit control is typed, deterministic and fail-closed
+    risk: P0
+    doc: docs/04-business-rules/credit-control-rules.md
+    cases: []
+    tests: [TC-CREDIT-001, TC-CREDIT-002, TC-CREDIT-003, TC-CREDIT-004]
+    implementation:
+      - packages/domain-contracts/src/policy/index.ts
+      - packages/domain-kernel/src/debt/credit-limit.ts
+      - apps/api/src/modules/sale/post-sale.handler.ts
+      - apps/api/src/modules/payment/record-payment.handler.ts
+      - apps/api/src/modules/payment/reverse-payment.handler.ts
+      - apps/api/src/modules/account/adjust-debt.handler.ts
+      - apps/api/src/modules/sale/void-sale.handler.ts
+      - packages/db/src/schema/sale.ts
+      - packages/db/migrations/0049_cute_wendell_rand.sql
+      - apps/web/src/ui/copy.ts
 
   # --- cross-cutting command rules ----------------------------------------------
   BR-COMMAND-001:
@@ -4213,6 +4263,19 @@ contract_tests:
   TC-VALUATION-004:
     title: Inventory valuation UI renders unavailable without inventing money
     file: apps/web/src/ui/screens/product-inventory-view.test.tsx
+
+  TC-CREDIT-001:
+    title: Credit control strategies use integer arithmetic and fail closed when unsupported
+    file: packages/domain-kernel/src/debt/credit-limit.test.ts
+  TC-CREDIT-002:
+    title: Sale posting blocks over-limit debt and stores credit policy lineage
+    file: apps/api/src/modules/sale/credit-limit.app.test.ts
+  TC-CREDIT-003:
+    title: PostgreSQL enforces credit control and stores credit policy lineage
+    file: apps/api/src/infrastructure/persistence/drizzle/credit-limit.db.test.ts
+  TC-CREDIT-004:
+    title: PostgreSQL backup and restore preserves credit policy lineage on a Sale
+    file: apps/api/src/infrastructure/persistence/drizzle/operations-restore.db.test.ts
 
 deprecated:
   - UC-ORDER-001

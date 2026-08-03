@@ -178,10 +178,12 @@ not as settled depot policy.
 ### ASM-015 / ASM-016 — credit limits and overdue balances · **partially closed**
 
 `design.md` describes an `over_credit_limit` state and customer risk surfaces.
-Credit-limit enforcement remains intentionally unavailable because no command
-consumes the `credit_limit` policy yet. Payment terms and aging are now implemented
-as an explicit policy-backed capability: posting snapshots the effective terms,
-and aging returns unavailable without effective terms and allocation policies.
+Credit control is now an explicit policy-backed Sale-posting capability:
+`information_only` and same-currency `hard_block` are deterministic and tested;
+`warning` and `approval_required` remain unavailable because their workflows do
+not exist. Payment terms and aging are implemented as a separate explicit
+policy-backed capability: posting snapshots the effective terms, and aging
+returns unavailable without effective terms and allocation policies.
 
 **Do not invent credit limits or collection recommendations.** A credit limit at
 the wrong threshold refuses real sales; a collection rule with the wrong terms puts

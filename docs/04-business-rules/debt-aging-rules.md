@@ -49,3 +49,8 @@ closed; an explicit Sale due date is always `sale_override` with no policy ID.
 - `packages/db/src/repositories/read/account.ts`
 - `apps/api/src/modules/account/payment-allocation.app.test.ts`
 - `packages/domain-kernel/src/sale/sale.test.ts`
+
+Credit control is documented and implemented separately in
+`credit-control-rules.md`; it is inactive until a workspace explicitly approves
+a `credit_limit` policy. Promise-to-pay, disputes and collection action history
+remain separate unavailable slices.

@@ -58,5 +58,6 @@ TC-AGING-001, TC-AGING-002, TC-AGING-003, TC-AGING-004
 - `apps/api/src/modules/account/payment-allocation.handlers.ts`
 - `packages/db/src/schema/payment.ts`
 
-Explicitly not included: promise-to-pay, disputes, collection action history, and
-credit-control enforcement remain separate slices.
+Explicitly not included: promise-to-pay, disputes, and collection action history
+remain separate slices. Credit-control command enforcement is separate from this
+read; see [UC-ACCOUNT-006](UC-ACCOUNT-006-credit-control.md).

@@ -56,6 +56,7 @@ command refuses source or ledger corruption rather than hiding it.
 | UC-ACCOUNT-003           | Reconcile and rebuild the projection        | `debt.adjust`                       | implemented    | [account](customer-account-use-cases.md)                                   |
 | UC-ACCOUNT-004           | View policy-backed debt aging               | `debt.read`                         | implemented    | [UC-ACCOUNT-004](UC-ACCOUNT-004-view-debt-aging.md)                        |
 | UC-ACCOUNT-005           | Allocate or reverse payment attribution     | `debt.allocate`                     | implemented    | [UC-ACCOUNT-005](UC-ACCOUNT-005-allocate-payment.md)                       |
+| UC-ACCOUNT-006           | Apply explicit credit control at Sale post  | `sale.post`                         | implemented    | [UC-ACCOUNT-006](UC-ACCOUNT-006-credit-control.md)                         |
 | UC-COMMAND-001           | Retries, duplicates, stale versions         | inherits                            | implemented    | [platform](platform-use-cases.md)                                          |
 | UC-AUDIT-001             | Trace a transaction and its corrections     | `audit.read`                        | implemented    | [platform](platform-use-cases.md)                                          |
 | UC-PRODUCT-001           | Manage and identify Product catalogue       | product permissions                 | implemented    | [goods](goods-flow-use-cases.md)                                           |
