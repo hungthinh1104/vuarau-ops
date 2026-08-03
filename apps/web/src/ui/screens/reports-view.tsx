@@ -2,6 +2,7 @@
 
 import type {
   MetricDefinition,
+  ManagementIntelligenceDto,
   OperationalReportDto,
   ReportMetricDefinitionsDto,
   ReportType,
@@ -51,12 +52,14 @@ export function ReportsView(props: {
   readonly state: "loading" | "ready" | "error";
   readonly result: OperationalReportDto | null;
   readonly metrics: QueryLike<ReportMetricDefinitionsDto>;
+  readonly intelligence: QueryLike<ManagementIntelligenceDto>;
   readonly exporting: boolean;
   readonly onReportTypeChange: (value: ReportType) => void;
   readonly onBusinessDateChange: (value: string) => void;
   readonly onExport: () => void;
   readonly onRetry: () => void;
   readonly onMetricsRetry: () => void;
+  readonly onIntelligenceRetry: () => void;
   readonly onNextPage: () => void;
 }) {
   if (!props.canRead) return <p role="alert">Bạn không có quyền đọc báo cáo.</p>;
@@ -68,6 +71,7 @@ export function ReportsView(props: {
         description="Đọc số liệu từ dữ liệu nguồn; mọi con số vận hành phải quay lại được chứng từ tạo ra nó."
       />
       <MetricCatalog query={props.metrics} onRetry={props.onMetricsRetry} />
+      <ManagementSnapshot query={props.intelligence} onRetry={props.onIntelligenceRetry} />
       <div className="grid gap-3 border-y border-border py-4 md:grid-cols-3 md:items-end">
         <Select
           label="Loại báo cáo"
@@ -105,6 +109,79 @@ export function ReportsView(props: {
         <ReportResult result={props.result} onNextPage={props.onNextPage} />
       )}
     </div>
+  );
+}
+
+function ManagementSnapshot(props: {
+  readonly query: QueryLike<ManagementIntelligenceDto>;
+  readonly onRetry: () => void;
+}) {
+  return (
+    <section aria-labelledby="management-snapshot-title" className="grid gap-3">
+      <div>
+        <h2 id="management-snapshot-title" className="text-subheading font-semibold">
+          Ảnh chụp vận hành
+        </h2>
+        <p className="text-body-sm text-ink-muted">
+          Các tổng số được chọn bởi policy và lấy lại từ report nguồn; đây không phải COGS, profit,
+          forecast, điểm hay đề xuất.
+        </p>
+      </div>
+      <QueryStates
+        query={props.query}
+        loadingLabel="Đang tải ảnh chụp vận hành"
+        attemptedAction="Xem ảnh chụp vận hành"
+        onRetry={props.onRetry}
+      >
+        {(snapshot) =>
+          snapshot.status === "unavailable" ? (
+            <div
+              role="status"
+              className="rounded-card border border-warning/30 bg-warning-soft/40 p-4"
+            >
+              <p className="font-semibold">Ảnh chụp vận hành chưa khả dụng.</p>
+              <p className="text-body-sm text-ink-muted">
+                {snapshot.diagnostics.join(", ") || "Thiếu policy hoặc nguồn đối chiếu."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {snapshot.indicators.map((indicator) => {
+                const title = REPORT_TYPE_OPTIONS.find(
+                  (option) => option.value === indicator.reportType,
+                )?.label;
+                return (
+                  <article
+                    key={indicator.reportType}
+                    className="grid gap-2 rounded-card border border-border bg-surface p-4"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold">{title ?? indicator.reportType}</h3>
+                      <Badge tone={indicator.integrity === "healthy" ? "positive" : "warning"}>
+                        {indicator.integrity === "healthy" ? "Đã đối chiếu" : "Cần kiểm tra"}
+                      </Badge>
+                    </div>
+                    {indicator.totals.amount !== null ? (
+                      <strong className="tabular text-heading text-ink">
+                        {formatMoney(indicator.totals.amount)}
+                      </strong>
+                    ) : null}
+                    {indicator.totals.quantities.map((quantity) => (
+                      <span key={quantity.unit} className="tabular text-body-sm text-ink">
+                        {formatQuantity(quantity)}
+                      </span>
+                    ))}
+                    <p className="text-caption text-ink-muted">
+                      Nguồn: report.{indicator.sourceReportType}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+          )
+        }
+      </QueryStates>
+    </section>
   );
 }
 

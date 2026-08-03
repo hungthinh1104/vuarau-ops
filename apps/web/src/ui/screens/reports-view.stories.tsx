@@ -1,9 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { REPORT_METRIC_DEFINITIONS_DTO, type OperationalReportDto } from "@vuarau/domain-contracts";
+import {
+  REPORT_METRIC_DEFINITIONS_DTO,
+  type ManagementIntelligenceDto,
+  type OperationalReportDto,
+} from "@vuarau/domain-contracts";
 import {
   PRODUCT_CA_CHUA_ID,
   QUALITY_GRADE_1_ID,
   QUALITY_GRADE_2_ID,
+  testUuid,
+  WORKSPACE_ID,
 } from "@vuarau/test-fixtures/ids";
 import { ReportsView } from "./reports-view.tsx";
 
@@ -69,6 +75,29 @@ const inventoryReport: OperationalReportDto = {
   },
 };
 
+const intelligence: ManagementIntelligenceDto = {
+  workspaceId: WORKSPACE_ID,
+  asOf: "2026-08-04T00:00:00.000Z",
+  businessDate: null,
+  status: "available",
+  policyVersionId: testUuid("7", 1) as ManagementIntelligenceDto["policyVersionId"],
+  policyVersion: 1,
+  strategy: "operational_report_snapshot",
+  calculationVersion: "management-intelligence-v1",
+  diagnostics: [],
+  sourceReportTypes: ["inventory_by_product_unit"],
+  indicators: [
+    {
+      reportType: "inventory_by_product_unit",
+      businessDate: null,
+      integrity: "healthy",
+      totals: inventoryReport.totals,
+      sourceReportType: "inventory_by_product_unit",
+      diagnostics: [],
+    },
+  ],
+};
+
 const baseArgs = {
   canRead: true,
   reportType: "inventory_by_product_unit" as const,
@@ -81,12 +110,19 @@ const baseArgs = {
     error: null,
     data: REPORT_METRIC_DEFINITIONS_DTO,
   },
+  intelligence: {
+    isPending: false,
+    isError: false,
+    error: null,
+    data: intelligence,
+  },
   exporting: false,
   onReportTypeChange: () => undefined,
   onBusinessDateChange: () => undefined,
   onExport: () => undefined,
   onRetry: () => undefined,
   onMetricsRetry: () => undefined,
+  onIntelligenceRetry: () => undefined,
   onNextPage: () => undefined,
 };
 

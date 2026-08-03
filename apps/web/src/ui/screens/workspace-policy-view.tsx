@@ -35,6 +35,7 @@ const KIND_COPY: Readonly<Record<WorkspacePolicyKind, string>> = {
   supplier_evaluation: "Đánh giá nhà cung cấp",
   operating_cycle_reconciliation: "Đối soát chu kỳ vận hành",
   cash_custody_deposit: "Bàn giao / nộp tiền",
+  management_intelligence: "Ảnh chụp vận hành",
 };
 
 const STATE_COPY: Readonly<Record<WorkspacePolicyDto["state"], string>> = {
@@ -91,8 +92,8 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
         <h2 className="text-subheading font-semibold">Ranh giới an toàn</h2>
         <p className="mt-1 text-body-sm text-ink-muted">
           Bản nháp và policy chưa tới thời điểm hiệu lực đều không được dùng làm mặc định. COGS,
-          tuổi nợ, reorder, điểm nhà cung cấp và AI vẫn unavailable cho tới khi có adapter và bằng
-          chứng riêng.
+          tuổi nợ, reorder, điểm nhà cung cấp và AI vẫn unavailable; ảnh chụp vận hành chỉ đọc các
+          tổng số từ report nguồn đã có integrity.
         </p>
       </section>
       {props.canManage ? <PolicyDraftForm {...props} /> : null}

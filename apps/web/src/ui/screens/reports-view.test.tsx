@@ -1,10 +1,16 @@
 import { render, screen } from "@testing-library/react";
-import { REPORT_METRIC_DEFINITIONS_DTO, type OperationalReportDto } from "@vuarau/domain-contracts";
+import {
+  REPORT_METRIC_DEFINITIONS_DTO,
+  type ManagementIntelligenceDto,
+  type OperationalReportDto,
+} from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
 import {
   PRODUCT_CA_CHUA_ID,
   QUALITY_GRADE_1_ID,
   QUALITY_GRADE_2_ID,
+  testUuid,
+  WORKSPACE_ID,
 } from "@vuarau/test-fixtures/ids";
 import { ReportsView } from "./reports-view.tsx";
 
@@ -59,6 +65,29 @@ const ready = <T,>(data: T) => ({
   data,
 });
 
+const intelligence: ManagementIntelligenceDto = {
+  workspaceId: WORKSPACE_ID,
+  asOf: "2026-08-04T00:00:00.000Z",
+  businessDate: null,
+  status: "available",
+  policyVersionId: testUuid("7", 2) as ManagementIntelligenceDto["policyVersionId"],
+  policyVersion: 1,
+  strategy: "operational_report_snapshot",
+  calculationVersion: "management-intelligence-v1",
+  diagnostics: [],
+  sourceReportTypes: ["inventory_by_product_unit"],
+  indicators: [
+    {
+      reportType: "inventory_by_product_unit",
+      businessDate: null,
+      integrity: "healthy",
+      totals: { amount: null, quantities: [{ unit: "kg", valueScaled: 100_000 }] },
+      sourceReportType: "inventory_by_product_unit",
+      diagnostics: [],
+    },
+  ],
+};
+
 function renderView(overrides: Partial<React.ComponentProps<typeof ReportsView>> = {}) {
   return render(
     <ReportsView
@@ -68,12 +97,14 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ReportsView>>
       state="ready"
       result={result}
       metrics={ready(REPORT_METRIC_DEFINITIONS_DTO)}
+      intelligence={ready(intelligence)}
       exporting={false}
       onReportTypeChange={() => undefined}
       onBusinessDateChange={() => undefined}
       onExport={() => undefined}
       onRetry={() => undefined}
       onMetricsRetry={() => undefined}
+      onIntelligenceRetry={() => undefined}
       onNextPage={() => undefined}
       {...overrides}
     />,
@@ -101,6 +132,13 @@ describe("ReportsView", () => {
     expect(cogsCard).toHaveTextContent("Gate: ASM-039, ASM-040");
     expect(cogsCard).toHaveTextContent("Evidence tiếp theo:");
     expect(screen.queryByText("0 ₫")).not.toBeInTheDocument();
+  });
+
+  it("renders management snapshot lineage without turning it into a new KPI", () => {
+    renderView();
+    expect(screen.getByRole("heading", { name: "Ảnh chụp vận hành" })).toBeInTheDocument();
+    expect(screen.getByText("Nguồn: report.inventory_by_product_unit")).toBeInTheDocument();
+    expect(screen.getByText(/đây không phải COGS, profit, forecast/)).toBeInTheDocument();
   });
 
   it("fails visibly instead of rendering stale totals when the report read fails", () => {

@@ -11,6 +11,7 @@ export function ReportsController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const metricDefinitions = useQuery(trpc.report.metrics.queryOptions({ workspaceId }));
+  const [asOf] = useState(() => new Date().toISOString());
   const [reportType, setReportType] = useState<ReportType>("customer_account_activity");
   const [businessDate, setBusinessDate] = useState("");
   const [cursor, setCursor] = useState<Cursor | null>(null);
@@ -32,6 +33,13 @@ export function ReportsController() {
     [businessDate, cursor, reportType, workspaceId],
   );
   const report = useQuery(trpc.report.operational.queryOptions(input));
+  const intelligence = useQuery(
+    trpc.report.intelligence.queryOptions({
+      workspaceId,
+      asOf,
+      businessDate: businessDate || null,
+    }),
+  );
   const csv = useQuery({
     ...trpc.report.csv.queryOptions({ ...input, cursor: null, limit: 100 }),
     enabled: false,
@@ -53,6 +61,7 @@ export function ReportsController() {
       state={report.isPending ? "loading" : report.isError ? "error" : "ready"}
       result={report.data ?? null}
       metrics={metricDefinitions}
+      intelligence={intelligence}
       exporting={csv.isFetching}
       onReportTypeChange={(value) => {
         setReportType(value);
@@ -65,6 +74,7 @@ export function ReportsController() {
       onExport={() => void csv.refetch()}
       onRetry={() => void report.refetch()}
       onMetricsRetry={() => void metricDefinitions.refetch()}
+      onIntelligenceRetry={() => void intelligence.refetch()}
       onNextPage={() => {
         const next = report.data?.page.nextCursor ?? null;
         if (next !== null) setCursor(next);
