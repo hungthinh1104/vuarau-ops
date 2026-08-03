@@ -57,6 +57,7 @@ import {
   workspaceOperationalProfiles,
   costObservations,
   reconciliationObservations,
+  debtObservations,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -423,6 +424,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         documentShareRows,
         costObservationRows,
         reconciliationObservationRows,
+        debtObservationRows,
       ] = await Promise.all([
         tx
           .select()
@@ -543,6 +545,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
           .select()
           .from(reconciliationObservations)
           .where(eq(reconciliationObservations.workspaceId, workspaceId)),
+        tx.select().from(debtObservations).where(eq(debtObservations.workspaceId, workspaceId)),
       ]);
       const plain = (value: unknown): Record<string, unknown> =>
         JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
@@ -624,6 +627,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         documentShares: list(documentShareRows),
         costObservations: list(costObservationRows),
         reconciliationObservations: list(reconciliationObservationRows),
+        debtObservations: list(debtObservationRows),
       };
     },
   },

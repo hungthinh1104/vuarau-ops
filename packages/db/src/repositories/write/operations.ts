@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV10 } from "@vuarau/domain-contracts";
+import type { WorkspaceId, WorkspaceBackupV11 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -46,6 +46,7 @@ import {
   workspaces,
   costObservations,
   reconciliationObservations,
+  debtObservations,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 import { restoreInspectedIntake, restoreQualityIssueCodes } from "./operations-intake-restore.ts";
@@ -53,7 +54,7 @@ import { targetContainsBusinessData } from "./operations-target.ts";
 
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV10["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV11["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -102,6 +103,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         ...payload.priceRules.map((row) => row["actorId"]),
         ...payload.costObservations.map((row) => row["actorId"]),
         ...payload.reconciliationObservations.map((row) => row["actorId"]),
+        ...payload.debtObservations.map((row) => row["actorId"]),
       ].filter((value): value is string => typeof value === "string");
       if (actorIds.length > 0) {
         const existing = await tx
@@ -256,6 +258,20 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
               recordedAt: date(row["recordedAt"]),
             };
           }) as unknown as (typeof reconciliationObservations.$inferInsert)[],
+        );
+      }
+      if (payload.debtObservations.length > 0) {
+        await tx.insert(debtObservations).values(
+          payload.debtObservations.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              agreedDueAt: row["agreedDueAt"] == null ? null : date(row["agreedDueAt"]),
+              promiseToPayAt: row["promiseToPayAt"] == null ? null : date(row["promiseToPayAt"]),
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof debtObservations.$inferInsert)[],
         );
       }
       await restoreQualityIssueCodes(tx, payload, scoped, date);

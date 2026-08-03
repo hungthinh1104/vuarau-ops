@@ -13,7 +13,10 @@ export const createDebtObservationReadRepositories = (tx: Tx) => ({
         .select()
         .from(debtObservations)
         .where(
-          and(eq(debtObservations.workspaceId, workspaceId), eq(debtObservations.id, observationId)),
+          and(
+            eq(debtObservations.workspaceId, workspaceId),
+            eq(debtObservations.id, observationId),
+          ),
         )
         .limit(1);
       return rows[0] === undefined ? null : toDebtObservationDto(rows[0]);
