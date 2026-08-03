@@ -49,7 +49,7 @@ import type {
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
 import { restorePaymentAllocationFacts } from "./payment-allocation.ts";
-
+import { restoreStocktakes } from "./operations-stocktake.ts";
 export const createOperationsRepositories = (store: Store): Pick<Repositories, "operations"> => ({
   operations: {
     restoreBackup: async (workspaceId, payload) => {
@@ -80,6 +80,8 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.documents.values(),
           ...store.customerOrders.values(),
           ...store.supplyCommitments.values(),
+          ...store.stocktakeSessions.values(),
+          ...store.stocktakeCounts.values(),
         ].some((row) => row.workspaceId === workspaceId) ||
         store.accountEntries.some((row) => row.workspaceId === workspaceId) ||
         store.inventoryMovements.some((row) => row.workspaceId === workspaceId) ||
@@ -124,6 +126,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           const row = remap(raw) as unknown as WorkspacePolicyDto;
           store.workspacePolicies.set(key(workspaceId, row.id), row);
         }
+        restoreStocktakes(store, workspaceId, payload);
         for (const raw of payload.cashAccounts) {
           const row = remap(raw) as unknown as CashAccountDto;
           store.cashAccounts.set(key(workspaceId, row.id), row);

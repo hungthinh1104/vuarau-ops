@@ -18,12 +18,13 @@ import type {
   SaleLineId,
   SupplierId,
   SupplierPaymentId,
-  WorkspaceBackupV17,
+  WorkspaceBackupV18,
   WorkspacePolicyVersionId,
   DeliveryId,
   DeliveryLineId,
   DocumentId,
   DocumentShareId,
+  StocktakeSessionId,
 } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
@@ -54,6 +55,11 @@ import {
 import { recordPurchaseReceipt } from "../../../modules/inventory/inventory.handlers.ts";
 import { recordPriceRule } from "../../../modules/pricing/pricing.handlers.ts";
 import { getInventoryReconciliation } from "../../../modules/inventory/inventory.queries.ts";
+import {
+  approveStocktake,
+  recordStocktakeCount,
+  startStocktake,
+} from "../../../modules/inventory/stocktake.handlers.ts";
 import {
   createDeliveryDraft,
   dispatchDelivery,
@@ -100,7 +106,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     await ctx.close();
   });
 
-  async function prepareCanonicalBackup(): Promise<WorkspaceBackupV17> {
+  async function prepareCanonicalBackup(): Promise<WorkspaceBackupV18> {
     const productId = crypto.randomUUID() as ProductId;
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
@@ -509,6 +515,69 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       });
       expect(policyApproval.ok).toBe(true);
     }
+    const stocktakePolicyVersionId = crypto.randomUUID() as WorkspacePolicyVersionId;
+    const stocktakePolicy = await createWorkspacePolicyDraft(context(), {
+      ...command("recovery-stocktake-policy-draft"),
+      payload: {
+        policyVersionId: stocktakePolicyVersionId,
+        policyKind: "stocktake_variance",
+        version: 1,
+        effectiveFrom: "2026-01-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition: {
+          contractVersion: 1,
+          parameters: { strategy: "absolute_count", allowReopen: true },
+        },
+        evidenceReferences: [],
+        reason: "Policy kiểm kê cho diễn tập phục hồi.",
+      },
+    });
+    expect(stocktakePolicy.ok).toBe(true);
+    const stocktakePolicyApproval = await approveWorkspacePolicy(context(), {
+      ...command("recovery-stocktake-policy-approve"),
+      payload: {
+        policyVersionId: stocktakePolicyVersionId,
+        evidenceReferences: ["field://recovery/stocktake-001"],
+        reason: "Duyệt policy kiểm kê cho diễn tập phục hồi.",
+      },
+    });
+    expect(stocktakePolicyApproval.ok).toBe(true);
+    const stocktakeSessionId = crypto.randomUUID() as StocktakeSessionId;
+    const stocktakeStarted = await startStocktake(context(), {
+      ...command("recovery-stocktake-start"),
+      payload: {
+        stocktakeSessionId,
+        asOf: "2026-08-03T00:00:00.000Z",
+        scopeReference: `product:${productId}`,
+        note: "Phiên kiểm kê dùng để diễn tập backup/restore.",
+        evidenceReferences: ["photo://recovery/stocktake-001"],
+      },
+    });
+    expect(stocktakeStarted.ok).toBe(true);
+    const stocktakeCount = await recordStocktakeCount(context(), {
+      ...command("recovery-stocktake-count"),
+      payload: {
+        stocktakeCountId: crypto.randomUUID(),
+        stocktakeSessionId,
+        productId,
+        qualityGradeId: ctx.qualityGradeId,
+        qualityGradeName: "Loại 1",
+        quantity: { valueScaled: 1_000, unit: "kg" },
+        supersedesCountId: null,
+        evidenceReferences: ["photo://recovery/stocktake-001"],
+      },
+    });
+    expect(stocktakeCount.ok).toBe(true);
+    const stocktakeApproved = await approveStocktake(context(), {
+      ...command("recovery-stocktake-approve"),
+      payload: {
+        stocktakeSessionId,
+        expectedVersion: 2,
+        evidenceReferences: ["review://recovery/stocktake-001"],
+        reason: "Chốt phiên kiểm kê cho diễn tập phục hồi.",
+      },
+    });
+    expect(stocktakeApproved.ok).toBe(true);
     const exported = await exportWorkspaceBackup(context(), {
       ...command("recovery-export"),
       payload: {},
@@ -537,6 +606,8 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       await sql`delete from document_shares where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from documents where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from inventory_balances where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from stocktake_counts where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from stocktake_sessions where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from inventory_movements where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from quality_disposition_reversals
         where workspace_id = ${ctx.workspaceId}::uuid`;
@@ -636,6 +707,10 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
           where workspace_id = ${ctx.workspaceId}::uuid) as receipts,
         (select count(*)::int from inventory_movements
           where workspace_id = ${ctx.workspaceId}::uuid) as inventory_movements,
+        (select count(*)::int from stocktake_sessions
+          where workspace_id = ${ctx.workspaceId}::uuid) as stocktake_sessions,
+        (select count(*)::int from stocktake_counts
+          where workspace_id = ${ctx.workspaceId}::uuid) as stocktake_counts,
         (select count(*)::int from deliveries
           where workspace_id = ${ctx.workspaceId}::uuid) as deliveries,
         (select count(*)::int from documents
@@ -668,13 +743,15 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     expect(backup.payload.purchases).toHaveLength(1);
     expect(backup.payload.supplierAccountEntries).toHaveLength(2);
     expect(backup.payload.receipts).toHaveLength(1);
-    expect(backup.payload.inventoryMovements).toHaveLength(2);
+    expect(backup.payload.inventoryMovements).toHaveLength(3);
     expect(backup.payload.deliveries).toHaveLength(1);
     expect(backup.payload.documents).toHaveLength(1);
     expect(backup.payload.documentShares).toHaveLength(1);
     expect(backup.payload.costObservations).toHaveLength(1);
     expect(backup.payload.reconciliationObservations).toHaveLength(1);
-    expect(backup.payload.workspacePolicies).toHaveLength(4);
+    expect(backup.payload.workspacePolicies).toHaveLength(5);
+    expect(backup.payload.stocktakeSessions).toHaveLength(1);
+    expect(backup.payload.stocktakeCounts).toHaveLength(1);
     const restoredTermsPolicyVersionId = backup.payload.workspacePolicies.find(
       (row) => row["policyKind"] === "payment_terms_aging",
     )?.["id"];
@@ -716,6 +793,8 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       supplier_account_entries: 0,
       receipts: 0,
       inventory_movements: 0,
+      stocktake_sessions: 0,
+      stocktake_counts: 0,
       deliveries: 0,
       documents: 0,
       document_shares: 0,
@@ -753,6 +832,8 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       supplier_account_entries: backup.payload.supplierAccountEntries.length,
       receipts: backup.payload.receipts.length,
       inventory_movements: backup.payload.inventoryMovements.length,
+      stocktake_sessions: backup.payload.stocktakeSessions.length,
+      stocktake_counts: backup.payload.stocktakeCounts.length,
       deliveries: backup.payload.deliveries.length,
       documents: backup.payload.documents.length,
       document_shares: backup.payload.documentShares.length,
@@ -828,7 +909,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     const backup = await prepareCanonicalBackup();
     await emptyRecoveryWorkspace();
     const duplicateCustomer = backup.payload.customers[0]!;
-    const malformed: WorkspaceBackupV17 = {
+    const malformed: WorkspaceBackupV18 = {
       ...backup,
       payload: {
         ...backup.payload,
@@ -874,7 +955,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         },
       ],
     };
-    const tampered: WorkspaceBackupV17 = {
+    const tampered: WorkspaceBackupV18 = {
       ...backup,
       payload,
       digest: backupDigest(payload),

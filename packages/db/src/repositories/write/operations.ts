@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV17 } from "@vuarau/domain-contracts";
+import type { WorkspaceId, WorkspaceBackupV18 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -63,9 +63,11 @@ import {
   createBackupRowScope,
   restorePaymentAllocationFacts,
 } from "./operations-payment-allocation.ts";
+import { restoreStocktakes } from "./operations-stocktake-restore.ts";
+import { backupActorIds } from "./operations-actors.ts";
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV17["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV18["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -86,45 +88,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           };
         }
       }
-      const actorIds = [
-        ...payload.cashAccounts.map((row) => row["custodianActorId"]),
-        ...payload.expenses.map((row) => row["actorId"]),
-        ...payload.expenseReversals.map((row) => row["actorId"]),
-        ...payload.cashTransfers.map((row) => row["actorId"]),
-        ...payload.cashTransferReversals.map((row) => row["actorId"]),
-        ...payload.cashAdjustments.map((row) => row["actorId"]),
-        ...payload.cashMovements.map((row) => row["actorId"]),
-        ...payload.accountEntries.map((row) => row["actorId"]),
-        ...payload.audit.map((row) => row["actorId"]),
-        ...payload.supplierAccountEntries.map((row) => row["actorId"]),
-        ...payload.receipts.map((row) => row["actorId"]),
-        ...payload.receiptReversals.map((row) => row["actorId"]),
-        ...payload.inventoryMovements.map((row) => row["actorId"]),
-        ...payload.goodsArrivals.map((row) => row["actorId"]),
-        ...payload.goodsArrivalReversals.map((row) => row["actorId"]),
-        ...payload.qualityInspections.map((row) => row["actorId"]),
-        ...payload.qualityInspectionReversals.map((row) => row["actorId"]),
-        ...payload.qualityDispositions.map((row) => row["actorId"]),
-        ...payload.qualityDispositionReversals.map((row) => row["actorId"]),
-        ...payload.deliveries.map((row) => row["actorId"]),
-        ...payload.deliveryReturns.map((row) => row["actorId"]),
-        ...payload.documents.map((row) => row["generatedBy"]),
-        ...payload.documentShares.flatMap((row) => [row["createdBy"], row["revokedBy"]]),
-        ...payload.priceRules.map((row) => row["actorId"]),
-        ...payload.costObservations.map((row) => row["actorId"]),
-        ...payload.reconciliationObservations.map((row) => row["actorId"]),
-        ...payload.debtObservations.map((row) => row["actorId"]),
-        ...payload.paymentAllocations.map((row) => row["actorId"]),
-        ...payload.paymentAllocationReversals.map((row) => row["actorId"]),
-        ...payload.supplyCommitmentObservations.map((row) => row["actorId"]),
-        ...payload.supplierObservations.map((row) => row["actorId"]),
-        ...payload.demandObservations.map((row) => row["actorId"]),
-        ...payload.workspacePolicies.flatMap((row) => [
-          row["createdBy"],
-          row["approvedBy"],
-          row["retiredBy"],
-        ]),
-      ].filter((value): value is string => typeof value === "string");
+      const actorIds = backupActorIds(payload);
       if (actorIds.length > 0) {
         const existing = await tx
           .select({ id: actors.id })
@@ -293,6 +257,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
       await restoreSupplierObservations(tx, workspaceId, payload, date);
       await restoreDemandObservations(tx, workspaceId, payload, date);
       await restoreWorkspacePolicies(tx, workspaceId, payload, date);
+      await restoreStocktakes(tx, payload, scoped, date);
       await restoreQualityIssueCodes(tx, payload, scoped, date);
       if (payload.suppliers.length > 0) {
         await tx.insert(suppliers).values(

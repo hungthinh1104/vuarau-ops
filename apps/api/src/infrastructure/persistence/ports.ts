@@ -15,7 +15,6 @@ import type {
   WorkspaceId,
   WorkspaceRole,
   WorkspaceOperationalProfileDto,
-  WorkspaceBackupV17,
   DeliveryId,
   DocumentDto,
   DocumentShareId,
@@ -66,6 +65,8 @@ import type {
   DeliveryState,
   DeliveryReturnState,
   CashMovementDraft,
+  StocktakeCountState,
+  StocktakeSessionState,
 } from "@vuarau/domain-kernel";
 import type { CustomerOrderRepository } from "./customer-order-ports.ts";
 import type { SupplyCommitmentRepository } from "./supply-commitment-ports.ts";
@@ -80,6 +81,7 @@ import type {
   DemandObservationRepository,
 } from "./evidence-ports.ts";
 import type { WorkspacePolicyRepository } from "./policy-ports.ts";
+import type { OperationsRepository } from "./operations-ports.ts";
 
 /** Every method takes `workspaceId` as a required argument (BR-CUSTOMER-002). */
 export type WorkspaceMembership = {
@@ -331,6 +333,20 @@ export type InventoryBalanceRepository = {
   save(balance: InventoryBalanceState): Promise<void>;
 };
 
+export type StocktakeRepository = {
+  findById(
+    workspaceId: WorkspaceId,
+    sessionId: StocktakeSessionState["id"],
+  ): Promise<StocktakeSessionState | null>;
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    sessionId: StocktakeSessionState["id"],
+  ): Promise<StocktakeSessionState | null>;
+  insert(session: StocktakeSessionState): Promise<boolean>;
+  insertCount(count: StocktakeCountState): Promise<boolean>;
+  update(session: StocktakeSessionState, expectedVersion: number): Promise<boolean>;
+};
+
 export type DeliveryRepository = {
   findById(workspaceId: WorkspaceId, deliveryId: DeliveryId): Promise<DeliveryState | null>;
   findByIdForUpdate(
@@ -526,19 +542,6 @@ export type QualityDispositionRepository = {
   insertReversal(disposition: QualityDispositionDto): Promise<boolean>;
 };
 
-export type OperationsRepository = {
-  restoreBackup(
-    workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV17["payload"],
-  ): Promise<
-    | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
-    | {
-        readonly kind: "unsafe_target" | "integrity_error";
-        readonly reason: string;
-      }
-  >;
-};
-
 export type SaleRepository = {
   /**
    * Takes a row lock for the duration of the transaction (ADR-0009), and loads
@@ -661,6 +664,7 @@ export type Repositories = ReadRepositories & {
   readonly purchaseReceipts: ReceiptRepository;
   readonly inventoryMovements: InventoryMovementRepository;
   readonly inventoryBalances: InventoryBalanceRepository;
+  readonly stocktakes: StocktakeRepository;
   readonly deliveries: DeliveryRepository;
   readonly documents: DocumentRepository;
   readonly operations: OperationsRepository;

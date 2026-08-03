@@ -68,6 +68,8 @@ import {
   supplierObservations,
   demandObservations,
   workspacePolicies,
+  stocktakeSessions,
+  stocktakeCounts,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -445,6 +447,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         supplierObservationRows,
         demandObservationRows,
         workspacePolicyRows,
+        stocktakeSessionRows,
+        stocktakeCountRows,
       ] = await Promise.all([
         tx
           .select()
@@ -588,6 +592,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
           .where(eq(supplierObservations.workspaceId, workspaceId)),
         tx.select().from(demandObservations).where(eq(demandObservations.workspaceId, workspaceId)),
         tx.select().from(workspacePolicies).where(eq(workspacePolicies.workspaceId, workspaceId)),
+        tx.select().from(stocktakeSessions).where(eq(stocktakeSessions.workspaceId, workspaceId)),
+        tx.select().from(stocktakeCounts).where(eq(stocktakeCounts.workspaceId, workspaceId)),
       ]);
       const plain = (value: unknown): Record<string, unknown> =>
         JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
@@ -680,6 +686,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         supplierObservations: list(supplierObservationRows),
         demandObservations: list(demandObservationRows),
         workspacePolicies: list(workspacePolicyRows),
+        stocktakeSessions: list(stocktakeSessionRows),
+        stocktakeCounts: list(stocktakeCountRows),
       };
     },
   },

@@ -505,6 +505,19 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
             currency: commitment.currency,
           })),
         ),
+        stocktakeSessions: rows(store.stocktakeSessions.values()).map(
+          ({ counts: _counts, ...session }) => ({
+            ...session,
+            varianceMovementIds: [...session.varianceMovementIds],
+            evidenceReferences: [...session.evidenceReferences],
+          }),
+        ),
+        stocktakeCounts: rows(store.stocktakeCounts.values()).map(({ quantity, ...count }) => ({
+          ...count,
+          quantityScaled: quantity.valueScaled,
+          unit: quantity.unit,
+          evidenceReferences: [...count.evidenceReferences],
+        })),
       };
     },
   },

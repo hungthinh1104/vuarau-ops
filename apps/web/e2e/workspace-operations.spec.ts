@@ -1,5 +1,5 @@
 import { expect, test, signIn } from "./harness/signed-in.ts";
-import { workspaceBackupV17Schema } from "@vuarau/domain-contracts";
+import { workspaceBackupV18Schema } from "@vuarau/domain-contracts";
 
 test.describe("Owner workspace operations", () => {
   test("shows integrity and exports a checksummed secret-free backup", async ({ page }) => {
@@ -14,10 +14,10 @@ test.describe("Owner workspace operations", () => {
     const chunks: Buffer[] = [];
     for await (const chunk of file) chunks.push(Buffer.from(chunk));
     const text = Buffer.concat(chunks).toString("utf8");
-    const parsedBackup = workspaceBackupV17Schema.safeParse(JSON.parse(text));
+    const parsedBackup = workspaceBackupV18Schema.safeParse(JSON.parse(text));
     expect(parsedBackup.success).toBe(true);
     if (!parsedBackup.success) throw new Error(parsedBackup.error.message);
-    expect(parsedBackup.data.version).toBe(17);
+    expect(parsedBackup.data.version).toBe(18);
     expect(parsedBackup.data.payload.priceRules).toBeDefined();
     expect(parsedBackup.data.digest).toMatch(/^[a-f0-9]{64}$/);
     expect(text).not.toMatch(/SUPABASE|bearer|password|jwt/i);

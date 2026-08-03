@@ -120,7 +120,7 @@ describe.skipIf(skipWithoutDatabase())("Supply Commitment against PostgreSQL", (
       ...command("commitment-backup"),
       payload: {},
     });
-    expect(backup.ok && backup.value.version).toBe(17);
+    expect(backup.ok && backup.value.version).toBe(18);
     expect(backup.ok && backup.value.payload.supplyCommitments).toContainEqual(
       expect.objectContaining({ id: commitmentId, supplierId }),
     );

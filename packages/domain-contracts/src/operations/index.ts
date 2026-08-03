@@ -302,6 +302,21 @@ export const workspaceBackupV17Schema = z.object({
   digest: z.string().regex(/^[a-f0-9]{64}$/),
 });
 export type WorkspaceBackupV17 = z.infer<typeof workspaceBackupV17Schema>;
+export const workspaceBackupPayloadV18Schema = workspaceBackupPayloadV17Schema.extend({
+  stocktakeSessions: z.array(backupRecordSchema),
+  stocktakeCounts: z.array(backupRecordSchema),
+});
+export const workspaceBackupV18Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(18),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m34-stocktake-planning"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV18Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV18 = z.infer<typeof workspaceBackupV18Schema>;
 export const workspaceBackupSchema = z.discriminatedUnion("version", [
   workspaceBackupV1Schema,
   workspaceBackupV2Schema,
@@ -320,6 +335,7 @@ export const workspaceBackupSchema = z.discriminatedUnion("version", [
   workspaceBackupV15Schema,
   workspaceBackupV16Schema,
   workspaceBackupV17Schema,
+  workspaceBackupV18Schema,
 ]);
 export type WorkspaceBackup = z.infer<typeof workspaceBackupSchema>;
 export const exportWorkspaceBackupCommandSchema = defineCommand(z.object({}));

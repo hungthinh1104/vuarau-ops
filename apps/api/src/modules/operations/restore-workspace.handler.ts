@@ -1,7 +1,7 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV17,
+  WorkspaceBackupV18,
 } from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
@@ -17,7 +17,7 @@ import { hashPayload } from "../../infrastructure/hash.ts";
 import { backupDigest } from "./operations.queries.ts";
 
 function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
-  const payload = v17Payload(command);
+  const payload = v18Payload(command);
   const source = command.payload.backup.sourceWorkspaceId;
   const rows = Object.entries(payload).flatMap(([, value]) =>
     Array.isArray(value) ? value : [value],
@@ -140,6 +140,8 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const supplierObservationRows =
     "supplierObservations" in payload ? payload.supplierObservations : [];
   const demandObservationRows = "demandObservations" in payload ? payload.demandObservations : [];
+  const stocktakeSessionRows = payload.stocktakeSessions;
+  const stocktakeCountRows = payload.stocktakeCounts;
   const qualityIssueCodes = new Set(qualityIssueRows.map((row) => row["id"]));
   const goodsArrivals = new Set(goodsArrivalRows.map((row) => row["id"]));
   const goodsArrivalLines = new Set(goodsArrivalLineRows.map((row) => row["id"]));
@@ -161,6 +163,9 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
   const supplierObservationIds = new Set(supplierObservationRows.map((row) => row["id"]));
   const demandObservationIds = new Set(demandObservationRows.map((row) => row["id"]));
+  const stocktakeSessionIds = new Set(stocktakeSessionRows.map((row) => row["id"]));
+  const stocktakeCountIds = new Set(stocktakeCountRows.map((row) => row["id"]));
+  const inventoryMovementIds = new Set(payload.inventoryMovements.map((row) => row["id"]));
   const workspacePoliciesValid = workspacePolicyRows.every(
     (row) => workspacePolicyDtoSchema.safeParse({ ...row, workspaceId: source }).success,
   );
@@ -345,6 +350,14 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
             allocation["outcome"] === "accepted"
           );
         }
+        if (row["sourceType"] === "stocktake_variance") {
+          return (
+            (row["sourceLineId"] != null &&
+              (stocktakeCountIds.has(row["sourceLineId"]) ||
+                inventoryMovementIds.has(row["sourceLineId"]))) ||
+            row["sourceLineId"] == null
+          );
+        }
         return (
           row["sourceType"] === "inventory_adjustment" ||
           row["sourceType"] === "inventory_reclassification"
@@ -406,6 +419,20 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     (!("cashAdjustments" in payload) ||
       payload.cashAdjustments.every((row) => cashAccounts.has(row["cashAccountId"]))) &&
     workspacePoliciesValid &&
+    stocktakeSessionRows.every(
+      (row) =>
+        workspacePolicyRows.some((policy) => policy["id"] === row["policyVersionId"]) &&
+        (row["varianceMovementIds"] == null ||
+          (Array.isArray(row["varianceMovementIds"]) &&
+            row["varianceMovementIds"].every((id) => inventoryMovementIds.has(id)))),
+    ) &&
+    stocktakeCountRows.every(
+      (row) =>
+        stocktakeSessionIds.has(row["sessionId"]) &&
+        products.has(row["productId"]) &&
+        hasGrade(row["qualityGradeId"]) &&
+        (row["supersedesCountId"] == null || stocktakeCountIds.has(row["supersedesCountId"])),
+    ) &&
     supplyCommitmentObservationRows.every(
       (row) =>
         (row["supplierId"] == null || suppliers.has(row["supplierId"])) &&
@@ -463,7 +490,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
 }
 
-function v17Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV17["payload"] {
+function v18Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV18["payload"] {
   const payload = command.payload.backup.payload;
   const operationalProfile =
     "operationalProfile" in payload
@@ -530,6 +557,8 @@ function v17Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV17[
     paymentAllocations: "paymentAllocations" in payload ? payload.paymentAllocations : [],
     paymentAllocationReversals:
       "paymentAllocationReversals" in payload ? payload.paymentAllocationReversals : [],
+    stocktakeSessions: "stocktakeSessions" in payload ? payload.stocktakeSessions : [],
+    stocktakeCounts: "stocktakeCounts" in payload ? payload.stocktakeCounts : [],
   };
 }
 
@@ -553,7 +582,7 @@ export function restoreWorkspaceBackup(
       }
       const restored = await repos.operations.restoreBackup(
         command.workspaceId,
-        v17Payload(command),
+        v18Payload(command),
       );
       if (restored.kind === "unsafe_target") {
         return err("BACKUP_UNSAFE_TARGET", "Restore requires an empty recovery workspace.", {
@@ -573,7 +602,7 @@ export function restoreWorkspaceBackup(
       }
       const supplierDiagnostics = (
         await Promise.all(
-          v17Payload(command).suppliers.map((row) =>
+          v18Payload(command).suppliers.map((row) =>
             repos.supplierAccountReads.integrity(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.supplierAccountReads.integrity>[1],
@@ -585,7 +614,7 @@ export function restoreWorkspaceBackup(
         string,
         { productId: string; qualityGradeId: string | null; unit: string }
       >();
-      for (const movement of v17Payload(command).inventoryMovements) {
+      for (const movement of v18Payload(command).inventoryMovements) {
         const qualityGradeId =
           movement["qualityGradeId"] === null || movement["qualityGradeId"] === undefined
             ? null
@@ -613,7 +642,7 @@ export function restoreWorkspaceBackup(
       ).flat();
       const cashDiagnostics = (
         await Promise.all(
-          v17Payload(command).cashAccounts.map((row) =>
+          v18Payload(command).cashAccounts.map((row) =>
             repos.cashReads.reconciliation(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.cashReads.reconciliation>[1],

@@ -22,8 +22,6 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV17,
-  WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
   SupplierPriceHistoryInput,
@@ -37,6 +35,8 @@ import type {
   PurchaseReceiptDto,
   InventoryBalanceDto,
   InventoryMovementDto,
+  StocktakeDto,
+  StocktakeSessionId,
   ProductId,
   PriceRuleListInput,
   ResolvePriceInput,
@@ -93,7 +93,7 @@ import type { DebtAgingSources, InventoryValuationMovement } from "@vuarau/domai
 import type { CustomerOrderReadRepository } from "./customer-order-read-ports.ts";
 import type { SupplyCommitmentReadRepository } from "./supply-commitment-read-ports.ts";
 import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
-
+import type { OperationsReadRepository } from "./operations-read-ports.ts";
 /**
  * Read ports, separate from the write ports on purpose.
  *
@@ -457,6 +457,10 @@ export type InventoryReadRepository = {
   ): Promise<readonly string[]>;
 };
 
+export type StocktakeReadRepository = {
+  get(workspaceId: WorkspaceId, sessionId: StocktakeSessionId): Promise<StocktakeDto | null>;
+};
+
 export type DeliveryReadRepository = {
   get(workspaceId: WorkspaceId, deliveryId: DeliveryId): Promise<DeliveryDto | null>;
   list(args: {
@@ -585,11 +589,6 @@ export type IntakeReadRepository = {
   ): Promise<ArrivalLineHistoryDto>;
 };
 
-export type OperationsReadRepository = {
-  integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV17["payload"] | null>;
-};
-
 export type CostObservationReadRepository = {
   get(
     workspaceId: WorkspaceId,
@@ -679,6 +678,7 @@ export type ReadRepositories = {
   readonly customerOrderReads: CustomerOrderReadRepository;
   readonly supplyCommitmentReads: SupplyCommitmentReadRepository;
   readonly inventoryReads: InventoryReadRepository;
+  readonly stocktakeReads: StocktakeReadRepository;
   readonly deliveryReads: DeliveryReadRepository;
   readonly documentReads: DocumentReadRepository;
   readonly reportReads: ReportReadRepository;

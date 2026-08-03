@@ -2,7 +2,7 @@ import type { WorkspaceBackupV17, WorkspaceId } from "@vuarau/domain-contracts";
 import { paymentAllocationReversals, paymentAllocations } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
-type ScopedRow = (row: Record<string, unknown>) => Record<string, unknown> & {
+export type ScopedRow = (row: Record<string, unknown>) => Record<string, unknown> & {
   workspaceId: WorkspaceId;
 };
 
