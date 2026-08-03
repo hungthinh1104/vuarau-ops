@@ -16,6 +16,7 @@ import { moneySchema } from "../shared/money.ts";
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
+import { supplierEvaluationPolicyDefinitionSchema } from "../supplier/index.ts";
 
 /**
  * Policy capabilities are named contracts, not a generic rule engine. A policy
@@ -248,6 +249,9 @@ export const cashCustodyDepositPolicyDefinitionSchema = z.object({
 export type CashCustodyDepositPolicyDefinition = z.infer<
   typeof cashCustodyDepositPolicyDefinitionSchema
 >;
+
+export { supplierEvaluationPolicyDefinitionSchema };
+export type { SupplierEvaluationPolicyDefinition } from "../supplier/index.ts";
 
 export const WORKSPACE_POLICY_STATES = ["draft", "approved", "retired"] as const;
 export const workspacePolicyStateSchema = z.enum(WORKSPACE_POLICY_STATES);

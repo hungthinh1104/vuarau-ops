@@ -14,6 +14,7 @@ import {
   supplierPaymentGetInputSchema,
   supplierAdjustmentGetInputSchema,
   rebuildSupplierAccountCommandSchema,
+  supplierPerformanceInputSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import {
@@ -36,6 +37,7 @@ import {
   getSupplierReconciliation,
 } from "../../../modules/supplier/supplier.queries.ts";
 import { rebuildSupplierAccount } from "../../../modules/supplier/rebuild-supplier-account.handler.ts";
+import { getSupplierPerformance } from "../../../modules/supplier/supplier-performance.queries.ts";
 
 export const supplierRouter = router({
   create: commandProcedure
@@ -59,6 +61,9 @@ export const supplierRouter = router({
   priceHistory: authenticatedProcedure
     .input(supplierPriceHistoryInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getSupplierPriceHistory(ctx, input))),
+  performance: authenticatedProcedure
+    .input(supplierPerformanceInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getSupplierPerformance(ctx, input))),
   getPayment: authenticatedProcedure
     .input(supplierPaymentGetInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getSupplierPayment(ctx, input))),

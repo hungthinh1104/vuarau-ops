@@ -594,14 +594,6 @@ export const METRIC_AVAILABILITY_DEFINITIONS = [
     nextEvidence: "Product/grade/unit planning examples with approved action thresholds.",
   },
   {
-    metricId: "supplier_performance",
-    label: "Supplier performance",
-    availability: "unavailable",
-    blockedBy: ["ASM-047", "ASM-048"],
-    reason: "Supplier facts, quality/claim semantics and review windows are not closed.",
-    nextEvidence: "Source-linked delivery, quality, return and credit examples.",
-  },
-  {
     metricId: "cash_gap",
     label: "Projected cash gap",
     availability: "unavailable",
@@ -627,6 +619,29 @@ export const METRIC_AVAILABILITY_DEFINITIONS = [
   },
 ] satisfies readonly MetricAvailabilityDefinition[];
 
+export const METRIC_SEMANTIC_DEFINITIONS = [
+  {
+    metricId: "supplier_performance",
+    label: "Supplier performance",
+    availability: "available",
+    formula:
+      "Policy-window summary of source-linked promised/actual/accepted/rejected quantities and expected/actual arrival timing; rates use integer basis points.",
+    canonicalSources: ["supplier_observations"],
+    includedStates: [
+      "approved effective supplier_evaluation policy",
+      "non-superseded observations",
+    ],
+    excludedStates: ["correction targets", "observations outside the policy window"],
+    businessTime: "SupplierObservation.transactionTime",
+    scope: "one workspace, one Supplier and one effective policy window",
+    freshness: "calculated at read time from canonical observations",
+    integrity: "derived_canonical",
+    onIntegrityAttention: "fail_closed",
+    drilldown: "sourceObservationIds in supplier.performance",
+    action: "Review source facts; never rank, recommend or create a purchase effect.",
+  },
+] satisfies readonly MetricSemanticDefinition[];
+
 export const reportMetricDefinitionsDtoSchema = z.object({
   version: z.literal(1),
   definitions: z.array(metricDefinitionSchema),
@@ -635,7 +650,7 @@ export type ReportMetricDefinitionsDto = z.infer<typeof reportMetricDefinitionsD
 
 export const REPORT_METRIC_DEFINITIONS_DTO = {
   version: 1,
-  definitions: METRIC_AVAILABILITY_DEFINITIONS,
+  definitions: [...METRIC_AVAILABILITY_DEFINITIONS, ...METRIC_SEMANTIC_DEFINITIONS],
 } satisfies ReportMetricDefinitionsDto;
 
 export const operationalReportDtoSchema = z.object({

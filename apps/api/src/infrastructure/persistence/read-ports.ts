@@ -647,6 +647,7 @@ export type SupplierObservationReadRepository = {
     kind: SupplierObservationKind | null;
     page: PageQuery;
   }): Promise<PageResult<SupplierObservationDto>>;
+  listAll(workspaceId: WorkspaceId): Promise<readonly SupplierObservationDto[]>;
 };
 
 export type DemandObservationReadRepository = {
@@ -662,10 +663,9 @@ export type DemandObservationReadRepository = {
 };
 
 /**
- * The read side's own bundle. It is reachable from a `Repositories` too, so a
- * query runs in the same transaction as the authorization check that guards it —
- * a read authorized against a membership that was revoked mid-query would
- * otherwise be possible.
+ * The read side's own bundle is reachable from a `Repositories`, so a query
+ * runs in the same transaction as the authorization check that guards it —
+ * a read authorized against a membership revoked mid-query would otherwise be possible.
  */
 export type ReadRepositories = {
   readonly customerReads: CustomerReadRepository;

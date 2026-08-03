@@ -47,5 +47,17 @@ export const createSupplierObservationReadRepositories = (tx: Tx) => ({
         id: row.id,
       }));
     },
+    async listAll(workspaceId: string) {
+      const rows = await tx
+        .select()
+        .from(supplierObservations)
+        .where(eq(supplierObservations.workspaceId, workspaceId))
+        .orderBy(
+          supplierObservations.transactionTime,
+          supplierObservations.recordedAt,
+          supplierObservations.id,
+        );
+      return rows.map(toSupplierObservationDto);
+    },
   },
 });

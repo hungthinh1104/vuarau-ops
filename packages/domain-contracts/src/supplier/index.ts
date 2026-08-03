@@ -13,7 +13,9 @@ import {
   supplierIdSchema,
   supplierPaymentIdSchema,
   supplierPaymentReversalIdSchema,
+  supplierObservationIdSchema,
   workspaceIdSchema,
+  workspacePolicyVersionIdSchema,
 } from "../shared/ids.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { paymentMethodSchema } from "../payment/index.ts";
@@ -93,6 +95,73 @@ export const supplierPriceHistoryInputSchema = pageRequestSchema.extend({
 });
 export type SupplierPriceHistoryInput = z.infer<typeof supplierPriceHistoryInputSchema>;
 export const supplierPriceHistoryPageSchema = pageOf(supplierPriceHistoryRowDtoSchema);
+
+/**
+ * Supplier performance is a policy-backed summary of source-linked observations.
+ * The first strategy is deliberately descriptive: it reports observed delivery,
+ * acceptance and timing facts without ranking suppliers or recommending a buy.
+ */
+export const SUPPLIER_EVALUATION_STRATEGIES = ["observed_outcomes_summary"] as const;
+export const supplierEvaluationStrategySchema = z.enum(SUPPLIER_EVALUATION_STRATEGIES);
+export type SupplierEvaluationStrategy = z.infer<typeof supplierEvaluationStrategySchema>;
+
+export const supplierEvaluationPolicyDefinitionSchema = z.object({
+  contractVersion: z.literal(1),
+  parameters: z.object({
+    strategy: supplierEvaluationStrategySchema,
+    windowDays: z.int().min(1).max(3_660),
+    minimumObservationCount: z.int().positive().max(10_000),
+  }),
+});
+export type SupplierEvaluationPolicyDefinition = z.infer<
+  typeof supplierEvaluationPolicyDefinitionSchema
+>;
+
+const supplierPerformanceQuantityMetricSchema = z.object({
+  unit: quantitySchema.shape.unit,
+  promisedQuantity: quantitySchema.nullable(),
+  actualQuantity: quantitySchema.nullable(),
+  acceptedQuantity: quantitySchema.nullable(),
+  rejectedQuantity: quantitySchema.nullable(),
+  fulfilmentRateBasisPoints: z.int().min(0).max(10_000).nullable(),
+  acceptanceRateBasisPoints: z.int().min(0).max(10_000).nullable(),
+});
+export type SupplierPerformanceQuantityMetric = z.infer<
+  typeof supplierPerformanceQuantityMetricSchema
+>;
+
+const supplierPerformanceTimingSchema = z.object({
+  measuredCount: z.int().nonnegative(),
+  onTimeCount: z.int().nonnegative(),
+  lateCount: z.int().nonnegative(),
+});
+export type SupplierPerformanceTiming = z.infer<typeof supplierPerformanceTimingSchema>;
+
+export const supplierPerformanceInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  supplierId: supplierIdSchema,
+  asOf: isoInstantSchema,
+});
+export type SupplierPerformanceInput = z.infer<typeof supplierPerformanceInputSchema>;
+
+export const supplierPerformanceDtoSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  supplierId: supplierIdSchema,
+  asOf: isoInstantSchema,
+  windowStart: isoInstantSchema,
+  status: z.enum(["available", "unavailable"]),
+  policyVersionId: workspacePolicyVersionIdSchema.nullable(),
+  policyVersion: z.int().positive().nullable(),
+  strategy: supplierEvaluationStrategySchema.nullable(),
+  calculationVersion: z.literal("supplier-performance-v1"),
+  diagnostics: z.array(z.string()),
+  observationCount: z.int().nonnegative(),
+  measurementObservationCount: z.int().nonnegative(),
+  sourceObservationIds: z.array(supplierObservationIdSchema),
+  quantityMetrics: z.array(supplierPerformanceQuantityMetricSchema),
+  timing: supplierPerformanceTimingSchema.nullable(),
+});
+export type SupplierPerformanceDto = z.infer<typeof supplierPerformanceDtoSchema>;
 
 export const SUPPLIER_ACCOUNT_SOURCE_TYPES = [
   "supplier_payment",

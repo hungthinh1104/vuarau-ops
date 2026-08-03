@@ -18,6 +18,7 @@ import {
   stockPlanningPolicyDefinitionSchema,
   stocktakeVariancePolicyDefinitionSchema,
   operationalClosePolicyDefinitionSchema,
+  supplierEvaluationPolicyDefinitionSchema,
 } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
@@ -152,6 +153,15 @@ export function decideCreateWorkspacePolicyDraft(
     return err(
       "WORKSPACE_POLICY_DEFINITION_INVALID",
       "Cash custody and deposit policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "supplier_evaluation" &&
+    !supplierEvaluationPolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Supplier evaluation policy definition is not a supported contract.",
     );
   }
   const policy: WorkspacePolicyDto = {

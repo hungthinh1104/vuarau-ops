@@ -33,5 +33,14 @@ export const createSupplierObservationReads = (
         id: observation.id,
       }));
     },
+    listAll: async (workspaceId) =>
+      [...store.supplierObservations.values()]
+        .filter((observation) => observation.workspaceId === workspaceId)
+        .sort(
+          (left, right) =>
+            left.transactionTime.localeCompare(right.transactionTime) ||
+            left.recordedAt.localeCompare(right.recordedAt) ||
+            left.id.localeCompare(right.id),
+        ),
   },
 });

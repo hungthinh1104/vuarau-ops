@@ -21,6 +21,7 @@ export * from "./reconciliation-observation/index.ts";
 export * from "./debt-observation/index.ts";
 export * from "./supply-commitment-observation/index.ts";
 export * from "./supplier-observation/index.ts";
+export * from "./supplier-performance/index.ts";
 export * from "./demand-observation/index.ts";
 export * from "./workspace-policy/index.ts";
 export * from "./valuation/index.ts";
