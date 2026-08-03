@@ -185,6 +185,10 @@ export const DOMAIN_REJECTION_CODES = [
   /** A wrong-customer correction must actually move to a different customer. */
   "SALE_REPLACEMENT_CUSTOMER_UNCHANGED",
   "SALE_REPLACEMENT_CURRENCY_MISMATCH",
+  /** A credit policy exists but its mode or definition has no implemented effect. */
+  "CREDIT_POLICY_UNAVAILABLE",
+  /** A supported hard-block policy refuses a sale before any effect is written. */
+  "CREDIT_LIMIT_EXCEEDED",
 
   // --- payment --------------------------------------------------------------
   "PAYMENT_AMOUNT_INVALID",

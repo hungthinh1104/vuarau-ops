@@ -20,7 +20,7 @@ export function recordCustomerPayment(
     ctx,
     requiredPermission: "payment.record",
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
-      const customer = await repos.customers.findById(
+      const customer = await repos.customers.findByIdForUpdate(
         command.workspaceId,
         command.payload.customerId,
       );

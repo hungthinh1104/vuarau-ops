@@ -1,5 +1,6 @@
-import type { PostSaleCommand, SaleDto } from "@vuarau/domain-contracts";
+import type { PostSaleCommand, SaleDto, WorkspacePolicyVersionId } from "@vuarau/domain-contracts";
 import {
+  creditLimitPolicyDefinitionSchema,
   paymentTermsAgingPolicyDefinitionSchema,
   postSaleCommandSchema,
   roleHasPermission,
@@ -7,6 +8,8 @@ import {
 import type { DomainResult } from "@vuarau/domain-kernel";
 import {
   addPaymentTermDays,
+  calculateAccountBalance,
+  decideCreditLimit,
   decidePostSale,
   err,
   ok,
@@ -73,6 +76,19 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
             { saleId: source.id, voidActorId: source.voidRecord.actorId },
           );
         }
+      }
+
+      // Every command that can add or compensate a customer ledger entry takes
+      // the same customer lock. This makes the canonical balance used by credit
+      // control a serialised snapshot, not a projection race.
+      const customer = await repos.customers.findByIdForUpdate(
+        command.workspaceId,
+        sale.customerId,
+      );
+      if (customer === null) {
+        return err("CUSTOMER_NOT_FOUND", "No such customer in this workspace.", {
+          customerId: sale.customerId,
+        });
       }
 
       for (const line of sale.lines) {
@@ -189,7 +205,57 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
         return decision;
       }
 
-      const posted = decision.value.aggregate;
+      let creditLimitPolicyVersionId: WorkspacePolicyVersionId | null = null;
+      const creditPolicy = resolveEffectiveWorkspacePolicy(
+        await repos.workspacePolicyReads.listAll(command.workspaceId),
+        "credit_limit",
+        sale.transactionTime,
+      );
+      if (creditPolicy !== null) {
+        const definition = creditLimitPolicyDefinitionSchema.safeParse(creditPolicy.definition);
+        if (!definition.success) {
+          return err(
+            "CREDIT_POLICY_UNAVAILABLE",
+            "The effective credit policy is not a supported contract.",
+            { policyVersionId: creditPolicy.id },
+          );
+        }
+
+        const entries = await repos.accountEntries.listByCustomer(
+          command.workspaceId,
+          sale.customerId,
+        );
+        if (entries.some((entry) => entry.amount.currency !== sale.currency)) {
+          return err(
+            "CREDIT_POLICY_UNAVAILABLE",
+            "Credit control cannot evaluate a ledger with mixed currencies.",
+            { customerId: sale.customerId, currency: sale.currency },
+          );
+        }
+        const creditDecision = decideCreditLimit({
+          definition: definition.data,
+          policyVersionId: creditPolicy.id,
+          currentBalance: calculateAccountBalance(entries, sale.currency),
+          additionalDebt: decision.value.aggregate.totalAmount,
+        });
+        if (!creditDecision.ok) return creditDecision;
+        creditLimitPolicyVersionId = creditPolicy.id;
+      }
+
+      // Re-run the pure transition with the selected lineage. No persistence or
+      // external read occurs in this second call; the domain remains the sole
+      // owner of the immutable posted Sale shape.
+      const finalDecision = decidePostSale({
+        command,
+        sale,
+        recordedAt,
+        qualityGradeRequired: operationalProfile.qualityGradeMode === "required",
+        paymentTermSnapshot,
+        creditLimitPolicyVersionId,
+      });
+      if (!finalDecision.ok) return finalDecision;
+
+      const posted = finalDecision.value.aggregate;
 
       // Belt and braces (ADR-0009): the domain compared versions against the row we
       // read, and this compares again at write time. The row lock makes the race
@@ -203,9 +269,9 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
         });
       }
 
-      await applyAccountEffects(repos, decision.value.accountEntries, sale.currency);
+      await applyAccountEffects(repos, finalDecision.value.accountEntries, sale.currency);
       await repos.audit.append({
-        ...decision.value.audit,
+        ...finalDecision.value.audit,
         workspaceId: command.workspaceId,
         actorId: command.actorId,
         commandId: command.commandId,

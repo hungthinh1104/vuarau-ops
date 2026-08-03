@@ -60,6 +60,7 @@ export const sales = pgTable(
     dueAt: timestamp("due_at", { withTimezone: true }),
     paymentTermsPolicyVersionId: uuid("payment_terms_policy_version_id"),
     paymentTermsSource: paymentTermSourceEnum("payment_terms_source"),
+    creditLimitPolicyVersionId: uuid("credit_limit_policy_version_id"),
     /** Set once, at draft creation, when this sale corrects a voided one. */
     replacesSaleId: uuid("replaces_sale_id"),
   },
@@ -82,6 +83,11 @@ export const sales = pgTable(
       columns: [table.workspaceId, table.paymentTermsPolicyVersionId],
       foreignColumns: [workspacePolicies.workspaceId, workspacePolicies.id],
       name: "sales_workspace_payment_terms_policy_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.creditLimitPolicyVersionId],
+      foreignColumns: [workspacePolicies.workspaceId, workspacePolicies.id],
+      name: "sales_workspace_credit_limit_policy_fk",
     }),
   ],
 );

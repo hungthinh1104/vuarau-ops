@@ -90,6 +90,7 @@ export type SaleRow = {
   dueAt: Date | null;
   paymentTermsPolicyVersionId: string | null;
   paymentTermsSource: SaleState["paymentTermsSource"];
+  creditLimitPolicyVersionId: string | null;
   replacesSaleId: string | null;
 };
 
@@ -173,6 +174,8 @@ export function toSaleState(
     paymentTermsPolicyVersionId:
       (row.paymentTermsPolicyVersionId as SaleState["paymentTermsPolicyVersionId"]) ?? null,
     paymentTermsSource: row.paymentTermsSource ?? null,
+    creditLimitPolicyVersionId:
+      (row.creditLimitPolicyVersionId as SaleState["creditLimitPolicyVersionId"]) ?? null,
     replacesSaleId: row.replacesSaleId as SaleId | null,
     voidRecord: voidRow === null ? null : toSaleVoidState(voidRow),
   };

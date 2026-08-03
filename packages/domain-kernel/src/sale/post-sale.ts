@@ -21,6 +21,8 @@ export type PostSaleInput = {
     readonly source: Exclude<PaymentTermSource, "sale_override" | "none">;
     readonly policyVersionId: WorkspacePolicyVersionId;
   } | null;
+  /** Resolved by the application from the effective credit policy. */
+  readonly creditLimitPolicyVersionId?: WorkspacePolicyVersionId | null;
 };
 
 /**
@@ -45,6 +47,7 @@ export function decidePostSale({
   recordedAt,
   qualityGradeRequired = true,
   paymentTermSnapshot = null,
+  creditLimitPolicyVersionId = null,
 }: PostSaleInput): DomainResult<Decision<SaleState>> {
   if (command.expectedVersion !== sale.version) {
     return err(
@@ -120,6 +123,7 @@ export function decidePostSale({
     dueAt: sale.dueAt ?? paymentTermSnapshot?.dueAt ?? null,
     paymentTermsPolicyVersionId,
     paymentTermsSource,
+    creditLimitPolicyVersionId,
     version: sale.version + 1,
     postedAt: command.occurredAt,
   };

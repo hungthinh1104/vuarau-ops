@@ -123,10 +123,27 @@ export type PaymentAllocationPolicyDefinition = z.infer<
 
 export const creditLimitPolicyDefinitionSchema = z.object({
   contractVersion: z.literal(1),
-  parameters: z.object({
-    mode: creditControlModeSchema,
-    limit: moneySchema.nullable(),
-  }),
+  parameters: z
+    .object({
+      mode: creditControlModeSchema,
+      limit: moneySchema.nullable(),
+    })
+    .superRefine((parameters, context) => {
+      if (parameters.limit !== null && parameters.limit.amountMinor < 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["limit", "amountMinor"],
+          message: "A credit limit cannot be negative.",
+        });
+      }
+      if (parameters.mode === "hard_block" && parameters.limit === null) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["limit"],
+          message: "A hard-block credit policy requires an explicit limit.",
+        });
+      }
+    }),
 });
 export type CreditLimitPolicyDefinition = z.infer<typeof creditLimitPolicyDefinitionSchema>;
 

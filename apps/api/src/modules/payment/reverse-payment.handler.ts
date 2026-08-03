@@ -34,6 +34,16 @@ export function reverseCustomerPayment(
         });
       }
 
+      const customer = await repos.customers.findByIdForUpdate(
+        command.workspaceId,
+        payment.customerId,
+      );
+      if (customer === null) {
+        return err("CUSTOMER_NOT_FOUND", "No such customer in this workspace.", {
+          customerId: payment.customerId,
+        });
+      }
+
       const linkedCashAccountId = payment.cashAccountId ?? null;
       if (
         linkedCashAccountId !== null &&

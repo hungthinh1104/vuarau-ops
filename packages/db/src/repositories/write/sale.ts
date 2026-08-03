@@ -56,6 +56,7 @@ export const createSaleWriteRepositories = (tx: Tx) => ({
         dueAt: fromIsoOrNull(sale.dueAt),
         paymentTermsPolicyVersionId: sale.paymentTermsPolicyVersionId ?? null,
         paymentTermsSource: sale.paymentTermsSource ?? null,
+        creditLimitPolicyVersionId: sale.creditLimitPolicyVersionId ?? null,
         replacesSaleId: sale.replacesSaleId,
       });
 
@@ -100,6 +101,7 @@ export const createSaleWriteRepositories = (tx: Tx) => ({
           dueAt: fromIsoOrNull(sale.dueAt),
           paymentTermsPolicyVersionId: sale.paymentTermsPolicyVersionId ?? null,
           paymentTermsSource: sale.paymentTermsSource ?? null,
+          creditLimitPolicyVersionId: sale.creditLimitPolicyVersionId ?? null,
         })
         .where(
           and(
@@ -132,6 +134,7 @@ export const createSaleWriteRepositories = (tx: Tx) => ({
           dueAt: fromIsoOrNull(sale.dueAt),
           paymentTermsPolicyVersionId: sale.paymentTermsPolicyVersionId ?? null,
           paymentTermsSource: sale.paymentTermsSource ?? null,
+          creditLimitPolicyVersionId: sale.creditLimitPolicyVersionId ?? null,
           discardedAt: fromIsoOrNull(sale.discardedAt),
           version: sale.version,
         })

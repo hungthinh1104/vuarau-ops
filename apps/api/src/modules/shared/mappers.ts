@@ -77,6 +77,7 @@ export function toSaleDto(sale: SaleState, asOf: IsoInstant): SaleDto {
     dueAt: sale.dueAt,
     paymentTermsPolicyVersionId: sale.paymentTermsPolicyVersionId ?? null,
     paymentTermsSource: sale.paymentTermsSource ?? null,
+    creditLimitPolicyVersionId: sale.creditLimitPolicyVersionId ?? null,
     replacesSaleId: sale.replacesSaleId,
     // Both derived, never stored (state catalog): a `voided` column would have to
     // be kept true by updating a row that is promised to be immutable, and an

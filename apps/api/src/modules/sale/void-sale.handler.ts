@@ -38,6 +38,16 @@ export function voidSale(ctx: CommandContext, input: unknown): Promise<DomainRes
         });
       }
 
+      const customer = await repos.customers.findByIdForUpdate(
+        command.workspaceId,
+        sale.customerId,
+      );
+      if (customer === null) {
+        return err("CUSTOMER_NOT_FOUND", "No such customer in this workspace.", {
+          customerId: sale.customerId,
+        });
+      }
+
       const fulfilled =
         command.payload.reasonCode === "goods_returned"
           ? await repos.deliveries.netFulfilledBySaleLine(command.workspaceId, sale.id, null)

@@ -87,6 +87,8 @@ export type DebtAgingCalculation = {
   readonly diagnostics: readonly string[];
 };
 
+export * from "./credit-limit.ts";
+
 type TermSource = "sale_override" | "customer_policy" | "workspace_policy" | "none";
 
 export type ResolvedPaymentTerm = {

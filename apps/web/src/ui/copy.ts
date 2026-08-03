@@ -143,6 +143,10 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   SALE_REPLACEMENT_CUSTOMER_UNCHANGED:
     "Với lý do sai khách hàng, hãy chọn một khách hàng khác cho đơn thay thế.",
   SALE_REPLACEMENT_CURRENCY_MISMATCH: "Đơn thay thế phải dùng cùng loại tiền với đơn gốc.",
+  CREDIT_POLICY_UNAVAILABLE:
+    "Chính sách hạn mức chưa có đủ quy trình an toàn để chốt đơn. Hãy nhờ chủ vựa kiểm tra cấu hình.",
+  CREDIT_LIMIT_EXCEEDED:
+    "Đơn này vượt hạn mức công nợ đã cấu hình. Kiểm tra số dư hoặc nhờ chủ vựa duyệt lại hạn mức.",
 
   PAYMENT_AMOUNT_INVALID: "Số tiền thanh toán phải lớn hơn 0.",
   PAYMENT_NOT_FOUND: "Không tìm thấy phiếu thu này.",

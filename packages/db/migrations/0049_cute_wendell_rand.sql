@@ -1,0 +1,4 @@
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'CREDIT_POLICY_UNAVAILABLE' BEFORE 'PAYMENT_AMOUNT_INVALID';--> statement-breakpoint
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'CREDIT_LIMIT_EXCEEDED' BEFORE 'PAYMENT_AMOUNT_INVALID';--> statement-breakpoint
+ALTER TABLE "sales" ADD COLUMN "credit_limit_policy_version_id" uuid;--> statement-breakpoint
+ALTER TABLE "sales" ADD CONSTRAINT "sales_workspace_credit_limit_policy_fk" FOREIGN KEY ("workspace_id","credit_limit_policy_version_id") REFERENCES "public"."workspace_policies"("workspace_id","id") ON DELETE no action ON UPDATE no action;

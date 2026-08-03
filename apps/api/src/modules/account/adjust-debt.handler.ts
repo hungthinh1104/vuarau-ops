@@ -32,7 +32,7 @@ export function adjustCustomerDebt(
     ctx,
     requiredPermission: "debt.adjust",
     execute: async ({ command, repos, recordedAt, membership }) => {
-      const customer = await repos.customers.findById(
+      const customer = await repos.customers.findByIdForUpdate(
         command.workspaceId,
         command.payload.customerId,
       );

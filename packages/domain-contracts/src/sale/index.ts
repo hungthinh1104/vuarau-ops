@@ -262,6 +262,8 @@ export const saleDtoSchema = z.object({
   paymentTermsSource: z
     .enum(["sale_override", "customer_policy", "workspace_policy", "none"])
     .nullable(),
+  /** Policy lineage for the credit-control decision made at posting. */
+  creditLimitPolicyVersionId: workspacePolicyVersionIdSchema.nullable(),
   replacesSaleId: saleIdSchema.nullable(),
   /** Present iff this sale was voided. The sale row itself is never touched. */
   voidRecord: saleVoidDtoSchema.nullable(),

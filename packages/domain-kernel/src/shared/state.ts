@@ -421,6 +421,8 @@ export type SaleState = {
   /** Snapshot of how the due date was established at posting. */
   readonly paymentTermsPolicyVersionId?: WorkspacePolicyVersionId | null;
   readonly paymentTermsSource?: PaymentTermSource | null;
+  /** Snapshot of the credit-control policy consumed at posting, if any. */
+  readonly creditLimitPolicyVersionId?: WorkspacePolicyVersionId | null;
   /** Set at draft creation when this sale corrects a voided one (BR-SALE-016). */
   readonly replacesSaleId: SaleId | null;
   /**
