@@ -106,6 +106,18 @@ describe("offline Quick Sale outbox", () => {
     );
   });
 
+  it("derives a queued draft from its pending outbox chain after an autosave race", async () => {
+    const built = chain("sale-a");
+    const database = new OfflineDatabase();
+    await database.acceptSale({ partition, ...built });
+    await database.saveDraft(partition, { ...built.draft, syncState: "local" });
+
+    await expect(database.draft(partition, "sale-a")).resolves.toMatchObject({
+      saleId: "sale-a",
+      syncState: "queued",
+    });
+  });
+
   it("runs FIFO inside a chain and retries an unknown outcome with the same identity", async () => {
     const built = chain("sale-a");
     const store = new MemoryOfflineStore(built.commands);

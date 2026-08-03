@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AuthProvider } from "@/api/auth.tsx";
 import { ApiProvider } from "@/api/providers.tsx";
 import { SessionGate } from "@/api/session-gate.tsx";
 import { ServiceWorkerRegistration } from "@/offline/service-worker-registration.tsx";
@@ -22,11 +21,9 @@ import { ServiceWorkerRegistration } from "@/offline/service-worker-registration
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-      <ApiProvider>
-        <ServiceWorkerRegistration />
-        <SessionGate>{children}</SessionGate>
-      </ApiProvider>
-    </AuthProvider>
+    <ApiProvider>
+      <ServiceWorkerRegistration />
+      <SessionGate>{children}</SessionGate>
+    </ApiProvider>
   );
 }

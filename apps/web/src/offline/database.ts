@@ -126,11 +126,33 @@ export class OfflineDatabase {
 
   async draft(partition: OfflinePartition, saleId: string): Promise<OfflineSaleDraft | null> {
     const database = await openDatabase();
-    const row = await requestResult(
-      database.transaction(DRAFTS).objectStore(DRAFTS).get(recordKey(partition, saleId)),
-    );
+    const transaction = database.transaction([DRAFTS, OUTBOX]);
+    const rowRequest = transaction.objectStore(DRAFTS).get(recordKey(partition, saleId));
+    const commandRequest = transaction
+      .objectStore(OUTBOX)
+      .index("partition")
+      .getAll(partitionKey(partition));
+    const [row, commandRows] = await Promise.all([
+      requestResult(rowRequest),
+      requestResult(commandRequest),
+    ]);
     database.close();
-    return row === undefined ? null : stripStorage(row as Stored<OfflineSaleDraft>);
+    if (row === undefined) return null;
+
+    const draft = stripStorage(row as Stored<OfflineSaleDraft>);
+    const commands = (commandRows as Stored<OutboxRecord>[])
+      .map(stripStorage)
+      .filter((command) => command.chainId === saleId);
+    if (commands.length === 0) return draft;
+
+    const blocked = commands.find((command) => ["blocked", "rejected"].includes(command.state));
+    if (blocked !== undefined) {
+      return { ...draft, syncState: blocked.state };
+    }
+    if (commands.some((command) => command.state !== "confirmed")) {
+      return { ...draft, syncState: "queued" };
+    }
+    return { ...draft, syncState: "confirmed" };
   }
 
   async commands(partition: OfflinePartition): Promise<readonly OutboxRecord[]> {

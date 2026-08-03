@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import type { ReactNode } from "react";
+import { AuthProvider } from "@/api/auth.tsx";
 import { Toaster } from "@/ui/primitives/toaster.tsx";
 import "./globals.css";
 
@@ -30,7 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="vi" className={beVietnamPro.variable}>
       <body className="min-h-screen bg-canvas text-ink antialiased">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         <Toaster />
       </body>
     </html>
