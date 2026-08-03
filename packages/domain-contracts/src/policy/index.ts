@@ -4,12 +4,15 @@ import {
   actorIdSchema,
   commandIdSchema,
   customerIdSchema,
+  productIdSchema,
+  qualityGradeIdSchema,
   workspaceIdSchema,
   workspacePolicyVersionIdSchema,
 } from "../shared/ids.ts";
 import { evidenceReferencesInputSchema, evidenceReferencesDtoSchema } from "../shared/evidence.ts";
 import { moneySchema } from "../shared/money.ts";
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
+import { quantitySchema, unitSchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 
 /**
@@ -146,6 +149,62 @@ export const creditLimitPolicyDefinitionSchema = z.object({
     }),
 });
 export type CreditLimitPolicyDefinition = z.infer<typeof creditLimitPolicyDefinitionSchema>;
+
+export const STOCK_PLANNING_STRATEGIES = ["fixed_threshold"] as const;
+export const stockPlanningStrategySchema = z.enum(STOCK_PLANNING_STRATEGIES);
+export type StockPlanningStrategy = z.infer<typeof stockPlanningStrategySchema>;
+
+const stockPlanningRuleSchema = z
+  .object({
+    productId: productIdSchema,
+    qualityGradeId: qualityGradeIdSchema.nullable(),
+    unit: unitSchema,
+    minimumQuantity: quantitySchema,
+    targetQuantity: quantitySchema,
+  })
+  .superRefine((rule, context) => {
+    if (rule.minimumQuantity.unit !== rule.unit || rule.targetQuantity.unit !== rule.unit) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["unit"],
+        message: "Planning quantities must use the rule unit.",
+      });
+    }
+    if (
+      rule.minimumQuantity.valueScaled < 0 ||
+      rule.targetQuantity.valueScaled < rule.minimumQuantity.valueScaled
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["targetQuantity"],
+        message: "Target quantity must be at least the non-negative minimum quantity.",
+      });
+    }
+  });
+export type StockPlanningRule = z.infer<typeof stockPlanningRuleSchema>;
+
+export const stockPlanningPolicyDefinitionSchema = z.object({
+  contractVersion: z.literal(1),
+  parameters: z.object({
+    strategy: stockPlanningStrategySchema,
+    rules: z.array(stockPlanningRuleSchema).min(1).max(10_000),
+  }),
+});
+export type StockPlanningPolicyDefinition = z.infer<typeof stockPlanningPolicyDefinitionSchema>;
+
+export const STOCKTAKE_VARIANCE_STRATEGIES = ["absolute_count"] as const;
+export const stocktakeVarianceStrategySchema = z.enum(STOCKTAKE_VARIANCE_STRATEGIES);
+export type StocktakeVarianceStrategy = z.infer<typeof stocktakeVarianceStrategySchema>;
+export const stocktakeVariancePolicyDefinitionSchema = z.object({
+  contractVersion: z.literal(1),
+  parameters: z.object({
+    strategy: stocktakeVarianceStrategySchema,
+    allowReopen: z.boolean(),
+  }),
+});
+export type StocktakeVariancePolicyDefinition = z.infer<
+  typeof stocktakeVariancePolicyDefinitionSchema
+>;
 
 export const WORKSPACE_POLICY_STATES = ["draft", "approved", "retired"] as const;
 export const workspacePolicyStateSchema = z.enum(WORKSPACE_POLICY_STATES);

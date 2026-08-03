@@ -189,6 +189,13 @@ export const DOMAIN_REJECTION_CODES = [
   "CREDIT_POLICY_UNAVAILABLE",
   /** A supported hard-block policy refuses a sale before any effect is written. */
   "CREDIT_LIMIT_EXCEEDED",
+  "STOCK_PLANNING_POLICY_UNAVAILABLE",
+  "STOCKTAKE_POLICY_UNAVAILABLE",
+  "STOCKTAKE_NOT_FOUND",
+  "STOCKTAKE_STATE_INVALID",
+  "STOCKTAKE_COUNT_INVALID",
+  "STOCKTAKE_COUNT_DUPLICATE",
+  "STOCKTAKE_VARIANCE_ALREADY_APPLIED",
 
   // --- payment --------------------------------------------------------------
   "PAYMENT_AMOUNT_INVALID",

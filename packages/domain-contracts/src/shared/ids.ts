@@ -64,6 +64,10 @@ export type PurchaseReceiptReversalId = z.infer<typeof purchaseReceiptReversalId
 
 export const inventoryMovementIdSchema = z.uuid().brand<"InventoryMovementId">();
 export type InventoryMovementId = z.infer<typeof inventoryMovementIdSchema>;
+export const stocktakeSessionIdSchema = z.uuid().brand<"StocktakeSessionId">();
+export type StocktakeSessionId = z.infer<typeof stocktakeSessionIdSchema>;
+export const stocktakeCountIdSchema = z.uuid().brand<"StocktakeCountId">();
+export type StocktakeCountId = z.infer<typeof stocktakeCountIdSchema>;
 
 export const deliveryIdSchema = z.uuid().brand<"DeliveryId">();
 export type DeliveryId = z.infer<typeof deliveryIdSchema>;

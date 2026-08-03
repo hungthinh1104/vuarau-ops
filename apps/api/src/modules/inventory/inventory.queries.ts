@@ -1,6 +1,8 @@
 import type {
   InventoryValuationInput,
   InventoryValuationResult,
+  StockPlanningInput,
+  StockPlanningDto,
   WorkspacePolicyVersionId,
   InventoryTimelineInput,
   IsoInstant,
@@ -13,10 +15,12 @@ import type {
 import {
   denied,
   inventoryValuationPolicyDefinitionSchema,
+  stockPlanningPolicyDefinitionSchema,
   roleHasPermission,
 } from "@vuarau/domain-contracts";
 import {
   calculateInventoryValuation,
+  calculateFixedThresholdPlan,
   canVoidPurchase,
   err,
   ok,
@@ -188,6 +192,83 @@ export const getInventoryBalances = (
         : rows.filter((row) => row.qualityGradeId === input.qualityGradeId);
     },
   });
+
+export async function getStockPlanning(ctx: CommandContext, input: StockPlanningInput) {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "inventory.read",
+    execute: async ({ repos }) => {
+      const calculatedAt = new Date().toISOString() as IsoInstant;
+      const policy = resolveEffectiveWorkspacePolicy(
+        await repos.workspacePolicyReads.listAll(input.workspaceId),
+        "stock_planning_reorder",
+        input.asOf,
+      );
+      const unavailable = (
+        diagnostics: string[],
+        policyVersionId: WorkspacePolicyVersionId | null,
+      ) =>
+        ({
+          status: "unavailable" as const,
+          workspaceId: input.workspaceId,
+          asOf: input.asOf,
+          policyVersionId,
+          strategy: null,
+          calculationVersion: "stock-planning-v1" as const,
+          calculatedAt,
+          diagnostics,
+          rows: [],
+        }) satisfies StockPlanningDto;
+      if (policy === null) {
+        return unavailable(["no_effective_stock_planning_policy"], null);
+      }
+      const definition = stockPlanningPolicyDefinitionSchema.safeParse(policy.definition);
+      if (!definition.success) {
+        return unavailable(["invalid_stock_planning_policy"], policy.id);
+      }
+      const movements = (
+        await Promise.all(
+          definition.data.parameters.rules.map(async (rule) => {
+            const sources = await repos.inventoryReads.valuationSources({
+              workspaceId: input.workspaceId,
+              productId: rule.productId,
+              qualityGradeId: rule.qualityGradeId,
+              unit: rule.unit,
+              asOf: input.asOf,
+            });
+            return sources
+              .filter((source) => source.qualityGradeId === rule.qualityGradeId)
+              .map((source) => ({
+                id: source.movementId,
+                productId: rule.productId,
+                qualityGradeId: source.qualityGradeId,
+                quantity: { valueScaled: source.quantityScaled, unit: source.unit },
+                transactionTime: source.transactionTime,
+              }));
+          }),
+        )
+      ).flat();
+      const calculation = calculateFixedThresholdPlan({
+        rules: definition.data.parameters.rules,
+        movements,
+        asOf: input.asOf,
+      });
+      if (!calculation.ok) return unavailable([calculation.error.code], policy.id);
+      return {
+        status: "available" as const,
+        workspaceId: input.workspaceId,
+        asOf: input.asOf,
+        policyVersionId: policy.id,
+        strategy: calculation.value.strategy,
+        calculationVersion: "stock-planning-v1" as const,
+        calculatedAt,
+        diagnostics: [],
+        rows: [...calculation.value.rows],
+      } satisfies StockPlanningDto;
+    },
+  });
+}
 
 export const getInventoryValuation = (ctx: CommandContext, input: InventoryValuationInput) =>
   runQuery<InventoryValuationResult>({

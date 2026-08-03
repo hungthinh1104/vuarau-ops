@@ -13,6 +13,9 @@ import {
   purchaseReceiptIdSchema,
   purchaseReceiptLineIdSchema,
   purchaseReceiptReversalIdSchema,
+  stocktakeCountIdSchema,
+  stocktakeSessionIdSchema,
+  workspacePolicyVersionIdSchema,
   workspaceIdSchema,
 } from "../shared/ids.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
@@ -216,6 +219,118 @@ export const inventoryReconciliationDtoSchema = z.object({
   diagnostics: z.array(z.string()),
 });
 export type InventoryReconciliationDto = z.infer<typeof inventoryReconciliationDtoSchema>;
+
+export const stockPlanningInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  asOf: isoInstantSchema,
+});
+export type StockPlanningInput = z.infer<typeof stockPlanningInputSchema>;
+export const stockPlanningRowSchema = z.object({
+  productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable(),
+  unit: unitSchema,
+  currentQuantity: quantitySchema,
+  minimumQuantity: quantitySchema,
+  targetQuantity: quantitySchema,
+  suggestedQuantity: quantitySchema,
+  reorderRequired: z.boolean(),
+  sourceMovementIds: z.array(inventoryMovementIdSchema),
+});
+export type StockPlanningRow = z.infer<typeof stockPlanningRowSchema>;
+export const stockPlanningDtoSchema = z.object({
+  status: z.enum(["available", "unavailable"]),
+  workspaceId: workspaceIdSchema,
+  asOf: isoInstantSchema,
+  policyVersionId: workspacePolicyVersionIdSchema.nullable(),
+  strategy: z.string().nullable(),
+  calculationVersion: z.literal("stock-planning-v1"),
+  calculatedAt: isoInstantSchema,
+  diagnostics: z.array(z.string()),
+  rows: z.array(stockPlanningRowSchema),
+});
+export type StockPlanningDto = z.infer<typeof stockPlanningDtoSchema>;
+
+export const STOCKTAKE_STATES = ["draft", "approved", "reopened"] as const;
+export const stocktakeStateSchema = z.enum(STOCKTAKE_STATES);
+export type StocktakeState = z.infer<typeof stocktakeStateSchema>;
+export const startStocktakeCommandSchema = defineCommand(
+  z.object({
+    stocktakeSessionId: stocktakeSessionIdSchema,
+    asOf: isoInstantSchema,
+    scopeReference: z.string().trim().min(1).max(500),
+    note: z.string().trim().max(2_000).nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
+  }),
+);
+export type StartStocktakeCommand = z.infer<typeof startStocktakeCommandSchema>;
+export const recordStocktakeCountCommandSchema = defineCommand(
+  z.object({
+    stocktakeCountId: stocktakeCountIdSchema,
+    stocktakeSessionId: stocktakeSessionIdSchema,
+    productId: productIdSchema,
+    qualityGradeId: qualityGradeIdSchema.nullable().default(null),
+    qualityGradeName: z.string().trim().min(1).max(100).nullable().default(null),
+    quantity: quantitySchema,
+    supersedesCountId: stocktakeCountIdSchema.nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
+  }),
+);
+export type RecordStocktakeCountCommand = z.infer<typeof recordStocktakeCountCommandSchema>;
+export const approveStocktakeCommandSchema = defineCommand(
+  z.object({
+    stocktakeSessionId: stocktakeSessionIdSchema,
+    expectedVersion: z.int().positive(),
+    evidenceReferences: evidenceReferencesInputSchema,
+    reason: z.string().trim().min(1).max(500),
+  }),
+);
+export type ApproveStocktakeCommand = z.infer<typeof approveStocktakeCommandSchema>;
+export const reopenStocktakeCommandSchema = defineCommand(
+  z.object({
+    stocktakeSessionId: stocktakeSessionIdSchema,
+    expectedVersion: z.int().positive(),
+    evidenceReferences: evidenceReferencesInputSchema,
+    reason: z.string().trim().min(1).max(500),
+  }),
+);
+export type ReopenStocktakeCommand = z.infer<typeof reopenStocktakeCommandSchema>;
+export const stocktakeGetInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  stocktakeSessionId: stocktakeSessionIdSchema,
+});
+export type StocktakeGetInput = z.infer<typeof stocktakeGetInputSchema>;
+export const stocktakeCountDtoSchema = z.object({
+  id: stocktakeCountIdSchema,
+  workspaceId: workspaceIdSchema,
+  sessionId: stocktakeSessionIdSchema,
+  productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable(),
+  qualityGradeName: z.string().nullable(),
+  quantity: quantitySchema,
+  supersedesCountId: stocktakeCountIdSchema.nullable(),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  evidenceReferences: evidenceReferencesDtoSchema,
+});
+export type StocktakeCountDto = z.infer<typeof stocktakeCountDtoSchema>;
+export const stocktakeDtoSchema = z.object({
+  id: stocktakeSessionIdSchema,
+  workspaceId: workspaceIdSchema,
+  asOf: isoInstantSchema,
+  scopeReference: z.string(),
+  note: z.string().nullable(),
+  status: stocktakeStateSchema,
+  version: z.int().positive(),
+  policyVersionId: workspacePolicyVersionIdSchema,
+  counts: z.array(stocktakeCountDtoSchema),
+  varianceMovementIds: z.array(inventoryMovementIdSchema),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  evidenceReferences: evidenceReferencesDtoSchema,
+});
+export type StocktakeDto = z.infer<typeof stocktakeDtoSchema>;
 export const inventoryReconciliationInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   productId: productIdSchema,

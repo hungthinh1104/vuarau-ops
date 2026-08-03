@@ -14,6 +14,8 @@ import {
   paymentAllocationPolicyDefinitionSchema,
   paymentTermsAgingPolicyDefinitionSchema,
   purchaseCorrectionPolicyDefinitionSchema,
+  stockPlanningPolicyDefinitionSchema,
+  stocktakeVariancePolicyDefinitionSchema,
 } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
@@ -112,6 +114,24 @@ export function decideCreateWorkspacePolicyDraft(
     return err(
       "WORKSPACE_POLICY_DEFINITION_INVALID",
       "Credit control policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "stock_planning_reorder" &&
+    !stockPlanningPolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Stock planning policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "stocktake_variance" &&
+    !stocktakeVariancePolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Stocktake variance policy definition is not a supported contract.",
     );
   }
   const policy: WorkspacePolicyDto = {

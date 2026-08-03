@@ -11,6 +11,7 @@ import {
   inventoryReconciliationInputSchema,
   rebuildInventoryCommandSchema,
   reclassifyInventoryCommandSchema,
+  stockPlanningInputSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import {
@@ -28,6 +29,7 @@ import {
   getInventoryReconciliation,
   getPurchaseReceivingSummary,
   listPurchaseReceipts,
+  getStockPlanning,
 } from "../../../modules/inventory/inventory.queries.ts";
 import { rebuildInventory } from "../../../modules/inventory/rebuild-inventory.handler.ts";
 
@@ -68,6 +70,9 @@ export const inventoryRouter = router({
   valuation: authenticatedProcedure
     .input(inventoryValuationInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getInventoryValuation(ctx, input))),
+  planning: authenticatedProcedure
+    .input(stockPlanningInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getStockPlanning(ctx, input))),
   reconciliation: authenticatedProcedure
     .input(inventoryReconciliationInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getInventoryReconciliation(ctx, input))),
