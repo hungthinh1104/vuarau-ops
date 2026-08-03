@@ -12,6 +12,7 @@ import {
   SUPPLIER_ACCOUNT_SOURCE_TYPES,
   PURCHASE_STATUSES,
   inventoryMovementSourceTypeSchema,
+  STOCKTAKE_STATES,
   PURCHASING_MODES,
   INVENTORY_MODES,
   QUALITY_GRADE_MODES,
@@ -143,8 +144,10 @@ export const inventoryMovementSourceTypeEnum = pgEnum(
     "inventory_reclassification",
     "quality_disposition",
     "quality_disposition_reversal",
+    "stocktake_variance",
   ],
 );
+export const stocktakeStateEnum = pgEnum("stocktake_state", STOCKTAKE_STATES);
 export const deliveryStatusEnum = pgEnum("delivery_status", [
   "draft",
   "cancelled",

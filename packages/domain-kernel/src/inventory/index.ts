@@ -117,3 +117,4 @@ export const classifyInventory = (quantityScaled: number) =>
       : ("zero" as const);
 
 export * from "./stock-planning.ts";
+export * from "./stocktake.ts";

@@ -19,3 +19,4 @@ export * from "./cash.ts";
 export * from "./intake.ts";
 export * from "./evidence.ts";
 export * from "./policy.ts";
+export * from "./stocktake.ts";

@@ -38,6 +38,9 @@ import type {
   PurchaseReceiptLineId,
   InventoryMovementId,
   InventoryMovementSourceType,
+  StocktakeCountId,
+  StocktakeSessionId,
+  StocktakeState,
   PurchaseReceiptReversalId,
   Quantity,
   Unit,
@@ -327,6 +330,38 @@ export type InventoryMovementState = {
   readonly recordedAt: IsoInstant;
   readonly actorId: ActorId;
   readonly commandId: CommandId;
+};
+
+export type StocktakeCountState = {
+  readonly id: StocktakeCountId;
+  readonly workspaceId: WorkspaceId;
+  readonly sessionId: StocktakeSessionId;
+  readonly productId: ProductId;
+  readonly qualityGradeId: QualityGradeId | null;
+  readonly qualityGradeName: string | null;
+  readonly quantity: Quantity;
+  readonly supersedesCountId: StocktakeCountId | null;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly actorId: ActorId;
+  readonly evidenceReferences: readonly string[];
+};
+
+export type StocktakeSessionState = {
+  readonly id: StocktakeSessionId;
+  readonly workspaceId: WorkspaceId;
+  readonly asOf: IsoInstant;
+  readonly scopeReference: string;
+  readonly note: string | null;
+  readonly status: StocktakeState;
+  readonly version: number;
+  readonly policyVersionId: WorkspacePolicyVersionId;
+  readonly counts: readonly StocktakeCountState[];
+  readonly varianceMovementIds: readonly InventoryMovementId[];
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly actorId: ActorId;
+  readonly evidenceReferences: readonly string[];
 };
 
 export type DeliveryReturnState = {

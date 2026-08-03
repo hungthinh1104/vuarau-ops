@@ -96,6 +96,7 @@ export const inventoryMovementSourceTypeSchema = z.enum([
   "inventory_reclassification",
   "quality_disposition",
   "quality_disposition_reversal",
+  "stocktake_variance",
 ]);
 export type InventoryMovementSourceType = z.infer<typeof inventoryMovementSourceTypeSchema>;
 export const inventoryMovementDtoSchema = z.object({
@@ -123,6 +124,7 @@ export const inventoryMovementDtoSchema = z.object({
         "inventory_reclassification",
         "delivery",
         "quality_disposition",
+        "stocktake",
       ]),
       id: z.uuid(),
     })
