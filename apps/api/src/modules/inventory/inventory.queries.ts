@@ -8,7 +8,7 @@ import type {
   Unit,
 } from "@vuarau/domain-contracts";
 import { denied, roleHasPermission } from "@vuarau/domain-contracts";
-import { canVoidPurchase, err, ok } from "@vuarau/domain-kernel";
+import { canVoidPurchase, err, ok, resolvePurchaseCorrectionPolicy } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 
@@ -86,6 +86,7 @@ export async function getPurchaseReceivingSummary(
                   ),
                 ),
               ),
+        correctionPolicies: await repos.workspacePolicyReads.listAll(input.workspaceId),
         role: membership.role,
         roles: membership.roles,
       };
@@ -102,13 +103,27 @@ export async function getPurchaseReceivingSummary(
         (received.get(line.purchaseLineId) ?? 0) + line.quantity.valueScaled,
       );
   }
+  const hasActiveReceipts =
+    result.value.hasActiveArrival ||
+    [...received.values()].some((quantity) => quantity > 0) ||
+    [...result.value.acceptedAfterInspection.values()].some((quantity) => quantity > 0);
+  const correctionPolicy = resolvePurchaseCorrectionPolicy(
+    result.value.correctionPolicies,
+    new Date().toISOString() as IsoInstant,
+  );
   const aggregateVoidCapability = canVoidPurchase({
     purchase: result.value.purchase,
-    hasActiveReceipts:
-      result.value.hasActiveArrival ||
-      [...received.values()].some((quantity) => quantity > 0) ||
-      [...result.value.acceptedAfterInspection.values()].some((quantity) => quantity > 0),
+    reasonCode: "other",
+    hasActiveReceipts,
   });
+  const aggregateCommercialCorrectionCapability = hasActiveReceipts
+    ? canVoidPurchase({
+        purchase: result.value.purchase,
+        reasonCode: "commercial_correction",
+        hasActiveReceipts,
+        correctionPolicyVersionId: correctionPolicy?.policyVersionId ?? null,
+      })
+    : denied("PURCHASE_HAS_ACTIVE_RECEIPTS");
   const voidPurchaseCapability = roleHasPermission(result.value.roles, "purchase.void")
     ? aggregateVoidCapability
     : denied("PERMISSION_DENIED", {
@@ -118,7 +133,10 @@ export async function getPurchaseReceivingSummary(
       });
   return ok({
     purchaseId: result.value.purchase.id,
-    capabilities: { voidPurchase: voidPurchaseCapability },
+    capabilities: {
+      voidPurchase: voidPurchaseCapability,
+      commercialCorrection: aggregateCommercialCorrectionCapability,
+    },
     lines: result.value.purchase.lines.map((line) => {
       const receivedScaled =
         (received.get(line.lineId) ?? 0) +

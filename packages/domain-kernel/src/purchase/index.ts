@@ -7,9 +7,17 @@ import type {
   UpdatePurchaseDraftCommand,
   VoidPurchaseCommand,
   Capability,
+  PurchaseCorrectionPolicyDefinition,
+  PurchaseVoidReasonCode,
+  WorkspacePolicyDto,
+  WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
 import { ALLOWED, denied } from "@vuarau/domain-contracts";
-import { calculateLineTotal, isExactMoneyAmount } from "@vuarau/domain-contracts";
+import {
+  calculateLineTotal,
+  isExactMoneyAmount,
+  purchaseCorrectionPolicyDefinitionSchema,
+} from "@vuarau/domain-contracts";
 import type { PurchaseLineState, PurchaseState, PurchaseVoidState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
@@ -149,17 +157,57 @@ export function decideConfirmPurchase(
 export function canVoidPurchase(args: {
   readonly purchase: PurchaseState;
   readonly hasActiveReceipts: boolean;
+  readonly reasonCode: PurchaseVoidReasonCode;
+  readonly correctionPolicyVersionId?: WorkspacePolicyVersionId | null;
 }): Capability {
   if (args.purchase.status !== "confirmed") return denied("PURCHASE_NOT_CONFIRMED");
   if (args.purchase.voidRecord !== null) return denied("PURCHASE_ALREADY_VOIDED");
-  if (args.hasActiveReceipts) return denied("PURCHASE_HAS_ACTIVE_RECEIPTS");
+  if (
+    args.hasActiveReceipts &&
+    (args.reasonCode !== "commercial_correction" || args.correctionPolicyVersionId == null)
+  )
+    return denied(
+      args.reasonCode === "commercial_correction"
+        ? "PURCHASE_CORRECTION_POLICY_UNAVAILABLE"
+        : "PURCHASE_HAS_ACTIVE_RECEIPTS",
+    );
   return ALLOWED;
+}
+
+/**
+ * Resolve the only supported correction policy without inventing a global
+ * fallback. A malformed, future or expired policy is unavailable and cannot
+ * authorize a cross-dimension command.
+ */
+export function resolvePurchaseCorrectionPolicy(
+  policies: readonly WorkspacePolicyDto[],
+  asOf: IsoInstant,
+): {
+  readonly policyVersionId: WorkspacePolicyDto["id"];
+  readonly definition: PurchaseCorrectionPolicyDefinition;
+} | null {
+  const candidates = policies
+    .filter(
+      (policy) =>
+        policy.policyKind === "purchase_correction" &&
+        policy.state === "approved" &&
+        Date.parse(asOf) >= Date.parse(policy.effectiveFrom) &&
+        (policy.effectiveTo === null || Date.parse(asOf) < Date.parse(policy.effectiveTo)),
+    )
+    .sort((left, right) => right.version - left.version);
+  for (const policy of candidates) {
+    const parsed = purchaseCorrectionPolicyDefinitionSchema.safeParse(policy.definition);
+    if (parsed.success && parsed.data.parameters.afterReceiving === "commercial_replacement_only")
+      return { policyVersionId: policy.id, definition: parsed.data };
+  }
+  return null;
 }
 
 export function decideVoidPurchase(
   purchase: PurchaseState,
   command: VoidPurchaseCommand,
   recordedAt: IsoInstant,
+  policyVersionId: WorkspacePolicyVersionId | null = null,
 ): DomainResult<PurchaseVoidState> {
   if (purchase.status !== "confirmed")
     return err("PURCHASE_NOT_CONFIRMED", "Only a confirmed Purchase can be voided.");
@@ -177,6 +225,7 @@ export function decideVoidPurchase(
     evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     amount:
       purchase.totalAmount.amountMinor === 0 ? zeroMoney(purchase.currency) : purchase.totalAmount,
+    policyVersionId,
     transactionTime: command.occurredAt,
     recordedAt,
     actorId: command.actorId,

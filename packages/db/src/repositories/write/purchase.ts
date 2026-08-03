@@ -165,6 +165,7 @@ export const createPurchaseWriteRepositories = (tx: Tx) => ({
           evidenceReferences: [...record.evidenceReferences],
           amountMinor: record.amount.amountMinor,
           currency: record.amount.currency,
+          policyVersionId: record.policyVersionId,
           transactionTime: fromIso(record.transactionTime),
           recordedAt: fromIso(record.recordedAt),
           actorId: record.actorId,

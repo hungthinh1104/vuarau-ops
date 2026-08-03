@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  foreignKey,
   index,
   integer,
   pgTable,
@@ -13,6 +14,7 @@ import { currencyCodeEnum, purchaseStatusEnum, unitEnum } from "./enums.ts";
 import { workspaces, actors } from "./workspace.ts";
 import { suppliers } from "./supplier.ts";
 import { products } from "./customer.ts";
+import { workspacePolicies } from "./policy.ts";
 
 export const purchases = pgTable(
   "purchases",
@@ -96,11 +98,19 @@ export const purchaseVoids = pgTable(
     evidenceReferences: text("evidence_references").array().notNull().default([]),
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
+    policyVersionId: uuid("policy_version_id"),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
   },
-  (table) => [uniqueIndex("purchase_voids_purchase_uq").on(table.workspaceId, table.purchaseId)],
+  (table) => [
+    uniqueIndex("purchase_voids_purchase_uq").on(table.workspaceId, table.purchaseId),
+    foreignKey({
+      columns: [table.workspaceId, table.policyVersionId],
+      foreignColumns: [workspacePolicies.workspaceId, workspacePolicies.id],
+      name: "purchase_voids_workspace_policy_fk",
+    }),
+  ],
 );

@@ -71,6 +71,7 @@ const voided: PurchaseDto = {
     reason: "Ghi nhầm 100 kg, thực tế đặt 80 kg",
     evidenceReferences: [],
     amount: confirmed.totalAmount,
+    policyVersionId: null,
     transactionTime: LATER_TRANSACTION_TIME,
     recordedAt: LATER_RECORDED_AT,
   },
@@ -203,8 +204,8 @@ export const PurchaseCorrectionBlockedAfterReceiving: Story = {
       >
         <p className="font-semibold">Chưa thể hoàn tác đơn mua này</p>
         <p className="mt-1">
-          Hàng đã thực sự được nhận. Không hoàn tác phiếu nhận chỉ để mở khóa sửa đơn mua; dừng và
-          xử lý theo ASM-036.
+          Hàng đã thực sự được nhận. Không hoàn tác phiếu nhận chỉ để mở khóa sửa đơn mua; cần
+          policy thương mại được phê duyệt trước khi sửa công nợ.
         </p>
       </section>
     ),

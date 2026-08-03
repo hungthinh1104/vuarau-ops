@@ -151,6 +151,7 @@ export function PurchaseVoidView(props: {
   readonly state: "loading" | "error" | "blocked" | "ready";
   readonly blockedCode: string | null;
   readonly blockedReason: string | null;
+  readonly commercialCorrectionAllowed: boolean;
   readonly voidReasonCode: string;
   readonly voidReason: string;
   readonly voidEvidence: string;
@@ -189,8 +190,14 @@ export function PurchaseVoidView(props: {
         {props.blockedCode === "PURCHASE_HAS_ACTIVE_RECEIPTS" ? (
           <p className="mt-2 text-ink-muted">
             Nếu phiếu nhận hàng tự nó ghi sai, hãy hoàn tác phiếu nhận đó. Nếu hàng đã thực sự được
-            nhận và chỉ đơn mua thương mại bị sai, dừng ở đây và xử lý theo ASM-036; không tạo
+            nhận và đơn mua thương mại bị sai, hãy cấu hình policy được phê duyệt trước; không tạo
             chuyển động kho giả để mở khóa nút này.
+          </p>
+        ) : null}
+        {props.blockedCode === "PURCHASE_CORRECTION_POLICY_UNAVAILABLE" ? (
+          <p className="mt-2 text-ink-muted">
+            Hãy tạo và phê duyệt policy “Sửa đơn mua sau receiving” trong phần Workspace trước khi
+            thực hiện bù trừ thương mại.
           </p>
         ) : null}
       </section>
@@ -198,6 +205,12 @@ export function PurchaseVoidView(props: {
   return (
     <section className="rounded-card border border-warning/40 p-4">
       <h2 className="font-semibold">Hoàn tác đơn mua</h2>
+      {props.commercialCorrectionAllowed ? (
+        <p className="mb-3 text-body-sm text-ink-muted">
+          Đơn mua đã có receiving. Chọn “Sửa thương mại sau receiving” để bù trừ công nợ; phiếu nhận
+          và tồn kho hiện có được giữ nguyên, không tự đảo rồi nhận lại hàng.
+        </p>
+      ) : null}
       <Select
         label="Lý do"
         value={props.voidReasonCode}
@@ -209,6 +222,9 @@ export function PurchaseVoidView(props: {
           { value: "wrong_quantity", label: "Sai số lượng" },
           { value: "wrong_price", label: "Sai giá" },
           { value: "duplicate", label: "Trùng" },
+          ...(props.commercialCorrectionAllowed
+            ? [{ value: "commercial_correction", label: "Sửa thương mại sau receiving" }]
+            : []),
           { value: "other", label: "Khác" },
         ]}
       />

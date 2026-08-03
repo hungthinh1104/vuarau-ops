@@ -1,0 +1,3 @@
+-- WORKSPACE_POLICY_DEFINITION_INVALID is included in migration 0045 for the
+-- policy adapter and is retained here as an empty journal step so databases
+-- that already applied 0045 do not attempt to add the enum label twice.

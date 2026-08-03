@@ -133,4 +133,65 @@ test.describe("Goods Truth", () => {
     await expect(page.getByRole("heading", { name: supplierName })).toBeVisible();
     await expect(page.getByText("Ghi tiền trả nhà cung cấp")).toHaveCount(0);
   });
+
+  test("TC-E2E-PURCHASE-CORRECTION-001 uses the approved policy without changing original receiving", async ({
+    page,
+  }) => {
+    await signIn(page, "owner");
+    await api.approvePurchaseCorrectionPolicy();
+
+    const productName = `${String(Number.MAX_SAFE_INTEGER - Date.now()).padStart(16, "0")} Cải correction`;
+    await page.goto("/products/new");
+    await page.getByLabel("Tên mặt hàng").fill(productName);
+    await chooseOption(page, "Đơn vị gợi ý", "kg");
+    await page.getByRole("button", { name: "Tạo mặt hàng" }).click();
+    await page.waitForURL(/\/products\/[0-9a-f-]+$/);
+    const productId = new URL(page.url()).pathname.split("/").at(-1)!;
+
+    const supplierName = `Nhà vườn correction ${Date.now()}`;
+    await page.goto("/suppliers/new");
+    await page.getByLabel("Tên nhà cung cấp").fill(supplierName);
+    await page.getByRole("button", { name: "Tạo nhà cung cấp" }).click();
+    await page.waitForURL(/\/suppliers\/[0-9a-f-]+$/);
+    const supplierId = new URL(page.url()).pathname.split("/").at(-1)!;
+
+    await page.goto("/purchases/new");
+    await chooseOption(page, "Nhà cung cấp", supplierName);
+    await chooseOption(page, "Mặt hàng", productName);
+    await page.getByLabel("Số lượng").fill("100");
+    await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
+    await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();
+    await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
+    const purchaseId = new URL(page.url()).pathname.split("/").at(-1)!;
+
+    await page.getByLabel("Loại 1").fill("30");
+    await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
+    await expect(page.getByText(/đã nhận 30 kg · còn lại 70 kg/)).toBeVisible();
+    await chooseOption(page, "Lý do", "Sửa thương mại sau receiving");
+    await page
+      .getByLabel("Giải thích")
+      .last()
+      .fill("Sai giá chứng từ, hàng vẫn giữ nguyên trong kho.");
+    await page.getByRole("button", { name: "Hoàn tác đơn mua" }).click();
+    await expect(page.getByText("Đơn mua đã được hoàn tác")).toBeVisible();
+    await expect(page.getByText(/đã nhận 30 kg · còn lại 70 kg/)).toBeVisible();
+
+    await page.getByRole("link", { name: "Tạo đơn mua thay thế" }).click();
+    await chooseOption(page, "Nhà cung cấp", supplierName);
+    await chooseOption(page, "Mặt hàng", productName);
+    await page.getByLabel("Số lượng").fill("20");
+    await page.getByLabel("Đơn giá (nghìn đồng)").fill("11");
+    await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();
+    await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
+    await expect(page.getByText(/đã nhận 0 kg · còn lại 20 kg/)).toBeVisible();
+
+    expect((await api.supplierBalance(supplierId)).balance.amountMinor).toBe(220_000);
+    expect(await api.inventoryBalances(productId)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ quantityScaled: 30_000 })]),
+    );
+    expect(await api.goodsCounts({ supplierId, purchaseId, productId })).toMatchObject({
+      purchases: 1,
+      receipts: 1,
+    });
+  });
 });

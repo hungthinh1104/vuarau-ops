@@ -19,6 +19,7 @@ const POLICY_KINDS: readonly WorkspacePolicyKind[] = [
   "inventory_valuation",
   "cost_allocation",
   "return_claim_credit",
+  "purchase_correction",
   "payment_terms_aging",
   "payment_allocation",
   "credit_limit",

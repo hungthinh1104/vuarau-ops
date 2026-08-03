@@ -162,6 +162,7 @@ export const purchaseReceivingSummaryDtoSchema = z.object({
   purchaseId: purchaseIdSchema,
   capabilities: z.object({
     voidPurchase: capabilitySchema,
+    commercialCorrection: capabilitySchema,
   }),
   lines: z.array(
     z.object({

@@ -19,6 +19,7 @@ export const WORKSPACE_POLICY_KINDS = [
   "inventory_valuation",
   "cost_allocation",
   "return_claim_credit",
+  "purchase_correction",
   "payment_terms_aging",
   "payment_allocation",
   "credit_limit",
@@ -30,6 +31,24 @@ export const WORKSPACE_POLICY_KINDS = [
 ] as const;
 export const workspacePolicyKindSchema = z.enum(WORKSPACE_POLICY_KINDS);
 export type WorkspacePolicyKind = z.infer<typeof workspacePolicyKindSchema>;
+
+/**
+ * The first supported cross-dimension correction strategy. It changes only
+ * commercial/payable truth; physical Receipt and inventory facts remain linked
+ * to the original Purchase.
+ */
+export const PURCHASE_CORRECTION_STRATEGIES = ["commercial_replacement_only"] as const;
+export const purchaseCorrectionStrategySchema = z.enum(PURCHASE_CORRECTION_STRATEGIES);
+export type PurchaseCorrectionStrategy = z.infer<typeof purchaseCorrectionStrategySchema>;
+export const purchaseCorrectionPolicyDefinitionSchema = z.object({
+  contractVersion: z.literal(1),
+  parameters: z.object({
+    afterReceiving: purchaseCorrectionStrategySchema,
+  }),
+});
+export type PurchaseCorrectionPolicyDefinition = z.infer<
+  typeof purchaseCorrectionPolicyDefinitionSchema
+>;
 
 export const WORKSPACE_POLICY_STATES = ["draft", "approved", "retired"] as const;
 export const workspacePolicyStateSchema = z.enum(WORKSPACE_POLICY_STATES);

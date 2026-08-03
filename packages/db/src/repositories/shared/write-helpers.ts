@@ -157,6 +157,7 @@ export async function loadPurchase(tx: Tx, workspaceId: WorkspaceId, purchaseId:
             reasonCode: voidRow.reasonCode,
             reason: voidRow.reason,
             amount: { amountMinor: voidRow.amountMinor, currency: voidRow.currency },
+            policyVersionId: voidRow.policyVersionId,
             transactionTime: toIso(voidRow.transactionTime),
             recordedAt: toIso(voidRow.recordedAt),
             actorId: voidRow.actorId,

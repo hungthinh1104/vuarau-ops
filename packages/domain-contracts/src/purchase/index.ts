@@ -9,6 +9,7 @@ import {
   purchaseVoidIdSchema,
   supplierIdSchema,
   workspaceIdSchema,
+  workspacePolicyVersionIdSchema,
 } from "../shared/ids.ts";
 import { quantitySchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
@@ -23,6 +24,7 @@ export const purchaseVoidReasonCodeSchema = z.enum([
   "wrong_quantity",
   "wrong_price",
   "duplicate",
+  "commercial_correction",
   "other",
 ]);
 export type PurchaseVoidReasonCode = z.infer<typeof purchaseVoidReasonCodeSchema>;
@@ -81,6 +83,7 @@ export const purchaseVoidDtoSchema = z.object({
   reason: z.string(),
   evidenceReferences: evidenceReferencesDtoSchema,
   amount: moneySchema,
+  policyVersionId: workspacePolicyVersionIdSchema.nullable().default(null),
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,
 });

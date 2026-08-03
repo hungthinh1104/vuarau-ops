@@ -298,6 +298,7 @@ export function toPurchaseDto(purchase: PurchaseState) {
             reason: purchase.voidRecord.reason,
             evidenceReferences: [...purchase.voidRecord.evidenceReferences],
             amount: purchase.voidRecord.amount,
+            policyVersionId: purchase.voidRecord.policyVersionId,
             transactionTime: purchase.voidRecord.transactionTime,
             recordedAt: purchase.voidRecord.recordedAt,
           },

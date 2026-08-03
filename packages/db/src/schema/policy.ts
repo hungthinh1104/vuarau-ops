@@ -17,8 +17,8 @@ import { actors, workspaces } from "./workspace.ts";
 
 /**
  * Versioned policy metadata and definitions. This table is deliberately not
- * consulted by accounting, inventory or reporting commands yet: approval is a
- * prerequisite for a future typed adapter, not permission to invent effects.
+ * consumed by named typed adapters only. An approved row is not a generic rule
+ * engine permission: each capability must validate its own definition.
  */
 export const workspacePolicies = pgTable(
   "workspace_policies",

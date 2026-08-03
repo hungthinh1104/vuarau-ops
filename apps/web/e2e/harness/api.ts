@@ -68,6 +68,46 @@ function envelope(extra: Envelope = {}): Envelope {
 }
 
 export const api = {
+  async approvePurchaseCorrectionPolicy(): Promise<string> {
+    const policyVersionId = crypto.randomUUID();
+    const policyVersion = Date.now() % 2_000_000_000;
+    await call(
+      "policy.createDraft",
+      "mutation",
+      {
+        ...envelope({ actorId: actorFor("owner") }),
+        payload: {
+          policyVersionId,
+          policyKind: "purchase_correction",
+          version: policyVersion,
+          effectiveFrom: "2026-01-01T00:00:00.000Z",
+          effectiveTo: null,
+          definition: {
+            contractVersion: 1,
+            parameters: { afterReceiving: "commercial_replacement_only" },
+          },
+          evidenceReferences: [],
+          reason: "E2E policy: sửa thương mại sau receiving không đảo hàng.",
+        },
+      },
+      "owner",
+    );
+    await call(
+      "policy.approve",
+      "mutation",
+      {
+        ...envelope({ actorId: actorFor("owner") }),
+        payload: {
+          policyVersionId,
+          evidenceReferences: ["e2e://purchase-correction-policy"],
+          reason: "E2E policy đã được phê duyệt.",
+        },
+      },
+      "owner",
+    );
+    return policyVersionId;
+  },
+
   async customerOrder(orderId: string): Promise<{
     id: string;
     status: string;

@@ -105,10 +105,12 @@ export async function readPurchaseDto(tx: Tx, workspaceId: string, purchaseId: s
               | "wrong_quantity"
               | "wrong_price"
               | "duplicate"
+              | "commercial_correction"
               | "other",
             reason: voidRow.reason,
             evidenceReferences: [...voidRow.evidenceReferences],
             amount: money(voidRow.amountMinor, voidRow.currency),
+            policyVersionId: voidRow.policyVersionId,
             transactionTime: toIso(voidRow.transactionTime),
             recordedAt: toIso(voidRow.recordedAt),
           },

@@ -6,7 +6,10 @@ import type {
   WorkspacePolicyAvailability,
   WorkspacePolicyDto,
 } from "@vuarau/domain-contracts";
-import { WORKSPACE_POLICY_KINDS } from "@vuarau/domain-contracts";
+import {
+  WORKSPACE_POLICY_KINDS,
+  purchaseCorrectionPolicyDefinitionSchema,
+} from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
@@ -50,6 +53,15 @@ export function decideCreateWorkspacePolicyDraft(
     return err(
       "WORKSPACE_POLICY_EFFECTIVE_RANGE_INVALID",
       "A policy effective end must be later than its effective start.",
+    );
+  }
+  if (
+    command.payload.policyKind === "purchase_correction" &&
+    !purchaseCorrectionPolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Purchase correction policy definition is not a supported contract.",
     );
   }
   const policy: WorkspacePolicyDto = {

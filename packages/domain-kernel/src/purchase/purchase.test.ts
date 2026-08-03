@@ -7,12 +7,15 @@ import type {
   SupplierId,
   ProductId,
   VoidPurchaseCommand,
+  WorkspacePolicyDto,
 } from "@vuarau/domain-contracts";
 import {
+  canVoidPurchase,
   decideConfirmPurchase,
   decideCreatePurchaseDraft,
   decideUpdatePurchaseDraft,
   decideVoidPurchase,
+  resolvePurchaseCorrectionPolicy,
 } from "./index.ts";
 
 const command = {
@@ -90,5 +93,69 @@ describe("Purchase lifecycle", () => {
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("PURCHASE_NOT_CONFIRMED");
+  });
+
+  it("TC-PURCHASE-CORRECTION-001 only authorizes active-receiving correction with an effective policy", () => {
+    const draft = decideCreatePurchaseDraft(create(), "2026-07-29T01:00:01.000Z");
+    if (!draft.ok) throw new Error("fixture failed");
+    const policy = {
+      id: crypto.randomUUID(),
+      workspaceId: draft.value.workspaceId,
+      policyKind: "purchase_correction",
+      version: 1,
+      state: "approved",
+      effectiveFrom: "2026-07-01T00:00:00.000Z",
+      effectiveTo: null,
+      definition: {
+        contractVersion: 1,
+        parameters: { afterReceiving: "commercial_replacement_only" },
+      },
+      evidenceReferences: ["field://purchase-correction/001"],
+      createdBy: draft.value.workspaceId,
+      createdAt: "2026-07-01T00:00:00.000Z",
+      approvedBy: draft.value.workspaceId,
+      approvedAt: "2026-07-01T00:00:00.000Z",
+      retiredBy: null,
+      retiredAt: null,
+      commandId: draft.value.workspaceId,
+      reason: "Core correction strategy",
+    } as unknown as WorkspacePolicyDto;
+    const effective = resolvePurchaseCorrectionPolicy([policy], "2026-07-29T01:00:00.000Z");
+    const confirmed = {
+      ...draft.value,
+      status: "confirmed" as const,
+      confirmedAt: "2026-07-29T01:00:02.000Z" as const,
+    };
+    expect(effective?.policyVersionId).toBe(policy.id);
+    expect(
+      canVoidPurchase({
+        purchase: confirmed,
+        hasActiveReceipts: true,
+        reasonCode: "other",
+      }).reasonCode,
+    ).toBe("PURCHASE_HAS_ACTIVE_RECEIPTS");
+    expect(
+      canVoidPurchase({
+        purchase: confirmed,
+        hasActiveReceipts: true,
+        reasonCode: "commercial_correction",
+        correctionPolicyVersionId: effective?.policyVersionId ?? null,
+      }),
+    ).toEqual({ allowed: true });
+    const voided = decideVoidPurchase(
+      confirmed,
+      {
+        ...command,
+        payload: {
+          purchaseVoidId: crypto.randomUUID(),
+          purchaseId: draft.value.id,
+          reasonCode: "commercial_correction",
+          reason: "Sai giá trên chứng từ, hàng vẫn ở kho",
+        },
+      } as VoidPurchaseCommand,
+      "2026-07-29T01:00:03.000Z",
+      effective!.policyVersionId,
+    );
+    expect(voided.ok && voided.value.policyVersionId).toBe(effective?.policyVersionId);
   });
 });

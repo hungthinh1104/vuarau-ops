@@ -22,6 +22,7 @@ import {
   decideVoidPurchase,
   err,
   ok,
+  resolvePurchaseCorrectionPolicy,
 } from "@vuarau/domain-kernel";
 import type { DomainResult, PurchaseState } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -42,6 +43,7 @@ const dto = (purchase: PurchaseState): PurchaseDto => ({
           reason: purchase.voidRecord.reason,
           evidenceReferences: [...(purchase.voidRecord.evidenceReferences ?? [])],
           amount: purchase.voidRecord.amount,
+          policyVersionId: purchase.voidRecord.policyVersionId,
           transactionTime: purchase.voidRecord.transactionTime,
           recordedAt: purchase.voidRecord.recordedAt,
         },
@@ -290,12 +292,18 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
         command.workspaceId,
         current.id,
       );
+      const correctionPolicy = resolvePurchaseCorrectionPolicy(
+        await repos.workspacePolicyReads.listAll(command.workspaceId),
+        command.occurredAt,
+      );
       const voidCapability = canVoidPurchase({
         purchase: current,
+        reasonCode: command.payload.reasonCode,
         hasActiveReceipts:
           hasActiveArrival ||
           [...received.values()].some((quantity) => quantity > 0) ||
           acceptedAfterInspection.some((quantity) => (quantity?.valueScaled ?? 0) > 0),
+        correctionPolicyVersionId: correctionPolicy?.policyVersionId ?? null,
       });
       if (!voidCapability.allowed) {
         const code = voidCapability.reasonCode ?? "PURCHASE_NOT_CONFIRMED";
@@ -303,13 +311,20 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
           code,
           code === "PURCHASE_HAS_ACTIVE_RECEIPTS"
             ? "Purchase correction is blocked after accepted Receiving."
-            : code === "PURCHASE_ALREADY_VOIDED"
-              ? "Purchase is already voided."
-              : "Only a confirmed Purchase can be voided.",
+            : code === "PURCHASE_CORRECTION_POLICY_UNAVAILABLE"
+              ? "Purchase correction after Receiving requires an approved effective correction policy."
+              : code === "PURCHASE_ALREADY_VOIDED"
+                ? "Purchase is already voided."
+                : "Only a confirmed Purchase can be voided.",
           voidCapability.details,
         );
       }
-      const decision = decideVoidPurchase(current, command, recordedAt);
+      const decision = decideVoidPurchase(
+        current,
+        command,
+        recordedAt,
+        correctionPolicy?.policyVersionId ?? null,
+      );
       if (!decision.ok) return decision;
       if (!(await repos.purchases.insertVoid(decision.value)))
         return err("PURCHASE_ALREADY_VOIDED", "Purchase is already voided.");
@@ -343,7 +358,11 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
         transactionTime: command.occurredAt,
         recordedAt,
         before: { financialState: "active" },
-        after: { financialState: "voided" },
+        after: {
+          financialState: "voided",
+          policyVersionId: decision.value.policyVersionId,
+          physicalState: "unchanged",
+        },
         reason: decision.value.reason,
       });
       return ok(dto({ ...current, voidRecord: decision.value }));

@@ -41,6 +41,7 @@ import type {
   Quantity,
   Unit,
   WorkspaceId,
+  WorkspacePolicyVersionId,
   DeliveryId,
   DeliveryLineId,
   DeliveryReturnId,
@@ -183,6 +184,8 @@ export type PurchaseVoidState = {
   readonly reason: string;
   readonly evidenceReferences: readonly string[];
   readonly amount: Money;
+  /** The approved workspace strategy used for a cross-dimension correction. */
+  readonly policyVersionId: WorkspacePolicyVersionId | null;
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
   readonly actorId: ActorId;

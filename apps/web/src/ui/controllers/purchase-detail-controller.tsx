@@ -176,10 +176,17 @@ export function PurchaseDetailController() {
             ? "loading"
             : receivingSummary.isError || receivingSummary.data === undefined
               ? "error"
-              : receivingSummary.data.capabilities.voidPurchase.allowed
+              : receivingSummary.data.capabilities.voidPurchase.allowed ||
+                  receivingSummary.data.capabilities.commercialCorrection.allowed
                 ? "ready"
                 : "blocked";
-        const blockedCode = receivingSummary.data?.capabilities.voidPurchase.reasonCode ?? null;
+        const blockedCode =
+          receivingSummary.data?.capabilities.voidPurchase.allowed ||
+          receivingSummary.data?.capabilities.commercialCorrection.allowed
+            ? null
+            : (receivingSummary.data?.capabilities.commercialCorrection.reasonCode ??
+              receivingSummary.data?.capabilities.voidPurchase.reasonCode ??
+              null);
         return (
           <PurchaseDetailView
             purchase={detail}
@@ -284,6 +291,9 @@ export function PurchaseDetailController() {
                       state={voidState}
                       blockedCode={blockedCode}
                       blockedReason={blockedCode === null ? null : messageForCode(blockedCode)}
+                      commercialCorrectionAllowed={
+                        receivingSummary.data?.capabilities.commercialCorrection.allowed ?? false
+                      }
                       voidReasonCode={voidReasonCode}
                       voidReason={voidReason}
                       voidEvidence={voidEvidence}

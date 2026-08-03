@@ -96,6 +96,8 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
     "Đơn thay thế chỉ được tạo cho một đơn mua đã hoàn tác và chưa có đơn thay thế.",
   PURCHASE_HAS_ACTIVE_RECEIPTS:
     "Đơn mua đã có hàng thực nhận nên chưa thể hoàn tác thương mại. Chỉ hoàn tác phiếu nhận nếu chính phiếu nhận đã ghi sai; không đảo hàng thật chỉ để sửa đơn mua.",
+  PURCHASE_CORRECTION_POLICY_UNAVAILABLE:
+    "Chưa có policy sửa đơn mua sau receiving được workspace phê duyệt và đang hiệu lực.",
   PURCHASE_VOID_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tác đơn mua.",
   RECEIPT_NOT_FOUND: "Không tìm thấy phiếu nhận hàng.",
   RECEIPT_ALREADY_REVERSED: "Phiếu nhận hàng đã được hoàn tác.",

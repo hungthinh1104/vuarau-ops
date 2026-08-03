@@ -74,7 +74,7 @@ describe("workspace policy registry", () => {
     });
     expect(availability.ok).toBe(true);
     if (availability.ok) {
-      expect(availability.value).toHaveLength(12);
+      expect(availability.value).toHaveLength(13);
       expect(availability.value.every((entry) => entry.availability === "unavailable")).toBe(true);
     }
   });

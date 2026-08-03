@@ -26,6 +26,7 @@ const KIND_COPY: Readonly<Record<WorkspacePolicyKind, string>> = {
   inventory_valuation: "Định giá tồn kho",
   cost_allocation: "Phân bổ chi phí",
   return_claim_credit: "Đổi trả / claim / credit",
+  purchase_correction: "Sửa đơn mua sau receiving",
   payment_terms_aging: "Điều khoản và tuổi nợ",
   payment_allocation: "Phân bổ thanh toán",
   credit_limit: "Hạn mức tín dụng",
