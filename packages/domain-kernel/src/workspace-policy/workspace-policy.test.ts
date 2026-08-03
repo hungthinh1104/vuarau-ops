@@ -20,6 +20,19 @@ const WORKSPACE = "00000000-0000-4000-8000-000000000001";
 const ACTOR = "00000000-0000-4000-8000-000000000002";
 const RECORDED_AT = "2026-08-03T10:00:00.000Z";
 const id = (suffix: string) => `00000000-0000-4000-8000-${suffix.padStart(12, "0")}`;
+const PAYMENT_TERMS_DEFINITION = {
+  contractVersion: 1 as const,
+  parameters: {
+    defaultTermDays: 7,
+    defaultTermLabel: "7 ngày",
+    customerTerms: [],
+    graceDays: 0,
+    agingBuckets: [
+      { code: "current", label: "Chưa đến hạn", minDaysOverdue: 0, maxDaysOverdue: null },
+    ],
+    creditControl: "information_only" as const,
+  },
+};
 
 function createCommand() {
   return createWorkspacePolicyDraftCommandSchema.parse({
@@ -34,7 +47,7 @@ function createCommand() {
       version: 1,
       effectiveFrom: "2026-08-01T00:00:00.000Z",
       effectiveTo: null,
-      definition: { contractVersion: 1, parameters: { source: "field-review" } },
+      definition: PAYMENT_TERMS_DEFINITION,
       evidenceReferences: [],
       reason: "Ghi nhận bản nháp để review.",
     },
@@ -54,7 +67,7 @@ function approvedPolicy(
     state: "approved",
     effectiveFrom,
     effectiveTo,
-    definition: { contractVersion: 1, parameters: { source: "field-review" } },
+    definition: PAYMENT_TERMS_DEFINITION,
     evidenceReferences: ["field://policy/version-selection"],
     createdBy: actorIdSchema.parse(ACTOR),
     createdAt: RECORDED_AT,

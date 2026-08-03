@@ -42,7 +42,19 @@ const draftInput = (key: string) => {
       version: 1,
       effectiveFrom: "2026-08-01T00:00:00.000Z",
       effectiveTo: null,
-      definition: { contractVersion: 1, parameters: { source: "field-review" } },
+      definition: {
+        contractVersion: 1,
+        parameters: {
+          defaultTermDays: 7,
+          defaultTermLabel: "7 ngày",
+          customerTerms: [],
+          graceDays: 0,
+          agingBuckets: [
+            { code: "current", label: "Chưa đến hạn", minDaysOverdue: 0, maxDaysOverdue: null },
+          ],
+          creditControl: "information_only",
+        },
+      },
       evidenceReferences: [],
       reason: "Bản nháp chờ chủ vựa duyệt.",
     },
