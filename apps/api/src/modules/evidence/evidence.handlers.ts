@@ -105,7 +105,10 @@ export function recordDebtObservation(ctx: CommandContext, input: unknown) {
       const decision = decideRecordDebtObservation(command, recordedAt, target !== null);
       if (!decision.ok) return decision;
       if (!(await repos.debtObservations.insert(decision.value.observation))) {
-        return err("DEBT_OBSERVATION_ALREADY_RECORDED", "Debt observation identity already exists.");
+        return err(
+          "DEBT_OBSERVATION_ALREADY_RECORDED",
+          "Debt observation identity already exists.",
+        );
       }
       await repos.audit.append({
         ...decision.value.audit,

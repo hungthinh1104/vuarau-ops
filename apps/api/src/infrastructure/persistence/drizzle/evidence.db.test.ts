@@ -5,7 +5,11 @@ import {
   skipWithoutDatabase,
   type DbTestContext,
 } from "@vuarau/db";
-import type { CostObservationId, ReconciliationObservationId } from "@vuarau/domain-contracts";
+import type {
+  CostObservationId,
+  DebtObservationId,
+  ReconciliationObservationId,
+} from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
@@ -14,10 +18,13 @@ import {
   listCostObservations,
   getReconciliationObservation,
   listReconciliationObservations,
+  getDebtObservation,
+  listDebtObservations,
 } from "../../../modules/evidence/evidence.queries.ts";
 import {
   recordCostObservation,
   recordReconciliationObservation,
+  recordDebtObservation,
 } from "../../../modules/evidence/evidence.handlers.ts";
 
 describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", () => {
@@ -25,6 +32,7 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
   let deps: CommandDeps;
   let observationId: CostObservationId;
   let reconciliationObservationId: ReconciliationObservationId;
+  let debtObservationId: DebtObservationId;
 
   const context = (): CommandContext => ({
     deps,
@@ -47,6 +55,7 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     };
     observationId = crypto.randomUUID() as CostObservationId;
     reconciliationObservationId = crypto.randomUUID() as ReconciliationObservationId;
+    debtObservationId = crypto.randomUUID() as DebtObservationId;
 
     const result = await recordCostObservation(context(), {
       ...envelope("record"),
@@ -91,6 +100,29 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
       },
     });
     expect(reconciliation.ok).toBe(true);
+    const debt = await recordDebtObservation(context(), {
+      ...envelope("debt-record"),
+      payload: {
+        debtObservationId,
+        kind: "agreed_due_date",
+        caseKind: "normal",
+        description: "Khách hẹn thanh toán sau chuyến giao.",
+        participantWording: "Chiều thứ sáu tôi chuyển khoản.",
+        facts: {
+          amount: { amountMinor: 250_000, currency: "VND" },
+          agreedDueAt: "2026-08-07T17:00:00.000Z",
+          promiseToPayAt: null,
+          termCode: "FRIDAY",
+          termText: "Thanh toán cuối tuần",
+          paymentReference: null,
+          allocationProposal: null,
+          customerId: null,
+        },
+        evidenceReferences: ["note://debt/db-001"],
+        relatedObservationId: null,
+      },
+    });
+    expect(debt.ok).toBe(true);
   });
 
   afterEach(async () => {
@@ -126,14 +158,14 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     if (page.ok) expect(page.value.items.map((item) => item.id)).toContain(observationId);
   });
 
-  it("TC-EVIDENCE-024 / TC-EVIDENCE-025 — includes cost and reconciliation facts in the versioned workspace backup", async () => {
+  it("TC-EVIDENCE-024 / TC-EVIDENCE-025 / TC-EVIDENCE-037 — includes evidence facts in the versioned backup", async () => {
     const backup = await exportWorkspaceBackup(context(), {
       ...envelope("backup"),
       payload: {},
     });
     expect(backup.ok).toBe(true);
     if (!backup.ok) return;
-    expect(backup.value.version).toBe(10);
+    expect(backup.value.version).toBe(11);
     expect(backup.value.payload.costObservations).toContainEqual(
       expect.objectContaining({
         id: observationId,
@@ -144,6 +176,12 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
       expect.objectContaining({
         id: reconciliationObservationId,
         evidenceReferences: ["photo://stocktake/db-001"],
+      }),
+    );
+    expect(backup.value.payload.debtObservations).toContainEqual(
+      expect.objectContaining({
+        id: debtObservationId,
+        evidenceReferences: ["note://debt/db-001"],
       }),
     );
   });
@@ -174,5 +212,33 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     expect(page.ok).toBe(true);
     if (page.ok)
       expect(page.value.items.map((item) => item.id)).toContain(reconciliationObservationId);
+  });
+
+  it("TC-EVIDENCE-038 — reads debt evidence without deriving overdue or allocation", async () => {
+    const found = await getDebtObservation(context(), {
+      workspaceId: ctx.workspaceId,
+      debtObservationId,
+    });
+    expect(found.ok).toBe(true);
+    if (!found.ok) return;
+    expect(found.value.facts).toEqual({
+      amount: { amountMinor: 250_000, currency: "VND" },
+      agreedDueAt: "2026-08-07T17:00:00.000Z",
+      promiseToPayAt: null,
+      termCode: "FRIDAY",
+      termText: "Thanh toán cuối tuần",
+      paymentReference: null,
+      allocationProposal: null,
+      customerId: null,
+    });
+    expect(found.value).not.toHaveProperty("overdue");
+    const page = await listDebtObservations(context(), {
+      workspaceId: ctx.workspaceId,
+      kind: "agreed_due_date",
+      cursor: null,
+      limit: 50,
+    });
+    expect(page.ok).toBe(true);
+    if (page.ok) expect(page.value.items.map((item) => item.id)).toContain(debtObservationId);
   });
 });

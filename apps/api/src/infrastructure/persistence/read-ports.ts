@@ -22,7 +22,7 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV10,
+  WorkspaceBackupV11,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
@@ -565,7 +565,7 @@ export type IntakeReadRepository = {
 
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV10["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV11["payload"] | null>;
 };
 
 export type CostObservationReadRepository = {
@@ -593,7 +593,10 @@ export type ReconciliationObservationReadRepository = {
 };
 
 export type DebtObservationReadRepository = {
-  get(workspaceId: WorkspaceId, observationId: DebtObservationId): Promise<DebtObservationDto | null>;
+  get(
+    workspaceId: WorkspaceId,
+    observationId: DebtObservationId,
+  ): Promise<DebtObservationDto | null>;
   list(args: {
     workspaceId: WorkspaceId;
     kind: DebtObservationKind | null;

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { CostObservationId, ReconciliationObservationId } from "@vuarau/domain-contracts";
+import type {
+  CostObservationId,
+  DebtObservationId,
+  ReconciliationObservationId,
+} from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   FOREIGN_ACTOR_ID,
@@ -13,8 +17,14 @@ import {
   listCostObservations,
   getReconciliationObservation,
   listReconciliationObservations,
+  getDebtObservation,
+  listDebtObservations,
 } from "./evidence.queries.ts";
-import { recordCostObservation, recordReconciliationObservation } from "./evidence.handlers.ts";
+import {
+  recordCostObservation,
+  recordReconciliationObservation,
+  recordDebtObservation,
+} from "./evidence.handlers.ts";
 
 let harness: Harness;
 let sequence = 0;
@@ -69,6 +79,34 @@ const reconciliationInput = (overrides: Record<string, unknown> = {}) => ({
       scopeReference: "stocktake://application-001",
     },
     evidenceReferences: ["photo://stocktake/application-001"],
+    relatedObservationId: null,
+  },
+  ...overrides,
+});
+
+const debtInput = (overrides: Record<string, unknown> = {}) => ({
+  commandId: uuid(),
+  idempotencyKey: `debt-observation-${++sequence}`,
+  workspaceId: WORKSPACE_ID,
+  actorId: ACTOR_ID,
+  occurredAt: TRANSACTION_TIME,
+  payload: {
+    debtObservationId: uuid<DebtObservationId>(),
+    kind: "agreed_due_date",
+    caseKind: "normal",
+    description: "Khách hẹn thanh toán sau chuyến giao.",
+    participantWording: "Chiều thứ sáu tôi chuyển khoản.",
+    facts: {
+      amount: { amountMinor: 250_000, currency: "VND" },
+      agreedDueAt: "2026-08-07T17:00:00.000Z",
+      promiseToPayAt: null,
+      termCode: "FRIDAY",
+      termText: "Thanh toán cuối tuần",
+      paymentReference: null,
+      allocationProposal: null,
+      customerId: null,
+    },
+    evidenceReferences: ["note://debt/001"],
     relatedObservationId: null,
   },
   ...overrides,
@@ -205,5 +243,55 @@ describe("reconciliation observation application", () => {
     expect(foreignRead.ok).toBe(false);
     if (!foreignRead.ok)
       expect(foreignRead.error.code).toBe("RECONCILIATION_OBSERVATION_NOT_FOUND");
+  });
+});
+
+describe("debt observation application", () => {
+  it("TC-EVIDENCE-035 — records, lists and retries term evidence without debt effects", async () => {
+    const command = debtInput();
+    const recorded = await recordDebtObservation(harness.ctx, command);
+    const retry = await recordDebtObservation(harness.ctx, command);
+
+    expect(recorded.ok).toBe(true);
+    expect(retry).toEqual(recorded);
+    if (!recorded.ok) return;
+    expect(recorded.value.facts.agreedDueAt).toBe("2026-08-07T17:00:00.000Z");
+    expect(recorded.value).not.toHaveProperty("overdue");
+    expect(recorded.value).not.toHaveProperty("allocation");
+
+    const listed = await listDebtObservations(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      kind: "agreed_due_date",
+      cursor: null,
+      limit: 50,
+    });
+    expect(listed.ok).toBe(true);
+    if (listed.ok) expect(listed.value.items).toEqual([recorded.value]);
+    expect(harness.db.accountEntries()).toHaveLength(0);
+    expect(harness.db.auditRecords()).toHaveLength(1);
+  });
+
+  it("TC-EVIDENCE-036 — correction and reads remain workspace scoped", async () => {
+    const first = await recordDebtObservation(harness.ctx, debtInput());
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const correction = await recordDebtObservation(
+      harness.ctx,
+      debtInput({
+        payload: {
+          ...debtInput().payload,
+          debtObservationId: uuid<DebtObservationId>(),
+          caseKind: "correction",
+          relatedObservationId: first.value.id,
+        },
+      }),
+    );
+    expect(correction.ok).toBe(true);
+    const foreignRead = await getDebtObservation(harness.contextFor(FOREIGN_ACTOR_ID), {
+      workspaceId: OTHER_WORKSPACE_ID,
+      debtObservationId: first.value.id,
+    });
+    expect(foreignRead.ok).toBe(false);
+    if (!foreignRead.ok) expect(foreignRead.error.code).toBe("DEBT_OBSERVATION_NOT_FOUND");
   });
 });

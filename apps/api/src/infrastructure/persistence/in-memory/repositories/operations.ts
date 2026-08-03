@@ -19,6 +19,7 @@ import type {
   QualityIssueCodeDto,
   CostObservationDto,
   ReconciliationObservationDto,
+  DebtObservationDto,
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import { money } from "@vuarau/domain-kernel";
@@ -58,6 +59,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.qualityDispositions.values(),
           ...store.costObservations.values(),
           ...store.reconciliationObservations.values(),
+          ...store.debtObservations.values(),
           ...store.sales.values(),
           ...store.suppliers.values(),
           ...store.purchases.values(),
@@ -86,6 +88,10 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         for (const raw of payload.reconciliationObservations) {
           const row = remap(raw) as unknown as ReconciliationObservationDto;
           store.reconciliationObservations.set(key(workspaceId, row.id), row);
+        }
+        for (const raw of payload.debtObservations) {
+          const row = remap(raw) as unknown as DebtObservationDto;
+          store.debtObservations.set(key(workspaceId, row.id), row);
         }
         for (const raw of payload.cashAccounts) {
           const row = remap(raw) as unknown as CashAccountDto;

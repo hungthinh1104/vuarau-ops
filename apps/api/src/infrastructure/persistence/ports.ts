@@ -77,9 +77,7 @@ import type {
 } from "./evidence-ports.ts";
 
 /**
- * Ports are declared by the application layer, which is the layer that needs
- * them. `packages/db` implements the queries behind them and knows nothing about
- * this file — that is what keeps the dependency arrow pointing inwards
+ * Application-owned ports keep `packages/db` behind the dependency arrow
  * (docs/01-domain/context-map.md).
  *
  * Every method takes `workspaceId` as a required argument. Not an optional

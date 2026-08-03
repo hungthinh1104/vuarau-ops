@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import type {
   ExportWorkspaceBackupCommand,
   WorkspaceBackup,
-  WorkspaceBackupV10,
   WorkspaceBackupV11,
   WorkspaceId,
   WorkspaceIntegrityDto,

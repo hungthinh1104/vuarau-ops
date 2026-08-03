@@ -127,6 +127,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const costObservationRows = "costObservations" in payload ? payload.costObservations : [];
   const reconciliationObservationRows =
     "reconciliationObservations" in payload ? payload.reconciliationObservations : [];
+  const debtObservationRows = "debtObservations" in payload ? payload.debtObservations : [];
   const qualityIssueCodes = new Set(qualityIssueRows.map((row) => row["id"]));
   const goodsArrivals = new Set(goodsArrivalRows.map((row) => row["id"]));
   const goodsArrivalLines = new Set(goodsArrivalLineRows.map((row) => row["id"]));
@@ -142,6 +143,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const reconciliationObservationIds = new Set(
     reconciliationObservationRows.map((row) => row["id"]),
   );
+  const debtObservationIds = new Set(debtObservationRows.map((row) => row["id"]));
   return (
     (!("priceRules" in payload) ||
       payload.priceRules.every(
@@ -244,6 +246,14 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
         (row["caseKind"] === "correction"
           ? row["relatedObservationId"] != null &&
             reconciliationObservationIds.has(row["relatedObservationId"])
+          : row["relatedObservationId"] == null),
+    ) &&
+    debtObservationRows.every(
+      (row) =>
+        (row["customerId"] == null || customers.has(row["customerId"])) &&
+        (row["caseKind"] === "correction"
+          ? row["relatedObservationId"] != null &&
+            debtObservationIds.has(row["relatedObservationId"])
           : row["relatedObservationId"] == null),
     ) &&
     (!("supplierAccountEntries" in payload) ||
@@ -470,7 +480,7 @@ export function restoreWorkspaceBackup(
       }
       const supplierDiagnostics = (
         await Promise.all(
-        v11Payload(command).suppliers.map((row) =>
+          v11Payload(command).suppliers.map((row) =>
             repos.supplierAccountReads.integrity(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.supplierAccountReads.integrity>[1],

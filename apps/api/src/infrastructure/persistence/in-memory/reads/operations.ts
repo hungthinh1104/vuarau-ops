@@ -325,6 +325,7 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
         priceRules: rows(store.priceRules.values()),
         costObservations: rows(store.costObservations.values()),
         reconciliationObservations: rows(store.reconciliationObservations.values()),
+        debtObservations: rows(store.debtObservations.values()),
         qualityGrades: rows(store.qualityGrades.values()),
         qualityIssueCodes: rows(store.qualityIssueCodes.values()),
         goodsArrivals: rows(store.goodsArrivals.values()).map(
