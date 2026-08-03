@@ -7,10 +7,15 @@ import {
   supplierAccountBalances,
   inventoryBalances,
   qualityGrades,
+  cashAccounts,
+  cashBalances,
+  cashMovements,
+  expenses,
+  expenseReversals,
 } from "../../schema/index.ts";
 import type { inventoryMovements } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
-import { encodeCursor } from "@vuarau/domain-contracts";
+import { encodeCursor, vietnamBusinessDayRange, type ReportType } from "@vuarau/domain-contracts";
 import { money, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
@@ -20,23 +25,24 @@ export const createReportReadRepositories = (tx: Tx) => ({
   reportReads: {
     async operational(args: {
       workspaceId: string;
-      reportType:
-        | "customer_account_activity"
-        | "customer_receivables"
-        | "supplier_payables"
-        | "inventory_by_product_unit"
-        | "inventory_movement_report"
-        | "outstanding_delivery";
+      reportType: ReportType;
       businessDate: string | null;
+      businessDayStartMinute?: number;
       productId: string | null;
       unit: typeof inventoryMovements.$inferSelect.unit | null;
       page: Page;
     }) {
       if (args.reportType === "customer_account_activity") {
-        return customerActivityAtScale(tx, args);
+        return customerActivityAtScale(tx, {
+          ...args,
+          businessDayStartMinute: args.businessDayStartMinute ?? 0,
+        });
       }
       if (args.reportType === "inventory_movement_report") {
-        return inventoryMovementReportAtScale(tx, args);
+        return inventoryMovementReportAtScale(tx, {
+          ...args,
+          businessDayStartMinute: args.businessDayStartMinute ?? 0,
+        });
       }
       type Row = {
         id: string;
@@ -104,6 +110,102 @@ export const createReportReadRepositories = (tx: Tx) => ({
             quantity: null,
             status: "payable",
           }));
+      } else if (args.reportType === "cash_balances") {
+        const values = await tx
+          .select({ account: cashAccounts, balance: cashBalances })
+          .from(cashAccounts)
+          .leftJoin(
+            cashBalances,
+            and(
+              eq(cashBalances.workspaceId, cashAccounts.workspaceId),
+              eq(cashBalances.cashAccountId, cashAccounts.id),
+            ),
+          )
+          .where(eq(cashAccounts.workspaceId, args.workspaceId));
+        rows = values.map(({ account, balance }) => ({
+          id: account.id,
+          label: account.displayName,
+          sourceType: "cash_account",
+          sourceId: account.id,
+          documentHref: `/cash/accounts/${account.id}`,
+          transactionTime: toIsoOrNull(balance?.lastMovementTransactionTime ?? null),
+          amount: money(balance?.balanceMinor ?? 0, account.currency),
+          quantity: null,
+          status: account.isActive ? "active" : "inactive",
+        }));
+      } else if (args.reportType === "cash_movement_report") {
+        const filters = [eq(cashMovements.workspaceId, args.workspaceId)];
+        if (args.businessDate !== null) {
+          const range = vietnamBusinessDayRange(
+            args.businessDate,
+            args.businessDayStartMinute ?? 0,
+          );
+          filters.push(sql`${cashMovements.transactionTime} >= ${range.start}::timestamptz`);
+          filters.push(sql`${cashMovements.transactionTime} < ${range.end}::timestamptz`);
+        }
+        const values = await tx
+          .select({ movement: cashMovements, account: cashAccounts })
+          .from(cashMovements)
+          .innerJoin(
+            cashAccounts,
+            and(
+              eq(cashAccounts.workspaceId, cashMovements.workspaceId),
+              eq(cashAccounts.id, cashMovements.cashAccountId),
+            ),
+          )
+          .where(and(...filters));
+        rows = values.map(({ movement, account }) => ({
+          id: movement.id,
+          label: `${account.displayName} · ${movement.sourceType}`,
+          sourceType: movement.sourceType,
+          sourceId: movement.sourceId,
+          documentHref: `/cash/accounts/${account.id}`,
+          transactionTime: toIsoOrNull(movement.transactionTime),
+          amount: money(movement.amountMinor, movement.currency),
+          quantity: null,
+          status: movement.amountMinor >= 0 ? "cash_in" : "cash_out",
+        }));
+      } else if (args.reportType === "expense_report") {
+        const filters = [eq(expenses.workspaceId, args.workspaceId)];
+        if (args.businessDate !== null) {
+          const range = vietnamBusinessDayRange(
+            args.businessDate,
+            args.businessDayStartMinute ?? 0,
+          );
+          filters.push(sql`${expenses.transactionTime} >= ${range.start}::timestamptz`);
+          filters.push(sql`${expenses.transactionTime} < ${range.end}::timestamptz`);
+        }
+        const values = await tx
+          .select({ expense: expenses, reversal: expenseReversals, account: cashAccounts })
+          .from(expenses)
+          .innerJoin(
+            cashAccounts,
+            and(
+              eq(cashAccounts.workspaceId, expenses.workspaceId),
+              eq(cashAccounts.id, expenses.cashAccountId),
+            ),
+          )
+          .leftJoin(
+            expenseReversals,
+            and(
+              eq(expenseReversals.workspaceId, expenses.workspaceId),
+              eq(expenseReversals.expenseId, expenses.id),
+            ),
+          )
+          .where(and(...filters));
+        rows = values
+          .filter(({ reversal }) => reversal === null)
+          .map(({ expense, account }) => ({
+            id: expense.id,
+            label: `${expense.category} · ${account.displayName}`,
+            sourceType: "expense",
+            sourceId: expense.id,
+            documentHref: `/cash/expenses/${expense.id}`,
+            transactionTime: toIsoOrNull(expense.transactionTime),
+            amount: money(expense.amountMinor, expense.currency),
+            quantity: null,
+            status: "expense",
+          }));
       } else if (args.reportType === "inventory_by_product_unit") {
         const filters = [eq(inventoryBalances.workspaceId, args.workspaceId)];
         if (args.productId !== null) filters.push(eq(inventoryBalances.productId, args.productId));
@@ -141,7 +243,7 @@ export const createReportReadRepositories = (tx: Tx) => ({
           quantity: { valueScaled: balance.quantityScaled, unit: balance.unit },
           status: classifyInventory(balance.quantityScaled),
         }));
-      } else {
+      } else if (args.reportType === "outstanding_delivery") {
         const values = await tx.execute(sql`
             with dispatched as (
               select dl.sale_line_id, sum(dl.quantity_scaled)::bigint quantity

@@ -10,6 +10,7 @@ coverage/
 
 # Next.js and Storybook build output
 .next/
+.next-e2e/
 storybook-static/
 next-env.d.ts
 

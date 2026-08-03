@@ -23,6 +23,8 @@ export function buildOfflineSaleChain(args: {
     readonly customerId: string;
     readonly lines: readonly unknown[];
     readonly note: string | null;
+    /** Optional for legacy callers and V1 IndexedDB drafts. */
+    readonly evidenceReferences?: readonly string[];
     readonly replacesSaleId: string | null;
   };
   /** Editable UI snapshot; command lines above are already parsed domain values. */
@@ -68,6 +70,7 @@ export function buildOfflineSaleChain(args: {
       currency: "VND",
       lines: args.sale.lines,
       note: args.sale.note,
+      evidenceReferences: [...(args.sale.evidenceReferences ?? [])],
       dueAt: null,
       replacesSaleId: args.sale.replacesSaleId,
     },
@@ -86,6 +89,7 @@ export function buildOfflineSaleChain(args: {
       workspaceId: args.partition.workspaceId,
       lines: args.draftLines ?? args.sale.lines,
       note: args.sale.note,
+      evidenceReferences: [...(args.sale.evidenceReferences ?? [])],
       occurredAt: args.occurredAt,
       syncState: "queued",
       updatedAt: createdAt,

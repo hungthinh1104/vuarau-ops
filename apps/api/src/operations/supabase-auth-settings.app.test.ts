@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { observeSupabaseAuthPolicy } from "./supabase-auth-settings.ts";
 
-describe("M23 — hosted Supabase authentication policy observation", () => {
+describe("Hosted Supabase authentication policy observation", () => {
   it("never infers that passwordless email is disabled from public settings", () => {
     expect(
       observeSupabaseAuthPolicy({

@@ -70,6 +70,14 @@ export type LogEvent =
       readonly status: number;
       /** Which readiness check failed, by name. Never why in prose. */
       readonly failing: string | null;
+    }
+  | {
+      readonly event: "exception";
+      readonly requestId: string | null;
+      /** A router path or transport boundary name, never a user payload. */
+      readonly procedure: string;
+      /** A closed transport error code; stack/message/cause are deliberately absent. */
+      readonly code: string;
     };
 
 export type LogSink = (event: LogEvent) => void;

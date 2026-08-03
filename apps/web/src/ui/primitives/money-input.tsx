@@ -1,7 +1,6 @@
 "use client";
 
 import type { InputHTMLAttributes } from "react";
-import type { CurrencyCode } from "@vuarau/domain-contracts";
 import { Field, INPUT_CLASS } from "./field.tsx";
 
 export type MoneyInputProps = Omit<
@@ -11,7 +10,8 @@ export type MoneyInputProps = Omit<
   readonly label: string;
   readonly hint?: string;
   readonly error?: string;
-  readonly currency: CurrencyCode;
+  /** Currency identifier is kept for the form contract; formatting stays outside the primitive. */
+  readonly currency: string;
   /**
    * Raw text, exactly as typed — never a formatted round-trip of a number.
    *

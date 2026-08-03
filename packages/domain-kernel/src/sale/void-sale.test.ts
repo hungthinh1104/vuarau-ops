@@ -31,6 +31,7 @@ function voidCommand(overrides: Partial<VoidSaleCommand["payload"]> = {}): VoidS
       saleId: postedSale.id,
       reasonCode: "wrong_amount",
       reason: "Ghi nhầm 2 thùng ớt, thực tế 1 thùng",
+      evidenceReferences: [],
       ...overrides,
     },
   };
@@ -41,6 +42,7 @@ describe("BR-SALE-012 / TC-SALE-021", () => {
     const result = decideVoidSale({
       command: voidCommand(),
       sale: postedSale,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 
@@ -68,6 +70,7 @@ describe("BR-SALE-012 / TC-SALE-021", () => {
     const result = decideVoidSale({
       command: voidCommand(),
       sale: cheaperSale,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 
@@ -81,6 +84,7 @@ describe("BR-SALE-012 / TC-SALE-021", () => {
     const result = decideVoidSale({
       command: voidCommand(),
       sale: postedSale,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 
@@ -107,6 +111,7 @@ describe("BR-SALE-012 / TC-SALE-021", () => {
     const result = decideVoidSale({
       command: voidCommand({ reason: "  Hàng trả lại  ", reasonCode: "goods_returned" }),
       sale: postedSale,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 
@@ -117,6 +122,19 @@ describe("BR-SALE-012 / TC-SALE-021", () => {
     expect(result.value.audit.action).toBe("sale.voided");
     expect(result.value.audit.reason).toBe("Hàng trả lại");
   });
+
+  it("BR-SALE-012 / BR-SALE-014 / TC-SALE-030 — refuses a goods-returned full void while physical fulfilment remains active", () => {
+    const result = decideVoidSale({
+      command: voidCommand({ reason: "Khách chỉ trả một phần", reasonCode: "goods_returned" }),
+      sale: postedSale,
+      hasActiveNetFulfilment: true,
+      recordedAt: RECORDED_AT,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("SALE_GOODS_RETURN_INCOMPLETE");
+  });
 });
 
 describe("BR-SALE-013 / TC-SALE-023", () => {
@@ -124,6 +142,7 @@ describe("BR-SALE-013 / TC-SALE-023", () => {
     const result = decideVoidSale({
       command: voidCommand({ saleId: VOIDED_SALE_ID }),
       sale: voidedSale,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 
@@ -137,6 +156,7 @@ describe("BR-SALE-013 / TC-SALE-023", () => {
     const result = decideVoidSale({
       command: voidCommand({ saleId: VOIDED_SALE_ID }),
       sale: voidedSale,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 
@@ -151,6 +171,7 @@ describe("BR-SALE-015 / TC-SALE-025", () => {
     const result = decideVoidSale({
       command: voidCommand({ saleId: validDraftSale.id }),
       sale: validDraftSale,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 
@@ -167,6 +188,7 @@ describe("BR-SALE-015 / TC-SALE-025", () => {
     const result = decideVoidSale({
       command: voidCommand({ saleId: validDraftSale.id }),
       sale: draftWithStrayVoid,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 
@@ -181,6 +203,7 @@ describe("BR-SALE-014 / TC-SALE-026", () => {
     const result = decideVoidSale({
       command: voidCommand({ reason: "" }),
       sale: postedSale,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 
@@ -194,6 +217,7 @@ describe("BR-SALE-014 / TC-SALE-026", () => {
     const result = decideVoidSale({
       command: voidCommand({ reason: "   \n\t " }),
       sale: postedSale,
+      hasActiveNetFulfilment: false,
       recordedAt: RECORDED_AT,
     });
 

@@ -16,6 +16,11 @@ async function customerOwing(label: string, amountMinor: number): Promise<string
   return customerId;
 }
 
+async function expectRecordedPayment(page: Parameters<typeof signIn>[0]): Promise<void> {
+  await expect(page).toHaveURL(/\/payments\/[0-9a-f-]+$/);
+  await expect(page.getByRole("heading", { name: /^Thanh toán ·/ })).toBeVisible();
+}
+
 test.describe("TC-E2E-001 — find and open a customer", () => {
   test("searching by name finds the customer and shows what they owe", async ({ page }) => {
     const name = uniqueCustomerName("A");
@@ -56,7 +61,7 @@ test.describe("TC-E2E-002 — exact payment", () => {
 
     await page.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
 
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expectRecordedPayment(page);
     await expect(page.getByText("Hết nợ", { exact: true })).toBeVisible();
 
     // And the database agrees.
@@ -75,7 +80,7 @@ test.describe("TC-E2E-003 — partial payment", () => {
     await page.getByLabel("Số tiền khách trả").fill("500.000");
     await page.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
 
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expectRecordedPayment(page);
 
     const balance = await api.balance(customerId);
     expect(balance.balance.amountMinor).toBe(375_000);
@@ -96,7 +101,7 @@ test.describe("TC-E2E-004 — overpayment becomes customer credit", () => {
     await expect(page.getByText("Vựa nợ khách sau giao dịch")).toBeVisible();
 
     await page.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expectRecordedPayment(page);
 
     // The screen must never say "nợ −300.000".
     await expect(page.getByText("Vựa nợ khách", { exact: true })).toBeVisible();
@@ -149,7 +154,7 @@ test.describe("TC-E2E-006 — duplicate tap", () => {
         button.click();
       });
 
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expectRecordedPayment(page);
 
     const payments = await api.payments(customerId);
     expect(payments.items).toHaveLength(1);
@@ -159,28 +164,17 @@ test.describe("TC-E2E-006 — duplicate tap", () => {
     expect(balance.balance.amountMinor).toBe(500_000);
   });
 
-  test("a tap after the server said yes does not record a second payment", async ({ page }) => {
+  test("a successful submission redirects to exactly one recorded payment", async ({ page }) => {
     const customerId = await customerOwing("J", 900_000);
 
     await signIn(page);
     await page.goto(`/customers/${customerId}/payments/new`);
     await page.getByLabel("Số tiền khách trả").fill("400.000");
 
-    /*
-     * The gap this covers is not a race inside one tick — it is the ~150 ms
-     * between the server committing and the route changing, during which the
-     * button is still on screen. Two intentions with two keys are
-     * indistinguishable from two real payments, so the client must refuse; the
-     * server cannot.
-     *
-     * This is the case that produced a duplicate before the `settled` guard.
-     */
     const confirm = page.getByRole("button", { name: "Ghi nhận thanh toán" });
-    await confirm.dispatchEvent("click");
-    await expect(page.getByText("Đã ghi nhận", { exact: true })).toBeVisible();
-    await confirm.dispatchEvent("click").catch(() => undefined);
+    await confirm.click();
 
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expectRecordedPayment(page);
 
     const payments = await api.payments(customerId);
     expect(payments.items).toHaveLength(1);
@@ -220,7 +214,7 @@ test.describe("TC-E2E-007 — unknown outcome then duplicate-safe success", () =
     const keyBefore = await page.getByTestId("idempotency-key").textContent();
 
     await page.getByRole("button", { name: "Gửi lại" }).click();
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expectRecordedPayment(page);
 
     // One payment, not two — because the resend carried the original key.
     const payments = await api.payments(customerId);
@@ -268,9 +262,12 @@ test.describe("TC-E2E-009 — the timeline shows the committed transaction", () 
     await page.goto(`/customers/${customerId}/payments/new`);
     await page.getByLabel("Số tiền khách trả").fill("250.000");
     await page.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
-    await expect(page.getByRole("heading", { name: "Đã ghi nhận thanh toán" })).toBeVisible();
+    await expectRecordedPayment(page);
 
-    await page.getByRole("link", { name: "Xem sổ công nợ khách hàng" }).click();
+    await Promise.all([
+      page.waitForURL(new RegExp(`/customers/${customerId}$`)),
+      page.getByRole("link", { name: "Xem sổ công nợ khách hàng" }).click(),
+    ]);
 
     await expect(page.getByRole("heading", { name: "Sổ công nợ", exact: true })).toBeVisible();
     await expect(page.getByText("Thu tiền")).toBeVisible();

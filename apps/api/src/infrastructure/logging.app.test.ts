@@ -12,6 +12,7 @@ import { createHarness, type Harness } from "../testing/command-test-harness.ts"
 import { createCustomer } from "../modules/customer/create-customer.handler.ts";
 import { adjustCustomerDebt } from "../modules/account/adjust-debt.handler.ts";
 import { setLogSink, withRequestId, type LogEvent } from "./logging.ts";
+import { logUnexpectedTrpcError } from "./trpc/trpc.ts";
 
 let harness: Harness;
 let captured: LogEvent[];
@@ -163,5 +164,36 @@ describe("BR-OPS-001 / TC-OPS-004 — what a command writes to the log", () => {
     expect(captured.filter((event) => event.event === "command")).toMatchObject([
       { outcome: "replayed" },
     ]);
+  });
+});
+
+describe("BR-OPS-001 — unexpected transport failures stay safe", () => {
+  it("records only correlation, procedure and transport code", async () => {
+    await withRequestId("req-exception", async () => {
+      logUnexpectedTrpcError({
+        procedure: "sale.post",
+        code: "INTERNAL_SERVER_ERROR",
+        hasDomainError: false,
+      });
+    });
+
+    expect(captured).toEqual([
+      {
+        event: "exception",
+        requestId: "req-exception",
+        procedure: "sale.post",
+        code: "INTERNAL_SERVER_ERROR",
+      },
+    ]);
+  });
+
+  it("does not duplicate expected domain refusals as exceptions", () => {
+    logUnexpectedTrpcError({
+      procedure: "sale.post",
+      code: "BAD_REQUEST",
+      hasDomainError: true,
+    });
+
+    expect(captured).toEqual([]);
   });
 });

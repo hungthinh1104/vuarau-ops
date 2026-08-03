@@ -1,5 +1,15 @@
 import type { z } from "zod";
-import type { CommandEnvelope, IsoInstant, Permission } from "@vuarau/domain-contracts";
+import type {
+  CommandEnvelope,
+  IsoInstant,
+  Permission,
+  WorkspaceOperationalProfileDto,
+  WorkspaceWorkflow,
+} from "@vuarau/domain-contracts";
+import {
+  defaultWorkspaceOperationalProfile,
+  workspaceWorkflowEnabled,
+} from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { Clock } from "../../infrastructure/clock.ts";
@@ -44,6 +54,8 @@ export type CommandExecution<TCommand, TResult> = (args: {
   readonly recordedAt: IsoInstant;
   /** The caller's membership, already verified to carry the permission. */
   readonly membership: WorkspaceMembership;
+  /** Effective depot operating policy, loaded inside the command transaction. */
+  readonly operationalProfile: WorkspaceOperationalProfileDto;
 }) => Promise<DomainResult<TResult>>;
 
 /** Devices in the field have unreliable clocks; the past is fine, the future is not. */
@@ -83,9 +95,19 @@ export async function runCommand<
   readonly ctx: CommandContext;
   /** What the caller's role must carry for this command (BR-AUTH-004). */
   readonly requiredPermission: Permission;
+  /** Every listed workflow must be enabled for a new command to execute. */
+  readonly requiredWorkflows?: readonly WorkspaceWorkflow[];
   readonly execute: CommandExecution<TCommand, TResult>;
 }): Promise<DomainResult<TResult>> {
-  const { commandType, schema, input, ctx, requiredPermission, execute } = options;
+  const {
+    commandType,
+    schema,
+    input,
+    ctx,
+    requiredPermission,
+    requiredWorkflows = [],
+    execute,
+  } = options;
   const { deps, principal } = ctx;
   const startedAt = Date.now();
 
@@ -151,6 +173,22 @@ export async function runCommand<
         throw new RollbackForRejection(authorized);
       }
 
+      const operationalProfile =
+        (await repos.workspaces.findOperationalProfile(command.workspaceId)) ??
+        defaultWorkspaceOperationalProfile(command.workspaceId);
+      const disabledWorkflow = requiredWorkflows.find(
+        (workflow) => !workspaceWorkflowEnabled(operationalProfile, workflow),
+      );
+      if (disabledWorkflow !== undefined) {
+        throw new RollbackForRejection(
+          asRejection(
+            err("WORKSPACE_WORKFLOW_DISABLED", "This workflow is disabled for the current depot.", {
+              workflow: disabledWorkflow,
+            }),
+          ),
+        );
+      }
+
       // 5. Idempotency (ADR-0008).
       const replay = await checkIdempotency<TResult>({
         repos,
@@ -191,6 +229,7 @@ export async function runCommand<
         repos,
         recordedAt,
         membership: authorized.value,
+        operationalProfile,
       });
       if (!result.ok) {
         throw new RollbackForRejection(result);

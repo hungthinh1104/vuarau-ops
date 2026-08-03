@@ -61,7 +61,19 @@ bông comparison, and distinction between draft and posted.
 | Timeline was trusted                   |                |                              |
 | Dispute resolution evidence used       |                |                              |
 
-## E. Findings
+## E. Cross-dimension scenario gates
+
+Record whether any scenario explicitly excluded by ASM-035–038 appeared. An
+excluded event is a stop, not an opportunity to improvise a workaround.
+
+| ASM | Declared disposition | Encountered? | Stop/evidence reference |
+| --- | -------------------- | ------------ | ----------------------- |
+| 035 |                      |              |                         |
+| 036 |                      |              |                         |
+| 037 |                      |              |                         |
+| 038 |                      |              |                         |
+
+## F. Findings
 
 | Finding ID | Evidence count | Severity | Affected workflow | Observed behaviour | Business consequence | Recommended next action | Confidence |
 | ---------- | -------------- | -------- | ----------------- | ------------------ | -------------------- | ----------------------- | ---------- |

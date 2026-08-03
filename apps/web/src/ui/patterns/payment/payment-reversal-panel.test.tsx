@@ -25,6 +25,10 @@ describe("PaymentReversalPanel", () => {
     await user.type(screen.getByRole("textbox", { name: "Lý do hoàn tác" }), "Khách trả nhầm");
     await user.click(screen.getByRole("button", { name: "Xác nhận hoàn tác" }));
 
-    expect(onSubmit).toHaveBeenCalledWith({ amountMinor: 200_000, reason: "Khách trả nhầm" });
+    expect(onSubmit).toHaveBeenCalledWith({
+      amountMinor: 200_000,
+      reason: "Khách trả nhầm",
+      evidenceReferences: [],
+    });
   });
 });

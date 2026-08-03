@@ -34,6 +34,23 @@ Both facts matter, and neither can be derived from the other. So both are stored
 | Debugging, incident timelines          | `recordedAt`                                        | When the system saw it                  |
 | Idempotency-window reasoning           | `recordedAt`                                        | A property of the request, not the sale |
 
+## Configured business-day boundary
+
+A workspace may start its business day at any local Vietnam minute. The default is
+00:00; a night-market depot may choose 22:00. A report for business date `2026-08-02`
+with a 22:00 boundary covers:
+
+```text
+2026-08-02 22:00 +07:00
+through, but not including,
+2026-08-03 22:00 +07:00
+```
+
+Grouping still reads `transactionTime`. `recordedAt` never moves a late-entered fact
+to another business day. The boundary is stored in the workspace operational
+profile, versioned/audited, included in backup and applied server-side to report and
+CSV reads. See ADR-0024.
+
 ## `updatedAt` — where it is and is not
 
 Present on mutable rows only: `customers`, `products`, `workspaces`,

@@ -1,0 +1,2 @@
+ALTER TABLE "deliveries" ADD COLUMN "evidence_references" text[] DEFAULT '{}' NOT NULL;--> statement-breakpoint
+ALTER TABLE "delivery_returns" ADD COLUMN "evidence_references" text[] DEFAULT '{}' NOT NULL;

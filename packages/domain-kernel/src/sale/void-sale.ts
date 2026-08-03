@@ -8,6 +8,8 @@ import { err, ok } from "../shared/result.ts";
 export type VoidSaleInput = {
   readonly command: VoidSaleCommand;
   readonly sale: SaleState;
+  /** Canonical Delivery dispatch minus Return facts for this Sale. */
+  readonly hasActiveNetFulfilment: boolean;
   readonly recordedAt: IsoInstant;
 };
 
@@ -36,6 +38,7 @@ export type VoidSaleDecision = Decision<SaleState> & {
 export function decideVoidSale({
   command,
   sale,
+  hasActiveNetFulfilment,
   recordedAt,
 }: VoidSaleInput): DomainResult<VoidSaleDecision> {
   // Checked before "already voided": voiding a draft is a different mistake with
@@ -64,12 +67,25 @@ export function decideVoidSale({
     });
   }
 
+  // `goods_returned` means the trade is being undone because the load did not
+  // remain with the customer. It is not a shortcut for pricing a partial physical
+  // Return: until ASM-037 is decided, any quantity still net-fulfilled makes a
+  // full debt compensation materially false.
+  if (command.payload.reasonCode === "goods_returned" && hasActiveNetFulfilment) {
+    return err(
+      "SALE_GOODS_RETURN_INCOMPLETE",
+      "The sale still has goods with the customer, so a goods-returned full void would reverse too much debt.",
+      { saleId: sale.id },
+    );
+  }
+
   const voidRecord: SaleVoidState = {
     id: command.payload.saleVoidId,
     workspaceId: sale.workspaceId,
     saleId: sale.id,
     reasonCode: command.payload.reasonCode,
     reason,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     amount: sale.totalAmount,
     transactionTime: command.occurredAt,
     recordedAt,

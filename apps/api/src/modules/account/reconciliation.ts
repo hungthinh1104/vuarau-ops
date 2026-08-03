@@ -21,7 +21,7 @@ type ReconciliationData = {
   readonly projection: CustomerAccountBalance | null;
   readonly entries: readonly CustomerAccountEntryDto[];
   readonly observations: readonly AccountSourceObservation[];
-  readonly role: WorkspaceRole;
+  readonly roles: readonly WorkspaceRole[];
 };
 
 const canonicalEntryOrder = (a: CustomerAccountEntryDto, b: CustomerAccountEntryDto): number =>
@@ -190,9 +190,13 @@ export function buildAccountReconciliation(
     difference,
     diagnostics,
     capabilities: {
-      rebuild: roleHasPermission(data.role, "debt.adjust")
+      rebuild: roleHasPermission(data.roles, "debt.adjust")
         ? ALLOWED
-        : denied("PERMISSION_DENIED", { permission: "debt.adjust", role: data.role }),
+        : denied("PERMISSION_DENIED", {
+            permission: "debt.adjust",
+            role: data.roles[0],
+            roles: data.roles,
+          }),
     },
   };
 
@@ -205,7 +209,7 @@ export async function loadAccountReconciliation(args: {
   repos: Repositories;
   workspaceId: WorkspaceId;
   customerId: CustomerId;
-  role: WorkspaceRole;
+  roles: readonly WorkspaceRole[];
 }): Promise<AccountReconciliationResultDto> {
   const [workspaceName, customer, projection, entries, observations] = await Promise.all([
     args.repos.workspaces.findName(args.workspaceId),
@@ -226,7 +230,7 @@ export async function loadAccountReconciliation(args: {
     projection,
     entries,
     observations,
-    role: args.role,
+    roles: args.roles,
   });
 }
 

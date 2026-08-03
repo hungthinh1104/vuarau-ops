@@ -9,8 +9,25 @@ import type {
   DeliveryDto,
   DocumentDto,
   DocumentShareId,
+  WorkspaceOperationalProfileDto,
+  CashAccountDto,
+  CashBalanceDto,
+  CashMovementDto,
+  CashTransferDto,
+  ExpenseDto,
+  GoodsArrivalDto,
+  QualityDispositionDto,
+  QualityInspectionDto,
+  QualityIssueCodeDto,
+  CostObservationDto,
+  ReconciliationObservationDto,
+  DebtObservationDto,
 } from "@vuarau/domain-contracts";
-import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
+import type {
+  PaymentReversalState,
+  SaleVoidState,
+  SupplierPaymentReversalState,
+} from "@vuarau/domain-kernel";
 import type { IdGenerator } from "../../clock.ts";
 import type { CommandReceipt, WorkspaceMembership } from "../ports.ts";
 import type {
@@ -18,6 +35,7 @@ import type {
   CustomerState,
   SaleState,
   PaymentState,
+  PriceRuleState,
   ProductState,
   QualityGradeState,
   SupplierState,
@@ -34,24 +52,18 @@ export type Store = {
   memberships: Map<string, WorkspaceMembership & { readonly createdAt: IsoInstant }>;
   /** Workspace id → display name, which is all a picker needs (BR-AUTH-008). */
   workspaceNames: Map<string, string>;
+  operationalProfiles: Map<string, WorkspaceOperationalProfileDto>;
   /** Supabase subject → local actor id (BR-AUTH-005). */
   actorsBySubject: Map<string, ActorId>;
   /** Actor display names, for the audit timeline's `actorDisplayName`. */
   actorNames: Map<string, string>;
   customers: Map<string, CustomerState>;
   products: Map<string, ProductState>;
+  priceRules: Map<string, PriceRuleState>;
   qualityGrades: Map<string, QualityGradeState>;
   suppliers: Map<string, SupplierState>;
   supplierPayments: Map<string, SupplierPaymentState>;
-  supplierPaymentReversals: Array<{
-    id: string;
-    workspaceId: WorkspaceId;
-    supplierPaymentId: SupplierPaymentState["id"];
-    amount: Money;
-    reason: string;
-    transactionTime: IsoInstant;
-    recordedAt: IsoInstant;
-  }>;
+  supplierPaymentReversals: SupplierPaymentReversalState[];
   supplierAccountEntries: SupplierAccountEntryDto[];
   supplierAccountBalances: Map<
     string,
@@ -107,16 +119,43 @@ export type Store = {
   balances: Map<string, CustomerAccountBalance>;
   audit: AuditRecordDto[];
   receipts: Map<string, CommandReceipt>;
+  cashAccounts: Map<string, CashAccountDto>;
+  expenses: Map<string, ExpenseDto>;
+  cashTransfers: Map<string, CashTransferDto>;
+  cashAdjustments: Array<{
+    id: string;
+    workspaceId: WorkspaceId;
+    cashAccountId: CashAccountDto["id"];
+    amount: Money;
+    reasonCode: string;
+    reason: string;
+    transactionTime: IsoInstant;
+    recordedAt: IsoInstant;
+    actorId: ActorId;
+    commandId: string;
+    evidenceReferences: readonly string[];
+  }>;
+  cashMovements: CashMovementDto[];
+  cashBalances: Map<string, CashBalanceDto>;
+  qualityIssueCodes: Map<string, QualityIssueCodeDto>;
+  goodsArrivals: Map<string, GoodsArrivalDto>;
+  qualityInspections: Map<string, QualityInspectionDto>;
+  qualityDispositions: Map<string, QualityDispositionDto>;
+  costObservations: Map<string, CostObservationDto>;
+  reconciliationObservations: Map<string, ReconciliationObservationDto>;
+  debtObservations: Map<string, DebtObservationDto>;
 };
 
 export function emptyStore(): Store {
   return {
     memberships: new Map(),
     workspaceNames: new Map(),
+    operationalProfiles: new Map(),
     actorsBySubject: new Map(),
     actorNames: new Map(),
     customers: new Map(),
     products: new Map(),
+    priceRules: new Map(),
     qualityGrades: new Map(),
     suppliers: new Map(),
     supplierPayments: new Map(),
@@ -140,6 +179,19 @@ export function emptyStore(): Store {
     balances: new Map(),
     audit: [],
     receipts: new Map(),
+    cashAccounts: new Map(),
+    expenses: new Map(),
+    cashTransfers: new Map(),
+    cashAdjustments: [],
+    cashMovements: [],
+    cashBalances: new Map(),
+    qualityIssueCodes: new Map(),
+    goodsArrivals: new Map(),
+    qualityInspections: new Map(),
+    qualityDispositions: new Map(),
+    costObservations: new Map(),
+    reconciliationObservations: new Map(),
+    debtObservations: new Map(),
   };
 }
 
@@ -201,10 +253,12 @@ export function toPaymentSummaryRow(store: Store, payment: PaymentState) {
       store.customers.get(key(payment.workspaceId, payment.customerId))?.displayName ?? "",
     amount: payment.amount,
     method: payment.method,
+    cashAccountId: payment.cashAccountId ?? null,
     status: payment.status,
     reversedAmount: payment.reversedAmount,
     payerName: payment.payerName,
     note: payment.note,
+    evidenceReferences: [...payment.evidenceReferences],
     version: payment.version,
     transactionTime: payment.transactionTime,
     recordedAt: payment.recordedAt,
@@ -214,6 +268,7 @@ export function toPaymentSummaryRow(store: Store, payment: PaymentState) {
 export function toPurchaseDto(purchase: PurchaseState) {
   return {
     ...purchase,
+    evidenceReferences: [...purchase.evidenceReferences],
     lines: purchase.lines.map((line) => ({ ...line })),
     voidRecord:
       purchase.voidRecord === null
@@ -223,6 +278,7 @@ export function toPurchaseDto(purchase: PurchaseState) {
             purchaseId: purchase.voidRecord.purchaseId,
             reasonCode: purchase.voidRecord.reasonCode,
             reason: purchase.voidRecord.reason,
+            evidenceReferences: [...purchase.voidRecord.evidenceReferences],
             amount: purchase.voidRecord.amount,
             transactionTime: purchase.voidRecord.transactionTime,
             recordedAt: purchase.voidRecord.recordedAt,
@@ -253,6 +309,7 @@ export function toDeliveryDto(delivery: DeliveryState): DeliveryDto {
       },
     })),
     note: delivery.note,
+    evidenceReferences: [...(delivery.evidenceReferences ?? [])],
     cancellationReason: delivery.cancellationReason,
     version: delivery.version,
     transactionTime: delivery.transactionTime,
@@ -262,6 +319,7 @@ export function toDeliveryDto(delivery: DeliveryState): DeliveryDto {
     returns: delivery.returns.map((record) => ({
       id: record.id,
       reason: record.reason,
+      evidenceReferences: [...(record.evidenceReferences ?? [])],
       lines: record.lines.map((line) => ({
         deliveryLineId: line.deliveryLineId,
         quantity: line.quantity,

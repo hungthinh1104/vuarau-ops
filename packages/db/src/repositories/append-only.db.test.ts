@@ -120,7 +120,7 @@ describe.skipIf(skipWithoutDatabase())("database append-only guarantees", () => 
       const message = await captureDatabaseError(
         ctx.database.db.delete(sales).where(eq(sales.id, saleId)),
       );
-      expect(message).toMatch(/never removed/i);
+      expect(message).toMatch(/cannot be deleted|deactivate the master record/i);
     });
 
     it("refuses a DELETE against a payment", async () => {
@@ -144,7 +144,7 @@ describe.skipIf(skipWithoutDatabase())("database append-only guarantees", () => 
       const message = await captureDatabaseError(
         ctx.database.db.delete(payments).where(eq(payments.id, paymentId)),
       );
-      expect(message).toMatch(/never removed/i);
+      expect(message).toMatch(/cannot be deleted|deactivate the master record/i);
     });
 
     it("still allows the status and version of a payment to change", async () => {

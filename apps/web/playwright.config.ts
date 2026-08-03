@@ -30,6 +30,11 @@ const hasDatabase = !endToEndDisabled();
 
 const apiEnvironment = {
   DATABASE_URL: databaseUrl,
+  // Keep E2E on the real actor lookup path. Local development may use its
+  // convenience principal fallback, but acceptance must prove workspace and
+  // membership isolation through PostgreSQL.
+  APP_ENV: "development",
+  E2E_REAL_ACTOR_LOOKUP: "1",
   PORT: String(E2E_API_PORT),
   SUPABASE_JWT_ISSUER: E2E_JWT_ISSUER,
   SUPABASE_JWT_AUDIENCE: E2E_JWT_AUDIENCE,
@@ -41,6 +46,7 @@ const apiEnvironment = {
 };
 
 const webEnvironment = {
+  NEXT_DIST_DIR: ".next-e2e",
   NEXT_PUBLIC_API_ORIGIN: `http://127.0.0.1:${E2E_API_PORT}`,
   // E2E authenticates through the token bridge, never against a developer's
   // Supabase project. Clear inherited public keys so the unauthenticated-route
@@ -54,9 +60,8 @@ const webEnvironment = {
    * There is no Supabase project here — CI has none, and standing one up would
    * make questions about Postgres rows depend on a third party. So the harness
    * mints a token against the API's configured secret and injects it, and this
-   * flag is what lets the app read it (TC-WEB-024). A production build cannot
-   * open the same door: the bridge is also guarded on `NODE_ENV`, which Next
-   * resolves at build time and removes the branch behind.
+   * flag is what lets the app read it (TC-WEB-024). The ordinary production
+   * build does not set this flag; only the explicitly separate E2E artifact does.
    *
    * The depot list is **not** configured here any more. It comes from
    * `session.workspaces`, against the seeded workspace, which means the picker
@@ -80,7 +85,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] === undefined ? 0 : 1,
   reporter: "list",
-  // Real HTTP, a real database write and a Next dev compile on first hit.
+  // Real HTTP and database writes against the same production artefact CI builds.
   timeout: 60_000,
   expect: { timeout: 10_000 },
 
@@ -88,7 +93,10 @@ export default defineConfig({
 
   use: {
     baseURL: `http://127.0.0.1:${E2E_WEB_PORT}`,
-    trace: "on-first-retry",
+    trace:
+      process.env["CI"] === "1" || process.env["CI"] === "true"
+        ? "on-first-retry"
+        : "retain-on-failure",
   },
 
   /*
@@ -118,7 +126,7 @@ export default defineConfig({
           timeout: 60_000,
         },
         {
-          command: `next dev --port ${E2E_WEB_PORT}`,
+          command: `next start --port ${E2E_WEB_PORT}`,
           url: `http://127.0.0.1:${E2E_WEB_PORT}`,
           env: webEnvironment,
           // A previously interrupted offline run can leave a dev server process

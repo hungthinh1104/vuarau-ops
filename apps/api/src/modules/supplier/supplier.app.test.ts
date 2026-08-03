@@ -1,11 +1,22 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { SupplierId, SupplierPaymentId } from "@vuarau/domain-contracts";
+import type {
+  PurchaseId,
+  PurchaseLineId,
+  SupplierId,
+  SupplierPaymentId,
+} from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
+  LATEST_RECORDED_AT,
+  LATEST_TRANSACTION_TIME,
   LATER_TRANSACTION_TIME,
+  PRODUCT_CA_CHUA_ID,
+  PRODUCT_RAU_MUONG_ID,
+  RECORDED_AT,
   SALES_ACTOR_ID,
   WORKSPACE_ID,
 } from "@vuarau/test-fixtures";
+import type { PurchaseState } from "@vuarau/domain-kernel";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import {
   adjustSupplierAccount,
@@ -15,7 +26,13 @@ import {
   reverseSupplierPayment,
   updateSupplier,
 } from "./supplier.handlers.ts";
-import { getSupplierBalance, getSupplierTimeline, searchSuppliers } from "./supplier.queries.ts";
+import {
+  getSupplierBalance,
+  getSupplierPayment,
+  getSupplierPriceHistory,
+  getSupplierTimeline,
+  searchSuppliers,
+} from "./supplier.queries.ts";
 
 let harness: Harness;
 const supplierId = "00000000-0000-4000-8000-000000000801" as SupplierId;
@@ -44,7 +61,105 @@ async function seedSupplier() {
   });
 }
 
+async function seedPurchase(input: {
+  purchaseId: PurchaseId;
+  lineId: PurchaseLineId;
+  status: PurchaseState["status"];
+  productId: PurchaseState["lines"][number]["productId"];
+  productName: string;
+  unitPriceMinor: number;
+  transactionTime: PurchaseState["transactionTime"];
+  recordedAt: PurchaseState["recordedAt"];
+  confirmedAt: PurchaseState["confirmedAt"];
+}) {
+  await harness.db.unitOfWork().transaction(({ purchases }) =>
+    purchases.insert({
+      id: input.purchaseId,
+      workspaceId: WORKSPACE_ID,
+      supplierId,
+      status: input.status,
+      currency: "VND",
+      lines: [
+        {
+          lineId: input.lineId,
+          productId: input.productId,
+          productName: input.productName,
+          quantity: { valueScaled: 10, unit: "kg" },
+          unitPrice: { amountMinor: input.unitPriceMinor, currency: "VND" },
+          lineTotal: { amountMinor: input.unitPriceMinor * 10, currency: "VND" },
+        },
+      ],
+      totalAmount: { amountMinor: input.unitPriceMinor * 10, currency: "VND" },
+      note: null,
+      evidenceReferences: [],
+      dueAt: null,
+      version: 1,
+      transactionTime: input.transactionTime,
+      recordedAt: input.recordedAt,
+      confirmedAt: input.confirmedAt,
+      discardedAt: null,
+      replacesPurchaseId: null,
+      voidRecord: null,
+    }),
+  );
+}
+
 describe("M16 Supplier Account", () => {
+  it("returns only confirmed purchase-line price observations with stable scope and ordering", async () => {
+    await seedSupplier();
+    await seedPurchase({
+      purchaseId: "00000000-0000-4000-8000-000000000810" as PurchaseId,
+      lineId: "00000000-0000-4000-8000-000000000811" as PurchaseLineId,
+      status: "draft",
+      productId: PRODUCT_CA_CHUA_ID,
+      productName: "Cà chua",
+      unitPriceMinor: 11_000,
+      transactionTime: LATEST_TRANSACTION_TIME,
+      recordedAt: LATEST_RECORDED_AT,
+      confirmedAt: null,
+    });
+    await seedPurchase({
+      purchaseId: "00000000-0000-4000-8000-000000000812" as PurchaseId,
+      lineId: "00000000-0000-4000-8000-000000000813" as PurchaseLineId,
+      status: "confirmed",
+      productId: PRODUCT_CA_CHUA_ID,
+      productName: "Cà chua",
+      unitPriceMinor: 12_000,
+      transactionTime: LATER_TRANSACTION_TIME,
+      recordedAt: LATER_TRANSACTION_TIME,
+      confirmedAt: LATER_TRANSACTION_TIME,
+    });
+    await seedPurchase({
+      purchaseId: "00000000-0000-4000-8000-000000000814" as PurchaseId,
+      lineId: "00000000-0000-4000-8000-000000000815" as PurchaseLineId,
+      status: "confirmed",
+      productId: PRODUCT_RAU_MUONG_ID,
+      productName: "Rau muống",
+      unitPriceMinor: 8_000,
+      transactionTime: RECORDED_AT,
+      recordedAt: RECORDED_AT,
+      confirmedAt: RECORDED_AT,
+    });
+
+    const page = await getSupplierPriceHistory(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      supplierId,
+      productId: PRODUCT_CA_CHUA_ID,
+      cursor: null,
+      limit: 20,
+    });
+    expect(page.ok && page.value.items).toMatchObject([
+      {
+        purchaseId: "00000000-0000-4000-8000-000000000812",
+        productId: PRODUCT_CA_CHUA_ID,
+        unitPrice: { amountMinor: 12_000, currency: "VND" },
+        confirmedAt: LATER_TRANSACTION_TIME,
+      },
+    ]);
+    expect(page.ok && page.value.items).toHaveLength(1);
+    expect(page.ok && page.value.nextCursor).toBeNull();
+  });
+
   it("versions lifecycle changes and searches Vietnamese names without merging", async () => {
     expect((await seedSupplier()).ok).toBe(true);
     const search = await searchSuppliers(harness.ctx, {
@@ -98,6 +213,7 @@ describe("M16 Supplier Account", () => {
         amount: { amountMinor: 150_000, currency: "VND" },
         method: "cash",
         note: null,
+        evidenceReferences: ["receipt://supplier-payment/806", "photo://cash/806"],
       },
     });
     expect(paid.ok).toBe(true);
@@ -110,6 +226,7 @@ describe("M16 Supplier Account", () => {
         amount: { amountMinor: 150_000, currency: "VND" },
         method: "cash",
         note: null,
+        evidenceReferences: ["receipt://supplier-payment/806", "photo://cash/806"],
       },
     });
     expect(replay.ok).toBe(true);
@@ -122,9 +239,23 @@ describe("M16 Supplier Account", () => {
         supplierPaymentId: paymentId,
         amount: { amountMinor: 20_000, currency: "VND" },
         reason: "Trả nhầm phần tiền",
+        evidenceReferences: ["receipt://supplier-reversal/807"],
       },
     });
     expect(reversed.ok).toBe(true);
+
+    const detail = await getSupplierPayment(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      supplierPaymentId: paymentId,
+    });
+    expect(detail.ok && detail.value).toMatchObject({
+      evidenceReferences: ["receipt://supplier-payment/806", "photo://cash/806"],
+      reversals: [
+        {
+          evidenceReferences: ["receipt://supplier-reversal/807"],
+        },
+      ],
+    });
 
     const balance = await getSupplierBalance(harness.ctx, {
       workspaceId: WORKSPACE_ID,

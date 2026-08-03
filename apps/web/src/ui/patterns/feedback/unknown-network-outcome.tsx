@@ -1,7 +1,8 @@
 "use client";
 
-import type { CommandIdentity } from "@/api/command-identity.ts";
+import type { CommandIdentity } from "@/ui/domain/command-state.ts";
 import { Button } from "@/ui/primitives/button.tsx";
+import { RequestCorrelation } from "./request-correlation.tsx";
 
 export type UnknownNetworkOutcomeProps = {
   /**
@@ -16,6 +17,7 @@ export type UnknownNetworkOutcomeProps = {
   readonly attemptedAction: string;
   readonly onResend: (identity: CommandIdentity) => void;
   readonly onCancel?: () => void;
+  readonly requestId?: string | null;
 };
 
 /**
@@ -43,6 +45,7 @@ export function UnknownNetworkOutcome({
   attemptedAction,
   onResend,
   onCancel,
+  requestId,
 }: UnknownNetworkOutcomeProps) {
   return (
     <div
@@ -65,10 +68,12 @@ export function UnknownNetworkOutcome({
         Lần gửi thứ {attempts}
         {/* The key is shown because it is the thing a support conversation needs,
             and because a visible key is one somebody would notice changing. */}
-        <span className="ml-2 font-mono" data-testid="idempotency-key">
+        <span className="ml-2 tabular" data-testid="idempotency-key">
           {identity.idempotencyKey}
         </span>
       </p>
+
+      <RequestCorrelation requestId={requestId} />
 
       <div className="flex flex-wrap justify-end gap-2">
         {onCancel !== undefined ? (

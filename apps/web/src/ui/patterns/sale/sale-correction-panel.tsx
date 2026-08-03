@@ -3,20 +3,26 @@
 import type { SaleVoidReasonCode } from "@vuarau/domain-contracts";
 import { useState } from "react";
 import { Button } from "@/ui/primitives/button.tsx";
+import { Checkbox } from "@/ui/primitives/checkbox.tsx";
+import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 
 export type SaleCorrectionSubmission = {
   readonly reasonCode: SaleVoidReasonCode;
   readonly reason: string;
   readonly replacement: boolean;
   readonly replacementCustomerId: string | null;
+  readonly evidenceReferences: readonly string[];
 };
 
 export type CorrectionCustomerOption = { readonly id: string; readonly displayName: string };
 
 export type SaleCorrectionPanelProps = {
   readonly onSubmit: (submission: SaleCorrectionSubmission) => void;
+  /** Whether canonical fulfilment proves a full goods-return void is truthful. */
+  readonly goodsReturnStatus?: "safe" | "blocked" | "unknown";
   readonly originalCustomerId?: string;
   readonly customerSearchQuery?: string;
   readonly customerMatches?: readonly CorrectionCustomerOption[];
@@ -27,7 +33,7 @@ export type SaleCorrectionPanelProps = {
 const REASON_OPTIONS = [
   { value: "wrong_amount", label: "Sai số tiền hoặc giá" },
   { value: "wrong_customer", label: "Sai khách hàng" },
-  { value: "goods_returned", label: "Hàng bị trả lại" },
+  { value: "goods_returned", label: "Toàn bộ hàng đã trả / bị từ chối" },
   { value: "duplicate_entry", label: "Ghi trùng đơn" },
   { value: "cancelled_by_customer", label: "Khách hủy đơn" },
   { value: "other", label: "Khác" },
@@ -40,6 +46,7 @@ const REASON_OPTIONS = [
  */
 export function SaleCorrectionPanel({
   onSubmit,
+  goodsReturnStatus = "unknown",
   originalCustomerId = "",
   customerSearchQuery = "",
   customerMatches = [],
@@ -51,8 +58,12 @@ export function SaleCorrectionPanel({
   const [replacement, setReplacement] = useState(false);
   const [reasonError, setReasonError] = useState<string | undefined>();
   const [replacementCustomerId, setReplacementCustomerId] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState("");
+
+  const goodsReturnUnavailable = reasonCode === "goods_returned" && goodsReturnStatus !== "safe";
 
   function submit(): void {
+    if (goodsReturnUnavailable) return;
     const trimmed = reason.trim();
     if (trimmed.length === 0) {
       setReasonError("Hãy ghi lý do điều chỉnh.");
@@ -63,7 +74,13 @@ export function SaleCorrectionPanel({
       return;
     }
     setReasonError(undefined);
-    onSubmit({ reasonCode, reason: trimmed, replacement, replacementCustomerId });
+    onSubmit({
+      reasonCode,
+      reason: trimmed,
+      replacement,
+      replacementCustomerId,
+      evidenceReferences: parseSourceEvidence(evidence),
+    });
   }
 
   return (
@@ -81,18 +98,35 @@ export function SaleCorrectionPanel({
           options={REASON_OPTIONS}
           disabled={disabled}
         />
+        {reasonCode === "goods_returned" && goodsReturnStatus === "blocked" ? (
+          <p
+            role="alert"
+            className="rounded-card border border-warning/30 bg-warning-soft p-3 text-body-sm"
+          >
+            Đơn vẫn còn hàng thực giao chưa trả hết. Không thể hoàn tác toàn bộ công nợ bằng lý do
+            này: hãy ghi đúng lượng hàng thực trả; hậu quả tiền của trả một phần đang chờ ASM-037.
+          </p>
+        ) : null}
+        {reasonCode === "goods_returned" && goodsReturnStatus === "unknown" ? (
+          <p
+            role="alert"
+            className="rounded-card border border-warning/30 bg-warning-soft p-3 text-body-sm"
+          >
+            Chưa xác minh được toàn bộ hàng đã về kho. Tải lại trạng thái giao hàng trước khi hoàn
+            tác toàn bộ công nợ.
+          </p>
+        ) : null}
         {reasonCode === "wrong_customer" && replacement ? (
           <div className="flex flex-col gap-2 rounded-card border border-border bg-surface-muted p-3">
             <label className="text-label font-semibold" htmlFor="replacement-customer-search">
               Khách hàng đúng
             </label>
-            <input
+            <Input
               id="replacement-customer-search"
               value={customerSearchQuery}
               onChange={(event) => onCustomerSearchChange(event.target.value)}
               placeholder="Tìm tên hoặc số điện thoại"
               disabled={disabled}
-              className="min-h-11 rounded-button border border-border bg-surface px-3 text-body"
             />
             {customerMatches.length > 0 ? (
               <ul className="flex flex-col gap-1" aria-label="Kết quả tìm kiếm khách hàng">
@@ -100,15 +134,16 @@ export function SaleCorrectionPanel({
                   .filter((customer) => customer.id !== originalCustomerId)
                   .map((customer) => (
                     <li key={customer.id}>
-                      <button
+                      <Button
+                        tone="secondary"
                         type="button"
                         onClick={() => setReplacementCustomerId(customer.id)}
                         disabled={disabled}
-                        className="w-full rounded-button px-2 py-2 text-left text-body hover:bg-surface"
+                        className="min-h-10 w-full justify-start px-2 py-2 text-left font-normal"
                         aria-pressed={replacementCustomerId === customer.id}
                       >
                         {customer.displayName}
-                      </button>
+                      </Button>
                     </li>
                   ))}
               </ul>
@@ -127,13 +162,19 @@ export function SaleCorrectionPanel({
           required
           disabled={disabled}
         />
+        <Textarea
+          label="Nguồn chứng cứ vận hành"
+          value={evidence}
+          onChange={(event) => setEvidence(event.target.value)}
+          hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."
+          disabled={disabled}
+        />
         <label className="flex items-start gap-2 text-body-sm text-ink">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={replacement}
             onChange={(event) => setReplacement(event.target.checked)}
             disabled={disabled}
-            className="mt-1 size-4 accent-leaf"
+            className="mt-1"
           />
           <span>
             <strong>Tạo đơn thay thế sau khi void</strong>
@@ -142,7 +183,7 @@ export function SaleCorrectionPanel({
             </span>
           </span>
         </label>
-        <Button tone="danger-solid" onClick={submit} disabled={disabled}>
+        <Button tone="danger-solid" onClick={submit} disabled={disabled || goodsReturnUnavailable}>
           {replacement ? "Void và tạo đơn thay thế" : "Xác nhận void"}
         </Button>
       </div>

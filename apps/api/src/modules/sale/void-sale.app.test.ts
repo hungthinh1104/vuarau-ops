@@ -29,6 +29,11 @@ import { postSale } from "./post-sale.handler.ts";
 import { voidSale } from "./void-sale.handler.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { getCustomerAccountBalance } from "../account/account.queries.ts";
+import {
+  createDeliveryDraft,
+  dispatchDelivery,
+  recordDeliveryReturn,
+} from "../delivery/delivery.handlers.ts";
 
 let harness: Harness;
 
@@ -98,7 +103,72 @@ const voidInput = (key: string, overrides: Record<string, unknown> = {}, actorId
   },
 });
 
+async function dispatchAndReturn(returnedScaled: number): Promise<void> {
+  const sourceLine = saleLineInputs[0]!;
+  const deliveryId = crypto.randomUUID();
+  const deliveryLineId = crypto.randomUUID();
+  const created = await createDeliveryDraft(harness.ctx, {
+    ...envelope(`delivery-create-${returnedScaled}`),
+    payload: {
+      deliveryId,
+      saleId: SALE_ID,
+      lines: [
+        {
+          deliveryLineId,
+          saleLineId: sourceLine.lineId,
+          productId: sourceLine.productId!,
+          qualityGradeId: sourceLine.qualityGradeId!,
+          quantity: { valueScaled: 10_000, unit: sourceLine.quantity.unit },
+        },
+      ],
+      note: null,
+    },
+  });
+  expect(created.ok).toBe(true);
+
+  const dispatched = await dispatchDelivery(harness.ctx, {
+    ...envelope(`delivery-dispatch-${returnedScaled}`),
+    expectedVersion: 1,
+    payload: { deliveryId },
+  });
+  expect(dispatched.ok).toBe(true);
+
+  const returned = await recordDeliveryReturn(harness.ctx, {
+    ...envelope(`delivery-return-${returnedScaled}`),
+    payload: {
+      returnId: crypto.randomUUID(),
+      deliveryId,
+      lines: [
+        {
+          deliveryLineId,
+          quantity: { valueScaled: returnedScaled, unit: sourceLine.quantity.unit },
+        },
+      ],
+      reason: "Khách trả hàng",
+    },
+  });
+  expect(returned.ok).toBe(true);
+}
+
 describe("BR-SALE-012 / TC-SALE-021", () => {
+  it("TC-EVIDENCE-002 — keeps correction evidence beside the compensation", async () => {
+    await postASale();
+    const result = await voidSale(
+      harness.ctx,
+      voidInput("void-with-evidence", {
+        evidenceReferences: ["return://customer/001", "note://correction/001"],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.voidRecord?.evidenceReferences).toEqual([
+      "return://customer/001",
+      "note://correction/001",
+    ]);
+    expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(0);
+  });
+
   it("offsets the posting exactly, leaving the customer owing nothing", async () => {
     await postASale();
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(SALE_TOTAL.amountMinor);
@@ -249,6 +319,45 @@ describe("BR-SALE-014 / TC-SALE-026", () => {
     expect(result.error.code).toBe("SALE_VOID_REASON_REQUIRED");
     expect(harness.db.saleVoids()).toHaveLength(0);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(SALE_TOTAL.amountMinor);
+  });
+});
+
+describe("BR-SALE-012 / BR-SALE-014 / TC-SALE-030 / ASM-037 goods-return boundary", () => {
+  it("refuses a goods-returned full void after only a partial physical return", async () => {
+    await postASale();
+    await dispatchAndReturn(3_000);
+
+    const result = await voidSale(
+      harness.ctx,
+      voidInput("partial-goods-return-void", {
+        reasonCode: "goods_returned",
+        reason: "Khách chỉ trả lại 3 kg",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "SALE_GOODS_RETURN_INCOMPLETE" },
+    });
+    expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(SALE_TOTAL.amountMinor);
+    expect(harness.db.saleVoids()).toHaveLength(0);
+  });
+
+  it("allows a goods-returned full void once all dispatched quantity has returned", async () => {
+    await postASale();
+    await dispatchAndReturn(10_000);
+
+    const result = await voidSale(
+      harness.ctx,
+      voidInput("full-goods-return-void", {
+        reasonCode: "goods_returned",
+        reason: "Khách trả lại toàn bộ hàng đã giao",
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(0);
+    expect(harness.db.saleVoids()).toHaveLength(1);
   });
 });
 

@@ -5,21 +5,35 @@ term appears in a use case or rule, it means what it means here.
 
 ## Business terms
 
-| Vietnamese         | English                 | Code identifier                      | Notes                                           |
-| ------------------ | ----------------------- | ------------------------------------ | ----------------------------------------------- |
-| vựa                | wholesale depot         | `Workspace`                          | One depot = one workspace = one tenant boundary |
-| chủ vựa            | depot owner             | `Actor` (role)                       | Roles are not modelled yet — see ASM-007        |
-| khách hàng         | customer                | `Customer`                           | The party that owes money                       |
-| đơn hàng           | sale                    | `Sale`                               | One completed sale to one customer              |
-| nháp               | draft                   | `SaleStatus.draft`                   | Being typed; changes nothing financially        |
-| chốt đơn           | post the sale           | `PostSale` command                   | The moment the receivable is created            |
-| công nợ            | debt owed by a customer | customer account ledger balance      | Never a stored editable number                  |
-| sổ nợ              | debt book               | `customer_account_entries`           | Append-only, the source of truth                |
-| thanh toán         | payment                 | `Payment`                            | Money received from or for a customer           |
-| trả một phần       | partial payment         | a `Payment` smaller than the balance | Not a distinct type                             |
-| huỷ thanh toán     | reverse a payment       | `ReverseCustomerPayment`             | Compensates; never deletes                      |
-| điều chỉnh công nợ | adjust debt manually    | `AdjustCustomerDebt`                 | Requires a stated reason                        |
-| lý do              | reason                  | `reason`, `reasonCode`               | Mandatory on adjustments and reversals          |
+| Vietnamese         | English                 | Code identifier                      | Notes                                                                                                                         |
+| ------------------ | ----------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| vựa                | wholesale depot         | `Workspace`                          | One depot = one workspace = one tenant boundary                                                                               |
+| chủ vựa            | depot owner             | `Actor` (role)                       | Workspace membership roles and permissions are modelled; the depot still validates the role table operationally (ASM-017/018) |
+| khách hàng         | customer                | `Customer`                           | The party that owes money                                                                                                     |
+| đơn hàng           | sale                    | `Sale`                               | One completed sale to one customer                                                                                            |
+| nháp               | draft                   | `SaleStatus.draft`                   | Being typed; changes nothing financially                                                                                      |
+| chốt đơn           | post the sale           | `PostSale` command                   | The moment the receivable is created                                                                                          |
+| công nợ            | debt owed by a customer | customer account ledger balance      | Never a stored editable number                                                                                                |
+| sổ nợ              | debt book               | `customer_account_entries`           | Append-only, the source of truth                                                                                              |
+| thanh toán         | payment                 | `Payment`                            | Money received from or for a customer                                                                                         |
+| trả một phần       | partial payment         | a `Payment` smaller than the balance | Not a distinct type                                                                                                           |
+| huỷ thanh toán     | reverse a payment       | `ReverseCustomerPayment`             | Compensates; never deletes                                                                                                    |
+| điều chỉnh công nợ | adjust debt manually    | `AdjustCustomerDebt`                 | Requires a stated reason                                                                                                      |
+| lý do              | reason                  | `reason`, `reasonCode`               | Mandatory on adjustments and reversals                                                                                        |
+
+## Goods classification terms
+
+| Vietnamese      | English          | Code / status        | Meaning here                                                                                                                       |
+| --------------- | ---------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| phẩm cấp        | commercial grade | `QualityGrade`       | Commercial classification attached to a physical quantity, e.g. Loại 1 / Loại 2 / Dạt. It is not Product identity.                 |
+| tình trạng hàng | condition        | `QualityInspection`  | Observed temporary condition is captured through inspection evidence; it is not a commercial grade.                                |
+| lỗi hàng        | defect           | `QualityIssueCode`   | Specific observed defect/degree is captured as an immutable issue snapshot; it is not a commercial grade.                          |
+| hướng xử lý     | disposition      | `QualityDisposition` | Operational outcome such as accepted, quarantined, rejected or disposed; Supplier claim/credit remains a separate policy workflow. |
+
+The current M25 system implements **commercial grade tracking plus inspected intake**.
+Whether every new quantity must have a grade and which authority may manage grades
+remain pilot gates ASM-032 and ASM-034. Supplier claims, credits and billable-
+quantity settlement remain ASM-033 policy work.
 
 ## Units (đơn vị tính)
 

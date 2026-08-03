@@ -9,6 +9,7 @@ export type PostSaleInput = {
   readonly command: PostSaleCommand;
   readonly sale: SaleState;
   readonly recordedAt: IsoInstant;
+  readonly qualityGradeRequired?: boolean;
 };
 
 /**
@@ -31,6 +32,7 @@ export function decidePostSale({
   command,
   sale,
   recordedAt,
+  qualityGradeRequired = true,
 }: PostSaleInput): DomainResult<Decision<SaleState>> {
   if (command.expectedVersion !== sale.version) {
     return err(
@@ -73,9 +75,9 @@ export function decidePostSale({
     );
   }
 
-  const ungradedLine = sale.lines.find(
-    (line) => line.qualityGradeId === null || line.qualityGradeName === null,
-  );
+  const ungradedLine = qualityGradeRequired
+    ? sale.lines.find((line) => line.qualityGradeId === null || line.qualityGradeName === null)
+    : undefined;
   if (ungradedLine !== undefined) {
     return err(
       "SALE_QUALITY_GRADE_REQUIRED",

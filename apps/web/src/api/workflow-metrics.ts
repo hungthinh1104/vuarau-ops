@@ -38,6 +38,9 @@ export const WORKFLOW_METRICS = [
   "historical_price_applied",
   "historical_price_changed_after_apply",
   "recalled_price_cleared_after_context_change",
+  "price_rule_applied_in_sale",
+  "price_rule_changed_after_apply",
+  "price_rule_cleared_after_context_change",
   "sale_detail_viewed",
 ] as const;
 

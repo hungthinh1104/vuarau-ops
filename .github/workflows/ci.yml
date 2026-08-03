@@ -54,27 +54,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # --- static checks -------------------------------------------------------
-      - name: Format
-        run: pnpm format
-
-      - name: Lint
-        run: pnpm lint
-
-      # Two invocations: the workspace, then `apps/web` with its own tsconfig.
-      # The browser project has different lib and JSX settings, so a type error
-      # there is invisible to the first one.
-      - name: Typecheck (workspace and web)
-        run: pnpm typecheck
-
-      - name: Architectural boundaries
-        run: pnpm boundary:check
-
-      - name: Documentation
-        run: pnpm docs:check
-
-      - name: Traceability
-        run: pnpm trace:check
+      # --- canonical static gate ----------------------------------------------
+      # Keep the static list in package.json. This includes context:test and
+      # docs:check:test, so CI cannot silently omit agent-retrieval regressions.
+      - name: Static checks
+        run: pnpm check:static
 
       # --- schema --------------------------------------------------------------
       - name: Apply migrations from scratch
@@ -97,6 +81,29 @@ jobs:
             echo "$drift"
             exit 1
           fi
+
+      # --- production-shape release evidence ----------------------------------
+      # Keep the million-row rehearsal out of the functional-test database. The
+      # performance script owns its fixed seed workspace and this database is
+      # disposable by construction.
+      - name: Create production-scale rehearsal database
+        run: createdb --host=localhost --port=5432 --username=postgres vuarau_perf
+        env:
+          PGPASSWORD: postgres
+
+      - name: Production-scale performance budgets
+        run: pnpm perf:production-scale
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/vuarau_perf
+
+      - name: Fresh migration and idempotent reapply rehearsal
+        run: pnpm rehearse:migrations
+
+      - name: Drop production-scale rehearsal database
+        if: always()
+        run: dropdb --if-exists --host=localhost --port=5432 --username=postgres vuarau_perf
+        env:
+          PGPASSWORD: postgres
 
       # --- every Vitest project ------------------------------------------------
       # Run separately rather than as `pnpm test`, so a red build names which
@@ -126,6 +133,11 @@ jobs:
       - name: Storybook build
         run: pnpm web:storybook
 
+      # E2E uses a separate production artifact with the test-only token bridge
+      # compiled in. The ordinary production build above remains bridge-free.
+      - name: Next production E2E build
+        run: pnpm web:e2e:build
+
       # --- the whole stack, through a browser ----------------------------------
       - name: Install Playwright browsers
         run: pnpm --filter @vuarau/web exec playwright install --with-deps chromium
@@ -150,4 +162,13 @@ jobs:
             apps/web/playwright-report
             apps/web/test-results
           retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload production UI performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-vitals-p75
+          path: apps/web/test-results/**/web-vitals-p75.json
+          retention-days: 14
           if-no-files-found: ignore

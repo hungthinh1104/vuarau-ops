@@ -152,8 +152,9 @@ integrity read before success. Infrastructure PITR remains a deployment concern.
 ### M15 — Product catalog (technical evidence complete)
 
 Product identity, lifecycle, cursor search, permissions, offline read cache and
-Sale snapshot integration are implemented. This does not authorize supplier,
-purchase, inventory, pricing or unit conversion work.
+Sale snapshot integration are implemented. Pricing rules are now a separate
+append-only catalogue slice; this does not authorize automatic pricing,
+valuation, supplier, purchase, inventory or unit-conversion policy.
 
 ### M16 — Supplier account (technical evidence complete)
 
@@ -170,9 +171,10 @@ physical quantity.
 ### M18 — Receiving and inventory movements (technical evidence complete)
 
 Partial Receipt capture, full reversal, over-receipt protection, immutable
-per-line movements, per-Product/unit projections, adjustments and reconciliation
-are implemented. Inbound Goods Truth is proven; outbound Sale fulfilment remains
-the explicit M19 boundary.
+per-line movements, the original per-Product/unit projections, adjustments and
+reconciliation were implemented. M23.8 later superseded the projection identity with
+Product/QualityGrade/unit. Inbound Goods Truth was the M18 boundary; outbound Sale
+fulfilment remained the explicit M19 boundary.
 
 ### M19 — Sale fulfilment and delivery (technical evidence complete)
 
@@ -262,10 +264,106 @@ source-backed reports.
 - H2–H6 criteria, P0–P3 stop rules, deployment/recovery evidence and support
   runbooks are frozen.
 
-Repository readiness is **PASS**. Pilot readiness remains **BLOCKED/PENDING** until
-the real Supabase A→B smoke, ASM-023/024/025, ASM-017/018, ASM-030, real-phone
-deployment and provider PITR/RPO/RTO/restore evidence are actually recorded. M24
-is not authorized.
+The repository-truth and critical-screen Storybook reconciliation is now technically
+closed: every critical screen in `docs/08-qa/ui-screen-coverage.md` has a shared
+presentation View and executable Storybook states. Repository readiness remains
+**PENDING** because M23.14–M23.17 still have to close business-use-case completeness
+and cross-dimension correction semantics; visual coverage is not product
+completeness.
+
+Pilot readiness is **BLOCKED/PENDING** until the real Supabase A→B smoke,
+ASM-023/024/025, ASM-017/018, ASM-030, ASM-032/033/034, ASM-035/036/037/038,
+real-phone deployment and provider PITR/RPO/RTO/restore evidence are actually
+recorded. M24 Cashbook and M25 inspected-intake code are technically implemented;
+they do not remove the remaining owner-policy, field-validation or deployment gates.
+
+#### M23.10–M23.13 — Repository truth, UI-state and quality gates (technical closure)
+
+- current code/contracts, data model and authoritative docs were reconciled;
+- the UI-state catalog and all critical operational screens have Storybook-backed
+  presentation states rather than component-only examples;
+- commercial Grade is explicitly bounded from Condition/Defect/inspection policy;
+- repository truth checks fail on API/data/docs/navigation/decision/UI drift.
+
+#### M23.14 — Use-case completeness audit (current)
+
+- evaluate actor × business event × money/goods/control effects rather than counting
+  procedures as product completeness;
+- decompose umbrella Supplier/Purchase/Receiving/Inventory/Delivery/Document/
+  Operations use cases only where actor goal or risk really differs;
+- classify each uncovered event as implemented, policy-blocked, missing/discovery,
+  or deliberately out-of-scope;
+- use `docs/02-use-cases/use-case-completeness-audit.md` as the working audit.
+
+#### M23.15 — Cross-dimension correction closure
+
+Resolve ASM-035–038 before feature implementation. Sale correction after Delivery,
+Purchase correction after Receiving, partial customer returns, and Supplier returns
+must preserve historical physical facts without manufacturing fake movements.
+A policy answer that changes canonical facts requires ADR/rule/case/test/restore
+review.
+
+#### M23.16 — Field-policy closure
+
+Close the owner/worker questions that can invalidate current pilot semantics:
+recognition moments, role table, Grade requirement, Receiving acceptance, Grade
+management authority, pricing precedence/adjustments, sensitive-action approval,
+delivery cash handling and cross-dimension corrections. The pilot declaration now
+carries explicit ASM-020, ASM-029 and UC-PRICING-001 review/stop gates; no
+seeded/default category counts as owner evidence.
+
+#### M23.17 — Full depot-day rehearsal
+
+Run a synthetic day through Supplier → Purchase → Receiving → Inventory → Sale →
+Delivery → Return → Payments/corrections → reports/reconciliation, including
+partial operations, unknown outcomes and mistakes. The rehearsal may only use
+business events the model can represent truthfully; a fake compensating movement
+to make a screen look complete is a failure.
+
+**Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V11 remain intact. This is not a generic rule builder.
+
+**Document/bill closure:** ADR-0023 and TC-DOCUMENT-003 implement a source-backed
+multi-day customer statement with server-derived opening/change/closing balances and
+print-ready authenticated/public presentation. This does not close the local
+“bông hàng” discovery question, multi-role authorization (ADR-0021), canonical
+lot/expiry traceability or Supplier claim/credit settlement.
+
+**Cashbook closure:** ADR-0025 separates physical cash location from debt/payable ledgers. CashAccount, Expense, Transfer, Adjustment, exact reversals, rebuild, reconciliation and Backup V11 evidence are implemented. Operational close and bank-statement evidence remain separate next-phase facts; no statement match changes debt by itself.
+
+**Inspected-intake closure:** ADR-0026 implements GoodsArrival → optional gross/tare/net → QualityInspection → QualityDisposition. Only accepted allocations create inventory; quarantine may be resolved through an explicit child disposition; correction is downstream-first and Backup V11 preserves the complete lineage. Supplier claims/credits, general lot/expiry and “bông hàng” remain outside this milestone, while raw claim/quality evidence can be captured later without changing payable.
+
+**Repository evidence:** `TC-OPS-015` runs the complete application command chain
+with partial Delivery/Return, customer and Supplier payments, exact-identity retry,
+blocked cross-dimension corrections, reports and three reconciliations. Disposable
+PostgreSQL/browser execution and worker observation remain release/field gates; this
+test does not claim either.
+
+### Evidence capture foundation — first slice delivered, remainder pending
+
+The configurable operating model in [ADR-0027](../09-decisions/ADR-0027-configurable-fresh-produce-operating-model.md)
+opens a narrow additive slice before management intelligence. The first
+workspace-scoped `CostObservation` slice and the second
+`ReconciliationObservation` and `DebtObservation` slices now capture source-linked facts with exact
+amounts/quantities, separate expected/observed values, debt terms, read, idempotent retry and
+logical backup/restore coverage. Promised/arrived/accepted
+quantities, generic stocktake counts, bank statement matching and Supplier
+relationship/performance observations remain pending. New records must
+carry actor and transaction/recorded time, remain append-only or explicitly
+superseding, and survive backup/restore.
+
+The delivered slice is still not a COGS/profit implementation. It must not create
+COGS, overdue aging, reorder risk, supplier scores or AI advice. Each remaining
+fact will be added as a small traced slice with in-memory, PostgreSQL and recovery
+evidence.
+
+### Next phase — policy closure before management intelligence (blocked)
+
+The decision-operating-system phase cannot begin with COGS, aging, reorder,
+Supplier scoring, recommendations or AI. ASM-039–048 must first be answered with
+field examples and recorded evidence. The [policy-closure worksheet](../09-decisions/policy-closure-worksheet.md)
+is the field instrument; until then these capabilities remain explicitly
+policy-blocked and current canonical transaction/report surfaces remain the only
+available truth.
 
 | Horizon                               | Milestones                                                                | Gate                                                                                   |
 | ------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |

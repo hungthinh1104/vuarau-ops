@@ -20,7 +20,9 @@ import {
   products,
   qualityGrades,
   workspaces,
+  workspaceMembershipRoles,
   workspaceMemberships,
+  workspaceOperationalProfiles,
 } from "../schema/index.ts";
 
 /**
@@ -32,6 +34,22 @@ import {
  */
 export const DATABASE_URL = process.env["DATABASE_URL"];
 export const hasDatabase = DATABASE_URL !== undefined && DATABASE_URL.length > 0;
+
+function isDisposableTestDatabase(url: string | undefined): boolean {
+  if (url === undefined || url.length === 0) return false;
+  const parsed = new URL(url);
+  const databaseName = parsed.pathname.replace(/^\//, "");
+  return (
+    ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname) && databaseName.endsWith("_test")
+  );
+}
+
+if (process.env["NODE_ENV"] === "test" && hasDatabase && !isDisposableTestDatabase(DATABASE_URL)) {
+  throw new Error(
+    "Database tests require a disposable local database whose name ends with _test; " +
+      "refusing to run against a development or remote DATABASE_URL.",
+  );
+}
 
 /** GitHub Actions sets `CI=true`; so does every other runner worth naming. */
 const inCi = (process.env["CI"] ?? "").length > 0 && process.env["CI"] !== "false";
@@ -139,6 +157,9 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
     { id: workspaceId, name: `test:${seedName}` },
     { id: foreignWorkspaceId, name: `test:${seedName}:foreign` },
   ]);
+  await database.db
+    .insert(workspaceOperationalProfiles)
+    .values([{ workspaceId }, { workspaceId: foreignWorkspaceId }]);
 
   const allActors: Array<{ id: ActorId; label: string }> = [
     ...Object.entries(roleActors).map(([role, id]) => ({ id, label: `${seedName}:${role}` })),
@@ -164,6 +185,26 @@ export async function createDbTestContext(seedName: string): Promise<DbTestConte
     { workspaceId, actorId: revokedActorId, role: "owner" as const, isActive: false },
     // Full rights, but in a different depot entirely.
     { workspaceId: foreignWorkspaceId, actorId: foreignActorId, role: "owner" as const },
+  ]);
+  await database.db.insert(workspaceMembershipRoles).values([
+    ...Object.entries(roleActors).map(([role, id]) => ({
+      workspaceId,
+      actorId: id,
+      role: role as WorkspaceRole,
+      assignedBy: roleActors.owner,
+    })),
+    {
+      workspaceId,
+      actorId: revokedActorId,
+      role: "owner" as const,
+      assignedBy: roleActors.owner,
+    },
+    {
+      workspaceId: foreignWorkspaceId,
+      actorId: foreignActorId,
+      role: "owner" as const,
+      assignedBy: foreignActorId,
+    },
   ]);
   await database.db.insert(customers).values({
     id: customerId,

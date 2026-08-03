@@ -1,5 +1,6 @@
 import type { Repositories } from "../../ports.ts";
 import type { IsoInstant } from "@vuarau/domain-contracts";
+import { normalizeWorkspaceRoles, primaryWorkspaceRole } from "@vuarau/domain-contracts";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
 
@@ -8,6 +9,19 @@ export const createWorkspaceRepositories = (
 ): Pick<Repositories, "workspaces" | "actors"> => ({
   workspaces: {
     findName: async (workspaceId) => store.workspaceNames.get(workspaceId) ?? null,
+    findOperationalProfile: async (workspaceId) =>
+      store.operationalProfiles.get(workspaceId) ?? null,
+    updateOperationalProfile: async (profile, expectedVersion) => {
+      const current = store.operationalProfiles.get(profile.workspaceId);
+      if (current === undefined) {
+        if (expectedVersion !== 1) return false;
+        store.operationalProfiles.set(profile.workspaceId, { ...profile });
+        return true;
+      }
+      if (current.version !== expectedVersion) return false;
+      store.operationalProfiles.set(profile.workspaceId, { ...profile });
+      return true;
+    },
     // Returns inactive memberships too — the same semantics as the Drizzle
     // implementation, which this deliberately mirrors. Before Milestone 1 the
     // two disagreed about `is_active` and no application test could have
@@ -19,7 +33,7 @@ export const createWorkspaceRepositories = (
       [...store.memberships.values()].filter(
         (membership) =>
           membership.workspaceId === workspaceId &&
-          membership.role === "owner" &&
+          membership.roles.includes("owner") &&
           membership.isActive,
       ).length,
 
@@ -45,25 +59,38 @@ export const createWorkspaceRepositories = (
             : a.displayName.localeCompare(b.displayName),
         ),
 
-    addMembership: async (workspaceId, actorId, role) => {
+    addMembership: async (workspaceId, actorId, inputRoles) => {
+      const roles = normalizeWorkspaceRoles(inputRoles);
       const membershipKey = key(workspaceId, actorId);
       if (store.memberships.has(membershipKey)) return false;
       store.memberships.set(membershipKey, {
         workspaceId,
         actorId,
-        role,
+        role: primaryWorkspaceRole(roles),
+        roles,
         isActive: true,
         createdAt: "2026-01-01T00:00:00.000Z" as IsoInstant,
       });
       return true;
     },
 
-    changeMembershipRole: async (workspaceId, actorId, expectedRole, role) => {
+    changeMembershipRoles: async (workspaceId, actorId, expectedRoles, inputRoles) => {
       const membershipKey = key(workspaceId, actorId);
       const membership = store.memberships.get(membershipKey);
-      if (membership === undefined || !membership.isActive || membership.role !== expectedRole)
+      if (membership === undefined || !membership.isActive) return false;
+      const current = normalizeWorkspaceRoles(membership.roles);
+      const expected = normalizeWorkspaceRoles(expectedRoles);
+      if (
+        current.length !== expected.length ||
+        !current.every((role, index) => role === expected[index])
+      )
         return false;
-      store.memberships.set(membershipKey, { ...membership, role });
+      const roles = normalizeWorkspaceRoles(inputRoles);
+      store.memberships.set(membershipKey, {
+        ...membership,
+        role: primaryWorkspaceRole(roles),
+        roles,
+      });
       return true;
     },
 
@@ -99,6 +126,7 @@ export const createWorkspaceRepositories = (
                   workspaceId: membership.workspaceId,
                   workspaceName,
                   role: membership.role,
+                  roles: membership.roles,
                 },
               ];
         })

@@ -1,11 +1,16 @@
-import type { IsoInstant, RevokeWorkspaceMembershipCommand } from "@vuarau/domain-contracts";
+import type {
+  IsoInstant,
+  RevokeWorkspaceMembershipCommand,
+  WorkspaceRole,
+} from "@vuarau/domain-contracts";
+import { normalizeWorkspaceRoles } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
 
 export type MembershipFacts = {
   readonly actorId: string;
-  readonly role: string;
+  readonly roles: readonly WorkspaceRole[];
   readonly isActive: boolean;
 };
 
@@ -57,13 +62,14 @@ export function decideRevokeMembership({
     });
   }
 
-  if (membership.role === "owner" && activeOwnerCount <= 1) {
+  if (membership.roles.includes("owner") && activeOwnerCount <= 1) {
     return err("WORKSPACE_LAST_OWNER", "A workspace must keep at least one active owner.", {
       actorId: membership.actorId,
       activeOwnerCount,
     });
   }
 
+  const roles = normalizeWorkspaceRoles(membership.roles);
   return ok({
     actorId: membership.actorId,
     audit: {
@@ -72,8 +78,8 @@ export function decideRevokeMembership({
       action: "membership.revoked",
       transactionTime: command.occurredAt,
       recordedAt,
-      before: { isActive: true, role: membership.role },
-      after: { isActive: false, role: membership.role },
+      before: { isActive: true, roles },
+      after: { isActive: false, roles },
       reason: command.payload.reason,
     },
   });

@@ -40,6 +40,7 @@ export const sales = pgTable(
     /** Always the sum of the line totals (BR-SALE-001); never client-supplied. */
     totalAmountMinor: bigint("total_amount_minor", { mode: "number" }).notNull(),
     note: text("note"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     version: integer("version").notNull(),
     /** When the sale happened. Drives aging. */
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
@@ -131,6 +132,7 @@ export const saleVoids = pgTable(
     reasonCode: saleVoidReasonCodeEnum("reason_code").notNull(),
     /** Mandatory free text. What the person disputing a balance actually needs. */
     reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     /** The full posted total, copied from the sale — never supplied by a caller. */
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),

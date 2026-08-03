@@ -22,7 +22,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
     // A correction replacement is posted by its void-authorized correcting
     // actor. An ordinary sale still requires the normal sales-post permission.
     requiredPermission: "sale.read",
-    execute: async ({ command, repos, recordedAt, membership }) => {
+    execute: async ({ command, repos, recordedAt, membership, operationalProfile }) => {
       const sale = await repos.sales.findByIdForUpdate(command.workspaceId, command.payload.saleId);
       if (sale === null) {
         return err("SALE_NOT_FOUND", "No such sale in this workspace.", {
@@ -31,7 +31,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
       }
 
       if (sale.replacesSaleId === null) {
-        if (!roleHasPermission(membership.role, "sale.post")) {
+        if (!roleHasPermission(membership.roles, "sale.post")) {
           return err("PERMISSION_DENIED", "Your role cannot post a sale.", {
             workspaceId: command.workspaceId,
             permission: "sale.post",
@@ -39,7 +39,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
           });
         }
       } else {
-        if (!roleHasPermission(membership.role, "sale.void")) {
+        if (!roleHasPermission(membership.roles, "sale.void")) {
           return err("PERMISSION_DENIED", "Your role cannot post a correction replacement.", {
             workspaceId: command.workspaceId,
             permission: "sale.void",
@@ -103,46 +103,54 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
             },
           );
         }
-        if (line.qualityGradeId === null || line.qualityGradeName === null) {
+        if (operationalProfile.qualityGradeMode === "required") {
+          if (line.qualityGradeId === null || line.qualityGradeName === null) {
+            return err(
+              "SALE_QUALITY_GRADE_REQUIRED",
+              "This depot requires a quality grade on every posted Sale line.",
+              { saleId: sale.id, lineId: line.lineId },
+            );
+          }
+          const grade = await repos.qualityGrades.findById(
+            command.workspaceId,
+            line.qualityGradeId,
+          );
+          if (grade === null) {
+            return err(
+              "SALE_QUALITY_GRADE_NOT_FOUND",
+              "A Sale line references a quality grade outside this workspace or no longer present.",
+              { saleId: sale.id, lineId: line.lineId, qualityGradeId: line.qualityGradeId },
+            );
+          }
+          if (!grade.isActive) {
+            return err("SALE_QUALITY_GRADE_INACTIVE", "An inactive grade cannot be posted.", {
+              saleId: sale.id,
+              lineId: line.lineId,
+              qualityGradeId: line.qualityGradeId,
+            });
+          }
+          if (grade.name !== line.qualityGradeName) {
+            return err(
+              "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
+              "The Sale line no longer matches the selected quality grade.",
+              { saleId: sale.id, lineId: line.lineId, qualityGradeId: line.qualityGradeId },
+            );
+          }
+        } else if (line.qualityGradeId !== null || line.qualityGradeName !== null) {
           return err(
-            "SALE_QUALITY_GRADE_REQUIRED",
-            "Every Sale line must select a quality grade before posting.",
+            "QUALITY_GRADE_NOT_USED",
+            "This depot does not classify new quantities by commercial grade.",
             { saleId: sale.id, lineId: line.lineId },
-          );
-        }
-        const grade = await repos.qualityGrades.findById(command.workspaceId, line.qualityGradeId);
-        if (grade === null) {
-          return err(
-            "SALE_QUALITY_GRADE_NOT_FOUND",
-            "A Sale line references a quality grade outside this workspace or no longer present.",
-            {
-              saleId: sale.id,
-              lineId: line.lineId,
-              qualityGradeId: line.qualityGradeId,
-            },
-          );
-        }
-        if (!grade.isActive) {
-          return err("SALE_QUALITY_GRADE_INACTIVE", "An inactive grade cannot be posted.", {
-            saleId: sale.id,
-            lineId: line.lineId,
-            qualityGradeId: line.qualityGradeId,
-          });
-        }
-        if (grade.name !== line.qualityGradeName) {
-          return err(
-            "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
-            "The Sale line no longer matches the selected quality grade.",
-            {
-              saleId: sale.id,
-              lineId: line.lineId,
-              qualityGradeId: line.qualityGradeId,
-            },
           );
         }
       }
 
-      const decision = decidePostSale({ command, sale, recordedAt });
+      const decision = decidePostSale({
+        command,
+        sale,
+        recordedAt,
+        qualityGradeRequired: operationalProfile.qualityGradeMode === "required",
+      });
       if (!decision.ok) {
         return decision;
       }

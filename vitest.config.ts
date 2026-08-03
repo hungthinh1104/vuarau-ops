@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { sharedTestConfig } from "./packages/config/vitest.shared.ts";
@@ -63,6 +64,11 @@ export default defineConfig({
       },
       {
         plugins: [react()],
+        resolve: {
+          alias: {
+            "@": fileURLToPath(new URL("./apps/web/src", import.meta.url)),
+          },
+        },
         test: {
           ...sharedTestConfig,
           name: "web",

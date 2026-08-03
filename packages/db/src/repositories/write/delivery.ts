@@ -33,6 +33,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
           saleId: delivery.saleId,
           status: delivery.status,
           note: delivery.note,
+          evidenceReferences: [...delivery.evidenceReferences],
           cancellationReason: delivery.cancellationReason,
           version: delivery.version,
           transactionTime: fromIso(delivery.transactionTime),
@@ -66,6 +67,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
         .set({
           status: delivery.status,
           note: delivery.note,
+          evidenceReferences: [...delivery.evidenceReferences],
           cancellationReason: delivery.cancellationReason,
           version: delivery.version,
           recordedAt: fromIso(delivery.recordedAt),
@@ -115,6 +117,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
           workspaceId: record.workspaceId,
           deliveryId: record.deliveryId,
           reason: record.reason,
+          evidenceReferences: [...record.evidenceReferences],
           transactionTime: fromIso(record.transactionTime),
           recordedAt: fromIso(record.recordedAt),
           actorId: record.actorId,

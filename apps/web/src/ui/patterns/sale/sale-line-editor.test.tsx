@@ -1,9 +1,123 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { PriceResolutionDto, PriceRuleDto } from "@vuarau/domain-contracts";
 import { calculateLineTotal } from "@vuarau/domain-contracts";
+import {
+  ACTOR_ID,
+  PRODUCT_CA_CHUA_ID,
+  QUALITY_GRADE_1_ID,
+  WORKSPACE_ID,
+} from "@vuarau/test-fixtures/ids";
+import { RECORDED_AT } from "@vuarau/test-fixtures/time";
 import { SaleLineEditor, emptyLine, resolveLine } from "./sale-line-editor.tsx";
 import { ACCEPTANCE_TARGETS, WORKFLOW_METRICS } from "@/api/workflow-metrics.ts";
+import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
+
+/**
+ * TC-WEB-024 — keyboard/focus sequence hardening for Quick Sale.
+ */
+describe("TC-WEB-024 — keyboard/focus sequence", () => {
+  const readyLine = () => ({
+    ...emptyLine("l1"),
+    productId: PRODUCT_CA_CHUA_ID,
+    productName: "Cà chua",
+    qualityGradeId: QUALITY_GRADE_1_ID,
+    qualityGradeName: "Loại 1",
+    quantityText: "12,5",
+    unit: "kg" as const,
+    unitPriceText: "18.000",
+  });
+
+  const baseProps = {
+    index: 0,
+    issues: {},
+    canRemove: false,
+    qualityGradeOptions: [{ value: QUALITY_GRADE_1_ID, label: "Loại 1" }],
+    onRemove: () => undefined,
+  } as const;
+
+  it("moves Product Enter to the required quality-grade control", async () => {
+    const user = userEvent.setup();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        line={{ ...readyLine(), qualityGradeId: null, qualityGradeName: null }}
+        onChange={() => undefined}
+      />,
+    );
+
+    await user.click(screen.getByLabelText(/Mặt hàng/));
+    await user.keyboard("[Enter]");
+
+    expect(screen.getByLabelText(/Phân hạng chất lượng/)).toHaveFocus();
+  });
+
+  it("moves to quantity only after a quality grade is actually selected", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        line={{ ...readyLine(), qualityGradeId: null, qualityGradeName: null }}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: /Phân hạng chất lượng/ }));
+    await user.click(await screen.findByRole("option", { name: "Loại 1" }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        qualityGradeId: QUALITY_GRADE_1_ID,
+        qualityGradeName: "Loại 1",
+      }),
+      "qualityGrade",
+    );
+    expect(screen.getByLabelText(/Số lượng/)).toHaveFocus();
+  });
+
+  it("advances from price when the line is fully fulfilment-ready", async () => {
+    const user = userEvent.setup();
+    const onAdvance = vi.fn();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        line={readyLine()}
+        onChange={() => undefined}
+        onAdvance={onAdvance}
+      />,
+    );
+
+    await user.click(screen.getByLabelText(/Đơn giá/));
+    await user.keyboard("[Enter]");
+
+    expect(onAdvance).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["catalog product identity is missing", { productId: null }],
+    ["quality grade is missing", { qualityGradeId: null, qualityGradeName: null }],
+    ["quantity is invalid", { quantityText: "0" }],
+    ["unit price is invalid", { unitPriceText: "-1" }],
+  ])("does not advance when %s", async (_label, override) => {
+    const user = userEvent.setup();
+    const onAdvance = vi.fn();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        line={{ ...readyLine(), ...override }}
+        onChange={() => undefined}
+        onAdvance={onAdvance}
+      />,
+    );
+
+    await user.click(screen.getByLabelText(/Đơn giá/));
+    await user.keyboard("[Enter]");
+
+    expect(onAdvance).not.toHaveBeenCalled();
+  });
+});
 
 /**
  * TC-WEB-021 — a sale line resolves to integers, or says which field is wrong.
@@ -77,6 +191,11 @@ describe("TC-WEB-022 — the line editor", () => {
     expect(screen.getByText("225.000 ₫")).toBeInTheDocument();
   });
 
+  it("shows the selected unit once when quantity and unit selector sit together", () => {
+    render(<SaleLineEditor {...base} onChange={() => undefined} onRemove={() => undefined} />);
+    expect(screen.getAllByText("kg")).toHaveLength(1);
+  });
+
   it("attaches a server refusal to this row, as an alert", () => {
     render(
       <SaleLineEditor
@@ -137,7 +256,7 @@ describe("TC-WEB-022 — the line editor", () => {
     );
     expect(screen.getByLabelText(/Phân hạng chất lượng/)).toHaveValue("");
     await userEvent.click(screen.getByRole("combobox", { name: /Phân hạng chất lượng/ }));
-    await userEvent.click(screen.getByRole("option", { name: "Loại 1" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Loại 1" }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         qualityGradeId: "grade-1",
@@ -159,6 +278,108 @@ describe("TC-WEB-022 — the line editor", () => {
       expect(button.getAttribute("type")).toBe("button");
     }
     expect(container.querySelector("form")).toBeNull();
+  });
+});
+
+describe("TC-WEB-025 — price rule resolution states", () => {
+  const line = {
+    ...emptyLine("l1"),
+    productId: PRODUCT_CA_CHUA_ID,
+    productName: "Cà chua",
+    qualityGradeId: QUALITY_GRADE_1_ID,
+    qualityGradeName: "Loại 1",
+    quantityText: "12",
+    unit: "kg" as const,
+    unitPriceText: "18.000",
+  };
+  const selectedRule: PriceRuleDto = {
+    id: "00000000-0000-4000-8000-0000000000aa" as PriceRuleDto["id"],
+    workspaceId: WORKSPACE_ID,
+    productId: PRODUCT_CA_CHUA_ID,
+    qualityGradeId: QUALITY_GRADE_1_ID,
+    customerId: null,
+    unit: "kg",
+    kind: "list",
+    priority: 10,
+    minimumQuantityScaled: 0,
+    effectiveFrom: RECORDED_AT,
+    effectiveTo: null,
+    baseUnitPrice: { amountMinor: 18_000, currency: "VND" },
+    discountPerUnit: { amountMinor: 0, currency: "VND" },
+    feePerUnit: { amountMinor: 0, currency: "VND" },
+    finalUnitPrice: { amountMinor: 18_000, currency: "VND" },
+    reason: "Giá sỉ",
+    actorId: ACTOR_ID,
+    commandId: "00000000-0000-4000-8000-0000000000ab" as PriceRuleDto["commandId"],
+    recordedAt: RECORDED_AT,
+  };
+  const query = (data: PriceResolutionDto): QueryLike<PriceResolutionDto> => ({
+    isPending: false,
+    isError: false,
+    error: null,
+    data,
+  });
+  const baseProps = {
+    line,
+    index: 0,
+    issues: {},
+    canRemove: false,
+    qualityGradeOptions: [{ value: QUALITY_GRADE_1_ID, label: "Loại 1" }],
+    onChange: () => undefined,
+    onRemove: () => undefined,
+  } as const;
+
+  it("offers the selected rule without applying it automatically", async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        priceResolution={query({
+          status: "selected",
+          selected: selectedRule,
+          candidates: [selectedRule],
+        })}
+        onApplyPriceRule={onApply}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("18.000 ₫");
+    expect(screen.getByRole("button", { name: "Dùng giá rule này" })).toBeInTheDocument();
+    expect(onApply).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Dùng giá rule này" }));
+    expect(onApply).toHaveBeenCalledOnce();
+  });
+
+  it("keeps manual pricing when no rule matches", () => {
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        priceResolution={query({ status: "none", selected: null, candidates: [] })}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Chưa có rule giá phù hợp");
+    expect(screen.queryByRole("button", { name: "Dùng giá rule này" })).toBeNull();
+  });
+
+  it("does not choose between rules with equal precedence", () => {
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        priceResolution={query({
+          status: "ambiguous",
+          selected: null,
+          candidates: [
+            selectedRule,
+            { ...selectedRule, id: "00000000-0000-4000-8000-0000000000ac" as PriceRuleDto["id"] },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("không tự chọn");
+    expect(screen.queryByRole("button", { name: "Dùng giá rule này" })).toBeNull();
   });
 });
 
@@ -191,6 +412,9 @@ describe("TC-WEB-023 — workflow metrics", () => {
       "historical_price_applied",
       "historical_price_changed_after_apply",
       "recalled_price_cleared_after_context_change",
+      "price_rule_applied_in_sale",
+      "price_rule_changed_after_apply",
+      "price_rule_cleared_after_context_change",
       "sale_detail_viewed",
     ]);
 

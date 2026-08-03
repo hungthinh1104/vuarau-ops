@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { and, eq } from "drizzle-orm";
 import type { ActorId, WorkspaceId, WorkspaceRole } from "@vuarau/domain-contracts";
+import { normalizeWorkspaceRoles, primaryWorkspaceRole } from "@vuarau/domain-contracts";
 import type { Database } from "./client.ts";
 import {
   actors,
@@ -11,6 +12,7 @@ import {
   products,
   qualityGrades,
   workspaces,
+  workspaceMembershipRoles,
   workspaceMemberships,
 } from "./schema/index.ts";
 
@@ -120,6 +122,7 @@ export type WorkspaceMember = {
   readonly actorId: ActorId;
   readonly displayName: string;
   readonly role: WorkspaceRole;
+  readonly roles: readonly WorkspaceRole[];
   readonly isActive: boolean;
 };
 
@@ -128,23 +131,41 @@ export async function listMembers(
   database: Database,
   workspaceId: WorkspaceId,
 ): Promise<readonly WorkspaceMember[]> {
-  const rows = await database.db
-    .select({
-      actorId: workspaceMemberships.actorId,
-      displayName: actors.displayName,
-      role: workspaceMemberships.role,
-      isActive: workspaceMemberships.isActive,
-    })
-    .from(workspaceMemberships)
-    .innerJoin(actors, eq(actors.id, workspaceMemberships.actorId))
-    .where(eq(workspaceMemberships.workspaceId, workspaceId));
+  const [rows, roleRows] = await Promise.all([
+    database.db
+      .select({
+        actorId: workspaceMemberships.actorId,
+        displayName: actors.displayName,
+        role: workspaceMemberships.role,
+        isActive: workspaceMemberships.isActive,
+      })
+      .from(workspaceMemberships)
+      .innerJoin(actors, eq(actors.id, workspaceMemberships.actorId))
+      .where(eq(workspaceMemberships.workspaceId, workspaceId)),
+    database.db
+      .select({ actorId: workspaceMembershipRoles.actorId, role: workspaceMembershipRoles.role })
+      .from(workspaceMembershipRoles)
+      .where(eq(workspaceMembershipRoles.workspaceId, workspaceId)),
+  ]);
+  const grouped = new Map<ActorId, WorkspaceRole[]>();
+  for (const row of roleRows) {
+    const actorId = row.actorId as ActorId;
+    const roles = grouped.get(actorId) ?? [];
+    roles.push(row.role);
+    grouped.set(actorId, roles);
+  }
 
-  return rows.map((row) => ({
-    actorId: row.actorId as ActorId,
-    displayName: row.displayName,
-    role: row.role,
-    isActive: row.isActive,
-  }));
+  return rows.map((row) => {
+    const actorId = row.actorId as ActorId;
+    const roles = normalizeWorkspaceRoles(grouped.get(actorId) ?? [row.role]);
+    return {
+      actorId,
+      displayName: row.displayName,
+      role: primaryWorkspaceRole(roles),
+      roles,
+      isActive: row.isActive,
+    };
+  });
 }
 
 export type CustomerCensus = {

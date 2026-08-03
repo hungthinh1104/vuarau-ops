@@ -22,7 +22,10 @@ Every link is declared in [trace-map.yml](trace-map.yml) and verified by
 | `T-<AGG>-NNN`     | State transition      | `docs/03-state-machines/transition-catalog.md` |
 | `ASM-NNN`         | Recorded assumption   | `docs/09-decisions/decision-backlog.md`        |
 
-Areas: `CUSTOMER`, `ORDER`, `PAYMENT`, `DEBT`, `COMMAND`.
+Areas follow current bounded contexts, including `AUTH`, `CUSTOMER`, `SALE`,
+`PAYMENT`, `ACCOUNT`, `PRODUCT`, `QUALITY`, `SUPPLIER`, `PURCHASE`, `RECEIVING`,
+`INVENTORY`, `DELIVERY`, `DOCUMENT`, `REPORT`, `OPERATIONS`, `COMMAND` and `AUDIT`.
+Retired `ORDER`/`DEBT` identifiers remain burned and are never reused.
 
 **IDs are never reused.** Renaming a rule keeps its ID. Retiring one marks it
 deprecated in place; the number is burned.
@@ -39,7 +42,10 @@ describe("BR-PAYMENT-003 / TC-PAYMENT-007", () => {
 
 `trace-check.ts` scans every `*.test.ts` for `TC-*` and `BR-*` tokens and
 cross-references them with the trace map. Both directions are checked: a test
-naming an unknown rule fails, and a P0 rule named by no test fails.
+naming an unknown rule fails, a P0 rule named by no test fails, a normative UC/BR
+defined in docs but omitted from the map fails, and a current business rule that
+belongs to no use case fails. This prevents a green trace report from merely
+proving the subset somebody remembered to register.
 
 ## What `trace-check.ts` fails on
 
@@ -51,6 +57,9 @@ naming an unknown rule fails, and a P0 rule named by no test fails.
 6. A use case has no business rule.
 7. A business rule has neither a case nor a test.
 8. An ID is declared in the map but its documentation file does not contain it.
+9. A normative `UC-*`/`BR-*` definition exists in the use-case/business-rule docs
+   but is absent from the trace map.
+10. A current business rule is not claimed by any use case.
 
 It is intentionally not a requirements-management platform. It answers one
 question — _are these links real?_ — in about 250 lines.

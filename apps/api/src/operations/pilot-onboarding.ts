@@ -9,7 +9,7 @@ import {
   listWorkspaces,
 } from "@vuarau/db";
 import type { ActorId, AuditRecordId, CommandId, WorkspaceId } from "@vuarau/domain-contracts";
-import { permissionsForRole, workspaceIdSchema } from "@vuarau/domain-contracts";
+import { permissionsForRoles, workspaceIdSchema } from "@vuarau/domain-contracts";
 import { randomIdGenerator, systemClock } from "../infrastructure/clock.ts";
 import { deterministicUuid } from "../infrastructure/deterministic-id.ts";
 import type { CommandContext, CommandDeps } from "../modules/shared/command-pipeline.ts";
@@ -206,8 +206,8 @@ async function runReview(database: Db, flags: Flags): Promise<void> {
   }
   for (const member of members) {
     console.warn(
-      `${member.actorId}  ${member.role}  ${member.isActive ? "active" : "revoked"}\n` +
-        `  permissions: ${permissionsForRole(member.role).join(", ")}`,
+      `${member.actorId}  ${member.roles.join("+")}  ${member.isActive ? "active" : "revoked"}\n` +
+        `  permissions: ${permissionsForRoles(member.roles).join(", ")}`,
     );
   }
 }

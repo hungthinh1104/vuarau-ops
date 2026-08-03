@@ -6,7 +6,9 @@ import type {
   PurchaseLineInput,
   UpdatePurchaseDraftCommand,
   VoidPurchaseCommand,
+  Capability,
 } from "@vuarau/domain-contracts";
+import { ALLOWED, denied } from "@vuarau/domain-contracts";
 import { calculateLineTotal, isExactMoneyAmount } from "@vuarau/domain-contracts";
 import type { PurchaseLineState, PurchaseState, PurchaseVoidState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
@@ -62,6 +64,7 @@ export function decideCreatePurchaseDraft(
     lines: lines.value,
     totalAmount: total(lines.value, command.payload.currency),
     note: command.payload.note?.trim() || null,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     dueAt: command.payload.dueAt,
     version: 1,
     transactionTime: command.occurredAt,
@@ -93,6 +96,7 @@ export function decideUpdatePurchaseDraft(
     lines: lines.value,
     totalAmount: total(lines.value, command.payload.currency),
     note: command.payload.note?.trim() || null,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     dueAt: command.payload.dueAt,
     version: current.version + 1,
     recordedAt,
@@ -142,6 +146,16 @@ export function decideConfirmPurchase(
   });
 }
 
+export function canVoidPurchase(args: {
+  readonly purchase: PurchaseState;
+  readonly hasActiveReceipts: boolean;
+}): Capability {
+  if (args.purchase.status !== "confirmed") return denied("PURCHASE_NOT_CONFIRMED");
+  if (args.purchase.voidRecord !== null) return denied("PURCHASE_ALREADY_VOIDED");
+  if (args.hasActiveReceipts) return denied("PURCHASE_HAS_ACTIVE_RECEIPTS");
+  return ALLOWED;
+}
+
 export function decideVoidPurchase(
   purchase: PurchaseState,
   command: VoidPurchaseCommand,
@@ -160,6 +174,7 @@ export function decideVoidPurchase(
     purchaseId: purchase.id,
     reasonCode: command.payload.reasonCode,
     reason,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     amount:
       purchase.totalAmount.amountMinor === 0 ? zeroMoney(purchase.currency) : purchase.totalAmount,
     transactionTime: command.occurredAt,

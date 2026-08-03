@@ -17,13 +17,15 @@ import {
 } from "../shared/ids.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
+import { capabilitySchema } from "../shared/capability.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 export const receiptLineInputSchema = z.object({
   receiptLineId: purchaseReceiptLineIdSchema,
   purchaseLineId: purchaseLineIdSchema,
   productId: productIdSchema,
-  qualityGradeId: qualityGradeIdSchema,
-  qualityGradeName: z.string().trim().min(1).max(100),
+  qualityGradeId: qualityGradeIdSchema.nullable().default(null),
+  qualityGradeName: z.string().trim().min(1).max(100).nullable().default(null),
   quantity: quantitySchema,
 });
 export const recordPurchaseReceiptCommandSchema = defineCommand(
@@ -32,6 +34,7 @@ export const recordPurchaseReceiptCommandSchema = defineCommand(
     purchaseId: purchaseIdSchema,
     lines: z.array(receiptLineInputSchema).min(1).max(100),
     note: z.string().trim().max(2_000).nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type RecordPurchaseReceiptCommand = z.infer<typeof recordPurchaseReceiptCommandSchema>;
@@ -41,6 +44,7 @@ export const reversePurchaseReceiptCommandSchema = defineCommand(
     receiptId: purchaseReceiptIdSchema,
     reasonCode: z.enum(["wrong_product", "wrong_quantity", "duplicate", "other"]),
     reason: z.string().trim().max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type ReversePurchaseReceiptCommand = z.infer<typeof reversePurchaseReceiptCommandSchema>;
@@ -56,8 +60,8 @@ export const adjustInventoryCommandSchema = defineCommand(
   z.object({
     adjustmentId: z.uuid(),
     productId: productIdSchema,
-    qualityGradeId: qualityGradeIdSchema,
-    qualityGradeName: z.string().trim().min(1).max(100),
+    qualityGradeId: qualityGradeIdSchema.nullable().default(null),
+    qualityGradeName: z.string().trim().min(1).max(100).nullable().default(null),
     quantity: quantitySchema,
     direction: z.enum(["increase", "decrease"]),
     reasonCode: inventoryAdjustmentReasonCodeSchema,
@@ -87,6 +91,8 @@ export const inventoryMovementSourceTypeSchema = z.enum([
   "delivery_dispatch",
   "delivery_return",
   "inventory_reclassification",
+  "quality_disposition",
+  "quality_disposition_reversal",
 ]);
 export type InventoryMovementSourceType = z.infer<typeof inventoryMovementSourceTypeSchema>;
 export const inventoryMovementDtoSchema = z.object({
@@ -108,7 +114,13 @@ export const inventoryMovementDtoSchema = z.object({
   commandId: commandIdSchema,
   sourceDocument: z
     .object({
-      type: z.enum(["receipt", "inventory_adjustment", "inventory_reclassification", "delivery"]),
+      type: z.enum([
+        "receipt",
+        "inventory_adjustment",
+        "inventory_reclassification",
+        "delivery",
+        "quality_disposition",
+      ]),
       id: z.uuid(),
     })
     .optional(),
@@ -124,6 +136,7 @@ export const purchaseReceiptDtoSchema = z.object({
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,
   actorId: actorIdSchema,
+  evidenceReferences: evidenceReferencesDtoSchema,
   reversal: z
     .object({
       id: purchaseReceiptReversalIdSchema,
@@ -131,6 +144,7 @@ export const purchaseReceiptDtoSchema = z.object({
       reason: z.string(),
       transactionTime: isoInstantSchema,
       recordedAt: isoInstantSchema,
+      evidenceReferences: evidenceReferencesDtoSchema,
     })
     .nullable(),
 });
@@ -146,6 +160,9 @@ export const purchaseReceiptsInputSchema = z.object({
 });
 export const purchaseReceivingSummaryDtoSchema = z.object({
   purchaseId: purchaseIdSchema,
+  capabilities: z.object({
+    voidPurchase: capabilitySchema,
+  }),
   lines: z.array(
     z.object({
       purchaseLineId: purchaseLineIdSchema,

@@ -28,35 +28,37 @@ export function Sheet({ open, title, onClose, children, actions }: SheetProps) {
       <Drawer.VirtualKeyboardProvider>
         <Drawer.Portal>
           <Drawer.Backdrop className="fixed inset-0 bg-ink/40" />
-          <Drawer.Popup
-            className={[
-              "fixed inset-x-0 bottom-0 top-auto mt-auto flex max-h-[96svh] flex-col",
-              "w-full max-w-none rounded-t-panel bg-surface p-0 text-ink shadow-md outline-none",
-              "sm:bottom-0 sm:right-0 sm:top-0 sm:mt-0 sm:h-full sm:w-[24rem] sm:max-w-[24rem]",
-              "sm:rounded-none sm:rounded-l-panel",
-            ].join(" ")}
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
-              <Drawer.Title id="sheet-title" className="text-subheading font-semibold">
-                {title}
-              </Drawer.Title>
-              <Drawer.Close
-                render={
-                  <IconButton label="Đóng">
-                    <X size={20} />
-                  </IconButton>
-                }
-              />
-            </div>
-
-            <div className="overflow-y-auto px-4 py-4">{children}</div>
-
-            {actions !== undefined ? (
-              <div className="flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3">
-                {actions}
+          <Drawer.Viewport className="pointer-events-none fixed inset-0 flex items-end justify-center sm:items-stretch sm:justify-end">
+            <Drawer.Popup
+              className={[
+                "pointer-events-auto mt-auto flex max-h-[96svh] w-full max-w-none flex-col",
+                "rounded-t-panel border border-border bg-surface p-0 text-ink outline-none",
+                "sm:mt-0 sm:h-full sm:w-[24rem] sm:max-w-[24rem]",
+                "sm:rounded-none sm:rounded-l-panel",
+              ].join(" ")}
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
+                <Drawer.Title id="sheet-title" className="text-subheading font-semibold">
+                  {title}
+                </Drawer.Title>
+                <Drawer.Close
+                  render={
+                    <IconButton label="Đóng">
+                      <X size={20} />
+                    </IconButton>
+                  }
+                />
               </div>
-            ) : null}
-          </Drawer.Popup>
+
+              <div className="overflow-y-auto px-4 py-4">{children}</div>
+
+              {actions !== undefined ? (
+                <div className="flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3">
+                  {actions}
+                </div>
+              ) : null}
+            </Drawer.Popup>
+          </Drawer.Viewport>
         </Drawer.Portal>
       </Drawer.VirtualKeyboardProvider>
     </Drawer.Root>

@@ -83,9 +83,9 @@ export function Select({
             <BaseSelect.Positioner
               align="start"
               sideOffset={4}
-              className="z-50 w-[var(--anchor-width)]"
+              className="z-50 max-h-[var(--available-height)] w-[var(--anchor-width)]"
             >
-              <BaseSelect.Popup className="overflow-hidden rounded-card border border-border bg-surface p-1 shadow-md outline-none">
+              <BaseSelect.Popup className="max-h-[var(--available-height)] overflow-y-auto rounded-card border border-border bg-surface p-1 outline-none">
                 {placeholder !== undefined ? (
                   <BaseSelect.Item
                     value=""

@@ -1,123 +1,156 @@
 # Repository map
 
-Where things live and what may depend on what. Read this before deciding where a
-change belongs.
+Where things live and what may depend on what. Read this after
+[`docs/README.md`](../README.md), which is the canonical authority-order
+definition. This file is the canonical dependency map; it describes the current
+repository, not a desired future architecture.
+
+## Runtime applications
 
 ```
 apps/
-  api/                          the only deployable backend
-    src/
-      modules/                  one folder per bounded module
-        customer/               handlers + DTO mappers
-        sale/                   draft, post, void
-        payment/
-        account/                balance and timeline reads
-        shared/                 command pipeline, idempotency, authorization
-      infrastructure/
-        auth/                   JWT verification, principal resolution
-        trpc/                   router, context, error mapping
-        persistence/            port definitions + Drizzle and in-memory adapters
-        clock.ts                the only source of `recordedAt`
-        hash.ts                 canonical payload hashing for idempotency
-      server.ts                 HTTP entry point
-  web/                          Next App Router — design system and Storybook only
-    src/
-      app/                      routes: the shell, and one demonstration route
-      api/                      tRPC client, session bootstrap, command identity
-      ui/                       primitives/, patterns/, format.ts, copy.ts
-      fixtures/                 typed sample data, parsed through published schemas
-      testing/                  Vitest setup, axe helper
-    e2e/                        Playwright skeleton
-    .storybook/                 react-vite builder
+  api/                                  deployable API process
+    src/modules/<bounded-context>/      handlers, queries, effects and module tests
+                                       including the append-only pricing catalog and resolver
+    src/infrastructure/                auth, ports, persistence adapters, tRPC and logging
+    src/operations/                    operator-only scripts and their app/db tests
+    src/server.ts                      HTTP entry point
 
-packages/
-  domain-contracts/             shapes only: ids, money, commands, DTOs, codes
-  domain-kernel/                pure business decisions — no framework, no I/O
-  db/                           Drizzle schema, migrations, repositories, seeds
-  test-fixtures/                deterministic fixtures shared by all test projects
-  config/                       tsconfig base + shared Vitest settings
-
-docs/                           see docs/10-ai-coding/CHANGE_PROTOCOL.md
-scripts/                        boundary-check, trace-check, docs-check
+  web/                                  Next App Router application
+    src/app/(app)/                     authenticated route tree: customers, sales, payments,
+                                       purchases, suppliers, inventory, intake, delivery,
+                                       pricing, reports, operations, quality, evidence and workspace surfaces
+    src/app/auth/ and src/app/login/   authentication routes
+    src/api/                           session, workspace, tRPC client and command identity
+    src/offline/                       IndexedDB cache, sync engine and offline provider
+    src/ui/primitives/                 reusable accessible controls and stories/tests
+    src/ui/patterns/                   domain workflows, layouts and feedback states
+    src/ui/domain/                     UI-only value/state transformations and presentation contracts
+    src/ui/controllers/                route orchestration: params, queries, commands, offline and navigation; evidence/reconciliation controllers stay here
+    src/ui/screens/                    route-level visual compositions; no API or offline imports
+    src/fixtures/ and src/testing/     typed UI fixtures and test helpers
+    e2e/                               Playwright real-stack specs and harness
+    .storybook/                        Storybook configuration
 ```
 
-## Dependency rules
+The web app is not a shell or a demonstration route. It is the production Next
+application and its Storybook catalogue. `pnpm web:build` produces the artefact
+that E2E loads with `next start`; `pnpm web:storybook` builds the component/state
+catalogue. The authenticated route root is `apps/web/src/app/(app)/`.
+
+Every production `page.tsx` delegates to `apps/web/src/ui/controllers/`. A
+controller owns route parameters, data loading, command identity, offline
+coordination and navigation; it passes state and callbacks to a screen. Screens
+compose patterns and primitives. Route files do not import API hooks or UI
+primitives directly. `pnpm ui:check` and its regression tests enforce this
+direction, including controller visual-composition boundaries and shared visual
+tokens (Be Vietnam Pro, semantic colours and radius tokens). Storybook covers
+representative screen and state compositions; `apps/web/e2e/ui-performance.spec.ts`
+measures production-runtime p75 LCP, INP and CLS for the customer directory.
+The root App Router also provides a shared loading skeleton and safe error
+boundary; route-specific screens own their query, empty, permission and business
+rejection states.
+
+## E2E and validation surfaces
+
+`apps/web/e2e/` contains the browser acceptance suite. Its harness owns API
+readiness, seeded test data, signed-in sessions and the token bridge used by the
+test build. The suite includes sign-in, quick sale, payment, account-ledger,
+reconciliation, workspace administration, customer operations, offline quick
+sale, operations, products, goods truth, depot operations and operational
+correctness scenarios. Playwright runs mobile and desktop projects against a
+real API and PostgreSQL process, and uses `next start`, not `next dev`. Representative
+spec files include `apps/web/e2e/offline-quick-sale.spec.ts` and
+`apps/web/e2e/operational-correctness.spec.ts`.
+
+The repository checks are split by feedback speed:
+
+| Command                                                   | Scope                                                                                                          |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:fast`                                          | domain, application, contract and web Vitest projects                                                          |
+| `pnpm check:static`                                       | format, lint, typecheck, boundaries, source, UI/docs/truth checks, context, trace and security-surface checks  |
+| `pnpm verify`                                             | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                     |
+| `pnpm context <query>`                                    | targeted docs/tests/implementation retrieval for an agent                                                      |
+| `pnpm perf:production-scale` / `pnpm rehearse:migrations` | disposable production-shape performance and fresh/idempotent migration evidence; both run as separate CI gates |
+
+`pnpm context <folder>` is exhaustive for that active tracked folder by default;
+ID and free-text queries use the normal result limits unless `--all` is passed.
+All query types keep archive, generated-output, lockfile and migration-snapshot
+exclusions.
+
+## Packages and dependency boundaries
 
 ```
-apps/api  ──▶ domain-kernel ──▶ domain-contracts ◀── apps/web
-    │              ▲                  ▲
-    └────────▶ db ─┴──────────────────┘
+apps/api ───────────────▶ packages/db
+   │                         │
+   ├──────────────────────▶ domain-kernel ─────▶ domain-contracts
+   └──────────────────────▶ domain-contracts
+
+apps/web ───────────────▶ domain-contracts
+packages/test-fixtures ─▶ domain-kernel ───────▶ domain-contracts
 ```
 
-| Package            | May import                                                     | May **not** import                                                         |
-| ------------------ | -------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `domain-contracts` | `zod`                                                          | everything else                                                            |
-| `domain-kernel`    | `domain-contracts`                                             | tRPC, Drizzle, Supabase, Next.js, React, HTTP, `node:*`, browser APIs      |
-| `db`               | `domain-contracts`, `domain-kernel`, `drizzle-orm`, `postgres` | `apps/*`, tRPC, Next.js, React                                             |
-| `apps/api`         | all packages                                                   | `apps/web`                                                                 |
-| `apps/web`         | `domain-contracts`, React, Next, tRPC **client**               | `db`, `domain-kernel`, `drizzle-orm`, `postgres`, `@trpc/server`, `node:*` |
-| `test-fixtures`    | `domain-contracts`, `domain-kernel`                            | `db`, `apps/*`                                                             |
+The graph above describes source/runtime direction. Workspace `devDependencies`
+used only by tests or tooling do not grant production source permission. The
+browser has two reviewed exceptions: `apps/web/src/api/trpc.ts` may import
+`@vuarau/api` as `import type { AppRouter }`, and browser fixtures may import the
+kernel-free `@vuarau/test-fixtures/ids` and `/time` subpaths.
 
-Enforced by `scripts/boundary-check.ts`, run as part of `pnpm verify`.
+| Package or source area          | May import                                                            | Must not import                                                                                      |
+| ------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `packages/domain-contracts/src` | `zod`                                                                 | other workspace packages, frameworks, Node, browser APIs                                             |
+| `packages/domain-kernel/src`    | `domain-contracts`                                                    | db, API, tRPC, Drizzle, Postgres, Supabase, Next, React, Node, Zod, test-fixtures in production code |
+| `packages/db/src`               | `domain-contracts`, `domain-kernel`, Drizzle, Postgres                | anything from `apps/*`, tRPC, Next, React                                                            |
+| `packages/test-fixtures/src`    | `domain-contracts`, `domain-kernel`                                   | db, anything from `apps/*`, transport/framework packages                                             |
+| `apps/api/src`                  | workspace packages through ports/contracts and API infrastructure     | web, Next, React, direct Drizzle query-builder imports                                               |
+| `apps/web/src`                  | domain-contracts, React, Next, tRPC client, approved fixture subpaths | db, domain-kernel, Drizzle, Postgres, `@trpc/server`, Node, API values                               |
 
-### The browser's two narrow exceptions
+These rules are enforced by `scripts/boundary-check.ts`. Source-size and
+composition rules are enforced separately by `scripts/source-boundary-check.ts`
+and its manifest. Do not infer a new boundary from this prose without updating
+the checker and its regression tests.
 
-`apps/web` names `@vuarau/api` in exactly one file,
-`apps/web/src/api/trpc.ts`, and only as `import type { AppRouter }`. The type is
-erased before a bundler sees it, which is what gives the client full inference with
-no code generation step — and is safe exactly as long as no value crosses. The rule
-is therefore "import it in one file", not "never import it", so the `import type`
-sits somewhere a reviewer will see it.
+## Package roles
 
-It also imports `@vuarau/test-fixtures/ids` and `/time` — the two modules that
-depend on nothing but contracts — for its browser fixtures. The package's barrel is
-forbidden, because it re-exports fixtures built on the domain kernel.
+| Package                     | Responsibility                                                                                           |
+| --------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `packages/domain-contracts` | IDs, money, commands, DTOs, rejection codes and Zod schemas                                              |
+| `packages/domain-kernel`    | deterministic business decisions and state/effect calculations                                           |
+| `packages/db`               | Drizzle schema, migrations, repositories, seeds and PostgreSQL test context                              |
+| `packages/test-fixtures`    | deterministic IDs, timestamps and shared test fixtures                                                   |
+| `packages/config`           | shared TypeScript/Vitest configuration                                                                   |
+| `scripts/`                  | repository checks, dev orchestration, context retrieval, field-observation packets and operator dry-runs |
 
-`db` → `domain-kernel` is allowed and points the right way: persistence maps rows
-to domain state, and the domain knows nothing about persistence. What `db` may
-**not** do is import `apps/api` — the application layer declares the repository
-ports, and the Drizzle implementations satisfy them _structurally_, so the arrow
-can never invert. If a port and an implementation drift, the wiring in `apps/api`
-stops compiling.
-
-`apps/api` may not import `drizzle-orm` either. It reaches persistence only
-through ports; a handler or a test that reached for the query builder would be the
-first crack in that.
+The root script entry points are implemented in `scripts/dev.ts`,
+`scripts/context.ts`, `scripts/docs-check.ts`, `scripts/trace-check.ts`,
+`scripts/policy-closure.ts`,
+`scripts/field-observation.ts`,
+`scripts/repository-truth-check.ts`, `scripts/boundary-check.ts`,
+`scripts/source-boundary-check.ts`, `scripts/security-surface-check.ts` and
+`scripts/pilot-dry-run.ts`.
 
 ## Where does my change go?
 
-| Change                  | File                                                                                                         |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
-| New rejection code      | `domain-contracts/src/shared/rejection-codes.ts` + `docs/04-business-rules/error-code-catalog.md`            |
-| New command             | `domain-contracts/src/<module>/index.ts`, then kernel, then handler, then router                             |
-| A business rule changes | `domain-kernel/src/<module>/*.ts` + `docs/04-business-rules/` + its test                                     |
-| A new lifecycle state   | state catalog **first**, then the enum, then the kernel                                                      |
-| New table or column     | `db/src/schema/`, then `pnpm db:generate`, then `docs/07-data/data-model.md`                                 |
-| New query               | `db/src/repositories/` + a port in `apps/api/src/infrastructure/persistence/ports.ts`                        |
-| A new UI state          | `docs/06-api-contracts/ui-state-catalog.md` **first**, then `apps/web/src/ui/catalog-state.ts`, then a story |
-| A new component         | `apps/web/src/ui/primitives/` or `patterns/` + a story + a test of the rule it encodes                       |
-| An operator tool        | `apps/api/src/operations/` + a `ops:*` script. Never a tRPC procedure — shell access is the authorization    |
-| Anything touching money | kernel + docs + a P0 test. No exceptions.                                                                    |
+| Change                  | File or first boundary                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
+| New rejection code      | `packages/domain-contracts/src/shared/rejection-codes.ts` + `docs/04-business-rules/error-code-catalog.md` |
+| New command             | `packages/domain-contracts/src/<module>/`, then kernel, handler, router                                    |
+| Business rule change    | `packages/domain-kernel/src/<module>/` + business-rule doc + test                                          |
+| New lifecycle state     | state catalog first, then contract/kernel and transition catalog                                           |
+| New table or column     | `packages/db/src/schema/`, `pnpm db:generate`, backup/restore coverage, then data-model docs               |
+| Price rule behavior     | `packages/domain-contracts/src/pricing/`, `packages/domain-kernel/src/pricing/`, API pricing module        |
+| New query               | `packages/db/src/repositories/` + a port in `apps/api/src/infrastructure/persistence/`                     |
+| New UI state            | `docs/06-api-contracts/ui-state-catalog.md` first, then `apps/web/src/ui/` and a story/test                |
+| New UI screen/flow      | matching `apps/web/src/app/`, `src/ui/patterns/` or `src/ui/screens/` surface + tests/E2E where applicable |
+| Operator tool           | `apps/api/src/operations/` + an `ops:*` script; never a tRPC procedure                                     |
+| Agent context retrieval | `scripts/context.ts`, with regression tests in `scripts/context.test.ts`                                   |
+| Anything touching money | kernel + docs + a P0 test                                                                                  |
 
 ## Forbidden shapes
 
 No `utils/`, `helpers/`, `common/`, `misc/`, `types/`, or `services/` folders. A
 shared module needs a name that says what it is responsible for —
 `command-pipeline.ts`, `money.ts`, `clock.ts` — not what it is not.
-
-## Commands
-
-```bash
-pnpm install
-pnpm verify           # format, lint, typecheck, boundaries, docs, trace, tests
-pnpm test:domain      # fastest useful signal
-pnpm db:migrate       # needs DATABASE_URL
-
-# Operator tools. Shell access is the authorization boundary; neither is a
-# procedure, and neither should become one.
-pnpm --filter @vuarau/api ops:rebuild-balance <workspaceId> <customerId>
-pnpm --filter @vuarau/api ops:pilot help        # depot, member, customer import
-```
 
 ## Related
 

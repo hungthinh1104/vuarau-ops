@@ -1,7 +1,7 @@
 # Pilot worksheet — 15–20 transactions
 
 For M23, this H2 sheet is subordinate to the frozen
-[H2–H6 field-validation protocol](m23-field-validation-protocol.md). Every copy
+[H2–H6 field-validation protocol](field-validation-protocol.md). Every copy
 must carry the full release SHA and the assistance, independent-reference,
 canonical-final-state and incident fields defined there.
 

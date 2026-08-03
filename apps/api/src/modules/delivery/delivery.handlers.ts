@@ -43,9 +43,11 @@ function dto(delivery: DeliveryState): DeliveryDto {
         unit: line.quantity.unit,
       },
     })),
+    evidenceReferences: [...(delivery.evidenceReferences ?? [])],
     returns: delivery.returns.map((record) => ({
       id: record.id,
       reason: record.reason,
+      evidenceReferences: [...(record.evidenceReferences ?? [])],
       lines: record.lines.map((line) => ({ ...line })),
       transactionTime: record.transactionTime,
       recordedAt: record.recordedAt,
@@ -61,6 +63,7 @@ export function createDeliveryDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.create",
+    requiredWorkflows: ["delivery"],
     execute: async ({ command, repos, recordedAt }) => {
       const sale = await repos.sales.findByIdForUpdate(command.workspaceId, command.payload.saleId);
       if (sale === null) return err("SALE_NOT_FOUND", "No such Sale.");
@@ -69,20 +72,39 @@ export function createDeliveryDraft(ctx: CommandContext, input: unknown) {
         sale.id,
         null,
       );
-      let predecessorHasFulfilment = false;
-      if (sale.replacesSaleId !== null) {
-        const predecessor = await repos.deliveries.netFulfilledBySaleLine(
+      let replacementAncestryHasFulfilment = false;
+      let predecessorSaleId = sale.replacesSaleId;
+      const visitedSaleIds = new Set<string>();
+      while (predecessorSaleId !== null) {
+        if (visitedSaleIds.has(predecessorSaleId)) {
+          replacementAncestryHasFulfilment = true;
+          break;
+        }
+        visitedSaleIds.add(predecessorSaleId);
+        const predecessorFulfilment = await repos.deliveries.netFulfilledBySaleLine(
           command.workspaceId,
-          sale.replacesSaleId,
+          predecessorSaleId,
           null,
         );
-        predecessorHasFulfilment = [...predecessor.values()].some((value) => value > 0);
+        if ([...predecessorFulfilment.values()].some((value) => value > 0)) {
+          replacementAncestryHasFulfilment = true;
+          break;
+        }
+        const predecessorSale = await repos.sales.findByIdForUpdate(
+          command.workspaceId,
+          predecessorSaleId,
+        );
+        if (predecessorSale === null) {
+          replacementAncestryHasFulfilment = true;
+          break;
+        }
+        predecessorSaleId = predecessorSale.replacesSaleId;
       }
       const decision = decideCreateDeliveryDraft({
         command,
         sale,
         fulfilled,
-        predecessorHasFulfilment,
+        replacementAncestryHasFulfilment,
         recordedAt,
       });
       if (!decision.ok) return decision;
@@ -113,6 +135,7 @@ export function updateDeliveryDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.update",
+    requiredWorkflows: ["delivery"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(
         command.workspaceId,
@@ -196,6 +219,7 @@ export function dispatchDelivery(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.dispatch",
+    requiredWorkflows: ["delivery"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(
         command.workspaceId,
@@ -311,6 +335,12 @@ export function recordDeliveryReturn(ctx: CommandContext, input: unknown) {
         command.payload.deliveryId,
       );
       if (current === null) return err("DELIVERY_NOT_FOUND", "No such Delivery.");
+      // Keep Return and a concurrent `goods_returned` Sale void on one canonical
+      // ordering. The void locks the Sale first and reads net fulfilment; Return
+      // locks its Delivery then this Sale before appending the compensating goods
+      // fact. Whichever wins, the later command observes committed truth.
+      const sale = await repos.sales.findByIdForUpdate(command.workspaceId, current.saleId);
+      if (sale === null) return err("SALE_NOT_FOUND", "Delivery Sale is missing.");
       const decision = decideRecordDeliveryReturn(current, command, recordedAt);
       if (!decision.ok) return decision;
       if (!(await repos.deliveries.insertReturn(decision.value)))

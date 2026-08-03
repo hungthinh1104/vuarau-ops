@@ -88,6 +88,7 @@ export const createDeliveryReadRepositories = (tx: Tx) => ({
             },
           })),
           note: row.note,
+          evidenceReferences: row.evidenceReferences ?? [],
           cancellationReason: row.cancellationReason,
           version: row.version,
           transactionTime: toIso(row.transactionTime),
@@ -97,6 +98,7 @@ export const createDeliveryReadRepositories = (tx: Tx) => ({
           returns: deliveryReturnRows.map((record) => ({
             id: record.id,
             reason: record.reason,
+            evidenceReferences: record.evidenceReferences ?? [],
             lines: returnLineRows
               .filter((item) => item.returnId === record.id)
               .map((item) => ({

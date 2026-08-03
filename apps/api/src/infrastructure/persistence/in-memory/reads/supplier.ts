@@ -35,6 +35,55 @@ export const createSupplierReads = (
     },
     get: async (workspaceId, supplierId) =>
       store.suppliers.get(key(workspaceId, supplierId)) ?? null,
+    priceHistory: async ({ workspaceId, supplierId, productId, page }) => {
+      const rows = [...store.purchases.values()]
+        .filter(
+          (purchase) =>
+            purchase.workspaceId === workspaceId &&
+            purchase.supplierId === supplierId &&
+            purchase.status === "confirmed" &&
+            purchase.confirmedAt !== null,
+        )
+        .flatMap((purchase) => {
+          const confirmedAt = purchase.confirmedAt;
+          if (confirmedAt === null) return [];
+          return purchase.lines
+            .filter((line) => productId === null || line.productId === productId)
+            .map((line) => ({
+              workspaceId,
+              supplierId,
+              purchaseId: purchase.id,
+              purchaseLineId: line.lineId,
+              productId: line.productId,
+              productName: line.productName,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              lineTotal: line.lineTotal,
+              transactionTime: purchase.transactionTime,
+              recordedAt: purchase.recordedAt,
+              confirmedAt,
+            }));
+        })
+        .sort((a, b) => {
+          const aSort = `${a.transactionTime}|${a.recordedAt}|${a.purchaseId}`;
+          const bSort = `${b.transactionTime}|${b.recordedAt}|${b.purchaseId}`;
+          return aSort !== bSort
+            ? bSort.localeCompare(aSort)
+            : b.purchaseLineId.localeCompare(a.purchaseLineId);
+        })
+        .filter((row) => {
+          if (page.after === null) return true;
+          const sortValue = `${row.transactionTime}|${row.recordedAt}|${row.purchaseId}`;
+          return (
+            sortValue < page.after.sortValue ||
+            (sortValue === page.after.sortValue && row.purchaseLineId < page.after.id)
+          );
+        });
+      return takePage(rows, page, (row) => ({
+        sortValue: `${row.transactionTime}|${row.recordedAt}|${row.purchaseId}`,
+        id: row.purchaseLineId,
+      }));
+    },
   },
   supplierAccountReads: {
     balance: async (workspaceId, supplierId) => {
@@ -107,6 +156,24 @@ export const createSupplierReads = (
       if (row === undefined) return null;
       return {
         ...row,
+        cashAccountId: row.cashAccountId ?? null,
+        evidenceReferences: [...row.evidenceReferences],
+        reversals: store.supplierPaymentReversals
+          .filter(
+            (reversal) =>
+              reversal.workspaceId === workspaceId && reversal.supplierPaymentId === paymentId,
+          )
+          .sort((a, b) =>
+            a.transactionTime !== b.transactionTime
+              ? a.transactionTime.localeCompare(b.transactionTime)
+              : a.recordedAt !== b.recordedAt
+                ? a.recordedAt.localeCompare(b.recordedAt)
+                : a.id.localeCompare(b.id),
+          )
+          .map((reversal) => ({
+            ...reversal,
+            evidenceReferences: [...reversal.evidenceReferences],
+          })),
         status:
           row.reversedAmount.amountMinor === 0
             ? "recorded"

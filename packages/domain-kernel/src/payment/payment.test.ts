@@ -45,6 +45,7 @@ function recordCommand(
       method: "cash",
       payerName: null,
       note: null,
+      evidenceReferences: [],
       ...overrides,
     },
   };
@@ -66,6 +67,7 @@ function reverseCommand(
       reversalId: REVERSAL_ID,
       amount: PAYMENT_AMOUNT,
       reason: "Chuyển khoản bị hoàn",
+      evidenceReferences: [],
       ...overrides,
     },
   };

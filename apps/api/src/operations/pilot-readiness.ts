@@ -15,7 +15,12 @@ import { randomIdGenerator, systemClock } from "../infrastructure/clock.ts";
 import { readServerConfig } from "../infrastructure/config.ts";
 import type { CommandContext, CommandDeps } from "../modules/shared/command-pipeline.ts";
 import { listActorWorkspaces } from "../modules/session/session.queries.ts";
-import { EXAMPLE_PILOT_CONFIG, readPilotConfig, type PilotConfig } from "./pilot-config.ts";
+import {
+  EXAMPLE_PILOT_CONFIG,
+  evaluateCrossDimensionScenarioGate,
+  readPilotConfig,
+  type PilotConfig,
+} from "./pilot-config.ts";
 
 /**
  * Read-only M23 gate. Repository checks inspect runtime/database state; external
@@ -52,7 +57,7 @@ usage: node src/operations/pilot-readiness.ts --config <pilot.json>
        node src/operations/pilot-readiness.ts --example
 
   --config   the operator's declaration: depot, actor, exact release, owner
-             semantics, role/owner review, data policy and recovery evidence.
+             semantics, role/owner/quality/correction-scope review, data policy and recovery evidence.
   --example  print a blank one to fill in.
 
 DATABASE_URL must be set. The file is never written to and never committed.
@@ -178,6 +183,11 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
     ["ASM-017 role-permission review", config.rolePermissionReview],
     ["ASM-018 owner-membership review", config.ownerMembershipReview],
     ["ASM-030 sharing and retention review", config.dataSharingRetentionReview],
+    ["ASM-020 sensitive-action approval review", config.sensitiveActionApprovalReview],
+    ["ASM-032 universal grade policy review", config.qualityGradePolicyReview],
+    ["ASM-033 receiving quality semantics review", config.receivingQualitySemanticsReview],
+    ["ASM-034 quality role/reclassification review", config.qualityRoleReview],
+    ["UC-PRICING-001 pricing policy review", config.pricingPolicyReview],
   ] as const) {
     checks.push(
       review.decision === "accepted"
@@ -192,6 +202,21 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
             `rejected by ${review.reviewerName} on ${review.date}`,
             "external",
           ),
+    );
+  }
+
+  for (const [name, gate] of [
+    ["ASM-035 Sale correction after fulfilment", config.saleFulfilmentCorrectionGate],
+    ["ASM-036 Purchase correction after Receiving", config.purchaseReceivingCorrectionGate],
+    ["ASM-037 partial customer-return consequence", config.partialCustomerReturnGate],
+    ["ASM-038 Supplier return of accepted stock", config.supplierReturnGate],
+    ["ASM-029 driver cash collection and handover", config.driverCashCollectionGate],
+  ] as const) {
+    const outcome = evaluateCrossDimensionScenarioGate(gate, config.releaseSha);
+    checks.push(
+      outcome.ok
+        ? pass(`${name} safe for frozen shadow scope`, outcome.detail, "external")
+        : fail(`${name} safe for frozen shadow scope`, outcome.detail, "external"),
     );
   }
 
@@ -322,13 +347,14 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
   //    `owner` carries debt.adjust and sale.void — the two ways to move money
   //    with no new trade.
   const unintendedOwners = active.filter(
-    (member) => member.role === "owner" && !config.allowedOwnerActorIds.includes(member.actorId),
+    (member) =>
+      member.roles.includes("owner") && !config.allowedOwnerActorIds.includes(member.actorId),
   );
   checks.push(
     unintendedOwners.length === 0
       ? pass(
           "no unintended owner memberships",
-          `${active.filter((m) => m.role === "owner").length} owner(s), all declared`,
+          `${active.filter((m) => m.roles.includes("owner")).length} owner(s), all declared`,
         )
       : fail(
           "no unintended owner memberships",
@@ -350,11 +376,11 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
     );
   } else {
     checks.push(
-      actor.role === config.actor.expectedRole
+      actor.roles.includes(config.actor.expectedRole)
         ? pass("pilot actor has an active membership", `role: ${actor.role}, as declared`)
         : fail(
             "pilot actor has an active membership",
-            `role is ${actor.role}, declaration says ${config.actor.expectedRole} — ` +
+            `roles are ${actor.roles.join(", ")}, declaration requires ${config.actor.expectedRole} — ` +
               "a role nobody chose is what ASM-018 left behind",
           ),
     );
@@ -467,7 +493,7 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
   // 12. Somebody can undo a mistake. Not a UI — an operator at a shell
   //     (ops:correct-sale) — but somebody in this depot must hold `sale.void`,
   //     or a wrong sale during the session cannot be corrected at all.
-  const correctors = active.filter((member) => roleHasPermission(member.role, "sale.void"));
+  const correctors = active.filter((member) => roleHasPermission(member.roles, "sale.void"));
   checks.push(
     correctors.length > 0
       ? pass(

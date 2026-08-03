@@ -15,6 +15,7 @@ const DOCS = join(ROOT, "docs");
 
 /** Every document the bootstrap brief requires. Missing one fails the build. */
 const REQUIRED = [
+  "README.md",
   "00-product/product-brief.md",
   "00-product/scope.md",
   "00-product/validation-plan.md",
@@ -58,6 +59,7 @@ const REQUIRED = [
   "07-data/time-semantics.md",
   "07-data/ledger-model.md",
   "08-qa/test-strategy.md",
+  "08-qa/ui-screen-coverage.md",
   "08-qa/traceability.md",
   "08-qa/risk-classification.md",
   "08-qa/manual-test-template.md",
@@ -82,7 +84,9 @@ const REQUIRED = [
   "10-ai-coding/TASK_TEMPLATE.md",
   "10-ai-coding/REVIEW_CHECKLIST.md",
   "10-ai-coding/CHANGE_PROTOCOL.md",
-  "10-ai-coding/bootstrap-progress.md",
+  "design.md",
+  "WEB-ADMIN.md",
+  "MOBILE-POS.md",
   "11-operations/deployment-contract.md",
   "11-operations/device-smoke-check.md",
 ];
@@ -101,6 +105,156 @@ const failures: string[] = [];
 const fail = (message: string) => failures.push(message);
 
 const LINK_PATTERN = /\[[^\]]*\]\(([^)\s]+)\)/g;
+
+export type RoutingContractSources = Readonly<Record<string, string>>;
+
+/** Regression checks for canonical routing docs and known stale claims. */
+export function checkRoutingContracts(sources: RoutingContractSources): string[] {
+  const failures: string[] = [];
+  const read = (path: string): string => sources[path] ?? "";
+  const requireText = (path: string, text: string, message: string): void => {
+    if (!read(path).includes(text)) failures.push(`${path}: ${message}`);
+  };
+
+  const authorityPath = "docs/README.md";
+  const authority = read(authorityPath);
+  const authorityMarkers = [
+    "**Runtime and persistence facts**",
+    "**Recorded business decisions**",
+    "**Normative business documentation**",
+    "**Published interface contracts**",
+    "**UI policy**",
+    "**Evidence and release status**",
+  ];
+  let previous = -1;
+  for (const marker of authorityMarkers) {
+    const position = authority.indexOf(marker);
+    if (position === -1) {
+      failures.push(`${authorityPath}: missing canonical authority-order marker ${marker}`);
+    } else if (position <= previous) {
+      failures.push(`${authorityPath}: authority-order markers are out of order`);
+    }
+    previous = position;
+  }
+
+  const repoMapPath = "docs/10-ai-coding/REPO_MAP.md";
+  for (const marker of [
+    "apps/web/src/app/(app)/",
+    "apps/web/e2e/",
+    "offline-quick-sale.spec.ts",
+    "next start",
+    "scripts/context.ts",
+    "scripts/dev.ts",
+    "scripts/docs-check.ts",
+    "packages/domain-contracts",
+    "packages/domain-kernel",
+    "packages/db",
+    "packages/test-fixtures",
+    "packages/config",
+  ]) {
+    requireText(repoMapPath, marker, `current repository map must mention ${marker}`);
+  }
+  for (const stale of ["one demonstration route", "Playwright skeleton"]) {
+    if (read(repoMapPath).toLowerCase().includes(stale.toLowerCase())) {
+      failures.push(`${repoMapPath}: stale repository claim remains: ${stale}`);
+    }
+  }
+
+  const reviewPath = "docs/10-ai-coding/REVIEW_CHECKLIST.md";
+  requireText(
+    reviewPath,
+    "may import `domain-contracts` and `domain-kernel`",
+    "db boundary must allow domain-kernel",
+  );
+  requireText(
+    reviewPath,
+    "must not\n      import anything from `apps/*`",
+    "db boundary must forbid apps/*",
+  );
+  if (/packages\/db` does not import `domain-kernel`/.test(read(reviewPath))) {
+    failures.push(`${reviewPath}: stale db prohibition contradicts the enforced boundary`);
+  }
+
+  const changePath = "docs/10-ai-coding/CHANGE_PROTOCOL.md";
+  requireText(
+    changePath,
+    "[docs/README.md](../README.md)",
+    "must defer authority order to docs/README.md",
+  );
+  requireText(
+    changePath,
+    "runtime and persistence facts outrank every document",
+    "must preserve runtime-first authority",
+  );
+  if (
+    /The docs are the\s+specification, not a description written afterwards/.test(read(changePath))
+  ) {
+    failures.push(`${changePath}: documentation-first wording overrides the authority order`);
+  }
+  for (const marker of ["During implementation", "Before commit", "Before merge"]) {
+    requireText(
+      changePath,
+      marker,
+      "must define layered validation stages instead of a single edit-loop gate",
+    );
+  }
+  requireText(
+    changePath,
+    "`pnpm verify` is the repository merge gate",
+    "must reserve pnpm verify for the merge gate",
+  );
+  for (const stale of [
+    "run pnpm verify after every change",
+    "every implementation edit must run pnpm verify",
+    "pnpm verify is the fast validation command",
+  ]) {
+    if (read(changePath).toLowerCase().includes(stale)) {
+      failures.push(`${changePath}: stale validation rule remains: ${stale}`);
+    }
+  }
+
+  const agentsPath = "AGENTS.md";
+  for (const marker of [
+    "smallest validation scope",
+    "Before merge",
+    "Do not repeatedly run `pnpm verify`",
+  ]) {
+    requireText(agentsPath, marker, "must define the layered validation policy for agents");
+  }
+  for (const stale of [
+    "run pnpm verify after every change",
+    "every implementation edit must run pnpm verify",
+    "pnpm verify is the fast validation command",
+  ]) {
+    if (read(agentsPath).toLowerCase().includes(stale)) {
+      failures.push(`${agentsPath}: stale validation rule remains: ${stale}`);
+    }
+  }
+
+  const standardPath = "docs/10-ai-coding/ENGINEERING_STANDARD.md";
+  requireText(
+    standardPath,
+    "[REPO_MAP.md](REPO_MAP.md)",
+    "must reference the canonical dependency map",
+  );
+  if (read(standardPath).includes("contracts ← domain kernel ← application")) {
+    failures.push(`${standardPath}: must not define a second dependency graph`);
+  }
+
+  const webAdminPath = "docs/WEB-ADMIN.md";
+  requireText(
+    webAdminPath,
+    "#### Policy gate",
+    "analytics candidates must have an explicit policy gate",
+  );
+  requireText(
+    webAdminPath,
+    "never as zero, a stale projection or a recommendation",
+    "unresolved analytics policy must fail closed",
+  );
+
+  return failures;
+}
 
 async function* walkMarkdown(directory: string): AsyncGenerator<string> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -122,14 +276,44 @@ async function main(): Promise<void> {
     }
   }
 
+  const routingPaths = [
+    "AGENTS.md",
+    "docs/README.md",
+    "docs/10-ai-coding/REPO_MAP.md",
+    "docs/10-ai-coding/REVIEW_CHECKLIST.md",
+    "docs/10-ai-coding/CHANGE_PROTOCOL.md",
+    "docs/10-ai-coding/ENGINEERING_STANDARD.md",
+    "docs/WEB-ADMIN.md",
+  ];
+  const routingSources = Object.fromEntries(
+    routingPaths.map((path) => [path, readFileSync(join(ROOT, path), "utf8")]),
+  );
+  for (const failure of checkRoutingContracts(routingSources)) fail(failure);
+
   const definedIds = new Map<string, string>();
   let linkCount = 0;
   let fileCount = 0;
 
   for await (const file of walkMarkdown(DOCS)) {
-    fileCount += 1;
     const source = readFileSync(file, "utf8");
     const relativePath = relative(ROOT, file);
+
+    // Archive documents are retained for history but are not part of the active
+    // authority graph. They may contain old links, IDs, and status snapshots.
+    if (relativePath.startsWith("docs/archive/")) continue;
+    fileCount += 1;
+
+    for (const line of source.split("\n")) {
+      if (
+        /(?:docs\/archive\/|(?:\.\.\/)*archive\/)/i.test(line) &&
+        /(authorit|normative|source[- ]of[- ]truth)/i.test(line)
+      ) {
+        fail(
+          `${relativePath}: archive documents cannot be treated as authoritative; ` +
+            "use active docs and routing sources instead",
+        );
+      }
+    }
 
     // ---- relative links resolve -------------------------------------------
     for (const match of source.matchAll(LINK_PATTERN)) {
@@ -190,4 +374,4 @@ async function main(): Promise<void> {
   );
 }
 
-await main();
+if (import.meta.url === `file://${process.argv[1]}`) await main();

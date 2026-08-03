@@ -34,9 +34,13 @@ reviewed.
 Stop the session at once for a duplicate or missing financial effect, a balance
 that cannot be reconciled, a posted sale that appears altered, a failed
 dropped-response recovery, an unauthorised workspace/role, or a security/auth
-failure. Preserve request IDs and screenshots; do not directly edit a ledger or
-posted sale. Use the Sale detail correction workflow after the session; escalate
-to `ops:correct-sale` only when support investigation is needed.
+failure. Also stop an affected workflow if an ASM-035–038 scenario declared
+`excluded_from_shadow_scope` is encountered: Sale correction after prior
+fulfilment, Purchase correction after prior Receiving, a partial customer return
+that requires a money/commercial decision, or return of accepted stock to a
+Supplier. Preserve request IDs and screenshots; do not directly edit a ledger or
+posted sale, and do not invent compensating goods movements to continue the test.
+Use only correction paths whose business meaning has already been validated.
 
 ## After the session
 

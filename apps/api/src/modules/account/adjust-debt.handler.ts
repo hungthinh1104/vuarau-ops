@@ -69,7 +69,7 @@ export function adjustCustomerDebt(
               currency,
               recordedAt,
             ),
-          accountCapabilities(membership.role),
+          accountCapabilities(membership.roles),
         ),
       );
     },

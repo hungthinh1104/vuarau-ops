@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { encodeCursor, type Unit } from "@vuarau/domain-contracts";
+import { encodeCursor, vietnamBusinessDayRange, type Unit } from "@vuarau/domain-contracts";
 import { money } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
@@ -7,6 +7,7 @@ import type { Tx } from "../shared/types.ts";
 type ScaleReportArgs = {
   workspaceId: string;
   businessDate: string | null;
+  businessDayStartMinute: number;
   productId: string | null;
   unit: Unit | null;
   page: Page;
@@ -16,11 +17,11 @@ type RawRow = Record<string, unknown>;
 const iso = (value: unknown): string => new Date(String(value)).toISOString();
 const businessDateRange = (
   businessDate: string | null,
-): { start: string | null; end: string | null } => {
-  if (businessDate === null) return { start: null, end: null };
-  const start = new Date(`${businessDate}T00:00:00+07:00`);
-  return { start: start.toISOString(), end: new Date(start.getTime() + 86_400_000).toISOString() };
-};
+  businessDayStartMinute: number,
+): { start: string | null; end: string | null } =>
+  businessDate === null
+    ? { start: null, end: null }
+    : vietnamBusinessDayRange(businessDate, businessDayStartMinute);
 
 const boundary = (
   page: Page,
@@ -52,7 +53,7 @@ const nextCursor = (rows: RawRow[], limit: number): string | null => {
 
 export async function customerActivityAtScale(tx: Tx, args: ScaleReportArgs) {
   const after = boundary(args.page);
-  const date = businessDateRange(args.businessDate);
+  const date = businessDateRange(args.businessDate, args.businessDayStartMinute);
   const values = await tx.execute(sql`
     select e.*,
       case
@@ -117,7 +118,7 @@ export async function customerActivityAtScale(tx: Tx, args: ScaleReportArgs) {
 
 export async function inventoryMovementReportAtScale(tx: Tx, args: ScaleReportArgs) {
   const after = boundary(args.page);
-  const date = businessDateRange(args.businessDate);
+  const date = businessDateRange(args.businessDate, args.businessDayStartMinute);
   const values = await tx.execute(sql`
     select m.*,
       p.name as product_name,

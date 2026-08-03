@@ -3,19 +3,20 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 /**
- * Three tones, matching design.md: primary (Leaf), secondary (bordered), danger.
+ * Tones match docs/design.md: cyan primary, bordered secondary, restrained danger and link.
  *
  * `danger` is white-with-danger-text by default and only fills solid in a final
  * destructive confirmation, because a screen full of red buttons stops meaning
  * "careful" — which is the one thing this product needs the colour to mean.
  */
-export type ButtonTone = "primary" | "secondary" | "danger" | "danger-solid";
+export type ButtonTone = "primary" | "secondary" | "danger" | "danger-solid" | "link";
 
 const TONE_CLASS: Readonly<Record<ButtonTone, string>> = {
-  primary: "bg-leaf text-white hover:bg-leaf-hover border border-transparent",
+  primary: "bg-brand text-white hover:bg-brand-hover border border-transparent",
   secondary: "bg-surface text-ink border border-border hover:border-border-strong",
   danger: "bg-surface text-danger border border-danger/40 hover:border-danger",
   "danger-solid": "bg-danger text-white border border-transparent hover:opacity-90",
+  link: "border border-transparent bg-transparent px-0 text-info hover:underline",
 };
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -29,6 +30,19 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   readonly disabledReason?: string;
   readonly children: ReactNode;
 };
+
+export function buttonClassName(tone: ButtonTone, fullWidth: boolean, className: string): string {
+  return [
+    "touch-target inline-flex min-h-[52px] items-center justify-center gap-2 rounded-button px-4 sm:min-h-11",
+    "text-label font-semibold transition-colors",
+    "disabled:cursor-not-allowed disabled:opacity-50",
+    TONE_CLASS[tone],
+    fullWidth ? "w-full" : "",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
 
 export function Button({
   tone = "primary",
@@ -50,16 +64,7 @@ export function Button({
       // by CapabilityAction, which is what product code uses.
       {...(disabledReason !== undefined ? { title: disabledReason } : {})}
       aria-disabled={isDisabled}
-      className={[
-        "touch-target inline-flex items-center justify-center gap-2 rounded-button px-4",
-        "text-label font-semibold transition-colors",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        TONE_CLASS[tone],
-        fullWidth ? "w-full" : "",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className={buttonClassName(tone, fullWidth, className)}
     >
       {children}
     </button>

@@ -39,10 +39,12 @@ import {
 import {
   getInventoryBalances,
   getInventoryTimeline,
+  getReceipt,
+  getPurchaseReceivingSummary,
 } from "../../../modules/inventory/inventory.queries.ts";
 import { createQualityGrade } from "../../../modules/quality/quality.handlers.ts";
 
-describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", () => {
+describe.skipIf(skipWithoutDatabase())("Goods Truth against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
   const supplierId = crypto.randomUUID() as SupplierId;
@@ -72,7 +74,7 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
   });
   afterAll(async () => ctx?.close());
 
-  it("keeps payable and physical truth separate, attributable, and duplicate-safe", async () => {
+  it("TC-EVIDENCE-003 — keeps Purchase supply evidence separate from payable and inventory", async () => {
     const secondGradeId = crypto.randomUUID() as QualityGradeId;
     expect(
       (
@@ -111,6 +113,7 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
           },
         ],
         note: null,
+        evidenceReferences: ["supply://commitment/001", "photo://purchase/001"],
         dueAt: null,
         replacesPurchaseId: null,
       },
@@ -170,6 +173,7 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
           },
         ],
         note: null,
+        evidenceReferences: [`photo://${label}`],
       },
     });
     const receiptACommand = receipt(
@@ -211,6 +215,17 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
     );
     const purchase = await getPurchase(context(), { workspaceId: ctx.workspaceId, purchaseId });
     expect(purchase.ok && purchase.value?.totalAmount.amountMinor).toBe(1_000_000);
+    expect(purchase.ok && purchase.value?.evidenceReferences).toEqual([
+      "supply://commitment/001",
+      "photo://purchase/001",
+    ]);
+    const storedReceipt = await getReceipt(context(), {
+      workspaceId: ctx.workspaceId,
+      receiptId: receiptA,
+    });
+    expect(storedReceipt.ok && storedReceipt.value?.evidenceReferences).toEqual([
+      "photo://goods-receipt-a",
+    ]);
 
     const over = await recordPurchaseReceipt(
       context(),
@@ -235,7 +250,29 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
     });
     expect(blockedVoid.ok).toBe(false);
     if (!blockedVoid.ok) expect(blockedVoid.error.code).toBe("PURCHASE_HAS_ACTIVE_RECEIPTS");
+    const blockedSummary = await getPurchaseReceivingSummary(context(), {
+      workspaceId: ctx.workspaceId,
+      purchaseId,
+    });
+    expect(blockedSummary.ok && blockedSummary.value.capabilities.voidPurchase).toMatchObject({
+      allowed: false,
+      reasonCode: "PURCHASE_HAS_ACTIVE_RECEIPTS",
+    });
+    expect(
+      (await getSupplierBalance(context(), { workspaceId: ctx.workspaceId, supplierId })).ok,
+    ).toBe(true);
+    const stockBeforeReceiptCorrection = await getInventoryBalances(context(), {
+      workspaceId: ctx.workspaceId,
+      productId: ctx.productIds[0],
+    });
+    expect(
+      stockBeforeReceiptCorrection.ok &&
+        stockBeforeReceiptCorrection.value.reduce((sum, row) => sum + row.quantityScaled, 0),
+    ).toBe(100_000);
 
+    // This next reversal is legal only because the Receipt records themselves are
+    // being treated as erroneous test facts. It is NOT the generic path for
+    // correcting a Purchase after goods were physically accepted (ASM-036).
     for (const [receiptId, label] of [
       [receiptB, "b"],
       [receiptA, "a"],
@@ -248,12 +285,19 @@ describe.skipIf(skipWithoutDatabase())("M16-M18 Goods Truth against Postgres", (
               reversalId: crypto.randomUUID(),
               receiptId,
               reasonCode: "wrong_quantity",
-              reason: "Hoàn tác để sửa đơn mua",
+              reason: "Phiếu nhận test được xác định đã ghi nhầm",
             },
           })
         ).ok,
       ).toBe(true);
     }
+    const allowedSummary = await getPurchaseReceivingSummary(context(), {
+      workspaceId: ctx.workspaceId,
+      purchaseId,
+    });
+    expect(allowedSummary.ok && allowedSummary.value.capabilities.voidPurchase).toEqual({
+      allowed: true,
+    });
     expect(
       (
         await voidPurchase(context(), {

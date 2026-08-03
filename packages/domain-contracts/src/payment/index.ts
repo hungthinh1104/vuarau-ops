@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  cashAccountIdSchema,
   customerIdSchema,
   paymentIdSchema,
   paymentReversalIdSchema,
@@ -10,6 +11,7 @@ import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand, defineVersionedCommand } from "../shared/command.ts";
 import { capabilitySchema } from "../shared/capability.ts";
 import { pageRequestSchema } from "../shared/pagination.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 /**
  * Payment lifecycle: recorded → partially_reversed → reversed.
@@ -32,12 +34,15 @@ export const recordCustomerPaymentPayloadSchema = z.object({
   /** Positivity is BR-PAYMENT-001, enforced by the domain for a stable code. */
   amount: moneySchema,
   method: paymentMethodSchema,
+  /** Required when this workspace enables the cashbook; null preserves pre-cashbook history. */
+  cashAccountId: cashAccountIdSchema.nullable().optional(),
   /**
    * Set when a relative or driver pays on the customer's behalf. The debt still
    * belongs to `customerId`; this is who physically handed over the money.
    */
   payerName: z.string().trim().max(200).nullable().default(null),
   note: z.string().trim().max(1000).nullable().default(null),
+  evidenceReferences: evidenceReferencesInputSchema,
 });
 export type RecordCustomerPaymentPayload = z.infer<typeof recordCustomerPaymentPayloadSchema>;
 
@@ -50,12 +55,15 @@ export const reverseCustomerPaymentPayloadSchema = z.object({
   reversalId: paymentReversalIdSchema,
   /** Partial reversals are supported; amount ≤ remaining reversible amount. */
   amount: moneySchema,
+  /** Account money leaves; may be supplied for a legacy payment recorded before cashbook. */
+  cashAccountId: cashAccountIdSchema.nullable().optional(),
   /**
    * Undoing money always requires a stated cause (BR-PAYMENT-004). Blankness is
    * checked by the domain so the refusal is
    * `PAYMENT_REVERSAL_REASON_REQUIRED`, which the UI can act on.
    */
   reason: z.string().max(500),
+  evidenceReferences: evidenceReferencesInputSchema,
 });
 export type ReverseCustomerPaymentPayload = z.infer<typeof reverseCustomerPaymentPayloadSchema>;
 
@@ -76,8 +84,10 @@ export const paymentDtoSchema = z.object({
   amount: moneySchema,
   currency: currencyCodeSchema,
   method: paymentMethodSchema,
+  cashAccountId: cashAccountIdSchema.nullable(),
   payerName: z.string().nullable(),
   note: z.string().nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   status: paymentStatusSchema,
   /** Cumulative amount reversed so far. Monotonically increasing. */
   reversedAmount: moneySchema,
@@ -96,6 +106,7 @@ export const paymentReversalDtoSchema = z.object({
   paymentId: paymentIdSchema,
   amount: moneySchema,
   reason: z.string(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,
 });
@@ -137,6 +148,7 @@ export const paymentSummaryDtoSchema = z.object({
   customerDisplayName: z.string(),
   amount: moneySchema,
   method: paymentMethodSchema,
+  cashAccountId: cashAccountIdSchema.nullable(),
   status: paymentStatusSchema,
   reversedAmount: moneySchema,
   /**
@@ -148,6 +160,7 @@ export const paymentSummaryDtoSchema = z.object({
   payerName: z.string().nullable(),
   /** Server-stored capture note; receipt UI never relies on local form state. */
   note: z.string().nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   version: z.int().nonnegative(),
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,

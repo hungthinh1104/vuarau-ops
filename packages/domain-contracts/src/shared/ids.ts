@@ -23,6 +23,9 @@ export type CustomerId = z.infer<typeof customerIdSchema>;
 export const productIdSchema = z.uuid().brand<"ProductId">();
 export type ProductId = z.infer<typeof productIdSchema>;
 
+export const priceRuleIdSchema = z.uuid().brand<"PriceRuleId">();
+export type PriceRuleId = z.infer<typeof priceRuleIdSchema>;
+
 export const qualityGradeIdSchema = z.uuid().brand<"QualityGradeId">();
 export type QualityGradeId = z.infer<typeof qualityGradeIdSchema>;
 
@@ -94,6 +97,49 @@ export type PaymentReversalId = z.infer<typeof paymentReversalIdSchema>;
 
 export const customerAccountEntryIdSchema = z.uuid().brand<"CustomerAccountEntryId">();
 export type CustomerAccountEntryId = z.infer<typeof customerAccountEntryIdSchema>;
+
+export const qualityIssueCodeIdSchema = z.uuid().brand<"QualityIssueCodeId">();
+export type QualityIssueCodeId = z.infer<typeof qualityIssueCodeIdSchema>;
+export const goodsArrivalIdSchema = z.uuid().brand<"GoodsArrivalId">();
+export type GoodsArrivalId = z.infer<typeof goodsArrivalIdSchema>;
+export const goodsArrivalLineIdSchema = z.uuid().brand<"GoodsArrivalLineId">();
+export type GoodsArrivalLineId = z.infer<typeof goodsArrivalLineIdSchema>;
+export const goodsArrivalReversalIdSchema = z.uuid().brand<"GoodsArrivalReversalId">();
+export type GoodsArrivalReversalId = z.infer<typeof goodsArrivalReversalIdSchema>;
+export const qualityInspectionIdSchema = z.uuid().brand<"QualityInspectionId">();
+export type QualityInspectionId = z.infer<typeof qualityInspectionIdSchema>;
+export const qualityInspectionReversalIdSchema = z.uuid().brand<"QualityInspectionReversalId">();
+export type QualityInspectionReversalId = z.infer<typeof qualityInspectionReversalIdSchema>;
+export const qualityDispositionIdSchema = z.uuid().brand<"QualityDispositionId">();
+export type QualityDispositionId = z.infer<typeof qualityDispositionIdSchema>;
+export const qualityDispositionAllocationIdSchema = z
+  .uuid()
+  .brand<"QualityDispositionAllocationId">();
+export type QualityDispositionAllocationId = z.infer<typeof qualityDispositionAllocationIdSchema>;
+export const qualityDispositionReversalIdSchema = z.uuid().brand<"QualityDispositionReversalId">();
+export type QualityDispositionReversalId = z.infer<typeof qualityDispositionReversalIdSchema>;
+
+export const costObservationIdSchema = z.uuid().brand<"CostObservationId">();
+export type CostObservationId = z.infer<typeof costObservationIdSchema>;
+export const reconciliationObservationIdSchema = z.uuid().brand<"ReconciliationObservationId">();
+export type ReconciliationObservationId = z.infer<typeof reconciliationObservationIdSchema>;
+export const debtObservationIdSchema = z.uuid().brand<"DebtObservationId">();
+export type DebtObservationId = z.infer<typeof debtObservationIdSchema>;
+
+export const cashAccountIdSchema = z.uuid().brand<"CashAccountId">();
+export type CashAccountId = z.infer<typeof cashAccountIdSchema>;
+export const cashMovementIdSchema = z.uuid().brand<"CashMovementId">();
+export type CashMovementId = z.infer<typeof cashMovementIdSchema>;
+export const expenseIdSchema = z.uuid().brand<"ExpenseId">();
+export type ExpenseId = z.infer<typeof expenseIdSchema>;
+export const expenseReversalIdSchema = z.uuid().brand<"ExpenseReversalId">();
+export type ExpenseReversalId = z.infer<typeof expenseReversalIdSchema>;
+export const cashTransferIdSchema = z.uuid().brand<"CashTransferId">();
+export type CashTransferId = z.infer<typeof cashTransferIdSchema>;
+export const cashTransferReversalIdSchema = z.uuid().brand<"CashTransferReversalId">();
+export type CashTransferReversalId = z.infer<typeof cashTransferReversalIdSchema>;
+export const cashAdjustmentIdSchema = z.uuid().brand<"CashAdjustmentId">();
+export type CashAdjustmentId = z.infer<typeof cashAdjustmentIdSchema>;
 
 export const commandIdSchema = z.uuid().brand<"CommandId">();
 export type CommandId = z.infer<typeof commandIdSchema>;

@@ -4,6 +4,8 @@ import type {
   SupplierDto,
   SupplierId,
   SupplierPaymentId,
+  SupplierPriceHistoryInput,
+  SupplierPriceHistoryRowDto,
   SupplierSearchInput,
   Cursor,
   WorkspaceId,
@@ -44,6 +46,23 @@ export async function getSupplier(
   if (!result.ok) return result;
   return result.value === null ? err("SUPPLIER_NOT_FOUND", "No such supplier.") : ok(result.value);
 }
+
+export const getSupplierPriceHistory = (ctx: CommandContext, input: SupplierPriceHistoryInput) =>
+  runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "supplier.read",
+    execute: async ({ repos }) =>
+      toPage(
+        await repos.supplierReads.priceHistory({
+          workspaceId: input.workspaceId,
+          supplierId: input.supplierId,
+          productId: input.productId,
+          page: toPageQuery(input),
+        }),
+        (row) => row,
+      ),
+  }) as Promise<DomainResult<Page<SupplierPriceHistoryRowDto>>>;
 
 export const getSupplierBalance = (
   ctx: CommandContext,

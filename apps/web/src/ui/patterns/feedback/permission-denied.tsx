@@ -1,10 +1,12 @@
 import type { DomainError, Permission, WorkspaceRole } from "@vuarau/domain-contracts";
 import { messageForCode } from "@/ui/copy.ts";
+import { RequestCorrelation } from "./request-correlation.tsx";
 
 export type PermissionDeniedProps = {
   readonly error: DomainError;
   /** What the user was trying to do, in their words. "Hoàn tác đơn hàng". */
   readonly attemptedAction: string;
+  readonly requestId?: string | null;
 };
 
 /**
@@ -20,7 +22,7 @@ export type PermissionDeniedProps = {
  * owner", not "try again". Naming the missing permission and the role makes that
  * request answerable; "không có quyền" alone makes it an argument.
  */
-export function PermissionDenied({ error, attemptedAction }: PermissionDeniedProps) {
+export function PermissionDenied({ error, attemptedAction, requestId }: PermissionDeniedProps) {
   const permission = readDetail(error, "permission");
   const role = readDetail(error, "role");
 
@@ -45,13 +47,14 @@ export function PermissionDenied({ error, attemptedAction }: PermissionDeniedPro
           {permission !== null ? (
             <>
               <dt>Quyền cần có</dt>
-              <dd className="font-mono">{permission}</dd>
+              <dd className="break-all text-body-sm">{permission}</dd>
             </>
           ) : null}
         </dl>
       ) : null}
 
       <p className="text-body-sm text-ink">{messageForCode(error.code, error.message)}</p>
+      <RequestCorrelation requestId={requestId} />
     </div>
   );
 }

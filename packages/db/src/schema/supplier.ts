@@ -1,6 +1,7 @@
 import {
   bigint,
   boolean,
+  foreignKey,
   index,
   integer,
   pgTable,
@@ -12,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { actors, workspaces } from "./workspace.ts";
 import { commandReceipts } from "./command.ts";
+import { cashAccounts } from "./cash.ts";
 import { currencyCodeEnum, paymentMethodEnum, supplierAccountSourceTypeEnum } from "./enums.ts";
 
 export const suppliers = pgTable(
@@ -44,13 +46,20 @@ export const supplierPayments = pgTable(
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     method: paymentMethodEnum("method").notNull(),
+    cashAccountId: uuid("cash_account_id"),
     note: text("note"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     reversedAmountMinor: bigint("reversed_amount_minor", { mode: "number" }).notNull().default(0),
     version: integer("version").notNull().default(1),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.workspaceId, table.cashAccountId],
+      foreignColumns: [cashAccounts.workspaceId, cashAccounts.id],
+      name: "supplier_payments_workspace_cash_account_fk",
+    }),
     uniqueIndex("supplier_payments_workspace_id_id_uq").on(table.workspaceId, table.id),
     index("supplier_payments_supplier_time_idx").on(
       table.workspaceId,
@@ -71,6 +80,7 @@ export const supplierPaymentReversals = pgTable(
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },

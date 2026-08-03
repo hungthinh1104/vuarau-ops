@@ -2,14 +2,17 @@
 
 For an M23 shadow pilot, set `APP_RELEASE_SHA` to the deployed full git SHA and
 copy it into every private readiness/evidence record. See
-[m23-deployment-recovery-evidence.md](m23-deployment-recovery-evidence.md) for the
+[deployment-recovery-evidence.md](deployment-recovery-evidence.md) for the
 repository/deployment/operator evidence split.
 
 **Vendor-neutral on purpose.** This says what has to be true, not who provides it.
 A hosting choice made now would be made before anybody has watched a depot use the
 product, and it would be copied forward as though it had been decided.
 
-Anything that satisfies every line below is a valid pilot environment.
+Anything that satisfies every line below is a valid pilot environment. The
+repository static gate also runs `pnpm security:surface`, which checks that every API
+query/command stays behind the authenticated procedure boundary and that the
+public route allowlist has not widened silently.
 
 ---
 
@@ -78,6 +81,13 @@ secret-shaped one.
 The browser therefore receives **only** the Supabase project URL and the
 publishable key. The JWT signing material and the database credentials never leave
 the server side.
+
+Every Next response also carries the application security baseline: content type
+sniffing is disabled, framing is denied, referrers are reduced to their origin when
+crossing origins, and camera/microphone/geolocation are denied because this product
+does not require them. Production adds HSTS for HTTPS deployments. The headers are
+defined in `apps/web/next.config.ts` and covered by a web test; a deployment must
+not remove them at the edge.
 
 The pilot Supabase project enables email/password, disables public and anonymous
 signup, and disables email confirmation while SMTP is unavailable. The application
@@ -237,5 +247,5 @@ reason to skip the table above.
 - [../00-product/pilot-onboarding.md](../00-product/pilot-onboarding.md) — preparing the depot inside it
 - [../09-decisions/ADR-0010-supabase-jwt-verification.md](../09-decisions/ADR-0010-supabase-jwt-verification.md)
 - [threat-model.md](threat-model.md)
-- [m22-performance-evidence.md](m22-performance-evidence.md)
+- [production-scale-performance-evidence.md](production-scale-performance-evidence.md)
 - [recovery-rehearsal.md](recovery-rehearsal.md)

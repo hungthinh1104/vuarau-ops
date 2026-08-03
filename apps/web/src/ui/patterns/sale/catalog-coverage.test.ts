@@ -10,7 +10,7 @@ import { UI_STATE_CATALOG } from "./catalog-state.ts";
  * Three things have to agree, and this asserts all three pairs:
  *
  *   the document   docs/06-api-contracts/ui-state-catalog.md, the source of truth
- *   the list       src/ui/catalog-state.ts, the machine-readable copy
+ *   the list       src/ui/patterns/sale/catalog-state.ts, the machine-readable copy
  *   the stories    every `coversState(...)` parameter in a *.stories.tsx
  *
  * A state added to the catalog and forgotten in Storybook fails here. So does a
@@ -21,7 +21,7 @@ import { UI_STATE_CATALOG } from "./catalog-state.ts";
  * the node environment by extension rather than in jsdom.
  */
 
-const ROOT = join(import.meta.dirname, "../../../..");
+const ROOT = join(import.meta.dirname, "../../../../../..");
 const CATALOG_DOC = join(ROOT, "docs/06-api-contracts/ui-state-catalog.md");
 const STORY_ROOT = join(ROOT, "apps/web/src");
 

@@ -10,6 +10,7 @@ import type {
   CursorPosition,
   CustomerAccountEntryId,
   CustomerId,
+  CashAccountId,
   DebtAdjustmentReasonCode,
   DomainRejectionCode,
   IsoInstant,
@@ -21,10 +22,12 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV4,
+  WorkspaceBackupV11,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
+  SupplierPriceHistoryInput,
+  SupplierPriceHistoryRowDto,
   SupplierDto,
   SupplierId,
   SupplierPaymentDto,
@@ -35,6 +38,8 @@ import type {
   InventoryBalanceDto,
   InventoryMovementDto,
   ProductId,
+  PriceRuleListInput,
+  ResolvePriceInput,
   QualityGradeDto,
   QualityGradeId,
   Unit,
@@ -45,8 +50,36 @@ import type {
   DocumentSourceType,
   OperationalReportDto,
   ReportType,
+  CashAccountDto,
+  CashBalanceDto,
+  CashMovementDto,
+  CashReconciliationDto,
+  CashTransferDto,
+  CashTransferId,
+  ExpenseDto,
+  ExpenseId,
+  ArrivalLineHistoryDto,
+  GoodsArrivalDto,
+  GoodsArrivalId,
+  GoodsArrivalLineId,
+  QualityDispositionDto,
+  QualityDispositionId,
+  QualityDispositionSource,
+  QualityDispositionSourceSummaryDto,
+  QualityInspectionDto,
+  QualityInspectionId,
+  QualityIssueCodeDto,
+  CostObservationDto,
+  CostObservationId,
+  CostObservationKind,
+  ReconciliationObservationDto,
+  ReconciliationObservationId,
+  ReconciliationObservationKind,
+  DebtObservationDto,
+  DebtObservationId,
+  DebtObservationKind,
 } from "@vuarau/domain-contracts";
-import type { SaleState } from "@vuarau/domain-kernel";
+import type { PriceRuleState, SaleState } from "@vuarau/domain-kernel";
 
 /**
  * Read ports, separate from the write ports on purpose.
@@ -168,10 +201,12 @@ export type PaymentSummaryRow = {
   readonly customerDisplayName: string;
   readonly amount: Money;
   readonly method: PaymentMethod;
+  readonly cashAccountId: CashAccountId | null;
   readonly status: PaymentStatus;
   readonly reversedAmount: Money;
   readonly payerName: string | null;
   readonly note: string | null;
+  readonly evidenceReferences: readonly string[];
   readonly version: number;
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
@@ -281,6 +316,13 @@ export type ProductReadRepository = {
   get(workspaceId: WorkspaceId, productId: string): Promise<ProductDto | null>;
 };
 
+export type PriceRuleReadRepository = {
+  list(
+    input: PriceRuleListInput & { readonly after: CursorPosition | null },
+  ): Promise<PageResult<PriceRuleState>>;
+  forResolution(input: ResolvePriceInput): Promise<readonly PriceRuleState[]>;
+};
+
 export type QualityGradeReadRepository = {
   list(args: {
     workspaceId: WorkspaceId;
@@ -341,6 +383,12 @@ export type SupplierReadRepository = {
     page: PageQuery;
   }): Promise<PageResult<SupplierDto>>;
   get(workspaceId: WorkspaceId, supplierId: SupplierId): Promise<SupplierDto | null>;
+  priceHistory(args: {
+    workspaceId: WorkspaceId;
+    supplierId: SupplierId;
+    productId: SupplierPriceHistoryInput["productId"];
+    page: PageQuery;
+  }): Promise<PageResult<SupplierPriceHistoryRowDto>>;
 };
 
 export type SupplierAccountReadRepository = {
@@ -420,6 +468,7 @@ export type ReportReadRepository = {
     workspaceId: WorkspaceId;
     reportType: ReportType;
     businessDate: string | null;
+    businessDayStartMinute?: number;
     productId: ProductId | null;
     unit: Unit | null;
     page: PageQuery;
@@ -456,9 +505,103 @@ export type AuditReadRepository = {
   }): Promise<PageResult<AuditTimelineRow>>;
 };
 
+export type CashReadRepository = {
+  searchAccounts(args: {
+    workspaceId: WorkspaceId;
+    query: string;
+    isActive: boolean | null;
+    page: PageQuery;
+  }): Promise<PageResult<{ readonly account: CashAccountDto; readonly balance: CashBalanceDto }>>;
+  account(
+    workspaceId: WorkspaceId,
+    cashAccountId: CashAccountId,
+  ): Promise<{ readonly account: CashAccountDto; readonly balance: CashBalanceDto } | null>;
+  timeline(args: {
+    workspaceId: WorkspaceId;
+    cashAccountId: CashAccountId;
+    from: IsoInstant | null;
+    to: IsoInstant | null;
+    page: PageQuery;
+  }): Promise<PageResult<CashMovementDto>>;
+  expense(workspaceId: WorkspaceId, expenseId: ExpenseId): Promise<ExpenseDto | null>;
+  transfer(workspaceId: WorkspaceId, transferId: CashTransferId): Promise<CashTransferDto | null>;
+  reconciliation(
+    workspaceId: WorkspaceId,
+    cashAccountId: CashAccountId,
+  ): Promise<CashReconciliationDto>;
+};
+
+export type IntakeReadRepository = {
+  searchIssueCodes(args: {
+    workspaceId: WorkspaceId;
+    query: string;
+    isActive: boolean | null;
+    page: PageQuery;
+  }): Promise<PageResult<QualityIssueCodeDto>>;
+  arrival(workspaceId: WorkspaceId, arrivalId: GoodsArrivalId): Promise<GoodsArrivalDto | null>;
+  listArrivals(args: {
+    workspaceId: WorkspaceId;
+    supplierId: string | null;
+    purchaseId: string | null;
+    page: PageQuery;
+  }): Promise<PageResult<GoodsArrivalDto>>;
+  inspection(
+    workspaceId: WorkspaceId,
+    inspectionId: QualityInspectionId,
+  ): Promise<QualityInspectionDto | null>;
+  disposition(
+    workspaceId: WorkspaceId,
+    dispositionId: QualityDispositionId,
+  ): Promise<QualityDispositionDto | null>;
+  dispositionSourceSummary(
+    workspaceId: WorkspaceId,
+    source: QualityDispositionSource,
+  ): Promise<QualityDispositionSourceSummaryDto | null>;
+  arrivalLineHistory(
+    workspaceId: WorkspaceId,
+    arrivalLineId: GoodsArrivalLineId,
+  ): Promise<ArrivalLineHistoryDto>;
+};
+
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV4["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV11["payload"] | null>;
+};
+
+export type CostObservationReadRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    observationId: CostObservationId,
+  ): Promise<CostObservationDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    kind: CostObservationKind | null;
+    page: PageQuery;
+  }): Promise<PageResult<CostObservationDto>>;
+};
+
+export type ReconciliationObservationReadRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    observationId: ReconciliationObservationId,
+  ): Promise<ReconciliationObservationDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    kind: ReconciliationObservationKind | null;
+    page: PageQuery;
+  }): Promise<PageResult<ReconciliationObservationDto>>;
+};
+
+export type DebtObservationReadRepository = {
+  get(
+    workspaceId: WorkspaceId,
+    observationId: DebtObservationId,
+  ): Promise<DebtObservationDto | null>;
+  list(args: {
+    workspaceId: WorkspaceId;
+    kind: DebtObservationKind | null;
+    page: PageQuery;
+  }): Promise<PageResult<DebtObservationDto>>;
 };
 
 /**
@@ -470,6 +613,7 @@ export type OperationsReadRepository = {
 export type ReadRepositories = {
   readonly customerReads: CustomerReadRepository;
   readonly productReads: ProductReadRepository;
+  readonly priceRuleReads: PriceRuleReadRepository;
   readonly qualityGradeReads: QualityGradeReadRepository;
   readonly supplierReads: SupplierReadRepository;
   readonly supplierAccountReads: SupplierAccountReadRepository;
@@ -483,4 +627,9 @@ export type ReadRepositories = {
   readonly accountReads: AccountReadRepository;
   readonly auditReads: AuditReadRepository;
   readonly operationsReads: OperationsReadRepository;
+  readonly cashReads: CashReadRepository;
+  readonly intakeReads: IntakeReadRepository;
+  readonly costObservationReads: CostObservationReadRepository;
+  readonly reconciliationObservationReads: ReconciliationObservationReadRepository;
+  readonly debtObservationReads: DebtObservationReadRepository;
 };

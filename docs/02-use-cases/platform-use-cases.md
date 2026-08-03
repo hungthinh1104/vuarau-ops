@@ -404,6 +404,64 @@ time.
 BR-AUTH-001, BR-AUTH-004, BR-PAYMENT-008, BR-CUSTOMER-002 ·
 TC-PAYMENT-013, TC-PAYMENT-014
 
+---
+
+## UC-OPERATIONS-001 — Run and observe the service under trusted configuration
+
+**Actor:** deployment/operator role. **Trigger:** start a release, inspect readiness,
+or correlate an incident without exposing customer/business payload.
+
+- **Configuration:** refuse startup when required security/deployment values are
+  missing or contradictory; no “best effort” production mode.
+- **Observability:** logs/metrics carry request/correlation identifiers and safe
+  operational dimensions, not transaction/customer bodies.
+- **Scale evidence:** performance claims require measured query plans/cursor evidence,
+  not anecdotal local timing.
+- **Effects:** no business truth mutation. Failure prevents or diagnoses service use.
+- **Rules/tests:** BR-OPS-001/002/006/007 · TC-OPS-001…004, TC-OPS-009…011.
+
+## UC-OPERATIONS-002 — Export, validate and restore logical workspace recovery data
+
+**Actor:** owner/operator with recovery authority. **Trigger:** export recovery evidence
+or restore a validated artifact into an empty recovery workspace.
+
+- **Export:** deterministic/checksummed logical boundary, attributable and secret-free.
+- **Validation:** malformed input, digest/reference mismatch and unsupported compatibility
+  fail closed before canonical writes.
+- **Restore:** empty-target, transactional and atomic; rebuild projections from canonical
+  imported facts and reconcile customer/supplier/inventory truth.
+- **Boundary:** this is logical recovery, not provider PITR. Repeating the same Restore
+  command creates no duplicate canonical rows.
+- **Rules/tests:** BR-OPS-004/005 · TC-OPS-006/007/008 · recovery PostgreSQL tests.
+
+## UC-OPERATIONS-003 — Prepare a shadow pilot fail-closed
+
+**Actor:** pilot facilitator/operator. **Trigger:** provision isolated workspace/master
+records and prove repository/external gates before observation.
+
+- **Provisioning/import:** attributable commands, deterministic dry-run then explicit
+  commit; no demo seed and no hidden direct-row repair.
+- **Readiness:** exact release SHA, actor/role/owners, policy evidence, active catalogue
+  prerequisites, auth/deployment/recovery evidence.
+- **Cross-dimension gates:** ASM-035–038 must be excluded-with-stop, resolved in the
+  exact release, or remain blocked; generic “reviewed” is not pass evidence.
+- **Effects:** preparation creates only declared master/configuration facts; it cannot
+  manufacture H2–H6 field evidence.
+- **Rules/tests:** BR-OPS-008, BR-CUSTOMER-005 · TC-OPS-012…014, TC-CUSTOMER-013.
+
+## UC-OPERATIONS-004 — Correct a posted Sale through supported command paths
+
+**Actor:** authorized support/operator plus business role that owns the correction.
+**Trigger:** investigate a wrong posted Sale when the normal UI correction path needs
+operator assistance.
+
+- **Rule:** support tooling calls the same command semantics; it never patches posted
+  rows, account entries, movement history or command receipts directly.
+- **Money/history:** void/replacement remains the canonical commercial correction.
+- **Cross-dimension stop:** fulfilment that already happened remains immutable and
+  activates ASM-035 rather than fake Return/Dispatch repair.
+- **Rules/tests:** BR-OPS-003, BR-SALE-012…016 · CASE-SALE-007 · TC-OPS-005.
+
 ## Related
 
 - [UC-AUTH-001-authenticate-and-authorize.md](UC-AUTH-001-authenticate-and-authorize.md)

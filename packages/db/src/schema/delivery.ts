@@ -24,6 +24,7 @@ export const deliveries = pgTable(
     saleId: uuid("sale_id").notNull(),
     status: deliveryStatusEnum("status").notNull(),
     note: text("note"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     cancellationReason: text("cancellation_reason"),
     version: integer("version").notNull(),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
@@ -104,6 +105,7 @@ export const deliveryReturns = pgTable(
     workspaceId: uuid("workspace_id").notNull(),
     deliveryId: uuid("delivery_id").notNull(),
     reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")

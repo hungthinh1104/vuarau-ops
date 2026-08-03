@@ -52,14 +52,19 @@ describe("TC-WEB-020 — production routes carry no fixture data", () => {
     expect(offenders, `production routes importing fixtures:\n${offenders.join("\n")}`).toEqual([]);
   });
 
-  it("every production route is a client component talking to the API", () => {
-    // A server component here would render before the session gate had a token,
-    // and would need its own way to reach the API — a second client.
-    const pages = files.filter((file) => file.endsWith("page.tsx") || file.endsWith("layout.tsx"));
+  it("every production route is a server wrapper delegated to a client controller", () => {
+    const pages = files.filter((file) => file.endsWith("page.tsx"));
     for (const page of pages) {
-      expect(readFileSync(page, "utf8").startsWith('"use client"'), relative(ROOT, page)).toBe(
-        true,
-      );
+      const source = readFileSync(page, "utf8");
+      expect(source.startsWith('"use client"'), relative(ROOT, page)).toBe(false);
+      expect(source, relative(ROOT, page)).toMatch(/@\/ui\/controllers\//);
     }
+  });
+
+  it("mounts the application toast host exactly once", () => {
+    const rootLayout = readFileSync(join(ROOT, "src/app/layout.tsx"), "utf8");
+    const appLayout = readFileSync(join(PRODUCTION_ROUTES, "layout.tsx"), "utf8");
+    expect(rootLayout.match(/<Toaster\s*\/>/g)).toHaveLength(1);
+    expect(appLayout).not.toMatch(/<Toaster\s*\/>/);
   });
 });

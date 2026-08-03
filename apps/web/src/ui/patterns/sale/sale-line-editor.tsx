@@ -1,6 +1,13 @@
 "use client";
 
-import type { Money, ProductId, QualityGradeId, Quantity, Unit } from "@vuarau/domain-contracts";
+import type {
+  Money,
+  PriceResolutionDto,
+  ProductId,
+  QualityGradeId,
+  Quantity,
+  Unit,
+} from "@vuarau/domain-contracts";
 import { UNITS, UNIT_LABEL_VI, calculateLineTotal } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { IconButton } from "@/ui/primitives/icon-button.tsx";
@@ -8,9 +15,11 @@ import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
-import { parseMoneyText, parseQuantityText } from "@/ui/primitives/numeric-text.ts";
-import { X } from "lucide-react";
+import { parseMoneyText, parseQuantityText } from "@/ui/domain/numeric-text.ts";
+import { Search, X } from "lucide-react";
+import { useRef, type KeyboardEvent } from "react";
 import { formatMoney } from "@/ui/format.ts";
+import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 
 /**
  * One line of a sale, held as **raw text**.
@@ -37,6 +46,10 @@ export type SaleLineDraft = {
         readonly sourceSaleId: string;
         readonly productName: string;
         readonly unit: Unit;
+      }
+    | {
+        readonly kind: "rule";
+        readonly priceRuleId: string;
       }
     | null;
 };
@@ -141,6 +154,9 @@ export type SaleLineEditorProps = {
     readonly label: string;
   }[];
   readonly onOpenProductPicker?: () => void;
+  /** Resolution is shown only when this line has a complete server query context. */
+  readonly priceResolution?: QueryLike<PriceResolutionDto>;
+  readonly onApplyPriceRule?: () => void;
 };
 
 /**
@@ -166,17 +182,48 @@ export function SaleLineEditor({
   disabled = false,
   qualityGradeOptions = [],
   onOpenProductPicker,
-}: SaleLineEditorProps) {
+  priceResolution,
+  onApplyPriceRule,
+  onAdvance,
+}: SaleLineEditorProps & { readonly onAdvance?: () => void }) {
   const { total } = resolveLine(line);
+  const rowRef = useRef<HTMLLIElement>(null);
+
+  const isFulfilmentReady =
+    line.productId !== null &&
+    line.productId !== undefined &&
+    line.qualityGradeId !== null &&
+    line.qualityGradeId !== undefined &&
+    line.qualityGradeName !== null &&
+    line.qualityGradeName !== undefined &&
+    total !== null;
+
+  function focusRowField(field: string): void {
+    rowRef.current?.querySelector<HTMLElement>(`[data-sale-field="${field}"]`)?.focus();
+  }
+
+  function focusField(event: KeyboardEvent<HTMLElement>, field: string): void {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    focusRowField(field);
+  }
 
   return (
     <li
+      ref={rowRef}
       data-testid={`sale-line-${index}`}
-      className="flex flex-col gap-3 rounded-card border border-border bg-surface p-3"
+      className="rounded-card border border-border bg-surface p-3 sm:p-4"
       onFocus={onFocus}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-caption font-semibold text-ink-muted">Dòng {index + 1}</span>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <span className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
+            Dòng {index + 1}
+          </span>
+          <p className="tabular mt-0.5 text-subheading font-semibold text-ink">
+            {total === null ? "Chưa đủ dữ liệu" : formatMoney(total)}
+          </p>
+        </div>
         {canRemove ? (
           <IconButton label={`Xoá dòng ${index + 1}`} onClick={onRemove} disabled={disabled}>
             <X size={16} />
@@ -184,90 +231,184 @@ export function SaleLineEditor({
         ) : null}
       </div>
 
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
-          <TextInput
-            label="Mặt hàng"
-            required
-            placeholder="Nhập hoặc chọn mặt hàng"
-            disabled={disabled}
-            value={line.productName}
-            onChange={(event) => onChange({ ...line, productName: event.target.value }, "product")}
-            {...(issues.productName !== undefined ? { error: issues.productName } : {})}
-          />
+      <div className="grid gap-3">
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1">
+            <TextInput
+              label="Mặt hàng"
+              required
+              placeholder="Nhập hoặc chọn mặt hàng"
+              disabled={disabled}
+              value={line.productName}
+              data-sale-field="product"
+              onKeyDown={(event) => focusField(event, "qualityGrade")}
+              onChange={(event) =>
+                onChange({ ...line, productName: event.target.value }, "product")
+              }
+              {...(issues.productName !== undefined ? { error: issues.productName } : {})}
+            />
+          </div>
+          {onOpenProductPicker !== undefined ? (
+            <Button
+              tone="secondary"
+              className="shrink-0 px-3"
+              disabled={disabled}
+              onClick={onOpenProductPicker}
+              type="button"
+              aria-label="Mở bảng chọn mặt hàng và giá gần đây"
+              title="Chọn mặt hàng"
+            >
+              <Search aria-hidden="true" className="h-4 w-4" />
+              <span className="hidden sm:inline">Chọn</span>
+            </Button>
+          ) : null}
         </div>
-        {onOpenProductPicker !== undefined ? (
-          <Button tone="secondary" disabled={disabled} onClick={onOpenProductPicker} type="button">
-            Chọn
-          </Button>
-        ) : null}
+
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="col-span-2 md:col-span-1">
+            <Select
+              label="Phân hạng chất lượng"
+              required
+              disabled={disabled}
+              value={line.qualityGradeId ?? ""}
+              placeholder="Chọn hạng"
+              data-sale-field="qualityGrade"
+              onChange={(event) => {
+                const option = qualityGradeOptions.find(
+                  (candidate) => candidate.value === event.target.value,
+                );
+                onChange(
+                  {
+                    ...line,
+                    qualityGradeId: (event.target.value || null) as QualityGradeId | null,
+                    qualityGradeName: option?.label ?? null,
+                  },
+                  "qualityGrade",
+                );
+                if (option !== undefined) {
+                  requestAnimationFrame(() => focusRowField("quantity"));
+                }
+              }}
+              options={qualityGradeOptions}
+            />
+          </div>
+          <QuantityInput
+            label="Số lượng"
+            required
+            disabled={disabled}
+            unit={line.unit}
+            unitLabel={UNIT_LABEL_VI[line.unit]}
+            showUnitSuffix={false}
+            value={line.quantityText}
+            data-sale-field="quantity"
+            onKeyDown={(event) => focusField(event, "price")}
+            onChange={(event) =>
+              onChange({ ...line, quantityText: event.target.value }, "quantity")
+            }
+            {...(issues.quantity !== undefined ? { error: issues.quantity } : {})}
+          />
+          <Select
+            label="Đơn vị"
+            disabled={disabled}
+            value={line.unit}
+            onChange={(event) => onChange({ ...line, unit: event.target.value as Unit }, "unit")}
+            options={UNIT_OPTIONS}
+          />
+          <div className="col-span-2 md:col-span-1">
+            <MoneyInput
+              label="Đơn giá"
+              required
+              disabled={disabled}
+              currency="VND"
+              value={line.unitPriceText}
+              data-sale-field="price"
+              enterKeyHint="next"
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                event.preventDefault();
+                if (isFulfilmentReady) {
+                  onAdvance?.();
+                }
+              }}
+              onChange={(event) =>
+                onChange({ ...line, unitPriceText: event.target.value }, "unitPrice")
+              }
+              {...(issues.unitPrice !== undefined ? { error: issues.unitPrice } : {})}
+            />
+          </div>
+        </div>
       </div>
 
-      <Select
-        label="Phân hạng chất lượng"
-        required
-        disabled={disabled}
-        value={line.qualityGradeId ?? ""}
-        placeholder="Chọn phân hạng"
-        onChange={(event) => {
-          const option = qualityGradeOptions.find(
-            (candidate) => candidate.value === event.target.value,
-          );
-          onChange(
-            {
-              ...line,
-              qualityGradeId: (event.target.value || null) as QualityGradeId | null,
-              qualityGradeName: option?.label ?? null,
-            },
-            "qualityGrade",
-          );
-        }}
-        options={qualityGradeOptions}
-      />
-
-      <div className="grid grid-cols-2 gap-3">
-        <QuantityInput
-          label="Số lượng"
-          required
-          disabled={disabled}
-          unit={line.unit}
-          value={line.quantityText}
-          onChange={(event) => onChange({ ...line, quantityText: event.target.value }, "quantity")}
-          {...(issues.quantity !== undefined ? { error: issues.quantity } : {})}
-        />
-        <Select
-          label="Đơn vị"
-          disabled={disabled}
-          value={line.unit}
-          onChange={(event) => onChange({ ...line, unit: event.target.value as Unit }, "unit")}
-          options={UNIT_OPTIONS}
-        />
-      </div>
-
-      <MoneyInput
-        label="Đơn giá"
-        required
-        disabled={disabled}
-        currency="VND"
-        value={line.unitPriceText}
-        onChange={(event) => onChange({ ...line, unitPriceText: event.target.value }, "unitPrice")}
-        {...(issues.unitPrice !== undefined ? { error: issues.unitPrice } : {})}
-      />
+      <PriceResolutionNotice line={line} query={priceResolution} onApply={onApplyPriceRule} />
 
       {serverIssue !== undefined ? (
-        // The server refused *this* row. `SALE_LINE_INVALID` carries `lineIndex`,
-        // so the message belongs here and nowhere else.
-        <p role="alert" className="text-caption text-danger">
+        <p role="alert" className="mt-3 text-caption text-danger">
           {serverIssue}
         </p>
       ) : null}
-
-      <div className="flex items-baseline justify-between border-t border-border pt-2">
-        <span className="text-body-sm text-ink-muted">Thành tiền</span>
-        <span className="tabular text-subheading font-semibold text-ink">
-          {total === null ? "—" : formatMoney(total)}
-        </span>
-      </div>
     </li>
+  );
+}
+
+function PriceResolutionNotice(props: {
+  readonly line: SaleLineDraft;
+  readonly query: QueryLike<PriceResolutionDto> | undefined;
+  readonly onApply: (() => void) | undefined;
+}) {
+  const query = props.query;
+  if (query === undefined) return null;
+  if (query.isPending) {
+    return (
+      <p role="status" className="text-caption text-ink-muted">
+        Đang kiểm tra rule giá…
+      </p>
+    );
+  }
+  if (query.isError || query.data === undefined) {
+    return (
+      <p role="status" className="rounded-input bg-warning-soft px-3 py-2 text-caption text-ink">
+        Chưa kiểm tra được rule giá. Nhập giá đã thống nhất; hệ thống không tự đoán giá.
+      </p>
+    );
+  }
+
+  if (query.data.status === "none") {
+    return (
+      <p role="status" className="rounded-input bg-surface-muted px-3 py-2 text-caption text-ink">
+        Chưa có rule giá phù hợp cho mặt hàng, phẩm cấp, đơn vị và số lượng này. Nhập giá đã thống
+        nhất.
+      </p>
+    );
+  }
+
+  if (query.data.status === "ambiguous" || query.data.selected === null) {
+    return (
+      <p role="status" className="rounded-input bg-warning-soft px-3 py-2 text-caption text-ink">
+        Có nhiều rule giá cùng mức ưu tiên. Hệ thống không tự chọn; xác nhận giá thủ công trước khi
+        chốt.
+      </p>
+    );
+  }
+
+  const selected = query.data.selected;
+  const alreadyApplied =
+    props.line.priceOrigin?.kind === "rule" && props.line.priceOrigin.priceRuleId === selected.id;
+  return (
+    <div
+      role="status"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-input border border-info/30 bg-info-soft px-3 py-2 text-caption text-ink"
+    >
+      <span>
+        Rule giá đã chọn:{" "}
+        <strong className="tabular">{formatMoney(selected.finalUnitPrice)}</strong>
+      </span>
+      {alreadyApplied ? (
+        <span className="font-semibold text-info">Đã áp dụng</span>
+      ) : (
+        <Button tone="secondary" onClick={props.onApply}>
+          Dùng giá rule này
+        </Button>
+      )}
+    </div>
   );
 }

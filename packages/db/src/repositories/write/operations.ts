@@ -1,8 +1,16 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV4 } from "@vuarau/domain-contracts";
+import type { WorkspaceId, WorkspaceBackupV11 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
+  cashAccounts,
+  cashAdjustments,
+  cashBalances,
+  cashMovements,
+  cashTransfers,
+  cashTransferReversals,
+  expenses,
+  expenseReversals,
   commandReceipts,
   customerAccountBalances,
   customers,
@@ -13,6 +21,7 @@ import {
   paymentReversals,
   payments,
   products,
+  priceRules,
   qualityGrades,
   suppliers,
   supplierPayments,
@@ -33,93 +42,20 @@ import {
   deliveryReturnLines,
   documents,
   documentShares,
+  workspaceOperationalProfiles,
   workspaces,
+  costObservations,
+  reconciliationObservations,
+  debtObservations,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
+import { restoreInspectedIntake, restoreQualityIssueCodes } from "./operations-intake-restore.ts";
+import { targetContainsBusinessData } from "./operations-target.ts";
 
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV4["payload"]) {
-      const [
-        customerRows,
-        productRows,
-        qualityGradeRows,
-        saleRows,
-        paymentRows,
-        entryRows,
-        supplierRows,
-        purchaseRows,
-        movementRows,
-        deliveryRows,
-        documentRows,
-      ] = await Promise.all([
-        tx
-          .select({ id: customers.id })
-          .from(customers)
-          .where(eq(customers.workspaceId, workspaceId))
-          .limit(1),
-        tx
-          .select({ id: products.id })
-          .from(products)
-          .where(eq(products.workspaceId, workspaceId))
-          .limit(1),
-        tx
-          .select({ id: qualityGrades.id })
-          .from(qualityGrades)
-          .where(eq(qualityGrades.workspaceId, workspaceId))
-          .limit(1),
-        tx.select({ id: sales.id }).from(sales).where(eq(sales.workspaceId, workspaceId)).limit(1),
-        tx
-          .select({ id: payments.id })
-          .from(payments)
-          .where(eq(payments.workspaceId, workspaceId))
-          .limit(1),
-        tx
-          .select({ id: customerAccountEntries.id })
-          .from(customerAccountEntries)
-          .where(eq(customerAccountEntries.workspaceId, workspaceId))
-          .limit(1),
-        tx
-          .select({ id: suppliers.id })
-          .from(suppliers)
-          .where(eq(suppliers.workspaceId, workspaceId))
-          .limit(1),
-        tx
-          .select({ id: purchases.id })
-          .from(purchases)
-          .where(eq(purchases.workspaceId, workspaceId))
-          .limit(1),
-        tx
-          .select({ id: inventoryMovements.id })
-          .from(inventoryMovements)
-          .where(eq(inventoryMovements.workspaceId, workspaceId))
-          .limit(1),
-        tx
-          .select({ id: deliveries.id })
-          .from(deliveries)
-          .where(eq(deliveries.workspaceId, workspaceId))
-          .limit(1),
-        tx
-          .select({ id: documents.id })
-          .from(documents)
-          .where(eq(documents.workspaceId, workspaceId))
-          .limit(1),
-      ]);
-      if (
-        [
-          customerRows,
-          productRows,
-          qualityGradeRows,
-          saleRows,
-          paymentRows,
-          entryRows,
-          supplierRows,
-          purchaseRows,
-          movementRows,
-          deliveryRows,
-          documentRows,
-        ].some((rows) => rows.length > 0)
-      ) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV11["payload"]) {
+      if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
       const sourceWorkspaceId = payload.workspace["id"];
@@ -141,16 +77,33 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
       }
 
       const actorIds = [
+        ...payload.cashAccounts.map((row) => row["custodianActorId"]),
+        ...payload.expenses.map((row) => row["actorId"]),
+        ...payload.expenseReversals.map((row) => row["actorId"]),
+        ...payload.cashTransfers.map((row) => row["actorId"]),
+        ...payload.cashTransferReversals.map((row) => row["actorId"]),
+        ...payload.cashAdjustments.map((row) => row["actorId"]),
+        ...payload.cashMovements.map((row) => row["actorId"]),
         ...payload.accountEntries.map((row) => row["actorId"]),
         ...payload.audit.map((row) => row["actorId"]),
         ...payload.supplierAccountEntries.map((row) => row["actorId"]),
         ...payload.receipts.map((row) => row["actorId"]),
         ...payload.receiptReversals.map((row) => row["actorId"]),
         ...payload.inventoryMovements.map((row) => row["actorId"]),
+        ...payload.goodsArrivals.map((row) => row["actorId"]),
+        ...payload.goodsArrivalReversals.map((row) => row["actorId"]),
+        ...payload.qualityInspections.map((row) => row["actorId"]),
+        ...payload.qualityInspectionReversals.map((row) => row["actorId"]),
+        ...payload.qualityDispositions.map((row) => row["actorId"]),
+        ...payload.qualityDispositionReversals.map((row) => row["actorId"]),
         ...payload.deliveries.map((row) => row["actorId"]),
         ...payload.deliveryReturns.map((row) => row["actorId"]),
         ...payload.documents.map((row) => row["generatedBy"]),
         ...payload.documentShares.flatMap((row) => [row["createdBy"], row["revokedBy"]]),
+        ...payload.priceRules.map((row) => row["actorId"]),
+        ...payload.costObservations.map((row) => row["actorId"]),
+        ...payload.reconciliationObservations.map((row) => row["actorId"]),
+        ...payload.debtObservations.map((row) => row["actorId"]),
       ].filter((value): value is string => typeof value === "string");
       if (actorIds.length > 0) {
         const existing = await tx
@@ -163,6 +116,49 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
       }
 
       const date = (value: unknown): Date => new Date(String(value));
+      const profile = payload.operationalProfile;
+      await tx
+        .insert(workspaceOperationalProfiles)
+        .values({
+          workspaceId,
+          purchasingMode: String(profile["purchasingMode"]) as "disabled" | "purchase_receiving",
+          inventoryMode: String(profile["inventoryMode"]) as "disabled" | "movement_ledger",
+          qualityGradeMode: String(profile["qualityGradeMode"]) as "disabled" | "required",
+          deliveryMode: String(profile["deliveryMode"]) as "disabled" | "sale_fulfilment",
+          cashbookMode: (profile["cashbookMode"] == null
+            ? "disabled"
+            : String(profile["cashbookMode"])) as "disabled" | "accounts_ledger",
+          intakeMode: (profile["intakeMode"] == null
+            ? "direct_receipt"
+            : String(profile["intakeMode"])) as "direct_receipt" | "inspected_arrival",
+          weighingMode: (profile["weighingMode"] == null
+            ? "quantity_only"
+            : String(profile["weighingMode"])) as "quantity_only" | "gross_tare_net",
+          businessDayStartMinute: Number(profile["businessDayStartMinute"]),
+          version: Number(profile["version"]),
+          updatedAt: profile["updatedAt"] == null ? new Date() : date(profile["updatedAt"]),
+        })
+        .onConflictDoUpdate({
+          target: workspaceOperationalProfiles.workspaceId,
+          set: {
+            purchasingMode: String(profile["purchasingMode"]) as "disabled" | "purchase_receiving",
+            inventoryMode: String(profile["inventoryMode"]) as "disabled" | "movement_ledger",
+            qualityGradeMode: String(profile["qualityGradeMode"]) as "disabled" | "required",
+            deliveryMode: String(profile["deliveryMode"]) as "disabled" | "sale_fulfilment",
+            cashbookMode: (profile["cashbookMode"] == null
+              ? "disabled"
+              : String(profile["cashbookMode"])) as "disabled" | "accounts_ledger",
+            intakeMode: (profile["intakeMode"] == null
+              ? "direct_receipt"
+              : String(profile["intakeMode"])) as "direct_receipt" | "inspected_arrival",
+            weighingMode: (profile["weighingMode"] == null
+              ? "quantity_only"
+              : String(profile["weighingMode"])) as "quantity_only" | "gross_tare_net",
+            businessDayStartMinute: Number(profile["businessDayStartMinute"]),
+            version: Number(profile["version"]),
+            updatedAt: profile["updatedAt"] == null ? new Date() : date(profile["updatedAt"]),
+          },
+        });
       const scoped = (
         row: Record<string, unknown>,
       ): Record<string, unknown> & { workspaceId: WorkspaceId } => ({
@@ -177,12 +173,25 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           }) as unknown as (typeof commandReceipts.$inferInsert)[],
         );
       }
+      if (payload.cashAccounts.length > 0) {
+        await tx.insert(cashAccounts).values(
+          payload.cashAccounts.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              createdAt: date(row["createdAt"]),
+              updatedAt: date(row["updatedAt"]),
+            };
+          }) as unknown as (typeof cashAccounts.$inferInsert)[],
+        );
+      }
       if (payload.customers.length > 0) {
         await tx.insert(customers).values(
           payload.customers.map((raw) => {
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
               updatedAt: date(row["updatedAt"]),
@@ -214,6 +223,58 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           }) as unknown as (typeof qualityGrades.$inferInsert)[],
         );
       }
+      if (payload.priceRules.length > 0) {
+        await tx.insert(priceRules).values(
+          payload.priceRules.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              effectiveFrom: date(row["effectiveFrom"]),
+              effectiveTo: row["effectiveTo"] == null ? null : date(row["effectiveTo"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof priceRules.$inferInsert)[],
+        );
+      }
+      if (payload.costObservations.length > 0) {
+        await tx.insert(costObservations).values(
+          payload.costObservations.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof costObservations.$inferInsert)[],
+        );
+      }
+      if (payload.reconciliationObservations.length > 0) {
+        await tx.insert(reconciliationObservations).values(
+          payload.reconciliationObservations.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof reconciliationObservations.$inferInsert)[],
+        );
+      }
+      if (payload.debtObservations.length > 0) {
+        await tx.insert(debtObservations).values(
+          payload.debtObservations.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              agreedDueAt: row["agreedDueAt"] == null ? null : date(row["agreedDueAt"]),
+              promiseToPayAt: row["promiseToPayAt"] == null ? null : date(row["promiseToPayAt"]),
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof debtObservations.$inferInsert)[],
+        );
+      }
+      await restoreQualityIssueCodes(tx, payload, scoped, date);
       if (payload.suppliers.length > 0) {
         await tx.insert(suppliers).values(
           payload.suppliers.map((raw) => {
@@ -232,6 +293,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
               postedAt: row["postedAt"] == null ? null : date(row["postedAt"]),
@@ -251,6 +313,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
               dispatchedAt: row["dispatchedAt"] == null ? null : date(row["dispatchedAt"]),
@@ -271,6 +334,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -289,6 +353,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
               confirmedAt: row["confirmedAt"] == null ? null : date(row["confirmedAt"]),
@@ -304,12 +369,14 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           .values(
             payload.purchaseLines.map(scoped) as unknown as (typeof purchaseLines.$inferInsert)[],
           );
+      await restoreInspectedIntake(tx, payload, scoped, date);
       if (payload.purchaseVoids.length > 0) {
         await tx.insert(purchaseVoids).values(
           payload.purchaseVoids.map((raw) => {
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -322,6 +389,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -334,6 +402,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -346,6 +415,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -358,6 +428,8 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              cashAccountId: row["cashAccountId"] ?? null,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
@@ -370,10 +442,71 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             const row = scoped(raw);
             return {
               ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
               transactionTime: date(row["transactionTime"]),
               recordedAt: date(row["recordedAt"]),
             };
           }) as unknown as (typeof supplierPaymentReversals.$inferInsert)[],
+        );
+      }
+      if (payload.expenses.length > 0) {
+        await tx.insert(expenses).values(
+          payload.expenses.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof expenses.$inferInsert)[],
+        );
+      }
+      if (payload.expenseReversals.length > 0) {
+        await tx.insert(expenseReversals).values(
+          payload.expenseReversals.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof expenseReversals.$inferInsert)[],
+        );
+      }
+      if (payload.cashTransfers.length > 0) {
+        await tx.insert(cashTransfers).values(
+          payload.cashTransfers.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof cashTransfers.$inferInsert)[],
+        );
+      }
+      if (payload.cashTransferReversals.length > 0) {
+        await tx.insert(cashTransferReversals).values(
+          payload.cashTransferReversals.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof cashTransferReversals.$inferInsert)[],
+        );
+      }
+      if (payload.cashAdjustments.length > 0) {
+        await tx.insert(cashAdjustments).values(
+          payload.cashAdjustments.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof cashAdjustments.$inferInsert)[],
         );
       }
       if (payload.receipts.length > 0) {
@@ -444,6 +577,18 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           }) as unknown as (typeof inventoryMovements.$inferInsert)[],
         );
       }
+      if (payload.cashMovements.length > 0) {
+        await tx.insert(cashMovements).values(
+          payload.cashMovements.map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          }) as unknown as (typeof cashMovements.$inferInsert)[],
+        );
+      }
       if (payload.documents.length > 0) {
         await tx.insert(documents).values(
           payload.documents.map((raw) => {
@@ -512,6 +657,18 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           FROM ${inventoryMovements}
           WHERE workspace_id = ${workspaceId}::uuid
           GROUP BY product_id, quality_grade_id, unit
+        `);
+      await tx.execute(sql`
+          INSERT INTO ${cashBalances}
+            (workspace_id, cash_account_id, balance_minor, currency, movement_count,
+             last_movement_transaction_time, updated_at)
+          SELECT ${workspaceId}::uuid, ca.id, coalesce(sum(cm.amount_minor), 0),
+                 ca.currency, count(cm.id)::int, max(cm.transaction_time), now()
+          FROM ${cashAccounts} ca
+          LEFT JOIN ${cashMovements} cm
+            ON cm.workspace_id = ca.workspace_id AND cm.cash_account_id = ca.id
+          WHERE ca.workspace_id = ${workspaceId}::uuid
+          GROUP BY ca.id, ca.currency
         `);
       return {
         kind: "restored" as const,

@@ -8,6 +8,7 @@ import {
   inventoryBalances,
   deliveryReturns,
   qualityGrades,
+  qualityDispositionReversals,
 } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
 import { toIso, toIsoOrNull } from "../row-mappers.ts";
@@ -75,6 +76,7 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
               quantity: { valueScaled: line.quantityScaled, unit: line.unit },
             })),
           note: row.note,
+          evidenceReferences: row.evidenceReferences ?? [],
           transactionTime: toIso(row.transactionTime),
           recordedAt: toIso(row.recordedAt),
           actorId: row.actorId,
@@ -87,6 +89,8 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
                   reason: reversal.reason,
                   transactionTime: toIso(reversal.transactionTime),
                   recordedAt: toIso(reversal.recordedAt),
+                  actorId: reversal.actorId,
+                  evidenceReferences: reversal.evidenceReferences ?? [],
                 },
         };
       });
@@ -233,6 +237,24 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
                   inArray(deliveryReturns.id, deliveryReturnIds),
                 ),
               );
+      const qualityReversalIds = rows
+        .filter((row) => row.sourceType === "quality_disposition_reversal")
+        .map((row) => row.sourceId);
+      const qualityReversalSources =
+        qualityReversalIds.length === 0
+          ? []
+          : await tx
+              .select({
+                reversalId: qualityDispositionReversals.id,
+                dispositionId: qualityDispositionReversals.dispositionId,
+              })
+              .from(qualityDispositionReversals)
+              .where(
+                and(
+                  eq(qualityDispositionReversals.workspaceId, args.workspaceId),
+                  inArray(qualityDispositionReversals.id, qualityReversalIds),
+                ),
+              );
       return paged(
         rows.map((row) => ({
           id: row.id,
@@ -265,14 +287,25 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
                           deliveryReturnSources.find((source) => source.returnId === row.sourceId)
                             ?.deliveryId ?? row.sourceId,
                       }
-                    : {
-                        type: "receipt" as const,
-                        id:
-                          row.sourceType === "purchase_receipt"
-                            ? row.sourceId
-                            : (reversalSources.find((source) => source.reversalId === row.sourceId)
-                                ?.receiptId ?? row.sourceId),
-                      },
+                    : row.sourceType === "quality_disposition"
+                      ? { type: "quality_disposition" as const, id: row.sourceId }
+                      : row.sourceType === "quality_disposition_reversal"
+                        ? {
+                            type: "quality_disposition" as const,
+                            id:
+                              qualityReversalSources.find(
+                                (source) => source.reversalId === row.sourceId,
+                              )?.dispositionId ?? row.sourceId,
+                          }
+                        : {
+                            type: "receipt" as const,
+                            id:
+                              row.sourceType === "purchase_receipt"
+                                ? row.sourceId
+                                : (reversalSources.find(
+                                    (source) => source.reversalId === row.sourceId,
+                                  )?.receiptId ?? row.sourceId),
+                          },
         })),
         args.page,
         (row) => ({
@@ -305,6 +338,24 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
                 or im.reversal_of_movement_id <> original.id
                 or im.quantity_scaled <> -original.quantity_scaled)
               then 'broken_receipt_reversal'
+            when im.source_type = 'quality_disposition'
+              and (qd.id is null or qda.id is null or qda.outcome <> 'accepted'
+                or root_line.id is null or root_line.product_id <> im.product_id
+                or qda.unit <> im.unit
+                or qda.quality_grade_id is distinct from im.quality_grade_id
+                or qda.value_scaled <> im.quantity_scaled)
+              then 'missing_or_mismatched_quality_disposition'
+            when im.source_type = 'quality_disposition_reversal'
+              and (qdr.id is null or reversed_qd.id is null or reversed_qda.id is null
+                or original.id is null or original.source_type <> 'quality_disposition'
+                or original.source_id <> reversed_qd.id
+                or original.source_line_id <> reversed_qda.id
+                or im.reversal_of_movement_id <> original.id
+                or im.product_id <> original.product_id
+                or im.quality_grade_id is distinct from original.quality_grade_id
+                or im.unit <> original.unit
+                or im.quantity_scaled <> -original.quantity_scaled)
+              then 'broken_quality_disposition_reversal'
             when im.source_type = 'delivery_dispatch'
               and (dl.id is null or d.id is null
                 or dl.product_id <> im.product_id or dl.unit <> im.unit
@@ -342,6 +393,32 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
             on drl.return_id = dr.id and drl.delivery_line_id = im.source_line_id
           left join delivery_lines return_dl
             on return_dl.workspace_id = im.workspace_id and return_dl.id = drl.delivery_line_id
+          left join quality_dispositions qd
+            on im.source_type = 'quality_disposition'
+            and qd.workspace_id = im.workspace_id and qd.id = im.source_id
+          left join quality_disposition_allocations qda
+            on qda.workspace_id = qd.workspace_id
+            and qda.disposition_id = qd.id and qda.id = im.source_line_id
+          left join quality_disposition_allocations source_qda
+            on qd.source_type = 'quarantine_allocation'
+            and source_qda.workspace_id = qd.workspace_id
+            and source_qda.id = qd.source_quarantine_allocation_id
+          left join quality_dispositions source_qd
+            on source_qd.workspace_id = source_qda.workspace_id
+            and source_qd.id = source_qda.disposition_id
+          left join goods_arrival_lines root_line
+            on root_line.workspace_id = im.workspace_id
+            and root_line.id = coalesce(qd.source_arrival_line_id, source_qd.source_arrival_line_id)
+          left join quality_disposition_reversals qdr
+            on im.source_type = 'quality_disposition_reversal'
+            and qdr.workspace_id = im.workspace_id and qdr.id = im.source_id
+          left join quality_dispositions reversed_qd
+            on reversed_qd.workspace_id = qdr.workspace_id
+            and reversed_qd.id = qdr.disposition_id
+          left join quality_disposition_allocations reversed_qda
+            on reversed_qda.workspace_id = reversed_qd.workspace_id
+            and reversed_qda.disposition_id = reversed_qd.id
+            and reversed_qda.id = im.source_line_id
           left join quality_grades qg
             on qg.workspace_id = im.workspace_id and qg.id = im.quality_grade_id
           where im.workspace_id = ${workspaceId}::uuid

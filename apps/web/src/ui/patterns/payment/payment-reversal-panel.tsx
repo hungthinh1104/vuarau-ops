@@ -1,14 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { parseMoneyText } from "@/ui/primitives/numeric-text.ts";
+import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type PaymentReversalPanelProps = {
   readonly remainingAmountMinor: number;
-  readonly onSubmit: (input: { readonly amountMinor: number; readonly reason: string }) => void;
+  readonly onSubmit: (input: {
+    readonly amountMinor: number;
+    readonly reason: string;
+    readonly evidenceReferences: readonly string[];
+  }) => void;
   readonly disabled?: boolean;
 };
 
@@ -20,6 +24,7 @@ export function PaymentReversalPanel({
 }: PaymentReversalPanelProps) {
   const [amountText, setAmountText] = useState("");
   const [reason, setReason] = useState("");
+  const [evidence, setEvidence] = useState("");
   const [error, setError] = useState<string | undefined>();
 
   function submit(): void {
@@ -39,7 +44,14 @@ export function PaymentReversalPanel({
       return;
     }
     setError(undefined);
-    onSubmit({ amountMinor: amount.value.amountMinor, reason: trimmed });
+    onSubmit({
+      amountMinor: amount.value.amountMinor,
+      reason: trimmed,
+      evidenceReferences: evidence
+        .split(/[\n,]/)
+        .map((reference) => reference.trim())
+        .filter((reference) => reference.length > 0),
+    });
   }
 
   return (
@@ -64,6 +76,13 @@ export function PaymentReversalPanel({
           required
           disabled={disabled}
           {...(error !== undefined ? { error } : {})}
+        />
+        <Textarea
+          label="Bằng chứng nguồn"
+          hint="Phiếu, ảnh hoặc tham chiếu giải thích lần hoàn tác này."
+          value={evidence}
+          onChange={(event) => setEvidence(event.target.value)}
+          disabled={disabled}
         />
         <Button tone="danger-solid" onClick={submit} disabled={disabled}>
           Xác nhận hoàn tác

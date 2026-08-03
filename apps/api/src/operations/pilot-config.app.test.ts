@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_PILOT_CONFIG, readPilotConfig } from "./pilot-config.ts";
+import {
+  EXAMPLE_PILOT_CONFIG,
+  evaluateCrossDimensionScenarioGate,
+  readPilotConfig,
+} from "./pilot-config.ts";
 
-describe("M23 — pilot declaration is fail-closed", () => {
+describe("Pilot declaration is fail-closed", () => {
   const filled = {
     ...EXAMPLE_PILOT_CONFIG,
     releaseSha: "6".repeat(40),
@@ -16,6 +20,16 @@ describe("M23 — pilot declaration is fail-closed", () => {
     rolePermissionReview: review("Chủ vựa"),
     ownerMembershipReview: review("Chủ vựa"),
     dataSharingRetentionReview: review("Chủ vựa"),
+    sensitiveActionApprovalReview: review("Chủ vựa"),
+    qualityGradePolicyReview: review("Chủ vựa"),
+    receivingQualitySemanticsReview: review("Chủ vựa"),
+    qualityRoleReview: review("Chủ vựa"),
+    pricingPolicyReview: review("Chủ vựa"),
+    saleFulfilmentCorrectionGate: excludedScenario("Chủ vựa"),
+    purchaseReceivingCorrectionGate: excludedScenario("Chủ vựa"),
+    partialCustomerReturnGate: excludedScenario("Chủ vựa"),
+    supplierReturnGate: excludedScenario("Chủ vựa"),
+    driverCashCollectionGate: excludedScenario("Chủ vựa"),
     authenticationSmoke: {
       status: "pending" as const,
       owner: "platform owner",
@@ -47,6 +61,13 @@ describe("M23 — pilot declaration is fail-closed", () => {
       releaseSha: "603e830",
       commercialRecognitionConfirmation: undefined,
       dataSharingRetentionReview: undefined,
+      sensitiveActionApprovalReview: undefined,
+      qualityGradePolicyReview: undefined,
+      receivingQualitySemanticsReview: undefined,
+      qualityRoleReview: undefined,
+      pricingPolicyReview: undefined,
+      saleFulfilmentCorrectionGate: undefined,
+      partialCustomerReturnGate: undefined,
     };
     const result = readPilotConfig(JSON.stringify(incomplete));
     expect(result.ok).toBe(false);
@@ -54,7 +75,73 @@ describe("M23 — pilot declaration is fail-closed", () => {
       expect(result.problems.join("\n")).toContain("releaseSha");
       expect(result.problems.join("\n")).toContain("commercialRecognitionConfirmation");
       expect(result.problems.join("\n")).toContain("dataSharingRetentionReview");
+      expect(result.problems.join("\n")).toContain("sensitiveActionApprovalReview");
+      expect(result.problems.join("\n")).toContain("qualityGradePolicyReview");
+      expect(result.problems.join("\n")).toContain("receivingQualitySemanticsReview");
+      expect(result.problems.join("\n")).toContain("qualityRoleReview");
+      expect(result.problems.join("\n")).toContain("pricingPolicyReview");
+      expect(result.problems.join("\n")).toContain("saleFulfilmentCorrectionGate");
+      expect(result.problems.join("\n")).toContain("partialCustomerReturnGate");
     }
+  });
+
+  it("requires explicit quality-policy evidence rather than inferring it from configured grades", () => {
+    const missing = { ...filled, qualityGradePolicyReview: undefined };
+    const result = readPilotConfig(JSON.stringify(missing));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("qualityGradePolicyReview");
+  });
+
+  it("requires explicit pricing-policy evidence rather than inferring commercial precedence", () => {
+    const missing = { ...filled, pricingPolicyReview: undefined };
+    const result = readPilotConfig(JSON.stringify(missing));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("pricingPolicyReview");
+  });
+
+  it("requires explicit cross-dimension scope gates rather than treating review as support", () => {
+    const missing = { ...filled, supplierReturnGate: undefined };
+    const result = readPilotConfig(JSON.stringify(missing));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("supplierReturnGate");
+  });
+
+  it("requires an explicit stop or release gate for driver cash collection", () => {
+    const result = readPilotConfig(
+      JSON.stringify({ ...filled, driverCashCollectionGate: undefined }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("driverCashCollectionGate");
+  });
+
+  it("passes an explicitly excluded scenario only with a stop-if-encountered declaration", () => {
+    const gate = excludedScenario("Chủ vựa");
+    expect(evaluateCrossDimensionScenarioGate(gate, "6".repeat(40))).toMatchObject({
+      ok: true,
+    });
+    const invalid = readPilotConfig(
+      JSON.stringify({
+        ...filled,
+        saleFulfilmentCorrectionGate: { ...gate, stopIfEncountered: false },
+      }),
+    );
+    expect(invalid.ok).toBe(false);
+  });
+
+  it("rejects cross-dimension resolution evidence from a different release", () => {
+    expect(
+      evaluateCrossDimensionScenarioGate(
+        {
+          disposition: "resolved_in_release",
+          reviewerName: "Chủ vựa",
+          date: "2026-07-29",
+          worksheetReference: "external://correction-review",
+          releaseSha: "7".repeat(40),
+          notes: "",
+        },
+        "6".repeat(40),
+      ),
+    ).toMatchObject({ ok: false });
   });
 
   it("requires evidence references when provider recovery is declared passed", () => {
@@ -166,6 +253,16 @@ function review(reviewerName: string) {
     date: "2026-07-29",
     decision: "accepted" as const,
     worksheetReference: "external://signed-evidence",
+    notes: "",
+  };
+}
+function excludedScenario(reviewerName: string) {
+  return {
+    disposition: "excluded_from_shadow_scope" as const,
+    reviewerName,
+    date: "2026-07-29",
+    worksheetReference: "external://cross-dimension-review",
+    stopIfEncountered: true as const,
     notes: "",
   };
 }

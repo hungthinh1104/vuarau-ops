@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { BalanceCard } from "../patterns/finance/balance-card.tsx";
 import { PaymentStatus } from "../patterns/payment/payment-status.tsx";
 import { describeBalance, formatMoney, formatQuantity, formatSignedMoney } from "../format.ts";
-import { parseMoneyText, parseQuantityText } from "../primitives/numeric-text.ts";
+import { parseMoneyText, parseQuantityText } from "./numeric-text.ts";
 import {
   balanceCustomerCredit,
   balanceReceivable,
@@ -121,6 +121,11 @@ describe("TC-WEB-005 — money and quantity are integers or refusals", () => {
 
     const letters = parseMoneyText("tám trăm", "VND");
     expect(letters.ok).toBe(false);
+
+    expect(parseMoneyText("900000000000000000000", "VND")).toEqual({
+      ok: false,
+      reason: "Số tiền quá lớn hoặc không còn chính xác.",
+    });
   });
 
   it("scales quantity to milli-units and refuses a fourth decimal", () => {
@@ -133,6 +138,10 @@ describe("TC-WEB-005 — money and quantity are integers or refusals", () => {
       value: { valueScaled: 1, unit: "kg" },
     });
     expect(parseQuantityText("0,0001", "kg").ok).toBe(false);
+    expect(parseQuantityText("9000000000000000", "kg")).toEqual({
+      ok: false,
+      reason: "Số lượng quá lớn hoặc không còn chính xác.",
+    });
   });
 
   it("treats an empty field as absent, not as zero", () => {

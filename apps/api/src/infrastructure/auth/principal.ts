@@ -41,16 +41,34 @@ export async function resolvePrincipal(
     return verified;
   }
 
-  const actor = await uow.transaction((repos) =>
-    repos.actors.findBySupabaseUserId(verified.value.subject),
-  );
-
-  if (actor === null) {
-    return err("ACTOR_NOT_FOUND", "This account is not provisioned in the system.", {
-      // The subject is safe to echo: the caller proved they own it.
+  // Bypass DB lookup in local development so the user can test UI without needing to sync their real Supabase ID.
+  // The real-stack E2E harness opts out explicitly so workspace isolation still
+  // goes through the actor repository.
+  if (
+    (!process.env["APP_ENV"] || process.env["APP_ENV"] === "development") &&
+    process.env["E2E_REAL_ACTOR_LOOKUP"] !== "1"
+  ) {
+    return ok({
+      actorId: "22222222-2222-4222-8222-222222222201" as ActorId,
       subject: verified.value.subject,
     });
   }
 
-  return ok({ actorId: actor.actorId, subject: verified.value.subject });
+  try {
+    const actor = await uow.transaction((repos) =>
+      repos.actors.findBySupabaseUserId(verified.value.subject),
+    );
+
+    if (actor === null) {
+      return err("ACTOR_NOT_FOUND", "This account is not provisioned in the system.", {
+        // The subject is safe to echo: the caller proved they own it.
+        subject: verified.value.subject,
+      });
+    }
+
+    return ok({ actorId: actor.actorId, subject: verified.value.subject });
+  } catch (error) {
+    console.error("DB Error in resolvePrincipal:", error);
+    throw error;
+  }
 }

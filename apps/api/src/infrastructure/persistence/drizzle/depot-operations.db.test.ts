@@ -37,18 +37,21 @@ import {
   updateDeliveryDraft,
 } from "../../../modules/delivery/delivery.handlers.ts";
 import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
-import { getSaleFulfilment } from "../../../modules/delivery/delivery.queries.ts";
+import { getDelivery, getSaleFulfilment } from "../../../modules/delivery/delivery.queries.ts";
 import {
   createDocumentShare,
   generateDocument,
   revokeDocumentShare,
 } from "../../../modules/document/document.handlers.ts";
 import { getDocument } from "../../../modules/document/document.queries.ts";
-import { getOperationalReport } from "../../../modules/report/report.queries.ts";
+import {
+  getOperationalReport,
+  getOperationalReportCsv,
+} from "../../../modules/report/report.queries.ts";
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
 
 // TC-DELIVERY-003, TC-DOCUMENT-002, TC-REPORT-001
-describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against PostgreSQL", () => {
+describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
   const context = (): CommandContext => ({
@@ -215,6 +218,8 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
                 },
               ],
               note: null,
+              evidenceReferences:
+                index === 0 ? ["dispatch-sheet://delivery/001", "photo://loading/001"] : [],
             },
           })
         ).ok,
@@ -251,10 +256,23 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
               },
             ],
             reason: "Khách trả 10 kg",
+            evidenceReferences: ["photo://return/001"],
           },
         })
       ).ok,
     ).toBe(true);
+
+    const deliveryRead = await getDelivery(context(), {
+      workspaceId: ctx.workspaceId,
+      deliveryId: deliveries[0]!.id,
+    });
+    expect(deliveryRead.ok && deliveryRead.value.evidenceReferences).toEqual([
+      "dispatch-sheet://delivery/001",
+      "photo://loading/001",
+    ]);
+    expect(deliveryRead.ok && deliveryRead.value.returns[0]?.evidenceReferences).toEqual([
+      "photo://return/001",
+    ]);
 
     const movements = await deps.uow.transaction((repos) =>
       repos.inventoryMovements.listByProduct(ctx.workspaceId, productId, "kg"),
@@ -389,8 +407,8 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
       payload: {},
     });
     expect(backup.ok && backup.value).toMatchObject({
-      version: 4,
-      schemaCompatibility: "m23",
+      version: 11,
+      schemaCompatibility: "m27-debt-evidence",
     });
     if (backup.ok) {
       expect(backup.value.payload.deliveries).toHaveLength(2);
@@ -415,8 +433,21 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
     });
     expect(inconsistentReport.ok && inconsistentReport.value).toMatchObject({
       integrity: "attention",
-      diagnostics: ["workspace_integrity_attention"],
+      diagnostics: ["workspace_integrity_attention", "report_projection_unavailable"],
+      totals: { amount: null, quantities: [] },
+      page: { items: [], nextCursor: null },
     });
+    const blockedCsv = await getOperationalReportCsv(context(), {
+      workspaceId: ctx.workspaceId,
+      reportType: "inventory_by_product_unit",
+      businessDate: null,
+      productId,
+      unit: "kg",
+      cursor: null,
+      limit: 20,
+    });
+    expect(blockedCsv.ok).toBe(true);
+    if (blockedCsv.ok) expect(blockedCsv.value.split("\n")).toHaveLength(1);
   });
 
   it("serializes competing dispatches so physical fulfilment cannot exceed the Sale", async () => {
@@ -590,7 +621,7 @@ describe.skipIf(skipWithoutDatabase())("M19-M21 depot operations against Postgre
           payload: {
             saleVoidId: crypto.randomUUID(),
             saleId,
-            reasonCode: "goods_returned",
+            reasonCode: "wrong_customer",
             reason: "Sale đã huỷ sau khi một chuyến rời kho",
           },
         })

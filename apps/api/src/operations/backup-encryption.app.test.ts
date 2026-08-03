@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { decryptWorkspaceBackup, encryptWorkspaceBackup } from "./backup-encryption.ts";
 
-describe("M22 encrypted backup handling", () => {
+describe("Encrypted backup handling", () => {
   const key = randomBytes(32).toString("base64");
   const backup = JSON.stringify({
     format: "WorkspaceBackupV1",

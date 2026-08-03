@@ -18,8 +18,8 @@ not real-worker adoption.
 - **BR-DELIVERY-005** — Dispatch/return retries are duplicate-safe and
   concurrency is serialized against the Sale/Delivery canonical state.
 - **BR-DELIVERY-006** — Sale void/replacement never silently reverses physical
-  goods. A replacement is not fulfillable when its predecessor already has
-  active net fulfilment without an explicit allocation model. Once a Sale is
+  goods. A replacement is not fulfillable when any predecessor in its correction
+  chain already has active net fulfilment without an explicit allocation model. Once a Sale is
   voided, new Delivery creation, editing, and dispatch are rejected; an existing
   dispatched Delivery remains historical truth and may receive an explicit
   return.
@@ -38,9 +38,16 @@ not real-worker adoption.
   reads verify that digest, and logical restore rejects a mismatched document
   without committing any canonical row.
 - **BR-DOCUMENT-003** — Sharing uses a random token while storage retains only
-  its hash. Expired, revoked, unknown, or digest-invalid shares fail closed.
+  its hash. Every new share has a finite expiry; an omitted expiry defaults to 24
+  hours on the server. Expired, revoked, unknown, or digest-invalid shares fail
+  closed.
 - **BR-DOCUMENT-004** — Documents are print-ready business snapshots only. They
   make no tax-invoice, e-signature, or accounting-compliance claim.
+- **BR-DOCUMENT-005** — A multi-day customer statement is a presentation snapshot
+  over immutable account entries, never a multi-day Sale. Its optional inclusive
+  period is interpreted in `Asia/Ho_Chi_Minh`; opening balance, signed period change,
+  closing balance and classification are server-derived. Generating or printing it
+  creates no money/goods fact and performs no Payment-to-Sale allocation.
 
 ## Reports
 
@@ -54,4 +61,56 @@ not real-worker adoption.
   reconcile to canonical sums and each row links to its source transaction.
 - **BR-REPORT-004** — Pagination uses a deterministic total order and a cursor,
   and reads expose healthy or integrity-attention state rather than hiding
-  source/projection corruption.
+  source/projection corruption. A projection-backed report returns no numeric
+  rows or totals while workspace integrity is in attention; its CSV is header-only
+  until the projection is reconciled or rebuilt. Canonical activity/movement
+  reports may remain visible with the attention state because they read source
+  facts directly.
+- **BR-REPORT-005** — Policy-blocked management metrics are published as
+  `unavailable` candidates with their decision gates and no numeric fallback.
+  Missing policy, missing canonical sources or unresolved metric semantics must
+  not be rendered as zero, estimated truth or a recommendation. A future metric
+  becomes available only after its formula, canonical sources, time semantics,
+  integrity behavior, drill-down and action are defined and verified.
+
+## Source-linked cost observations
+
+- **BR-EVIDENCE-001** — A CostObservation preserves exact observed wording, money,
+  quantity and source references as an append-only workspace fact. Missing values
+  stay `null`; they are not interpreted as zero.
+- **BR-EVIDENCE-002** — Recording a CostObservation creates no COGS, profit,
+  payable, receivable or inventory effect. Those meanings require explicit
+  workspace policy and a separate canonical command.
+- **BR-EVIDENCE-003** — A correction is a new immutable CostObservation linked to an
+  existing observation in the same workspace. Identity, authorization,
+  idempotency, transaction time and recorded time use the common command contract.
+
+## Operational reconciliation observations
+
+- **BR-EVIDENCE-004** — A ReconciliationObservation preserves separate expected and
+  observed money/quantity facts, optional item count, scope reference, wording and
+  source references. Missing values remain `null`; they are not zero-filled or
+  inferred from another source.
+- **BR-EVIDENCE-005** — Recording a ReconciliationObservation does not calculate a
+  variance, approve a close, match a statement, change cash/debt/payable or append
+  an inventory movement. Those effects require explicit workspace policy and a
+  separate canonical command.
+- **BR-EVIDENCE-006** — A correction is a new immutable ReconciliationObservation
+  linked to an existing observation in the same workspace. Identity,
+  authorization, idempotency, transaction time and recorded time use the common
+  command contract.
+
+## Debt-term observations
+
+- **BR-EVIDENCE-007** — A DebtObservation preserves source-linked wording,
+  payment-term text/code, agreed due date, promise-to-pay date, payment
+  reference, optional amount and optional allocation proposal as an append-only
+  workspace fact. Missing values remain `null`.
+- **BR-EVIDENCE-008** — Recording a DebtObservation never derives `overdue`,
+  allocates a Payment, changes CustomerAccountEntry, or changes Cashbook truth.
+  Those meanings require an explicit accepted workspace policy and canonical
+  command.
+- **BR-EVIDENCE-009** — A correction is a new immutable DebtObservation linked
+  to an existing observation in the same workspace. Identity, authorization,
+  idempotency, transaction time and recorded time use the common command
+  contract.

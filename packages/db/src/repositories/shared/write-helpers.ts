@@ -2,19 +2,21 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import type {
   CommandId,
   IdempotencyKey,
+  PriceRuleId,
   ProductId,
   SupplierId,
   SupplierPaymentId,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
 import type {
+  PriceRuleState,
   ProductState,
   SupplierState,
   SupplierPaymentState,
   PurchaseState,
   DeliveryState,
 } from "@vuarau/domain-kernel";
-import type { products, suppliers, supplierPayments } from "../../schema/index.ts";
+import type { priceRules, products, suppliers, supplierPayments } from "../../schema/index.ts";
 import {
   purchases,
   purchaseLines,
@@ -41,6 +43,30 @@ export function toProductState(row: typeof products.$inferSelect): ProductState 
   };
 }
 
+export function toPriceRuleState(row: typeof priceRules.$inferSelect): PriceRuleState {
+  return {
+    id: row.id as PriceRuleId,
+    workspaceId: row.workspaceId as PriceRuleState["workspaceId"],
+    productId: row.productId as PriceRuleState["productId"],
+    qualityGradeId: row.qualityGradeId as PriceRuleState["qualityGradeId"],
+    customerId: row.customerId as PriceRuleState["customerId"],
+    unit: row.unit,
+    kind: row.kind,
+    priority: row.priority,
+    minimumQuantityScaled: row.minimumQuantityScaled,
+    effectiveFrom: toIso(row.effectiveFrom),
+    effectiveTo: toIsoOrNull(row.effectiveTo),
+    baseUnitPrice: { amountMinor: row.baseUnitPriceMinor, currency: row.currency },
+    discountPerUnit: { amountMinor: row.discountPerUnitMinor, currency: row.currency },
+    feePerUnit: { amountMinor: row.feePerUnitMinor, currency: row.currency },
+    finalUnitPrice: { amountMinor: row.finalUnitPriceMinor, currency: row.currency },
+    reason: row.reason,
+    actorId: row.actorId as PriceRuleState["actorId"],
+    commandId: row.commandId as PriceRuleState["commandId"],
+    recordedAt: toIso(row.recordedAt),
+  };
+}
+
 export function toSupplierState(row: typeof suppliers.$inferSelect): SupplierState {
   return {
     id: row.id as SupplierId,
@@ -64,7 +90,9 @@ export function toSupplierPaymentState(
     supplierId: row.supplierId as SupplierId,
     amount: { amountMinor: row.amountMinor, currency: row.currency },
     method: row.method,
+    cashAccountId: row.cashAccountId as NonNullable<SupplierPaymentState["cashAccountId"]> | null,
     note: row.note,
+    evidenceReferences: row.evidenceReferences,
     reversedAmount: { amountMinor: row.reversedAmountMinor, currency: row.currency },
     version: row.version,
     transactionTime: toIso(row.transactionTime),
@@ -197,6 +225,7 @@ export async function loadDelivery(tx: Tx, workspaceId: WorkspaceId, deliveryId:
     dispatchedAt: toIsoOrNull(row.dispatchedAt),
     deliveredAt: toIsoOrNull(row.deliveredAt),
     actorId: row.actorId,
+    evidenceReferences: row.evidenceReferences ?? [],
     returns: returnRows.map((record) => ({
       id: record.id,
       workspaceId: record.workspaceId,
@@ -208,6 +237,7 @@ export async function loadDelivery(tx: Tx, workspaceId: WorkspaceId, deliveryId:
           quantity: { valueScaled: line.quantityScaled, unit: line.unit },
         })),
       reason: record.reason,
+      evidenceReferences: record.evidenceReferences ?? [],
       transactionTime: toIso(record.transactionTime),
       recordedAt: toIso(record.recordedAt),
       actorId: record.actorId,

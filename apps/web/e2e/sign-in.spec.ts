@@ -48,7 +48,7 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await expect(page.getByRole("heading", { name: "Chọn vựa" })).toBeHidden();
     // The deployment is deliberately unconfigured in deterministic E2E, so
     // credentials are never accepted by a fake identity provider.
-    await expect(page.locator('input[type="password"]')).toHaveCount(0);
+    await expect(page.getByLabel("Mật khẩu")).toHaveCount(0);
   });
 
   test("TC-E2E-031 — isolates User A from User B across logout in the same tab", async ({
@@ -62,14 +62,19 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await page.goto("/customers");
     await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
 
-    await expect(page.getByText("Chủ vựa")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Vận hành" })).toBeVisible();
+    // Desktop exposes the full workspace navigation; mobile collapses the same
+    // owner work area to its role-specific bottom-nav label.
+    const ownerWorkLink = page.getByRole("link", {
+      name:
+        page.viewportSize()?.width && page.viewportSize()!.width < 1024 ? "Cảnh báo" : "Vận hành",
+    });
+    await expect(ownerWorkLink).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
 
     await page.getByRole("button", { name: "Đăng xuất" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "Đăng nhập" })).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.getByLabel("Mật khẩu")).toBeVisible();
 
     const aResidue = await page.evaluate((subject) => {
       const encoded = encodeURIComponent(subject);
@@ -95,7 +100,11 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await expect(page.getByText("Chủ vựa")).toBeHidden();
     await expect(page.getByRole("link", { name: "Vận hành" })).toBeHidden();
     await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
-    await expect(page.getByText("Bán hàng")).toBeVisible();
+    const salesRoleMarker =
+      page.viewportSize()?.width && page.viewportSize()!.width < 1024
+        ? page.getByRole("link", { name: "Ghi đơn" })
+        : page.getByText("Bán hàng");
+    await expect(salesRoleMarker).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
   });
 });

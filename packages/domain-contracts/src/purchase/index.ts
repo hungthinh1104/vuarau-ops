@@ -12,6 +12,7 @@ import {
 } from "../shared/ids.ts";
 import { quantitySchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 export const PURCHASE_STATUSES = ["draft", "confirmed", "discarded"] as const;
 export const purchaseStatusSchema = z.enum(PURCHASE_STATUSES);
@@ -41,6 +42,8 @@ const purchaseDraftFields = z.object({
   currency: currencyCodeSchema,
   lines: z.array(purchaseLineInputSchema).max(100),
   note: z.string().trim().max(2_000).nullable().default(null),
+  /** Source-linked supply evidence; it has no valuation or payable effect. */
+  evidenceReferences: evidenceReferencesInputSchema,
   dueAt: isoInstantSchema.nullable().default(null),
   replacesPurchaseId: purchaseIdSchema.nullable().default(null),
 });
@@ -62,6 +65,7 @@ export const voidPurchaseCommandSchema = defineCommand(
     purchaseId: purchaseIdSchema,
     reasonCode: purchaseVoidReasonCodeSchema,
     reason: z.string().trim().max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type VoidPurchaseCommand = z.infer<typeof voidPurchaseCommandSchema>;
@@ -75,6 +79,7 @@ export const purchaseVoidDtoSchema = z.object({
   purchaseId: purchaseIdSchema,
   reasonCode: purchaseVoidReasonCodeSchema,
   reason: z.string(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   amount: moneySchema,
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,
@@ -89,6 +94,7 @@ export const purchaseDtoSchema = z.object({
   lines: z.array(purchaseLineDtoSchema),
   totalAmount: moneySchema,
   note: z.string().nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
   dueAt: isoInstantSchema.nullable(),
   version: z.int().positive(),
   transactionTime: isoInstantSchema,

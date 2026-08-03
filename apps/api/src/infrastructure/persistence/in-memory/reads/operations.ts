@@ -1,7 +1,11 @@
 import type { Repositories } from "../../ports.ts";
-import type { CustomerAccountEntryDto } from "@vuarau/domain-contracts";
+import {
+  defaultWorkspaceOperationalProfile,
+  type CustomerAccountEntryDto,
+} from "@vuarau/domain-contracts";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
+import { intakeSourceRoot } from "../repositories/intake.ts";
 
 export const createOperationsReads = (store: Store): Pick<Repositories, "operationsReads"> => ({
   operationsReads: {
@@ -119,17 +123,95 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
       for (const movement of store.inventoryMovements.filter(
         (item) => item.workspaceId === workspaceId,
       )) {
-        const movementKey = `${movement.productId}:${movement.quantity.unit}`;
+        const movementKey = `${movement.productId}:${movement.qualityGradeId ?? "legacy"}:${movement.quantity.unit}`;
         inventoryGroups.set(
           movementKey,
           (inventoryGroups.get(movementKey) ?? 0) + movement.quantity.valueScaled,
         );
         if (movement.quantity.valueScaled === 0) anomalousInventory.add(movementKey);
         if (
+          movement.qualityGradeId !== null &&
+          !store.qualityGrades.has(key(workspaceId, movement.qualityGradeId))
+        )
+          anomalousInventory.add(movementKey);
+        if (
           movement.sourceType === "inventory_adjustment" &&
           (movement.reasonCode === null || (movement.reason?.trim().length ?? 0) === 0)
         )
           anomalousInventory.add(movementKey);
+        if (movement.sourceType === "purchase_receipt") {
+          const receipt = store.purchaseReceipts.get(key(workspaceId, movement.sourceId));
+          const line = receipt?.lines.find((item) => item.receiptLineId === movement.sourceLineId);
+          if (
+            line === undefined ||
+            line.productId !== movement.productId ||
+            line.qualityGradeId !== movement.qualityGradeId ||
+            line.quantity.unit !== movement.quantity.unit ||
+            line.quantity.valueScaled !== movement.quantity.valueScaled
+          )
+            anomalousInventory.add(movementKey);
+        }
+        if (movement.sourceType === "purchase_receipt_reversal") {
+          const receipt = [...store.purchaseReceipts.values()].find(
+            (item) => item.workspaceId === workspaceId && item.reversal?.id === movement.sourceId,
+          );
+          const original = store.inventoryMovements.find(
+            (item) => item.id === movement.reversalOfMovementId,
+          );
+          if (
+            receipt === undefined ||
+            original?.sourceType !== "purchase_receipt" ||
+            original.sourceId !== receipt.id ||
+            original.productId !== movement.productId ||
+            original.qualityGradeId !== movement.qualityGradeId ||
+            original.quantity.unit !== movement.quantity.unit ||
+            movement.quantity.valueScaled !== -original.quantity.valueScaled
+          )
+            anomalousInventory.add(movementKey);
+        }
+        if (movement.sourceType === "quality_disposition") {
+          const disposition = store.qualityDispositions.get(key(workspaceId, movement.sourceId));
+          const allocation = disposition?.allocations.find(
+            (item) => item.allocationId === movement.sourceLineId && item.outcome === "accepted",
+          );
+          const root =
+            disposition === undefined
+              ? null
+              : intakeSourceRoot(store, workspaceId, disposition.source);
+          if (
+            disposition === undefined ||
+            allocation === undefined ||
+            root === null ||
+            root.line.productId !== movement.productId ||
+            allocation.qualityGradeId !== movement.qualityGradeId ||
+            allocation.quantity.unit !== movement.quantity.unit ||
+            allocation.quantity.valueScaled !== movement.quantity.valueScaled
+          )
+            anomalousInventory.add(movementKey);
+        }
+        if (movement.sourceType === "quality_disposition_reversal") {
+          const disposition = [...store.qualityDispositions.values()].find(
+            (item) => item.workspaceId === workspaceId && item.reversal?.id === movement.sourceId,
+          );
+          const allocation = disposition?.allocations.find(
+            (item) => item.allocationId === movement.sourceLineId && item.outcome === "accepted",
+          );
+          const original = store.inventoryMovements.find(
+            (item) => item.id === movement.reversalOfMovementId,
+          );
+          if (
+            disposition === undefined ||
+            allocation === undefined ||
+            original?.sourceType !== "quality_disposition" ||
+            original.sourceId !== disposition.id ||
+            original.sourceLineId !== allocation.allocationId ||
+            original.productId !== movement.productId ||
+            original.qualityGradeId !== movement.qualityGradeId ||
+            original.quantity.unit !== movement.quantity.unit ||
+            movement.quantity.valueScaled !== -original.quantity.valueScaled
+          )
+            anomalousInventory.add(movementKey);
+        }
         if (movement.sourceType === "delivery_dispatch") {
           const delivery = store.deliveries.get(key(workspaceId, movement.sourceId));
           const line = delivery?.lines.find(
@@ -138,6 +220,7 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
           if (
             line === undefined ||
             line.productId !== movement.productId ||
+            line.qualityGradeId !== movement.qualityGradeId ||
             line.quantity.unit !== movement.quantity.unit ||
             -line.quantity.valueScaled !== movement.quantity.valueScaled
           )
@@ -150,11 +233,21 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
           const line = returned?.lines.find(
             (item) => item.deliveryLineId === movement.sourceLineId,
           );
+          const delivery =
+            returned === undefined
+              ? undefined
+              : store.deliveries.get(key(workspaceId, returned.deliveryId));
+          const deliveryLine = delivery?.lines.find(
+            (item) => item.deliveryLineId === line?.deliveryLineId,
+          );
           const original = store.inventoryMovements.find(
             (item) => item.id === movement.reversalOfMovementId,
           );
           if (
             line === undefined ||
+            deliveryLine === undefined ||
+            deliveryLine.productId !== movement.productId ||
+            deliveryLine.qualityGradeId !== movement.qualityGradeId ||
             line.quantity.valueScaled !== movement.quantity.valueScaled ||
             line.quantity.unit !== movement.quantity.unit ||
             original?.sourceType !== "delivery_dispatch" ||
@@ -196,10 +289,121 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
       const sales = rows(store.sales.values());
       return {
         workspace: { id: workspaceId, name: workspaceName },
+        operationalProfile:
+          store.operationalProfiles.get(workspaceId) ??
+          defaultWorkspaceOperationalProfile(workspaceId),
+        cashAccounts: rows(store.cashAccounts.values()),
+        expenses: rows(store.expenses.values()),
+        expenseReversals: rows(store.expenses.values()).flatMap((expense) =>
+          expense.reversal === null
+            ? []
+            : [
+                {
+                  ...expense.reversal,
+                  workspaceId,
+                  expenseId: expense.id,
+                },
+              ],
+        ),
+        cashTransfers: rows(store.cashTransfers.values()),
+        cashTransferReversals: rows(store.cashTransfers.values()).flatMap((transfer) =>
+          transfer.reversal === null
+            ? []
+            : [
+                {
+                  ...transfer.reversal,
+                  workspaceId,
+                  transferId: transfer.id,
+                },
+              ],
+        ),
+        cashAdjustments: rows(store.cashAdjustments),
+        cashMovements: rows(store.cashMovements),
         memberships: rows(store.memberships.values()),
         customers: rows(store.customers.values()),
         products: rows(store.products.values()),
+        priceRules: rows(store.priceRules.values()),
+        costObservations: rows(store.costObservations.values()),
+        reconciliationObservations: rows(store.reconciliationObservations.values()),
+        debtObservations: rows(store.debtObservations.values()),
         qualityGrades: rows(store.qualityGrades.values()),
+        qualityIssueCodes: rows(store.qualityIssueCodes.values()),
+        goodsArrivals: rows(store.goodsArrivals.values()).map(
+          ({ lines: _lines, reversal: _reversal, ...arrival }) => arrival,
+        ),
+        goodsArrivalLines: rows(store.goodsArrivals.values()).flatMap((arrival) =>
+          arrival.lines.map((line) => ({
+            id: line.arrivalLineId,
+            workspaceId,
+            arrivalId: arrival.id,
+            purchaseId: arrival.purchaseId,
+            purchaseLineId: line.purchaseLineId,
+            productId: line.productId,
+            productName: line.productName,
+            arrivedValueScaled: line.arrivedQuantity.valueScaled,
+            arrivedUnit: line.arrivedQuantity.unit,
+            containerCount: line.weighing?.containerCount ?? null,
+            grossWeightValueScaled: line.weighing?.grossWeight.valueScaled ?? null,
+            tareWeightValueScaled: line.weighing?.tareWeight.valueScaled ?? null,
+            netWeightValueScaled: line.weighing?.netWeight.valueScaled ?? null,
+            weightUnit: line.weighing?.grossWeight.unit ?? null,
+            supplierLotCode: line.supplierLotCode,
+            note: line.note,
+          })),
+        ),
+        goodsArrivalReversals: rows(store.goodsArrivals.values()).flatMap((arrival) =>
+          arrival.reversal === null
+            ? []
+            : [{ ...arrival.reversal, workspaceId, arrivalId: arrival.id }],
+        ),
+        qualityInspections: rows(store.qualityInspections.values()).map(
+          ({ inspectedQuantity, issues: _issues, reversal: _reversal, ...inspection }) => ({
+            ...inspection,
+            inspectedValueScaled: inspectedQuantity.valueScaled,
+            inspectedUnit: inspectedQuantity.unit,
+          }),
+        ),
+        qualityInspectionIssues: rows(store.qualityInspections.values()).flatMap((inspection) =>
+          inspection.issues.map((issue) => ({
+            ...issue,
+            workspaceId,
+            inspectionId: inspection.id,
+          })),
+        ),
+        qualityInspectionReversals: rows(store.qualityInspections.values()).flatMap((inspection) =>
+          inspection.reversal === null
+            ? []
+            : [{ ...inspection.reversal, workspaceId, inspectionId: inspection.id }],
+        ),
+        qualityDispositions: rows(store.qualityDispositions.values()).map(
+          ({ source, allocations: _allocations, reversal: _reversal, ...disposition }) => ({
+            ...disposition,
+            sourceType: source.type,
+            sourceArrivalLineId: source.type === "arrival_line" ? source.arrivalLineId : null,
+            sourceQuarantineAllocationId:
+              source.type === "quarantine_allocation" ? source.allocationId : null,
+          }),
+        ),
+        qualityDispositionAllocations: rows(store.qualityDispositions.values()).flatMap(
+          (disposition) =>
+            disposition.allocations.map((allocation) => ({
+              id: allocation.allocationId,
+              workspaceId,
+              dispositionId: disposition.id,
+              outcome: allocation.outcome,
+              valueScaled: allocation.quantity.valueScaled,
+              unit: allocation.quantity.unit,
+              qualityGradeId: allocation.qualityGradeId,
+              qualityGradeName: allocation.qualityGradeName,
+              note: allocation.note,
+            })),
+        ),
+        qualityDispositionReversals: rows(store.qualityDispositions.values()).flatMap(
+          (disposition) =>
+            disposition.reversal === null
+              ? []
+              : [{ ...disposition.reversal, workspaceId, dispositionId: disposition.id }],
+        ),
         sales,
         saleLines: sales.flatMap((sale) =>
           sale.lines.map((line) => ({ ...line, saleId: sale.id, workspaceId })),

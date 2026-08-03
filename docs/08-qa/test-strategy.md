@@ -12,6 +12,38 @@ Configured in `vitest.config.ts`.
 | `db`          | `pnpm test:db`          | Real Postgres: migrations, repositories, constraints, triggers (`packages/db/**/*.db.test.ts`) | `DATABASE_URL` |
 | `web`         | `pnpm test:web`         | Components over fixed DTOs, in jsdom (`apps/web/**/*.test.ts{,x}`)                             | nothing        |
 
+## Validation tiers
+
+Choose the smallest validation scope that can disprove the current change. The
+commands below are the canonical progression; `pnpm verify` remains the merge gate,
+not the default edit loop.
+
+| Stage         | Command                                                     | When                            |
+| ------------- | ----------------------------------------------------------- | ------------------------------- |
+| Edit loop     | exact file or `pnpm test:focus -t TC-*`                     | after each small change         |
+| Affected loop | `pnpm test:related <changed-file>` or a project command     | after the focused test is green |
+| Commit gate   | `pnpm validate:commit` plus focused DB evidence when needed | before commit                   |
+| Merge gate    | `pnpm verify`                                               | before PR or merge              |
+
+`pnpm test:fast` runs the domain, application, contract and web projects in one
+Vitest invocation. It intentionally excludes the Postgres project; add
+`pnpm test:db <focused-file>` when the change touches schema, migrations,
+repositories, transactions, row mappers, SQL aggregates, backup/restore or a
+persistence adapter.
+
+### Changed area decision table
+
+| Changed area             | Required local validation                          |
+| ------------------------ | -------------------------------------------------- |
+| `domain-kernel`          | focused test + `pnpm test:domain`                  |
+| application handler      | focused application test + `pnpm test:application` |
+| tRPC/schema/DTO          | contract test + `pnpm test:contract`               |
+| repository/schema/mapper | focused DB test + `pnpm test:db` before merge      |
+| React component          | focused web test + `pnpm test:web`                 |
+| route/user journey       | focused web test + relevant E2E smoke              |
+| docs only                | docs/truth/trace checks                            |
+| shared config            | `pnpm check:static` + all affected projects        |
+
 Only `db` needs anything. That is a direct consequence of ADR-0003: a pure kernel
 is a fast test suite, and a UI that renders server-computed answers can be tested
 against fixtures rather than against a server.
@@ -36,6 +68,11 @@ the schema the server validates with — so the fixtures cannot drift from the A
 without failing.
 
 ## Database tests
+
+`pnpm test:db` loads the root `.env` when it exists, so the documented local
+command exercises the configured disposable database without requiring a manual
+`export`. Environment variables already present in the shell still win, which is
+how CI supplies its service-container URL.
 
 `pnpm test:db` **skips** its suites when `DATABASE_URL` is unset rather than
 failing, so a laptop without Postgres still gets a green `pnpm verify`. Skipped is
@@ -66,6 +103,22 @@ pnpm test:db
 
 CI runs a `postgres:17` service container against an empty database, so migrations
 apply from scratch on every push and the suites execute there.
+
+The repository migration runner reconciles the migration table by content hash in
+journal order, not only by the newest folder timestamp. This keeps an existing
+database from silently skipping a migration generated on a parallel branch; an
+unknown migration hash fails closed.
+
+Playwright owns its API and Next production processes and normally uses ports
+`3102` and `3101`. To run the production-shaped E2E artifact while a local dev
+server is already running, choose isolated ports for both the build and test:
+
+```bash
+E2E_API_PORT=3202 E2E_WEB_PORT=3201 pnpm web:e2e:build
+E2E_API_PORT=3202 E2E_WEB_PORT=3201 pnpm web:e2e
+```
+
+The override is validated as a TCP port and the two ports must differ.
 
 Each database test creates its **own workspace UUID** and asserts only within it.
 No truncation between files, no shared fixture state, and files can run in
@@ -160,7 +213,7 @@ make a suite pass is forbidden — see
   of entries, for any sequence of commands". Worth doing; would need `fast-check`.
   Not added in this phase — the invariant is covered by example-based tests today.
 - **Playwright end-to-end.** Reserved for when a UI exists.
-- **Production-shape load evidence.** `pnpm perf:m22` is an explicit PostgreSQL
+- **Production-shape load evidence.** `pnpm perf:production-scale` is an explicit PostgreSQL
   rehearsal rather than part of every unit run: it creates 10k customers/products,
   100k Sales/Purchases and one million ledger/movement rows, checks p95 budgets
   and fails on unexplained sequential scans. CI/release runs it with a disposable

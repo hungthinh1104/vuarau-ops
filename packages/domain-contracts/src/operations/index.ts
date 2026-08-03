@@ -101,11 +101,131 @@ export const workspaceBackupV4Schema = z.object({
   digest: z.string().regex(/^[a-f0-9]{64}$/),
 });
 export type WorkspaceBackupV4 = z.infer<typeof workspaceBackupV4Schema>;
+export const workspaceBackupPayloadV5Schema = workspaceBackupPayloadV4Schema.extend({
+  operationalProfile: backupRecordSchema,
+});
+export const workspaceBackupV5Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(5),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m23-operational-profile"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV5Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV5 = z.infer<typeof workspaceBackupV5Schema>;
+export const workspaceBackupPayloadV6Schema = workspaceBackupPayloadV5Schema.extend({
+  cashAccounts: z.array(backupRecordSchema),
+  expenses: z.array(backupRecordSchema),
+  expenseReversals: z.array(backupRecordSchema),
+  cashTransfers: z.array(backupRecordSchema),
+  cashTransferReversals: z.array(backupRecordSchema),
+  cashAdjustments: z.array(backupRecordSchema),
+  cashMovements: z.array(backupRecordSchema),
+});
+export const workspaceBackupV6Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(6),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m24-cashbook"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV6Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV6 = z.infer<typeof workspaceBackupV6Schema>;
+export const workspaceBackupPayloadV7Schema = workspaceBackupPayloadV6Schema.extend({
+  qualityIssueCodes: z.array(backupRecordSchema),
+  goodsArrivals: z.array(backupRecordSchema),
+  goodsArrivalLines: z.array(backupRecordSchema),
+  goodsArrivalReversals: z.array(backupRecordSchema),
+  qualityInspections: z.array(backupRecordSchema),
+  qualityInspectionIssues: z.array(backupRecordSchema),
+  qualityInspectionReversals: z.array(backupRecordSchema),
+  qualityDispositions: z.array(backupRecordSchema),
+  qualityDispositionAllocations: z.array(backupRecordSchema),
+  qualityDispositionReversals: z.array(backupRecordSchema),
+});
+export const workspaceBackupV7Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(7),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m25-intake-quality"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV7Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV7 = z.infer<typeof workspaceBackupV7Schema>;
+export const workspaceBackupPayloadV8Schema = workspaceBackupPayloadV7Schema.extend({
+  priceRules: z.array(backupRecordSchema),
+});
+export const workspaceBackupV8Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(8),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m26-pricing"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV8Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV8 = z.infer<typeof workspaceBackupV8Schema>;
+export const workspaceBackupPayloadV9Schema = workspaceBackupPayloadV8Schema.extend({
+  costObservations: z.array(backupRecordSchema),
+});
+export const workspaceBackupV9Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(9),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m26-operational-evidence"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV9Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV9 = z.infer<typeof workspaceBackupV9Schema>;
+export const workspaceBackupPayloadV10Schema = workspaceBackupPayloadV9Schema.extend({
+  reconciliationObservations: z.array(backupRecordSchema),
+});
+export const workspaceBackupV10Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(10),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m26-operational-evidence-2"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV10Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV10 = z.infer<typeof workspaceBackupV10Schema>;
+export const workspaceBackupPayloadV11Schema = workspaceBackupPayloadV10Schema.extend({
+  debtObservations: z.array(backupRecordSchema),
+});
+export const workspaceBackupV11Schema = z.object({
+  format: z.literal("vuarau.workspace-backup"),
+  version: z.literal(11),
+  sourceWorkspaceId: workspaceIdSchema,
+  createdAt: isoInstantSchema,
+  schemaCompatibility: z.literal("m27-debt-evidence"),
+  recordCounts: z.record(z.string(), z.int().nonnegative()),
+  payload: workspaceBackupPayloadV11Schema,
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type WorkspaceBackupV11 = z.infer<typeof workspaceBackupV11Schema>;
 export const workspaceBackupSchema = z.discriminatedUnion("version", [
   workspaceBackupV1Schema,
   workspaceBackupV2Schema,
   workspaceBackupV3Schema,
   workspaceBackupV4Schema,
+  workspaceBackupV5Schema,
+  workspaceBackupV6Schema,
+  workspaceBackupV7Schema,
+  workspaceBackupV8Schema,
+  workspaceBackupV9Schema,
+  workspaceBackupV10Schema,
+  workspaceBackupV11Schema,
 ]);
 export type WorkspaceBackup = z.infer<typeof workspaceBackupSchema>;
 export const exportWorkspaceBackupCommandSchema = defineCommand(z.object({}));

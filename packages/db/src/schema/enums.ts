@@ -12,6 +12,25 @@ import {
   SUPPLIER_ACCOUNT_SOURCE_TYPES,
   PURCHASE_STATUSES,
   inventoryMovementSourceTypeSchema,
+  PURCHASING_MODES,
+  INVENTORY_MODES,
+  QUALITY_GRADE_MODES,
+  DELIVERY_MODES,
+  CASHBOOK_MODES,
+  INTAKE_MODES,
+  WEIGHING_MODES,
+  CASH_ACCOUNT_KINDS,
+  CASH_MOVEMENT_SOURCE_TYPES,
+  EXPENSE_CATEGORIES,
+  CASH_ADJUSTMENT_REASON_CODES,
+  QUALITY_ISSUE_CATEGORIES,
+  QUALITY_SEVERITIES,
+  QUALITY_DISPOSITION_OUTCOMES,
+  PRICE_RULE_KINDS,
+  COST_OBSERVATION_KINDS,
+  RECONCILIATION_OBSERVATION_KINDS,
+  COST_OBSERVATION_CASE_KINDS,
+  DEBT_OBSERVATION_KINDS,
 } from "@vuarau/domain-contracts";
 
 /**
@@ -32,6 +51,44 @@ export const debtAdjustmentReasonCodeEnum = pgEnum(
   DEBT_ADJUSTMENT_REASON_CODES,
 );
 export const workspaceRoleEnum = pgEnum("workspace_role", WORKSPACE_ROLES);
+export const purchasingModeEnum = pgEnum("purchasing_mode", PURCHASING_MODES);
+export const inventoryModeEnum = pgEnum("inventory_mode", INVENTORY_MODES);
+export const qualityGradeModeEnum = pgEnum("quality_grade_mode", QUALITY_GRADE_MODES);
+export const deliveryModeEnum = pgEnum("delivery_mode", DELIVERY_MODES);
+export const cashbookModeEnum = pgEnum("cashbook_mode", CASHBOOK_MODES);
+export const intakeModeEnum = pgEnum("intake_mode", INTAKE_MODES);
+export const weighingModeEnum = pgEnum("weighing_mode", WEIGHING_MODES);
+export const cashAccountKindEnum = pgEnum("cash_account_kind", CASH_ACCOUNT_KINDS);
+export const cashMovementSourceTypeEnum = pgEnum(
+  "cash_movement_source_type",
+  CASH_MOVEMENT_SOURCE_TYPES,
+);
+export const expenseCategoryEnum = pgEnum("expense_category", EXPENSE_CATEGORIES);
+export const qualityIssueCategoryEnum = pgEnum("quality_issue_category", QUALITY_ISSUE_CATEGORIES);
+export const qualitySeverityEnum = pgEnum("quality_severity", QUALITY_SEVERITIES);
+export const qualityDispositionOutcomeEnum = pgEnum(
+  "quality_disposition_outcome",
+  QUALITY_DISPOSITION_OUTCOMES,
+);
+export const priceRuleKindEnum = pgEnum("price_rule_kind", PRICE_RULE_KINDS);
+export const costObservationKindEnum = pgEnum("cost_observation_kind", COST_OBSERVATION_KINDS);
+export const costObservationCaseKindEnum = pgEnum(
+  "cost_observation_case_kind",
+  COST_OBSERVATION_CASE_KINDS,
+);
+export const reconciliationObservationKindEnum = pgEnum(
+  "reconciliation_observation_kind",
+  RECONCILIATION_OBSERVATION_KINDS,
+);
+export const debtObservationKindEnum = pgEnum("debt_observation_kind", DEBT_OBSERVATION_KINDS);
+export const qualityDispositionSourceTypeEnum = pgEnum("quality_disposition_source_type", [
+  "arrival_line",
+  "quarantine_allocation",
+]);
+export const cashAdjustmentReasonCodeEnum = pgEnum(
+  "cash_adjustment_reason_code",
+  CASH_ADJUSTMENT_REASON_CODES,
+);
 export const saleVoidReasonCodeEnum = pgEnum("sale_void_reason_code", SALE_VOID_REASON_CODES);
 export const supplierAccountSourceTypeEnum = pgEnum(
   "supplier_account_source_type",
@@ -47,6 +104,8 @@ export const inventoryMovementSourceTypeEnum = pgEnum(
     "delivery_dispatch",
     "delivery_return",
     "inventory_reclassification",
+    "quality_disposition",
+    "quality_disposition_reversal",
   ],
 );
 export const deliveryStatusEnum = pgEnum("delivery_status", [

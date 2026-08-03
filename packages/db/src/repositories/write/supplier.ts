@@ -8,7 +8,11 @@ import type {
   SupplierAccountEntryDto,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
-import type { SupplierState, SupplierPaymentState } from "@vuarau/domain-kernel";
+import type {
+  SupplierState,
+  SupplierPaymentState,
+  SupplierPaymentReversalState,
+} from "@vuarau/domain-kernel";
 import {
   suppliers,
   supplierPayments,
@@ -97,7 +101,9 @@ export const createSupplierWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         amountMinor: payment.amount.amountMinor,
         currency: payment.amount.currency,
         method: payment.method,
+        cashAccountId: payment.cashAccountId ?? null,
         note: payment.note,
+        evidenceReferences: [...payment.evidenceReferences],
         reversedAmountMinor: payment.reversedAmount.amountMinor,
         version: payment.version,
         transactionTime: fromIso(payment.transactionTime),
@@ -121,15 +127,7 @@ export const createSupplierWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         .returning({ id: supplierPayments.id });
       return rows.length === 1;
     },
-    async insertReversal(reversal: {
-      id: string;
-      workspaceId: WorkspaceId;
-      supplierPaymentId: SupplierPaymentId;
-      amount: SupplierPaymentState["amount"];
-      reason: string;
-      transactionTime: IsoInstant;
-      recordedAt: IsoInstant;
-    }) {
+    async insertReversal(reversal: SupplierPaymentReversalState) {
       await tx.insert(supplierPaymentReversals).values({
         id: reversal.id,
         workspaceId: reversal.workspaceId,
@@ -137,6 +135,7 @@ export const createSupplierWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         amountMinor: reversal.amount.amountMinor,
         currency: reversal.amount.currency,
         reason: reversal.reason,
+        evidenceReferences: [...reversal.evidenceReferences],
         transactionTime: fromIso(reversal.transactionTime),
         recordedAt: fromIso(reversal.recordedAt),
       });

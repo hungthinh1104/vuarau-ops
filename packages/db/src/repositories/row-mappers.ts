@@ -30,8 +30,11 @@ import { derivePaymentStatus } from "@vuarau/domain-kernel";
  * public surface.
  */
 
-export const toIso = (value: Date): IsoInstant => value.toISOString() as IsoInstant;
-export const toIsoOrNull = (value: Date | null): IsoInstant | null =>
+type DateLike = Date | string;
+
+export const toIso = (value: DateLike): IsoInstant =>
+  (value instanceof Date ? value : new Date(value)).toISOString() as IsoInstant;
+export const toIsoOrNull = (value: DateLike | null): IsoInstant | null =>
   value === null ? null : toIso(value);
 export const fromIso = (value: IsoInstant): Date => new Date(value);
 export const fromIsoOrNull = (value: IsoInstant | null): Date | null =>
@@ -78,6 +81,7 @@ export type SaleRow = {
   currency: CurrencyCode;
   totalAmountMinor: number;
   note: string | null;
+  evidenceReferences: string[];
   version: number;
   transactionTime: Date;
   recordedAt: Date;
@@ -106,6 +110,7 @@ export type SaleVoidRow = {
   saleId: string;
   reasonCode: SaleVoidState["reasonCode"];
   reason: string;
+  evidenceReferences: string[];
   amountMinor: number;
   currency: CurrencyCode;
   transactionTime: Date;
@@ -120,6 +125,7 @@ export function toSaleVoidState(row: SaleVoidRow): SaleVoidState {
     saleId: row.saleId as SaleId,
     reasonCode: row.reasonCode,
     reason: row.reason,
+    evidenceReferences: [...row.evidenceReferences],
     amount: money(row.amountMinor, row.currency),
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
@@ -155,6 +161,7 @@ export function toSaleState(
     })),
     totalAmount: money(row.totalAmountMinor, row.currency),
     note: row.note,
+    evidenceReferences: [...row.evidenceReferences],
     version: row.version,
     transactionTime: toIso(row.transactionTime),
     recordedAt: toIso(row.recordedAt),
@@ -173,8 +180,10 @@ export type PaymentRow = {
   amountMinor: number;
   currency: CurrencyCode;
   method: PaymentState["method"];
+  cashAccountId: string | null;
   payerName: string | null;
   note: string | null;
+  evidenceReferences: string[];
   reversedAmountMinor: number;
   version: number;
   transactionTime: Date;
@@ -190,8 +199,10 @@ export function toPaymentState(row: PaymentRow): PaymentState {
     customerId: row.customerId as CustomerId,
     amount,
     method: row.method,
+    cashAccountId: row.cashAccountId as NonNullable<PaymentState["cashAccountId"]> | null,
     payerName: row.payerName,
     note: row.note,
+    evidenceReferences: row.evidenceReferences,
     // Recomputed from `reversed_amount` rather than read from the stored column.
     // The column exists so queries can filter; this is the definition
     // (BR-PAYMENT-008), and reading it back this way means a drifted column can

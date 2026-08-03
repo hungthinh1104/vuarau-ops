@@ -20,7 +20,7 @@ Any authenticated member of the workspace.
 ## Main flow
 
 1. Client sends `ReverseCustomerPayment`: `paymentId`, `reversalId`, `amount`,
-   `reason`, and `expectedVersion`.
+   `reason`, optional source `evidenceReferences`, and `expectedVersion`.
 2. Backend loads the payment for update inside a transaction.
 3. Backend checks `expectedVersion` (BR-PAYMENT-007).
 4. Domain checks: payment is not already fully reversed (BR-PAYMENT-006), amount is
@@ -37,6 +37,9 @@ Any authenticated member of the workspace.
 
 The original payment row and the original ledger entry are untouched. Both remain
 visible in history.
+
+Reversal evidence references explain the observed correction and remain metadata;
+they do not alter the compensating amount or debt allocation.
 
 ## Alternate flows
 

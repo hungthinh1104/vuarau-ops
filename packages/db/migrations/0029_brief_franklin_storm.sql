@@ -1,0 +1,1 @@
+CREATE INDEX "purchases_supplier_status_time_idx" ON "purchases" USING btree ("workspace_id","supplier_id","status","transaction_time","recorded_at","id");

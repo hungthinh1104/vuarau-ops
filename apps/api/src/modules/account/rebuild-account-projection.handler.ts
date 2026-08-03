@@ -35,7 +35,7 @@ export function rebuildAccountProjection(
         repos,
         workspaceId: command.workspaceId,
         customerId: command.payload.customerId,
-        role: membership.role,
+        roles: membership.roles,
       });
       if (before.kind === "not_found") {
         return err("CUSTOMER_NOT_FOUND", "No such customer in this workspace.", {
@@ -94,7 +94,7 @@ export function rebuildAccountProjection(
         repos,
         workspaceId: command.workspaceId,
         customerId: command.payload.customerId,
-        role: membership.role,
+        roles: membership.roles,
       });
       if (reconciliation.kind !== "consistent") {
         return err(

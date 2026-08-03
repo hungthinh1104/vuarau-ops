@@ -20,6 +20,7 @@ export const recordedPayment: PaymentState = {
   method: "cash",
   payerName: null,
   note: null,
+  evidenceReferences: [],
   status: "recorded",
   reversedAmount: vnd(0),
   version: 1,

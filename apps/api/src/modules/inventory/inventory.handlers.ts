@@ -26,6 +26,7 @@ import { applyInventoryMovements } from "./inventory-effects.ts";
 
 const dto = (receipt: PurchaseReceiptState): PurchaseReceiptDto => ({
   ...receipt,
+  evidenceReferences: [...(receipt.evidenceReferences ?? [])],
   lines: receipt.lines.map((line) => ({ ...line })),
   reversal:
     receipt.reversal === null
@@ -36,6 +37,7 @@ const dto = (receipt: PurchaseReceiptState): PurchaseReceiptDto => ({
           reason: receipt.reversal.reason,
           transactionTime: receipt.reversal.transactionTime,
           recordedAt: receipt.reversal.recordedAt,
+          evidenceReferences: [...(receipt.reversal.evidenceReferences ?? [])],
         },
 });
 
@@ -46,21 +48,39 @@ export function recordPurchaseReceipt(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "receiving.record",
-    execute: async ({ command, repos, recordedAt }) => {
+    requiredWorkflows: ["purchasing", "inventory", "direct_receiving"],
+    execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const purchase = await repos.purchases.findByIdForUpdate(
         command.workspaceId,
         command.payload.purchaseId,
       );
       if (purchase === null) return err("PURCHASE_NOT_FOUND", "No such Purchase.");
       for (const line of command.payload.lines) {
-        const grade = await repos.qualityGrades.findById(command.workspaceId, line.qualityGradeId);
-        if (grade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
-        if (!grade.isActive) return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
-        if (grade.name !== line.qualityGradeName)
-          return err(
-            "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
-            "Receipt grade snapshot does not match the selected grade.",
+        if (operationalProfile.qualityGradeMode === "required") {
+          if (line.qualityGradeId === null || line.qualityGradeName === null) {
+            return err(
+              "SALE_QUALITY_GRADE_REQUIRED",
+              "This depot requires a quality grade on every accepted Receipt line.",
+            );
+          }
+          const grade = await repos.qualityGrades.findById(
+            command.workspaceId,
+            line.qualityGradeId,
           );
+          if (grade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
+          if (!grade.isActive) return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
+          if (grade.name !== line.qualityGradeName) {
+            return err(
+              "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
+              "Receipt grade snapshot does not match the selected grade.",
+            );
+          }
+        } else if (line.qualityGradeId !== null || line.qualityGradeName !== null) {
+          return err(
+            "QUALITY_GRADE_NOT_USED",
+            "This depot records accepted inventory without commercial grades.",
+          );
+        }
       }
       const net = await repos.purchaseReceipts.netReceivedByPurchaseLine(
         command.workspaceId,
@@ -193,28 +213,49 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "inventory.adjust",
-    execute: async ({ command, repos, recordedAt }) => {
+    requiredWorkflows: ["inventory"],
+    execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       if ((await repos.products.findById(command.workspaceId, command.payload.productId)) === null)
         return err("PRODUCT_NOT_FOUND", "No such Product.");
-      const grade = await repos.qualityGrades.findById(
-        command.workspaceId,
-        command.payload.qualityGradeId,
-      );
-      if (grade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
-      if (!grade.isActive) return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
-      if (grade.name !== command.payload.qualityGradeName)
-        return err(
-          "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
-          "Inventory grade snapshot does not match the selected grade.",
+      let grade: { id: typeof command.payload.qualityGradeId; name: string } | null = null;
+      if (operationalProfile.qualityGradeMode === "required") {
+        if (command.payload.qualityGradeId === null || command.payload.qualityGradeName === null) {
+          return err(
+            "SALE_QUALITY_GRADE_REQUIRED",
+            "This depot requires a quality grade for inventory adjustments.",
+          );
+        }
+        const currentGrade = await repos.qualityGrades.findById(
+          command.workspaceId,
+          command.payload.qualityGradeId,
         );
+        if (currentGrade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
+        if (!currentGrade.isActive)
+          return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
+        if (currentGrade.name !== command.payload.qualityGradeName) {
+          return err(
+            "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
+            "Inventory grade snapshot does not match the selected grade.",
+          );
+        }
+        grade = { id: currentGrade.id, name: currentGrade.name };
+      } else if (
+        command.payload.qualityGradeId !== null ||
+        command.payload.qualityGradeName !== null
+      ) {
+        return err(
+          "QUALITY_GRADE_NOT_USED",
+          "This depot records inventory without commercial grades.",
+        );
+      }
       const decision = validateInventoryAdjustment(command);
       if (!decision.ok) return decision;
       await applyInventoryMovements(repos, [
         {
           workspaceId: command.workspaceId,
           productId: command.payload.productId,
-          qualityGradeId: grade.id,
-          qualityGradeName: grade.name,
+          qualityGradeId: grade?.id ?? null,
+          qualityGradeName: grade?.name ?? null,
           quantity: { valueScaled: decision.value, unit: command.payload.quantity.unit },
           sourceType: "inventory_adjustment",
           sourceId: command.payload.adjustmentId,
@@ -253,6 +294,7 @@ export function reclassifyInventory(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "inventory.reclassify",
+    requiredWorkflows: ["inventory", "quality_grading"],
     execute: async ({ command, repos, recordedAt }) => {
       if ((await repos.products.findById(command.workspaceId, command.payload.productId)) === null)
         return err("PRODUCT_NOT_FOUND", "No such Product.");

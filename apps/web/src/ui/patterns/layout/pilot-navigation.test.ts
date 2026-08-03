@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { permissionsForRole } from "@vuarau/domain-contracts";
 import { activeNavigationHref, navigationFor } from "./pilot-navigation.ts";
-import { todayActionsFor } from "@/ui/patterns/today-actions.ts";
+import { todayActionsFor } from "@/ui/domain/today-actions.ts";
 
 describe("TC-WEB-029 — role-aware pilot navigation", () => {
   it("shows only destinations backed by server-authored permissions", () => {
@@ -11,13 +11,15 @@ describe("TC-WEB-029 — role-aware pilot navigation", () => {
     expect(sales).toContain("Ghi đơn nhanh");
     expect(sales).toContain("Đơn hàng");
     expect(sales).toContain("Khách hàng");
-    expect(sales).not.toContain("Nhận hàng");
+    expect(sales).not.toContain("Đơn mua");
+    expect(sales).not.toContain("Hàng đến");
     expect(sales).not.toContain("Thành viên");
 
     const warehouse = navigationFor(permissionsForRole("warehouse"))
       .flatMap((group) => group.items)
       .map((item) => item.label);
-    expect(warehouse).toContain("Nhận hàng");
+    expect(warehouse).toContain("Đơn mua");
+    expect(warehouse).toContain("Hàng đến");
     expect(warehouse).toContain("Tồn kho");
     expect(warehouse).not.toContain("Thành viên");
 
@@ -34,6 +36,8 @@ describe("TC-WEB-029 — role-aware pilot navigation", () => {
     ["/sales", "/sales"],
     ["/sales/abc", "/sales"],
     ["/customers", "/customers"],
+    ["/intake", "/intake"],
+    ["/intake/abc", "/intake"],
     ["/workspace/operations", "/workspace/operations"],
     ["/today", "/today"],
   ])("resolves %s to one canonical destination", (pathname, expectedHref) => {

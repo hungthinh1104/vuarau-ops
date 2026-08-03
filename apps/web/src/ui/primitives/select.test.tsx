@@ -22,7 +22,7 @@ describe("Select", () => {
     await user.click(trigger);
 
     // Select Option 2
-    await user.click(screen.getByRole("option", { name: "Option 2" }));
+    await user.click(await screen.findByRole("option", { name: "Option 2" }));
 
     expect(onChange).toHaveBeenCalledOnce();
     const eventArg = onChange.mock.calls[0]?.[0] as { target: { value: string } };
@@ -50,7 +50,7 @@ describe("Select", () => {
     expect(trigger).toHaveTextContent("Option 1");
 
     await user.click(trigger);
-    await user.click(screen.getByRole("option", { name: "Option 2" }));
+    await user.click(await screen.findByRole("option", { name: "Option 2" }));
 
     expect(trigger).toHaveTextContent("Option 2");
   });
@@ -75,7 +75,7 @@ describe("Select", () => {
     const trigger = screen.getByRole("combobox", { name: "Keyboard" });
     await user.click(trigger); // open menu
 
-    const listbox = screen.getByRole("listbox");
+    const listbox = await screen.findByRole("listbox");
     expect(listbox).toBeInTheDocument();
 
     // Select the first option with keyboard
@@ -94,6 +94,24 @@ describe("Select", () => {
 
     // Wait for the listbox to be hidden from accessibility tree
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("keeps a long option list within the available viewport", async () => {
+    const user = userEvent.setup();
+    render(
+      <Select
+        label="Quality grade"
+        options={Array.from({ length: 30 }, (_, index) => ({
+          value: `grade-${index}`,
+          label: `Grade ${index}`,
+        }))}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Quality grade" }));
+
+    const listbox = await screen.findByRole("listbox");
+    expect(listbox).toHaveClass("max-h-[var(--available-height)]", "overflow-y-auto");
   });
 
   it("integrates with native form submission via the hidden input", async () => {

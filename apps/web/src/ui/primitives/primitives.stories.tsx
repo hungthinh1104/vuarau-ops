@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "./button.tsx";
+import { Checkbox } from "./checkbox.tsx";
 import { IconButton } from "./icon-button.tsx";
 import { TextInput } from "./text-input.tsx";
 import { SearchInput } from "./search-input.tsx";
@@ -15,7 +16,8 @@ import { Badge } from "./badge.tsx";
 import { Skeleton } from "./skeleton.tsx";
 import { EmptyState } from "./empty-state.tsx";
 import { ErrorSummary } from "./error-summary.tsx";
-import { parseMoneyText } from "./numeric-text.ts";
+import { LinkButton } from "./link-button.tsx";
+import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 import { coversState } from "@/ui/patterns/sale/catalog-state.ts";
 
 const meta = { title: "Primitives" } satisfies Meta;
@@ -35,6 +37,25 @@ export const Buttons: Story = {
       <Button disabledReason="Đơn đã chốt nên không sửa được nữa.">Sửa đơn</Button>
     </div>
   ),
+};
+
+export const ActionLinksAndCheckboxes: Story = {
+  name: "LinkButton / Checkbox — cùng contract với button và form",
+  render: function Render() {
+    const [checked, setChecked] = useState(false);
+    return (
+      <div className="flex flex-wrap items-center gap-4">
+        <LinkButton href="/customers">Mở khách hàng</LinkButton>
+        <LinkButton href="/reports" tone="secondary">
+          Xem báo cáo
+        </LinkButton>
+        <label className="flex min-h-11 items-center gap-2 text-label">
+          <Checkbox checked={checked} onChange={(event) => setChecked(event.target.checked)} />
+          Đã kiểm tra
+        </label>
+      </div>
+    );
+  },
 };
 
 export const IconButtons: Story = {

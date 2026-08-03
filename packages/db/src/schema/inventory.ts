@@ -29,6 +29,7 @@ export const purchaseReceipts = pgTable(
       .notNull()
       .references(() => purchases.id),
     note: text("note"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")
@@ -84,6 +85,7 @@ export const purchaseReceiptReversals = pgTable(
       .references(() => purchaseReceipts.id),
     reasonCode: text("reason_code").notNull(),
     reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")

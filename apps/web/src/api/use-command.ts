@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { DomainError } from "@vuarau/domain-contracts";
+import type { ZodType } from "zod";
+import type {
+  ActorId,
+  CommandId,
+  DomainError,
+  IdempotencyKey,
+  WorkspaceId,
+} from "@vuarau/domain-contracts";
 import type { CommandIdentity, CommandPhase, PendingCommand } from "./command-identity.ts";
 import {
   beginCommand,
@@ -14,6 +21,7 @@ import {
 } from "./command-identity.ts";
 import { domainErrorOf } from "./domain-error.ts";
 import { useSession } from "./session-gate.tsx";
+import { requestIdOf } from "@/lib/request-id.ts";
 
 /**
  * The one place a command is sent, so that "what happens when it does not come
@@ -31,10 +39,10 @@ import { useSession } from "./session-gate.tsx";
  * server-side rule can prevent.
  */
 export type CommandEnvelope<TPayload> = {
-  readonly commandId: string;
-  readonly idempotencyKey: string;
-  readonly workspaceId: string;
-  readonly actorId: string;
+  readonly commandId: CommandId;
+  readonly idempotencyKey: IdempotencyKey;
+  readonly workspaceId: WorkspaceId;
+  readonly actorId: ActorId;
   readonly occurredAt: string;
   readonly expectedVersion?: number;
   readonly payload: TPayload;
@@ -52,6 +60,8 @@ export type CommandState<TPayload, TResult> = {
   readonly pending: PendingCommand<TPayload> | null;
   readonly result: TResult | null;
   readonly error: DomainError | null;
+  /** Correlates a definite or malformed transport response with API logs. */
+  readonly requestId: string | null;
   /**
    * True when the server answered a replay with the original result
    * (BR-COMMAND-001). A **success**, and rendered as one — showing an error here
@@ -84,6 +94,7 @@ export function useCommand<TPayload, TResult>(
     pending: null,
     result: null,
     error: null,
+    requestId: null,
     wasDuplicateSafeRetry: false,
   });
 
@@ -120,7 +131,13 @@ export function useCommand<TPayload, TResult>(
   const dispatch = useCallback(
     async (command: PendingCommand<TPayload>, isReplay: boolean): Promise<TResult | null> => {
       inFlight.current = command;
-      setState((current) => ({ ...current, phase: command.phase, pending: command, error: null }));
+      setState((current) => ({
+        ...current,
+        phase: command.phase,
+        pending: command,
+        error: null,
+        requestId: null,
+      }));
 
       try {
         const result = await send({
@@ -143,12 +160,14 @@ export function useCommand<TPayload, TResult>(
           pending: succeeded,
           result,
           error: null,
+          requestId: null,
           // A replay that succeeded returned the original result, not a new one.
           wasDuplicateSafeRetry: isReplay,
         });
         return result;
       } catch (error) {
         const domainError = domainErrorOf(error);
+        const requestId = requestIdOf(error);
 
         if (domainError === null && isUnknownOutcome(error)) {
           // No answer. The command stays pending with its identity intact so a
@@ -156,7 +175,12 @@ export function useCommand<TPayload, TResult>(
           // user typed is lost.
           const unknown = markUnknown(command);
           inFlight.current = unknown;
-          setState((current) => ({ ...current, phase: unknown.phase, pending: unknown }));
+          setState((current) => ({
+            ...current,
+            phase: unknown.phase,
+            pending: unknown,
+            requestId,
+          }));
           return null;
         }
 
@@ -193,6 +217,7 @@ export function useCommand<TPayload, TResult>(
           pending: rejected,
           result: null,
           error: domainError,
+          requestId,
         }));
         return null;
       }
@@ -257,11 +282,24 @@ export function useCommand<TPayload, TResult>(
       pending: null,
       result: null,
       error: null,
+      requestId: null,
       wasDuplicateSafeRetry: false,
     });
   }, []);
 
   return { ...state, submit, resend, reset };
+}
+
+/**
+ * Binds a command runner to the published domain schema before it reaches a
+ * tRPC mutation. This keeps versioned envelopes type-safe without forcing each
+ * controller to cast an incomplete client envelope through `never`.
+ */
+export function useContractCommand<TCommand extends { readonly payload: unknown }, TResult>(
+  schema: ZodType<TCommand>,
+  send: (command: TCommand) => Promise<TResult>,
+): CommandRunner<TCommand["payload"], TResult> {
+  return useCommand<TCommand["payload"], TResult>((envelope) => send(schema.parse(envelope)));
 }
 
 /**
@@ -279,6 +317,7 @@ export type CommandOutcomeView = {
     readonly attempts: number;
   } | null;
   readonly error: DomainError | null;
+  readonly requestId: string | null;
   readonly wasDuplicateSafeRetry: boolean;
   readonly resend: () => Promise<unknown>;
 };

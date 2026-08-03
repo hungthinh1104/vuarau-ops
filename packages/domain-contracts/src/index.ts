@@ -14,3 +14,8 @@ export * from "./inventory/index.ts";
 export * from "./delivery/index.ts";
 export * from "./document/index.ts";
 export * from "./report/index.ts";
+export * from "./workspace-profile/index.ts";
+export * from "./cash/index.ts";
+export * from "./intake/index.ts";
+export * from "./pricing/index.ts";
+export * from "./evidence/index.ts";

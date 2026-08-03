@@ -27,7 +27,9 @@ describe("Goods Truth workspace navigation", () => {
         "href",
         "/suppliers",
       );
-      expect(screen.getByRole("link", { name: "Nhận hàng" })).toHaveAttribute("href", "/purchases");
+      expect(screen.getByRole("link", { name: "Đơn mua" })).toHaveAttribute("href", "/purchases");
+      expect(screen.getByRole("link", { name: "Hàng đến" })).toHaveAttribute("href", "/intake");
+      expect(screen.getByRole("link", { name: "Bảng giá" })).toHaveAttribute("href", "/pricing");
       unmount();
     }
   });
@@ -43,9 +45,11 @@ describe("Goods Truth workspace navigation", () => {
       </WorkspaceShell>,
     );
     expect(screen.queryByRole("link", { name: "Nhà cung cấp" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Nhận hàng" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Đơn mua" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Hàng đến" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Bảng giá" })).toHaveAttribute("href", "/pricing");
     const quickSaleLinks = screen.getAllByRole("link", { name: "Ghi đơn nhanh" });
-    expect(quickSaleLinks).toHaveLength(2);
+    expect(quickSaleLinks).toHaveLength(1);
     for (const link of quickSaleLinks) expect(link).toHaveAttribute("href", "/sales/new");
   });
 
@@ -80,12 +84,17 @@ describe("Goods Truth workspace navigation", () => {
     );
     expect(screen.getAllByRole("link", { name: "Hôm nay" })).toHaveLength(2);
     expect(screen.getByRole("navigation", { name: "Điều hướng di động" })).toBeInTheDocument();
-    for (const label of ["Hôm nay", "Đơn hàng", "Khách hàng", "Công việc", "Thêm"]) {
+    expect(screen.getByRole("link", { name: "Bỏ qua đến nội dung chính" })).toHaveAttribute(
+      "href",
+      "#main-content",
+    );
+    expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
+    for (const label of ["Hôm nay", "Đơn hàng", "Khách hàng", "Ghi đơn", "Thêm"]) {
       expect(
         screen
           .getByRole("navigation", { name: "Điều hướng di động" })
           .querySelector(
-            `a[href="${label === "Hôm nay" ? "/today" : label === "Đơn hàng" ? "/sales" : label === "Khách hàng" ? "/customers" : label === "Công việc" ? "/today#work" : "/today#more"}"]`,
+            `a[href="${label === "Hôm nay" ? "/today" : label === "Đơn hàng" ? "/sales" : label === "Khách hàng" ? "/customers" : label === "Ghi đơn" ? "/today#work" : "/today#more"}"]`,
           ),
       ).not.toBeNull();
     }
@@ -123,6 +132,9 @@ describe("Goods Truth workspace navigation", () => {
       .filter((link) => link.getAttribute("aria-current") === "page");
     expect(mobileCurrent).toHaveLength(mobileLabel === null ? 0 : 1);
     if (mobileLabel !== null) expect(mobileCurrent[0]).toHaveTextContent(mobileLabel);
+    if (pathname === "/sales/new") {
+      expect(screen.getAllByRole("link", { name: "Ghi đơn nhanh" })).toHaveLength(1);
+    }
     unmount();
     navigationState.pathname = "/today";
   });

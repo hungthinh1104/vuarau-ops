@@ -8,3 +8,4 @@ export * from "./capability.ts";
 export * from "./authorization.ts";
 export * from "./command.ts";
 export * from "./pagination.ts";
+export * from "./evidence.ts";

@@ -6,7 +6,9 @@ import {
   products,
   qualityGrades,
   workspaces,
+  workspaceMembershipRoles,
   workspaceMemberships,
+  workspaceOperationalProfiles,
 } from "../schema/index.ts";
 
 /**
@@ -112,6 +114,10 @@ export async function seed(connectionString: string): Promise<void> {
       .values({ id: WORKSPACE_ID, name: "Vựa rau Bình Điền" })
       .onConflictDoNothing();
     await db
+      .insert(workspaceOperationalProfiles)
+      .values({ workspaceId: WORKSPACE_ID })
+      .onConflictDoNothing();
+    await db
       .insert(actors)
       .values(
         [...SEED_ACTORS, ...SEED_UNASSIGNED_ACTORS].map((actor) => ({
@@ -130,6 +136,17 @@ export async function seed(connectionString: string): Promise<void> {
           workspaceId: WORKSPACE_ID,
           actorId: actor.id,
           role: actor.role,
+        })),
+      )
+      .onConflictDoNothing();
+    await db
+      .insert(workspaceMembershipRoles)
+      .values(
+        SEED_ACTORS.map((actor) => ({
+          workspaceId: WORKSPACE_ID,
+          actorId: actor.id,
+          role: actor.role,
+          assignedBy: SEED_ACTORS[0]!.id,
         })),
       )
       .onConflictDoNothing();

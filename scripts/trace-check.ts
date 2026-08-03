@@ -96,6 +96,32 @@ async function* walkSource(directory: string): AsyncGenerator<string> {
   }
 }
 
+async function* walkMarkdown(directory: string): AsyncGenerator<string> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = join(directory, entry.name);
+    if (entry.isDirectory()) yield* walkMarkdown(full);
+    else if (entry.name.endsWith(".md")) yield full;
+  }
+}
+
+async function documentedDefinitionIds(
+  directory: string,
+  patterns: readonly RegExp[],
+): Promise<Set<string>> {
+  const ids = new Set<string>();
+  for await (const file of walkMarkdown(join(ROOT, directory))) {
+    const source = readFileSync(file, "utf8");
+    for (const pattern of patterns) {
+      for (const match of source.matchAll(pattern)) {
+        const id = match[1];
+        if (id !== undefined) ids.add(id);
+      }
+    }
+  }
+  return ids;
+}
+
 function idsIn(text: string, prefix: string): Set<string> {
   const pattern = new RegExp(`${prefix}-[A-Z]+-\\d{3}`, "g");
   return new Set(text.match(pattern) ?? []);
@@ -109,6 +135,39 @@ async function main(): Promise<void> {
   const cases = map.cases ?? {};
   const contractTests = map.contract_tests ?? {};
   const deprecated = new Set(map.deprecated ?? []);
+
+  // Definitions are scanned in the normative directories, not inferred from the
+  // map itself. This catches the dangerous reverse-drift case where somebody adds
+  // a documented rule/use case but forgets to trace it: a link checker cannot
+  // complain about an identifier it was never told exists.
+  const documentedUseCases = await documentedDefinitionIds("docs/02-use-cases", [
+    /^#{1,3}\s+(UC-[A-Z-]+-\d{3})\b/gm,
+  ]);
+  const documentedRules = await documentedDefinitionIds("docs/04-business-rules", [
+    /^###\s+(BR-[A-Z-]+-\d{3})\b/gm,
+    /^-\s+\*\*(BR-[A-Z-]+-\d{3})\*\*/gm,
+  ]);
+
+  for (const id of documentedUseCases) {
+    if (useCases[id] === undefined && !deprecated.has(id)) {
+      fail(`Documented use case ${id} is absent from the trace map`);
+    }
+  }
+  for (const id of documentedRules) {
+    if (rules[id] === undefined && !deprecated.has(id)) {
+      fail(`Documented business rule ${id} is absent from the trace map`);
+    }
+  }
+  for (const id of Object.keys(useCases)) {
+    if (!documentedUseCases.has(id) && !deprecated.has(id)) {
+      fail(`Trace-map use case ${id} has no normative heading definition in docs/02-use-cases`);
+    }
+  }
+  for (const id of Object.keys(rules)) {
+    if (!documentedRules.has(id) && !deprecated.has(id)) {
+      fail(`Trace-map business rule ${id} has no normative definition in docs/04-business-rules`);
+    }
+  }
 
   // ---- 5. duplicate ids ----------------------------------------------------
   const allIds = [
@@ -200,6 +259,15 @@ async function main(): Promise<void> {
     // ---- 6. a use case must have at least one business rule ---------------
     if ((entry.rules ?? []).length === 0) {
       fail(`Use case ${id} has no business rule`);
+    }
+  }
+
+  const rulesClaimedByUseCases = new Set(
+    Object.values(useCases).flatMap((entry) => entry.rules ?? []),
+  );
+  for (const ruleId of Object.keys(rules)) {
+    if (!deprecated.has(ruleId) && !rulesClaimedByUseCases.has(ruleId)) {
+      fail(`Business rule ${ruleId} is not claimed by any use case`);
     }
   }
 

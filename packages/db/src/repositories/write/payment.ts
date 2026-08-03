@@ -29,8 +29,10 @@ export const createPaymentWriteRepositories = (tx: Tx) => ({
         amountMinor: payment.amount.amountMinor,
         currency: payment.amount.currency,
         method: payment.method,
+        cashAccountId: payment.cashAccountId ?? null,
         payerName: payment.payerName,
         note: payment.note,
+        evidenceReferences: [...payment.evidenceReferences],
         status: payment.status,
         reversedAmountMinor: payment.reversedAmount.amountMinor,
         version: payment.version,
@@ -67,6 +69,7 @@ export const createPaymentWriteRepositories = (tx: Tx) => ({
         amountMinor: reversal.amount.amountMinor,
         currency: reversal.amount.currency,
         reason: reversal.reason,
+        evidenceReferences: [...reversal.evidenceReferences],
         transactionTime: fromIso(reversal.transactionTime),
         recordedAt: fromIso(reversal.recordedAt),
       });

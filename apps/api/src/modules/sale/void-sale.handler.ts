@@ -38,7 +38,16 @@ export function voidSale(ctx: CommandContext, input: unknown): Promise<DomainRes
         });
       }
 
-      const decision = decideVoidSale({ command, sale, recordedAt });
+      const fulfilled =
+        command.payload.reasonCode === "goods_returned"
+          ? await repos.deliveries.netFulfilledBySaleLine(command.workspaceId, sale.id, null)
+          : new Map<string, number>();
+      const decision = decideVoidSale({
+        command,
+        sale,
+        hasActiveNetFulfilment: [...fulfilled.values()].some((quantity) => quantity > 0),
+        recordedAt,
+      });
       if (!decision.ok) {
         return decision;
       }

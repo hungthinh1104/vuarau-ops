@@ -1,7 +1,17 @@
-import { bigint, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { currencyCodeEnum, paymentMethodEnum, paymentStatusEnum } from "./enums.ts";
 import { customers } from "./customer.ts";
 import { workspaces } from "./workspace.ts";
+import { cashAccounts } from "./cash.ts";
 
 /**
  * `reversed_amount`, `status`, and `version` are the only mutable columns, and
@@ -24,9 +34,11 @@ export const payments = pgTable(
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     method: paymentMethodEnum("method").notNull(),
+    cashAccountId: uuid("cash_account_id"),
     /** Who physically handed over the money, when that is not the customer. */
     payerName: text("payer_name"),
     note: text("note"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     status: paymentStatusEnum("status").notNull(),
     reversedAmountMinor: bigint("reversed_amount_minor", { mode: "number" }).notNull().default(0),
     version: integer("version").notNull(),
@@ -34,6 +46,11 @@ export const payments = pgTable(
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.workspaceId, table.cashAccountId],
+      foreignColumns: [cashAccounts.workspaceId, cashAccounts.id],
+      name: "payments_workspace_cash_account_fk",
+    }),
     index("payments_workspace_customer_time_idx").on(
       table.workspaceId,
       table.customerId,
@@ -60,6 +77,7 @@ export const paymentReversals = pgTable(
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },

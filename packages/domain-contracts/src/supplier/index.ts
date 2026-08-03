@@ -4,7 +4,11 @@ import { moneySchema } from "../shared/money.ts";
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import {
   actorIdSchema,
+  cashAccountIdSchema,
   commandIdSchema,
+  productIdSchema,
+  purchaseIdSchema,
+  purchaseLineIdSchema,
   supplierAccountEntryIdSchema,
   supplierIdSchema,
   supplierPaymentIdSchema,
@@ -13,6 +17,8 @@ import {
 } from "../shared/ids.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { paymentMethodSchema } from "../payment/index.ts";
+import { quantitySchema } from "../shared/quantity.ts";
+import { evidenceReferencesDtoSchema, evidenceReferencesInputSchema } from "../shared/evidence.ts";
 
 const supplierFields = z.object({
   supplierId: supplierIdSchema,
@@ -60,6 +66,34 @@ export const supplierGetInputSchema = z.object({
   supplierId: supplierIdSchema,
 });
 
+/**
+ * Observed prices from confirmed Purchase snapshots. This is deliberately not
+ * a suggested, normalized or "best" price: those semantics need supplier
+ * catalogue policy and field evidence first.
+ */
+export const supplierPriceHistoryRowDtoSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  supplierId: supplierIdSchema,
+  purchaseId: purchaseIdSchema,
+  purchaseLineId: purchaseLineIdSchema,
+  productId: productIdSchema,
+  productName: z.string(),
+  quantity: quantitySchema,
+  unitPrice: moneySchema,
+  lineTotal: moneySchema,
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  confirmedAt: isoInstantSchema,
+});
+export type SupplierPriceHistoryRowDto = z.infer<typeof supplierPriceHistoryRowDtoSchema>;
+export const supplierPriceHistoryInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  supplierId: supplierIdSchema,
+  productId: productIdSchema.nullable().default(null),
+});
+export type SupplierPriceHistoryInput = z.infer<typeof supplierPriceHistoryInputSchema>;
+export const supplierPriceHistoryPageSchema = pageOf(supplierPriceHistoryRowDtoSchema);
+
 export const SUPPLIER_ACCOUNT_SOURCE_TYPES = [
   "supplier_payment",
   "supplier_payment_reversal",
@@ -83,7 +117,9 @@ export const recordSupplierPaymentCommandSchema = defineCommand(
     supplierId: supplierIdSchema,
     amount: moneySchema,
     method: paymentMethodSchema,
+    cashAccountId: cashAccountIdSchema.nullable().optional(),
     note: z.string().trim().max(2_000).nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type RecordSupplierPaymentCommand = z.infer<typeof recordSupplierPaymentCommandSchema>;
@@ -93,7 +129,9 @@ export const reverseSupplierPaymentCommandSchema = defineVersionedCommand(
     reversalId: supplierPaymentReversalIdSchema,
     supplierPaymentId: supplierPaymentIdSchema,
     amount: moneySchema,
+    cashAccountId: cashAccountIdSchema.nullable().optional(),
     reason: z.string().trim().max(500),
+    evidenceReferences: evidenceReferencesInputSchema,
   }),
 );
 export type ReverseSupplierPaymentCommand = z.infer<typeof reverseSupplierPaymentCommandSchema>;
@@ -118,13 +156,28 @@ export const adjustSupplierAccountCommandSchema = defineCommand(
 );
 export type AdjustSupplierAccountCommand = z.infer<typeof adjustSupplierAccountCommandSchema>;
 
+export const supplierPaymentReversalDtoSchema = z.object({
+  id: supplierPaymentReversalIdSchema,
+  workspaceId: workspaceIdSchema,
+  supplierPaymentId: supplierPaymentIdSchema,
+  amount: moneySchema,
+  reason: z.string(),
+  evidenceReferences: evidenceReferencesDtoSchema,
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+});
+export type SupplierPaymentReversalDto = z.infer<typeof supplierPaymentReversalDtoSchema>;
+
 export const supplierPaymentDtoSchema = z.object({
   id: supplierPaymentIdSchema,
   workspaceId: workspaceIdSchema,
   supplierId: supplierIdSchema,
   amount: moneySchema,
   method: paymentMethodSchema,
+  cashAccountId: cashAccountIdSchema.nullable(),
   note: z.string().nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
+  reversals: z.array(supplierPaymentReversalDtoSchema),
   reversedAmount: moneySchema,
   status: z.enum(["recorded", "partially_reversed", "reversed"]),
   version: z.int().positive(),

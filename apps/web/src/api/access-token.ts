@@ -35,20 +35,16 @@ export function setAccessToken(token: string | null): void {
  * third party to answer questions about Postgres rows. So the harness mints a
  * token against the API's configured secret and writes it where this reads.
  *
- * Two locks, and both must be open:
- *
- *   1. `NEXT_PUBLIC_E2E_AUTH_BRIDGE=1` — set by the Playwright web server only.
- *   2. `NODE_ENV !== "production"` — so a production build cannot open it at all.
- *      Next replaces this comparison with a literal at build time and removes the
- *      branch, which means the bridge is not merely disabled in a production
- *      bundle; it is not in it.
+ * The bridge is a build-time opt-in. Normal production builds do not set
+ * `NEXT_PUBLIC_E2E_AUTH_BRIDGE`, so the branch is compiled out. The E2E gate
+ * deliberately creates a separate production artifact with that flag enabled,
+ * then runs it only against disposable data and the test token verifier.
  *
  * TC-WEB-024 asserts that an injected token is ignored with the flag unset,
  * because "off by default" is the property that matters and it is one line to
  * break by accident.
  */
 export function e2eBridgeToken(): string | null {
-  if (process.env.NODE_ENV === "production") return null;
   if (process.env["NEXT_PUBLIC_E2E_AUTH_BRIDGE"] !== "1") return null;
   if (typeof window === "undefined") return null;
   try {

@@ -8,6 +8,7 @@ import {
   addWorkspaceMemberCommandSchema,
   changeWorkspaceMemberRoleCommandSchema,
   reactivateWorkspaceMemberCommandSchema,
+  primaryWorkspaceRole,
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import {
@@ -47,7 +48,8 @@ export function addWorkspaceMember(
       const inserted = await repos.workspaces.addMembership(
         command.workspaceId,
         decision.value.actorId,
-        decision.value.role,
+        decision.value.roles,
+        command.actorId,
       );
       if (!inserted) {
         return err("WORKSPACE_MEMBER_ALREADY_EXISTS", "This actor is already a member.", {
@@ -63,7 +65,8 @@ export function addWorkspaceMember(
       return ok({
         workspaceId: command.workspaceId,
         actorId: command.payload.actorId,
-        role: decision.value.role,
+        role: primaryWorkspaceRole(decision.value.roles),
+        roles: [...decision.value.roles],
         isActive: true,
       });
     },
@@ -101,11 +104,12 @@ export function changeWorkspaceMemberRole(
       });
       if (!decision.ok) return decision;
 
-      const updated = await repos.workspaces.changeMembershipRole(
+      const updated = await repos.workspaces.changeMembershipRoles(
         command.workspaceId,
         command.payload.actorId,
-        command.payload.expectedRole,
-        command.payload.role,
+        command.payload.expectedRoles,
+        command.payload.roles,
+        command.actorId,
       );
       if (!updated) {
         return err("WORKSPACE_MEMBER_ROLE_CONFLICT", "The membership changed concurrently.", {
@@ -121,7 +125,8 @@ export function changeWorkspaceMemberRole(
       return ok({
         workspaceId: command.workspaceId,
         actorId: command.payload.actorId,
-        role: command.payload.role,
+        role: primaryWorkspaceRole(decision.value.roles),
+        roles: [...decision.value.roles],
         isActive: true,
       });
     },
@@ -170,6 +175,7 @@ export function reactivateWorkspaceMember(
         workspaceId: command.workspaceId,
         actorId: command.payload.actorId,
         role: membership.role,
+        roles: [...membership.roles],
         isActive: true,
       });
     },

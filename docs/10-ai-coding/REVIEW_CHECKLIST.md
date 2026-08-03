@@ -40,7 +40,8 @@ Ordered by what costs most when missed. Stop at the first section that fails.
 - [ ] `domain-kernel` imports nothing from tRPC, Drizzle, Supabase, React, HTTP, or
       `node:*`.
 - [ ] Decision functions are deterministic — no clock, no UUID generation, no I/O.
-- [ ] `packages/db` does not import `domain-kernel` or `apps/*`.
+- [ ] `packages/db` may import `domain-contracts` and `domain-kernel`, but must not
+      import anything from `apps/*` (or transport/UI frameworks).
 - [ ] No raw database row is exposed as an API type; DTOs are mapped explicitly.
 - [ ] No rule is implemented twice. Capabilities call the same function the handler
       calls.
@@ -66,6 +67,15 @@ Ordered by what costs most when missed. Stop at the first section that fails.
 
 ## 7. Tests
 
+- [ ] The exact regression test was run and observed failing for the expected reason.
+- [ ] The exact regression test passes after implementation.
+- [ ] The affected Vitest project passes.
+- [ ] Persistence-sensitive changes have focused PostgreSQL evidence.
+- [ ] Full E2E was run only when the user journey, routing, integration boundary or
+      production build behavior changed.
+- [ ] `pnpm verify` passes before merge, not necessarily after every implementation edit.
+- [ ] No broad test suite was repeatedly run when a narrower command could provide
+      equivalent feedback.
 - [ ] The test was written before the implementation and observed failing for the
       expected reason.
 - [ ] Test names carry `BR-*` / `TC-*` ids.

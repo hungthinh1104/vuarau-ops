@@ -1,9 +1,13 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV4,
+  WorkspaceBackupV11,
 } from "@vuarau/domain-contracts";
-import { restoreWorkspaceBackupCommandSchema } from "@vuarau/domain-contracts";
+import {
+  defaultWorkspaceOperationalProfile,
+  restoreWorkspaceBackupCommandSchema,
+  workspaceOperationalProfileDtoSchema,
+} from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -26,6 +30,18 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     )
   )
     return false;
+  const operationalProfile =
+    "operationalProfile" in payload
+      ? payload.operationalProfile
+      : defaultWorkspaceOperationalProfile(source);
+  if (
+    !workspaceOperationalProfileDtoSchema.safeParse({
+      ...operationalProfile,
+      workspaceId: source,
+    }).success
+  ) {
+    return false;
+  }
   const customers = new Set(payload.customers.map((row) => row["id"]));
   const products = new Set(payload.products.map((row) => row["id"]));
   const qualityGrades = new Set(
@@ -40,7 +56,9 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     "purchases" in payload ? payload.purchases.map((row) => row["id"]) : [],
   );
   const purchaseLines = new Set(
-    "purchaseLines" in payload ? payload.purchaseLines.map((row) => row["id"]) : [],
+    "purchaseLines" in payload
+      ? payload.purchaseLines.map((row) => row["id"] ?? row["lineId"])
+      : [],
   );
   const receipts = new Set("receipts" in payload ? payload.receipts.map((row) => row["id"]) : []);
   const supplierPayments = new Set(
@@ -69,7 +87,71 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const documents = new Set(
     "documents" in payload ? payload.documents.map((row) => row["id"]) : [],
   );
+  const cashAccounts = new Set(
+    "cashAccounts" in payload ? payload.cashAccounts.map((row) => row["id"]) : [],
+  );
+  const expenses = new Set("expenses" in payload ? payload.expenses.map((row) => row["id"]) : []);
+  const expenseReversals = new Set(
+    "expenseReversals" in payload ? payload.expenseReversals.map((row) => row["id"]) : [],
+  );
+  const cashTransfers = new Set(
+    "cashTransfers" in payload ? payload.cashTransfers.map((row) => row["id"]) : [],
+  );
+  const cashTransferReversals = new Set(
+    "cashTransferReversals" in payload ? payload.cashTransferReversals.map((row) => row["id"]) : [],
+  );
+  const cashAdjustments = new Set(
+    "cashAdjustments" in payload ? payload.cashAdjustments.map((row) => row["id"]) : [],
+  );
+  const cashMovements = new Set(
+    "cashMovements" in payload ? payload.cashMovements.map((row) => row["id"]) : [],
+  );
+  const customerPayments = new Set(payload.payments.map((row) => row["id"]));
+  const customerPaymentReversals = new Set(payload.paymentReversals.map((row) => row["id"]));
+  const qualityIssueRows = "qualityIssueCodes" in payload ? payload.qualityIssueCodes : [];
+  const goodsArrivalRows = "goodsArrivals" in payload ? payload.goodsArrivals : [];
+  const goodsArrivalLineRows = "goodsArrivalLines" in payload ? payload.goodsArrivalLines : [];
+  const goodsArrivalReversalRows =
+    "goodsArrivalReversals" in payload ? payload.goodsArrivalReversals : [];
+  const qualityInspectionRows = "qualityInspections" in payload ? payload.qualityInspections : [];
+  const qualityInspectionIssueRows =
+    "qualityInspectionIssues" in payload ? payload.qualityInspectionIssues : [];
+  const qualityInspectionReversalRows =
+    "qualityInspectionReversals" in payload ? payload.qualityInspectionReversals : [];
+  const qualityDispositionRows =
+    "qualityDispositions" in payload ? payload.qualityDispositions : [];
+  const qualityDispositionAllocationRows =
+    "qualityDispositionAllocations" in payload ? payload.qualityDispositionAllocations : [];
+  const qualityDispositionReversalRows =
+    "qualityDispositionReversals" in payload ? payload.qualityDispositionReversals : [];
+  const costObservationRows = "costObservations" in payload ? payload.costObservations : [];
+  const reconciliationObservationRows =
+    "reconciliationObservations" in payload ? payload.reconciliationObservations : [];
+  const debtObservationRows = "debtObservations" in payload ? payload.debtObservations : [];
+  const qualityIssueCodes = new Set(qualityIssueRows.map((row) => row["id"]));
+  const goodsArrivals = new Set(goodsArrivalRows.map((row) => row["id"]));
+  const goodsArrivalLines = new Set(goodsArrivalLineRows.map((row) => row["id"]));
+  const qualityInspections = new Set(qualityInspectionRows.map((row) => row["id"]));
+  const qualityDispositions = new Set(qualityDispositionRows.map((row) => row["id"]));
+  const qualityDispositionReversals = new Set(
+    qualityDispositionReversalRows.map((row) => row["id"]),
+  );
+  const allocationById = new Map(
+    qualityDispositionAllocationRows.map((row) => [row["id"], row] as const),
+  );
+  const costObservationIds = new Set(costObservationRows.map((row) => row["id"]));
+  const reconciliationObservationIds = new Set(
+    reconciliationObservationRows.map((row) => row["id"]),
+  );
+  const debtObservationIds = new Set(debtObservationRows.map((row) => row["id"]));
   return (
+    (!("priceRules" in payload) ||
+      payload.priceRules.every(
+        (row) =>
+          products.has(row["productId"]) &&
+          hasGrade(row["qualityGradeId"]) &&
+          (row["customerId"] == null || customers.has(row["customerId"])),
+      )) &&
     payload.sales.every((row) => customers.has(row["customerId"])) &&
     payload.saleLines.every(
       (row) =>
@@ -104,6 +186,76 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
       )) &&
     (!("receiptReversals" in payload) ||
       payload.receiptReversals.every((row) => receipts.has(row["receiptId"]))) &&
+    goodsArrivalRows.every(
+      (row) =>
+        suppliers.has(row["supplierId"]) &&
+        (row["purchaseId"] == null || purchases.has(row["purchaseId"])),
+    ) &&
+    goodsArrivalLineRows.every((row) => {
+      if (!goodsArrivals.has(row["arrivalId"]) || !products.has(row["productId"])) return false;
+      const purchaseId = row["purchaseId"];
+      const purchaseLineId = row["purchaseLineId"];
+      return purchaseId == null && purchaseLineId == null
+        ? true
+        : purchases.has(purchaseId) && purchaseLines.has(purchaseLineId);
+    }) &&
+    goodsArrivalReversalRows.every((row) => goodsArrivals.has(row["arrivalId"])) &&
+    qualityInspectionRows.every((row) => goodsArrivalLines.has(row["arrivalLineId"])) &&
+    qualityInspectionIssueRows.every(
+      (row) =>
+        qualityInspections.has(row["inspectionId"]) &&
+        qualityIssueCodes.has(row["qualityIssueCodeId"]),
+    ) &&
+    qualityInspectionReversalRows.every((row) => qualityInspections.has(row["inspectionId"])) &&
+    qualityDispositionRows.every((row) => {
+      if (row["sourceType"] === "arrival_line") {
+        return (
+          goodsArrivalLines.has(row["sourceArrivalLineId"]) &&
+          row["sourceQuarantineAllocationId"] == null
+        );
+      }
+      if (row["sourceType"] === "quarantine_allocation") {
+        const source = allocationById.get(row["sourceQuarantineAllocationId"]);
+        return (
+          row["sourceArrivalLineId"] == null &&
+          source !== undefined &&
+          source["outcome"] === "quarantined"
+        );
+      }
+      return false;
+    }) &&
+    qualityDispositionAllocationRows.every(
+      (row) =>
+        qualityDispositions.has(row["dispositionId"]) &&
+        (row["qualityGradeId"] == null || hasGrade(row["qualityGradeId"])),
+    ) &&
+    qualityDispositionReversalRows.every((row) => qualityDispositions.has(row["dispositionId"])) &&
+    costObservationRows.every(
+      (row) =>
+        (row["productId"] == null || products.has(row["productId"])) &&
+        hasGrade(row["qualityGradeId"]) &&
+        (row["caseKind"] === "correction"
+          ? row["relatedObservationId"] != null &&
+            costObservationIds.has(row["relatedObservationId"])
+          : row["relatedObservationId"] == null),
+    ) &&
+    reconciliationObservationRows.every(
+      (row) =>
+        (row["productId"] == null || products.has(row["productId"])) &&
+        hasGrade(row["qualityGradeId"]) &&
+        (row["caseKind"] === "correction"
+          ? row["relatedObservationId"] != null &&
+            reconciliationObservationIds.has(row["relatedObservationId"])
+          : row["relatedObservationId"] == null),
+    ) &&
+    debtObservationRows.every(
+      (row) =>
+        (row["customerId"] == null || customers.has(row["customerId"])) &&
+        (row["caseKind"] === "correction"
+          ? row["relatedObservationId"] != null &&
+            debtObservationIds.has(row["relatedObservationId"])
+          : row["relatedObservationId"] == null),
+    ) &&
     (!("supplierAccountEntries" in payload) ||
       payload.supplierAccountEntries.every((row) => {
         if (!suppliers.has(row["supplierId"])) return false;
@@ -124,6 +276,23 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
           return deliveries.has(row["sourceId"]) && deliveryLines.has(row["sourceLineId"]);
         if (row["sourceType"] === "delivery_return")
           return deliveryReturns.has(row["sourceId"]) && deliveryLines.has(row["sourceLineId"]);
+        if (row["sourceType"] === "quality_disposition") {
+          const allocation = allocationById.get(row["sourceLineId"]);
+          return (
+            qualityDispositions.has(row["sourceId"]) &&
+            allocation !== undefined &&
+            allocation["dispositionId"] === row["sourceId"] &&
+            allocation["outcome"] === "accepted"
+          );
+        }
+        if (row["sourceType"] === "quality_disposition_reversal") {
+          const allocation = allocationById.get(row["sourceLineId"]);
+          return (
+            qualityDispositionReversals.has(row["sourceId"]) &&
+            allocation !== undefined &&
+            allocation["outcome"] === "accepted"
+          );
+        }
         return (
           row["sourceType"] === "inventory_adjustment" ||
           row["sourceType"] === "inventory_reclassification"
@@ -154,14 +323,81 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
         return false;
       })) &&
     (!("documentShares" in payload) ||
-      payload.documentShares.every((row) => documents.has(row["documentId"])))
+      payload.documentShares.every((row) => documents.has(row["documentId"]))) &&
+    (!("cashAccounts" in payload) ||
+      payload.cashAccounts.every((row) => {
+        const custodian = row["custodianActorId"];
+        return row["kind"] === "employee_holding"
+          ? typeof custodian === "string"
+          : custodian == null;
+      })) &&
+    payload.payments.every(
+      (row) => row["cashAccountId"] == null || cashAccounts.has(row["cashAccountId"]),
+    ) &&
+    (!("supplierPayments" in payload) ||
+      payload.supplierPayments.every(
+        (row) => row["cashAccountId"] == null || cashAccounts.has(row["cashAccountId"]),
+      )) &&
+    (!("expenses" in payload) ||
+      payload.expenses.every((row) => cashAccounts.has(row["cashAccountId"]))) &&
+    (!("expenseReversals" in payload) ||
+      payload.expenseReversals.every((row) => expenses.has(row["expenseId"]))) &&
+    (!("cashTransfers" in payload) ||
+      payload.cashTransfers.every(
+        (row) =>
+          cashAccounts.has(row["fromCashAccountId"]) &&
+          cashAccounts.has(row["toCashAccountId"]) &&
+          row["fromCashAccountId"] !== row["toCashAccountId"],
+      )) &&
+    (!("cashTransferReversals" in payload) ||
+      payload.cashTransferReversals.every((row) => cashTransfers.has(row["transferId"]))) &&
+    (!("cashAdjustments" in payload) ||
+      payload.cashAdjustments.every((row) => cashAccounts.has(row["cashAccountId"]))) &&
+    (!("cashMovements" in payload) ||
+      payload.cashMovements.every((row) => {
+        if (!cashAccounts.has(row["cashAccountId"])) return false;
+        if (
+          row["reversalOfMovementId"] != null &&
+          !cashMovements.has(row["reversalOfMovementId"])
+        ) {
+          return false;
+        }
+        if (row["sourceType"] === "customer_payment") return customerPayments.has(row["sourceId"]);
+        if (row["sourceType"] === "customer_payment_reversal")
+          return customerPaymentReversals.has(row["sourceId"]);
+        if (row["sourceType"] === "supplier_payment") return supplierPayments.has(row["sourceId"]);
+        if (row["sourceType"] === "supplier_payment_reversal")
+          return supplierPaymentReversals.has(row["sourceId"]);
+        if (row["sourceType"] === "expense") return expenses.has(row["sourceId"]);
+        if (row["sourceType"] === "expense_reversal") return expenseReversals.has(row["sourceId"]);
+        if (row["sourceType"] === "cash_transfer_out" || row["sourceType"] === "cash_transfer_in")
+          return cashTransfers.has(row["sourceId"]);
+        if (
+          row["sourceType"] === "cash_transfer_reversal_out" ||
+          row["sourceType"] === "cash_transfer_reversal_in"
+        )
+          return cashTransferReversals.has(row["sourceId"]);
+        return row["sourceType"] === "cash_adjustment" && cashAdjustments.has(row["sourceId"]);
+      }))
   );
 }
 
-function v4Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV4["payload"] {
+function v11Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV11["payload"] {
   const payload = command.payload.backup.payload;
+  const operationalProfile =
+    "operationalProfile" in payload
+      ? payload.operationalProfile
+      : defaultWorkspaceOperationalProfile(command.payload.backup.sourceWorkspaceId);
   return {
     ...payload,
+    operationalProfile,
+    cashAccounts: "cashAccounts" in payload ? payload.cashAccounts : [],
+    expenses: "expenses" in payload ? payload.expenses : [],
+    expenseReversals: "expenseReversals" in payload ? payload.expenseReversals : [],
+    cashTransfers: "cashTransfers" in payload ? payload.cashTransfers : [],
+    cashTransferReversals: "cashTransferReversals" in payload ? payload.cashTransferReversals : [],
+    cashAdjustments: "cashAdjustments" in payload ? payload.cashAdjustments : [],
+    cashMovements: "cashMovements" in payload ? payload.cashMovements : [],
     qualityGrades: "qualityGrades" in payload ? payload.qualityGrades : [],
     suppliers: "suppliers" in payload ? payload.suppliers : [],
     supplierPayments: "supplierPayments" in payload ? payload.supplierPayments : [],
@@ -182,6 +418,25 @@ function v4Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV4["p
     deliveryReturnLines: "deliveryReturnLines" in payload ? payload.deliveryReturnLines : [],
     documents: "documents" in payload ? payload.documents : [],
     documentShares: "documentShares" in payload ? payload.documentShares : [],
+    qualityIssueCodes: "qualityIssueCodes" in payload ? payload.qualityIssueCodes : [],
+    goodsArrivals: "goodsArrivals" in payload ? payload.goodsArrivals : [],
+    goodsArrivalLines: "goodsArrivalLines" in payload ? payload.goodsArrivalLines : [],
+    goodsArrivalReversals: "goodsArrivalReversals" in payload ? payload.goodsArrivalReversals : [],
+    qualityInspections: "qualityInspections" in payload ? payload.qualityInspections : [],
+    qualityInspectionIssues:
+      "qualityInspectionIssues" in payload ? payload.qualityInspectionIssues : [],
+    qualityInspectionReversals:
+      "qualityInspectionReversals" in payload ? payload.qualityInspectionReversals : [],
+    qualityDispositions: "qualityDispositions" in payload ? payload.qualityDispositions : [],
+    qualityDispositionAllocations:
+      "qualityDispositionAllocations" in payload ? payload.qualityDispositionAllocations : [],
+    qualityDispositionReversals:
+      "qualityDispositionReversals" in payload ? payload.qualityDispositionReversals : [],
+    priceRules: "priceRules" in payload ? payload.priceRules : [],
+    costObservations: "costObservations" in payload ? payload.costObservations : [],
+    reconciliationObservations:
+      "reconciliationObservations" in payload ? payload.reconciliationObservations : [],
+    debtObservations: "debtObservations" in payload ? payload.debtObservations : [],
   };
 }
 
@@ -205,7 +460,7 @@ export function restoreWorkspaceBackup(
       }
       const restored = await repos.operations.restoreBackup(
         command.workspaceId,
-        v4Payload(command),
+        v11Payload(command),
       );
       if (restored.kind === "unsafe_target") {
         return err("BACKUP_UNSAFE_TARGET", "Restore requires an empty recovery workspace.", {
@@ -225,7 +480,7 @@ export function restoreWorkspaceBackup(
       }
       const supplierDiagnostics = (
         await Promise.all(
-          v4Payload(command).suppliers.map((row) =>
+          v11Payload(command).suppliers.map((row) =>
             repos.supplierAccountReads.integrity(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.supplierAccountReads.integrity>[1],
@@ -237,7 +492,7 @@ export function restoreWorkspaceBackup(
         string,
         { productId: string; qualityGradeId: string | null; unit: string }
       >();
-      for (const movement of v4Payload(command).inventoryMovements) {
+      for (const movement of v11Payload(command).inventoryMovements) {
         const qualityGradeId =
           movement["qualityGradeId"] === null || movement["qualityGradeId"] === undefined
             ? null
@@ -263,10 +518,25 @@ export function restoreWorkspaceBackup(
           ),
         )
       ).flat();
-      if (supplierDiagnostics.length > 0 || inventoryDiagnostics.length > 0) {
-        return err("BACKUP_INTEGRITY_ERROR", "Restored Goods Truth did not reconcile.", {
+      const cashDiagnostics = (
+        await Promise.all(
+          v11Payload(command).cashAccounts.map((row) =>
+            repos.cashReads.reconciliation(
+              command.workspaceId,
+              String(row["id"]) as Parameters<typeof repos.cashReads.reconciliation>[1],
+            ),
+          ),
+        )
+      ).filter((result) => result.status !== "consistent");
+      if (
+        supplierDiagnostics.length > 0 ||
+        inventoryDiagnostics.length > 0 ||
+        cashDiagnostics.length > 0
+      ) {
+        return err("BACKUP_INTEGRITY_ERROR", "Restored operational ledgers did not reconcile.", {
           supplierDiagnostics,
           inventoryDiagnostics,
+          cashDiagnostics,
         });
       }
       await repos.audit.append({

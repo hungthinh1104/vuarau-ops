@@ -1,6 +1,8 @@
 import type {
+  DeliveryStatus,
   DomainRejectionCode,
   PaymentStatus,
+  PurchaseStatus,
   SaleDueState,
   SaleStatus,
 } from "@vuarau/domain-contracts";
@@ -33,6 +35,10 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   WORKSPACE_MEMBER_ROLE_UNCHANGED: "Thành viên đã có vai trò này.",
   WORKSPACE_MEMBER_ROLE_CONFLICT: "Vai trò vừa được người khác thay đổi. Hãy tải lại.",
   WORKSPACE_MEMBER_SELF_ROLE_CHANGE_DENIED: "Bạn không thể tự thay đổi vai trò của mình.",
+  WORKSPACE_PROFILE_VERSION_CONFLICT:
+    "Cấu hình vận hành vừa được người khác thay đổi. Hãy tải lại.",
+  WORKSPACE_PROFILE_UNCHANGED: "Cấu hình vận hành không có thay đổi.",
+  WORKSPACE_WORKFLOW_DISABLED: "Quy trình này đang tắt trong cấu hình của vựa.",
 
   CUSTOMER_NOT_FOUND: "Không tìm thấy khách hàng này.",
   CUSTOMER_NAME_REQUIRED: "Tên khách hàng không được để trống.",
@@ -44,6 +50,9 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   QUALITY_GRADE_NOT_FOUND: "Không tìm thấy phân hạng chất lượng trong vựa này.",
   QUALITY_GRADE_INACTIVE: "Phân hạng chất lượng này đang ngưng sử dụng.",
   QUALITY_GRADE_VERSION_CONFLICT: "Phân hạng chất lượng đã được người khác cập nhật.",
+  QUALITY_GRADE_NOT_USED: "Vựa này không sử dụng phân hạng thương mại cho giao dịch mới.",
+  PRICING_RULE_INVALID:
+    "Quy tắc giá chưa hợp lệ. Kiểm tra phạm vi, thời hạn và các khoản điều chỉnh.",
   BACKUP_DIGEST_INVALID: "Checksum bản sao lưu không hợp lệ.",
   BACKUP_UNSAFE_TARGET: "Chỉ có thể phục hồi vào vựa trống.",
   BACKUP_INTEGRITY_ERROR: "Bản sao lưu có tham chiếu hoặc dữ liệu không hợp lệ.",
@@ -71,7 +80,8 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   PURCHASE_NOT_CONFIRMED: "Chỉ đơn mua đã xác nhận mới có thể hoàn tác.",
   PURCHASE_REPLACEMENT_INVALID:
     "Đơn thay thế chỉ được tạo cho một đơn mua đã hoàn tác và chưa có đơn thay thế.",
-  PURCHASE_HAS_ACTIVE_RECEIPTS: "Phải hoàn tác toàn bộ phiếu nhận hàng trước khi hoàn tác đơn mua.",
+  PURCHASE_HAS_ACTIVE_RECEIPTS:
+    "Đơn mua đã có hàng thực nhận nên chưa thể hoàn tác thương mại. Chỉ hoàn tác phiếu nhận nếu chính phiếu nhận đã ghi sai; không đảo hàng thật chỉ để sửa đơn mua.",
   PURCHASE_VOID_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tác đơn mua.",
   RECEIPT_NOT_FOUND: "Không tìm thấy phiếu nhận hàng.",
   RECEIPT_ALREADY_REVERSED: "Phiếu nhận hàng đã được hoàn tác.",
@@ -108,6 +118,8 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   SALE_NOT_POSTED: "Đơn chưa chốt thì không hoàn tác được — hãy bỏ đơn nháp.",
   SALE_ALREADY_VOIDED: "Đơn này đã được hoàn tác rồi.",
   SALE_VOID_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tác đơn.",
+  SALE_GOODS_RETURN_INCOMPLETE:
+    "Đơn vẫn còn hàng thực giao chưa trả hết. Không thể hoàn tác toàn bộ công nợ như một lần trả toàn bộ.",
   SALE_REPLACEMENT_NOT_VOIDED: "Chỉ tạo đơn thay thế sau khi đơn gốc đã được hoàn tác.",
   SALE_REPLACEMENT_ALREADY_EXISTS: "Đơn này đã có một đơn thay thế trong chuỗi điều chỉnh.",
   SALE_REPLACEMENT_ACTOR_MISMATCH:
@@ -150,7 +162,8 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   DELIVERY_QUANTITY_EXCEEDS_SALE: "Số lượng giao vượt quá phần còn lại của đơn bán.",
   DELIVERY_RETURN_EXCEEDS_DISPATCH: "Số lượng trả vượt quá số đã giao.",
   DELIVERY_PRODUCT_REQUIRED: "Dòng bán cần liên kết sản phẩm trước khi giao.",
-  DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED: "Không thể thay thế đơn đã có hoạt động giao hàng.",
+  DELIVERY_REPLACEMENT_FULFILMENT_BLOCKED:
+    "Đơn thay thế có đơn gốc đã thực giao. Không tạo giao hàng mới vì sẽ ghi hàng đi lần hai.",
   DELIVERY_REASON_REQUIRED: "Cần ghi rõ lý do.",
   DOCUMENT_NOT_FOUND: "Không tìm thấy chứng từ này.",
   DOCUMENT_SOURCE_INVALID: "Nguồn chứng từ không hợp lệ.",
@@ -159,6 +172,76 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   DOCUMENT_SHARE_EXPIRED: "Liên kết chia sẻ đã hết hạn.",
   REPORT_INTEGRITY_FAILURE: "Báo cáo phát hiện dữ liệu cần kiểm tra.",
 
+  CASH_ACCOUNT_NOT_FOUND: "Không tìm thấy tài khoản tiền trong vựa này.",
+  CASH_ACCOUNT_INACTIVE: "Tài khoản tiền này đã ngừng sử dụng.",
+  CASH_ACCOUNT_VERSION_CONFLICT: "Tài khoản tiền vừa được người khác cập nhật.",
+  CASH_ACCOUNT_ALREADY_INACTIVE: "Tài khoản tiền đã ngừng sử dụng.",
+  CASH_ACCOUNT_ALREADY_ACTIVE: "Tài khoản tiền đang hoạt động.",
+  CASH_ACCOUNT_CUSTODIAN_INVALID: "Tài khoản tiền nhân viên giữ phải chỉ định đúng người giữ.",
+  CASH_ACCOUNT_REQUIRED: "Hãy chọn tài khoản tiền nhận hoặc chi.",
+  CASH_ACCOUNT_CURRENCY_MISMATCH: "Đơn vị tiền không khớp với tài khoản tiền.",
+  CASH_ACCOUNT_LINK_MISMATCH: "Tài khoản tiền không khớp với giao dịch gốc.",
+  CASH_AMOUNT_INVALID: "Số tiền phải là số nguyên dương hợp lệ.",
+  EXPENSE_NOT_FOUND: "Không tìm thấy khoản chi.",
+  EXPENSE_ALREADY_REVERSED: "Khoản chi đã được hoàn tác.",
+  CASH_TRANSFER_INVALID: "Chuyển tiền phải dùng hai tài khoản khác nhau.",
+  CASH_TRANSFER_NOT_FOUND: "Không tìm thấy giao dịch chuyển tiền.",
+  CASH_TRANSFER_ALREADY_REVERSED: "Giao dịch chuyển tiền đã được hoàn tác.",
+  CASH_RECONCILIATION_INTEGRITY_FAILURE: "Sổ tiền có nguồn dữ liệu không nhất quán.",
+  CASH_RECONCILIATION_REBUILD_UNSAFE: "Không thể dựng lại số dư khi nguồn sổ tiền chưa an toàn.",
+  QUALITY_ISSUE_CODE_NOT_FOUND: "Không tìm thấy mã lỗi chất lượng.",
+  QUALITY_ISSUE_CODE_INACTIVE: "Mã lỗi chất lượng này đã ngừng sử dụng.",
+  QUALITY_ISSUE_CODE_VERSION_CONFLICT: "Mã lỗi chất lượng vừa được người khác cập nhật.",
+  QUALITY_ISSUE_CODE_ALREADY_ACTIVE: "Mã lỗi chất lượng đang hoạt động.",
+  QUALITY_ISSUE_CODE_ALREADY_INACTIVE: "Mã lỗi chất lượng đã ngừng sử dụng.",
+  GOODS_ARRIVAL_NOT_FOUND: "Không tìm thấy lần hàng đến này.",
+  GOODS_ARRIVAL_ALREADY_REVERSED: "Lần hàng đến đã được hoàn tác.",
+  GOODS_ARRIVAL_HAS_DOWNSTREAM_FACTS:
+    "Lần hàng đến đã có kiểm định hoặc quyết định xử lý nên không thể hoàn tác trực tiếp.",
+  GOODS_ARRIVAL_LINE_INVALID: "Có dòng hàng đến không hợp lệ.",
+  GOODS_ARRIVAL_PURCHASE_MISMATCH: "Hàng đến không khớp nhà cung cấp hoặc dòng mua đã chọn.",
+  WEIGHING_REQUIRED: "Vựa này yêu cầu ghi cân tổng, bì và khối lượng tịnh.",
+  WEIGHING_NOT_USED: "Vựa này không sử dụng quy trình cân tổng–bì–tịnh.",
+  WEIGHING_INVALID: "Số cân không hợp lệ; khối lượng tịnh phải bằng tổng trừ bì.",
+  QUALITY_INSPECTION_NOT_FOUND: "Không tìm thấy lần kiểm định chất lượng.",
+  QUALITY_INSPECTION_ALREADY_REVERSED: "Lần kiểm định đã được hoàn tác.",
+  QUALITY_INSPECTION_QUANTITY_EXCEEDS_ARRIVAL: "Số lượng kiểm định vượt số hàng đến.",
+  QUALITY_INSPECTION_INVALID: "Nội dung kiểm định chất lượng không hợp lệ.",
+  QUALITY_INSPECTION_HAS_DOWNSTREAM_FACTS:
+    "Kiểm định đã được dùng để xử lý hàng nên không thể hoàn tác trực tiếp.",
+  QUALITY_DISPOSITION_SOURCE_NOT_FOUND: "Không tìm thấy nguồn hàng cần xử lý chất lượng.",
+  QUALITY_DISPOSITION_SOURCE_REVERSED: "Nguồn hàng đã bị hoàn tác nên không thể xử lý tiếp.",
+  QUALITY_DISPOSITION_QUANTITY_EXCEEDS_REMAINING:
+    "Số lượng xử lý vượt phần còn lại của nguồn hàng.",
+  QUALITY_DISPOSITION_INVALID: "Quyết định xử lý chất lượng không hợp lệ.",
+  QUALITY_DISPOSITION_NOT_FOUND: "Không tìm thấy quyết định xử lý chất lượng.",
+  QUALITY_DISPOSITION_ALREADY_REVERSED: "Quyết định xử lý chất lượng đã được hoàn tác.",
+  QUALITY_DISPOSITION_HAS_DOWNSTREAM_FACTS:
+    "Lô cách ly đã được xử lý tiếp nên không thể hoàn tác quyết định trước.",
+  COST_OBSERVATION_CORRECTION_TARGET_REQUIRED:
+    "Bản ghi điều chỉnh phải chỉ rõ quan sát nguồn cần sửa.",
+  COST_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
+    "Không tìm thấy quan sát nguồn trong workspace này.",
+  COST_OBSERVATION_CORRECTION_LINK_INVALID:
+    "Chỉ quan sát điều chỉnh mới được liên kết với bản ghi trước.",
+  COST_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát chi phí hoặc hao hụt.",
+  COST_OBSERVATION_ALREADY_RECORDED: "Quan sát chi phí hoặc hao hụt đã được ghi nhận.",
+  RECONCILIATION_OBSERVATION_CORRECTION_TARGET_REQUIRED:
+    "Bản điều chỉnh đối soát phải chỉ rõ quan sát gốc.",
+  RECONCILIATION_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
+    "Không tìm thấy quan sát đối soát gốc trong workspace này.",
+  RECONCILIATION_OBSERVATION_CORRECTION_LINK_INVALID:
+    "Chỉ bản điều chỉnh mới được liên kết tới quan sát trước.",
+  RECONCILIATION_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát đối soát.",
+  RECONCILIATION_OBSERVATION_ALREADY_RECORDED: "Quan sát đối soát đã được ghi nhận.",
+  DEBT_OBSERVATION_CORRECTION_TARGET_REQUIRED:
+    "Bản điều chỉnh công nợ phải chỉ rõ quan sát cần điều chỉnh.",
+  DEBT_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
+    "Không tìm thấy quan sát công nợ cần điều chỉnh trong workspace này.",
+  DEBT_OBSERVATION_CORRECTION_LINK_INVALID:
+    "Chỉ bản quan sát điều chỉnh mới được liên kết quan sát trước đó.",
+  DEBT_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát điều khoản công nợ.",
+  DEBT_OBSERVATION_ALREADY_RECORDED: "Quan sát điều khoản công nợ đã được ghi nhận.",
   COMMAND_NOT_AVAILABLE: "Chức năng này chưa có.",
 };
 
@@ -172,6 +255,19 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
 export function messageForCode(code: DomainRejectionCode, serverMessage?: string): string {
   return REJECTION_COPY[code] ?? serverMessage ?? "Không thực hiện được. Hãy thử lại.";
 }
+
+export const DELIVERY_STATUS_COPY: Readonly<Record<DeliveryStatus, string>> = {
+  draft: "Cần xuất hàng",
+  dispatched: "Đang giao",
+  delivered: "Đã giao",
+  cancelled: "Đã hủy",
+};
+
+export const PURCHASE_STATUS_COPY: Readonly<Record<PurchaseStatus, string>> = {
+  draft: "Nháp",
+  confirmed: "Đã xác nhận",
+  discarded: "Đã bỏ",
+};
 
 export const SALE_STATUS_COPY: Readonly<Record<SaleStatus, string>> = {
   draft: "Nháp",

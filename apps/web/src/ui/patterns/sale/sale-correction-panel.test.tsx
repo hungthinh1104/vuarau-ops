@@ -20,8 +20,6 @@ describe("SaleCorrectionPanel", () => {
     const onSubmit = vi.fn();
     render(<SaleCorrectionPanel onSubmit={onSubmit} />);
 
-    await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
-    await user.click(screen.getByRole("option", { name: "Sai số tiền hoặc giá" }));
     await user.type(screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }), "Nhập sai giá bán");
     await user.click(screen.getByRole("button", { name: "Xác nhận void" }));
 
@@ -30,6 +28,7 @@ describe("SaleCorrectionPanel", () => {
       reason: "Nhập sai giá bán",
       replacement: false,
       replacementCustomerId: null,
+      evidenceReferences: [],
     });
   });
 
@@ -47,6 +46,46 @@ describe("SaleCorrectionPanel", () => {
       reason: "Sai số lượng",
       replacement: true,
       replacementCustomerId: null,
+      evidenceReferences: [],
+    });
+  });
+
+  it("blocks a full debt void when some delivered goods remain with the customer", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<SaleCorrectionPanel onSubmit={onSubmit} goodsReturnStatus="blocked" />);
+
+    await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Toàn bộ hàng đã trả / bị từ chối" }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/còn hàng thực giao chưa trả hết/i);
+    expect(screen.getByRole("button", { name: "Xác nhận void" })).toBeDisabled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("allows the full-load goods-return reason after canonical fulfilment is zero", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<SaleCorrectionPanel onSubmit={onSubmit} goodsReturnStatus="safe" />);
+
+    await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Toàn bộ hàng đã trả / bị từ chối" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }),
+      "Khách trả lại toàn bộ hàng",
+    );
+    await user.click(screen.getByRole("button", { name: "Xác nhận void" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      reasonCode: "goods_returned",
+      reason: "Khách trả lại toàn bộ hàng",
+      replacement: false,
+      replacementCustomerId: null,
+      evidenceReferences: [],
     });
   });
 
@@ -65,7 +104,7 @@ describe("SaleCorrectionPanel", () => {
     );
 
     await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
-    await user.click(screen.getByRole("option", { name: "Sai khách hàng" }));
+    await user.click(await screen.findByRole("option", { name: "Sai khách hàng" }));
     await user.click(screen.getByRole("checkbox", { name: /Tạo đơn thay thế sau khi void/ }));
     await user.type(screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }), "Chọn nhầm khách");
     await user.click(screen.getByRole("button", { name: "Void và tạo đơn thay thế" }));
@@ -78,6 +117,28 @@ describe("SaleCorrectionPanel", () => {
       reason: "Chọn nhầm khách",
       replacement: true,
       replacementCustomerId: "customer-new",
+      evidenceReferences: [],
+    });
+  });
+
+  it("keeps source evidence as references without interpreting it", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<SaleCorrectionPanel onSubmit={onSubmit} />);
+
+    await user.type(screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }), "Đối chiếu lại");
+    await user.type(
+      screen.getByRole("textbox", { name: /Nguồn chứng cứ vận hành/ }),
+      "photo://sale/001\n photo://sale/001, note://sale/002",
+    );
+    await user.click(screen.getByRole("button", { name: "Xác nhận void" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      reasonCode: "wrong_amount",
+      reason: "Đối chiếu lại",
+      replacement: false,
+      replacementCustomerId: null,
+      evidenceReferences: ["photo://sale/001", "note://sale/002"],
     });
   });
 });

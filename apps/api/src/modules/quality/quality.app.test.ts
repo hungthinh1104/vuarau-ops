@@ -20,7 +20,7 @@ const input = (qualityGradeId: QualityGradeId) => ({
   payload: { qualityGradeId, name: "Dạt", sortOrder: 30 },
 });
 
-describe("M23 configurable QualityGrade", () => {
+describe("Configurable QualityGrade", () => {
   it("creates, reads, orders and deactivates a workspace grade with audit evidence", async () => {
     const harness = createHarness();
     const qualityGradeId = crypto.randomUUID() as QualityGradeId;

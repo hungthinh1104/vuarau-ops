@@ -5,12 +5,15 @@ import {
   CUSTOMER_ID,
   IDEMPOTENCY_KEY,
   SALE_ID,
+  postedSale,
+  saleLineStates,
   SECOND_COMMAND_ID,
   OTHER_IDEMPOTENCY_KEY,
   TRANSACTION_TIME,
   WORKSPACE_ID,
   saleLineInputs,
 } from "@vuarau/test-fixtures";
+import type { SaleId } from "@vuarau/domain-contracts";
 import { createHarness } from "../../testing/command-test-harness.ts";
 import { createSaleDraft } from "./create-sale-draft.handler.ts";
 import { postSale } from "./post-sale.handler.ts";
@@ -46,7 +49,7 @@ async function postedHarness() {
   return harness;
 }
 
-describe("BR-SALE-021 / TC-SALE-029 — customer-local historical recall", () => {
+describe("BR-SALE-021 / BR-PRODUCT-005 / TC-SALE-029 / TC-PRODUCT-003 — customer-local historical recall", () => {
   it("returns an active posted line with its own customer's price and a price-free workspace hint", async () => {
     const harness = await postedHarness();
     const result = await captureContext(harness.ctx, {
@@ -65,36 +68,41 @@ describe("BR-SALE-021 / TC-SALE-029 — customer-local historical recall", () =>
     expect(result.value.workspaceHistory[0]?.lastUnitPrice).toBeNull();
   });
 
-  it("TC-1: History recall preserves exact source productId", async () => {
+  it("preserves the exact canonical Product id from the source Sale line", async () => {
     const harness = await postedHarness();
     const result = await captureContext(harness.ctx, {
       workspaceId: WORKSPACE_ID,
       customerId: CUSTOMER_ID,
-      query: "",
+      query: "Cà chua",
       limit: 10,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // The test fixture `saleLineInputs` has a null productId for the first line and non-null for the second line,
-    // or maybe they are all null? We just check it matches the exact source.
-    expect(result.value.customerHistory[0]?.productId).toBe(saleLineInputs[0]?.productId ?? null);
+    const historyRow = result.value.customerHistory.find((row) => row.sourceSaleId === SALE_ID);
+    expect(historyRow?.productId).toBe(saleLineInputs[0]!.productId);
   });
 
-  it("TC-2: Legacy historical sale with productId=null remains unresolved", async () => {
-    // If the source had productId=null, the returned history also has productId=null.
-    const harness = await postedHarness();
+  it("keeps a genuinely legacy null Product id unresolved instead of guessing by name", async () => {
+    const harness = createHarness();
+    const legacySaleId = "00000000-0000-4000-8000-000000000799" as SaleId;
+    harness.db.seedSale({
+      ...postedSale,
+      id: legacySaleId,
+      lines: [{ ...saleLineStates[0]!, productId: null }],
+    });
+
     const result = await captureContext(harness.ctx, {
       workspaceId: WORKSPACE_ID,
       customerId: CUSTOMER_ID,
-      query: "",
+      query: "Cà chua",
       limit: 10,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const historyRow = result.value.customerHistory.find(
-      (h) => h.productName === saleLineInputs[0]?.productName,
+      (row) => row.sourceSaleId === legacySaleId,
     );
-    expect(historyRow?.productId).toBe(saleLineInputs[0]?.productId ?? null);
+    expect(historyRow).toMatchObject({ productName: "Cà chua", productId: null });
   });
 });
 

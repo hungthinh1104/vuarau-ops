@@ -6,6 +6,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { currencyCodeEnum } from "./enums.ts";
@@ -31,7 +32,10 @@ export const customers = pgTable(
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [index("customers_workspace_name_idx").on(table.workspaceId, table.displayName)],
+  (table) => [
+    uniqueIndex("customers_workspace_id_id_uq").on(table.workspaceId, table.id),
+    index("customers_workspace_name_idx").on(table.workspaceId, table.displayName),
+  ],
 );
 
 /** Catalogue for sale lines. Sale lines snapshot name and price (ASM-008). */
@@ -53,5 +57,8 @@ export const products = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("products_workspace_name_idx").on(table.workspaceId, table.name)],
+  (table) => [
+    uniqueIndex("products_workspace_id_id_uq").on(table.workspaceId, table.id),
+    index("products_workspace_name_idx").on(table.workspaceId, table.name),
+  ],
 );
