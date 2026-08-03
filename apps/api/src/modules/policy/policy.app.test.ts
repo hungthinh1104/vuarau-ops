@@ -6,6 +6,7 @@ import {
   TRANSACTION_TIME,
   WORKSPACE_ID,
 } from "@vuarau/test-fixtures";
+import { WORKSPACE_POLICY_KINDS } from "@vuarau/domain-contracts";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import {
   approveWorkspacePolicy,
@@ -86,8 +87,11 @@ describe("workspace policy registry", () => {
     });
     expect(availability.ok).toBe(true);
     if (availability.ok) {
-      expect(availability.value).toHaveLength(13);
+      expect(availability.value).toHaveLength(WORKSPACE_POLICY_KINDS.length);
       expect(availability.value.every((entry) => entry.availability === "unavailable")).toBe(true);
+      expect(
+        availability.value.some((entry) => entry.policyKind === "management_intelligence"),
+      ).toBe(true);
     }
   });
 
