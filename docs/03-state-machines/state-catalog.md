@@ -103,15 +103,15 @@ uncommitted command or one atomic committed receipt and result.
 
 ## Values that are not states
 
-| Tempting value                      | Why it is not a state                                             |
-| ----------------------------------- | ----------------------------------------------------------------- |
+| Tempting value                      | Why it is not a state                                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | paid/unpaid Sale                    | Sale has no paid/unpaid state; account balance and optional policy-backed payment allocations remain separate |
-| delivered/returned Sale             | Delivery and Return are physical facts, not Sale lifecycle        |
-| received Purchase                   | Receipts are physical facts, not Purchase lifecycle               |
-| voided Sale/Purchase column         | Void is an immutable adjacent record and compensating effect      |
-| has-debt Customer                   | Derived from canonical account entries                            |
-| synced/pending-upload server status | Offline queue state belongs to the client                         |
-| report total                        | A disposable view that must resolve to canonical sources          |
+| delivered/returned Sale             | Delivery and Return are physical facts, not Sale lifecycle                                                    |
+| received Purchase                   | Receipts are physical facts, not Purchase lifecycle                                                           |
+| voided Sale/Purchase column         | Void is an immutable adjacent record and compensating effect                                                  |
+| has-debt Customer                   | Derived from canonical account entries                                                                        |
+| synced/pending-upload server status | Offline queue state belongs to the client                                                                     |
+| report total                        | A disposable view that must resolve to canonical sources                                                      |
 
 ## Cross-context boundary
 
