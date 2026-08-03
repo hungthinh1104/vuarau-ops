@@ -37,7 +37,10 @@ import {
   getWorkspaceIntegrity,
 } from "../../../modules/operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../../../modules/operations/restore-workspace.handler.ts";
-import { getAccountReconciliation } from "../../../modules/account/account.queries.ts";
+import {
+  getAccountReconciliation,
+  getCustomerDebtAging,
+} from "../../../modules/account/account.queries.ts";
 import {
   createSupplier,
   recordSupplierPayment,
@@ -100,6 +103,71 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     const productId = crypto.randomUUID() as ProductId;
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
+    const termsPolicyVersionId = crypto.randomUUID() as WorkspacePolicyVersionId;
+    const allocationPolicyVersionId = crypto.randomUUID() as WorkspacePolicyVersionId;
+    const policyEffectiveFrom = "2020-01-01T00:00:00.000Z";
+    const termsDraft = await createWorkspacePolicyDraft(context(), {
+      ...command("recovery-terms-policy-draft"),
+      payload: {
+        policyVersionId: termsPolicyVersionId,
+        policyKind: "payment_terms_aging",
+        version: 1,
+        effectiveFrom: policyEffectiveFrom,
+        effectiveTo: null,
+        definition: {
+          contractVersion: 1,
+          parameters: {
+            defaultTermDays: 7,
+            defaultTermLabel: "7 ngày",
+            customerTerms: [],
+            graceDays: 0,
+            agingBuckets: [
+              { code: "1-30", label: "1–30 ngày", minDaysOverdue: 1, maxDaysOverdue: 30 },
+            ],
+            creditControl: "information_only",
+          },
+        },
+        evidenceReferences: [],
+        reason: "Policy điều khoản phục hồi có lineage.",
+      },
+    });
+    expect(termsDraft.ok).toBe(true);
+    if (termsDraft.ok) {
+      const termsApproval = await approveWorkspacePolicy(context(), {
+        ...command("recovery-terms-policy-approve"),
+        payload: {
+          policyVersionId: termsPolicyVersionId,
+          evidenceReferences: ["field://recovery/debt-terms-001"],
+          reason: "Duyệt policy điều khoản phục hồi.",
+        },
+      });
+      expect(termsApproval.ok).toBe(true);
+    }
+    const allocationDraft = await createWorkspacePolicyDraft(context(), {
+      ...command("recovery-allocation-policy-draft"),
+      payload: {
+        policyVersionId: allocationPolicyVersionId,
+        policyKind: "payment_allocation",
+        version: 1,
+        effectiveFrom: policyEffectiveFrom,
+        effectiveTo: null,
+        definition: { contractVersion: 1, parameters: { strategy: "oldest_due_first" } },
+        evidenceReferences: [],
+        reason: "Policy phân bổ phục hồi có lineage.",
+      },
+    });
+    expect(allocationDraft.ok).toBe(true);
+    if (allocationDraft.ok) {
+      const allocationApproval = await approveWorkspacePolicy(context(), {
+        ...command("recovery-allocation-policy-approve"),
+        payload: {
+          policyVersionId: allocationPolicyVersionId,
+          evidenceReferences: ["field://recovery/debt-allocation-001"],
+          reason: "Duyệt policy phân bổ phục hồi.",
+        },
+      });
+      expect(allocationApproval.ok).toBe(true);
+    }
     const product = await createProduct(context(), {
       ...command("recovery-product"),
       payload: {
@@ -159,6 +227,12 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       payload: { saleId },
     });
     expect(posted.ok).toBe(true);
+    if (posted.ok) {
+      expect(posted.value).toMatchObject({
+        paymentTermsPolicyVersionId: termsPolicyVersionId,
+        paymentTermsSource: "workspace_policy",
+      });
+    }
     const payment = await recordCustomerPayment(context(), {
       ...command("recovery-payment"),
       payload: {
@@ -566,7 +640,18 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     expect(backup.payload.documentShares).toHaveLength(1);
     expect(backup.payload.costObservations).toHaveLength(1);
     expect(backup.payload.reconciliationObservations).toHaveLength(1);
-    expect(backup.payload.workspacePolicies).toHaveLength(1);
+    expect(backup.payload.workspacePolicies).toHaveLength(3);
+    const restoredTermsPolicyVersionId = backup.payload.workspacePolicies.find(
+      (row) => row["policyKind"] === "payment_terms_aging",
+    )?.["id"];
+    expect(restoredTermsPolicyVersionId).toBeTypeOf("string");
+    expect(backup.payload.sales).toContainEqual(
+      expect.objectContaining({
+        id: backup.payload.sales[0]?.["id"],
+        paymentTermsPolicyVersionId: restoredTermsPolicyVersionId,
+        paymentTermsSource: "workspace_policy",
+      }),
+    );
 
     await emptyRecoveryWorkspace();
     expect(await canonicalCounts()).toMatchObject({
@@ -641,6 +726,20 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     });
     expect(restoredPolicy.ok).toBe(true);
     if (restoredPolicy.ok) expect(restoredPolicy.value.state).toBe("approved");
+
+    const restoredAging = await getCustomerDebtAging(context(), {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+      asOf: new Date().toISOString(),
+    });
+    expect(restoredAging.ok).toBe(true);
+    if (restoredAging.ok && restoredAging.value.status === "available") {
+      expect(restoredAging.value.rows[0]).toMatchObject({
+        saleId: backup.payload.sales[0]?.["id"],
+        termPolicyVersionId: restoredTermsPolicyVersionId,
+        termSource: "workspace_policy",
+      });
+    }
 
     const reconciliation = await getAccountReconciliation(context(), {
       workspaceId: ctx.workspaceId,
