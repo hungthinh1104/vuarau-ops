@@ -99,3 +99,18 @@ not real-worker adoption.
   linked to an existing observation in the same workspace. Identity,
   authorization, idempotency, transaction time and recorded time use the common
   command contract.
+
+## Debt-term observations
+
+- **BR-EVIDENCE-007** — A DebtObservation preserves source-linked wording,
+  payment-term text/code, agreed due date, promise-to-pay date, payment
+  reference, optional amount and optional allocation proposal as an append-only
+  workspace fact. Missing values remain `null`.
+- **BR-EVIDENCE-008** — Recording a DebtObservation never derives `overdue`,
+  allocates a Payment, changes CustomerAccountEntry, or changes Cashbook truth.
+  Those meanings require an explicit accepted workspace policy and canonical
+  command.
+- **BR-EVIDENCE-009** — A correction is a new immutable DebtObservation linked
+  to an existing observation in the same workspace. Identity, authorization,
+  idempotency, transaction time and recorded time use the common command
+  contract.

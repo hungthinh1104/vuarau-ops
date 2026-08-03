@@ -9,28 +9,28 @@ current procedure catalog without duplicating every DTO field.
 
 ## Current read surface
 
-| Namespace    | Reads                                                                                                                                 |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `session`    | `me`, `workspaces`, `workspace`, `operationalProfile`                                                                                 |
-| `customer`   | `search`, `get`, `recent`, `duplicates`                                                                                               |
-| `account`    | `adjustment`, `balance`, `timeline`, `reconciliation`, `reconciliationEvidence`                                                       |
-| `sale`       | `get`, `list`, `captureContext`, `detail`                                                                                             |
-| `payment`    | `get`, `list`                                                                                                                         |
-| `audit`      | `timeline`                                                                                                                            |
-| `product`    | `search`, `get`                                                                                                                       |
-| `quality`    | `list`, `get`                                                                                                                         |
-| `supplier`   | `search`, `get`, `priceHistory`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence`                   |
-| `purchase`   | `get`, `list`                                                                                                                         |
-| `receiving`  | `get`, `listForPurchase`, `summaryForPurchase`                                                                                        |
-| `inventory`  | `balances`, `getAdjustment`, `timeline`, `reconciliation`, `evidence`                                                                 |
-| `delivery`   | `get`, `list`, `fulfilment`                                                                                                           |
-| `document`   | `get`, `listForSource`                                                                                                                |
-| `report`     | `definitions`, `metrics`, `operational`, `csv`                                                                                        |
-| `operations` | `integrity`, `validateBackup`                                                                                                         |
-| `cash`       | `searchAccounts`, `getAccount`, `timeline`, `getExpense`, `getTransfer`, `reconciliation`                                             |
-| `intake`     | `searchIssueCodes`, `getArrival`, `listArrivals`, `getInspection`, `getDisposition`, `dispositionSourceSummary`, `arrivalLineHistory` |
-| `pricing`    | `list`, `resolve`                                                                                                                     |
-| `evidence`   | `getCostObservation`, `listCostObservations`, `getReconciliationObservation`, `listReconciliationObservations`                        |
+| Namespace    | Reads                                                                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `session`    | `me`, `workspaces`, `workspace`, `operationalProfile`                                                                                                        |
+| `customer`   | `search`, `get`, `recent`, `duplicates`                                                                                                                      |
+| `account`    | `adjustment`, `balance`, `timeline`, `reconciliation`, `reconciliationEvidence`                                                                              |
+| `sale`       | `get`, `list`, `captureContext`, `detail`                                                                                                                    |
+| `payment`    | `get`, `list`                                                                                                                                                |
+| `audit`      | `timeline`                                                                                                                                                   |
+| `product`    | `search`, `get`                                                                                                                                              |
+| `quality`    | `list`, `get`                                                                                                                                                |
+| `supplier`   | `search`, `get`, `priceHistory`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence`                                          |
+| `purchase`   | `get`, `list`                                                                                                                                                |
+| `receiving`  | `get`, `listForPurchase`, `summaryForPurchase`                                                                                                               |
+| `inventory`  | `balances`, `getAdjustment`, `timeline`, `reconciliation`, `evidence`                                                                                        |
+| `delivery`   | `get`, `list`, `fulfilment`                                                                                                                                  |
+| `document`   | `get`, `listForSource`                                                                                                                                       |
+| `report`     | `definitions`, `metrics`, `operational`, `csv`                                                                                                               |
+| `operations` | `integrity`, `validateBackup`                                                                                                                                |
+| `cash`       | `searchAccounts`, `getAccount`, `timeline`, `getExpense`, `getTransfer`, `reconciliation`                                                                    |
+| `intake`     | `searchIssueCodes`, `getArrival`, `listArrivals`, `getInspection`, `getDisposition`, `dispositionSourceSummary`, `arrivalLineHistory`                        |
+| `pricing`    | `list`, `resolve`                                                                                                                                            |
+| `evidence`   | `getCostObservation`, `listCostObservations`, `getReconciliationObservation`, `listReconciliationObservations`, `getDebtObservation`, `listDebtObservations` |
 
 The router source is authoritative for procedure names. Permission policy belongs
 to [authorization-rules.md](../04-business-rules/authorization-rules.md), and DTO
@@ -215,3 +215,7 @@ profit, payable, receivable or inventory.
 money/quantity facts, item count, scope reference, source references and
 correction link. They do not return a derived variance or close status and do not
 reconstruct cash, debt, payable or inventory.
+
+`evidence.getDebtObservation` and `evidence.listDebtObservations` return
+source-linked payment-term, due-date, promise-to-pay and collection facts. They
+do not derive overdue state, allocate payment, or reconstruct a ledger balance.

@@ -84,6 +84,7 @@ Drizzle definitions and database constraints.
 | ----------------------------- | ----------------------------------------------------------------------------------------- | ----------- |
 | `cost_observations`           | Exact observed cost/loss wording, money/quantity facts and source references by workspace | append-only |
 | `reconciliation_observations` | Separate expected/observed reconciliation facts, scope and source references by workspace | append-only |
+| `debt_observations`           | Source-linked payment-term, due-date and collection facts by workspace                    | append-only |
 
 `cost_observations` is deliberately not a financial or inventory ledger. A
 correction appends a new row linked to the earlier observation; policy-backed
@@ -93,6 +94,10 @@ workspace policy closure.
 `reconciliation_observations` is deliberately not a variance, close, cash,
 debt, payable or inventory ledger. It preserves expected and observed facts
 separately; a correction appends a new row linked to the earlier observation.
+
+`debt_observations` is deliberately not an overdue, allocation, customer
+ledger or cashbook source. It preserves what was agreed or observed; a
+correction appends a new row linked to the earlier observation.
 
 ### Documents and control
 
@@ -266,8 +271,8 @@ references without becoming an inventory or customer-money source.
 inspected-intake source links without changing payable, quality-policy or
 inventory semantics. `quality_inspections.evidence_references` follows the same
 metadata-only rule.
-Backup V10 preserves operational profile, price rules, CostObservation,
-ReconciliationObservation, CashAccount and all canonical cash source/
+Backup V11 preserves operational profile, price rules, CostObservation,
+ReconciliationObservation, DebtObservation, CashAccount and all canonical cash source/
 movement rows; it does not export `cash_balances`.
 
 ## Executable workspace-policy and cashbook names
@@ -285,8 +290,8 @@ Cashbook persistence uses the exact Drizzle symbols `cashAccounts`, `expenses`,
 `cashMovements` and `cashBalances`, corresponding to the snake-case PostgreSQL
 tables listed above. `cashMovements` is canonical append-only truth;
 `cashBalances` is a rebuildable projection. Payment cash-account links are
-immutable after recording. Backup V10 exports price rules, CostObservation,
-ReconciliationObservation, CashAccount and canonical source/
+immutable after recording. Backup V11 exports price rules, CostObservation,
+ReconciliationObservation, DebtObservation, CashAccount and canonical source/
 movement rows, not the disposable balance projection.
 
 ## Inspected-intake executable names
@@ -307,4 +312,4 @@ movement rows, not the disposable balance projection.
 Arrival, inspection, disposition and reversal tables are append-only. Issue codes are
 versioned master data and cannot be deleted. Only accepted allocations create
 `inventory_movements`; quarantine, rejection and disposal remain non-stock outcomes.
-Backup V10 exports these canonical rows and restore rebuilds inventory balances.
+Backup V11 exports these canonical rows and restore rebuilds inventory balances.

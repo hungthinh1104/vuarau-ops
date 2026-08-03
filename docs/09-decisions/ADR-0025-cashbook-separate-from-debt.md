@@ -59,7 +59,7 @@ is stored positive as the source document while its movement is negative.
 - Canonical cash source/movement rows are append-only.
 - Projection rebuild is allowed only when source/movement integrity is healthy.
 - Cashbook disablement blocks new cash commands but does not hide history.
-- Backup V6 introduced and Backup V10 preserves source facts, pricing rules, operational evidence and movements, not `CashBalance`; restore rebuilds
+- Backup V6 introduced and Backup V11 preserves source facts, pricing rules, operational evidence and movements, not `CashBalance`; restore rebuilds
   and reconciles every account before success.
 - Date-filtered cash/expense reports use the workspace business-day boundary and
   `transactionTime`.

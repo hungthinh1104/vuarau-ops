@@ -64,7 +64,7 @@ command changes, update its schema and tests first, then keep this catalog align
 | `cash`       | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`                                         |
 | `intake`     | `createIssueCode`, `updateIssueCode`, `deactivateIssueCode`, `reactivateIssueCode`, `recordArrival`, `reverseArrival`, `recordInspection`, `reverseInspection`, `recordDisposition`, `reverseDisposition` |
 | `pricing`    | `record`                                                                                                                                                                                                  |
-| `evidence`   | `recordCostObservation`, `recordReconciliationObservation`                                                                                                                                                |
+| `evidence`   | `recordCostObservation`, `recordReconciliationObservation`, `recordDebtObservation`                                                                                                                       |
 
 The router source is authoritative for procedure names. Domain-contract modules are
 authoritative for payload and result shapes.
@@ -228,6 +228,11 @@ facts, optional item count, scope reference and participant wording. It is a
 fact-capture command only: it does not calculate variance, close a period, match
 a bank statement or change cash, debt, payable or inventory. A `correction`
 creates a new row linked to an earlier ReconciliationObservation.
+`evidence.recordDebtObservation` requires at least one source reference and
+preserves payment-term, due-date, promise-to-pay and collection facts when
+present. It does not label a debt overdue, allocate a payment, or append a
+ledger/cash row. A correction creates a new row linked to an earlier
+DebtObservation.
 
 ## Inspected-intake commands
 
