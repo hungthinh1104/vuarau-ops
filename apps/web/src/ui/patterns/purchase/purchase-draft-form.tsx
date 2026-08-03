@@ -19,6 +19,10 @@ export function PurchaseDraftForm(props: {
   readonly back: { readonly href: string; readonly label: string };
   readonly supplierId: string;
   readonly suppliers?: readonly PurchaseSupplierOption[];
+  readonly supplierSearch?: {
+    readonly value: string;
+    readonly onChange: (value: string) => void;
+  };
   readonly supplierDisabled?: boolean;
   readonly lines: readonly PurchaseDraftLine[];
   readonly products: readonly PurchaseProductOption[];
@@ -57,6 +61,13 @@ export function PurchaseDraftForm(props: {
           label="Nhà cung cấp"
           value={props.supplierId}
           disabled={props.supplierDisabled}
+          {...(props.supplierSearch === undefined
+            ? {}
+            : {
+                searchValue: props.supplierSearch.value,
+                onSearchChange: props.supplierSearch.onChange,
+                searchPlaceholder: "Tên hoặc số điện thoại nhà cung cấp",
+              })}
           onChange={(event) => props.onSupplierChange?.(event.target.value)}
           placeholder="Chọn nhà cung cấp đang hoạt động"
           options={props.suppliers.map((supplier) => ({

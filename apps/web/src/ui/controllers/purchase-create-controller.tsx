@@ -37,6 +37,7 @@ export function PurchaseCreateController() {
   const replacesPurchaseId = useSearchParams().get("replacesPurchaseId") as PurchaseId | null;
   const purchaseId = useRef(crypto.randomUUID() as PurchaseId).current;
   const [supplierId, setSupplierId] = useState<SupplierId | "">("");
+  const [supplierQuery, setSupplierQuery] = useState("");
   const [lines, setLines] = useState<readonly PurchaseDraftLine[]>([newLine()]);
   const [productQuery, setProductQuery] = useState("");
   const [note, setNote] = useState("");
@@ -44,7 +45,7 @@ export function PurchaseCreateController() {
   const suppliers = useQuery(
     trpc.supplier.search.queryOptions({
       workspaceId,
-      query: "",
+      query: supplierQuery,
       isActive: true,
       cursor: null,
       limit: 100,
@@ -130,6 +131,7 @@ export function PurchaseCreateController() {
         id: supplier.id,
         displayName: supplier.displayName,
       }))}
+      supplierSearch={{ value: supplierQuery, onChange: setSupplierQuery }}
       lines={lines}
       products={productOptions}
       productSearch={{ value: productQuery, onChange: setProductQuery }}

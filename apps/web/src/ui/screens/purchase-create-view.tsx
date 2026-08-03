@@ -17,6 +17,10 @@ export function PurchaseCreatePermissionView() {
 export function PurchaseCreateView(props: {
   readonly supplierId: string;
   readonly suppliers: readonly PurchaseSupplierOption[];
+  readonly supplierSearch: {
+    readonly value: string;
+    readonly onChange: (value: string) => void;
+  };
   readonly lines: readonly PurchaseDraftLine[];
   readonly products: readonly PurchaseProductOption[];
   readonly productSearch: {
@@ -47,6 +51,7 @@ export function PurchaseCreateView(props: {
       back={{ href: "/purchases", label: "Đơn mua" }}
       supplierId={props.supplierId}
       suppliers={props.suppliers}
+      supplierSearch={props.supplierSearch}
       lines={props.lines}
       products={props.products}
       productSearch={props.productSearch}

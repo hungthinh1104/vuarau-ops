@@ -6,6 +6,12 @@ async function chooseOption(page: Parameters<typeof signIn>[0], label: string, o
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
+async function chooseSupplier(page: Parameters<typeof signIn>[0], supplierName: string) {
+  await page.getByRole("combobox", { name: "Nhà cung cấp" }).click();
+  await page.getByRole("searchbox", { name: "Tìm nhà cung cấp" }).fill(supplierName);
+  await page.getByRole("option", { name: supplierName, exact: true }).click();
+}
+
 async function chooseProduct(page: Parameters<typeof signIn>[0], productName: string) {
   await page.getByRole("combobox", { name: "Mặt hàng" }).click();
   await page.getByRole("searchbox", { name: "Tìm mặt hàng" }).fill(productName);
@@ -44,7 +50,7 @@ test.describe("Goods Truth", () => {
     const supplierId = new URL(page.url()).pathname.split("/").at(-1)!;
 
     await page.goto("/purchases/new");
-    await chooseOption(page, "Nhà cung cấp", supplierName);
+    await chooseSupplier(page, supplierName);
     await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("100");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
@@ -161,7 +167,7 @@ test.describe("Goods Truth", () => {
     const supplierId = new URL(page.url()).pathname.split("/").at(-1)!;
 
     await page.goto("/purchases/new");
-    await chooseOption(page, "Nhà cung cấp", supplierName);
+    await chooseSupplier(page, supplierName);
     await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("100");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
@@ -182,7 +188,7 @@ test.describe("Goods Truth", () => {
     await expect(page.getByText(/đã nhận 30 kg · còn lại 70 kg/)).toBeVisible();
 
     await page.getByRole("link", { name: "Tạo đơn mua thay thế" }).click();
-    await chooseOption(page, "Nhà cung cấp", supplierName);
+    await chooseSupplier(page, supplierName);
     await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("20");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("11");
