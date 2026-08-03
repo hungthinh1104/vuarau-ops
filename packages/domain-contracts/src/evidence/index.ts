@@ -5,6 +5,7 @@ import {
   debtObservationIdSchema,
   supplyCommitmentObservationIdSchema,
   supplierObservationIdSchema,
+  demandObservationIdSchema,
   workspaceIdSchema,
   actorIdSchema,
   commandIdSchema,
@@ -443,3 +444,74 @@ export const supplierObservationListInputSchema = pageRequestSchema.extend({
 });
 export type SupplierObservationListInput = z.infer<typeof supplierObservationListInputSchema>;
 export const supplierObservationPageSchema = pageOf(supplierObservationDtoSchema);
+
+/**
+ * Customer demand/order observations preserve a request before it becomes a
+ * Sale. They are source facts only: no Sale, allocation, stock shortage,
+ * forecast, reorder signal or customer-debt effect is created here.
+ */
+export const DEMAND_OBSERVATION_KINDS = [
+  "requested_order",
+  "expected_delivery",
+  "minimum_quantity",
+  "availability_note",
+  "other",
+] as const;
+export const demandObservationKindSchema = z.enum(DEMAND_OBSERVATION_KINDS);
+export type DemandObservationKind = z.infer<typeof demandObservationKindSchema>;
+
+export const demandObservationFactsSchema = z.object({
+  customerId: customerIdSchema.nullable().default(null),
+  productId: productIdSchema.nullable().default(null),
+  qualityGradeId: qualityGradeIdSchema.nullable().default(null),
+  requestedQuantity: quantitySchema.nullable().default(null),
+  minimumQuantity: quantitySchema.nullable().default(null),
+  requestedForAt: isoInstantSchema.nullable().default(null),
+  counterpartyLabel: z.string().trim().max(500).nullable().default(null),
+  demandReference: z.string().trim().max(500).nullable().default(null),
+});
+export type DemandObservationFacts = z.infer<typeof demandObservationFactsSchema>;
+
+const demandObservationPayloadSchema = z.object({
+  demandObservationId: demandObservationIdSchema,
+  kind: demandObservationKindSchema,
+  caseKind: costObservationCaseKindSchema,
+  description: z.string().trim().min(1).max(2_000),
+  participantWording: z.string().trim().min(1).max(2_000),
+  facts: demandObservationFactsSchema,
+  evidenceReferences: z.array(evidenceReferenceSchema).min(1).max(20),
+  relatedObservationId: demandObservationIdSchema.nullable().default(null),
+});
+
+export const recordDemandObservationCommandSchema = defineCommand(demandObservationPayloadSchema);
+export type RecordDemandObservationCommand = z.infer<typeof recordDemandObservationCommandSchema>;
+
+export const demandObservationDtoSchema = z.object({
+  id: demandObservationIdSchema,
+  workspaceId: workspaceIdSchema,
+  kind: demandObservationKindSchema,
+  caseKind: costObservationCaseKindSchema,
+  description: z.string(),
+  participantWording: z.string(),
+  facts: demandObservationFactsSchema,
+  evidenceReferences: z.array(z.string()),
+  relatedObservationId: demandObservationIdSchema.nullable(),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+});
+export type DemandObservationDto = z.infer<typeof demandObservationDtoSchema>;
+
+export const demandObservationGetInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  demandObservationId: demandObservationIdSchema,
+});
+export type DemandObservationGetInput = z.infer<typeof demandObservationGetInputSchema>;
+
+export const demandObservationListInputSchema = pageRequestSchema.extend({
+  workspaceId: workspaceIdSchema,
+  kind: demandObservationKindSchema.nullable().default(null),
+});
+export type DemandObservationListInput = z.infer<typeof demandObservationListInputSchema>;
+export const demandObservationPageSchema = pageOf(demandObservationDtoSchema);

@@ -47,6 +47,7 @@ export const AUDIT_AGGREGATE_TYPES = [
   "debt_observation",
   "supply_commitment_observation",
   "supplier_observation",
+  "demand_observation",
   "workspace_policy",
 ] as const;
 export const auditAggregateTypeSchema = z.enum(AUDIT_AGGREGATE_TYPES);
@@ -134,6 +135,7 @@ export const AUDIT_ACTIONS = [
   "debt_observation.recorded",
   "supply_commitment_observation.recorded",
   "supplier_observation.recorded",
+  "demand_observation.recorded",
   "workspace_policy.draft_created",
   "workspace_policy.approved",
   "workspace_policy.retired",

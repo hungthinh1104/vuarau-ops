@@ -131,6 +131,8 @@ export const supplyCommitmentObservationIdSchema = z
 export type SupplyCommitmentObservationId = z.infer<typeof supplyCommitmentObservationIdSchema>;
 export const supplierObservationIdSchema = z.uuid().brand<"SupplierObservationId">();
 export type SupplierObservationId = z.infer<typeof supplierObservationIdSchema>;
+export const demandObservationIdSchema = z.uuid().brand<"DemandObservationId">();
+export type DemandObservationId = z.infer<typeof demandObservationIdSchema>;
 export const workspacePolicyVersionIdSchema = z.uuid().brand<"WorkspacePolicyVersionId">();
 export type WorkspacePolicyVersionId = z.infer<typeof workspacePolicyVersionIdSchema>;
 
