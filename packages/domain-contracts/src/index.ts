@@ -11,6 +11,7 @@ export * from "./operations/index.ts";
 export * from "./supplier/index.ts";
 export * from "./purchase/index.ts";
 export * from "./customer-order/index.ts";
+export * from "./supply-commitment/index.ts";
 export * from "./inventory/index.ts";
 export * from "./delivery/index.ts";
 export * from "./document/index.ts";

@@ -1,11 +1,11 @@
-import type { WorkspaceBackupV16, WorkspaceId } from "@vuarau/domain-contracts";
+import type { WorkspaceBackupV17, WorkspaceId } from "@vuarau/domain-contracts";
 import { demandObservations } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
 export async function restoreDemandObservations(
   tx: Tx,
   workspaceId: WorkspaceId,
-  payload: WorkspaceBackupV16["payload"],
+  payload: WorkspaceBackupV17["payload"],
   date: (value: unknown) => Date,
 ): Promise<void> {
   if (payload.demandObservations.length === 0) return;

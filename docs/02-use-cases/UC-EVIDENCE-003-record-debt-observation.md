@@ -19,7 +19,7 @@ turning an observation into an overdue conclusion or a ledger allocation.
 - The observation does not create a CustomerAccountEntry, mark a Sale overdue,
   allocate a Payment or change Cashbook truth. The canonical `dueAt` on a Sale
   remains the only current source for its technical due-state read.
-- Backup V15 includes the observation and restore validates customer and
+- Backup V17 includes the observation and restore validates customer and
   correction references before commit.
 
 The authenticated Web Admin exposes `/evidence/debt` to `evidence.read` users.

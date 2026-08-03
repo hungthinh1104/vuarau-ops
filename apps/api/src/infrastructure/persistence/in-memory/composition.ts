@@ -22,6 +22,7 @@ import { createProductRepositories } from "./repositories/product.ts";
 import { createPriceRuleRepositories } from "./repositories/pricing.ts";
 import { createPurchaseRepositories } from "./repositories/purchase.ts";
 import { createCustomerOrderRepositories } from "./repositories/customer-order.ts";
+import { createSupplyCommitmentRepositories } from "./repositories/supply-commitment.ts";
 import { createQualityGradeRepositories } from "./repositories/quality.ts";
 import { createReceiptRepositories } from "./repositories/receipt.ts";
 import { createSaleRepositories } from "./repositories/sale.ts";
@@ -48,6 +49,7 @@ import { createProductReads } from "./reads/product.ts";
 import { createPriceRuleReads } from "./reads/pricing.ts";
 import { createPurchaseReads } from "./reads/purchase.ts";
 import { createCustomerOrderReads } from "./reads/customer-order.ts";
+import { createSupplyCommitmentReads } from "./reads/supply-commitment.ts";
 import { createQualityGradeReads } from "./reads/quality.ts";
 import { createReportReads } from "./reads/report.ts";
 import { createSaleReads } from "./reads/sale.ts";
@@ -62,6 +64,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createSupplierRepositories(store, ids),
   ...createPurchaseRepositories(store),
   ...createCustomerOrderRepositories(store),
+  ...createSupplyCommitmentRepositories(store),
   ...createInventoryRepositories(store, ids),
   ...createDeliveryRepositories(store),
   ...createDocumentRepositories(store),
@@ -87,6 +90,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createSupplierReads(store),
   ...createPurchaseReads(store),
   ...createCustomerOrderReads(store),
+  ...createSupplyCommitmentReads(store),
   ...createInventoryReads(store),
   ...createDeliveryReads(store),
   ...createDocumentReads(store),

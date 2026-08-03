@@ -9,17 +9,18 @@ behaves like state. Adding a value requires updating this catalog, the
 Each aggregate starts at version 1 and increments by one for every successful
 command that changes its mutable state.
 
-| Aggregate       | Stored lifecycle                                | Mutable transitions                                 | Terminal boundary   |
-| --------------- | ----------------------------------------------- | --------------------------------------------------- | ------------------- |
-| Customer        | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
-| Product         | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
-| QualityGrade    | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
-| Supplier        | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
-| Sale            | `draft`, `posted`, `discarded`                  | update draft, post, discard                         | posted/discarded    |
-| Payment         | `recorded`, `partially_reversed`, `reversed`    | reverse remaining amount                            | reversed            |
-| SupplierPayment | `recorded`, `partially_reversed`, `reversed`    | reverse remaining amount                            | reversed            |
-| Purchase        | `draft`, `confirmed`, `discarded`               | update draft, confirm, discard                      | confirmed/discarded |
-| Delivery        | `draft`, `cancelled`, `dispatched`, `delivered` | update/cancel draft, dispatch, acknowledge delivery | cancelled/delivered |
+| Aggregate        | Stored lifecycle                                | Mutable transitions                                 | Terminal boundary   |
+| ---------------- | ----------------------------------------------- | --------------------------------------------------- | ------------------- |
+| Customer         | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
+| Product          | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
+| QualityGrade     | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
+| Supplier         | active/inactive from `isActive`                 | update, deactivate, reactivate                      | none                |
+| Sale             | `draft`, `posted`, `discarded`                  | update draft, post, discard                         | posted/discarded    |
+| Payment          | `recorded`, `partially_reversed`, `reversed`    | reverse remaining amount                            | reversed            |
+| SupplierPayment  | `recorded`, `partially_reversed`, `reversed`    | reverse remaining amount                            | reversed            |
+| Purchase         | `draft`, `confirmed`, `discarded`               | update draft, confirm, discard                      | confirmed/discarded |
+| SupplyCommitment | `draft`, `confirmed`, `cancelled`               | update draft, confirm, cancel                       | confirmed/cancelled |
+| Delivery         | `draft`, `cancelled`, `dispatched`, `delivered` | update/cancel draft, dispatch, acknowledge delivery | cancelled/delivered |
 
 Document `version` is an immutable sequence number per source document, not an
 optimistic-concurrency lifecycle. Memberships, voids, receipt reversals, returns,
@@ -80,6 +81,7 @@ These are read-time views of canonical facts, never independent truth.
 | Receipt                    | active/reversed condition                                                          | Receipt plus absence/presence of its immutable reversal; no stored status           |
 | Delivery fulfilment        | `unfulfilled`, `partially_fulfilled`, `fulfilled`, `returned_partial`, `attention` | ordered Sale line minus exact-grade dispatch plus return facts                      |
 | Customer Order             | `draft`, `confirmed`, `cancelled`                                                  | explicit commercial request lifecycle; no financial or physical effect              |
+| Supply Commitment          | `draft`, `confirmed`, `cancelled`                                                  | explicit supplier promise lifecycle; no payable, Purchase or physical effect        |
 | Document share             | available, expired or revoked condition                                            | token digest, `expiresAt` and `revokedAt`; no stored public-read status             |
 | Customer balance           | `receivable`, `settled`, `customer_credit`                                         | sign of canonical customer account sum                                              |
 | Supplier balance           | `payable`, `settled`, `supplier_credit`                                            | sign of canonical supplier account sum                                              |

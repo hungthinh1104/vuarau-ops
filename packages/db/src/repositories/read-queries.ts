@@ -21,6 +21,7 @@ import { createReconciliationObservationReadRepositories } from "./read/reconcil
 import { createDebtObservationReadRepositories } from "./read/debt-observation.ts";
 import { createWorkspacePolicyReadRepositories } from "./read/policy.ts";
 import { createCustomerOrderReadRepositories } from "./read/customer-order.ts";
+import { createSupplyCommitmentReadRepositories } from "./read/supply-commitment.ts";
 
 export function createReadRepositories(tx: Tx) {
   return {
@@ -46,6 +47,7 @@ export function createReadRepositories(tx: Tx) {
     ...createDebtObservationReadRepositories(tx),
     ...createWorkspacePolicyReadRepositories(tx),
     ...createCustomerOrderReadRepositories(tx),
+    ...createSupplyCommitmentReadRepositories(tx),
   };
 }
 

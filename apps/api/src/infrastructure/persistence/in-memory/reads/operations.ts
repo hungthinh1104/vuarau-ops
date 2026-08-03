@@ -467,6 +467,30 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
             currency: order.currency,
           })),
         ),
+        supplyCommitments: rows(store.supplyCommitments.values()).map(
+          ({ lines: _lines, ...commitment }) => ({
+            ...commitment,
+            totalAmountMinor: commitment.totalAmount?.amountMinor ?? null,
+            expectedArrivalAt: commitment.expectedArrivalAt,
+            paymentTermsLabel: commitment.paymentTermsSnapshot?.label ?? null,
+            paymentTermsDueAt: commitment.paymentTermsSnapshot?.dueAt ?? null,
+          }),
+        ),
+        supplyCommitmentLines: rows(store.supplyCommitments.values()).flatMap((commitment) =>
+          commitment.lines.map((line) => ({
+            id: line.lineId,
+            workspaceId,
+            supplyCommitmentId: commitment.id,
+            productId: line.productId,
+            qualityGradeId: line.qualityGradeId,
+            productName: line.productName,
+            quantityScaled: line.quantity.valueScaled,
+            unit: line.quantity.unit,
+            agreedUnitPriceMinor: line.agreedUnitPrice?.amountMinor ?? null,
+            lineTotalMinor: line.lineTotal?.amountMinor ?? null,
+            currency: commitment.currency,
+          })),
+        ),
       };
     },
   },

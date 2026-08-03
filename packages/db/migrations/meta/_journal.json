@@ -309,6 +309,13 @@
       "when": 1785761620526,
       "tag": "0043_even_ma_gnuci",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1785763968879,
+      "tag": "0044_zippy_shocker",
+      "breakpoints": true
     }
   ]
 }

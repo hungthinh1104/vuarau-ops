@@ -28,7 +28,7 @@ policy and a separate command.
 
 ## Recovery
 
-Backup V15 exports and restores demand observations after validating workspace,
+Backup V17 exports and restores demand observations after validating workspace,
 customer, product, grade and correction references. Restore preserves the raw
 facts and does not rebuild a planning or commercial result.
 

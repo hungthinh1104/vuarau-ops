@@ -233,11 +233,55 @@ use_cases:
     title: View and list Customer Orders
     risk: P2
     doc: docs/02-use-cases/customer-order-use-cases.md
-    rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002]
+    rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002, BR-SUPPLY-COMMITMENT-007]
     cases: []
     tests: []
     implementation:
       - packages/domain-contracts/src/customer-order/index.ts
+
+  UC-SUPPLY-COMMITMENT-001:
+    title: Create and edit a Supply Commitment draft
+    risk: P0
+    doc: docs/02-use-cases/supply-commitment-use-cases.md
+    rules: [BR-SUPPLY-COMMITMENT-001, BR-SUPPLY-COMMITMENT-002, BR-SUPPLY-COMMITMENT-006]
+    cases: [CASE-SUPPLY-COMMITMENT-001]
+    tests: [TC-SUPPLY-COMMITMENT-001, TC-SUPPLY-COMMITMENT-004, TC-SUPPLY-COMMITMENT-007]
+    implementation:
+      - packages/domain-contracts/src/supply-commitment/index.ts
+      - packages/domain-kernel/src/supply-commitment/index.ts
+      - apps/api/src/modules/supply-commitment/supply-commitment.handlers.ts
+      - packages/db/src/repositories/write/supply-commitment.ts
+  UC-SUPPLY-COMMITMENT-002:
+    title: Confirm a Supply Commitment
+    risk: P0
+    doc: docs/02-use-cases/supply-commitment-use-cases.md
+    rules: [BR-SUPPLY-COMMITMENT-002, BR-SUPPLY-COMMITMENT-003, BR-SUPPLY-COMMITMENT-005]
+    cases: [CASE-SUPPLY-COMMITMENT-002]
+    tests: [TC-SUPPLY-COMMITMENT-002, TC-SUPPLY-COMMITMENT-005, TC-SUPPLY-COMMITMENT-007]
+    implementation:
+      - packages/domain-kernel/src/supply-commitment/index.ts
+      - apps/api/src/modules/supply-commitment/supply-commitment.handlers.ts
+      - packages/db/src/repositories/write/supply-commitment.ts
+  UC-SUPPLY-COMMITMENT-003:
+    title: Cancel or supersede a Supply Commitment
+    risk: P0
+    doc: docs/02-use-cases/supply-commitment-use-cases.md
+    rules: [BR-SUPPLY-COMMITMENT-004, BR-SUPPLY-COMMITMENT-006]
+    cases: [CASE-SUPPLY-COMMITMENT-003]
+    tests: [TC-SUPPLY-COMMITMENT-003, TC-SUPPLY-COMMITMENT-005]
+    implementation:
+      - packages/domain-contracts/src/supply-commitment/index.ts
+      - packages/domain-kernel/src/supply-commitment/index.ts
+  UC-SUPPLY-COMMITMENT-004:
+    title: View and list Supply Commitments
+    risk: P1
+    doc: docs/02-use-cases/supply-commitment-use-cases.md
+    rules: [BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002]
+    cases: [CASE-SUPPLY-COMMITMENT-003]
+    tests: [TC-SUPPLY-COMMITMENT-006, TC-SUPPLY-COMMITMENT-007, TC-SUPPLY-COMMITMENT-008]
+    implementation:
+      - apps/api/src/modules/supply-commitment/supply-commitment.queries.ts
+      - packages/db/src/repositories/read/supply-commitment.ts
 
   UC-SALE-001:
     title: Create, edit and discard a sale draft
@@ -1612,6 +1656,60 @@ business_rules:
     tests: [TC-CUSTOMER-ORDER-002]
     implementation: [packages/domain-kernel/src/customer-order/index.ts]
 
+  # --- supply commitment -----------------------------------------------------
+  BR-SUPPLY-COMMITMENT-001:
+    title: Supplier and Product references are workspace-scoped
+    risk: P0
+    doc: docs/04-business-rules/supply-commitment-rules.md
+    cases: [CASE-SUPPLY-COMMITMENT-003]
+    tests: [TC-SUPPLY-COMMITMENT-006, TC-SUPPLY-COMMITMENT-007, TC-SUPPLY-COMMITMENT-008]
+    implementation: [apps/api/src/modules/supply-commitment/supply-commitment.handlers.ts]
+  BR-SUPPLY-COMMITMENT-002:
+    title: Quantity, price and terms are exact commercial snapshots
+    risk: P0
+    doc: docs/04-business-rules/supply-commitment-rules.md
+    cases: [CASE-SUPPLY-COMMITMENT-001, CASE-SUPPLY-COMMITMENT-002]
+    tests: [TC-SUPPLY-COMMITMENT-001, TC-SUPPLY-COMMITMENT-007]
+    implementation: [packages/domain-kernel/src/supply-commitment/index.ts]
+  BR-SUPPLY-COMMITMENT-003:
+    title: Confirmation requires canonical Products and freezes the fact
+    risk: P0
+    doc: docs/04-business-rules/supply-commitment-rules.md
+    cases: [CASE-SUPPLY-COMMITMENT-002]
+    tests: [TC-SUPPLY-COMMITMENT-002, TC-SUPPLY-COMMITMENT-005]
+    implementation: [packages/domain-kernel/src/supply-commitment/index.ts]
+  BR-SUPPLY-COMMITMENT-004:
+    title: Versioned lifecycle and cancellation preserve correction history
+    risk: P0
+    doc: docs/04-business-rules/supply-commitment-rules.md
+    cases: [CASE-SUPPLY-COMMITMENT-003]
+    tests: [TC-SUPPLY-COMMITMENT-003, TC-SUPPLY-COMMITMENT-005]
+    implementation: [packages/domain-kernel/src/supply-commitment/index.ts]
+  BR-SUPPLY-COMMITMENT-005:
+    title: Supply Commitment has no payable, Purchase or inventory effect
+    risk: P0
+    doc: docs/04-business-rules/supply-commitment-rules.md
+    cases: [CASE-SUPPLY-COMMITMENT-001, CASE-SUPPLY-COMMITMENT-002]
+    tests: [TC-SUPPLY-COMMITMENT-001, TC-SUPPLY-COMMITMENT-004, TC-SUPPLY-COMMITMENT-007]
+    implementation: [packages/domain-kernel/src/supply-commitment/index.ts]
+  BR-SUPPLY-COMMITMENT-006:
+    title: Authorization and idempotency protect every commitment mutation
+    risk: P0
+    doc: docs/04-business-rules/supply-commitment-rules.md
+    cases: [CASE-SUPPLY-COMMITMENT-003]
+    tests: [TC-SUPPLY-COMMITMENT-004, TC-SUPPLY-COMMITMENT-006, TC-SUPPLY-COMMITMENT-007]
+    implementation: [apps/api/src/modules/supply-commitment/supply-commitment.handlers.ts]
+  BR-SUPPLY-COMMITMENT-007:
+    title: Backup V17 carries and validates Supply Commitment rows
+    risk: P1
+    doc: docs/04-business-rules/supply-commitment-rules.md
+    cases: [CASE-SUPPLY-COMMITMENT-003]
+    tests: [TC-SUPPLY-COMMITMENT-007]
+    implementation:
+      - packages/domain-contracts/src/operations/index.ts
+      - packages/db/src/repositories/read/operations.ts
+      - packages/db/src/repositories/write/operations-supply-commitment-restore.ts
+
   # --- sale ---------------------------------------------------------------------
   BR-SALE-001:
     title: Sale total equals the sum of its line totals
@@ -2678,7 +2776,7 @@ business_rules:
     tests: [TC-INTAKE-002, TC-INTAKE-008]
     implementation: [packages/domain-kernel/src/intake/index.ts, packages/db/src/schema/intake.ts]
   BR-INTAKE-013:
-    title: Backup V15 preserves intake lineage and restore reconciles inventory
+    title: Backup V17 preserves intake lineage and restore reconciles inventory
     risk: P0
     doc: docs/04-business-rules/intake-rules.md
     cases: [CASE-INTAKE-007]
@@ -2980,6 +3078,27 @@ cases:
     doc: docs/05-casebook/customer-order-cases.md
     rules: [BR-CUSTOMER-ORDER-003, BR-CUSTOMER-ORDER-004]
     tests: [TC-CUSTOMER-ORDER-003]
+  CASE-SUPPLY-COMMITMENT-001:
+    title: Unpriced supply promise
+    doc: docs/05-casebook/supply-commitment-cases.md
+    rules: [BR-SUPPLY-COMMITMENT-001, BR-SUPPLY-COMMITMENT-002, BR-SUPPLY-COMMITMENT-005]
+    tests: [TC-SUPPLY-COMMITMENT-001]
+  CASE-SUPPLY-COMMITMENT-002:
+    title: Confirmed exact supply commitment
+    doc: docs/05-casebook/supply-commitment-cases.md
+    rules: [BR-SUPPLY-COMMITMENT-002, BR-SUPPLY-COMMITMENT-003, BR-SUPPLY-COMMITMENT-005]
+    tests: [TC-SUPPLY-COMMITMENT-002, TC-SUPPLY-COMMITMENT-007]
+  CASE-SUPPLY-COMMITMENT-003:
+    title: Retry, cancellation and workspace boundary
+    doc: docs/05-casebook/supply-commitment-cases.md
+    rules:
+      [
+        BR-SUPPLY-COMMITMENT-001,
+        BR-SUPPLY-COMMITMENT-004,
+        BR-SUPPLY-COMMITMENT-006,
+        BR-SUPPLY-COMMITMENT-007,
+      ]
+    tests: [TC-SUPPLY-COMMITMENT-004, TC-SUPPLY-COMMITMENT-006, TC-SUPPLY-COMMITMENT-008]
   CASE-SALE-001:
     title: A valid multi-line sale
     doc: docs/05-casebook/sale-cases.md
@@ -3238,6 +3357,30 @@ contract_tests:
   TC-E2E-CUSTOMER-ORDER-001:
     title: Browser flow creates and cancels a commercial-only Customer Order draft
     file: apps/web/e2e/customer-order.spec.ts
+  TC-SUPPLY-COMMITMENT-001:
+    title: Domain Supply Commitment drafts preserve exact commercial snapshots
+    file: packages/domain-kernel/src/supply-commitment/supply-commitment.test.ts
+  TC-SUPPLY-COMMITMENT-002:
+    title: Domain confirmation requires a canonical Product
+    file: packages/domain-kernel/src/supply-commitment/supply-commitment.test.ts
+  TC-SUPPLY-COMMITMENT-003:
+    title: Domain cancellation preserves versioned commercial lifecycle
+    file: packages/domain-kernel/src/supply-commitment/supply-commitment.test.ts
+  TC-SUPPLY-COMMITMENT-004:
+    title: Application retries do not duplicate a Supply Commitment
+    file: apps/api/src/modules/supply-commitment/supply-commitment.app.test.ts
+  TC-SUPPLY-COMMITMENT-005:
+    title: Application Supply Commitment lifecycle remains commercial-only
+    file: apps/api/src/modules/supply-commitment/supply-commitment.app.test.ts
+  TC-SUPPLY-COMMITMENT-006:
+    title: Application Supply Commitment reads enforce workspace isolation
+    file: apps/api/src/modules/supply-commitment/supply-commitment.app.test.ts
+  TC-SUPPLY-COMMITMENT-007:
+    title: PostgreSQL persists and exports Supply Commitment facts
+    file: apps/api/src/infrastructure/persistence/drizzle/supply-commitment.db.test.ts
+  TC-SUPPLY-COMMITMENT-008:
+    title: PostgreSQL Supply Commitment reads remain workspace-scoped
+    file: apps/api/src/infrastructure/persistence/drizzle/supply-commitment.db.test.ts
   TC-PRICING-001:
     title: Price rule recording computes exact final money and writes one audit fact
     file: apps/api/src/modules/pricing/pricing.app.test.ts
@@ -3768,7 +3911,7 @@ contract_tests:
     title: PostgreSQL serializes concurrent customer-payment retries into one debt and cash effect
     file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
   TC-OPS-016:
-    title: Backup V15 restores profile cashbook, pricing, operational evidence, workspace policy versions, supply commitments, supplier observations, demand observations and inspected-intake lineage then reconciles projections
+    title: Backup V17 restores profile cashbook, pricing, operational evidence, workspace policy versions, supply commitments, supplier observations, demand observations and inspected-intake lineage then reconciles projections
     file: apps/api/src/modules/operations/operations.app.test.ts
   TC-OPS-017:
     title: External field observation packets preserve source links without inferring policy effects

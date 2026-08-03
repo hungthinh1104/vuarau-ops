@@ -11,6 +11,7 @@ import type {
   PaymentReversalId,
   ProductId,
   QualityGradeId,
+  SupplierId,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
 
@@ -74,6 +75,7 @@ export const PRODUCT_OT_ID = uuid("d", 3) as ProductId;
 export const QUALITY_GRADE_1_ID = uuid("d", 11) as QualityGradeId;
 export const QUALITY_GRADE_2_ID = uuid("d", 12) as QualityGradeId;
 export const QUALITY_GRADE_REJECT_ID = uuid("d", 13) as QualityGradeId;
+export const SUPPLIER_ID = uuid("d", 21) as SupplierId;
 
 export const SALE_ID = uuid("e", 1) as SaleId;
 export const EMPTY_SALE_ID = uuid("e", 2) as SaleId;

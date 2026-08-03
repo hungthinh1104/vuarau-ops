@@ -16,6 +16,8 @@ import {
   customers,
   customerOrders,
   customerOrderLines,
+  supplyCommitments,
+  supplyCommitmentLines,
   paymentReversals,
   payments,
   products,
@@ -393,6 +395,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         productRows,
         customerOrderRows,
         customerOrderLineRows,
+        supplyCommitmentRows,
+        supplyCommitmentLineRows,
         priceRuleRows,
         qualityGradeRows,
         qualityIssueCodeRows,
@@ -465,6 +469,11 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         tx.select().from(products).where(eq(products.workspaceId, workspaceId)),
         tx.select().from(customerOrders).where(eq(customerOrders.workspaceId, workspaceId)),
         tx.select().from(customerOrderLines).where(eq(customerOrderLines.workspaceId, workspaceId)),
+        tx.select().from(supplyCommitments).where(eq(supplyCommitments.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(supplyCommitmentLines)
+          .where(eq(supplyCommitmentLines.workspaceId, workspaceId)),
         tx.select().from(priceRules).where(eq(priceRules.workspaceId, workspaceId)),
         tx.select().from(qualityGrades).where(eq(qualityGrades.workspaceId, workspaceId)),
         tx.select().from(qualityIssueCodes).where(eq(qualityIssueCodes.workspaceId, workspaceId)),
@@ -614,6 +623,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         products: list(productRows),
         customerOrders: list(customerOrderRows),
         customerOrderLines: list(customerOrderLineRows),
+        supplyCommitments: list(supplyCommitmentRows),
+        supplyCommitmentLines: list(supplyCommitmentLineRows),
         priceRules: list(priceRuleRows),
         qualityGrades: list(qualityGradeRows),
         qualityIssueCodes: list(qualityIssueCodeRows),

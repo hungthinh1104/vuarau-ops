@@ -27,6 +27,7 @@ import type {
   PaymentState,
   ProductState,
   QualityGradeState,
+  SupplierState,
   InventoryMovementState,
   DeliveryState,
 } from "@vuarau/domain-kernel";
@@ -106,6 +107,10 @@ export class InMemoryDatabase {
     this.store.qualityGrades.set(key(grade.workspaceId, grade.id), grade);
   }
 
+  seedSupplier(supplier: SupplierState): void {
+    this.store.suppliers.set(key(supplier.workspaceId, supplier.id), supplier);
+  }
+
   seedSale(sale: SaleState): void {
     this.store.sales.set(key(sale.workspaceId, sale.id), sale);
   }
@@ -126,6 +131,10 @@ export class InMemoryDatabase {
 
   accountEntries(): readonly CustomerAccountEntryDto[] {
     return this.store.accountEntries;
+  }
+
+  supplierAccountEntries() {
+    return this.store.supplierAccountEntries;
   }
 
   entriesFor(workspaceId: WorkspaceId, customerId: string): readonly CustomerAccountEntryDto[] {

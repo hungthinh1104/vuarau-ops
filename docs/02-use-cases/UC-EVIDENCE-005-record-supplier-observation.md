@@ -30,7 +30,7 @@ separate canonical command.
 
 ## Recovery
 
-Backup V15 exports and restores supplier observations after validating workspace,
+Backup V17 exports and restores supplier observations after validating workspace,
 supplier, product, grade and correction references. Restore preserves the raw
 facts and does not rebuild a derived supplier result.
 

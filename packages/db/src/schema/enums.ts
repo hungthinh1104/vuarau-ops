@@ -125,6 +125,11 @@ export const customerOrderChannelEnum = pgEnum("customer_order_channel", [
   "contract_customer",
   "internal_transfer",
 ]);
+export const supplyCommitmentStatusEnum = pgEnum("supply_commitment_status", [
+  "draft",
+  "confirmed",
+  "cancelled",
+]);
 export const inventoryMovementSourceTypeEnum = pgEnum(
   "inventory_movement_source_type",
   inventoryMovementSourceTypeSchema.options as [

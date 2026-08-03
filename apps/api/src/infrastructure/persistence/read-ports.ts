@@ -22,7 +22,7 @@ import type {
   SaleId,
   SaleStatus,
   WorkspaceId,
-  WorkspaceBackupV16,
+  WorkspaceBackupV17,
   WorkspaceIntegrityDto,
   SupplierAccountBalanceDto,
   SupplierAccountEntryDto,
@@ -90,6 +90,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import type { PriceRuleState, SaleState } from "@vuarau/domain-kernel";
 import type { CustomerOrderReadRepository } from "./customer-order-read-ports.ts";
+import type { SupplyCommitmentReadRepository } from "./supply-commitment-read-ports.ts";
 import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
 
 /**
@@ -576,7 +577,7 @@ export type IntakeReadRepository = {
 
 export type OperationsReadRepository = {
   integrity(workspaceId: WorkspaceId): Promise<WorkspaceIntegrityDto>;
-  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV16["payload"] | null>;
+  backupPayload(workspaceId: WorkspaceId): Promise<WorkspaceBackupV17["payload"] | null>;
 };
 
 export type CostObservationReadRepository = {
@@ -666,6 +667,7 @@ export type ReadRepositories = {
   readonly supplierAccountReads: SupplierAccountReadRepository;
   readonly purchaseReads: PurchaseReadRepository;
   readonly customerOrderReads: CustomerOrderReadRepository;
+  readonly supplyCommitmentReads: SupplyCommitmentReadRepository;
   readonly inventoryReads: InventoryReadRepository;
   readonly deliveryReads: DeliveryReadRepository;
   readonly documentReads: DocumentReadRepository;

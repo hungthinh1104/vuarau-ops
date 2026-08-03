@@ -51,6 +51,7 @@ import type {
   DeliveryState,
   DeliveryReturnState,
   CustomerOrderState,
+  SupplyCommitmentState,
 } from "@vuarau/domain-kernel";
 
 export type Store = {
@@ -83,6 +84,7 @@ export type Store = {
   >;
   purchases: Map<string, PurchaseState>;
   customerOrders: Map<string, CustomerOrderState>;
+  supplyCommitments: Map<string, SupplyCommitmentState>;
   purchaseVoids: PurchaseVoidState[];
   purchaseReceipts: Map<string, PurchaseReceiptState>;
   inventoryMovements: InventoryMovementState[];
@@ -174,6 +176,7 @@ export function emptyStore(): Store {
     supplierAccountBalances: new Map(),
     purchases: new Map(),
     customerOrders: new Map(),
+    supplyCommitments: new Map(),
     purchaseVoids: [],
     purchaseReceipts: new Map(),
     inventoryMovements: [],

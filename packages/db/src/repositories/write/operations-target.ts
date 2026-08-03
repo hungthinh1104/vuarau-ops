@@ -159,3 +159,9 @@ export async function targetContainsBusinessData(
   }
   return false;
 }
+
+export function countBackupRows(payload: Record<string, unknown>): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(payload).map(([name, rows]) => [name, Array.isArray(rows) ? rows.length : 1]),
+  );
+}

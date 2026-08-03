@@ -7,6 +7,9 @@ import type {
   CustomerOrderId,
   CustomerOrderLineId,
   CustomerOrderStatus,
+  SupplyCommitmentId,
+  SupplyCommitmentLineId,
+  SupplyCommitmentStatus,
   IsoInstant,
   Money,
   SaleId,
@@ -236,6 +239,40 @@ export type CustomerOrderState = {
   readonly cancelledAt: IsoInstant | null;
   readonly cancellationReason: string | null;
   readonly replacesCustomerOrderId: CustomerOrderId | null;
+};
+
+export type SupplyCommitmentLineState = {
+  readonly lineId: SupplyCommitmentLineId;
+  readonly productId: ProductId | null;
+  readonly qualityGradeId: QualityGradeId | null;
+  readonly productName: string;
+  readonly quantity: Quantity;
+  readonly agreedUnitPrice: Money | null;
+  readonly lineTotal: Money | null;
+};
+
+export type SupplyCommitmentState = {
+  readonly id: SupplyCommitmentId;
+  readonly workspaceId: WorkspaceId;
+  readonly supplierId: SupplierId;
+  readonly status: SupplyCommitmentStatus;
+  readonly currency: CurrencyCode;
+  readonly lines: readonly SupplyCommitmentLineState[];
+  readonly totalAmount: Money | null;
+  readonly expectedArrivalAt: IsoInstant | null;
+  readonly paymentTermsSnapshot: {
+    readonly label: string;
+    readonly dueAt: IsoInstant | null;
+  } | null;
+  readonly note: string | null;
+  readonly evidenceReferences: readonly string[];
+  readonly version: number;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+  readonly confirmedAt: IsoInstant | null;
+  readonly cancelledAt: IsoInstant | null;
+  readonly cancellationReason: string | null;
+  readonly replacesSupplyCommitmentId: SupplyCommitmentId | null;
 };
 
 export type PurchaseReceiptLineState = {

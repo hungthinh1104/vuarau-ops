@@ -29,7 +29,7 @@ operating hour, shift, channel, valuation method or commercial outcome.
 Policy reads require `policy.read`; mutations require `policy.manage`. Commands
 use the common actor, workspace, idempotency and audit pipeline. PostgreSQL and
 in-memory repositories enforce the same workspace/version/state constraints.
-Backup V15 includes policy rows, raw supply commitments, supplier observations and demand observations; V1–V14 remain restore-compatible with empty
+Backup V17 includes policy rows, commercial supply commitments, raw supply commitments, supplier observations and demand observations; V1–V16 remain restore-compatible with empty
 policy collection.
 
 ## Deliberate boundary

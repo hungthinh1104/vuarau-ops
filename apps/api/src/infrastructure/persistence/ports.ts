@@ -16,7 +16,7 @@ import type {
   WorkspaceId,
   WorkspaceRole,
   WorkspaceOperationalProfileDto,
-  WorkspaceBackupV16,
+  WorkspaceBackupV17,
   DeliveryId,
   DocumentDto,
   DocumentShareId,
@@ -69,6 +69,7 @@ import type {
   CashMovementDraft,
 } from "@vuarau/domain-kernel";
 import type { CustomerOrderRepository } from "./customer-order-ports.ts";
+import type { SupplyCommitmentRepository } from "./supply-commitment-ports.ts";
 import type { ReadRepositories } from "./read-ports.ts";
 import type { PriceRuleRepository } from "./pricing-ports.ts";
 import type {
@@ -82,7 +83,6 @@ import type {
 import type { WorkspacePolicyRepository } from "./policy-ports.ts";
 
 /** Every method takes `workspaceId` as a required argument (BR-CUSTOMER-002). */
-
 export type WorkspaceMembership = {
   readonly workspaceId: WorkspaceId;
   readonly actorId: ActorId;
@@ -530,7 +530,7 @@ export type QualityDispositionRepository = {
 export type OperationsRepository = {
   restoreBackup(
     workspaceId: WorkspaceId,
-    payload: WorkspaceBackupV16["payload"],
+    payload: WorkspaceBackupV17["payload"],
   ): Promise<
     | { readonly kind: "restored"; readonly counts: Readonly<Record<string, number>> }
     | {
@@ -665,6 +665,7 @@ export type Repositories = ReadRepositories & {
   readonly supplierAccountBalances: SupplierAccountBalanceRepository;
   readonly purchases: PurchaseRepository;
   readonly customerOrders: CustomerOrderRepository;
+  readonly supplyCommitments: SupplyCommitmentRepository;
   readonly purchaseReceipts: ReceiptRepository;
   readonly inventoryMovements: InventoryMovementRepository;
   readonly inventoryBalances: InventoryBalanceRepository;
@@ -695,5 +696,4 @@ export type Repositories = ReadRepositories & {
   readonly audit: AuditRepository;
   readonly receipts: CommandReceiptRepository;
 };
-/** One atomic transaction per command (BR-COMMAND-005). */
 export type UnitOfWork = { transaction<T>(work: (repos: Repositories) => Promise<T>): Promise<T> };

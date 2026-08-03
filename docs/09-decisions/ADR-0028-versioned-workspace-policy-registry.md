@@ -25,8 +25,8 @@ draft → approved → retired
 ```
 
 Only an approved version inside its effective window is reported as available.
-Missing, future, expired or retired policy is unavailable. V1–V11 backups restore
-with no policy rows; Backup V15 carries the registry, raw supply commitments,
+Missing, future, expired or retired policy is unavailable. V1–V16 backups restore
+with no policy rows; Backup V17 carries the registry, commercial supply commitments,
 supplier observations and customer demand observations.
 
 The registry is not a generic rule engine. Definitions are stored in a typed
