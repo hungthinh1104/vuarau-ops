@@ -1137,6 +1137,21 @@ use_cases:
       - apps/web/src/ui/controllers/reports-controller.tsx
       - apps/web/src/ui/screens/reports-view.tsx
 
+  UC-REPORT-002:
+    title: Review a policy-backed management operational snapshot
+    risk: P1
+    doc: docs/02-use-cases/depot-operations-use-cases.md
+    rules: [BR-REPORT-001, BR-REPORT-005, BR-REPORT-006]
+    cases: []
+    tests: [TC-REPORT-004]
+    implementation:
+      - packages/domain-contracts/src/management/index.ts
+      - packages/domain-kernel/src/management-intelligence/index.ts
+      - apps/api/src/modules/report/management-intelligence.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/report.ts
+      - apps/web/src/ui/controllers/reports-controller.tsx
+      - apps/web/src/ui/screens/reports-view.tsx
+
   UC-OPERATIONS-001:
     title: Run and observe service under trusted configuration
     risk: P0
@@ -2916,6 +2931,16 @@ business_rules:
       - packages/domain-contracts/src/report/index.ts
       - apps/api/src/modules/report/report.queries.ts
       - apps/web/src/ui/screens/reports-view.tsx
+  BR-REPORT-006:
+    title: Management intelligence is a policy-backed source report snapshot
+    risk: P1
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-REPORT-004]
+    implementation:
+      - packages/domain-contracts/src/management/index.ts
+      - packages/domain-kernel/src/management-intelligence/index.ts
+      - apps/api/src/modules/report/management-intelligence.queries.ts
+      - apps/web/src/ui/screens/reports-view.tsx
 
   BR-CASH-001:
     title: CashAccount is versioned lifecycle data with explicit custody
@@ -4003,6 +4028,9 @@ contract_tests:
   TC-REPORT-003:
     title: Reports Web Admin renders metric gates and next evidence without numeric fallbacks
     file: apps/web/src/ui/screens/reports-view.test.tsx
+  TC-REPORT-004:
+    title: Management intelligence preserves policy lineage and fails closed on source integrity
+    file: apps/api/src/infrastructure/persistence/drizzle/management-intelligence.db.test.ts
   TC-E2E-030:
     title: Browser API and PostgreSQL prove partial delivery completion and explicit return
     file: apps/web/e2e/depot-operations.spec.ts

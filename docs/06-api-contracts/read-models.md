@@ -27,7 +27,7 @@ current procedure catalog without duplicating every DTO field.
 | `inventory`        | `balances`, `getAdjustment`, `timeline`, `valuation`, `planning`, `stocktakeGet`, `reconciliation`, `evidence`                                                                                                                                                                                                                             |
 | `delivery`         | `get`, `list`, `fulfilment`                                                                                                                                                                                                                                                                                                                |
 | `document`         | `get`, `listForSource`                                                                                                                                                                                                                                                                                                                     |
-| `report`           | `definitions`, `metrics`, `operational`, `csv`                                                                                                                                                                                                                                                                                             |
+| `report`           | `definitions`, `metrics`, `intelligence`, `operational`, `csv`                                                                                                                                                                                                                                                                               |
 | `operations`       | `integrity`, `validateBackup`, `getClose`, `listCloses`                                                                                                                                                                                                                                                                                    |
 | `cash`             | `searchAccounts`, `getAccount`, `timeline`, `getExpense`, `getTransfer`, `reconciliation`, `statementMatches`, `getStatementMatch`                                                                                                                                                                                                         |
 | `intake`           | `searchIssueCodes`, `getArrival`, `listArrivals`, `getInspection`, `getDisposition`, `dispositionSourceSummary`, `arrivalLineHistory`                                                                                                                                                                                                      |
@@ -132,6 +132,12 @@ business time, scope, freshness, integrity behavior, drill-down and action are
 all present. Web Reports renders the same catalog as a read-only evidence panel;
 a catalog read failure is surfaced as a read failure, not as an empty or numeric
 metric state.
+
+`report.intelligence` is a read-only operational snapshot selected by an effective
+approved `management_intelligence` policy. It copies totals from the selected
+operational reports and returns the policy version, strategy and source report
+types. It fails closed when policy or source integrity is unavailable and makes no
+COGS, profit, forecast, score, recommendation or new ledger/inventory/cash claim.
 
 Inventory report rows preserve Product/QualityGrade/unit identity. An aggregate
 across grades, when shown for information, must be labelled as an aggregate rather

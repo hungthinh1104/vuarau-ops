@@ -72,6 +72,13 @@ not real-worker adoption.
   not be rendered as zero, estimated truth or a recommendation. A future metric
   becomes available only after its formula, canonical sources, time semantics,
   integrity behavior, drill-down and action are defined and verified.
+- **BR-REPORT-006** — `report.intelligence` is a policy-backed, read-only
+  operational snapshot. It may copy totals only from the report types selected
+  by an effective approved `management_intelligence` policy and must preserve
+  policy lineage and source report types. Missing policy, missing source or source
+  integrity attention fails closed with no indicators. This contract does not
+  define COGS, profit, forecast, score, recommendation or a new financial/goods
+  effect.
 
 ## Source-linked cost observations
 

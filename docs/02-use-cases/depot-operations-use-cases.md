@@ -132,3 +132,16 @@ receivables, supplier payables, grade-aware inventory/movements or outstanding D
   next evidence, and it never supplies zero or inferred values.
 - **CSV:** representation of the same server read, not a separate calculation.
 - **Rules/tests:** BR-REPORT-001…005, BR-OPS-005/007 · TC-REPORT-001/002/003 · TC-E2E-030.
+
+## UC-REPORT-002 — Review a policy-backed management operational snapshot
+
+**Actor:** authorized report reader. **Trigger:** review a selected set of
+operational report totals under an approved `management_intelligence` policy.
+
+- **Truth:** `report.intelligence` copies totals from the selected `report.operational`
+  sources and returns policy version, strategy and source report types. It does not
+  calculate COGS, profit, forecast, score or recommendation.
+- **Integrity:** no effective policy, missing source report or source integrity
+  attention returns `unavailable` with diagnostics and no indicators.
+- **Effect:** read-only; no ledger, inventory, cash or policy mutation occurs.
+- **Rules/tests:** BR-REPORT-001/005/006 · TC-REPORT-004 · TC-E2E-030.
