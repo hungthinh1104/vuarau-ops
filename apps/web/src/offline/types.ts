@@ -39,6 +39,7 @@ export type OfflineSaleDraft = {
   readonly workspaceId: string;
   readonly lines: readonly unknown[];
   readonly note: string | null;
+  readonly evidenceReferences: readonly string[];
   readonly occurredAt: string;
   readonly syncState: "local" | OfflineCommandState;
   readonly updatedAt: string;

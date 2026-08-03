@@ -41,12 +41,14 @@ describe("DeliveryReturnPanel", () => {
     await user.type(screen.getByLabelText("Số lượng trả Cà chua"), "3");
     expect(submit).toBeDisabled();
     await user.type(screen.getByLabelText("Lý do"), "Khách trả lại hàng dập");
+    await user.type(screen.getByLabelText("Nguồn chứng cứ vận hành"), "photo://return/001");
     await user.click(submit);
     expect(onSubmit).toHaveBeenCalledWith({
       lines: [
         { deliveryLineId: lines[0]!.deliveryLineId, quantity: { valueScaled: 3000, unit: "kg" } },
       ],
       reason: "Khách trả lại hàng dập",
+      evidenceReferences: ["photo://return/001"],
     });
   });
 

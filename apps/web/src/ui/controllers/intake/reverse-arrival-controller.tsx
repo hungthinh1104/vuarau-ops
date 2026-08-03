@@ -41,6 +41,7 @@ export function ReverseArrivalController({
           reversalId: reversalId.current,
           arrivalId: arrival.id,
           reason: reason.trim(),
+          evidenceReferences: [],
         })
       }
       feedback={

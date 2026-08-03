@@ -19,9 +19,11 @@ export function NewDeliveryView(props: {
   readonly fulfilment: SaleFulfilmentDto | undefined;
   readonly quantities: Readonly<Record<string, string>>;
   readonly note: string;
+  readonly evidence: string;
   readonly command: CommandOutcomeView;
   readonly onQuantityChange: (saleLineId: string, value: string) => void;
   readonly onNoteChange: (value: string) => void;
+  readonly onEvidenceChange: (value: string) => void;
   readonly onSubmit: () => void;
   readonly onReload: () => void;
 }) {
@@ -99,6 +101,17 @@ export function NewDeliveryView(props: {
           <TextareaControl
             value={props.note}
             onChange={(event) => props.onNoteChange(event.target.value)}
+          />
+        </label>
+        <label className="mt-3 grid gap-2">
+          <span>Nguồn chứng cứ vận hành</span>
+          <span className="text-caption text-ink-muted">
+            Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo chuyển động
+            kho.
+          </span>
+          <TextareaControl
+            value={props.evidence}
+            onChange={(event) => props.onEvidenceChange(event.target.value)}
           />
         </label>
       </section>

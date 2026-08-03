@@ -26,6 +26,7 @@ export function PaymentCreateController() {
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [payerName, setPayerName] = useState("");
   const [note, setNote] = useState("");
+  const [evidence, setEvidence] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const record = useMutation(trpc.payment.record.mutationOptions());
   const command = useContractCommand(recordCustomerPaymentCommandSchema, record.mutateAsync);
@@ -60,11 +61,13 @@ export function PaymentCreateController() {
       method={method}
       payerName={payerName}
       note={note}
+      evidence={evidence}
       command={command}
       onAmount={setAmountText}
       onMethod={setMethod}
       onPayerName={setPayerName}
       onNote={setNote}
+      onEvidence={setEvidence}
       onSubmit={() => {
         setSubmitted(true);
         if (amount === null || amount.amountMinor <= 0) return;
@@ -75,10 +78,18 @@ export function PaymentCreateController() {
           method,
           payerName: payerName.trim().length === 0 ? null : payerName.trim(),
           note: note.trim().length === 0 ? null : note.trim(),
+          evidenceReferences: parseEvidenceReferences(evidence),
         });
       }}
       onRetry={() => void customer.refetch()}
       onCancel={() => router.push(`/customers/${customerId}`)}
     />
   );
+}
+
+function parseEvidenceReferences(value: string): string[] {
+  return value
+    .split(/[\n,]/)
+    .map((reference) => reference.trim())
+    .filter((reference) => reference.length > 0);
 }

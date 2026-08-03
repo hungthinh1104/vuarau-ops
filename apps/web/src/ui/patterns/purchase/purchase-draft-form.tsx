@@ -10,7 +10,7 @@ import type {
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
-import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export function PurchaseDraftForm(props: {
@@ -24,6 +24,7 @@ export function PurchaseDraftForm(props: {
   readonly products: readonly PurchaseProductOption[];
   readonly productsLoading?: boolean;
   readonly note: string;
+  readonly evidence: string;
   readonly valid: boolean;
   readonly submitLabel: string;
   readonly submitting: boolean;
@@ -37,6 +38,7 @@ export function PurchaseDraftForm(props: {
   readonly onAddLine: () => void;
   readonly onRemoveLine: (lineId: PurchaseDraftLine["lineId"]) => void;
   readonly onNoteChange: (note: string) => void;
+  readonly onEvidenceChange: (evidence: string) => void;
   readonly onSubmit: () => void;
 }) {
   return (
@@ -122,13 +124,18 @@ export function PurchaseDraftForm(props: {
       <Button tone="secondary" disabled={props.addLineDisabled} onClick={props.onAddLine}>
         Thêm dòng
       </Button>
-      <label className="text-label">
-        Ghi chú
-        <TextareaControl
-          value={props.note}
-          onChange={(event) => props.onNoteChange(event.target.value)}
-        />
-      </label>
+      <Textarea
+        label="Ghi chú"
+        value={props.note}
+        onChange={(event) => props.onNoteChange(event.target.value)}
+      />
+      <Textarea
+        label="Nguồn chứng cứ vận hành (mỗi dòng một tham chiếu)"
+        hint="Chỉ lưu liên kết nguồn; không tự tạo hiệu ứng tiền, công nợ hoặc tồn kho."
+        rows={3}
+        value={props.evidence}
+        onChange={(event) => props.onEvidenceChange(event.target.value)}
+      />
       <Button disabled={!props.valid || props.submitting} onClick={props.onSubmit}>
         {props.submitLabel}
       </Button>

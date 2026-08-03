@@ -20,6 +20,7 @@ export function PurchaseEditView(props: {
   readonly productsLoading: boolean;
   readonly lines: readonly PurchaseDraftLine[];
   readonly note: string;
+  readonly evidence: string;
   readonly valid: boolean;
   readonly command: CommandOutcomeView;
   readonly onLineChange: (
@@ -29,6 +30,7 @@ export function PurchaseEditView(props: {
   readonly onAddLine: () => void;
   readonly onRemoveLine: (lineId: PurchaseDraftLine["lineId"]) => void;
   readonly onNoteChange: (note: string) => void;
+  readonly onEvidenceChange: (evidence: string) => void;
   readonly onSubmit: () => void;
   readonly onReload: () => void;
 }) {
@@ -43,6 +45,7 @@ export function PurchaseEditView(props: {
       products={props.products}
       productsLoading={props.productsLoading}
       note={props.note}
+      evidence={props.evidence}
       valid={props.valid}
       submitting={props.command.phase.kind === "sending"}
       submitLabel="Lưu thay đổi"
@@ -51,6 +54,7 @@ export function PurchaseEditView(props: {
       onAddLine={props.onAddLine}
       onRemoveLine={props.onRemoveLine}
       onNoteChange={props.onNoteChange}
+      onEvidenceChange={props.onEvidenceChange}
       onSubmit={props.onSubmit}
       feedback={
         <CommandOutcome

@@ -31,11 +31,13 @@ export type PaymentCreateViewProps = {
   readonly method: PaymentMethod;
   readonly payerName: string;
   readonly note: string;
+  readonly evidence: string;
   readonly command: CommandOutcomeView;
   readonly onAmount: (value: string) => void;
   readonly onMethod: (value: PaymentMethod) => void;
   readonly onPayerName: (value: string) => void;
   readonly onNote: (value: string) => void;
+  readonly onEvidence: (value: string) => void;
   readonly onSubmit: () => void;
   readonly onRetry: () => void;
   readonly onCancel: () => void;
@@ -114,6 +116,13 @@ export function PaymentCreateView(props: PaymentCreateViewProps) {
               label="Ghi chú"
               value={props.note}
               onChange={(event) => props.onNote(event.target.value)}
+              rows={2}
+            />
+            <Textarea
+              label="Bằng chứng nguồn"
+              hint="Mỗi dòng một tham chiếu: phiếu, ảnh, biên lai hoặc kho bằng chứng được duyệt."
+              value={props.evidence}
+              onChange={(event) => props.onEvidence(event.target.value)}
               rows={2}
             />
             <CommandOutcome

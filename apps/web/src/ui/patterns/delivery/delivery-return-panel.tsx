@@ -3,6 +3,7 @@
 import type { DeliveryDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import { formatQuantity } from "@/ui/format.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
@@ -14,6 +15,7 @@ export type DeliveryReturnIntent = {
     readonly quantity: DeliveryDto["lines"][number]["quantity"];
   }[];
   readonly reason: string;
+  readonly evidenceReferences: readonly string[];
 };
 
 export type DeliveryReturnPanelProps = {
@@ -35,6 +37,7 @@ export function DeliveryReturnPanel({
 }: DeliveryReturnPanelProps) {
   const [reason, setReason] = useState("");
   const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [evidence, setEvidence] = useState("");
 
   const parsedLines = lines.flatMap((line) => {
     const valueScaled = Math.round(Number(quantities[line.deliveryLineId] ?? "0") * 1000);
@@ -52,6 +55,7 @@ export function DeliveryReturnPanel({
   function reset(): void {
     setReason("");
     setQuantities({});
+    setEvidence("");
     onStartAnother();
   }
 
@@ -97,6 +101,18 @@ export function DeliveryReturnPanel({
           onChange={(event) => setReason(event.target.value)}
         />
       </label>
+      <label className="grid gap-2 py-2">
+        <span className="text-label">Nguồn chứng cứ vận hành</span>
+        <span className="text-caption text-ink-muted">
+          Mỗi dòng một tham chiếu; chỉ lưu nguồn đối chiếu, không tự suy ra hoàn tiền hay giảm nợ.
+        </span>
+        <TextareaControl
+          disabled={completed || locked}
+          aria-label="Nguồn chứng cứ vận hành"
+          value={evidence}
+          onChange={(event) => setEvidence(event.target.value)}
+        />
+      </label>
       {completed ? (
         <Button tone="secondary" onClick={reset}>
           Ghi lần trả khác
@@ -106,7 +122,11 @@ export function DeliveryReturnPanel({
           disabled={!valid || locked}
           onClick={() => {
             if (!valid) return;
-            onSubmit({ lines: parsedLines, reason: reason.trim() });
+            onSubmit({
+              lines: parsedLines,
+              reason: reason.trim(),
+              evidenceReferences: parseSourceEvidence(evidence),
+            });
           }}
         >
           Ghi hàng trả

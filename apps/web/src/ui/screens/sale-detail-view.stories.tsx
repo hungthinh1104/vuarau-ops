@@ -112,6 +112,7 @@ const delivery: DeliveryDto = {
   dispatchedAt: LATER_TRANSACTION_TIME,
   deliveredAt: null,
   returns: [],
+  evidenceReferences: [],
 };
 
 const correction = (

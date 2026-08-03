@@ -7,6 +7,7 @@ import { formatInstant, formatRecordedGap } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PaymentStatus } from "@/ui/patterns/payment/payment-status.tsx";
+import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export function PaymentDetailView({
@@ -70,6 +71,7 @@ export function PaymentDetailView({
                   {formatRecordedGap(recorded.transactionTime, recorded.recordedAt)}
                 </p>
               ) : null}
+              <SourceEvidenceList references={recorded.evidenceReferences} className="mt-3" />
             </section>
             {balance}
             {canReverse ? reversal : null}

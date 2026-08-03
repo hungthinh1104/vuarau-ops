@@ -42,6 +42,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
   } = useQuickSaleFormInteractions(model);
   const {
     activeLine,
+    activeLineId,
     addLine,
     cacheFetchedAt,
     cachedCatalogFetchedAt,
@@ -53,6 +54,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     draft,
     draftCommand,
     editLines,
+    evidence,
     lines,
     locallyQueued,
     fulfilmentReady,
@@ -64,6 +66,8 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     pendingCustomerCreate,
     postCommand,
     productCreateCommand,
+    priceResolution,
+    applyResolvedPrice,
     productSearchLoading,
     noProductMatch,
     qualityGrades,
@@ -78,6 +82,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     setActiveLineId,
     setPickerProductQuery,
     setDirty,
+    setEvidence,
     setNote,
     submitted,
     total,
@@ -179,6 +184,9 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               serverLineIndex={serverLineIndex}
               disabled={locallyQueued}
               qualityGradeOptions={qualityGradeOptions}
+              activeLineId={activeLineId}
+              priceResolution={priceResolution}
+              onApplyPriceRule={applyResolvedPrice}
               onFocusLine={setActiveLineId}
               onOpenProductPicker={openProductPicker}
               onChangeLine={changeLine}
@@ -241,6 +249,17 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   setDirty(true);
                 }}
               />
+              <Textarea
+                label="Nguồn chứng cứ vận hành (mỗi dòng một tham chiếu)"
+                hint="Ví dụ: order://..., photo://..., note://... — chỉ lưu liên kết nguồn, không tự tạo hiệu ứng tiền/hàng."
+                rows={3}
+                disabled={locallyQueued}
+                value={evidence}
+                onChange={(event) => {
+                  setEvidence(event.target.value);
+                  setDirty(true);
+                }}
+              />
               <Button
                 tone="secondary"
                 className="self-start sm:hidden"
@@ -299,7 +318,15 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                     editLines((current) =>
                       current.map((line) =>
                         line.lineId === activeLine.lineId
-                          ? { ...line, productId: productId ?? null, productName, unit }
+                          ? {
+                              ...line,
+                              productId: productId ?? null,
+                              productName,
+                              unit,
+                              ...(line.priceOrigin?.kind === "rule"
+                                ? { unitPriceText: "", priceOrigin: null }
+                                : {}),
+                            }
                           : line,
                       ),
                     );

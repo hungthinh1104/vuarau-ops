@@ -15,6 +15,7 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import type { PurchaseDraftLine } from "@/ui/domain/purchase-form.ts";
+import { formatSourceEvidence, parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import {
   PurchaseEditPermissionView,
@@ -95,6 +96,7 @@ function PurchaseEditForm(props: {
     })),
   );
   const [note, setNote] = useState(props.purchase.note ?? "");
+  const [evidence, setEvidence] = useState(formatSourceEvidence(props.purchase.evidenceReferences));
   useEffect(() => {
     if (update.result !== null) router.replace(`/purchases/${update.result.id}`);
   }, [router, update.result]);
@@ -123,6 +125,7 @@ function PurchaseEditForm(props: {
       productsLoading={props.productsLoading}
       lines={lines}
       note={note}
+      evidence={evidence}
       valid={valid}
       command={update}
       onLineChange={(lineId, patch) =>
@@ -135,6 +138,7 @@ function PurchaseEditForm(props: {
         setLines((current) => current.filter((line) => line.lineId !== lineId))
       }
       onNoteChange={setNote}
+      onEvidenceChange={setEvidence}
       onSubmit={() =>
         void update.submit(
           {
@@ -143,6 +147,7 @@ function PurchaseEditForm(props: {
             currency: props.purchase.currency,
             lines: payloadLines,
             note: note.trim() || null,
+            evidenceReferences: parseSourceEvidence(evidence),
             dueAt: props.purchase.dueAt,
             replacesPurchaseId: props.purchase.replacesPurchaseId,
           },

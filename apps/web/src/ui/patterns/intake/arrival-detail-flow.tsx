@@ -7,6 +7,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { formatQuantity } from "@/ui/format.ts";
+import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 
 export type ArrivalLineState = {
@@ -44,6 +45,10 @@ export function ArrivalSummary({
       {arrival.note ? (
         <p className="text-body-sm text-ink-muted sm:col-span-3">{arrival.note}</p>
       ) : null}
+      <SourceEvidenceList
+        references={arrival.evidenceReferences}
+        className="sm:col-span-3 border-t border-border pt-2"
+      />
       {canReverse && arrival.reversal === null && reverseControl !== undefined ? (
         <div className="sm:col-span-3">{reverseControl}</div>
       ) : null}
@@ -131,6 +136,9 @@ function LineStateHeader({
           Gross {formatQuantity(line.weighing.grossWeight)} · tare{" "}
           {formatQuantity(line.weighing.tareWeight)} · net {formatQuantity(line.weighing.netWeight)}
         </p>
+      ) : null}
+      {line.note ? (
+        <p className="text-caption text-ink-muted">Ghi chú hàng đến: {line.note}</p>
       ) : null}
     </div>
   );

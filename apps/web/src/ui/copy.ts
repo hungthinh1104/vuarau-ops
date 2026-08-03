@@ -218,6 +218,30 @@ const REJECTION_COPY: Readonly<Record<DomainRejectionCode, string>> = {
   QUALITY_DISPOSITION_ALREADY_REVERSED: "Quyết định xử lý chất lượng đã được hoàn tác.",
   QUALITY_DISPOSITION_HAS_DOWNSTREAM_FACTS:
     "Lô cách ly đã được xử lý tiếp nên không thể hoàn tác quyết định trước.",
+  COST_OBSERVATION_CORRECTION_TARGET_REQUIRED:
+    "Bản ghi điều chỉnh phải chỉ rõ quan sát nguồn cần sửa.",
+  COST_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
+    "Không tìm thấy quan sát nguồn trong workspace này.",
+  COST_OBSERVATION_CORRECTION_LINK_INVALID:
+    "Chỉ quan sát điều chỉnh mới được liên kết với bản ghi trước.",
+  COST_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát chi phí hoặc hao hụt.",
+  COST_OBSERVATION_ALREADY_RECORDED: "Quan sát chi phí hoặc hao hụt đã được ghi nhận.",
+  RECONCILIATION_OBSERVATION_CORRECTION_TARGET_REQUIRED:
+    "Bản điều chỉnh đối soát phải chỉ rõ quan sát gốc.",
+  RECONCILIATION_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
+    "Không tìm thấy quan sát đối soát gốc trong workspace này.",
+  RECONCILIATION_OBSERVATION_CORRECTION_LINK_INVALID:
+    "Chỉ bản điều chỉnh mới được liên kết tới quan sát trước.",
+  RECONCILIATION_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát đối soát.",
+  RECONCILIATION_OBSERVATION_ALREADY_RECORDED: "Quan sát đối soát đã được ghi nhận.",
+  DEBT_OBSERVATION_CORRECTION_TARGET_REQUIRED:
+    "Bản điều chỉnh công nợ phải chỉ rõ quan sát cần điều chỉnh.",
+  DEBT_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
+    "Không tìm thấy quan sát công nợ cần điều chỉnh trong workspace này.",
+  DEBT_OBSERVATION_CORRECTION_LINK_INVALID:
+    "Chỉ bản quan sát điều chỉnh mới được liên kết quan sát trước đó.",
+  DEBT_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát điều khoản công nợ.",
+  DEBT_OBSERVATION_ALREADY_RECORDED: "Quan sát điều khoản công nợ đã được ghi nhận.",
   COMMAND_NOT_AVAILABLE: "Chức năng này chưa có.",
 };
 

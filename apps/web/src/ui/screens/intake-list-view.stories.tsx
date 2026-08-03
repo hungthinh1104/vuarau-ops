@@ -27,6 +27,7 @@ const arrival: GoodsArrivalDto = {
   recordedAt: RECORDED_AT,
   actorId: ACTOR_ID,
   commandId: testUuid("4", 21) as GoodsArrivalDto["commandId"],
+  evidenceReferences: [],
   reversal: null,
 };
 

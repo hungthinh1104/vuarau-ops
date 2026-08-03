@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
+import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { NewDeliveryPermissionView, NewDeliveryView } from "@/ui/screens/new-delivery-view.tsx";
 
@@ -28,6 +29,7 @@ export function NewDeliveryController() {
   const lineIds = useRef(new Map<string, DeliveryLineId>());
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
+  const [evidence, setEvidence] = useState("");
 
   useEffect(() => {
     if (command.result !== null) router.replace(`/deliveries/${command.result.id}`);
@@ -44,11 +46,13 @@ export function NewDeliveryController() {
           fulfilment={fulfilment.data}
           quantities={quantities}
           note={note}
+          evidence={evidence}
           command={command}
           onQuantityChange={(lineId, value) =>
             setQuantities((current) => ({ ...current, [lineId]: value }))
           }
           onNoteChange={setNote}
+          onEvidenceChange={setEvidence}
           onSubmit={() => {
             const lines = detail.sale.lines.flatMap((line) => {
               const summary = fulfilment.data?.lines.find(
@@ -88,7 +92,13 @@ export function NewDeliveryController() {
                 },
               ];
             });
-            void command.submit({ deliveryId, saleId, lines, note: note.trim() || null });
+            void command.submit({
+              deliveryId,
+              saleId,
+              lines,
+              note: note.trim() || null,
+              evidenceReferences: parseSourceEvidence(evidence),
+            });
           }}
           onReload={() => void sale.refetch()}
         />

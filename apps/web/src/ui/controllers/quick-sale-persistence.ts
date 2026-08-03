@@ -21,9 +21,11 @@ type QuickSalePersistenceProps = {
   readonly saleIdRef: MutableRefObject<SaleDto["id"]>;
   readonly lines: readonly SaleLineDraft[];
   readonly note: string;
+  readonly evidenceReferences: readonly string[];
   readonly locallyQueued: boolean;
   readonly setLines: Dispatch<SetStateAction<readonly SaleLineDraft[]>>;
   readonly setNote: Dispatch<SetStateAction<string>>;
+  readonly setEvidenceReferences: Dispatch<SetStateAction<string>>;
   readonly setLocallyQueued: Dispatch<SetStateAction<boolean>>;
   readonly offline: ReturnType<typeof useOffline>;
 };
@@ -46,6 +48,7 @@ export function useQuickSalePersistence(props: QuickSalePersistenceProps) {
       if (saved !== null) {
         props.setLines(saved.lines as readonly SaleLineDraft[]);
         props.setNote(saved.note ?? "");
+        props.setEvidenceReferences(saved.evidenceReferences.join("\n"));
         props.setLocallyQueued(saved.syncState !== "local");
       }
       setLocalHydrated(true);
@@ -59,6 +62,7 @@ export function useQuickSalePersistence(props: QuickSalePersistenceProps) {
     props.setLines,
     props.setLocallyQueued,
     props.setNote,
+    props.setEvidenceReferences,
   ]);
 
   useEffect(() => {
@@ -69,6 +73,7 @@ export function useQuickSalePersistence(props: QuickSalePersistenceProps) {
       ...props.offline.partition,
       lines: props.lines,
       note: props.note.trim().length === 0 ? null : props.note,
+      evidenceReferences: [...props.evidenceReferences],
       occurredAt: new Date().toISOString(),
       syncState: "local",
       updatedAt: new Date().toISOString(),
@@ -79,6 +84,7 @@ export function useQuickSalePersistence(props: QuickSalePersistenceProps) {
     props.lines,
     props.locallyQueued,
     props.note,
+    props.evidenceReferences,
     props.offline.partition,
     props.offline.saveDraft,
     props.saleIdRef,

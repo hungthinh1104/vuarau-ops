@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useCommand } from "@/api/use-command.ts";
+import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import {
   DispositionForm,
@@ -65,6 +66,7 @@ export function DispositionFormController({
   });
   const [gradeId, setGradeId] = useState("");
   const [note, setNote] = useState("");
+  const [evidence, setEvidence] = useState("");
 
   useEffect(() => {
     if (command.result === null) return;
@@ -72,6 +74,7 @@ export function DispositionFormController({
     setValues({ accepted: "", quarantined: "", rejected: "", disposed: "" });
     setGradeId("");
     setNote("");
+    setEvidence("");
     dispositionId.current = crypto.randomUUID() as QualityDispositionId;
     allocationIds.current.clear();
     command.reset();
@@ -117,18 +120,21 @@ export function DispositionFormController({
       values={values}
       gradeId={gradeId}
       note={note}
+      evidence={evidence}
       total={total}
       gradeMissing={gradeMissing}
       locked={locked}
       onValueChange={onValueChange}
       onGradeChange={setGradeId}
       onNoteChange={setNote}
+      onEvidenceChange={setEvidence}
       onSubmit={() =>
         void command.submit({
           dispositionId: dispositionId.current,
           source,
           allocations,
           note: note.trim() || null,
+          evidenceReferences: parseSourceEvidence(evidence),
         })
       }
       feedback={

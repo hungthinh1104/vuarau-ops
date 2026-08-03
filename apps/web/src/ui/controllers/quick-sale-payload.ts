@@ -7,6 +7,8 @@ export function buildQuickSalePayload(args: {
   readonly lines: readonly SaleLineDraft[];
   readonly resolved: readonly ResolvedLine[];
   readonly note: string;
+  /** Optional for callers restoring drafts created before source evidence existed. */
+  readonly evidenceReferences?: readonly string[];
   readonly replacesSaleId: string | null;
   readonly isNew: boolean;
 }) {
@@ -28,6 +30,7 @@ export function buildQuickSalePayload(args: {
       unitPrice: args.resolved[index]!.unitPrice,
     })),
     note: args.note.trim().length === 0 ? null : args.note.trim(),
+    evidenceReferences: [...(args.evidenceReferences ?? [])],
     dueAt: null,
     ...(args.isNew ? { replacesSaleId: args.replacesSaleId as SaleDto["id"] | null } : {}),
   };

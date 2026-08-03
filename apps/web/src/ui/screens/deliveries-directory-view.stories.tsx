@@ -35,6 +35,7 @@ const delivery: DeliveryDto = {
   dispatchedAt: RECORDED_AT,
   deliveredAt: null,
   returns: [],
+  evidenceReferences: [],
 };
 
 const page: Page<DeliveryDto> = { items: [delivery], nextCursor: null };

@@ -18,6 +18,7 @@ export const NAVIGATION_REGISTRY: readonly NavigationItem[] = [
   { label: "Đơn hàng", href: "/sales", activeMode: "section", permission: "sale.read" },
   { label: "Đơn mua", href: "/purchases", activeMode: "section", permission: "receiving.read" },
   { label: "Hàng đến", href: "/intake", activeMode: "section", permission: "intake.read" },
+  { label: "Bằng chứng", href: "/evidence", activeMode: "section", permission: "evidence.read" },
   { label: "Tồn kho", href: "/products", activeMode: "section", permission: "inventory.read" },
   { label: "Bảng giá", href: "/pricing", activeMode: "section", permission: "pricing.read" },
   {
@@ -66,6 +67,7 @@ const DESKTOP_STRUCTURE = [
       "/sales",
       "/purchases",
       "/intake",
+      "/evidence",
       "/products",
       "/pricing",
       "/quality-grades",

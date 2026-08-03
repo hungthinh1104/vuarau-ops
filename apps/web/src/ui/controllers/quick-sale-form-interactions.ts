@@ -87,8 +87,27 @@ export function useQuickSaleFormInteractions(model: QuickSaleFormModel) {
                   ? { ...existing, unit: incoming.unit }
                   : { ...existing, unitPriceText: incoming.unitPriceText };
         const recalled = existing.priceOrigin?.kind === "recalled";
-        const productChanged = existing.productName !== next.productName;
+        const appliedRule = existing.priceOrigin?.kind === "rule";
+        const productChanged =
+          existing.productName !== next.productName || existing.productId !== next.productId;
         const unitChanged = existing.unit !== next.unit;
+        const qualityGradeChanged = existing.qualityGradeId !== next.qualityGradeId;
+        const quantityChanged = existing.quantityText !== next.quantityText;
+        if (
+          appliedRule &&
+          (productChanged || unitChanged || qualityGradeChanged || quantityChanged)
+        ) {
+          model.setUnitNotice(
+            "Giá rule đã xoá vì điều kiện mặt hàng, phẩm cấp, đơn vị hoặc số lượng thay đổi.",
+          );
+          model.metrics.count("price_rule_cleared_after_context_change");
+          return {
+            ...next,
+            productId: productChanged ? null : (next.productId ?? null),
+            unitPriceText: "",
+            priceOrigin: null,
+          };
+        }
         if (recalled && (productChanged || unitChanged)) {
           model.setUnitNotice("Giá lần trước đã được xoá vì mặt hàng hoặc đơn vị thay đổi.");
           model.metrics.count("recalled_price_cleared_after_context_change");
@@ -98,6 +117,10 @@ export function useQuickSaleFormInteractions(model: QuickSaleFormModel) {
             unitPriceText: "",
             priceOrigin: null,
           };
+        }
+        if (existing.unitPriceText !== next.unitPriceText && appliedRule) {
+          model.metrics.count("price_rule_changed_after_apply");
+          return { ...next, priceOrigin: { kind: "manual" } };
         }
         if (existing.unitPriceText !== next.unitPriceText && recalled) {
           model.metrics.count("historical_price_changed_after_apply");

@@ -53,13 +53,14 @@ export function PaymentDetailController() {
           <>
             <PaymentReversalPanel
               remainingAmountMinor={payment.data.remainingReversibleAmount.amountMinor}
-              onSubmit={({ amountMinor, reason }) => {
+              onSubmit={({ amountMinor, reason, evidenceReferences }) => {
                 void reverseCommand.submit(
                   {
                     paymentId: payment.data!.id,
                     reversalId: crypto.randomUUID() as PaymentReversalId,
                     amount: { amountMinor, currency: payment.data!.amount.currency },
                     reason,
+                    evidenceReferences: [...evidenceReferences],
                   },
                   { expectedVersion: payment.data!.version },
                 );

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { formatQuantity } from "@/ui/format.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type ReceivingCaptureIntentLine = {
   readonly purchaseLineId: PurchaseDto["lines"][number]["lineId"];
@@ -22,9 +23,11 @@ export type ReceivingCapturePanelProps = {
   readonly grades: readonly QualityGradeDto[];
   readonly gradesLoading: boolean;
   readonly quantities: Readonly<Record<string, string>>;
+  readonly evidence?: string;
   readonly locked: boolean;
   readonly feedback?: ReactNode;
   readonly onQuantityChange: (key: string, value: string) => void;
+  readonly onEvidenceChange?: (value: string) => void;
   readonly onSubmit: (lines: readonly ReceivingCaptureIntentLine[]) => void;
 };
 
@@ -33,9 +36,11 @@ export function ReceivingCapturePanel({
   grades,
   gradesLoading,
   quantities,
+  evidence = "",
   locked,
   feedback,
   onQuantityChange,
+  onEvidenceChange = () => undefined,
   onSubmit,
 }: ReceivingCapturePanelProps) {
   const lines = purchase.lines.flatMap((line) =>
@@ -94,6 +99,15 @@ export function ReceivingCapturePanel({
           </fieldset>
         ))}
       </div>
+
+      <Textarea
+        className="mt-4"
+        label="Nguồn chứng cứ vận hành"
+        value={evidence}
+        disabled={locked}
+        onChange={(event) => onEvidenceChange(event.target.value)}
+        hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."
+      />
 
       {gradesLoading ? (
         <p className="mt-3 text-body-sm text-ink-muted">Đang tải phẩm cấp…</p>

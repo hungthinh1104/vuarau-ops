@@ -113,6 +113,7 @@ export function SaleDetailController() {
       saleId,
       reasonCode: next.reasonCode,
       reason: next.reason,
+      evidenceReferences: [...next.evidenceReferences],
     });
   }
 

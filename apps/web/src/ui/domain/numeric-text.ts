@@ -24,6 +24,9 @@ export function parseMoneyText(raw: string, currency: CurrencyCode): ParseResult
       ? { ok: false, reason: "Tiền đồng không có số lẻ. Ví dụ: 875.000" }
       : { ok: false, reason: `Tối đa ${exponent} chữ số thập phân.` };
   }
+  if (!Number.isSafeInteger(scaled)) {
+    return { ok: false, reason: "Số tiền quá lớn hoặc không còn chính xác." };
+  }
 
   return { ok: true, value: { amountMinor: scaled, currency } };
 }
@@ -37,6 +40,9 @@ export function parseQuantityText(raw: string, unit: Unit): ParseResult<Quantity
 
   const scaled = Number(text) * QUANTITY_SCALE;
   if (!Number.isInteger(scaled)) return { ok: false, reason: "Tối đa 3 chữ số sau dấu phẩy." };
+  if (!Number.isSafeInteger(scaled)) {
+    return { ok: false, reason: "Số lượng quá lớn hoặc không còn chính xác." };
+  }
 
   return { ok: true, value: { valueScaled: scaled, unit } };
 }

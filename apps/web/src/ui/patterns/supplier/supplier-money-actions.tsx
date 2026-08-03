@@ -17,6 +17,7 @@ export type SupplierMoneyActionsProps = {
   readonly canRecordPayment: boolean;
   readonly canAdjust: boolean;
   readonly paymentAmount: string;
+  readonly paymentEvidence: string;
   readonly adjustmentAmount: string;
   readonly direction: SupplierPaymentDirection;
   readonly reasonCode: SupplierAdjustmentReason;
@@ -24,6 +25,7 @@ export type SupplierMoneyActionsProps = {
   readonly payment: CommandOutcomeView;
   readonly adjustment: CommandOutcomeView;
   readonly onPaymentAmount: (value: string) => void;
+  readonly onPaymentEvidence: (value: string) => void;
   readonly onAdjustmentAmount: (value: string) => void;
   readonly onDirection: (value: SupplierPaymentDirection) => void;
   readonly onReasonCode: (value: SupplierAdjustmentReason) => void;
@@ -52,6 +54,13 @@ export function SupplierMoneyActions(props: SupplierMoneyActionsProps) {
               inputMode="numeric"
               value={props.paymentAmount}
               onChange={(event) => props.onPaymentAmount(event.target.value)}
+            />
+          </label>
+          <label className="text-label">
+            Bằng chứng nguồn
+            <TextareaControl
+              value={props.paymentEvidence}
+              onChange={(event) => props.onPaymentEvidence(event.target.value)}
             />
           </label>
           <Button

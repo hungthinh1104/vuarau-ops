@@ -22,6 +22,7 @@ const purchase: PurchaseDto = {
   ],
   totalAmount: { amountMinor: 420_000, currency: "VND" },
   note: "Giao chuyến sáng",
+  evidenceReferences: [],
   dueAt: null,
   version: 2,
   transactionTime: TRANSACTION_TIME,

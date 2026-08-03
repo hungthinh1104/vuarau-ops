@@ -15,6 +15,7 @@ import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import type { PurchaseDraftLine } from "@/ui/domain/purchase-form.ts";
+import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import {
   PurchaseCreatePermissionView,
   PurchaseCreateView,
@@ -38,6 +39,7 @@ export function PurchaseCreateController() {
   const [supplierId, setSupplierId] = useState<SupplierId | "">("");
   const [lines, setLines] = useState<readonly PurchaseDraftLine[]>([newLine()]);
   const [note, setNote] = useState("");
+  const [evidence, setEvidence] = useState("");
   const suppliers = useQuery(
     trpc.supplier.search.queryOptions({
       workspaceId,
@@ -88,6 +90,7 @@ export function PurchaseCreateController() {
       currency: "VND",
       lines: payloadLines,
       note: note.trim() || null,
+      evidenceReferences: parseSourceEvidence(evidence),
       dueAt: null,
       replacesPurchaseId,
     });
@@ -117,6 +120,7 @@ export function PurchaseCreateController() {
         preferredUnit: product.preferredUnit,
       }))}
       note={note}
+      evidence={evidence}
       valid={valid}
       submitting={create.phase.kind === "sending" || confirm.phase.kind === "sending"}
       createCommand={create}
@@ -133,6 +137,7 @@ export function PurchaseCreateController() {
         setLines((current) => current.filter((line) => line.lineId !== lineId))
       }
       onNoteChange={setNote}
+      onEvidenceChange={setEvidence}
       onSave={(shouldConfirm) => void save(shouldConfirm)}
     />
   );

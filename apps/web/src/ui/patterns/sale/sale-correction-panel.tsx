@@ -7,12 +7,14 @@ import { Checkbox } from "@/ui/primitives/checkbox.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 
 export type SaleCorrectionSubmission = {
   readonly reasonCode: SaleVoidReasonCode;
   readonly reason: string;
   readonly replacement: boolean;
   readonly replacementCustomerId: string | null;
+  readonly evidenceReferences: readonly string[];
 };
 
 export type CorrectionCustomerOption = { readonly id: string; readonly displayName: string };
@@ -56,6 +58,7 @@ export function SaleCorrectionPanel({
   const [replacement, setReplacement] = useState(false);
   const [reasonError, setReasonError] = useState<string | undefined>();
   const [replacementCustomerId, setReplacementCustomerId] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState("");
 
   const goodsReturnUnavailable = reasonCode === "goods_returned" && goodsReturnStatus !== "safe";
 
@@ -71,7 +74,13 @@ export function SaleCorrectionPanel({
       return;
     }
     setReasonError(undefined);
-    onSubmit({ reasonCode, reason: trimmed, replacement, replacementCustomerId });
+    onSubmit({
+      reasonCode,
+      reason: trimmed,
+      replacement,
+      replacementCustomerId,
+      evidenceReferences: parseSourceEvidence(evidence),
+    });
   }
 
   return (
@@ -151,6 +160,13 @@ export function SaleCorrectionPanel({
           {...(reasonError !== undefined ? { error: reasonError } : {})}
           hint="Lý do này được lưu cùng phiếu void để có thể đối chiếu sau này."
           required
+          disabled={disabled}
+        />
+        <Textarea
+          label="Nguồn chứng cứ vận hành"
+          value={evidence}
+          onChange={(event) => setEvidence(event.target.value)}
+          hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."
           disabled={disabled}
         />
         <label className="flex items-start gap-2 text-body-sm text-ink">

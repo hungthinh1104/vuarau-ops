@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 
@@ -46,6 +47,7 @@ export function ReceiptDetailView({
               </li>
             ))}
           </ul>
+          <SourceEvidenceList references={detail.evidenceReferences} />
           {detail.reversal === null ? (
             <Badge tone="positive">Đang có hiệu lực</Badge>
           ) : (
@@ -54,6 +56,10 @@ export function ReceiptDetailView({
               <p>
                 {detail.reversal.reasonCode}: {detail.reversal.reason}
               </p>
+              <SourceEvidenceList
+                references={detail.reversal.evidenceReferences}
+                className="mt-3"
+              />
             </section>
           )}
         </div>

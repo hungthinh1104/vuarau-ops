@@ -4,13 +4,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   recordPriceRuleCommandSchema,
   type Cursor,
-  type CustomerId,
   type Page,
   type PriceRuleKind,
   type PriceRuleDto,
   type PriceRuleId,
-  type ProductId,
-  type QualityGradeId,
   type Unit,
 } from "@vuarau/domain-contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,7 +15,7 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { useDebounced } from "@/api/use-debounced.ts";
-import { parseMoneyText, parseQuantityText } from "@/ui/domain/numeric-text.ts";
+import { parsePriceRuleForm } from "@/ui/domain/pricing-form.ts";
 import { PricingView } from "@/ui/screens/pricing-view.tsx";
 
 const EMPTY_CURSOR = null;
@@ -27,20 +24,6 @@ function localDateTimeNow(): string {
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60_000;
   return new Date(now.getTime() - offset).toISOString().slice(0, 16);
-}
-
-function parseInteger(raw: string, label: string): { value: number } | { error: string } {
-  const value = Number(raw.trim());
-  return Number.isSafeInteger(value) && value >= 0
-    ? { value }
-    : { error: `${label} phải là số nguyên không âm.` };
-}
-
-function parseInstant(raw: string, label: string): { value: string } | { error: string } {
-  const date = new Date(raw);
-  return Number.isNaN(date.getTime())
-    ? { error: `${label} không hợp lệ.` }
-    : { value: date.toISOString() };
 }
 
 export function PricingController() {
@@ -122,89 +105,29 @@ export function PricingController() {
 
   async function submit(): Promise<void> {
     setFormError(null);
-    if (productId.length === 0) {
-      setFormError("Chọn mặt hàng trước khi ghi rule.");
-      return;
-    }
-    if (kind === "customer" && customerId.length === 0) {
-      setFormError("Rule theo khách hàng phải chọn khách hàng.");
-      return;
-    }
-    if (kind !== "customer" && customerId.length > 0) {
-      setFormError("Chỉ rule theo khách hàng mới được gắn khách hàng.");
-      return;
-    }
-
-    const base = parseMoneyText(basePrice, "VND");
-    const discountValue = parseMoneyText(discount, "VND");
-    const feeValue = parseMoneyText(fee, "VND");
-    if (!base.ok || !discountValue.ok || !feeValue.ok) {
-      setFormError(
-        [base, discountValue, feeValue].find((result) => !result.ok)?.reason ??
-          "Kiểm tra các trường tiền.",
-      );
-      return;
-    }
-    if (base.value === null || discountValue.value === null || feeValue.value === null) {
-      setFormError("Giá cơ sở, giảm giá và phí phải có giá trị.");
-      return;
-    }
-    if (
-      base.value.amountMinor < 0 ||
-      discountValue.value.amountMinor < 0 ||
-      feeValue.value.amountMinor < 0
-    ) {
-      setFormError("Giá cơ sở, giảm giá và phí không được âm.");
-      return;
-    }
-    const quantity = parseQuantityText(minimumQuantity, unit);
-    if (!quantity.ok || quantity.value === null) {
-      setFormError(quantity.ok ? "Ngưỡng số lượng phải có giá trị." : quantity.reason);
-      return;
-    }
-    if (quantity.value.valueScaled < 0) {
-      setFormError("Ngưỡng số lượng không được âm.");
-      return;
-    }
-    const priorityValue = parseInteger(priority, "Độ ưu tiên");
-    if ("error" in priorityValue) {
-      setFormError(priorityValue.error);
-      return;
-    }
-    const from = parseInstant(effectiveFrom, "Hiệu lực từ");
-    if ("error" in from) {
-      setFormError(from.error);
-      return;
-    }
-    const to = effectiveTo.trim().length === 0 ? null : parseInstant(effectiveTo, "Hiệu lực đến");
-    if (to !== null && "error" in to) {
-      setFormError(to.error);
-      return;
-    }
-    if (to !== null && to.value <= from.value) {
-      setFormError("Hiệu lực đến phải sau hiệu lực từ.");
-      return;
-    }
-    if (kind === "override" && reason.trim().length === 0) {
-      setFormError("Rule override phải có lý do.");
+    const parsed = parsePriceRuleForm({
+      productId,
+      qualityGradeId,
+      customerId,
+      kind,
+      unit,
+      priority,
+      minimumQuantity,
+      effectiveFrom,
+      effectiveTo,
+      basePrice,
+      discount,
+      fee,
+      reason,
+    });
+    if (!parsed.ok) {
+      setFormError(parsed.error);
       return;
     }
 
     const result = await command.submit({
       priceRuleId: priceRuleId.current,
-      productId: productId as ProductId,
-      qualityGradeId: qualityGradeId.length === 0 ? null : (qualityGradeId as QualityGradeId),
-      customerId: customerId.length === 0 ? null : (customerId as CustomerId),
-      unit,
-      kind,
-      priority: priorityValue.value,
-      minimumQuantityScaled: quantity.value.valueScaled,
-      effectiveFrom: from.value,
-      effectiveTo: to === null ? null : to.value,
-      baseUnitPrice: base.value,
-      discountPerUnit: discountValue.value,
-      feePerUnit: feeValue.value,
-      reason: reason.trim().length === 0 ? null : reason.trim(),
+      ...parsed.value,
     });
     if (result === null) return;
     priceRuleId.current = crypto.randomUUID() as PriceRuleId;

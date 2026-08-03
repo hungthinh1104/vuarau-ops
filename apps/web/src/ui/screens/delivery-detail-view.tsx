@@ -7,6 +7,7 @@ import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -94,6 +95,14 @@ export function DeliveryDetailView({
                 </li>
               ))}
             </ul>
+            <SourceEvidenceList references={delivery.evidenceReferences} className="mt-3" />
+            {delivery.returns.map((record) => (
+              <SourceEvidenceList
+                key={record.id}
+                references={record.evidenceReferences}
+                className="mt-3"
+              />
+            ))}
           </section>
 
           <div className="flex flex-wrap gap-3">

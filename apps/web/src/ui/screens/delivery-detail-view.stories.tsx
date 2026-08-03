@@ -44,6 +44,7 @@ const base: DeliveryDto = {
   dispatchedAt: null,
   deliveredAt: null,
   returns: [],
+  evidenceReferences: [],
 };
 
 const queryFor = (delivery: DeliveryDto) =>
@@ -113,6 +114,7 @@ export const DeliveredWithPreviousReturn: Story = {
           transactionTime: LATER_TRANSACTION_TIME,
           recordedAt: LATER_RECORDED_AT,
           actorId: ACTOR_ID,
+          evidenceReferences: [],
         },
       ],
     }),

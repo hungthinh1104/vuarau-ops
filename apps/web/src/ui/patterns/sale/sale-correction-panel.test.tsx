@@ -28,6 +28,7 @@ describe("SaleCorrectionPanel", () => {
       reason: "Nhập sai giá bán",
       replacement: false,
       replacementCustomerId: null,
+      evidenceReferences: [],
     });
   });
 
@@ -45,6 +46,7 @@ describe("SaleCorrectionPanel", () => {
       reason: "Sai số lượng",
       replacement: true,
       replacementCustomerId: null,
+      evidenceReferences: [],
     });
   });
 
@@ -83,6 +85,7 @@ describe("SaleCorrectionPanel", () => {
       reason: "Khách trả lại toàn bộ hàng",
       replacement: false,
       replacementCustomerId: null,
+      evidenceReferences: [],
     });
   });
 
@@ -114,6 +117,28 @@ describe("SaleCorrectionPanel", () => {
       reason: "Chọn nhầm khách",
       replacement: true,
       replacementCustomerId: "customer-new",
+      evidenceReferences: [],
+    });
+  });
+
+  it("keeps source evidence as references without interpreting it", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<SaleCorrectionPanel onSubmit={onSubmit} />);
+
+    await user.type(screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }), "Đối chiếu lại");
+    await user.type(
+      screen.getByRole("textbox", { name: /Nguồn chứng cứ vận hành/ }),
+      "photo://sale/001\n photo://sale/001, note://sale/002",
+    );
+    await user.click(screen.getByRole("button", { name: "Xác nhận void" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      reasonCode: "wrong_amount",
+      reason: "Đối chiếu lại",
+      replacement: false,
+      replacementCustomerId: null,
+      evidenceReferences: ["photo://sale/001", "note://sale/002"],
     });
   });
 });

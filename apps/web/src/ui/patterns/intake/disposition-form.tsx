@@ -10,6 +10,7 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type DispositionValues = {
   readonly accepted: string;
@@ -31,6 +32,7 @@ export type DispositionFormProps = {
   readonly values: DispositionValues;
   readonly gradeId: string;
   readonly note: string;
+  readonly evidence: string;
   readonly total: number;
   readonly gradeMissing: boolean;
   readonly locked: boolean;
@@ -38,6 +40,7 @@ export type DispositionFormProps = {
   readonly onValueChange: (key: DispositionValueKey, value: string) => void;
   readonly onGradeChange: (value: string) => void;
   readonly onNoteChange: (value: string) => void;
+  readonly onEvidenceChange: (value: string) => void;
   readonly onSubmit: () => void;
 };
 
@@ -51,6 +54,7 @@ export function DispositionForm({
   values,
   gradeId,
   note,
+  evidence,
   total,
   gradeMissing,
   locked,
@@ -58,6 +62,7 @@ export function DispositionForm({
   onValueChange,
   onGradeChange,
   onNoteChange,
+  onEvidenceChange,
   onSubmit,
 }: DispositionFormProps) {
   const acceptedValue = Number(values.accepted) * 1000;
@@ -109,6 +114,14 @@ export function DispositionForm({
         Ghi chú quyết định
         <TextareaControl value={note} onChange={(event) => onNoteChange(event.target.value)} />
       </label>
+      <Textarea
+        className="mt-3"
+        label="Nguồn chứng cứ vận hành"
+        value={evidence}
+        disabled={locked}
+        onChange={(event) => onEvidenceChange(event.target.value)}
+        hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả ngoài quyết định đã ghi."
+      />
       {total > eligibleValueScaled ? (
         <p role="alert" className="mt-2 text-caption text-danger">
           Tổng phân bổ vượt lượng có thể quyết định.

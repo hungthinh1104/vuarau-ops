@@ -1,7 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { CustomerId, Money, ProductId, SaleLineId, SaleDto } from "@vuarau/domain-contracts";
+import {
+  productIdSchema,
+  type CustomerId,
+  type Money,
+  type ProductId,
+  type SaleLineId,
+  type SaleDto,
+} from "@vuarau/domain-contracts";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
@@ -16,6 +23,11 @@ import { useQuickSaleCatalog } from "@/ui/controllers/quick-sale-catalog.ts";
 import { useQuickSaleCommands } from "@/ui/controllers/quick-sale-commands.ts";
 import { useQuickSalePersistence } from "@/ui/controllers/quick-sale-persistence.ts";
 import { buildQuickSalePayload } from "@/ui/controllers/quick-sale-payload.ts";
+import { formatSourceEvidence, parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
+
+// This id is only used as the disabled-query input while a line is incomplete.
+// The query is never enabled for it and no fake Product is written or displayed.
+const DISABLED_PRICE_PRODUCT_ID = productIdSchema.parse("00000000-0000-4000-8000-000000000000");
 
 export function useQuickSaleFormModel(props: { readonly customerIdOverride?: CustomerId }) {
   const { session, workspaceId } = useSession();
@@ -52,6 +64,8 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
 
   const localSaleId = searchParams.get("localSaleId") ?? crypto.randomUUID();
 
+  const priceResolutionAsOfRef = useRef(new Date().toISOString());
+
   const saleIdRef = useRef<SaleDto["id"]>(localSaleId as SaleDto["id"]);
 
   const [lines, setLines] = useState<readonly SaleLineDraft[]>(() => [
@@ -59,6 +73,8 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   ]);
 
   const [note, setNote] = useState("");
+
+  const [evidence, setEvidence] = useState("");
 
   const [submitted, setSubmitted] = useState(false);
 
@@ -80,9 +96,11 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     saleIdRef,
     lines,
     note,
+    evidenceReferences: parseSourceEvidence(evidence),
     locallyQueued,
     setLines,
     setNote,
+    setEvidenceReferences: setEvidence,
     setLocallyQueued,
     offline,
   });
@@ -98,6 +116,26 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   });
   const { capture, qualityGrades, qualityGradeOptions, visibleProducts, cachedCatalogFetchedAt } =
     catalog;
+
+  const activeLineResolution = resolveLine(activeLine);
+  const priceResolutionReady =
+    activeLine.productId !== null &&
+    activeLine.productId !== undefined &&
+    activeLine.qualityGradeId !== null &&
+    activeLine.qualityGradeId !== undefined &&
+    activeLineResolution.quantity !== null;
+  const priceResolution = useQuery({
+    ...trpc.pricing.resolve.queryOptions({
+      workspaceId,
+      productId: activeLine.productId ?? DISABLED_PRICE_PRODUCT_ID,
+      qualityGradeId: activeLine.qualityGradeId ?? null,
+      customerId,
+      unit: activeLine.unit,
+      quantity: activeLineResolution.quantity ?? { valueScaled: 1, unit: activeLine.unit },
+      asOf: priceResolutionAsOfRef.current,
+    }),
+    enabled: priceResolutionReady && !locallyQueued && pendingCustomerCreate === null,
+  });
 
   // The sale's identity is minted once, when the screen opens. A draft saved,
   // edited and saved again is the same sale throughout.
@@ -142,6 +180,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     const replacement = replacementDraftFrom(replacementSource.data, () => crypto.randomUUID());
     setLines(replacement.lines);
     setNote(replacement.note);
+    setEvidence(formatSourceEvidence(replacementSource.data.evidenceReferences));
     setActiveLineId(replacement.lines[0]?.lineId ?? null);
   }, [customerId, replacesSaleId, replacementSource.data]);
 
@@ -229,6 +268,24 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     setActiveLineId(line.lineId);
   }
 
+  function applyResolvedPrice(): void {
+    const selected = priceResolution.data?.selected;
+    if (selected === null || selected === undefined) return;
+    editLines((current) =>
+      current.map((line) =>
+        line.lineId === activeLine.lineId
+          ? {
+              ...line,
+              unitPriceText: String(selected.finalUnitPrice.amountMinor),
+              priceOrigin: { kind: "rule" as const, priceRuleId: selected.id },
+            }
+          : line,
+      ),
+    );
+    setUnitNotice(null);
+    metrics.count("price_rule_applied_in_sale");
+  }
+
   async function createActiveProduct(): Promise<void> {
     const displayName = activeLine.productName.trim();
     if (!mayCreateProduct || displayName.length === 0 || locallyQueued) return;
@@ -277,6 +334,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
         lines,
         resolved,
         note,
+        evidenceReferences: parseSourceEvidence(evidence),
         replacesSaleId,
         isNew,
       }),
@@ -343,10 +401,12 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
               lines,
               resolved,
               note,
+              evidenceReferences: parseSourceEvidence(evidence),
               replacesSaleId: null,
               isNew: true,
             }).lines,
             note: note.trim().length === 0 ? null : note.trim(),
+            evidenceReferences: parseSourceEvidence(evidence),
             replacesSaleId: null,
           },
           draftLines: lines,
@@ -391,6 +451,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   }
   return {
     activeLine,
+    activeLineId: activeLine.lineId,
     addLine,
     cacheFetchedAt,
     cachedCatalogFetchedAt,
@@ -412,11 +473,14 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     mayPost,
     metrics,
     note,
+    evidence,
     offline,
     pendingCustomerCreate,
     post,
     postCommand,
     productCreateCommand,
+    priceResolution,
+    applyResolvedPrice,
     productSearchLoading: catalog.productSearchLoading,
     noProductMatch,
     qualityGrades,
@@ -432,6 +496,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     setPickerProductQuery,
     setDirty,
     setNote,
+    setEvidence,
     setUnitNotice,
     submitted,
     total,

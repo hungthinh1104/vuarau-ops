@@ -10,6 +10,7 @@ import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 
 const STATUS_COPY: Readonly<Record<SupplierPaymentDto["status"], string>> = {
   recorded: "Đã ghi nhận",
@@ -55,6 +56,14 @@ export function SupplierPaymentDetailView({
             <dd className="text-right">{formatInstant(detail.recordedAt)}</dd>
           </dl>
           {detail.note === null ? null : <p>{detail.note}</p>}
+          <SourceEvidenceList references={detail.evidenceReferences} />
+          {detail.reversals.map((reversal) => (
+            <div key={reversal.id} className="rounded-card border border-border bg-surface p-4">
+              <h2 className="font-semibold">Bằng chứng hoàn tác</h2>
+              <p className="text-body-sm text-ink-muted">{reversal.reason}</p>
+              <SourceEvidenceList references={reversal.evidenceReferences} className="mt-2" />
+            </div>
+          ))}
           {canReverse && detail.status !== "reversed" ? reversePanel : null}
         </div>
       )}
@@ -65,20 +74,24 @@ export function SupplierPaymentDetailView({
 export function SupplierPaymentReversalView({
   amount,
   reason,
+  evidence,
   remaining,
   locked,
   feedback,
   onAmountChange,
   onReasonChange,
+  onEvidenceChange,
   onSubmit,
 }: {
   readonly amount: string;
   readonly reason: string;
+  readonly evidence: string;
   readonly remaining: number;
   readonly locked: boolean;
   readonly feedback?: ReactNode;
   readonly onAmountChange: (value: string) => void;
   readonly onReasonChange: (value: string) => void;
+  readonly onEvidenceChange: (value: string) => void;
   readonly onSubmit: () => void;
 }) {
   const amountMinor = Math.round(Number(amount) * 1000);
@@ -96,6 +109,13 @@ export function SupplierPaymentReversalView({
       <label className="text-label">
         Giải thích
         <TextareaControl value={reason} onChange={(event) => onReasonChange(event.target.value)} />
+      </label>
+      <label className="text-label">
+        Bằng chứng nguồn
+        <TextareaControl
+          value={evidence}
+          onChange={(event) => onEvidenceChange(event.target.value)}
+        />
       </label>
       <Button
         tone="danger"

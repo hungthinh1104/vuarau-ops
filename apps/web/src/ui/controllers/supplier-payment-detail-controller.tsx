@@ -53,6 +53,7 @@ function SupplierPaymentReversalController({
   const reversalId = useRef(crypto.randomUUID() as SupplierPaymentReversalId).current;
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [evidence, setEvidence] = useState("");
   const mutation = useMutation(trpc.supplier.reversePayment.mutationOptions());
   const command = useContractCommand(reverseSupplierPaymentCommandSchema, mutation.mutateAsync);
   useEffect(() => {
@@ -64,10 +65,12 @@ function SupplierPaymentReversalController({
     <SupplierPaymentReversalView
       amount={amount}
       reason={reason}
+      evidence={evidence}
       remaining={remaining}
       locked={locked}
       onAmountChange={setAmount}
       onReasonChange={setReason}
+      onEvidenceChange={setEvidence}
       onSubmit={() => {
         const amountMinor = Math.round(Number(amount) * 1000);
         void command.submit(
@@ -76,6 +79,10 @@ function SupplierPaymentReversalController({
             supplierPaymentId: payment.id,
             amount: { amountMinor, currency: payment.amount.currency },
             reason: reason.trim(),
+            evidenceReferences: evidence
+              .split(/[\n,]/)
+              .map((reference) => reference.trim())
+              .filter((reference) => reference.length > 0),
           },
           { expectedVersion: payment.version },
         );

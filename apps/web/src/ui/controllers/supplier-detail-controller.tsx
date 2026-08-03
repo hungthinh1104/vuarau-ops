@@ -88,6 +88,7 @@ export function SupplierDetailController() {
   const paymentId = useRef(crypto.randomUUID() as SupplierPaymentId).current;
   const adjustmentId = useRef(crypto.randomUUID()).current;
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentEvidence, setPaymentEvidence] = useState("");
   const [adjustmentAmount, setAdjustmentAmount] = useState("");
   const [direction, setDirection] = useState<SupplierPaymentDirection>("increase_payable");
   const [reasonCode, setReasonCode] = useState<SupplierAdjustmentReason>("opening_balance");
@@ -128,6 +129,7 @@ export function SupplierDetailController() {
           canRecordPayment={session.permissions.includes("supplier.payment.record")}
           canAdjust={session.permissions.includes("supplier.account.adjust")}
           paymentAmount={paymentAmount}
+          paymentEvidence={paymentEvidence}
           adjustmentAmount={adjustmentAmount}
           direction={direction}
           reasonCode={reasonCode}
@@ -135,6 +137,7 @@ export function SupplierDetailController() {
           payment={payment}
           adjustment={adjustment}
           onPaymentAmount={setPaymentAmount}
+          onPaymentEvidence={setPaymentEvidence}
           onAdjustmentAmount={setAdjustmentAmount}
           onDirection={setDirection}
           onReasonCode={setReasonCode}
@@ -146,6 +149,10 @@ export function SupplierDetailController() {
               amount: { amountMinor: Math.round(Number(paymentAmount) * 1000), currency: "VND" },
               method: "cash",
               note: null,
+              evidenceReferences: paymentEvidence
+                .split(/[\n,]/)
+                .map((reference) => reference.trim())
+                .filter((reference) => reference.length > 0),
             })
           }
           onAdjust={() =>

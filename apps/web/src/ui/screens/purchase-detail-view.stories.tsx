@@ -44,6 +44,7 @@ const confirmed: PurchaseDto = {
   ],
   totalAmount: { amountMinor: 1_200_000, currency: "VND" },
   note: "Hàng sáng",
+  evidenceReferences: [],
   dueAt: null,
   version: 2,
   transactionTime: TRANSACTION_TIME,
@@ -68,6 +69,7 @@ const voided: PurchaseDto = {
     purchaseId,
     reasonCode: "wrong_quantity",
     reason: "Ghi nhầm 100 kg, thực tế đặt 80 kg",
+    evidenceReferences: [],
     amount: confirmed.totalAmount,
     transactionTime: LATER_TRANSACTION_TIME,
     recordedAt: LATER_RECORDED_AT,
@@ -123,6 +125,7 @@ const receipt: PurchaseReceiptDto = {
   transactionTime: LATER_TRANSACTION_TIME,
   recordedAt: LATER_RECORDED_AT,
   actorId: ACTOR_ID,
+  evidenceReferences: [],
   reversal: null,
 };
 
@@ -134,6 +137,7 @@ const reversedReceipt: PurchaseReceiptDto = {
     reason: "Ghi nhầm xe hàng",
     transactionTime: LATER_TRANSACTION_TIME,
     recordedAt: LATER_RECORDED_AT,
+    evidenceReferences: [],
   },
 };
 

@@ -124,6 +124,7 @@ function ReverseDispositionController({
           reversalId: reversalId.current,
           dispositionId: disposition.id,
           reason: reason.trim(),
+          evidenceReferences: [],
         })
       }
       feedback={

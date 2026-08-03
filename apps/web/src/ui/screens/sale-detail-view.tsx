@@ -13,6 +13,7 @@ import { messageForCode } from "@/ui/copy.ts";
 import { formatInstant, formatMoney, formatQuantity, formatRecordedGap } from "@/ui/format.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import {
   SaleCorrectionPanel,
   type SaleCorrectionSubmission,
@@ -250,6 +251,7 @@ function SaleMoneyTruth({ detail }: { readonly detail: SaleDetailDto }) {
           {sale.note}
         </p>
       )}
+      <SourceEvidenceList references={sale.evidenceReferences} />
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body-sm">
         <dt className="text-ink-muted">Thời điểm bán</dt>

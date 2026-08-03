@@ -1,5 +1,7 @@
 "use client";
 
+import type { PriceResolutionDto } from "@vuarau/domain-contracts";
+import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import type { ResolvedLine, SaleLineDraft } from "./sale-line-editor.tsx";
 import { SaleLineEditor } from "./sale-line-editor.tsx";
 
@@ -12,6 +14,9 @@ export function QuickSaleLinesSection(props: {
   readonly serverLineIndex: number | null;
   readonly disabled: boolean;
   readonly qualityGradeOptions: readonly { readonly value: string; readonly label: string }[];
+  readonly activeLineId: string;
+  readonly priceResolution?: QueryLike<PriceResolutionDto>;
+  readonly onApplyPriceRule: () => void;
   readonly onFocusLine: (lineId: string) => void;
   readonly onOpenProductPicker: (lineId: string) => void;
   readonly onChangeLine: (index: number, incoming: SaleLineDraft, field: SaleLineField) => void;
@@ -44,6 +49,12 @@ export function QuickSaleLinesSection(props: {
             canRemove={props.lines.length > 1}
             disabled={props.disabled}
             qualityGradeOptions={props.qualityGradeOptions}
+            {...(line.lineId === props.activeLineId
+              ? {
+                  priceResolution: props.priceResolution,
+                  onApplyPriceRule: props.onApplyPriceRule,
+                }
+              : {})}
             onFocus={() => props.onFocusLine(line.lineId)}
             {...(!props.disabled
               ? { onOpenProductPicker: () => props.onOpenProductPicker(line.lineId) }

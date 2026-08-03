@@ -7,6 +7,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { formatQuantity } from "@/ui/format.ts";
+import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
@@ -66,6 +67,15 @@ export function FactHistory({
             ) : (
               <p className="mt-2 text-body-sm text-ink-muted">Không ghi nhận vấn đề.</p>
             )}
+            {inspection.note ? (
+              <p className="mt-2 text-caption text-ink-muted">
+                Ghi chú kiểm định: {inspection.note}
+              </p>
+            ) : null}
+            <SourceEvidenceList
+              references={inspection.evidenceReferences}
+              className="mt-3 border-t border-border pt-2"
+            />
             {canInspectReverse && inspection.reversal === null
               ? renderInspectionReverse?.(inspection)
               : null}
@@ -95,6 +105,10 @@ export function FactHistory({
                 </li>
               ))}
             </ul>
+            <SourceEvidenceList
+              references={disposition.evidenceReferences}
+              className="mt-3 border-t border-border pt-2"
+            />
             {canDispositionReverse && disposition.reversal === null
               ? renderDispositionReverse?.(disposition)
               : null}

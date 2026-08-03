@@ -20,6 +20,7 @@ import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type IntakeCreateViewProps = {
   readonly validPurchaseId: boolean;
@@ -30,11 +31,13 @@ export type IntakeCreateViewProps = {
   readonly profile: QueryLike<WorkspaceOperationalProfileDto>;
   readonly vehicleReference: string;
   readonly note: string;
+  readonly evidence?: string;
   readonly lines: Readonly<Record<string, IntakeLineState>>;
   readonly commandLines: RecordGoodsArrivalCommand["payload"]["lines"];
   readonly command: CommandOutcomeView;
   readonly onVehicleReference: (value: string) => void;
   readonly onNote: (value: string) => void;
+  readonly onEvidence?: (value: string) => void;
   readonly onLineChange: (lineId: string, patch: Partial<IntakeLineState>) => void;
   readonly onSubmit: () => void;
   readonly onPurchaseRetry: () => void;
@@ -75,11 +78,13 @@ export function IntakeCreateView(props: IntakeCreateViewProps) {
               operationalProfile={operationalProfile}
               vehicleReference={props.vehicleReference}
               note={props.note}
+              evidence={props.evidence ?? ""}
               lines={props.lines}
               commandLines={props.commandLines}
               command={props.command}
               onVehicleReference={props.onVehicleReference}
               onNote={props.onNote}
+              onEvidence={props.onEvidence ?? (() => undefined)}
               onLineChange={props.onLineChange}
               onSubmit={props.onSubmit}
               onRetry={props.onPurchaseRetry}
@@ -96,11 +101,13 @@ function IntakeForm({
   operationalProfile,
   vehicleReference,
   note,
+  evidence = "",
   lines,
   commandLines,
   command,
   onVehicleReference,
   onNote,
+  onEvidence = () => undefined,
   onLineChange,
   onSubmit,
   onRetry,
@@ -145,6 +152,13 @@ function IntakeForm({
             placeholder="Ví dụ: 51C-123.45"
           />
         </label>
+        <Textarea
+          label="Nguồn chứng cứ vận hành"
+          value={evidence}
+          disabled={locked}
+          onChange={(event) => onEvidence(event.target.value)}
+          hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; đây chỉ là metadata nguồn."
+        />
         {detail.lines.map((line) => {
           const state = lines[line.lineId] ?? EMPTY_INTAKE_LINE;
           const gross = scaledQuantity(state.gross);

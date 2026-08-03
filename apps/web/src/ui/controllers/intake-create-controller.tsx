@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useCommand } from "@/api/use-command.ts";
+import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import {
   buildArrivalLines,
   EMPTY_INTAKE_LINE,
@@ -43,6 +44,7 @@ export function IntakeCreateController() {
   const lineIds = useRef(new Map<string, GoodsArrivalLineId>());
   const [vehicleReference, setVehicleReference] = useState("");
   const [note, setNote] = useState("");
+  const [evidence, setEvidence] = useState("");
   const [lines, setLines] = useState<Readonly<Record<string, IntakeLineState>>>({});
 
   useEffect(() => {
@@ -65,11 +67,13 @@ export function IntakeCreateController() {
       profile={profile}
       vehicleReference={vehicleReference}
       note={note}
+      evidence={evidence}
       lines={lines}
       commandLines={commandLines}
       command={command}
       onVehicleReference={setVehicleReference}
       onNote={setNote}
+      onEvidence={setEvidence}
       onLineChange={(lineId, patch) =>
         setLines((current) => ({
           ...current,
@@ -85,6 +89,7 @@ export function IntakeCreateController() {
           vehicleReference: vehicleReference.trim() || null,
           lines: commandLines,
           note: note.trim() || null,
+          evidenceReferences: parseSourceEvidence(evidence),
         });
       }}
       onPurchaseRetry={() => void purchase.refetch()}

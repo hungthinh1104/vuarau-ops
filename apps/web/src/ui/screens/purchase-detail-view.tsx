@@ -12,12 +12,14 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { PURCHASE_STATUS_COPY } from "@/ui/copy.ts";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { PurchaseLinesSummary } from "@/ui/patterns/purchase/purchase-lines-summary.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 
 export type PurchaseDetailViewProps = {
@@ -151,10 +153,12 @@ export function PurchaseVoidView(props: {
   readonly blockedReason: string | null;
   readonly voidReasonCode: string;
   readonly voidReason: string;
+  readonly voidEvidence: string;
   readonly locked: boolean;
   readonly command: CommandOutcomeView;
   readonly onReasonCodeChange: (value: string) => void;
   readonly onReasonChange: (value: string) => void;
+  readonly onEvidenceChange: (value: string) => void;
   readonly onSubmit: () => void;
   readonly onReload: () => void;
 }) {
@@ -216,6 +220,13 @@ export function PurchaseVoidView(props: {
           onChange={(event) => props.onReasonChange(event.target.value)}
         />
       </label>
+      <Textarea
+        label="Nguồn chứng cứ vận hành"
+        value={props.voidEvidence}
+        onChange={(event) => props.onEvidenceChange(event.target.value)}
+        hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."
+        disabled={props.locked}
+      />
       <Button
         tone="secondary"
         disabled={props.voidReason.trim().length === 0 || props.locked}
@@ -279,6 +290,7 @@ export function PurchaseDetailView({
       </Link>
 
       <PurchaseLinesSummary purchase={purchase} />
+      <SourceEvidenceList references={purchase.evidenceReferences} />
 
       <section className="border-y border-border py-3 text-body-sm">
         <p className="font-semibold">Ý nghĩa hiện tại</p>
@@ -310,6 +322,10 @@ export function PurchaseDetailView({
           <p className="mt-1 font-semibold tabular-nums">
             {formatMoney(purchase.voidRecord.amount)}
           </p>
+          <SourceEvidenceList
+            references={purchase.voidRecord.evidenceReferences}
+            className="mt-3"
+          />
           {canCreateReplacement ? (
             <Link
               href={`/purchases/new?replacesPurchaseId=${purchase.id}`}
@@ -393,6 +409,7 @@ function ReceivingHistory(props: {
                   </li>
                 ))}
               </ul>
+              <SourceEvidenceList references={item.evidenceReferences} />
               {item.reversal === null && props.canReverse ? (
                 <div>
                   <Button tone="secondary" onClick={() => props.onReverse(item.id)}>

@@ -20,6 +20,7 @@ import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { messageForCode } from "@/ui/copy.ts";
+import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import {
@@ -91,8 +92,10 @@ export function PurchaseDetailController() {
   const reversalId = useRef(crypto.randomUUID() as PurchaseReceiptReversalId);
   const receiptLineIds = useRef(new Map<string, PurchaseReceiptLineId>());
   const [receiptQuantities, setReceiptQuantities] = useState<Record<string, string>>({});
+  const [receiptEvidence, setReceiptEvidence] = useState("");
   const [reverseTarget, setReverseTarget] = useState<PurchaseReceiptId | null>(null);
   const [voidReason, setVoidReason] = useState("");
+  const [voidEvidence, setVoidEvidence] = useState("");
   const [voidReasonCode, setVoidReasonCode] = useState<PurchaseVoidReasonCode>("other");
   const refresh = useCallback(() => {
     void Promise.all([
@@ -118,6 +121,7 @@ export function PurchaseDetailController() {
     if (receipt.result === null) return;
     refresh();
     setReceiptQuantities({});
+    setReceiptEvidence("");
     receiptLineIds.current.clear();
     receiptId.current = crypto.randomUUID() as PurchaseReceiptId;
     receipt.reset();
@@ -145,6 +149,7 @@ export function PurchaseDetailController() {
       purchaseId,
       lines: commandLines,
       note: null,
+      evidenceReferences: parseSourceEvidence(receiptEvidence),
     });
   }
 
@@ -227,10 +232,12 @@ export function PurchaseDetailController() {
                       grades={qualityGrades.data?.items ?? []}
                       gradesLoading={qualityGrades.isPending}
                       quantities={receiptQuantities}
+                      evidence={receiptEvidence}
                       locked={receiptLocked}
                       onQuantityChange={(key, value) =>
                         setReceiptQuantities((current) => ({ ...current, [key]: value }))
                       }
+                      onEvidenceChange={setReceiptEvidence}
                       onSubmit={recordReceipt}
                       feedback={
                         <CommandOutcome
@@ -256,6 +263,7 @@ export function PurchaseDetailController() {
                           receiptId: reverseTarget,
                           reasonCode: "other",
                           reason,
+                          evidenceReferences: [],
                         })
                       }
                       feedback={
@@ -278,18 +286,21 @@ export function PurchaseDetailController() {
                       blockedReason={blockedCode === null ? null : messageForCode(blockedCode)}
                       voidReasonCode={voidReasonCode}
                       voidReason={voidReason}
+                      voidEvidence={voidEvidence}
                       locked={voidLocked}
                       command={voidCommand}
                       onReasonCodeChange={(value) =>
                         setVoidReasonCode(value as PurchaseVoidReasonCode)
                       }
                       onReasonChange={setVoidReason}
+                      onEvidenceChange={setVoidEvidence}
                       onSubmit={() =>
                         void voidCommand.submit({
                           purchaseVoidId: crypto.randomUUID() as PurchaseVoidId,
                           purchaseId: detail.id,
                           reasonCode: voidReasonCode,
                           reason: voidReason.trim(),
+                          evidenceReferences: parseSourceEvidence(voidEvidence),
                         })
                       }
                       onReload={refresh}

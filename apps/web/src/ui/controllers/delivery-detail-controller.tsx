@@ -129,6 +129,7 @@ function DeliveryReturnCommandPanel(props: {
       deliveryId: props.delivery.id,
       lines: [...intent.lines],
       reason: intent.reason,
+      evidenceReferences: [...intent.evidenceReferences],
     });
   }
   return (

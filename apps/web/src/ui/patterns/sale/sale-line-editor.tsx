@@ -1,6 +1,13 @@
 "use client";
 
-import type { Money, ProductId, QualityGradeId, Quantity, Unit } from "@vuarau/domain-contracts";
+import type {
+  Money,
+  PriceResolutionDto,
+  ProductId,
+  QualityGradeId,
+  Quantity,
+  Unit,
+} from "@vuarau/domain-contracts";
 import { UNITS, UNIT_LABEL_VI, calculateLineTotal } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { IconButton } from "@/ui/primitives/icon-button.tsx";
@@ -12,6 +19,7 @@ import { parseMoneyText, parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { Search, X } from "lucide-react";
 import { useRef, type KeyboardEvent } from "react";
 import { formatMoney } from "@/ui/format.ts";
+import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 
 /**
  * One line of a sale, held as **raw text**.
@@ -38,6 +46,10 @@ export type SaleLineDraft = {
         readonly sourceSaleId: string;
         readonly productName: string;
         readonly unit: Unit;
+      }
+    | {
+        readonly kind: "rule";
+        readonly priceRuleId: string;
       }
     | null;
 };
@@ -142,6 +154,9 @@ export type SaleLineEditorProps = {
     readonly label: string;
   }[];
   readonly onOpenProductPicker?: () => void;
+  /** Resolution is shown only when this line has a complete server query context. */
+  readonly priceResolution?: QueryLike<PriceResolutionDto>;
+  readonly onApplyPriceRule?: () => void;
 };
 
 /**
@@ -167,6 +182,8 @@ export function SaleLineEditor({
   disabled = false,
   qualityGradeOptions = [],
   onOpenProductPicker,
+  priceResolution,
+  onApplyPriceRule,
   onAdvance,
 }: SaleLineEditorProps & { readonly onAdvance?: () => void }) {
   const { total } = resolveLine(line);
@@ -322,11 +339,76 @@ export function SaleLineEditor({
         </div>
       </div>
 
+      <PriceResolutionNotice line={line} query={priceResolution} onApply={onApplyPriceRule} />
+
       {serverIssue !== undefined ? (
         <p role="alert" className="mt-3 text-caption text-danger">
           {serverIssue}
         </p>
       ) : null}
     </li>
+  );
+}
+
+function PriceResolutionNotice(props: {
+  readonly line: SaleLineDraft;
+  readonly query: QueryLike<PriceResolutionDto> | undefined;
+  readonly onApply: (() => void) | undefined;
+}) {
+  const query = props.query;
+  if (query === undefined) return null;
+  if (query.isPending) {
+    return (
+      <p role="status" className="text-caption text-ink-muted">
+        Đang kiểm tra rule giá…
+      </p>
+    );
+  }
+  if (query.isError || query.data === undefined) {
+    return (
+      <p role="status" className="rounded-input bg-warning-soft px-3 py-2 text-caption text-ink">
+        Chưa kiểm tra được rule giá. Nhập giá đã thống nhất; hệ thống không tự đoán giá.
+      </p>
+    );
+  }
+
+  if (query.data.status === "none") {
+    return (
+      <p role="status" className="rounded-input bg-surface-muted px-3 py-2 text-caption text-ink">
+        Chưa có rule giá phù hợp cho mặt hàng, phẩm cấp, đơn vị và số lượng này. Nhập giá đã thống
+        nhất.
+      </p>
+    );
+  }
+
+  if (query.data.status === "ambiguous" || query.data.selected === null) {
+    return (
+      <p role="status" className="rounded-input bg-warning-soft px-3 py-2 text-caption text-ink">
+        Có nhiều rule giá cùng mức ưu tiên. Hệ thống không tự chọn; xác nhận giá thủ công trước khi
+        chốt.
+      </p>
+    );
+  }
+
+  const selected = query.data.selected;
+  const alreadyApplied =
+    props.line.priceOrigin?.kind === "rule" && props.line.priceOrigin.priceRuleId === selected.id;
+  return (
+    <div
+      role="status"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-input border border-info/30 bg-info-soft px-3 py-2 text-caption text-ink"
+    >
+      <span>
+        Rule giá đã chọn:{" "}
+        <strong className="tabular">{formatMoney(selected.finalUnitPrice)}</strong>
+      </span>
+      {alreadyApplied ? (
+        <span className="font-semibold text-info">Đã áp dụng</span>
+      ) : (
+        <Button tone="secondary" onClick={props.onApply}>
+          Dùng giá rule này
+        </Button>
+      )}
+    </div>
   );
 }

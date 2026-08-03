@@ -1,10 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { PriceResolutionDto, PriceRuleDto } from "@vuarau/domain-contracts";
 import { calculateLineTotal } from "@vuarau/domain-contracts";
-import { PRODUCT_CA_CHUA_ID, QUALITY_GRADE_1_ID } from "@vuarau/test-fixtures/ids";
+import {
+  ACTOR_ID,
+  PRODUCT_CA_CHUA_ID,
+  QUALITY_GRADE_1_ID,
+  WORKSPACE_ID,
+} from "@vuarau/test-fixtures/ids";
+import { RECORDED_AT } from "@vuarau/test-fixtures/time";
 import { SaleLineEditor, emptyLine, resolveLine } from "./sale-line-editor.tsx";
 import { ACCEPTANCE_TARGETS, WORKFLOW_METRICS } from "@/api/workflow-metrics.ts";
+import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 
 /**
  * TC-WEB-024 — keyboard/focus sequence hardening for Quick Sale.
@@ -273,6 +281,108 @@ describe("TC-WEB-022 — the line editor", () => {
   });
 });
 
+describe("TC-WEB-025 — price rule resolution states", () => {
+  const line = {
+    ...emptyLine("l1"),
+    productId: PRODUCT_CA_CHUA_ID,
+    productName: "Cà chua",
+    qualityGradeId: QUALITY_GRADE_1_ID,
+    qualityGradeName: "Loại 1",
+    quantityText: "12",
+    unit: "kg" as const,
+    unitPriceText: "18.000",
+  };
+  const selectedRule: PriceRuleDto = {
+    id: "00000000-0000-4000-8000-0000000000aa" as PriceRuleDto["id"],
+    workspaceId: WORKSPACE_ID,
+    productId: PRODUCT_CA_CHUA_ID,
+    qualityGradeId: QUALITY_GRADE_1_ID,
+    customerId: null,
+    unit: "kg",
+    kind: "list",
+    priority: 10,
+    minimumQuantityScaled: 0,
+    effectiveFrom: RECORDED_AT,
+    effectiveTo: null,
+    baseUnitPrice: { amountMinor: 18_000, currency: "VND" },
+    discountPerUnit: { amountMinor: 0, currency: "VND" },
+    feePerUnit: { amountMinor: 0, currency: "VND" },
+    finalUnitPrice: { amountMinor: 18_000, currency: "VND" },
+    reason: "Giá sỉ",
+    actorId: ACTOR_ID,
+    commandId: "00000000-0000-4000-8000-0000000000ab" as PriceRuleDto["commandId"],
+    recordedAt: RECORDED_AT,
+  };
+  const query = (data: PriceResolutionDto): QueryLike<PriceResolutionDto> => ({
+    isPending: false,
+    isError: false,
+    error: null,
+    data,
+  });
+  const baseProps = {
+    line,
+    index: 0,
+    issues: {},
+    canRemove: false,
+    qualityGradeOptions: [{ value: QUALITY_GRADE_1_ID, label: "Loại 1" }],
+    onChange: () => undefined,
+    onRemove: () => undefined,
+  } as const;
+
+  it("offers the selected rule without applying it automatically", async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        priceResolution={query({
+          status: "selected",
+          selected: selectedRule,
+          candidates: [selectedRule],
+        })}
+        onApplyPriceRule={onApply}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("18.000 ₫");
+    expect(screen.getByRole("button", { name: "Dùng giá rule này" })).toBeInTheDocument();
+    expect(onApply).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Dùng giá rule này" }));
+    expect(onApply).toHaveBeenCalledOnce();
+  });
+
+  it("keeps manual pricing when no rule matches", () => {
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        priceResolution={query({ status: "none", selected: null, candidates: [] })}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Chưa có rule giá phù hợp");
+    expect(screen.queryByRole("button", { name: "Dùng giá rule này" })).toBeNull();
+  });
+
+  it("does not choose between rules with equal precedence", () => {
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        priceResolution={query({
+          status: "ambiguous",
+          selected: null,
+          candidates: [
+            selectedRule,
+            { ...selectedRule, id: "00000000-0000-4000-8000-0000000000ac" as PriceRuleDto["id"] },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("không tự chọn");
+    expect(screen.queryByRole("button", { name: "Dùng giá rule này" })).toBeNull();
+  });
+});
+
 /**
  * TC-WEB-023 — the metric vocabulary is closed, and carries no business data.
  *
@@ -302,6 +412,9 @@ describe("TC-WEB-023 — workflow metrics", () => {
       "historical_price_applied",
       "historical_price_changed_after_apply",
       "recalled_price_cleared_after_context_change",
+      "price_rule_applied_in_sale",
+      "price_rule_changed_after_apply",
+      "price_rule_cleared_after_context_change",
       "sale_detail_viewed",
     ]);
 

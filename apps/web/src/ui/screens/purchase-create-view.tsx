@@ -20,6 +20,7 @@ export function PurchaseCreateView(props: {
   readonly lines: readonly PurchaseDraftLine[];
   readonly products: readonly PurchaseProductOption[];
   readonly note: string;
+  readonly evidence: string;
   readonly valid: boolean;
   readonly submitting: boolean;
   readonly createCommand: CommandOutcomeView;
@@ -33,6 +34,7 @@ export function PurchaseCreateView(props: {
   readonly onAddLine: () => void;
   readonly onRemoveLine: (lineId: PurchaseDraftLine["lineId"]) => void;
   readonly onNoteChange: (note: string) => void;
+  readonly onEvidenceChange: (evidence: string) => void;
   readonly onSave: (confirm: boolean) => void;
 }) {
   return (
@@ -44,6 +46,7 @@ export function PurchaseCreateView(props: {
       lines={props.lines}
       products={props.products}
       note={props.note}
+      evidence={props.evidence}
       valid={props.valid}
       submitting={props.submitting}
       submitLabel="Lưu nháp"
@@ -52,6 +55,7 @@ export function PurchaseCreateView(props: {
       onAddLine={props.onAddLine}
       onRemoveLine={props.onRemoveLine}
       onNoteChange={props.onNoteChange}
+      onEvidenceChange={props.onEvidenceChange}
       onSubmit={() => props.onSave(false)}
       feedback={
         <>

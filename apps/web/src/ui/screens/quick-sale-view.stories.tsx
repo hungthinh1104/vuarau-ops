@@ -38,6 +38,8 @@ function lineSection(lines: readonly SaleLineDraft[], grades = true) {
       serverLineIndex={null}
       disabled={false}
       qualityGradeOptions={grades ? [{ value: QUALITY_GRADE_1_ID, label: "Loại 1" }] : []}
+      activeLineId={lines[0]?.lineId ?? ""}
+      onApplyPriceRule={() => undefined}
       onFocusLine={() => undefined}
       onOpenProductPicker={() => undefined}
       onChangeLine={() => undefined}
