@@ -3,6 +3,7 @@
 import type {
   InventoryBalanceDto,
   InventoryMovementDto,
+  InventoryValuationResult,
   ProductDto,
   QualityGradeDto,
   QualityGradeId,
@@ -11,7 +12,7 @@ import type {
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { formatInstant, formatQuantity } from "@/ui/format.ts";
+import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
@@ -23,6 +24,7 @@ export type ProductInventoryViewProps = {
   readonly productId: ProductDto["id"];
   readonly productQuery: QueryLike<ProductDto>;
   readonly balancesQuery: QueryLike<readonly InventoryBalanceDto[]>;
+  readonly valuationQuery: QueryLike<InventoryValuationResult>;
   readonly timelineQuery: QueryLike<unknown> & { readonly isFetching: boolean };
   readonly balances: readonly InventoryBalanceDto[];
   readonly grades: readonly QualityGradeDto[];
@@ -46,6 +48,7 @@ export function ProductInventoryView({
   productId,
   productQuery,
   balancesQuery,
+  valuationQuery,
   timelineQuery,
   balances,
   grades,
@@ -90,6 +93,20 @@ export function ProductInventoryView({
           )
         }
       </QueryStates>
+
+      <section aria-labelledby="valuation-title" className="grid gap-3">
+        <div>
+          <h2 id="valuation-title" className="text-subheading font-semibold">
+            Định giá tồn kho
+          </h2>
+          <p className="text-body-sm text-ink-muted">
+            Kết quả chỉ hiện khi workspace đã chọn policy định giá có hiệu lực.
+          </p>
+        </div>
+        <QueryStates query={valuationQuery} loadingLabel="Đang tính giá trị tồn kho">
+          {(valuation) => <InventoryValuationResultView result={valuation} />}
+        </QueryStates>
+      </section>
 
       <section className="grid gap-3 border-y border-border py-4 md:grid-cols-2">
         <Select
@@ -153,6 +170,42 @@ export function ProductInventoryView({
 
       {adjustment}
       {reclassification}
+    </div>
+  );
+}
+
+function InventoryValuationResultView({ result }: { readonly result: InventoryValuationResult }) {
+  if (result.status === "unavailable") {
+    return (
+      <p role="status" className="rounded-card border border-warning/30 bg-warning-soft p-3">
+        Định giá chưa sẵn sàng: {result.diagnostics.join(", ")}. Không hiển thị số tiền ước đoán.
+      </p>
+    );
+  }
+  return (
+    <div className="grid gap-2">
+      <p className="text-caption text-ink-muted">
+        Strategy: {result.strategy} · Policy: {result.policyVersionId}
+      </p>
+      {result.rows.length === 0 ? (
+        <p className="text-body-sm text-ink-muted">Chưa có dữ liệu định giá trong phạm vi này.</p>
+      ) : (
+        result.rows.map((row) => (
+          <div
+            key={`${row.qualityGradeId ?? "legacy"}:${row.unit}`}
+            className="grid gap-1 rounded-card border border-border bg-surface p-3 sm:grid-cols-3"
+          >
+            <span>{row.qualityGradeId ?? "Chưa phân loại"}</span>
+            <span className="tabular-nums">
+              Tồn:{" "}
+              {row.inventoryValue === null ? "Không định giá" : formatMoney(row.inventoryValue)}
+            </span>
+            <span className="tabular-nums">
+              Giá vốn: {row.cogs === null ? "Không định giá" : formatMoney(row.cogs)}
+            </span>
+          </div>
+        ))
+      )}
     </div>
   );
 }

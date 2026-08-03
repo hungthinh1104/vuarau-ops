@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
   Cursor,
+  IsoInstant,
   InventoryMovementDto,
   InventoryReclassificationId,
   Page,
@@ -37,6 +38,16 @@ export function ProductInventoryController() {
   const trpc = useTRPC();
   const product = useQuery(trpc.product.get.queryOptions({ workspaceId, productId }));
   const balances = useQuery(trpc.inventory.balances.queryOptions({ workspaceId, productId }));
+  const valuationAsOf = useRef(new Date().toISOString() as IsoInstant).current;
+  const valuation = useQuery(
+    trpc.inventory.valuation.queryOptions({
+      workspaceId,
+      productId,
+      qualityGradeId: null,
+      unit: null,
+      asOf: valuationAsOf,
+    }),
+  );
   const grades = useQuery(
     trpc.quality.list.queryOptions({ workspaceId, isActive: true, cursor: null, limit: 100 }),
   );
@@ -74,6 +85,7 @@ export function ProductInventoryController() {
       productId={productId}
       productQuery={product}
       balancesQuery={balances}
+      valuationQuery={valuation}
       timelineQuery={timeline}
       balances={balances.data ?? []}
       grades={activeGrades}

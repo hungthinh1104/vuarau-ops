@@ -2,8 +2,10 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import type {
   InventoryBalanceDto,
   InventoryMovementDto,
+  InventoryValuationResult,
   ProductDto,
   QualityGradeDto,
+  WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
@@ -149,6 +151,40 @@ const readyTimeline = {
   data: {},
   isFetching: false,
 } as const;
+const readyValuation: {
+  readonly isPending: false;
+  readonly isError: false;
+  readonly error: null;
+  readonly data: InventoryValuationResult;
+} = {
+  isPending: false,
+  isError: false,
+  error: null,
+  data: {
+    status: "available",
+    workspaceId: WORKSPACE_ID,
+    productId: PRODUCT_CA_CHUA_ID,
+    asOf: LATER_TRANSACTION_TIME,
+    policyVersionId: testUuid("7", 1) as WorkspacePolicyVersionId,
+    strategy: "moving_weighted_average",
+    calculationVersion: "inventory-valuation-v1",
+    calculatedAt: LATER_RECORDED_AT,
+    integrity: "healthy",
+    diagnostics: [],
+    inputReferences: [],
+    rows: [
+      {
+        qualityGradeId: QUALITY_GRADE_1_ID,
+        unit: "kg",
+        quantityScaled: 70_000,
+        inventoryValue: { amountMinor: 700_000, currency: "VND" },
+        cogs: { amountMinor: 100_000, currency: "VND" },
+        averageUnitCost: { amountMinor: 10_000, currency: "VND" },
+      },
+    ],
+    currency: "VND",
+  },
+};
 
 const adjustment = (
   <InventoryAdjustmentPanel
@@ -176,6 +212,7 @@ const meta = {
     productId: PRODUCT_CA_CHUA_ID,
     productQuery: readyProduct,
     balancesQuery: readyBalances,
+    valuationQuery: readyValuation,
     timelineQuery: readyTimeline,
     balances,
     grades,
@@ -219,6 +256,12 @@ export const Loading: Story = {
       error: null,
       data: undefined,
       isFetching: true,
+    },
+    valuationQuery: {
+      isPending: true,
+      isError: false,
+      error: null,
+      data: undefined,
     },
     hasMore: false,
   },
