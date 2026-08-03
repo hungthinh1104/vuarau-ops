@@ -56,6 +56,7 @@ test("TC-OPS-017 accepts source-linked raw observations without inferring effect
     kindCounts: {
       customer_order: 2,
       supply_commitment: 0,
+      supplier_relationship_or_performance: 0,
       collection_or_arrival: 0,
       weighing: 0,
       inspection: 0,

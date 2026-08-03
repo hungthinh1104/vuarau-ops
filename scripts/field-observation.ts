@@ -9,6 +9,7 @@ import { z } from "zod";
 export const FIELD_OBSERVATION_KINDS = [
   "customer_order",
   "supply_commitment",
+  "supplier_relationship_or_performance",
   "collection_or_arrival",
   "weighing",
   "inspection",
