@@ -574,6 +574,30 @@ use_cases:
       - apps/api/src/modules/account/reconciliation.ts
       - apps/api/src/modules/account/rebuild-account-projection.handler.ts
 
+  UC-ACCOUNT-004:
+    title: View policy-backed customer debt aging
+    risk: P0
+    doc: docs/02-use-cases/UC-ACCOUNT-004-view-debt-aging.md
+    rules:
+      - BR-AGING-001
+      - BR-AGING-002
+      - BR-AGING-003
+      - BR-POLICY-003
+      - BR-POLICY-005
+      - BR-AUTH-001
+      - BR-AUTH-004
+      - BR-CUSTOMER-002
+    cases: []
+    tests:
+      - TC-AGING-001
+      - TC-AGING-002
+    implementation:
+      - packages/domain-contracts/src/debt/index.ts
+      - packages/domain-kernel/src/debt/index.ts
+      - apps/api/src/modules/account/account.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/customer.ts
+      - packages/db/src/repositories/read/account.ts
+
   UC-COMMAND-001:
     title: Handle a retry, a duplicate, or a stale version
     risk: P0
@@ -2281,6 +2305,36 @@ business_rules:
     implementation:
       - apps/api/src/modules/account/reconciliation.ts
       - apps/api/src/modules/account/rebuild-account-projection.handler.ts
+
+  BR-AGING-001:
+    title: Aging has no implicit global policy
+    risk: P0
+    doc: docs/04-business-rules/debt-aging-rules.md
+    cases: []
+    tests: [TC-AGING-002]
+    implementation:
+      - apps/api/src/modules/account/account.queries.ts
+      - packages/domain-kernel/src/workspace-policy/index.ts
+
+  BR-AGING-002:
+    title: Aging is deterministic and integer-money based
+    risk: P0
+    doc: docs/04-business-rules/debt-aging-rules.md
+    cases: []
+    tests: [TC-AGING-001, TC-AGING-002, TC-AGING-003]
+    implementation:
+      - packages/domain-kernel/src/debt/index.ts
+      - packages/domain-contracts/src/debt/index.ts
+
+  BR-AGING-003:
+    title: Aging reconciles against canonical facts
+    risk: P0
+    doc: docs/04-business-rules/debt-aging-rules.md
+    cases: []
+    tests: [TC-AGING-001, TC-AGING-002, TC-AGING-003]
+    implementation:
+      - packages/domain-kernel/src/debt/index.ts
+      - packages/db/src/repositories/read/account.ts
 
   # --- cross-cutting command rules ----------------------------------------------
   BR-COMMAND-001:

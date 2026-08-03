@@ -15,6 +15,7 @@ import {
   searchCustomersInputSchema,
   updateCustomerCommandSchema,
   workspaceIdSchema,
+  debtAgingInputSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import { createCustomer } from "../../../modules/customer/create-customer.handler.ts";
@@ -30,6 +31,7 @@ import {
   getCustomerAccountTimeline,
   getAccountAdjustmentDetail,
   getAccountReconciliation,
+  getCustomerDebtAging,
 } from "../../../modules/account/account.queries.ts";
 import { rebuildAccountProjection } from "../../../modules/account/rebuild-account-projection.handler.ts";
 import {
@@ -104,6 +106,10 @@ export const accountRouter = router({
   reconciliation: authenticatedProcedure
     .input(accountReconciliationInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getAccountReconciliation(ctx, input))),
+
+  aging: authenticatedProcedure
+    .input(debtAgingInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getCustomerDebtAging(ctx, input))),
 
   reconciliationEvidence: authenticatedProcedure
     .input(accountReconciliationInputSchema)

@@ -204,5 +204,60 @@ export const createAccountReads = (store: Store): Pick<Repositories, "accountRea
             reversalTargetExists,
           };
         }),
+    debtAgingSources: async ({ workspaceId, customerId, asOf }) => ({
+      sales: [...store.sales.values()]
+        .filter(
+          (sale) =>
+            sale.workspaceId === workspaceId &&
+            sale.customerId === customerId &&
+            sale.status === "posted" &&
+            sale.voidRecord === null &&
+            sale.transactionTime <= asOf,
+        )
+        .map((sale) => ({
+          saleId: sale.id,
+          customerId: sale.customerId,
+          amount: sale.totalAmount,
+          transactionTime: sale.transactionTime,
+          dueAt: sale.dueAt,
+        })),
+      payments: [...store.payments.values()]
+        .filter(
+          (payment) =>
+            payment.workspaceId === workspaceId &&
+            payment.customerId === customerId &&
+            payment.transactionTime <= asOf,
+        )
+        .map((payment) => ({
+          paymentId: payment.id,
+          customerId: payment.customerId,
+          amount: payment.amount,
+          reversals: store.reversals
+            .filter(
+              (reversal) =>
+                reversal.workspaceId === workspaceId && reversal.paymentId === payment.id,
+            )
+            .map((reversal) => ({
+              amount: reversal.amount,
+              transactionTime: reversal.transactionTime,
+            })),
+          transactionTime: payment.transactionTime,
+        })),
+      ledgerEntries: store.accountEntries
+        .filter(
+          (entry) =>
+            entry.workspaceId === workspaceId &&
+            entry.customerId === customerId &&
+            entry.transactionTime <= asOf,
+        )
+        .map((entry) => ({
+          entryId: entry.id,
+          sourceType: entry.sourceType,
+          sourceId: entry.sourceId,
+          customerId: entry.customerId,
+          amount: entry.amount,
+          transactionTime: entry.transactionTime,
+        })),
+    }),
   },
 });

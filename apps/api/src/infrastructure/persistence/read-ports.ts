@@ -89,7 +89,7 @@ import type {
   DemandObservationKind,
 } from "@vuarau/domain-contracts";
 import type { PriceRuleState, SaleState } from "@vuarau/domain-kernel";
-import type { InventoryValuationMovement } from "@vuarau/domain-kernel";
+import type { DebtAgingSources, InventoryValuationMovement } from "@vuarau/domain-kernel";
 import type { CustomerOrderReadRepository } from "./customer-order-read-ports.ts";
 import type { SupplyCommitmentReadRepository } from "./supply-commitment-read-ports.ts";
 import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
@@ -482,7 +482,6 @@ export type DocumentReadRepository = {
     | { readonly kind: "not_found" | "revoked" | "expired" }
   >;
 };
-
 export type ReportReadRepository = {
   operational(args: {
     workspaceId: WorkspaceId;
@@ -494,7 +493,6 @@ export type ReportReadRepository = {
     page: PageQuery;
   }): Promise<OperationalReportDto>;
 };
-
 export type AccountReadRepository = {
   adjustmentDetail(args: {
     workspaceId: WorkspaceId;
@@ -511,8 +509,12 @@ export type AccountReadRepository = {
     workspaceId: WorkspaceId;
     customerId: CustomerId;
   }): Promise<readonly AccountSourceObservation[]>;
+  debtAgingSources(args: {
+    workspaceId: WorkspaceId;
+    customerId: CustomerId;
+    asOf: IsoInstant;
+  }): Promise<DebtAgingSources>;
 };
-
 export type AuditReadRepository = {
   timeline(args: {
     workspaceId: WorkspaceId;

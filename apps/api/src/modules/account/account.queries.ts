@@ -9,12 +9,25 @@ import type {
   CurrencyCode,
   CustomerAccountBalanceDto,
   CustomerId,
+  DebtAgingInput,
+  DebtAgingResult,
   Page,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
-import { DEFAULT_CURRENCY } from "@vuarau/domain-contracts";
+import {
+  DEFAULT_CURRENCY,
+  debtAgingResultSchema,
+  paymentAllocationPolicyDefinitionSchema,
+  paymentTermsAgingPolicyDefinitionSchema,
+} from "@vuarau/domain-contracts";
 import type { CustomerAccountBalance, DomainResult } from "@vuarau/domain-kernel";
-import { classifyBalance, err, ok } from "@vuarau/domain-kernel";
+import {
+  calculateDebtAging,
+  classifyBalance,
+  err,
+  ok,
+  resolveEffectiveWorkspacePolicy,
+} from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { authorizeWorkspaceAccess, accountCapabilities } from "../shared/authorization.ts";
 import { emptyAccountBalance, rebuildCustomerAccountBalance } from "../shared/account-effects.ts";
@@ -107,6 +120,96 @@ export function getCustomerAccountTimeline(
       });
 
       return toPage(result, toTimelineDto);
+    },
+  });
+}
+
+/**
+ * UC-ACCOUNT-004 — debt aging is a derived read model. It is deliberately
+ * unavailable without both approved policies: a missing allocation rule or
+ * aging calendar is not permission to invent a global default.
+ */
+export function getCustomerDebtAging(
+  ctx: CommandContext,
+  input: DebtAgingInput,
+): Promise<DomainResult<DebtAgingResult>> {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "debt.read",
+    execute: async ({ repos }) => {
+      const calculatedAt = ctx.deps.clock.now();
+      const policies = await repos.workspacePolicyReads.listAll(input.workspaceId);
+      const termsPolicy = resolveEffectiveWorkspacePolicy(
+        policies,
+        "payment_terms_aging",
+        input.asOf,
+      );
+      const allocationPolicy = resolveEffectiveWorkspacePolicy(
+        policies,
+        "payment_allocation",
+        input.asOf,
+      );
+      const sources = await repos.accountReads.debtAgingSources(input);
+      const unavailable = (diagnostics: readonly string[]): DebtAgingResult =>
+        debtAgingResultSchema.parse({
+          status: "unavailable",
+          workspaceId: input.workspaceId,
+          customerId: input.customerId,
+          asOf: input.asOf,
+          policyVersionId: termsPolicy?.id ?? null,
+          allocationPolicyVersionId: allocationPolicy?.id ?? null,
+          allocationStrategy: null,
+          calculationVersion: "debt-aging-v1",
+          calculatedAt,
+          integrity: "attention",
+          diagnostics: [...new Set(diagnostics)],
+        });
+
+      if (termsPolicy === null || allocationPolicy === null) {
+        return unavailable([
+          ...(termsPolicy === null ? ["no_effective_payment_terms_aging_policy"] : []),
+          ...(allocationPolicy === null ? ["no_effective_payment_allocation_policy"] : []),
+        ]);
+      }
+
+      const terms = paymentTermsAgingPolicyDefinitionSchema.safeParse(termsPolicy.definition);
+      const allocation = paymentAllocationPolicyDefinitionSchema.safeParse(
+        allocationPolicy.definition,
+      );
+      if (!terms.success || !allocation.success) {
+        return unavailable([
+          ...(!terms.success ? ["invalid_payment_terms_aging_policy"] : []),
+          ...(!allocation.success ? ["invalid_payment_allocation_policy"] : []),
+        ]);
+      }
+
+      const calculation = calculateDebtAging(
+        sources,
+        terms.data,
+        allocation.data.parameters.strategy,
+        input.asOf,
+      );
+      if (calculation.diagnostics.length > 0) {
+        return unavailable(calculation.diagnostics);
+      }
+
+      return debtAgingResultSchema.parse({
+        status: "available",
+        workspaceId: input.workspaceId,
+        customerId: input.customerId,
+        asOf: input.asOf,
+        policyVersionId: termsPolicy.id,
+        allocationPolicyVersionId: allocationPolicy.id,
+        allocationStrategy: allocation.data.parameters.strategy,
+        calculationVersion: "debt-aging-v1",
+        calculatedAt,
+        integrity: "healthy",
+        diagnostics: [],
+        rows: calculation.rows,
+        payments: calculation.payments,
+        totals: calculation.totals,
+      });
     },
   });
 }

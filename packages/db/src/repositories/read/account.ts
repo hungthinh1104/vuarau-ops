@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   actors,
@@ -11,7 +11,7 @@ import {
   sales,
   workspaces,
 } from "../../schema/index.ts";
-import { fromIso, money, toIso } from "../row-mappers.ts";
+import { fromIso, money, toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import { fetchLimit, paged, sourceLabel, sourceDocument } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
@@ -244,6 +244,142 @@ export const createAccountReadRepositories = (tx: Tx) => ({
         page,
         (row) => ({ sortValue: `${row.transactionTime}|${row.recordedAt}`, id: row.id }),
       );
+    },
+
+    async debtAgingSources({
+      workspaceId,
+      customerId,
+      asOf,
+    }: {
+      workspaceId: string;
+      customerId: string;
+      asOf: string;
+    }) {
+      const asOfDate = fromIso(asOf as never);
+      const saleRows = await tx
+        .select({
+          id: sales.id,
+          customerId: sales.customerId,
+          amountMinor: sales.totalAmountMinor,
+          currency: sales.currency,
+          transactionTime: sales.transactionTime,
+          dueAt: sales.dueAt,
+        })
+        .from(sales)
+        .leftJoin(
+          saleVoids,
+          and(eq(saleVoids.workspaceId, sales.workspaceId), eq(saleVoids.saleId, sales.id)),
+        )
+        .where(
+          and(
+            eq(sales.workspaceId, workspaceId),
+            eq(sales.customerId, customerId),
+            eq(sales.status, "posted"),
+            isNull(saleVoids.id),
+            lte(sales.transactionTime, asOfDate),
+          ),
+        )
+        .orderBy(asc(sales.transactionTime), asc(sales.id));
+
+      const paymentRows = await tx
+        .select({
+          id: payments.id,
+          customerId: payments.customerId,
+          amountMinor: payments.amountMinor,
+          currency: payments.currency,
+          transactionTime: payments.transactionTime,
+        })
+        .from(payments)
+        .where(
+          and(
+            eq(payments.workspaceId, workspaceId),
+            eq(payments.customerId, customerId),
+            lte(payments.transactionTime, asOfDate),
+          ),
+        )
+        .orderBy(asc(payments.transactionTime), asc(payments.id));
+
+      const reversals =
+        paymentRows.length === 0
+          ? []
+          : await tx
+              .select({
+                paymentId: paymentReversals.paymentId,
+                amountMinor: paymentReversals.amountMinor,
+                currency: paymentReversals.currency,
+                transactionTime: paymentReversals.transactionTime,
+              })
+              .from(paymentReversals)
+              .where(
+                and(
+                  eq(paymentReversals.workspaceId, workspaceId),
+                  inArray(
+                    paymentReversals.paymentId,
+                    paymentRows.map((payment) => payment.id),
+                  ),
+                  lte(paymentReversals.transactionTime, asOfDate),
+                ),
+              )
+              .orderBy(asc(paymentReversals.transactionTime), asc(paymentReversals.id));
+
+      const reversalByPayment = new Map<string, typeof reversals>();
+      for (const reversal of reversals) {
+        const current = reversalByPayment.get(reversal.paymentId) ?? [];
+        current.push(reversal);
+        reversalByPayment.set(reversal.paymentId, current);
+      }
+
+      const ledgerRows = await tx
+        .select({
+          id: customerAccountEntries.id,
+          sourceType: customerAccountEntries.sourceType,
+          sourceId: customerAccountEntries.sourceId,
+          customerId: customerAccountEntries.customerId,
+          amountMinor: customerAccountEntries.amountMinor,
+          currency: customerAccountEntries.currency,
+          transactionTime: customerAccountEntries.transactionTime,
+        })
+        .from(customerAccountEntries)
+        .where(
+          and(
+            eq(customerAccountEntries.workspaceId, workspaceId),
+            eq(customerAccountEntries.customerId, customerId),
+            lte(customerAccountEntries.transactionTime, asOfDate),
+          ),
+        )
+        .orderBy(
+          asc(customerAccountEntries.transactionTime),
+          asc(customerAccountEntries.recordedAt),
+          asc(customerAccountEntries.id),
+        );
+
+      return {
+        sales: saleRows.map((sale) => ({
+          saleId: sale.id,
+          customerId: sale.customerId,
+          amount: money(sale.amountMinor, sale.currency),
+          transactionTime: toIso(sale.transactionTime),
+          dueAt: toIsoOrNull(sale.dueAt),
+        })),
+        payments: paymentRows.map((payment) => ({
+          paymentId: payment.id,
+          customerId: payment.customerId,
+          amount: money(payment.amountMinor, payment.currency),
+          transactionTime: toIso(payment.transactionTime),
+          reversals: (reversalByPayment.get(payment.id) ?? []).map((reversal) => ({
+            amount: money(reversal.amountMinor, reversal.currency),
+            transactionTime: toIso(reversal.transactionTime),
+          })),
+        })),
+        ledgerEntries: ledgerRows.map((entry) => ({
+          entryId: entry.id,
+          sourceType: entry.sourceType,
+          sourceId: entry.sourceId,
+          customerId: entry.customerId,
+          amount: money(entry.amountMinor, entry.currency),
+          transactionTime: toIso(entry.transactionTime),
+        })),
+      };
     },
 
     async sourceObservations(args: { workspaceId: string; customerId: string }) {
