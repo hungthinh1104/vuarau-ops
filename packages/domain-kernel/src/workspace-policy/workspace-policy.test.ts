@@ -5,6 +5,7 @@ import {
   commandIdSchema,
   createWorkspacePolicyDraftCommandSchema,
   retireWorkspacePolicyCommandSchema,
+  WORKSPACE_POLICY_KINDS,
   workspaceIdSchema,
   workspacePolicyVersionIdSchema,
 } from "@vuarau/domain-contracts";
@@ -167,8 +168,9 @@ describe("workspace policy registry", () => {
     expect(draft.ok).toBe(true);
     if (!draft.ok) return;
     const before = resolveWorkspacePolicyAvailability([draft.value.policy], RECORDED_AT);
-    expect(before).toHaveLength(13);
+    expect(before).toHaveLength(WORKSPACE_POLICY_KINDS.length);
     expect(before.every((entry) => entry.availability === "unavailable")).toBe(true);
+    expect(before.some((entry) => entry.policyKind === "management_intelligence")).toBe(true);
     expect(before.find((entry) => entry.policyKind === "payment_terms_aging")?.reason).toBe(
       "no_approved_version",
     );
