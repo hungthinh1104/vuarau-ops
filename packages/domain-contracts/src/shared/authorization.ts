@@ -86,6 +86,7 @@ export const PERMISSIONS = [
   "payment.record",
   "payment.reverse",
   "payment.read",
+  "debt.allocate",
   /** The one that matters most: moving a balance with no underlying document. */
   "debt.adjust",
   "debt.read",
@@ -193,6 +194,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<WorkspaceRole, readonly Permissio
     "payment.record",
     "payment.reverse",
     "payment.read",
+    "debt.allocate",
     "debt.adjust",
     "debt.read",
     "product.read",

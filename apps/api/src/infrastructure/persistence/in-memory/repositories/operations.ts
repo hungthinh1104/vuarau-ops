@@ -48,6 +48,7 @@ import type {
 } from "@vuarau/domain-kernel";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
+import { restorePaymentAllocationFacts } from "./payment-allocation.ts";
 
 export const createOperationsRepositories = (store: Store): Pick<Repositories, "operations"> => ({
   operations: {
@@ -71,6 +72,8 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.demandObservations.values(),
           ...store.workspacePolicies.values(),
           ...store.sales.values(),
+          ...store.paymentAllocations,
+          ...store.paymentAllocationReversals,
           ...store.suppliers.values(),
           ...store.purchases.values(),
           ...store.deliveries.values(),
@@ -455,6 +458,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
             }) as unknown as PaymentReversalState,
           );
         }
+        restorePaymentAllocationFacts(store, payload, remap);
         for (const raw of payload.accountEntries) {
           store.accountEntries.push(remap(raw) as unknown as CustomerAccountEntryDto);
         }

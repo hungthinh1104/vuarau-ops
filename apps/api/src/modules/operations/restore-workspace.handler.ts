@@ -111,6 +111,9 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
   const customerPayments = new Set(payload.payments.map((row) => row["id"]));
   const customerPaymentReversals = new Set(payload.paymentReversals.map((row) => row["id"]));
+  const paymentAllocationRows = payload.paymentAllocations ?? [];
+  const paymentAllocationReversalRows = payload.paymentAllocationReversals ?? [];
+  const paymentAllocationIds = new Set(paymentAllocationRows.map((row) => row["id"]));
   const qualityIssueRows = "qualityIssueCodes" in payload ? payload.qualityIssueCodes : [];
   const goodsArrivalRows = "goodsArrivals" in payload ? payload.goodsArrivals : [];
   const goodsArrivalLineRows = "goodsArrivalLines" in payload ? payload.goodsArrivalLines : [];
@@ -200,6 +203,15 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
         hasGrade(row["qualityGradeId"]),
     ) &&
     payload.accountEntries.every((row) => customers.has(row["customerId"])) &&
+    paymentAllocationRows.every(
+      (row) =>
+        customers.has(row["customerId"]) &&
+        customerPayments.has(row["paymentId"]) &&
+        sales.has(row["saleId"]),
+    ) &&
+    paymentAllocationReversalRows.every(
+      (row) => customers.has(row["customerId"]) && paymentAllocationIds.has(row["allocationId"]),
+    ) &&
     (!("purchases" in payload) ||
       payload.purchases.every((row) => suppliers.has(row["supplierId"]))) &&
     (!("supplierPayments" in payload) ||
@@ -515,6 +527,9 @@ function v17Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV17[
     customerOrderLines: "customerOrderLines" in payload ? payload.customerOrderLines : [],
     supplyCommitments: "supplyCommitments" in payload ? payload.supplyCommitments : [],
     supplyCommitmentLines: "supplyCommitmentLines" in payload ? payload.supplyCommitmentLines : [],
+    paymentAllocations: "paymentAllocations" in payload ? payload.paymentAllocations : [],
+    paymentAllocationReversals:
+      "paymentAllocationReversals" in payload ? payload.paymentAllocationReversals : [],
   };
 }
 

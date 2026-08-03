@@ -59,6 +59,10 @@ import { restoreSupplierObservations } from "./operations-supplier-observation-r
 import { restoreDemandObservations } from "./operations-demand-observation-restore.ts";
 import { restoreCustomerOrders } from "./operations-customer-order-restore.ts";
 import { countBackupRows, targetContainsBusinessData } from "./operations-target.ts";
+import {
+  createBackupRowScope,
+  restorePaymentAllocationFacts,
+} from "./operations-payment-allocation.ts";
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
     async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV17["payload"]) {
@@ -110,6 +114,8 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         ...payload.costObservations.map((row) => row["actorId"]),
         ...payload.reconciliationObservations.map((row) => row["actorId"]),
         ...payload.debtObservations.map((row) => row["actorId"]),
+        ...payload.paymentAllocations.map((row) => row["actorId"]),
+        ...payload.paymentAllocationReversals.map((row) => row["actorId"]),
         ...payload.supplyCommitmentObservations.map((row) => row["actorId"]),
         ...payload.supplierObservations.map((row) => row["actorId"]),
         ...payload.demandObservations.map((row) => row["actorId"]),
@@ -172,12 +178,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             updatedAt: profile["updatedAt"] == null ? new Date() : date(profile["updatedAt"]),
           },
         });
-      const scoped = (
-        row: Record<string, unknown>,
-      ): Record<string, unknown> & { workspaceId: WorkspaceId } => ({
-        ...row,
-        workspaceId,
-      });
+      const scoped = createBackupRowScope(workspaceId);
       if (payload.commandReceipts.length > 0) {
         await tx.insert(commandReceipts).values(
           payload.commandReceipts.map((raw) => {
@@ -441,6 +442,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           }) as unknown as (typeof paymentReversals.$inferInsert)[],
         );
       }
+      await restorePaymentAllocationFacts(tx, payload, scoped, date);
       if (payload.supplierPayments.length > 0) {
         await tx.insert(supplierPayments).values(
           payload.supplierPayments.map((raw) => {
@@ -669,10 +671,9 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         `);
       await tx.execute(sql`
           INSERT INTO ${inventoryBalances}
-            (workspace_id, product_id, quality_grade_id, unit, quantity_scaled, movement_count,
-             last_movement_transaction_time, updated_at)
-          SELECT ${workspaceId}::uuid, product_id, quality_grade_id, unit, sum(quantity_scaled),
-                 count(*)::int, max(transaction_time), now()
+            (workspace_id, product_id, quality_grade_id, unit, quantity_scaled, movement_count, last_movement_transaction_time, updated_at)
+          SELECT ${workspaceId}::uuid, product_id, quality_grade_id, unit, sum(quantity_scaled), count(*)::int,
+                 max(transaction_time), now()
           FROM ${inventoryMovements}
           WHERE workspace_id = ${workspaceId}::uuid
           GROUP BY product_id, quality_grade_id, unit

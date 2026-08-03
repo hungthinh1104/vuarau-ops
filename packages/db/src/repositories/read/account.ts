@@ -5,6 +5,8 @@ import {
   actors,
   customerAccountEntries,
   customers,
+  paymentAllocationReversals,
+  paymentAllocations,
   paymentReversals,
   payments,
   saleVoids,
@@ -353,6 +355,49 @@ export const createAccountReadRepositories = (tx: Tx) => ({
           asc(customerAccountEntries.id),
         );
 
+      const [allocationRows, allocationReversalRows] = await Promise.all([
+        tx
+          .select({
+            id: paymentAllocations.id,
+            customerId: paymentAllocations.customerId,
+            paymentId: paymentAllocations.paymentId,
+            saleId: paymentAllocations.saleId,
+            amountMinor: paymentAllocations.amountMinor,
+            currency: paymentAllocations.currency,
+            transactionTime: paymentAllocations.transactionTime,
+          })
+          .from(paymentAllocations)
+          .where(
+            and(
+              eq(paymentAllocations.workspaceId, workspaceId),
+              eq(paymentAllocations.customerId, customerId),
+              lte(paymentAllocations.transactionTime, asOfDate),
+            ),
+          )
+          .orderBy(asc(paymentAllocations.transactionTime), asc(paymentAllocations.id)),
+        tx
+          .select({
+            id: paymentAllocationReversals.id,
+            allocationId: paymentAllocationReversals.allocationId,
+            customerId: paymentAllocationReversals.customerId,
+            amountMinor: paymentAllocationReversals.amountMinor,
+            currency: paymentAllocationReversals.currency,
+            transactionTime: paymentAllocationReversals.transactionTime,
+          })
+          .from(paymentAllocationReversals)
+          .where(
+            and(
+              eq(paymentAllocationReversals.workspaceId, workspaceId),
+              eq(paymentAllocationReversals.customerId, customerId),
+              lte(paymentAllocationReversals.transactionTime, asOfDate),
+            ),
+          )
+          .orderBy(
+            asc(paymentAllocationReversals.transactionTime),
+            asc(paymentAllocationReversals.id),
+          ),
+      ]);
+
       return {
         sales: saleRows.map((sale) => ({
           saleId: sale.id,
@@ -378,6 +423,21 @@ export const createAccountReadRepositories = (tx: Tx) => ({
           customerId: entry.customerId,
           amount: money(entry.amountMinor, entry.currency),
           transactionTime: toIso(entry.transactionTime),
+        })),
+        allocations: allocationRows.map((allocation) => ({
+          allocationId: allocation.id,
+          customerId: allocation.customerId,
+          paymentId: allocation.paymentId,
+          saleId: allocation.saleId,
+          amount: money(allocation.amountMinor, allocation.currency),
+          transactionTime: toIso(allocation.transactionTime),
+        })),
+        allocationReversals: allocationReversalRows.map((reversal) => ({
+          reversalId: reversal.id,
+          allocationId: reversal.allocationId,
+          customerId: reversal.customerId,
+          amount: money(reversal.amountMinor, reversal.currency),
+          transactionTime: toIso(reversal.transactionTime),
         })),
       };
     },

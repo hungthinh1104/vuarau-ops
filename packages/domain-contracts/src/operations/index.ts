@@ -288,6 +288,8 @@ export type WorkspaceBackupV16 = z.infer<typeof workspaceBackupV16Schema>;
 export const workspaceBackupPayloadV17Schema = workspaceBackupPayloadV16Schema.extend({
   supplyCommitments: z.array(backupRecordSchema),
   supplyCommitmentLines: z.array(backupRecordSchema),
+  paymentAllocations: z.array(backupRecordSchema).default([]),
+  paymentAllocationReversals: z.array(backupRecordSchema).default([]),
 });
 export const workspaceBackupV17Schema = z.object({
   format: z.literal("vuarau.workspace-backup"),

@@ -258,6 +258,35 @@ export const createAccountReads = (store: Store): Pick<Repositories, "accountRea
           amount: entry.amount,
           transactionTime: entry.transactionTime,
         })),
+      allocations: store.paymentAllocations
+        .filter(
+          (allocation) =>
+            allocation.workspaceId === workspaceId &&
+            allocation.customerId === customerId &&
+            allocation.transactionTime <= asOf,
+        )
+        .map((allocation) => ({
+          allocationId: allocation.id,
+          customerId: allocation.customerId,
+          paymentId: allocation.paymentId,
+          saleId: allocation.saleId,
+          amount: allocation.amount,
+          transactionTime: allocation.transactionTime,
+        })),
+      allocationReversals: store.paymentAllocationReversals
+        .filter(
+          (reversal) =>
+            reversal.workspaceId === workspaceId &&
+            reversal.customerId === customerId &&
+            reversal.transactionTime <= asOf,
+        )
+        .map((reversal) => ({
+          reversalId: reversal.id,
+          allocationId: reversal.allocationId,
+          customerId: reversal.customerId,
+          amount: reversal.amount,
+          transactionTime: reversal.transactionTime,
+        })),
     }),
   },
 });

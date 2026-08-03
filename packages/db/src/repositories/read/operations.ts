@@ -20,6 +20,8 @@ import {
   supplyCommitmentLines,
   paymentReversals,
   payments,
+  paymentAllocationReversals,
+  paymentAllocations,
   products,
   priceRules,
   qualityGrades,
@@ -414,6 +416,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         saleVoidRows,
         paymentRows,
         reversalRows,
+        paymentAllocationRows,
+        paymentAllocationReversalRows,
         entryRows,
         auditRows,
         receiptRows,
@@ -509,6 +513,11 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         tx.select().from(saleVoids).where(eq(saleVoids.workspaceId, workspaceId)),
         tx.select().from(payments).where(eq(payments.workspaceId, workspaceId)),
         tx.select().from(paymentReversals).where(eq(paymentReversals.workspaceId, workspaceId)),
+        tx.select().from(paymentAllocations).where(eq(paymentAllocations.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(paymentAllocationReversals)
+          .where(eq(paymentAllocationReversals.workspaceId, workspaceId)),
         tx
           .select()
           .from(customerAccountEntries)
@@ -642,6 +651,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         saleVoids: list(saleVoidRows),
         payments: list(paymentRows),
         paymentReversals: list(reversalRows),
+        paymentAllocations: list(paymentAllocationRows),
+        paymentAllocationReversals: list(paymentAllocationReversalRows),
         accountEntries: list(entryRows),
         audit: list(auditRows),
         commandReceipts: list(receiptRows),

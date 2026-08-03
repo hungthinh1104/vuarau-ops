@@ -75,6 +75,8 @@ export const AUDIT_ACTIONS = [
   "supply_commitment.cancelled",
   "payment.recorded",
   "payment.reversed",
+  "debt.payment_allocated",
+  "debt.payment_allocation_reversed",
   "debt.adjusted",
   "account.projection_rebuilt",
   "membership.added",

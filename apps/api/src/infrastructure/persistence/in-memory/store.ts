@@ -26,6 +26,8 @@ import type {
   SupplierObservationDto,
   DemandObservationDto,
   WorkspacePolicyDto,
+  PaymentAllocationDto,
+  PaymentAllocationReversalDto,
 } from "@vuarau/domain-contracts";
 import type {
   PaymentReversalState,
@@ -122,6 +124,8 @@ export type Store = {
   sales: Map<string, SaleState>;
   payments: Map<string, PaymentState>;
   reversals: PaymentReversalState[];
+  paymentAllocations: PaymentAllocationDto[];
+  paymentAllocationReversals: PaymentAllocationReversalDto[];
   saleVoids: SaleVoidState[];
   accountEntries: CustomerAccountEntryDto[];
   balances: Map<string, CustomerAccountBalance>;
@@ -188,6 +192,8 @@ export function emptyStore(): Store {
     sales: new Map(),
     payments: new Map(),
     reversals: [],
+    paymentAllocations: [],
+    paymentAllocationReversals: [],
     saleVoids: [],
     accountEntries: [],
     balances: new Map(),

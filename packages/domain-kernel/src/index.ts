@@ -25,3 +25,4 @@ export * from "./demand-observation/index.ts";
 export * from "./workspace-policy/index.ts";
 export * from "./valuation/index.ts";
 export * from "./debt/index.ts";
+export * from "./debt/payment-allocation.ts";

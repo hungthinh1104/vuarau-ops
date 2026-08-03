@@ -107,6 +107,12 @@ export type PaymentId = z.infer<typeof paymentIdSchema>;
 export const paymentReversalIdSchema = z.uuid().brand<"PaymentReversalId">();
 export type PaymentReversalId = z.infer<typeof paymentReversalIdSchema>;
 
+export const paymentAllocationIdSchema = z.uuid().brand<"PaymentAllocationId">();
+export type PaymentAllocationId = z.infer<typeof paymentAllocationIdSchema>;
+
+export const paymentAllocationReversalIdSchema = z.uuid().brand<"PaymentAllocationReversalId">();
+export type PaymentAllocationReversalId = z.infer<typeof paymentAllocationReversalIdSchema>;
+
 export const customerAccountEntryIdSchema = z.uuid().brand<"CustomerAccountEntryId">();
 export type CustomerAccountEntryId = z.infer<typeof customerAccountEntryIdSchema>;
 

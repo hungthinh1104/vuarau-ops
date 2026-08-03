@@ -16,6 +16,8 @@ import {
   updateCustomerCommandSchema,
   workspaceIdSchema,
   debtAgingInputSchema,
+  recordPaymentAllocationCommandSchema,
+  reversePaymentAllocationCommandSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import { createCustomer } from "../../../modules/customer/create-customer.handler.ts";
@@ -25,6 +27,10 @@ import {
   updateCustomer,
 } from "../../../modules/customer/update-customer.handler.ts";
 import { adjustCustomerDebt } from "../../../modules/account/adjust-debt.handler.ts";
+import {
+  recordPaymentAllocation,
+  reversePaymentAllocation,
+} from "../../../modules/account/payment-allocation.handlers.ts";
 import {
   exportAccountReconciliationEvidence,
   getCustomerAccountBalance,
@@ -124,4 +130,10 @@ export const debtRouter = router({
   adjust: commandProcedure
     .input(adjustCustomerDebtCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await adjustCustomerDebt(ctx, input))),
+  allocate: commandProcedure
+    .input(recordPaymentAllocationCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await recordPaymentAllocation(ctx, input))),
+  reverseAllocation: commandProcedure
+    .input(reversePaymentAllocationCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reversePaymentAllocation(ctx, input))),
 });

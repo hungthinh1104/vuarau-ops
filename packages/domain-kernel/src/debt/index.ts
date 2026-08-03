@@ -11,6 +11,8 @@ import type {
   CustomerId,
   IsoInstant,
   Money,
+  PaymentAllocationId,
+  PaymentAllocationReversalId,
   PaymentId,
   SaleId,
 } from "@vuarau/domain-contracts";
@@ -41,10 +43,29 @@ export type DebtAgingLedgerSource = {
   readonly transactionTime: IsoInstant;
 };
 
+export type DebtAgingAllocationSource = {
+  readonly allocationId: PaymentAllocationId;
+  readonly customerId: CustomerId;
+  readonly paymentId: PaymentId;
+  readonly saleId: SaleId;
+  readonly amount: Money;
+  readonly transactionTime: IsoInstant;
+};
+
+export type DebtAgingAllocationReversalSource = {
+  readonly reversalId: PaymentAllocationReversalId;
+  readonly allocationId: PaymentAllocationId;
+  readonly customerId: CustomerId;
+  readonly amount: Money;
+  readonly transactionTime: IsoInstant;
+};
+
 export type DebtAgingSources = {
   readonly sales: readonly DebtAgingSaleSource[];
   readonly payments: readonly DebtAgingPaymentSource[];
   readonly ledgerEntries: readonly DebtAgingLedgerSource[];
+  readonly allocations: readonly DebtAgingAllocationSource[];
+  readonly allocationReversals: readonly DebtAgingAllocationReversalSource[];
 };
 
 export type DebtAgingCalculation = {
@@ -200,6 +221,29 @@ export function calculateDebtAging(
     orderedSales.map((sale) => [sale.saleId, sale.amount.amountMinor]),
   );
 
+  const applyAllocation = (paymentId: PaymentId, saleId: SaleId, amountMinor: number): void => {
+    const payment = payments.find((item) => item.paymentId === paymentId);
+    const sale = sales.find((item) => item.saleId === saleId);
+    if (payment === undefined || sale === undefined) {
+      diagnostics.add("allocation_source_missing");
+      return;
+    }
+    const allocatedToPayment = allocationByPayment.get(paymentId) ?? 0;
+    const allocatedToSale = allocationBySale.get(saleId) ?? 0;
+    const paymentRemaining = payment.effectiveAmount - allocatedToPayment;
+    const saleRemaining = sale.amount.amountMinor - allocatedToSale;
+    if (amountMinor > paymentRemaining) diagnostics.add("payment_allocation_exceeds_payment");
+    if (amountMinor > saleRemaining) diagnostics.add("payment_allocation_exceeds_sale");
+    const accepted = Math.min(
+      amountMinor,
+      Math.max(0, paymentRemaining),
+      Math.max(0, saleRemaining),
+    );
+    if (accepted <= 0) return;
+    allocationBySale.set(saleId, allocatedToSale + accepted);
+    allocationByPayment.set(paymentId, allocatedToPayment + accepted);
+  };
+
   if (
     allocationStrategy === "oldest_due_first" ||
     allocationStrategy === "oldest_transaction_first"
@@ -221,7 +265,37 @@ export function calculateDebtAging(
       }
     }
   } else if (allocationStrategy === "manual" || allocationStrategy === "specific_sale") {
-    diagnostics.add("manual_allocation_not_recorded");
+    const reversalsByAllocation = new Map<PaymentAllocationId, number>();
+    for (const reversal of sources.allocationReversals) {
+      if (reversal.transactionTime > asOf) continue;
+      reversalsByAllocation.set(
+        reversal.allocationId,
+        (reversalsByAllocation.get(reversal.allocationId) ?? 0) + reversal.amount.amountMinor,
+      );
+    }
+    const allocations = [...sources.allocations]
+      .filter((allocation) => allocation.transactionTime <= asOf)
+      .sort((left, right) =>
+        left.transactionTime === right.transactionTime
+          ? left.allocationId.localeCompare(right.allocationId)
+          : left.transactionTime.localeCompare(right.transactionTime),
+      );
+    for (const allocation of allocations) {
+      const reversed = reversalsByAllocation.get(allocation.allocationId) ?? 0;
+      if (reversed > allocation.amount.amountMinor) {
+        diagnostics.add("allocation_reversal_exceeds_allocation");
+      }
+      applyAllocation(
+        allocation.paymentId,
+        allocation.saleId,
+        Math.max(0, allocation.amount.amountMinor - reversed),
+      );
+    }
+    if (payments.some((payment) => payment.effectiveAmount > 0) && allocations.length === 0) {
+      diagnostics.add("manual_allocation_not_recorded");
+    }
+  } else if (sources.allocations.length > 0 || sources.allocationReversals.length > 0) {
+    diagnostics.add("persisted_allocations_conflict_with_policy");
   }
 
   const rows: DebtAgingSaleRow[] = sales.map((sale) => {

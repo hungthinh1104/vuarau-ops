@@ -18,6 +18,7 @@ import { createSupplierObservationRepositories } from "./repositories/supplier-o
 import { createDemandObservationRepositories } from "./repositories/demand-observation.ts";
 import { createWorkspacePolicyRepositories } from "./repositories/policy.ts";
 import { createPaymentRepositories } from "./repositories/payment.ts";
+import { createPaymentAllocationRepositories } from "./repositories/payment-allocation.ts";
 import { createProductRepositories } from "./repositories/product.ts";
 import { createPriceRuleRepositories } from "./repositories/pricing.ts";
 import { createPurchaseRepositories } from "./repositories/purchase.ts";
@@ -80,6 +81,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createIntakeRepositories(store),
   ...createSaleRepositories(store),
   ...createPaymentRepositories(store),
+  ...createPaymentAllocationRepositories(store),
   ...createAccountRepositories(store, ids),
   ...createAuditRepositories(store, ids),
   ...createReceiptRepositories(store),

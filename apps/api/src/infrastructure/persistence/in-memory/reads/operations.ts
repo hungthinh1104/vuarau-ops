@@ -32,7 +32,9 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
           return entry.amount.amountMinor !== 0 && (entry.reason?.trim().length ?? 0) > 0;
         }
         if (entry.sourceType === "sale_posting") {
-          const sale = [...store.sales.values()].find((item) => item.id === entry.sourceId);
+          const sale = [...store.sales.values()].find(
+            (item) => item.id === entry.sourceId && item.workspaceId === entry.workspaceId,
+          );
           return (
             sale !== undefined &&
             sale.workspaceId === entry.workspaceId &&
@@ -43,11 +45,15 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
           );
         }
         if (entry.sourceType === "sale_void") {
-          const record = store.saleVoids.find((item) => item.id === entry.sourceId);
+          const record = store.saleVoids.find(
+            (item) => item.id === entry.sourceId && item.workspaceId === entry.workspaceId,
+          );
           const sale =
             record === undefined
               ? undefined
-              : [...store.sales.values()].find((item) => item.id === record.saleId);
+              : [...store.sales.values()].find(
+                  (item) => item.id === record.saleId && item.workspaceId === entry.workspaceId,
+                );
           return (
             record !== undefined &&
             sale !== undefined &&
@@ -58,7 +64,9 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
           );
         }
         if (entry.sourceType === "payment") {
-          const payment = [...store.payments.values()].find((item) => item.id === entry.sourceId);
+          const payment = [...store.payments.values()].find(
+            (item) => item.id === entry.sourceId && item.workspaceId === entry.workspaceId,
+          );
           return (
             payment !== undefined &&
             payment.workspaceId === entry.workspaceId &&
@@ -67,11 +75,15 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
             payment.amount.currency === entry.amount.currency
           );
         }
-        const reversal = store.reversals.find((item) => item.id === entry.sourceId);
+        const reversal = store.reversals.find(
+          (item) => item.id === entry.sourceId && item.workspaceId === entry.workspaceId,
+        );
         const payment =
           reversal === undefined
             ? undefined
-            : [...store.payments.values()].find((item) => item.id === reversal.paymentId);
+            : [...store.payments.values()].find(
+                (item) => item.id === reversal.paymentId && item.workspaceId === entry.workspaceId,
+              );
         return (
           reversal !== undefined &&
           payment !== undefined &&
@@ -415,6 +427,8 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
         saleVoids: rows(store.saleVoids),
         payments: rows(store.payments.values()),
         paymentReversals: rows(store.reversals),
+        paymentAllocations: rows(store.paymentAllocations),
+        paymentAllocationReversals: rows(store.paymentAllocationReversals),
         accountEntries: rows(store.accountEntries),
         audit: rows(store.audit),
         commandReceipts: rows(store.receipts.values()).filter(

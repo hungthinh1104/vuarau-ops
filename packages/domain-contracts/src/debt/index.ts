@@ -1,13 +1,18 @@
 import { z } from "zod";
 import {
+  actorIdSchema,
+  commandIdSchema,
   customerAccountEntryIdSchema,
   customerIdSchema,
   paymentIdSchema,
+  paymentAllocationIdSchema,
+  paymentAllocationReversalIdSchema,
   saleIdSchema,
   workspaceIdSchema,
   workspacePolicyVersionIdSchema,
 } from "../shared/ids.ts";
 import { accountEntrySourceTypeSchema } from "../account/index.ts";
+import { defineVersionedCommand } from "../shared/command.ts";
 import { moneySchema } from "../shared/money.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { paymentAllocationStrategySchema } from "../policy/index.ts";
@@ -113,3 +118,57 @@ export const debtAgingResultSchema = z.discriminatedUnion("status", [
     .extend({ integrity: z.literal("attention") }),
 ]);
 export type DebtAgingResult = z.infer<typeof debtAgingResultSchema>;
+
+export const paymentAllocationDtoSchema = z.object({
+  id: paymentAllocationIdSchema,
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+  paymentId: paymentIdSchema,
+  saleId: saleIdSchema,
+  amount: moneySchema,
+  evidenceReferences: z.array(z.string()),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+});
+export type PaymentAllocationDto = z.infer<typeof paymentAllocationDtoSchema>;
+
+export const paymentAllocationReversalDtoSchema = z.object({
+  id: paymentAllocationReversalIdSchema,
+  workspaceId: workspaceIdSchema,
+  customerId: customerIdSchema,
+  allocationId: paymentAllocationIdSchema,
+  amount: moneySchema,
+  reason: z.string().trim().min(1).max(500),
+  evidenceReferences: z.array(z.string()),
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+});
+export type PaymentAllocationReversalDto = z.infer<typeof paymentAllocationReversalDtoSchema>;
+
+export const recordPaymentAllocationPayloadSchema = z.object({
+  allocationId: paymentAllocationIdSchema,
+  paymentId: paymentIdSchema,
+  saleId: saleIdSchema,
+  amount: moneySchema,
+  evidenceReferences: z.array(z.string()).max(20),
+});
+export const recordPaymentAllocationCommandSchema = defineVersionedCommand(
+  recordPaymentAllocationPayloadSchema,
+);
+export type RecordPaymentAllocationCommand = z.infer<typeof recordPaymentAllocationCommandSchema>;
+
+export const reversePaymentAllocationPayloadSchema = z.object({
+  allocationId: paymentAllocationIdSchema,
+  reversalId: paymentAllocationReversalIdSchema,
+  amount: moneySchema,
+  reason: z.string().max(500),
+  evidenceReferences: z.array(z.string()).max(20),
+});
+export const reversePaymentAllocationCommandSchema = defineVersionedCommand(
+  reversePaymentAllocationPayloadSchema,
+);
+export type ReversePaymentAllocationCommand = z.infer<typeof reversePaymentAllocationCommandSchema>;

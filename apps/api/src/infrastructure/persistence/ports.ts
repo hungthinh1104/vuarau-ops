@@ -7,7 +7,6 @@ import type {
   IsoInstant,
   AccountEntrySourceType,
   SaleId,
-  PaymentId,
   ProductId,
   QualityGradeId,
   SupplierId,
@@ -45,6 +44,8 @@ import type {
   QualityIssueCodeDto,
   QualityIssueCodeId,
 } from "@vuarau/domain-contracts";
+import type { PaymentAllocationRepository } from "./payment-allocation-ports.ts";
+import type { PaymentRepository } from "./payment-ports.ts";
 import type {
   AuditDraft,
   CustomerAccountBalance,
@@ -52,8 +53,6 @@ import type {
   AccountEntryDraft,
   SaleState,
   SaleVoidState,
-  PaymentReversalState,
-  PaymentState,
   ProductState,
   QualityGradeState,
   SupplierState,
@@ -586,13 +585,6 @@ export type SaleRepository = {
   insertVoid(record: SaleVoidState, actorId: ActorId, commandId: CommandId): Promise<boolean>;
 };
 
-export type PaymentRepository = {
-  findByIdForUpdate(workspaceId: WorkspaceId, paymentId: PaymentId): Promise<PaymentState | null>;
-  insert(payment: PaymentState): Promise<void>;
-  update(payment: PaymentState, expectedVersion: number): Promise<boolean>;
-  insertReversal(reversal: PaymentReversalState): Promise<void>;
-};
-
 /**
  * Note the absence of `update` and `delete`. The ledger is append-only
  * (BR-ACCOUNT-005) and the port is shaped so that violating it is not expressible.
@@ -691,6 +683,7 @@ export type Repositories = ReadRepositories & {
   readonly workspacePolicies: WorkspacePolicyRepository;
   readonly sales: SaleRepository;
   readonly payments: PaymentRepository;
+  readonly paymentAllocations: PaymentAllocationRepository;
   readonly accountEntries: CustomerAccountEntryRepository;
   readonly accountBalances: CustomerAccountBalanceRepository;
   readonly audit: AuditRepository;

@@ -396,6 +396,8 @@ describe("M14 logical operations evidence", () => {
       supplyCommitmentObservations: _supplyCommitmentObservations,
       supplierObservations: _supplierObservations,
       demandObservations: _demandObservations,
+      paymentAllocations: _paymentAllocations,
+      paymentAllocationReversals: _paymentAllocationReversals,
       customerOrders: _customerOrders,
       customerOrderLines: _customerOrderLines,
       supplyCommitments: _supplyCommitments,

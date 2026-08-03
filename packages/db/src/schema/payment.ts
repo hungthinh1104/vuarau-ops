@@ -1,16 +1,20 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
+  check,
   foreignKey,
   index,
   integer,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { currencyCodeEnum, paymentMethodEnum, paymentStatusEnum } from "./enums.ts";
 import { customers } from "./customer.ts";
-import { workspaces } from "./workspace.ts";
+import { sales } from "./sale.ts";
+import { actors, workspaces } from "./workspace.ts";
 import { cashAccounts } from "./cash.ts";
 
 /**
@@ -46,6 +50,7 @@ export const payments = pgTable(
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    uniqueIndex("payments_workspace_id_uq").on(table.workspaceId, table.id),
     foreignKey({
       columns: [table.workspaceId, table.cashAccountId],
       foreignColumns: [cashAccounts.workspaceId, cashAccounts.id],
@@ -82,4 +87,94 @@ export const paymentReversals = pgTable(
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },
   (table) => [index("payment_reversals_payment_idx").on(table.paymentId)],
+);
+
+/**
+ * A commercial attribution of received money to a posted sale. It never changes
+ * the account ledger: the payment already reduced debt when recorded. Reversing
+ * an attribution uses the append-only table below, not an update or delete.
+ */
+export const paymentAllocations = pgTable(
+  "payment_allocations",
+  {
+    id: uuid("id").primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    paymentId: uuid("payment_id").notNull(),
+    saleId: uuid("sale_id").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
+    currency: currencyCodeEnum("currency").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
+    transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.workspaceId, table.paymentId],
+      foreignColumns: [payments.workspaceId, payments.id],
+      name: "payment_allocations_workspace_payment_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.saleId],
+      foreignColumns: [sales.workspaceId, sales.id],
+      name: "payment_allocations_workspace_sale_fk",
+    }),
+    check("payment_allocations_amount_positive_ck", sql`${table.amountMinor} > 0`),
+    index("payment_allocations_workspace_customer_idx").on(
+      table.workspaceId,
+      table.customerId,
+      table.transactionTime,
+      table.id,
+    ),
+    index("payment_allocations_payment_idx").on(table.workspaceId, table.paymentId),
+    index("payment_allocations_sale_idx").on(table.workspaceId, table.saleId),
+    uniqueIndex("payment_allocations_workspace_id_uq").on(table.workspaceId, table.id),
+  ],
+);
+
+export const paymentAllocationReversals = pgTable(
+  "payment_allocation_reversals",
+  {
+    id: uuid("id").primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    allocationId: uuid("allocation_id").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
+    currency: currencyCodeEnum("currency").notNull(),
+    reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
+    transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.workspaceId, table.allocationId],
+      foreignColumns: [paymentAllocations.workspaceId, paymentAllocations.id],
+      name: "payment_allocation_reversals_workspace_allocation_fk",
+    }),
+    check("payment_allocation_reversals_amount_positive_ck", sql`${table.amountMinor} > 0`),
+    index("payment_allocation_reversals_workspace_customer_idx").on(
+      table.workspaceId,
+      table.customerId,
+      table.transactionTime,
+      table.id,
+    ),
+    index("payment_allocation_reversals_allocation_idx").on(table.workspaceId, table.allocationId),
+  ],
 );

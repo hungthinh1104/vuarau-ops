@@ -9,6 +9,8 @@ import {
   goodsArrivals,
   inventoryMovements,
   payments,
+  paymentAllocations,
+  paymentAllocationReversals,
   products,
   priceRules,
   purchases,
@@ -36,6 +38,8 @@ export async function targetContainsBusinessData(
     goodsArrivalRows,
     saleRows,
     paymentRows,
+    paymentAllocationRows,
+    paymentAllocationReversalRows,
     entryRows,
     supplierRows,
     purchaseRows,
@@ -86,6 +90,16 @@ export async function targetContainsBusinessData(
       .select({ id: payments.id })
       .from(payments)
       .where(eq(payments.workspaceId, workspaceId))
+      .limit(1),
+    tx
+      .select({ id: paymentAllocations.id })
+      .from(paymentAllocations)
+      .where(eq(paymentAllocations.workspaceId, workspaceId))
+      .limit(1),
+    tx
+      .select({ id: paymentAllocationReversals.id })
+      .from(paymentAllocationReversals)
+      .where(eq(paymentAllocationReversals.workspaceId, workspaceId))
       .limit(1),
     tx
       .select({ id: customerAccountEntries.id })
@@ -144,6 +158,8 @@ export async function targetContainsBusinessData(
       goodsArrivalRows,
       saleRows,
       paymentRows,
+      paymentAllocationRows,
+      paymentAllocationReversalRows,
       entryRows,
       supplierRows,
       purchaseRows,

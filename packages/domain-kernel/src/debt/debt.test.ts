@@ -78,6 +78,8 @@ describe("BR-AGING-001 / BR-AGING-002 / TC-AGING-001", () => {
             transactionTime: "2026-01-05T00:00:00.000Z",
           },
         ],
+        allocations: [],
+        allocationReversals: [],
       },
       terms,
       "oldest_due_first",
@@ -115,12 +117,103 @@ describe("BR-AGING-001 / BR-AGING-002 / TC-AGING-001", () => {
 
   it("fails closed when the configured strategy needs allocations that are not recorded", () => {
     const result = calculateDebtAging(
-      { sales: [], payments: [], ledgerEntries: [] },
+      {
+        sales: [],
+        payments: [
+          {
+            paymentId,
+            customerId,
+            amount: vnd(10_000),
+            reversals: [],
+            transactionTime: "2026-01-05T00:00:00.000Z",
+          },
+        ],
+        ledgerEntries: [],
+        allocations: [],
+        allocationReversals: [],
+      },
       terms,
       "manual",
       "2026-01-10T00:00:00.000Z",
     );
 
     expect(result.diagnostics).toContain("manual_allocation_not_recorded");
+  });
+
+  it("uses persisted allocation facts and compensation for a manual policy", () => {
+    const result = calculateDebtAging(
+      {
+        sales: [
+          {
+            saleId: saleId("5"),
+            customerId,
+            amount: vnd(100_000),
+            transactionTime: "2026-01-01T00:00:00.000Z",
+            dueAt: "2026-01-02T00:00:00.000Z",
+          },
+        ],
+        payments: [
+          {
+            paymentId,
+            customerId,
+            amount: vnd(80_000),
+            reversals: [],
+            transactionTime: "2026-01-03T00:00:00.000Z",
+          },
+        ],
+        ledgerEntries: [
+          {
+            entryId: "00000000-0000-4000-8000-000000000013",
+            sourceType: "sale_posting",
+            sourceId: saleId("5"),
+            customerId,
+            amount: vnd(100_000),
+            transactionTime: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            entryId: "00000000-0000-4000-8000-000000000014",
+            sourceType: "payment",
+            sourceId: paymentId,
+            customerId,
+            amount: vnd(-80_000),
+            transactionTime: "2026-01-03T00:00:00.000Z",
+          },
+        ],
+        allocations: [
+          {
+            allocationId: "00000000-0000-4000-8000-000000000015" as never,
+            customerId,
+            paymentId,
+            saleId: saleId("5"),
+            amount: vnd(80_000),
+            transactionTime: "2026-01-04T00:00:00.000Z",
+          },
+        ],
+        allocationReversals: [
+          {
+            reversalId: "00000000-0000-4000-8000-000000000016" as never,
+            allocationId: "00000000-0000-4000-8000-000000000015" as never,
+            customerId,
+            amount: vnd(20_000),
+            transactionTime: "2026-01-05T00:00:00.000Z",
+          },
+        ],
+      },
+      terms,
+      "manual",
+      "2026-01-10T00:00:00.000Z",
+    );
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.rows[0]).toMatchObject({
+      allocatedAmount: vnd(60_000),
+      outstandingAmount: vnd(40_000),
+      state: "overdue",
+    });
+    expect(result.payments[0]).toMatchObject({
+      allocatedAmount: vnd(60_000),
+      unallocatedAmount: vnd(20_000),
+      state: "partially_allocated",
+    });
   });
 });

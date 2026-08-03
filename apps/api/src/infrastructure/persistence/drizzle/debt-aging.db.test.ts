@@ -14,6 +14,8 @@ import {
 import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 import { getCustomerDebtAging } from "../../../modules/account/account.queries.ts";
+import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
+import { recordPaymentAllocation } from "../../../modules/account/payment-allocation.handlers.ts";
 
 describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
   let ctx: DbTestContext;
@@ -89,14 +91,14 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
         version: 1,
         effectiveFrom: "2026-07-01T00:00:00.000Z",
         effectiveTo: null,
-        definition: { contractVersion: 1, parameters: { strategy: "oldest_due_first" } },
+        definition: { contractVersion: 1, parameters: { strategy: "manual" } },
         evidenceReferences: [],
         reason: "DB debt allocation.",
       },
     });
     expect(allocationDraft.ok).toBe(true);
     if (!allocationDraft.ok) return;
-    const allocation = await approveWorkspacePolicy(owner, {
+    const allocationPolicy = await approveWorkspacePolicy(owner, {
       ...policyEnvelope("db-aging-allocation-approve"),
       payload: {
         policyVersionId: allocationDraft.value.id,
@@ -104,8 +106,8 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
         reason: "DB debt allocation approved.",
       },
     });
-    expect(allocation.ok).toBe(true);
-    if (!allocation.ok) return;
+    expect(allocationPolicy.ok).toBe(true);
+    if (!allocationPolicy.ok) return;
 
     const draft = await createSaleDraft(owner, {
       ...envelope("db-aging-sale-draft"),
@@ -139,6 +141,33 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
     });
     expect(posted.ok).toBe(true);
 
+    const paymentId = crypto.randomUUID();
+    const payment = await recordCustomerPayment(owner, {
+      ...envelope("db-aging-payment-record", "2026-07-30T05:00:00.000Z"),
+      payload: {
+        paymentId,
+        customerId: ctx.customerId,
+        amount: { amountMinor: 50_000, currency: "VND" },
+        method: "cash",
+        payerName: null,
+        note: null,
+        evidenceReferences: [],
+      },
+    });
+    expect(payment.ok).toBe(true);
+    const allocation = await recordPaymentAllocation(owner, {
+      ...envelope("db-aging-payment-allocation", "2026-07-31T05:00:00.000Z"),
+      expectedVersion: 1,
+      payload: {
+        allocationId: crypto.randomUUID(),
+        paymentId,
+        saleId: draft.value.id,
+        amount: { amountMinor: 50_000, currency: "VND" },
+        evidenceReferences: ["field://debt/db-allocation-record"],
+      },
+    });
+    expect(allocation.ok).toBe(true);
+
     const result = await getCustomerDebtAging(owner, {
       workspaceId: ctx.workspaceId,
       customerId: ctx.customerId,
@@ -149,7 +178,8 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
       expect(result.value.status).toBe("available");
       expect(result.value.status === "available" && result.value.rows[0]).toMatchObject({
         state: "overdue",
-        outstandingAmount: { amountMinor: 100_000, currency: "VND" },
+        allocatedAmount: { amountMinor: 50_000, currency: "VND" },
+        outstandingAmount: { amountMinor: 50_000, currency: "VND" },
       });
     }
   });
