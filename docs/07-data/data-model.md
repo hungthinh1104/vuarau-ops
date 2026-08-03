@@ -20,20 +20,22 @@ Drizzle definitions and database constraints.
 
 ### Customer, Sale and customer money
 
-| Table                       | Purpose                                                            | Mutability                                                     |
-| --------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------- |
-| `customers`                 | Buyer master data                                                  | mutable lifecycle                                              |
-| `sales`                     | Sale aggregate (`draft → posted/discarded`) with source references | draft/status/version only; posted commercial content immutable |
-| `sale_lines`                | Product/grade/quantity/price snapshots for Sale                    | replaceable while draft; finalized snapshots preserved         |
-| `sale_voids`                | Posted-Sale compensation/reason with source references             | append-only adjacent fact                                      |
-| `payments`                  | Customer money, source references and reversal summary             | constrained lifecycle/version fields                           |
-| `payment_reversals`         | Customer-payment compensation and source references                | append-only                                                    |
-| `customer_account_entries`  | Canonical customer debt ledger                                     | append-only                                                    |
-| `customer_account_balances` | Rebuildable customer balance projection                            | recomputable                                                   |
-| `customer_orders`           | Commercial Customer Order lifecycle and commercial snapshots       | draft fields replaceable; confirmed/cancelled state explicit   |
-| `customer_order_lines`      | Customer Order product/name/quantity/price snapshots               | replaceable while draft; preserved on confirmation             |
-| `supply_commitments`        | Supplier promise lifecycle and arrival/terms snapshots             | commercial-only; no payable or inventory effect                |
-| `supply_commitment_lines`   | Supplier promise product/grade/quantity/price snapshots            | replaceable while draft; preserved on confirmation             |
+| Table                          | Purpose                                                            | Mutability                                                     |
+| ------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `customers`                    | Buyer master data                                                  | mutable lifecycle                                              |
+| `sales`                        | Sale aggregate (`draft → posted/discarded`) with source references | draft/status/version only; posted commercial content immutable |
+| `sale_lines`                   | Product/grade/quantity/price snapshots for Sale                    | replaceable while draft; finalized snapshots preserved         |
+| `sale_voids`                   | Posted-Sale compensation/reason with source references             | append-only adjacent fact                                      |
+| `payments`                     | Customer money, source references and reversal summary             | constrained lifecycle/version fields                           |
+| `payment_reversals`            | Customer-payment compensation and source references                | append-only                                                    |
+| `payment_allocations`          | Append-only commercial attribution of a payment to a posted Sale   | append-only                                                    |
+| `payment_allocation_reversals` | Compensation facts for payment attribution                         | append-only                                                    |
+| `customer_account_entries`     | Canonical customer debt ledger                                     | append-only                                                    |
+| `customer_account_balances`    | Rebuildable customer balance projection                            | recomputable                                                   |
+| `customer_orders`              | Commercial Customer Order lifecycle and commercial snapshots       | draft fields replaceable; confirmed/cancelled state explicit   |
+| `customer_order_lines`         | Customer Order product/name/quantity/price snapshots               | replaceable while draft; preserved on confirmation             |
+| `supply_commitments`           | Supplier promise lifecycle and arrival/terms snapshots             | commercial-only; no payable or inventory effect                |
+| `supply_commitment_lines`      | Supplier promise product/grade/quantity/price snapshots            | replaceable while draft; preserved on confirmation             |
 
 ### Product, supplier and Purchase
 

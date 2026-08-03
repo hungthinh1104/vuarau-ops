@@ -598,6 +598,29 @@ use_cases:
       - apps/api/src/infrastructure/trpc/routers/customer.ts
       - packages/db/src/repositories/read/account.ts
 
+  UC-ACCOUNT-005:
+    title: Allocate or reverse payment attribution for debt aging
+    risk: P0
+    doc: docs/02-use-cases/UC-ACCOUNT-005-allocate-payment.md
+    rules:
+      - BR-AGING-002
+      - BR-AGING-004
+      - BR-COMMAND-001
+      - BR-COMMAND-002
+      - BR-AUTH-001
+      - BR-AUTH-004
+      - BR-CUSTOMER-002
+    cases: []
+    tests:
+      - TC-AGING-004
+    implementation:
+      - packages/domain-contracts/src/debt/index.ts
+      - packages/domain-kernel/src/debt/payment-allocation.ts
+      - apps/api/src/modules/account/payment-allocation.handlers.ts
+      - apps/api/src/infrastructure/trpc/routers/customer.ts
+      - packages/db/src/schema/payment.ts
+      - packages/db/src/repositories/write/payment-allocation.ts
+
   UC-COMMAND-001:
     title: Handle a retry, a duplicate, or a stale version
     risk: P0
@@ -2335,6 +2358,17 @@ business_rules:
     implementation:
       - packages/domain-kernel/src/debt/index.ts
       - packages/db/src/repositories/read/account.ts
+
+  BR-AGING-004:
+    title: Payment attribution is append-only and compensating
+    risk: P0
+    doc: docs/04-business-rules/debt-aging-rules.md
+    cases: []
+    tests: [TC-AGING-004]
+    implementation:
+      - packages/domain-kernel/src/debt/payment-allocation.ts
+      - packages/db/src/schema/payment.ts
+      - packages/db/src/repositories/write/payment-allocation.ts
 
   # --- cross-cutting command rules ----------------------------------------------
   BR-COMMAND-001:

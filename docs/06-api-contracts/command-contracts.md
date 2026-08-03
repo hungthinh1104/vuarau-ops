@@ -49,7 +49,7 @@ command changes, update its schema and tests first, then keep this catalog align
 | `session`          | `revokeMembership`, `addMember`, `changeMemberRole`, `updateOperationalProfile`, `reactivateMember`                                                                                                       |
 | `customer`         | `create`, `update`, `deactivate`, `reactivate`                                                                                                                                                            |
 | `account`          | `rebuildProjection`                                                                                                                                                                                       |
-| `debt`             | `adjust`                                                                                                                                                                                                  |
+| `debt`             | `adjust`, `allocate`, `reverseAllocation`                                                                                                                                                                 |
 | `sale`             | `createDraft`, `updateDraft`, `discardDraft`, `post`, `void`                                                                                                                                              |
 | `customerOrder`    | `createDraft`, `updateDraft`, `confirm`, `cancel`                                                                                                                                                         |
 | `supplyCommitment` | `createDraft`, `updateDraft`, `confirm`, `cancel`                                                                                                                                                         |
@@ -107,6 +107,7 @@ must not borrow the meaning of a neighbouring context.
 | `sale.post`                              | freezes the Sale and creates the configured customer-account effect | none                                                     |
 | `sale.void`                              | appends the Sale compensation                                       | none                                                     |
 | `payment.record` / `payment.reverse`     | changes customer account only                                       | none                                                     |
+| `debt.allocate`                          | records or compensates payment-to-sale attribution                  | `PAYMENT_ALLOCATION_*`                                   |
 | `purchase.confirm` / `purchase.void`     | changes supplier account according to current policy                | none                                                     |
 | `receiving.record` / `receiving.reverse` | none                                                                | appends inbound/inverse movements                        |
 | `inventory.adjust`                       | none                                                                | explicit attributable quantity adjustment                |

@@ -29,8 +29,9 @@ diagnostics. No global term, bucket, or allocation strategy is inferred.
    integrity diagnostics.
 
 The current supported automatic strategies are `oldest_due_first` and
-`oldest_transaction_first`. Manual or specific-sale allocation is reported as
-unavailable until explicit allocation records exist.
+`oldest_transaction_first`. `manual` and `specific_sale` are available when
+append-only allocation records exist; missing records remain unavailable rather
+than being inferred from UI state.
 
 ## Business rules
 
@@ -39,7 +40,7 @@ BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002
 
 ## Tests
 
-TC-AGING-001, TC-AGING-002, TC-AGING-003
+TC-AGING-001, TC-AGING-002, TC-AGING-003, TC-AGING-004
 
 ## Implementation
 
@@ -48,8 +49,8 @@ TC-AGING-001, TC-AGING-002, TC-AGING-003
 - `apps/api/src/modules/account/account.queries.ts`
 - `apps/api/src/infrastructure/trpc/routers/customer.ts`
 - `packages/db/src/repositories/read/account.ts`
+- `apps/api/src/modules/account/payment-allocation.handlers.ts`
+- `packages/db/src/schema/payment.ts`
 
-## Explicitly not included
-
-Payment allocation commands, promise-to-pay, disputes, collection action
-history, and credit-control enforcement remain separate slices.
+Explicitly not included: promise-to-pay, disputes, collection action history, and
+credit-control enforcement remain separate slices.
