@@ -4,6 +4,7 @@ import type {
   ReopenStocktakeCommand,
   StartStocktakeCommand,
   StocktakeCountDto,
+  StocktakeDto,
   StocktakeState,
 } from "@vuarau/domain-contracts";
 import type {
@@ -41,6 +42,7 @@ export function decideStartStocktake(
     transactionTime: command.occurredAt,
     recordedAt,
     actorId: command.actorId,
+    commandId: command.commandId,
     evidenceReferences: [...command.payload.evidenceReferences],
   });
 }
@@ -97,6 +99,7 @@ export function decideRecordStocktakeCount(args: {
     transactionTime: command.occurredAt,
     recordedAt,
     actorId: command.actorId,
+    commandId: command.commandId,
     evidenceReferences: [...command.payload.evidenceReferences],
   };
   return ok({
@@ -163,6 +166,15 @@ export function calculateStocktakeExpectedQuantity(args: {
 
 export function stocktakeCountDto(count: StocktakeCountState): StocktakeCountDto {
   return { ...count, evidenceReferences: [...count.evidenceReferences] };
+}
+
+export function stocktakeDto(session: StocktakeSessionState): StocktakeDto {
+  return {
+    ...session,
+    counts: session.counts.map(stocktakeCountDto),
+    varianceMovementIds: [...session.varianceMovementIds],
+    evidenceReferences: [...session.evidenceReferences],
+  };
 }
 
 export type StocktakeStatus = StocktakeState;

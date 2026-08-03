@@ -401,15 +401,17 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
                                 (source) => source.reversalId === row.sourceId,
                               )?.dispositionId ?? row.sourceId,
                           }
-                        : {
-                            type: "receipt" as const,
-                            id:
-                              row.sourceType === "purchase_receipt"
-                                ? row.sourceId
-                                : (reversalSources.find(
-                                    (source) => source.reversalId === row.sourceId,
-                                  )?.receiptId ?? row.sourceId),
-                          },
+                        : row.sourceType === "stocktake_variance"
+                          ? { type: "stocktake" as const, id: row.sourceId }
+                          : {
+                              type: "receipt" as const,
+                              id:
+                                row.sourceType === "purchase_receipt"
+                                  ? row.sourceId
+                                  : (reversalSources.find(
+                                      (source) => source.reversalId === row.sourceId,
+                                    )?.receiptId ?? row.sourceId),
+                            },
         })),
         args.page,
         (row) => ({

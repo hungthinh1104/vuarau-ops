@@ -179,15 +179,17 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
                                 (disposition) => disposition.reversal?.id === row.sourceId,
                               )?.id ?? row.sourceId,
                           }
-                        : {
-                            type: "receipt" as const,
-                            id:
-                              row.sourceType === "purchase_receipt"
-                                ? row.sourceId
-                                : ([...store.purchaseReceipts.values()].find(
-                                    (receipt) => receipt.reversal?.id === row.sourceId,
-                                  )?.id ?? row.sourceId),
-                          },
+                        : row.sourceType === "stocktake_variance"
+                          ? { type: "stocktake" as const, id: row.sourceId }
+                          : {
+                              type: "receipt" as const,
+                              id:
+                                row.sourceType === "purchase_receipt"
+                                  ? row.sourceId
+                                  : ([...store.purchaseReceipts.values()].find(
+                                      (receipt) => receipt.reversal?.id === row.sourceId,
+                                    )?.id ?? row.sourceId),
+                            },
         })),
         page,
         (row) => ({

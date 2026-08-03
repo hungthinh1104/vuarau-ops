@@ -3,6 +3,7 @@ import type {
   InventoryValuationResult,
   StockPlanningInput,
   StockPlanningDto,
+  StocktakeGetInput,
   WorkspacePolicyVersionId,
   InventoryTimelineInput,
   IsoInstant,
@@ -268,6 +269,19 @@ export async function getStockPlanning(ctx: CommandContext, input: StockPlanning
       } satisfies StockPlanningDto;
     },
   });
+}
+
+export async function getStocktake(ctx: CommandContext, input: StocktakeGetInput) {
+  const result = await runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "inventory.read",
+    execute: ({ repos }) => repos.stocktakeReads.get(input.workspaceId, input.stocktakeSessionId),
+  });
+  if (!result.ok) return result;
+  return result.value === null
+    ? err("STOCKTAKE_NOT_FOUND", "No such stocktake session.")
+    : ok(result.value);
 }
 
 export const getInventoryValuation = (ctx: CommandContext, input: InventoryValuationInput) =>

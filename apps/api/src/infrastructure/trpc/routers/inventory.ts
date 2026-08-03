@@ -12,6 +12,11 @@ import {
   rebuildInventoryCommandSchema,
   reclassifyInventoryCommandSchema,
   stockPlanningInputSchema,
+  startStocktakeCommandSchema,
+  recordStocktakeCountCommandSchema,
+  approveStocktakeCommandSchema,
+  reopenStocktakeCommandSchema,
+  stocktakeGetInputSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import {
@@ -20,6 +25,12 @@ import {
   reversePurchaseReceipt,
   reclassifyInventory,
 } from "../../../modules/inventory/inventory.handlers.ts";
+import {
+  startStocktake,
+  recordStocktakeCount,
+  approveStocktake,
+  reopenStocktake,
+} from "../../../modules/inventory/stocktake.handlers.ts";
 import {
   getInventoryBalances,
   getInventoryTimeline,
@@ -30,6 +41,7 @@ import {
   getPurchaseReceivingSummary,
   listPurchaseReceipts,
   getStockPlanning,
+  getStocktake,
 } from "../../../modules/inventory/inventory.queries.ts";
 import { rebuildInventory } from "../../../modules/inventory/rebuild-inventory.handler.ts";
 
@@ -73,6 +85,21 @@ export const inventoryRouter = router({
   planning: authenticatedProcedure
     .input(stockPlanningInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getStockPlanning(ctx, input))),
+  stocktakeStart: commandProcedure
+    .input(startStocktakeCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await startStocktake(ctx, input))),
+  stocktakeCount: commandProcedure
+    .input(recordStocktakeCountCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await recordStocktakeCount(ctx, input))),
+  stocktakeApprove: commandProcedure
+    .input(approveStocktakeCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await approveStocktake(ctx, input))),
+  stocktakeReopen: commandProcedure
+    .input(reopenStocktakeCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await reopenStocktake(ctx, input))),
+  stocktakeGet: authenticatedProcedure
+    .input(stocktakeGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getStocktake(ctx, input))),
   reconciliation: authenticatedProcedure
     .input(inventoryReconciliationInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getInventoryReconciliation(ctx, input))),

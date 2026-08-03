@@ -54,6 +54,8 @@ import type {
   DeliveryReturnState,
   CustomerOrderState,
   SupplyCommitmentState,
+  StocktakeCountState,
+  StocktakeSessionState,
 } from "@vuarau/domain-kernel";
 
 export type Store = {
@@ -160,6 +162,8 @@ export type Store = {
   supplierObservations: Map<string, SupplierObservationDto>;
   demandObservations: Map<string, DemandObservationDto>;
   workspacePolicies: Map<string, WorkspacePolicyDto>;
+  stocktakeSessions: Map<string, StocktakeSessionState>;
+  stocktakeCounts: Map<string, StocktakeCountState>;
 };
 
 export function emptyStore(): Store {
@@ -216,6 +220,8 @@ export function emptyStore(): Store {
     supplierObservations: new Map(),
     demandObservations: new Map(),
     workspacePolicies: new Map(),
+    stocktakeSessions: new Map(),
+    stocktakeCounts: new Map(),
   };
 }
 

@@ -344,6 +344,7 @@ export type StocktakeCountState = {
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
   readonly actorId: ActorId;
+  readonly commandId: CommandId;
   readonly evidenceReferences: readonly string[];
 };
 
@@ -361,6 +362,7 @@ export type StocktakeSessionState = {
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
   readonly actorId: ActorId;
+  readonly commandId: CommandId;
   readonly evidenceReferences: readonly string[];
 };
 

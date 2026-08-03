@@ -33,6 +33,8 @@ import { createDemandObservationReadRepositories } from "./read/demand-observati
 import { createCustomerOrderWriteRepositories } from "./write/customer-order.ts";
 import { createSupplyCommitmentWriteRepositories } from "./write/supply-commitment.ts";
 import { createSupplyCommitmentReadRepositories } from "./read/supply-commitment.ts";
+import { createStocktakeReadRepositories } from "./read/stocktake.ts";
+import { createStocktakeWriteRepositories } from "./write/stocktake.ts";
 
 type Tx = PgTransaction<never, never, never>;
 export type IdMinter = { newId(): string };
@@ -72,6 +74,8 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     ...createCustomerOrderWriteRepositories(tx),
     ...createSupplyCommitmentWriteRepositories(tx),
     ...createSupplyCommitmentReadRepositories(tx),
+    ...createStocktakeWriteRepositories(tx),
+    ...createStocktakeReadRepositories(tx),
   };
 }
 
