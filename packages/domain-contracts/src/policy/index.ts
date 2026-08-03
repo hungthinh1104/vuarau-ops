@@ -17,6 +17,7 @@ import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { supplierEvaluationPolicyDefinitionSchema } from "../supplier/index.ts";
+import { managementIntelligencePolicyDefinitionSchema } from "../management/index.ts";
 
 /**
  * Policy capabilities are named contracts, not a generic rule engine. A policy
@@ -36,6 +37,7 @@ export const WORKSPACE_POLICY_KINDS = [
   "supplier_evaluation",
   "operating_cycle_reconciliation",
   "cash_custody_deposit",
+  "management_intelligence",
 ] as const;
 export const workspacePolicyKindSchema = z.enum(WORKSPACE_POLICY_KINDS);
 export type WorkspacePolicyKind = z.infer<typeof workspacePolicyKindSchema>;

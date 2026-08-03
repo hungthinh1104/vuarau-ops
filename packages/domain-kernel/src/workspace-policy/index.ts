@@ -12,6 +12,7 @@ import {
   creditLimitPolicyDefinitionSchema,
   costAllocationPolicyDefinitionSchema,
   inventoryValuationPolicyDefinitionSchema,
+  managementIntelligencePolicyDefinitionSchema,
   paymentAllocationPolicyDefinitionSchema,
   paymentTermsAgingPolicyDefinitionSchema,
   purchaseCorrectionPolicyDefinitionSchema,
@@ -162,6 +163,15 @@ export function decideCreateWorkspacePolicyDraft(
     return err(
       "WORKSPACE_POLICY_DEFINITION_INVALID",
       "Supplier evaluation policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "management_intelligence" &&
+    !managementIntelligencePolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Management intelligence policy definition is not a supported contract.",
     );
   }
   const policy: WorkspacePolicyDto = {

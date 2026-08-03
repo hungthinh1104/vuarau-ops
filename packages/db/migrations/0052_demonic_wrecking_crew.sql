@@ -1,0 +1,1 @@
+ALTER TYPE "public"."workspace_policy_kind" ADD VALUE 'management_intelligence';
