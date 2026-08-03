@@ -18,6 +18,10 @@ export function PurchaseEditView(props: {
   readonly purchase: PurchaseDto;
   readonly products: readonly PurchaseProductOption[];
   readonly productsLoading: boolean;
+  readonly productSearch: {
+    readonly value: string;
+    readonly onChange: (value: string) => void;
+  };
   readonly lines: readonly PurchaseDraftLine[];
   readonly note: string;
   readonly evidence: string;
@@ -44,6 +48,7 @@ export function PurchaseEditView(props: {
       lines={props.lines}
       products={props.products}
       productsLoading={props.productsLoading}
+      productSearch={props.productSearch}
       note={props.note}
       evidence={props.evidence}
       valid={props.valid}

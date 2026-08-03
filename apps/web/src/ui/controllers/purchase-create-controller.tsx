@@ -38,6 +38,7 @@ export function PurchaseCreateController() {
   const purchaseId = useRef(crypto.randomUUID() as PurchaseId).current;
   const [supplierId, setSupplierId] = useState<SupplierId | "">("");
   const [lines, setLines] = useState<readonly PurchaseDraftLine[]>([newLine()]);
+  const [productQuery, setProductQuery] = useState("");
   const [note, setNote] = useState("");
   const [evidence, setEvidence] = useState("");
   const suppliers = useQuery(
@@ -52,7 +53,7 @@ export function PurchaseCreateController() {
   const products = useQuery(
     trpc.product.search.queryOptions({
       workspaceId,
-      query: "",
+      query: productQuery,
       isActive: true,
       cursor: null,
       limit: 100,
@@ -83,6 +84,22 @@ export function PurchaseCreateController() {
         line.unitPrice.amountMinor >= 0 &&
         Number.isSafeInteger(line.unitPrice.amountMinor),
     );
+  const productOptions = [
+    ...lines
+      .filter((line) => line.productId !== "" && line.productName.trim().length > 0)
+      .map((line) => ({
+        id: line.productId as ProductId,
+        displayName: line.productName,
+        preferredUnit: line.unit,
+      })),
+    ...(products.data?.items ?? []).map((product) => ({
+      id: product.id,
+      displayName: product.displayName,
+      preferredUnit: product.preferredUnit,
+    })),
+  ].filter(
+    (product, index, all) => all.findIndex((candidate) => candidate.id === product.id) === index,
+  );
   const save = async (shouldConfirm: boolean) => {
     const draft = await create.submit({
       purchaseId,
@@ -114,11 +131,8 @@ export function PurchaseCreateController() {
         displayName: supplier.displayName,
       }))}
       lines={lines}
-      products={(products.data?.items ?? []).map((product) => ({
-        id: product.id,
-        displayName: product.displayName,
-        preferredUnit: product.preferredUnit,
-      }))}
+      products={productOptions}
+      productSearch={{ value: productQuery, onChange: setProductQuery }}
       note={note}
       evidence={evidence}
       valid={valid}

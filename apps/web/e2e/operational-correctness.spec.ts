@@ -8,6 +8,12 @@ async function chooseOption(scope: Page | Locator, label: string, option: string
   await scope.getByRole("option", { name: option, exact: true }).click();
 }
 
+async function chooseProductOption(page: Page, productName: string): Promise<void> {
+  await page.getByRole("combobox", { name: "Mặt hàng", exact: true }).click();
+  await page.getByRole("searchbox", { name: "Tìm mặt hàng" }).fill(productName);
+  await page.getByRole("option", { name: productName, exact: true }).click();
+}
+
 async function chooseProduct(page: Page, productName: string): Promise<void> {
   await page.getByRole("button", { name: "Mở bảng chọn mặt hàng và giá gần đây" }).click();
   const picker = page.getByRole("dialog");
@@ -53,7 +59,7 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
 
     await page.goto("/purchases/new");
     await chooseOption(page, "Nhà cung cấp", supplierName);
-    await chooseOption(page, "Mặt hàng", productName);
+    await chooseProductOption(page, productName);
     await page.getByLabel("Số lượng").fill("100");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
     await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();

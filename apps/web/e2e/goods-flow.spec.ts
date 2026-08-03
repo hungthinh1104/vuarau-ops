@@ -6,11 +6,18 @@ async function chooseOption(page: Parameters<typeof signIn>[0], label: string, o
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
+async function chooseProduct(page: Parameters<typeof signIn>[0], productName: string) {
+  await page.getByRole("combobox", { name: "Mặt hàng" }).click();
+  await page.getByRole("searchbox", { name: "Tìm mặt hàng" }).fill(productName);
+  await page.getByRole("option", { name: productName, exact: true }).click();
+}
+
 test.describe("Goods Truth", () => {
   test("keeps Purchase payable and physical receipts separate and attributable", async ({
     page,
   }) => {
     await signIn(page, "owner");
+    await api.retirePurchaseCorrectionPolicies();
 
     await page.goto("/quality-grades");
     const qualityGradeName = `Loại 2 Goods ${Date.now()}`;
@@ -38,7 +45,7 @@ test.describe("Goods Truth", () => {
 
     await page.goto("/purchases/new");
     await chooseOption(page, "Nhà cung cấp", supplierName);
-    await chooseOption(page, "Mặt hàng", productName);
+    await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("100");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
     await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();
@@ -78,9 +85,7 @@ test.describe("Goods Truth", () => {
       page.getByRole("alert").filter({ hasText: "Số lượng nhận vượt số lượng đã mua" }),
     ).toBeVisible();
 
-    await expect(
-      page.getByRole("status").filter({ hasText: "Đơn mua đã có hàng thực nhận" }),
-    ).toBeVisible();
+    await expect(page.getByRole("status")).toContainText("Hãy tạo và phê duyệt policy");
 
     for (let index = 0; index < 2; index += 1) {
       await page.getByRole("button", { name: "Hoàn tác phiếu nhận" }).first().click();
@@ -157,7 +162,7 @@ test.describe("Goods Truth", () => {
 
     await page.goto("/purchases/new");
     await chooseOption(page, "Nhà cung cấp", supplierName);
-    await chooseOption(page, "Mặt hàng", productName);
+    await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("100");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
     await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();
@@ -178,7 +183,7 @@ test.describe("Goods Truth", () => {
 
     await page.getByRole("link", { name: "Tạo đơn mua thay thế" }).click();
     await chooseOption(page, "Nhà cung cấp", supplierName);
-    await chooseOption(page, "Mặt hàng", productName);
+    await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("20");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("11");
     await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();

@@ -4,6 +4,7 @@ import { Select as BaseSelect } from "@base-ui/react";
 import { ChevronDown, Check } from "lucide-react";
 import type { SelectHTMLAttributes } from "react";
 import { Field, INPUT_CLASS } from "./field.tsx";
+import { SearchInput } from "./search-input.tsx";
 
 export type SelectOption = {
   readonly value: string;
@@ -16,6 +17,9 @@ export type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "id" | "
   readonly error?: string;
   readonly options: readonly SelectOption[];
   readonly placeholder?: string;
+  readonly searchValue?: string;
+  readonly onSearchChange?: (value: string) => void;
+  readonly searchPlaceholder?: string;
 };
 
 export function Select({
@@ -31,6 +35,9 @@ export function Select({
   onChange,
   disabled,
   name,
+  searchValue,
+  onSearchChange,
+  searchPlaceholder,
   ...rest
 }: SelectProps) {
   return (
@@ -86,6 +93,20 @@ export function Select({
               className="z-50 max-h-[var(--available-height)] w-[var(--anchor-width)]"
             >
               <BaseSelect.Popup className="max-h-[var(--available-height)] overflow-y-auto rounded-card border border-border bg-surface p-1 outline-none">
+                {onSearchChange !== undefined ? (
+                  <div
+                    className="sticky top-0 z-10 bg-surface p-1"
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
+                    <SearchInput
+                      label={`Tìm ${label.toLocaleLowerCase("vi")}`}
+                      placeholder={searchPlaceholder ?? label}
+                      value={searchValue ?? ""}
+                      onChange={(event) => onSearchChange(event.target.value)}
+                      onClear={() => onSearchChange("")}
+                    />
+                  </div>
+                ) : null}
                 {placeholder !== undefined ? (
                   <BaseSelect.Item
                     value=""

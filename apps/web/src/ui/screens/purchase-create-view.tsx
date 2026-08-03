@@ -19,6 +19,10 @@ export function PurchaseCreateView(props: {
   readonly suppliers: readonly PurchaseSupplierOption[];
   readonly lines: readonly PurchaseDraftLine[];
   readonly products: readonly PurchaseProductOption[];
+  readonly productSearch: {
+    readonly value: string;
+    readonly onChange: (value: string) => void;
+  };
   readonly note: string;
   readonly evidence: string;
   readonly valid: boolean;
@@ -45,6 +49,7 @@ export function PurchaseCreateView(props: {
       suppliers={props.suppliers}
       lines={props.lines}
       products={props.products}
+      productSearch={props.productSearch}
       note={props.note}
       evidence={props.evidence}
       valid={props.valid}

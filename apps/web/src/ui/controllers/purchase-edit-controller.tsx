@@ -38,11 +38,12 @@ export function PurchaseEditController() {
   const purchaseId = useParams<{ purchaseId: string }>().purchaseId as PurchaseId;
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const [productQuery, setProductQuery] = useState("");
   const purchase = useQuery(trpc.purchase.get.queryOptions({ workspaceId, purchaseId }));
   const products = useQuery(
     trpc.product.search.queryOptions({
       workspaceId,
-      query: "",
+      query: productQuery,
       isActive: true,
       cursor: null,
       limit: 100,
@@ -63,6 +64,7 @@ export function PurchaseEditController() {
             purchase={draft}
             products={products.data?.items ?? []}
             productsLoading={products.isPending}
+            productSearch={{ value: productQuery, onChange: setProductQuery }}
             onRetry={() => void purchase.refetch()}
           />
         )
@@ -79,6 +81,10 @@ function PurchaseEditForm(props: {
     readonly preferredUnit: Unit | null;
   }[];
   readonly productsLoading: boolean;
+  readonly productSearch: {
+    readonly value: string;
+    readonly onChange: (value: string) => void;
+  };
   readonly onRetry: () => void;
 }) {
   const trpc = useTRPC();
@@ -97,6 +103,18 @@ function PurchaseEditForm(props: {
   );
   const [note, setNote] = useState(props.purchase.note ?? "");
   const [evidence, setEvidence] = useState(formatSourceEvidence(props.purchase.evidenceReferences));
+  const productOptions = [
+    ...lines
+      .filter((line) => line.productId !== "" && line.productName.trim().length > 0)
+      .map((line) => ({
+        id: line.productId as ProductId,
+        displayName: line.productName,
+        preferredUnit: line.unit,
+      })),
+    ...props.products,
+  ].filter(
+    (product, index, all) => all.findIndex((candidate) => candidate.id === product.id) === index,
+  );
   useEffect(() => {
     if (update.result !== null) router.replace(`/purchases/${update.result.id}`);
   }, [router, update.result]);
@@ -121,8 +139,9 @@ function PurchaseEditForm(props: {
   return (
     <PurchaseEditView
       purchase={props.purchase}
-      products={props.products}
+      products={productOptions}
       productsLoading={props.productsLoading}
+      productSearch={props.productSearch}
       lines={lines}
       note={note}
       evidence={evidence}

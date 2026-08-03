@@ -23,6 +23,10 @@ export function PurchaseDraftForm(props: {
   readonly lines: readonly PurchaseDraftLine[];
   readonly products: readonly PurchaseProductOption[];
   readonly productsLoading?: boolean;
+  readonly productSearch?: {
+    readonly value: string;
+    readonly onChange: (value: string) => void;
+  };
   readonly note: string;
   readonly evidence: string;
   readonly valid: boolean;
@@ -70,7 +74,14 @@ export function PurchaseDraftForm(props: {
           <Select
             label="Mặt hàng"
             value={line.productId}
-            disabled={props.productsLoading}
+            disabled={props.productsLoading === true && props.products.length === 0}
+            {...(props.productSearch === undefined
+              ? {}
+              : {
+                  searchValue: props.productSearch.value,
+                  onSearchChange: props.productSearch.onChange,
+                  searchPlaceholder: "Tên hoặc mã mặt hàng",
+                })}
             onChange={(event) => {
               const product = props.products.find((item) => item.id === event.target.value);
               if (product === undefined) return;

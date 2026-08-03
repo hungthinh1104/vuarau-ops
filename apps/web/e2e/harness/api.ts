@@ -68,6 +68,36 @@ function envelope(extra: Envelope = {}): Envelope {
 }
 
 export const api = {
+  async retirePurchaseCorrectionPolicies(): Promise<void> {
+    const page = (await call(
+      "policy.list",
+      "query",
+      {
+        workspaceId: E2E_WORKSPACE_ID,
+        policyKind: "purchase_correction",
+        state: "approved",
+        cursor: null,
+        limit: 200,
+      },
+      "owner",
+    )) as { items: readonly { id: string }[] };
+
+    for (const policy of page.items) {
+      await call(
+        "policy.retire",
+        "mutation",
+        {
+          ...envelope({ actorId: actorFor("owner") }),
+          payload: {
+            policyVersionId: policy.id,
+            reason: "E2E cleanup: isolate the generic purchase void scenario.",
+          },
+        },
+        "owner",
+      );
+    }
+  },
+
   async approvePurchaseCorrectionPolicy(): Promise<string> {
     const policyVersionId = crypto.randomUUID();
     const policyVersion = Date.now() % 2_000_000_000;

@@ -114,6 +114,35 @@ describe("Select", () => {
     expect(listbox).toHaveClass("max-h-[var(--available-height)]", "overflow-y-auto");
   });
 
+  it("supports searching a remote-backed option list", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    function SearchableTest() {
+      const [query, setQuery] = useState("");
+      const visibleOptions = query === "" ? [options[0]!] : [options[1]!];
+      return (
+        <Select
+          label="Mặt hàng"
+          options={visibleOptions}
+          value=""
+          placeholder="Chọn mặt hàng"
+          searchValue={query}
+          onSearchChange={setQuery}
+          onChange={onChange}
+        />
+      );
+    }
+
+    render(<SearchableTest />);
+    await user.click(screen.getByRole("combobox", { name: "Mặt hàng" }));
+    await user.type(screen.getByRole("searchbox", { name: "Tìm mặt hàng" }), "Option 2");
+    await user.click(await screen.findByRole("option", { name: "Option 2" }));
+
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(onChange.mock.calls[0]?.[0]?.target.value).toBe("opt-2");
+  });
+
   it("integrates with native form submission via the hidden input", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn((e) => {
