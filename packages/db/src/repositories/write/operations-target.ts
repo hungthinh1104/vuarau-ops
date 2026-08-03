@@ -16,6 +16,8 @@ import {
   qualityIssueCodes,
   sales,
   suppliers,
+  supplyCommitmentObservations,
+  supplierObservations,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -39,6 +41,8 @@ export async function targetContainsBusinessData(
     movementRows,
     deliveryRows,
     documentRows,
+    supplyCommitmentObservationRows,
+    supplierObservationRows,
   ] = await Promise.all([
     tx
       .select({ id: cashAccounts.id })
@@ -111,6 +115,16 @@ export async function targetContainsBusinessData(
       .from(documents)
       .where(eq(documents.workspaceId, workspaceId))
       .limit(1),
+    tx
+      .select({ id: supplyCommitmentObservations.id })
+      .from(supplyCommitmentObservations)
+      .where(eq(supplyCommitmentObservations.workspaceId, workspaceId))
+      .limit(1),
+    tx
+      .select({ id: supplierObservations.id })
+      .from(supplierObservations)
+      .where(eq(supplierObservations.workspaceId, workspaceId))
+      .limit(1),
   ]);
   if (
     [
@@ -129,6 +143,8 @@ export async function targetContainsBusinessData(
       movementRows,
       deliveryRows,
       documentRows,
+      supplyCommitmentObservationRows,
+      supplierObservationRows,
     ].some((rows) => rows.length > 0)
   ) {
     return true;

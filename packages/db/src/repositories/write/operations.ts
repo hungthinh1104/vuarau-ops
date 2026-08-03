@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV11 } from "@vuarau/domain-contracts";
+import type { WorkspaceId, WorkspaceBackupV14 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -50,11 +50,14 @@ import {
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 import { restoreInspectedIntake, restoreQualityIssueCodes } from "./operations-intake-restore.ts";
+import { restoreWorkspacePolicies } from "./operations-policy-restore.ts";
+import { restoreSupplyCommitmentObservations } from "./operations-supply-commitment-restore.ts";
+import { restoreSupplierObservations } from "./operations-supplier-observation-restore.ts";
 import { targetContainsBusinessData } from "./operations-target.ts";
 
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV11["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV14["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -75,7 +78,6 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           };
         }
       }
-
       const actorIds = [
         ...payload.cashAccounts.map((row) => row["custodianActorId"]),
         ...payload.expenses.map((row) => row["actorId"]),
@@ -104,6 +106,13 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         ...payload.costObservations.map((row) => row["actorId"]),
         ...payload.reconciliationObservations.map((row) => row["actorId"]),
         ...payload.debtObservations.map((row) => row["actorId"]),
+        ...payload.supplyCommitmentObservations.map((row) => row["actorId"]),
+        ...payload.supplierObservations.map((row) => row["actorId"]),
+        ...payload.workspacePolicies.flatMap((row) => [
+          row["createdBy"],
+          row["approvedBy"],
+          row["retiredBy"],
+        ]),
       ].filter((value): value is string => typeof value === "string");
       if (actorIds.length > 0) {
         const existing = await tx
@@ -114,7 +123,6 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           return { kind: "integrity_error" as const, reason: "unresolved actor identity" };
         }
       }
-
       const date = (value: unknown): Date => new Date(String(value));
       const profile = payload.operationalProfile;
       await tx
@@ -274,6 +282,9 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           }) as unknown as (typeof debtObservations.$inferInsert)[],
         );
       }
+      await restoreSupplyCommitmentObservations(tx, workspaceId, payload, date);
+      await restoreSupplierObservations(tx, workspaceId, payload, date);
+      await restoreWorkspacePolicies(tx, workspaceId, payload, date);
       await restoreQualityIssueCodes(tx, payload, scoped, date);
       if (payload.suppliers.length > 0) {
         await tx.insert(suppliers).values(

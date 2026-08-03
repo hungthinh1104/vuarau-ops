@@ -15,6 +15,8 @@ import {
   costObservationKindEnum,
   reconciliationObservationKindEnum,
   debtObservationKindEnum,
+  supplyCommitmentObservationKindEnum,
+  supplierObservationKindEnum,
   currencyCodeEnum,
   unitEnum,
 } from "./enums.ts";
@@ -22,6 +24,7 @@ import { commandReceipts } from "./command.ts";
 import { customers, products } from "./customer.ts";
 import { qualityGrades } from "./quality.ts";
 import { actors, workspaces } from "./workspace.ts";
+import { suppliers } from "./supplier.ts";
 
 /**
  * Source-linked cost/loss observations. This table is append-only evidence and
@@ -251,6 +254,204 @@ export const debtObservations = pgTable(
     ),
     check(
       "debt_observations_correction_link_ck",
+      sql`(${table.caseKind} = 'correction' and ${table.relatedObservationId} is not null)
+        or (${table.caseKind} <> 'correction' and ${table.relatedObservationId} is null)`,
+    ),
+  ],
+);
+
+/** Source-linked supplier/farmer supply commitments; no payable or inventory effect. */
+export const supplyCommitmentObservations = pgTable(
+  "supply_commitment_observations",
+  {
+    id: uuid("id").notNull(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    kind: supplyCommitmentObservationKindEnum("kind").notNull(),
+    caseKind: costObservationCaseKindEnum("case_kind").notNull(),
+    description: text("description").notNull(),
+    participantWording: text("participant_wording").notNull(),
+    supplierId: uuid("supplier_id"),
+    productId: uuid("product_id"),
+    qualityGradeId: uuid("quality_grade_id"),
+    promisedQuantityScaled: bigint("promised_quantity_scaled", { mode: "number" }),
+    promisedQuantityUnit: unitEnum("promised_quantity_unit"),
+    minimumOrderScaled: bigint("minimum_order_scaled", { mode: "number" }),
+    minimumOrderUnit: unitEnum("minimum_order_unit"),
+    expectedArrivalAt: timestamp("expected_arrival_at", { withTimezone: true }),
+    counterpartyLabel: text("counterparty_label"),
+    commitmentReference: text("commitment_reference"),
+    evidenceReferences: text("evidence_references").array().notNull(),
+    relatedObservationId: uuid("related_observation_id"),
+    transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    index("supply_commitment_observations_workspace_time_idx").on(
+      table.workspaceId,
+      table.recordedAt,
+      table.id,
+    ),
+    index("supply_commitment_observations_workspace_kind_idx").on(
+      table.workspaceId,
+      table.kind,
+      table.recordedAt,
+      table.id,
+    ),
+    foreignKey({
+      columns: [table.workspaceId, table.supplierId],
+      foreignColumns: [suppliers.workspaceId, suppliers.id],
+      name: "supply_commitment_observations_workspace_supplier_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "supply_commitment_observations_workspace_product_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.qualityGradeId],
+      foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
+      name: "supply_commitment_observations_workspace_grade_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.relatedObservationId],
+      foreignColumns: [table.workspaceId, table.id],
+      name: "supply_commitment_observations_workspace_related_fk",
+    }),
+    check(
+      "supply_commitment_observations_promised_quantity_pair_ck",
+      sql`(${table.promisedQuantityScaled} is null and ${table.promisedQuantityUnit} is null)
+        or (${table.promisedQuantityScaled} is not null and ${table.promisedQuantityUnit} is not null)`,
+    ),
+    check(
+      "supply_commitment_observations_minimum_order_pair_ck",
+      sql`(${table.minimumOrderScaled} is null and ${table.minimumOrderUnit} is null)
+        or (${table.minimumOrderScaled} is not null and ${table.minimumOrderUnit} is not null)`,
+    ),
+    check(
+      "supply_commitment_observations_correction_link_ck",
+      sql`(${table.caseKind} = 'correction' and ${table.relatedObservationId} is not null)
+        or (${table.caseKind} <> 'correction' and ${table.relatedObservationId} is null)`,
+    ),
+  ],
+);
+
+/** Source-linked supplier relationship/performance facts; no score or effect. */
+export const supplierObservations = pgTable(
+  "supplier_observations",
+  {
+    id: uuid("id").notNull(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    kind: supplierObservationKindEnum("kind").notNull(),
+    caseKind: costObservationCaseKindEnum("case_kind").notNull(),
+    description: text("description").notNull(),
+    participantWording: text("participant_wording").notNull(),
+    supplierId: uuid("supplier_id"),
+    productId: uuid("product_id"),
+    qualityGradeId: uuid("quality_grade_id"),
+    role: text("role"),
+    sourceArea: text("source_area"),
+    pickupResponsibility: text("pickup_responsibility"),
+    packingResponsibility: text("packing_responsibility"),
+    transportResponsibility: text("transport_responsibility"),
+    expectedLeadTimeText: text("expected_lead_time_text"),
+    paymentArrangement: text("payment_arrangement"),
+    traceabilityLevel: text("traceability_level"),
+    promisedQuantityScaled: bigint("promised_quantity_scaled", { mode: "number" }),
+    promisedQuantityUnit: unitEnum("promised_quantity_unit"),
+    actualQuantityScaled: bigint("actual_quantity_scaled", { mode: "number" }),
+    actualQuantityUnit: unitEnum("actual_quantity_unit"),
+    acceptedQuantityScaled: bigint("accepted_quantity_scaled", { mode: "number" }),
+    acceptedQuantityUnit: unitEnum("accepted_quantity_unit"),
+    rejectedQuantityScaled: bigint("rejected_quantity_scaled", { mode: "number" }),
+    rejectedQuantityUnit: unitEnum("rejected_quantity_unit"),
+    expectedAt: timestamp("expected_at", { withTimezone: true }),
+    actualAt: timestamp("actual_at", { withTimezone: true }),
+    priceMinor: bigint("price_minor", { mode: "number" }),
+    priceCurrency: currencyCodeEnum("price_currency"),
+    claimReference: text("claim_reference"),
+    observationReference: text("observation_reference"),
+    evidenceReferences: text("evidence_references").array().notNull(),
+    relatedObservationId: uuid("related_observation_id"),
+    transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id")
+      .notNull()
+      .references(() => commandReceipts.commandId),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    index("supplier_observations_workspace_time_idx").on(
+      table.workspaceId,
+      table.recordedAt,
+      table.id,
+    ),
+    index("supplier_observations_workspace_kind_idx").on(
+      table.workspaceId,
+      table.kind,
+      table.recordedAt,
+      table.id,
+    ),
+    foreignKey({
+      columns: [table.workspaceId, table.supplierId],
+      foreignColumns: [suppliers.workspaceId, suppliers.id],
+      name: "supplier_observations_workspace_supplier_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "supplier_observations_workspace_product_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.qualityGradeId],
+      foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
+      name: "supplier_observations_workspace_grade_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.relatedObservationId],
+      foreignColumns: [table.workspaceId, table.id],
+      name: "supplier_observations_workspace_related_fk",
+    }),
+    check(
+      "supplier_observations_promised_quantity_pair_ck",
+      sql`(${table.promisedQuantityScaled} is null and ${table.promisedQuantityUnit} is null)
+        or (${table.promisedQuantityScaled} is not null and ${table.promisedQuantityUnit} is not null)`,
+    ),
+    check(
+      "supplier_observations_actual_quantity_pair_ck",
+      sql`(${table.actualQuantityScaled} is null and ${table.actualQuantityUnit} is null)
+        or (${table.actualQuantityScaled} is not null and ${table.actualQuantityUnit} is not null)`,
+    ),
+    check(
+      "supplier_observations_accepted_quantity_pair_ck",
+      sql`(${table.acceptedQuantityScaled} is null and ${table.acceptedQuantityUnit} is null)
+        or (${table.acceptedQuantityScaled} is not null and ${table.acceptedQuantityUnit} is not null)`,
+    ),
+    check(
+      "supplier_observations_rejected_quantity_pair_ck",
+      sql`(${table.rejectedQuantityScaled} is null and ${table.rejectedQuantityUnit} is null)
+        or (${table.rejectedQuantityScaled} is not null and ${table.rejectedQuantityUnit} is not null)`,
+    ),
+    check(
+      "supplier_observations_price_pair_ck",
+      sql`(${table.priceMinor} is null and ${table.priceCurrency} is null)
+        or (${table.priceMinor} is not null and ${table.priceCurrency} is not null)`,
+    ),
+    check(
+      "supplier_observations_correction_link_ck",
       sql`(${table.caseKind} = 'correction' and ${table.relatedObservationId} is not null)
         or (${table.caseKind} <> 'correction' and ${table.relatedObservationId} is null)`,
     ),

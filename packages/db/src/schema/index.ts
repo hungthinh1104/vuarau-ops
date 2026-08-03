@@ -16,3 +16,4 @@ export * from "./document.ts";
 export * from "./cash.ts";
 export * from "./intake.ts";
 export * from "./evidence.ts";
+export * from "./policy.ts";

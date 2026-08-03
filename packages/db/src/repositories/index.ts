@@ -21,6 +21,12 @@ import { createIntakeWriteRepositories } from "./write/intake.ts";
 import { createCostObservationWriteRepositories } from "./write/cost-observation.ts";
 import { createReconciliationObservationWriteRepositories } from "./write/reconciliation-observation.ts";
 import { createDebtObservationWriteRepositories } from "./write/debt-observation.ts";
+import { createSupplyCommitmentObservationWriteRepositories } from "./write/supply-commitment-observation.ts";
+import { createWorkspacePolicyWriteRepositories } from "./write/policy.ts";
+import { createWorkspacePolicyReadRepositories } from "./read/policy.ts";
+import { createSupplyCommitmentObservationReadRepositories } from "./read/supply-commitment-observation.ts";
+import { createSupplierObservationWriteRepositories } from "./write/supplier-observation.ts";
+import { createSupplierObservationReadRepositories } from "./read/supplier-observation.ts";
 
 type Tx = PgTransaction<never, never, never>;
 export type IdMinter = { newId(): string };
@@ -48,6 +54,12 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     ...createCostObservationWriteRepositories(tx),
     ...createReconciliationObservationWriteRepositories(tx),
     ...createDebtObservationWriteRepositories(tx),
+    ...createSupplyCommitmentObservationWriteRepositories(tx),
+    ...createWorkspacePolicyWriteRepositories(tx),
+    ...createWorkspacePolicyReadRepositories(tx),
+    ...createSupplyCommitmentObservationReadRepositories(tx),
+    ...createSupplierObservationWriteRepositories(tx),
+    ...createSupplierObservationReadRepositories(tx),
   };
 }
 
