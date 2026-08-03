@@ -1,9 +1,10 @@
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import {
   purchaseReceipts,
   purchaseReceiptLines,
   purchaseReceiptReversals,
+  purchaseLines,
   inventoryMovements,
   inventoryBalances,
   deliveryReturns,
@@ -11,6 +12,7 @@ import {
   qualityDispositionReversals,
 } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
+import type { InventoryValuationMovement } from "@vuarau/domain-kernel";
 import { toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import { fetchLimit, paged, readReceiptDto } from "../shared/read-helpers.ts";
@@ -114,7 +116,7 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
             id: row.id,
             workspaceId: row.workspaceId,
             productId: row.productId,
-            qualityGradeId: row.qualityGradeId,
+            qualityGradeId: row.qualityGradeId as InventoryValuationMovement["qualityGradeId"],
             qualityGradeName: row.qualityGradeName,
             quantity: { valueScaled: row.quantityScaled, unit: row.unit },
             sourceType: row.sourceType,
@@ -167,6 +169,108 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
         lastMovementTransactionTime: toIsoOrNull(row.lastMovementTransactionTime),
         updatedAt: toIso(row.updatedAt),
       }));
+    },
+    async valuationSources(args: {
+      workspaceId: string;
+      productId: string;
+      qualityGradeId: string | null;
+      unit: typeof inventoryMovements.$inferSelect.unit | null;
+      asOf: string;
+    }) {
+      const filters: SQL[] = [
+        eq(inventoryMovements.workspaceId, args.workspaceId),
+        eq(inventoryMovements.productId, args.productId),
+        lte(inventoryMovements.transactionTime, new Date(args.asOf)),
+      ];
+      if (args.qualityGradeId !== null)
+        filters.push(eq(inventoryMovements.qualityGradeId, args.qualityGradeId));
+      if (args.unit !== null) filters.push(eq(inventoryMovements.unit, args.unit));
+      const movementRows = await tx
+        .select()
+        .from(inventoryMovements)
+        .where(and(...filters));
+      const reversalIds = movementRows
+        .filter((row) => row.sourceType === "purchase_receipt_reversal")
+        .map((row) => row.sourceId);
+      const reversalRows =
+        reversalIds.length === 0
+          ? []
+          : await tx
+              .select({
+                id: purchaseReceiptReversals.id,
+                receiptId: purchaseReceiptReversals.receiptId,
+              })
+              .from(purchaseReceiptReversals)
+              .where(
+                and(
+                  eq(purchaseReceiptReversals.workspaceId, args.workspaceId),
+                  inArray(purchaseReceiptReversals.id, reversalIds),
+                ),
+              );
+      const receiptIds = [
+        ...new Set([
+          ...movementRows
+            .filter((row) => row.sourceType === "purchase_receipt")
+            .map((row) => row.sourceId),
+          ...reversalRows.map((row) => row.receiptId),
+        ]),
+      ];
+      const costRows =
+        receiptIds.length === 0
+          ? []
+          : await tx
+              .select({
+                receiptId: purchaseReceiptLines.receiptId,
+                receiptLineId: purchaseReceiptLines.id,
+                unitPriceMinor: purchaseLines.unitPriceMinor,
+                currency: purchaseLines.currency,
+              })
+              .from(purchaseReceiptLines)
+              .innerJoin(
+                purchaseLines,
+                and(
+                  eq(purchaseLines.workspaceId, purchaseReceiptLines.workspaceId),
+                  eq(purchaseLines.id, purchaseReceiptLines.purchaseLineId),
+                ),
+              )
+              .where(
+                and(
+                  eq(purchaseReceiptLines.workspaceId, args.workspaceId),
+                  inArray(purchaseReceiptLines.receiptId, receiptIds),
+                ),
+              );
+      const receiptIdByReversalId = new Map(reversalRows.map((row) => [row.id, row.receiptId]));
+      const costByReceiptLine = new Map(
+        costRows.map((row) => [
+          `${row.receiptId}:${row.receiptLineId}`,
+          { amountMinor: row.unitPriceMinor, currency: row.currency },
+        ]),
+      );
+      return movementRows.map(
+        (row) =>
+          ({
+            movementId: row.id as InventoryValuationMovement["movementId"],
+            qualityGradeId: row.qualityGradeId as InventoryValuationMovement["qualityGradeId"],
+            unit: row.unit,
+            quantityScaled: row.quantityScaled,
+            sourceType: row.sourceType,
+            sourceId: row.sourceId,
+            sourceLineId: row.sourceLineId,
+            reversalOfMovementId: row.reversalOfMovementId,
+            transactionTime: toIso(row.transactionTime),
+            recordedAt: toIso(row.recordedAt),
+            unitCost:
+              row.sourceLineId === null
+                ? null
+                : (costByReceiptLine.get(
+                    `${
+                      row.sourceType === "purchase_receipt"
+                        ? row.sourceId
+                        : (receiptIdByReversalId.get(row.sourceId) ?? "")
+                    }:${row.sourceLineId}`,
+                  ) ?? null),
+          }) satisfies InventoryValuationMovement,
+      );
     },
     async timeline(args: {
       workspaceId: string;

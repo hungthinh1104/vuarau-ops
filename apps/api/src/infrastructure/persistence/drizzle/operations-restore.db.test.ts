@@ -381,7 +381,10 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         version: 1,
         effectiveFrom: "2026-08-01T00:00:00.000Z",
         effectiveTo: null,
-        definition: { contractVersion: 1, parameters: { basis: "field-review" } },
+        definition: {
+          contractVersion: 1,
+          parameters: { strategy: "moving_weighted_average" },
+        },
         evidenceReferences: [],
         reason: "Policy bản nháp phục hồi.",
       },

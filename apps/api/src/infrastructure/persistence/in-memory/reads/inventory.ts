@@ -1,4 +1,5 @@
 import type { Repositories } from "../../ports.ts";
+import type { InventoryValuationMovement } from "@vuarau/domain-kernel";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
@@ -75,6 +76,59 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
                 ? ("negative" as const)
                 : ("zero" as const),
         })),
+    valuationSources: async ({ workspaceId, productId, qualityGradeId, unit, asOf }) => {
+      const unitCost = (movement: (typeof store.inventoryMovements)[number]) => {
+        if (
+          movement.sourceType !== "purchase_receipt" &&
+          movement.sourceType !== "purchase_receipt_reversal"
+        )
+          return null;
+        const receipt =
+          movement.sourceType === "purchase_receipt"
+            ? store.purchaseReceipts.get(key(workspaceId, movement.sourceId))
+            : [...store.purchaseReceipts.values()].find(
+                (candidate) =>
+                  candidate.workspaceId === workspaceId &&
+                  candidate.reversal?.id === movement.sourceId,
+              );
+        const receiptLine = receipt?.lines.find(
+          (line) => line.receiptLineId === movement.sourceLineId,
+        );
+        const purchase =
+          receipt === undefined
+            ? undefined
+            : store.purchases.get(key(workspaceId, receipt.purchaseId));
+        return (
+          purchase?.lines.find((line) => line.lineId === receiptLine?.purchaseLineId)?.unitPrice ??
+          null
+        );
+      };
+      return store.inventoryMovements
+        .filter(
+          (movement) =>
+            movement.workspaceId === workspaceId &&
+            movement.productId === productId &&
+            (qualityGradeId === null || movement.qualityGradeId === qualityGradeId) &&
+            (unit === null || movement.quantity.unit === unit) &&
+            movement.transactionTime <= asOf,
+        )
+        .map(
+          (movement) =>
+            ({
+              movementId: movement.id,
+              qualityGradeId: movement.qualityGradeId,
+              unit: movement.quantity.unit,
+              quantityScaled: movement.quantity.valueScaled,
+              sourceType: movement.sourceType,
+              sourceId: movement.sourceId,
+              sourceLineId: movement.sourceLineId,
+              reversalOfMovementId: movement.reversalOfMovementId,
+              transactionTime: movement.transactionTime,
+              recordedAt: movement.recordedAt,
+              unitCost: unitCost(movement),
+            }) satisfies InventoryValuationMovement,
+        );
+    },
     timeline: async ({ workspaceId, productId, qualityGradeId, unit, page }) => {
       const rows = store.inventoryMovements
         .filter(

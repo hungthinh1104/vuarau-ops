@@ -1,4 +1,7 @@
 import type {
+  InventoryValuationInput,
+  InventoryValuationResult,
+  WorkspacePolicyVersionId,
   InventoryTimelineInput,
   IsoInstant,
   ProductId,
@@ -7,8 +10,19 @@ import type {
   WorkspaceId,
   Unit,
 } from "@vuarau/domain-contracts";
-import { denied, roleHasPermission } from "@vuarau/domain-contracts";
-import { canVoidPurchase, err, ok, resolvePurchaseCorrectionPolicy } from "@vuarau/domain-kernel";
+import {
+  denied,
+  inventoryValuationPolicyDefinitionSchema,
+  roleHasPermission,
+} from "@vuarau/domain-contracts";
+import {
+  calculateInventoryValuation,
+  canVoidPurchase,
+  err,
+  ok,
+  resolveEffectiveWorkspacePolicy,
+  resolvePurchaseCorrectionPolicy,
+} from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 
@@ -172,6 +186,93 @@ export const getInventoryBalances = (
       return input.qualityGradeId === undefined
         ? rows
         : rows.filter((row) => row.qualityGradeId === input.qualityGradeId);
+    },
+  });
+
+export const getInventoryValuation = (ctx: CommandContext, input: InventoryValuationInput) =>
+  runQuery<InventoryValuationResult>({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "inventory.read",
+    execute: async ({ repos }) => {
+      const calculatedAt = new Date().toISOString() as IsoInstant;
+      const policies = await repos.workspacePolicyReads.listAll(input.workspaceId);
+      const policy = resolveEffectiveWorkspacePolicy(policies, "inventory_valuation", input.asOf);
+      const sources = await repos.inventoryReads.valuationSources({
+        workspaceId: input.workspaceId,
+        productId: input.productId,
+        qualityGradeId: input.qualityGradeId,
+        unit: input.unit,
+        asOf: input.asOf,
+      });
+      const unavailable = (
+        diagnostics: readonly string[],
+        policyVersionId: WorkspacePolicyVersionId | null,
+      ) => ({
+        status: "unavailable" as const,
+        workspaceId: input.workspaceId,
+        productId: input.productId,
+        asOf: input.asOf,
+        policyVersionId,
+        calculationVersion: "inventory-valuation-v1" as const,
+        calculatedAt,
+        integrity: "attention" as const,
+        diagnostics: [...diagnostics],
+        inputReferences: sources.map((source) => ({
+          movementId: source.movementId,
+          sourceType: source.sourceType,
+          sourceId: source.sourceId,
+          sourceLineId: source.sourceLineId,
+        })),
+        currency: null,
+      });
+      if (policy === null) {
+        return unavailable(["no_effective_inventory_valuation_policy"], null);
+      }
+      const definition = inventoryValuationPolicyDefinitionSchema.safeParse(policy.definition);
+      if (!definition.success) {
+        return unavailable(["invalid_inventory_valuation_policy"], policy.id);
+      }
+      const calculations = calculateInventoryValuation(
+        sources,
+        definition.data.parameters.strategy,
+      );
+      const diagnostics = [...new Set(calculations.flatMap((row) => row.diagnostics))];
+      if (diagnostics.length > 0) return unavailable(diagnostics, policy.id);
+      const moneyValues = calculations.flatMap((row) =>
+        [row.inventoryValue, row.cogs, row.averageUnitCost].filter(
+          (value): value is NonNullable<typeof value> => value !== null,
+        ),
+      );
+      const currencies = [...new Set(moneyValues.map((value) => value.currency))];
+      if (currencies.length > 1) return unavailable(["mixed_currency"], policy.id);
+      return {
+        status: "available" as const,
+        workspaceId: input.workspaceId,
+        productId: input.productId,
+        asOf: input.asOf,
+        policyVersionId: policy.id,
+        strategy: definition.data.parameters.strategy,
+        calculationVersion: "inventory-valuation-v1" as const,
+        calculatedAt,
+        integrity: "healthy" as const,
+        diagnostics: [],
+        inputReferences: sources.map((source) => ({
+          movementId: source.movementId,
+          sourceType: source.sourceType,
+          sourceId: source.sourceId,
+          sourceLineId: source.sourceLineId,
+        })),
+        rows: calculations.map((row) => ({
+          qualityGradeId: row.qualityGradeId,
+          unit: row.unit,
+          quantityScaled: row.quantityScaled,
+          inventoryValue: row.inventoryValue,
+          cogs: row.cogs,
+          averageUnitCost: row.averageUnitCost,
+        })),
+        currency: currencies[0] ?? null,
+      };
     },
   });
 export const getInventoryTimeline = (ctx: CommandContext, input: InventoryTimelineInput) =>

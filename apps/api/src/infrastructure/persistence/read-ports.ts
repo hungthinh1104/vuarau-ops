@@ -89,6 +89,7 @@ import type {
   DemandObservationKind,
 } from "@vuarau/domain-contracts";
 import type { PriceRuleState, SaleState } from "@vuarau/domain-kernel";
+import type { InventoryValuationMovement } from "@vuarau/domain-kernel";
 import type { CustomerOrderReadRepository } from "./customer-order-read-ports.ts";
 import type { SupplyCommitmentReadRepository } from "./supply-commitment-read-ports.ts";
 import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
@@ -434,6 +435,13 @@ export type InventoryReadRepository = {
   ): Promise<readonly PurchaseReceiptDto[]>;
   adjustment(workspaceId: WorkspaceId, adjustmentId: string): Promise<InventoryMovementDto | null>;
   balances(workspaceId: WorkspaceId, productId: ProductId): Promise<readonly InventoryBalanceDto[]>;
+  valuationSources(args: {
+    workspaceId: WorkspaceId;
+    productId: ProductId;
+    qualityGradeId: QualityGradeId | null;
+    unit: Unit | null;
+    asOf: IsoInstant;
+  }): Promise<readonly InventoryValuationMovement[]>;
   timeline(args: {
     workspaceId: WorkspaceId;
     productId: ProductId;

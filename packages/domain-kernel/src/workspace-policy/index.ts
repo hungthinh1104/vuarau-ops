@@ -8,6 +8,8 @@ import type {
 } from "@vuarau/domain-contracts";
 import {
   WORKSPACE_POLICY_KINDS,
+  costAllocationPolicyDefinitionSchema,
+  inventoryValuationPolicyDefinitionSchema,
   purchaseCorrectionPolicyDefinitionSchema,
 } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
@@ -64,6 +66,24 @@ export function decideCreateWorkspacePolicyDraft(
       "Purchase correction policy definition is not a supported contract.",
     );
   }
+  if (
+    command.payload.policyKind === "inventory_valuation" &&
+    !inventoryValuationPolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Inventory valuation policy definition is not a supported contract.",
+    );
+  }
+  if (
+    command.payload.policyKind === "cost_allocation" &&
+    !costAllocationPolicyDefinitionSchema.safeParse(command.payload.definition).success
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Cost allocation policy definition is not a supported contract.",
+    );
+  }
   const policy: WorkspacePolicyDto = {
     id: command.payload.policyVersionId,
     workspaceId: command.workspaceId,
@@ -94,6 +114,25 @@ export function decideCreateWorkspacePolicyDraft(
       null,
     ),
   });
+}
+
+/** Returns the highest version that is approved and effective at `asOf`. */
+export function resolveEffectiveWorkspacePolicy(
+  policies: readonly WorkspacePolicyDto[],
+  policyKind: WorkspacePolicyDto["policyKind"],
+  asOf: IsoInstant,
+): WorkspacePolicyDto | null {
+  return (
+    policies
+      .filter(
+        (policy) =>
+          policy.policyKind === policyKind &&
+          policy.state === "approved" &&
+          Date.parse(asOf) >= Date.parse(policy.effectiveFrom) &&
+          (policy.effectiveTo === null || Date.parse(asOf) < Date.parse(policy.effectiveTo)),
+      )
+      .sort((left, right) => right.version - left.version)[0] ?? null
+  );
 }
 
 export function decideApproveWorkspacePolicy(

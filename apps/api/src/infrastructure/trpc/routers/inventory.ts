@@ -6,6 +6,7 @@ import {
   purchaseReceiptsInputSchema,
   inventoryBalanceInputSchema,
   inventoryTimelineInputSchema,
+  inventoryValuationInputSchema,
   inventoryAdjustmentGetInputSchema,
   inventoryReconciliationInputSchema,
   rebuildInventoryCommandSchema,
@@ -21,6 +22,7 @@ import {
 import {
   getInventoryBalances,
   getInventoryTimeline,
+  getInventoryValuation,
   getInventoryAdjustment,
   getReceipt,
   getInventoryReconciliation,
@@ -63,6 +65,9 @@ export const inventoryRouter = router({
   timeline: authenticatedProcedure
     .input(inventoryTimelineInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getInventoryTimeline(ctx, input))),
+  valuation: authenticatedProcedure
+    .input(inventoryValuationInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getInventoryValuation(ctx, input))),
   reconciliation: authenticatedProcedure
     .input(inventoryReconciliationInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getInventoryReconciliation(ctx, input))),
