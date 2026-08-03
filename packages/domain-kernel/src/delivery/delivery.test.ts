@@ -66,6 +66,7 @@ const command = (quantity: number): CreateDeliveryDraftCommand =>
         },
       ],
       note: null,
+      evidenceReferences: ["delivery://source/001"],
     },
   }) as unknown as CreateDeliveryDraftCommand;
 
@@ -186,6 +187,7 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
             },
           ],
           reason: "Khách trả",
+          evidenceReferences: ["return://source/001"],
         },
       } as never,
       "2026-07-28T03:00:00.000Z",

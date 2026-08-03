@@ -38,6 +38,7 @@ export function decideRecordPayment({
     cashAccountId: payload.cashAccountId ?? null,
     payerName: payload.payerName,
     note: payload.note,
+    evidenceReferences: payload.evidenceReferences,
     status: "recorded",
     reversedAmount: zeroMoney(payload.amount.currency),
     version: 1,

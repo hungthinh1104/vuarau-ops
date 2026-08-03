@@ -85,6 +85,7 @@ export function decideVoidSale({
     saleId: sale.id,
     reasonCode: command.payload.reasonCode,
     reason,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     amount: sale.totalAmount,
     transactionTime: command.occurredAt,
     recordedAt,

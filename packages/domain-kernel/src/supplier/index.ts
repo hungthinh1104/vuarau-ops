@@ -91,6 +91,7 @@ export function decideRecordSupplierPayment(
     method: command.payload.method,
     cashAccountId: command.payload.cashAccountId ?? null,
     note: clean(command.payload.note),
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     reversedAmount: money(0, command.payload.amount.currency),
     version: 1,
     transactionTime: command.occurredAt,

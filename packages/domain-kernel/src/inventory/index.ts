@@ -41,6 +41,7 @@ export function decideRecordPurchaseReceipt(args: {
     purchaseId: purchase.id,
     lines: command.payload.lines.map((line) => ({ ...line })),
     note: command.payload.note?.trim() || null,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     transactionTime: command.occurredAt,
     recordedAt,
     actorId: command.actorId,
@@ -67,6 +68,7 @@ export function decideReversePurchaseReceipt(
     transactionTime: command.occurredAt,
     recordedAt,
     actorId: command.actorId,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
   });
 }
 

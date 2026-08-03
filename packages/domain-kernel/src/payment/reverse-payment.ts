@@ -106,6 +106,7 @@ export function decideReversePayment({
     paymentId: payment.id,
     amount: payload.amount,
     reason,
+    evidenceReferences: payload.evidenceReferences,
     transactionTime: command.occurredAt,
     recordedAt,
   };

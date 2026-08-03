@@ -31,6 +31,7 @@ function voidCommand(overrides: Partial<VoidSaleCommand["payload"]> = {}): VoidS
       saleId: postedSale.id,
       reasonCode: "wrong_amount",
       reason: "Ghi nhầm 2 thùng ớt, thực tế 1 thùng",
+      evidenceReferences: [],
       ...overrides,
     },
   };

@@ -79,6 +79,7 @@ export function decideUpdateSaleDraft({
     lines: lines.value,
     totalAmount,
     note: command.payload.note,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     dueAt: command.payload.dueAt,
     version: sale.version + 1,
   };

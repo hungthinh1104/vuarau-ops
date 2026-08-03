@@ -151,6 +151,7 @@ export function decideRecordGoodsArrival(
     recordedAt,
     actorId: command.actorId,
     commandId: command.commandId,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     reversal: null,
   };
   return ok({
@@ -197,6 +198,7 @@ export function decideReverseGoodsArrival(
       recordedAt,
       actorId: command.actorId,
       commandId: command.commandId,
+      evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     },
   };
   return ok({
@@ -360,6 +362,7 @@ export function decideRecordQualityDisposition(
     recordedAt,
     actorId: command.actorId,
     commandId: command.commandId,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     reversal: null,
   };
   return ok({
@@ -405,6 +408,7 @@ export function decideReverseQualityDisposition(
       recordedAt,
       actorId: command.actorId,
       commandId: command.commandId,
+      evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     },
   };
   return ok({

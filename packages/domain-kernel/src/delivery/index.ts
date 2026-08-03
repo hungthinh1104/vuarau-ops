@@ -102,6 +102,7 @@ export function decideCreateDeliveryDraft(args: {
     status: "draft",
     lines: lines.value,
     note: args.command.payload.note?.trim() || null,
+    evidenceReferences: [...(args.command.payload.evidenceReferences ?? [])],
     cancellationReason: null,
     version: 1,
     transactionTime: args.command.occurredAt,
@@ -136,6 +137,7 @@ export function decideUpdateDeliveryDraft(args: {
     ...args.current,
     lines: lines.value,
     note: args.command.payload.note?.trim() || null,
+    evidenceReferences: [...(args.command.payload.evidenceReferences ?? [])],
     version: args.current.version + 1,
     recordedAt: args.recordedAt,
   });
@@ -243,6 +245,7 @@ export function decideRecordDeliveryReturn(
     deliveryId: current.id,
     lines,
     reason,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     transactionTime: command.occurredAt,
     recordedAt,
     actorId: command.actorId,

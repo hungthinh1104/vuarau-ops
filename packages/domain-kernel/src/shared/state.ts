@@ -20,6 +20,7 @@ import type {
   QualityGradeId,
   SupplierId,
   SupplierPaymentId,
+  SupplierPaymentReversalId,
   PurchaseId,
   PurchaseLineId,
   PurchaseStatus,
@@ -140,8 +141,20 @@ export type SupplierPaymentState = {
   readonly method: PaymentMethod;
   readonly cashAccountId?: CashAccountId | null;
   readonly note: string | null;
+  readonly evidenceReferences: readonly string[];
   readonly reversedAmount: Money;
   readonly version: number;
+  readonly transactionTime: IsoInstant;
+  readonly recordedAt: IsoInstant;
+};
+
+export type SupplierPaymentReversalState = {
+  readonly id: SupplierPaymentReversalId;
+  readonly workspaceId: WorkspaceId;
+  readonly supplierPaymentId: SupplierPaymentId;
+  readonly amount: Money;
+  readonly reason: string;
+  readonly evidenceReferences: readonly string[];
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
 };
@@ -161,6 +174,7 @@ export type PurchaseVoidState = {
   readonly purchaseId: PurchaseId;
   readonly reasonCode: PurchaseVoidReasonCode;
   readonly reason: string;
+  readonly evidenceReferences: readonly string[];
   readonly amount: Money;
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
@@ -176,6 +190,7 @@ export type PurchaseState = {
   readonly lines: readonly PurchaseLineState[];
   readonly totalAmount: Money;
   readonly note: string | null;
+  readonly evidenceReferences: readonly string[];
   readonly dueAt: IsoInstant | null;
   readonly version: number;
   readonly transactionTime: IsoInstant;
@@ -203,6 +218,7 @@ export type PurchaseReceiptReversalState = {
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
   readonly actorId: ActorId;
+  readonly evidenceReferences: readonly string[];
 };
 export type PurchaseReceiptState = {
   readonly id: PurchaseReceiptId;
@@ -213,6 +229,7 @@ export type PurchaseReceiptState = {
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
   readonly actorId: ActorId;
+  readonly evidenceReferences: readonly string[];
   readonly reversal: PurchaseReceiptReversalState | null;
 };
 export type InventoryMovementState = {
@@ -243,6 +260,7 @@ export type DeliveryReturnState = {
     readonly quantity: Quantity;
   }[];
   readonly reason: string;
+  readonly evidenceReferences: readonly string[];
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
   readonly actorId: ActorId;
@@ -263,6 +281,7 @@ export type DeliveryState = {
     readonly quantity: Quantity;
   }[];
   readonly note: string | null;
+  readonly evidenceReferences: readonly string[];
   readonly cancellationReason: string | null;
   readonly version: number;
   readonly transactionTime: IsoInstant;
@@ -295,6 +314,7 @@ export type SaleVoidState = {
   readonly saleId: SaleId;
   readonly reasonCode: SaleVoidReasonCode;
   readonly reason: string;
+  readonly evidenceReferences: readonly string[];
   /** Always the full posted total, taken from the sale, never from the caller. */
   readonly amount: Money;
   readonly transactionTime: IsoInstant;
@@ -312,6 +332,7 @@ export type SaleState = {
   readonly lines: readonly SaleLineState[];
   readonly totalAmount: Money;
   readonly note: string | null;
+  readonly evidenceReferences: readonly string[];
   readonly version: number;
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
@@ -338,6 +359,7 @@ export type PaymentState = {
   readonly cashAccountId?: CashAccountId | null;
   readonly payerName: string | null;
   readonly note: string | null;
+  readonly evidenceReferences: readonly string[];
   /** Derived from `reversedAmount` — never set directly (BR-PAYMENT-008). */
   readonly status: PaymentStatus;
   readonly reversedAmount: Money;
@@ -352,6 +374,7 @@ export type PaymentReversalState = {
   readonly paymentId: PaymentId;
   readonly amount: Money;
   readonly reason: string;
+  readonly evidenceReferences: readonly string[];
   readonly transactionTime: IsoInstant;
   readonly recordedAt: IsoInstant;
 };

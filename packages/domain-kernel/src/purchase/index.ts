@@ -64,6 +64,7 @@ export function decideCreatePurchaseDraft(
     lines: lines.value,
     totalAmount: total(lines.value, command.payload.currency),
     note: command.payload.note?.trim() || null,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     dueAt: command.payload.dueAt,
     version: 1,
     transactionTime: command.occurredAt,
@@ -95,6 +96,7 @@ export function decideUpdatePurchaseDraft(
     lines: lines.value,
     totalAmount: total(lines.value, command.payload.currency),
     note: command.payload.note?.trim() || null,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     dueAt: command.payload.dueAt,
     version: current.version + 1,
     recordedAt,
@@ -172,6 +174,7 @@ export function decideVoidPurchase(
     purchaseId: purchase.id,
     reasonCode: command.payload.reasonCode,
     reason,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     amount:
       purchase.totalAmount.amountMinor === 0 ? zeroMoney(purchase.currency) : purchase.totalAmount,
     transactionTime: command.occurredAt,

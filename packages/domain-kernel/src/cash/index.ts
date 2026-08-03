@@ -185,6 +185,7 @@ export function decideRecordExpense(
     recordedAt,
     actorId: command.actorId,
     commandId: command.commandId,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     reversal: null,
   };
   return ok({
@@ -223,6 +224,7 @@ export function decideReverseExpense(
       recordedAt,
       actorId: command.actorId,
       commandId: command.commandId,
+      evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     },
   };
   return ok({
@@ -266,6 +268,7 @@ export function decideRecordCashTransfer(
     recordedAt,
     actorId: command.actorId,
     commandId: command.commandId,
+    evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     reversal: null,
   };
   return ok({
@@ -304,6 +307,7 @@ export function decideReverseCashTransfer(
       recordedAt,
       actorId: command.actorId,
       commandId: command.commandId,
+      evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     },
   };
   return ok({

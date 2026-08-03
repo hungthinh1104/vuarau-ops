@@ -43,6 +43,7 @@ export function decideCreateSaleDraft({
     lines: lines.value,
     totalAmount,
     note: payload.note,
+    evidenceReferences: [...(payload.evidenceReferences ?? [])],
     version: 1,
     transactionTime: command.occurredAt,
     recordedAt,
