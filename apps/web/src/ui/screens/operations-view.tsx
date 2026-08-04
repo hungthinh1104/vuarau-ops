@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
 
 export function OperationsView(props: {
   readonly canManage: boolean;
@@ -99,9 +99,9 @@ export function OperationsView(props: {
         )}
         {props.exportOutcome}
 
-        <label className="mt-4 block text-label">
-          Chọn file sao lưu để kiểm tra
-          <Input
+        <div className="mt-4">
+          <TextInput
+            label="Chọn file sao lưu để kiểm tra"
             type="file"
             accept="application/json"
             onChange={(event) => {
@@ -109,7 +109,7 @@ export function OperationsView(props: {
               if (file !== undefined) props.onBackupFileSelected(file);
             }}
           />
-        </label>
+        </div>
         {props.fileError === null ? null : <p role="alert">{props.fileError}</p>}
         {props.validationPending && props.backupSelected ? (
           <p role="status">Đang kiểm tra digest và compatibility…</p>
@@ -127,13 +127,11 @@ export function OperationsView(props: {
             <p className="text-body-sm font-semibold">
               Chỉ tiếp tục nếu workspace đích trống và đây là recovery operation có chủ đích.
             </p>
-            <label className="text-label">
-              Lý do phục hồi
-              <Input
-                value={props.restoreReason}
-                onChange={(event) => props.onRestoreReasonChange(event.target.value)}
-              />
-            </label>
+            <TextInput
+              label="Lý do phục hồi"
+              value={props.restoreReason}
+              onChange={(event) => props.onRestoreReasonChange(event.target.value)}
+            />
             <Button
               tone="secondary"
               disabled={

@@ -4,9 +4,9 @@ import type { SupplierDto } from "@vuarau/domain-contracts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
-import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type SupplierPaymentDirection = "increase_payable" | "decrease_payable";
 export type SupplierAdjustmentReason =
@@ -48,21 +48,17 @@ export function SupplierMoneyActions(props: SupplierMoneyActionsProps) {
           <h2 id="supplier-payment-title" className="text-subheading font-semibold">
             Ghi tiền trả nhà cung cấp
           </h2>
-          <label className="text-label">
-            Số tiền (nghìn đồng)
-            <Input
-              inputMode="numeric"
-              value={props.paymentAmount}
-              onChange={(event) => props.onPaymentAmount(event.target.value)}
-            />
-          </label>
-          <label className="text-label">
-            Bằng chứng nguồn
-            <TextareaControl
-              value={props.paymentEvidence}
-              onChange={(event) => props.onPaymentEvidence(event.target.value)}
-            />
-          </label>
+          <TextInput
+            label="Số tiền (nghìn đồng)"
+            inputMode="numeric"
+            value={props.paymentAmount}
+            onChange={(event) => props.onPaymentAmount(event.target.value)}
+          />
+          <Textarea
+            label="Bằng chứng nguồn"
+            value={props.paymentEvidence}
+            onChange={(event) => props.onPaymentEvidence(event.target.value)}
+          />
           <Button
             disabled={
               !Number.isSafeInteger(paymentMinor) ||
@@ -112,21 +108,17 @@ export function SupplierMoneyActions(props: SupplierMoneyActionsProps) {
               { value: "manual_adjustment", label: "Điều chỉnh khác" },
             ]}
           />
-          <label className="text-label">
-            Số tiền (nghìn đồng)
-            <Input
-              inputMode="numeric"
-              value={props.adjustmentAmount}
-              onChange={(event) => props.onAdjustmentAmount(event.target.value)}
-            />
-          </label>
-          <label className="text-label">
-            Giải thích
-            <TextareaControl
-              value={props.reason}
-              onChange={(event) => props.onReason(event.target.value)}
-            />
-          </label>
+          <TextInput
+            label="Số tiền (nghìn đồng)"
+            inputMode="numeric"
+            value={props.adjustmentAmount}
+            onChange={(event) => props.onAdjustmentAmount(event.target.value)}
+          />
+          <Textarea
+            label="Giải thích"
+            value={props.reason}
+            onChange={(event) => props.onReason(event.target.value)}
+          />
           <Button
             disabled={
               !Number.isSafeInteger(adjustmentMinor) ||

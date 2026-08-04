@@ -8,8 +8,8 @@ import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
-import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 
 const STATUS_COPY: Readonly<Record<SupplierPaymentDto["status"], string>> = {
@@ -98,25 +98,22 @@ export function SupplierPaymentReversalView({
   return (
     <section className="rounded-card border border-warning/40 p-4">
       <h2 className="font-semibold">Hoàn tác thanh toán</h2>
-      <label className="text-label">
-        Số tiền (nghìn đồng)
-        <Input
-          inputMode="numeric"
-          value={amount}
-          onChange={(event) => onAmountChange(event.target.value)}
-        />
-      </label>
-      <label className="text-label">
-        Giải thích
-        <TextareaControl value={reason} onChange={(event) => onReasonChange(event.target.value)} />
-      </label>
-      <label className="text-label">
-        Bằng chứng nguồn
-        <TextareaControl
-          value={evidence}
-          onChange={(event) => onEvidenceChange(event.target.value)}
-        />
-      </label>
+        <TextInput
+        label="Số tiền (nghìn đồng)"
+        inputMode="numeric"
+        value={amount}
+        onChange={(event) => onAmountChange(event.target.value)}
+      />
+      <Textarea
+        label="Giải thích"
+        value={reason}
+        onChange={(event) => onReasonChange(event.target.value)}
+      />
+      <Textarea
+        label="Bằng chứng nguồn"
+        value={evidence}
+        onChange={(event) => onEvidenceChange(event.target.value)}
+      />
       <Button
         tone="danger"
         disabled={

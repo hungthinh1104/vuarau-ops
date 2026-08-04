@@ -213,17 +213,14 @@ export function OperationalProfileView(props: {
             props.onFieldChange("cashbookMode", value as OperationalProfileFields["cashbookMode"])
           }
         />
-        <label className="text-label">
-          Giờ bắt đầu ngày kinh doanh
-          <Input
-            type="time"
-            value={minuteToTime(fields.businessDayStartMinute)}
-            onChange={(event) =>
-              props.onFieldChange("businessDayStartMinute", timeToMinute(event.target.value))
-            }
-            className="mt-1"
-          />
-        </label>
+        <TextInput
+          label="Giờ bắt đầu ngày kinh doanh"
+          type="time"
+          value={minuteToTime(fields.businessDayStartMinute)}
+          onChange={(event) =>
+            props.onFieldChange("businessDayStartMinute", timeToMinute(event.target.value))
+          }
+        />
       </div>
       {props.invalidMessage ? (
         <p className="text-caption text-danger">{props.invalidMessage}</p>

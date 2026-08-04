@@ -5,9 +5,9 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
-import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 type InventoryAdjustmentReasonCode =
   "opening_balance" | "count_correction" | "spoilage" | "shrinkage" | "other";
@@ -86,15 +86,13 @@ export function InventoryAdjustmentPanel({
             { value: "decrease", label: "Giảm" },
           ]}
         />
-        <label className="text-label">
-          Số lượng
-          <Input
-            inputMode="decimal"
-            disabled={completed || locked}
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-          />
-        </label>
+        <TextInput
+          label="Số lượng"
+          inputMode="decimal"
+          disabled={completed || locked}
+          value={quantity}
+          onChange={(event) => setQuantity(event.target.value)}
+        />
         <Select
           label="Đơn vị"
           value={unit}
@@ -124,14 +122,12 @@ export function InventoryAdjustmentPanel({
           { value: "other", label: "Khác" },
         ]}
       />
-      <label className="text-label">
-        Giải thích
-        <TextareaControl
-          disabled={completed || locked}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
-      </label>
+      <Textarea
+        label="Giải thích"
+        disabled={completed || locked}
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+      />
       {completed ? (
         <Button tone="secondary" onClick={resetForm}>
           Ghi điều chỉnh khác

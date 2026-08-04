@@ -18,8 +18,7 @@ import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
-import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type IntakeCreateViewProps = {
@@ -143,15 +142,13 @@ function IntakeForm({
         description={`Nhà cung cấp ${detail.supplierId} · ${weighing ? "cân gross / tare / net" : "nhập số lượng"}`}
       />
       <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
-        <label className="grid gap-2 text-label">
-          Xe hoặc chuyến hàng
-          <Input
-            value={vehicleReference}
-            disabled={locked}
-            onChange={(event) => onVehicleReference(event.target.value)}
-            placeholder="Ví dụ: 51C-123.45"
-          />
-        </label>
+        <TextInput
+          label="Xe hoặc chuyến hàng"
+          value={vehicleReference}
+          disabled={locked}
+          onChange={(event) => onVehicleReference(event.target.value)}
+          placeholder="Ví dụ: 51C-123.45"
+        />
         <Textarea
           label="Nguồn chứng cứ vận hành"
           value={evidence}
@@ -205,30 +202,27 @@ function IntakeForm({
                 />
               )}
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-2 text-label">
-                  Mã lô từ nhà cung cấp
-                  <Input
-                    value={state.supplierLotCode}
-                    onChange={(event) =>
-                      onLineChange(line.lineId, { supplierLotCode: event.target.value })
-                    }
-                  />
-                </label>
-                <label className="grid gap-2 text-label">
-                  Ghi chú dòng
-                  <Input
-                    value={state.note}
-                    onChange={(event) => onLineChange(line.lineId, { note: event.target.value })}
-                  />
-                </label>
+                <TextInput
+                  label="Mã lô từ nhà cung cấp"
+                  value={state.supplierLotCode}
+                  onChange={(event) =>
+                    onLineChange(line.lineId, { supplierLotCode: event.target.value })
+                  }
+                />
+                <TextInput
+                  label="Ghi chú dòng"
+                  value={state.note}
+                  onChange={(event) => onLineChange(line.lineId, { note: event.target.value })}
+                />
               </div>
             </fieldset>
           );
         })}
-        <label className="grid gap-2 text-label">
-          Ghi chú chuyến hàng
-          <TextareaControl value={note} onChange={(event) => onNote(event.target.value)} />
-        </label>
+        <Textarea
+          label="Ghi chú chuyến hàng"
+          value={note}
+          onChange={(event) => onNote(event.target.value)}
+        />
         <Button disabled={locked || commandLines.length === 0} onClick={onSubmit}>
           {locked ? "Đang ghi hàng đến" : "Xác nhận hàng đã đến"}
         </Button>
@@ -250,13 +244,11 @@ function NumberField({
   readonly integer?: boolean;
 }) {
   return (
-    <label className="grid gap-2 text-label">
-      {label}
-      <Input
-        inputMode={integer ? "numeric" : "decimal"}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
+    <TextInput
+      label={label}
+      inputMode={integer ? "numeric" : "decimal"}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }

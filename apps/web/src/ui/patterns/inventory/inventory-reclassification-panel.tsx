@@ -5,9 +5,9 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
-import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type InventoryReclassificationIntent = {
   readonly fromQualityGradeId: QualityGradeId;
@@ -88,15 +88,13 @@ export function InventoryReclassificationPanel({
           placeholder="Chọn phẩm cấp đích"
           options={grades.map((grade) => ({ value: grade.id, label: grade.name }))}
         />
-        <label className="text-label">
-          Số lượng
-          <Input
-            inputMode="decimal"
-            disabled={completed || locked}
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-          />
-        </label>
+        <TextInput
+          label="Số lượng"
+          inputMode="decimal"
+          disabled={completed || locked}
+          value={quantity}
+          onChange={(event) => setQuantity(event.target.value)}
+        />
         <Select
           label="Đơn vị"
           value={unit}
@@ -105,14 +103,12 @@ export function InventoryReclassificationPanel({
           options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
         />
       </div>
-      <label className="text-label">
-        Lý do
-        <TextareaControl
-          disabled={completed || locked}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
-      </label>
+      <Textarea
+        label="Lý do"
+        disabled={completed || locked}
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+      />
       {completed ? (
         <Button tone="secondary" onClick={resetForm}>
           Ghi chuyển phẩm cấp khác

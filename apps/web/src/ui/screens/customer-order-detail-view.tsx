@@ -9,7 +9,7 @@ import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PageHeader, Section } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
 
 const STATUS_COPY = { draft: "Nháp", confirmed: "Đã xác nhận", cancelled: "Đã huỷ" } as const;
 
@@ -120,13 +120,11 @@ export function CustomerOrderDetailView(props: {
                     </Button>
                   ) : null}
                   {props.canCancel ? (
-                    <label className="text-label">
-                      Lý do huỷ
-                      <Input
-                        value={props.reason}
-                        onChange={(event) => props.onReasonChange(event.target.value)}
-                      />
-                    </label>
+                    <TextInput
+                      label="Lý do huỷ"
+                      value={props.reason}
+                      onChange={(event) => props.onReasonChange(event.target.value)}
+                    />
                   ) : null}
                   {props.canCancel ? (
                     <Button

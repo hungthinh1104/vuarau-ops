@@ -5,9 +5,9 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
-import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type InventoryStocktakePanelProps = {
   readonly productId: string;
@@ -75,15 +75,13 @@ export function InventoryStocktakePanel({
             {session.version}
           </p>
           <div className="grid gap-3 md:grid-cols-3">
-            <label className="text-label">
-              Số đếm thực tế
-              <Input
-                inputMode="decimal"
-                disabled={locked || session.status === "approved"}
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-              />
-            </label>
+            <TextInput
+              label="Số đếm thực tế"
+              inputMode="decimal"
+              disabled={locked || session.status === "approved"}
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+            />
             <Select
               label="Đơn vị"
               value={unit}
@@ -106,8 +104,8 @@ export function InventoryStocktakePanel({
               ]}
             />
           </div>
-          <TextareaControl
-            aria-label="Lý do duyệt kiểm kê"
+          <Textarea
+            label="Lý do duyệt kiểm kê"
             disabled={locked || session.status === "approved"}
             placeholder="Lý do hoặc ghi chú kiểm kê"
             value={reason}
