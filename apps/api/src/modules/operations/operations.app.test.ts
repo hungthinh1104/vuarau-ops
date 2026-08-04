@@ -118,6 +118,100 @@ describe("M14 logical operations evidence", () => {
     expect(integrity.ok && integrity.value.status).toBe("healthy");
   });
 
+  it("rejects a backup whose approved policy collection contains an overlap", async () => {
+    const policyEnvelope = (label: string) => ({
+      commandId: crypto.randomUUID(),
+      idempotencyKey: `backup-policy-${label}-${crypto.randomUUID()}`,
+      workspaceId: WORKSPACE_ID,
+      actorId: ACTOR_ID,
+      occurredAt: LATEST_TRANSACTION_TIME,
+    });
+    const definition = {
+      contractVersion: 1 as const,
+      parameters: {
+        defaultTermDays: 7,
+        defaultTermLabel: "7 ngày",
+        customerTerms: [],
+        graceDays: 0,
+        agingBuckets: [{ code: "1+", label: "Quá hạn", minDaysOverdue: 1, maxDaysOverdue: null }],
+        creditControl: "information_only" as const,
+      },
+    };
+    const firstDraft = await createWorkspacePolicyDraft(harness.ctx, {
+      ...policyEnvelope("first-draft"),
+      payload: {
+        policyVersionId: crypto.randomUUID(),
+        policyKind: "payment_terms_aging",
+        version: 1,
+        effectiveFrom: "2026-08-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition,
+        evidenceReferences: [],
+        reason: "Policy đầu tiên.",
+      },
+    });
+    expect(firstDraft.ok).toBe(true);
+    if (!firstDraft.ok) return;
+    const firstApproval = await approveWorkspacePolicy(harness.ctx, {
+      ...policyEnvelope("first-approval"),
+      payload: {
+        policyVersionId: firstDraft.value.id,
+        evidenceReferences: ["field://backup/policy-first"],
+        reason: "Đã duyệt policy đầu tiên.",
+      },
+    });
+    expect(firstApproval.ok).toBe(true);
+    if (!firstApproval.ok) return;
+    const secondDraft = await createWorkspacePolicyDraft(harness.ctx, {
+      ...policyEnvelope("second-draft"),
+      payload: {
+        policyVersionId: crypto.randomUUID(),
+        policyKind: "payment_terms_aging",
+        version: 2,
+        effectiveFrom: "2026-08-02T00:00:00.000Z",
+        effectiveTo: null,
+        definition,
+        evidenceReferences: [],
+        reason: "Policy chờ duyệt.",
+      },
+    });
+    expect(secondDraft.ok).toBe(true);
+    if (!secondDraft.ok) return;
+
+    const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
+    expect(exported.ok).toBe(true);
+    if (!exported.ok) return;
+    const workspacePolicies = exported.value.payload.workspacePolicies.map((policy) =>
+      policy["id"] === secondDraft.value.id
+        ? {
+            ...policy,
+            state: "approved",
+            evidenceReferences: ["field://backup/policy-second"],
+            approvedBy: ACTOR_ID,
+            approvedAt: "2026-08-03T00:00:00.000Z",
+          }
+        : policy,
+    );
+    const invalidBackup = {
+      ...exported.value,
+      payload: { ...exported.value.payload, workspacePolicies },
+      digest: backupDigest({ ...exported.value.payload, workspacePolicies }),
+    };
+    const target = workspaceIdSchema.parse("00000000-0000-4000-8000-000000000791");
+    harness.db.registerWorkspace(target, "Vựa overlap policy");
+    harness.db.grantMembership(target, ACTOR_ID, "owner", true);
+    const restored = await restoreWorkspaceBackup(harness.ctx, {
+      commandId: crypto.randomUUID(),
+      idempotencyKey: "restore-overlap-policy-001",
+      workspaceId: target,
+      actorId: ACTOR_ID,
+      occurredAt: LATEST_TRANSACTION_TIME,
+      payload: { backup: invalidBackup, reason: "Reject overlap trong backup." },
+    });
+    expect(restored.ok).toBe(false);
+    if (!restored.ok) expect(restored.error.code).toBe("BACKUP_INTEGRITY_ERROR");
+  });
+
   it("TC-OPS-016 — restores profile, cashbook and inspected intake atomically without duplicates", async () => {
     const cashAccountId = cashAccountIdSchema.parse("00000000-0000-4000-8000-000000000795");
     harness.db.setOperationalProfile({

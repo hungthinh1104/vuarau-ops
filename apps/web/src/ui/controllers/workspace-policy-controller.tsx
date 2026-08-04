@@ -5,7 +5,7 @@ import {
   approveWorkspacePolicyCommandSchema,
   createWorkspacePolicyDraftCommandSchema,
   retireWorkspacePolicyCommandSchema,
-  type SupportedWorkspacePolicyKind,
+  SUPPORTED_WORKSPACE_POLICY_KINDS,
   type WorkspacePolicyKind,
   workspacePolicyKindSchema,
 } from "@vuarau/domain-contracts";
@@ -14,21 +14,6 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { WorkspacePolicyView } from "@/ui/screens/workspace-policy-view.tsx";
-
-const POLICY_KINDS: readonly SupportedWorkspacePolicyKind[] = [
-  "inventory_valuation",
-  "cost_allocation",
-  "purchase_correction",
-  "payment_terms_aging",
-  "payment_allocation",
-  "credit_limit",
-  "stock_planning_reorder",
-  "stocktake_variance",
-  "supplier_evaluation",
-  "operating_cycle_reconciliation",
-  "cash_custody_deposit",
-  "management_intelligence",
-];
 
 export function WorkspacePolicyController() {
   const { workspaceId, session } = useSession();
@@ -79,7 +64,7 @@ export function WorkspacePolicyController() {
     <WorkspacePolicyView
       policies={policies}
       availability={availability}
-      policyKinds={POLICY_KINDS}
+      policyKinds={SUPPORTED_WORKSPACE_POLICY_KINDS}
       canManage={session.permissions.includes("policy.manage")}
       createCommand={createCommand}
       approveCommand={approveCommand}

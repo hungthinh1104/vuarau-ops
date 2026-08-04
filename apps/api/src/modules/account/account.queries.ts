@@ -26,7 +26,7 @@ import {
   classifyBalance,
   err,
   ok,
-  resolvePolicyAsKnownAt,
+  resolvePolicyForDecision,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { authorizeWorkspaceAccess, accountCapabilities } from "../shared/authorization.ts";
@@ -140,13 +140,13 @@ export function getCustomerDebtAging(
     execute: async ({ repos }) => {
       const calculatedAt = ctx.deps.clock.now();
       const policies = await repos.workspacePolicyReads.listAll(input.workspaceId);
-      const termsPolicy = resolvePolicyAsKnownAt(
+      const termsPolicy = resolvePolicyForDecision(
         policies,
         "payment_terms_aging",
         input.asOf,
         calculatedAt,
       );
-      const allocationPolicy = resolvePolicyAsKnownAt(
+      const allocationPolicy = resolvePolicyForDecision(
         policies,
         "payment_allocation",
         input.asOf,

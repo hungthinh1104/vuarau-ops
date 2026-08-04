@@ -4,7 +4,7 @@ import {
   calculateSupplierPerformance,
   err,
   ok,
-  resolvePolicyAsKnownAt,
+  resolvePolicyForDecision,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery } from "../shared/read-pipeline.ts";
@@ -44,7 +44,7 @@ export async function getSupplierPerformance(ctx: CommandContext, input: Supplie
       const supplier = await repos.suppliers.findById(input.workspaceId, input.supplierId);
       if (supplier === null) return null;
 
-      const policy = resolvePolicyAsKnownAt(
+      const policy = resolvePolicyForDecision(
         await repos.workspacePolicyReads.listAll(input.workspaceId),
         "supplier_evaluation",
         input.asOf,

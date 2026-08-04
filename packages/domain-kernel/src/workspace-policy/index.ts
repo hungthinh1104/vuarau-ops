@@ -9,6 +9,7 @@ import type {
 import {
   WORKSPACE_POLICY_KINDS,
   parseWorkspacePolicyDto,
+  policyDefinitionSchemas,
   validatePolicyDefinition,
 } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
@@ -244,6 +245,17 @@ export function decideApproveWorkspacePolicy(
     approvedAt: recordedAt,
     reason: command.payload.reason,
   };
+  if (
+    existingPolicies.some(
+      (existing) => existing.policyKind === policy.policyKind && !isValidPolicyDefinition(existing),
+    )
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "Another policy version of this capability has a corrupt definition.",
+      { policyKind: policy.policyKind },
+    );
+  }
   if (hasOverlappingWorkspacePolicyEffectiveWindow(policy, existingPolicies)) {
     return err(
       "WORKSPACE_POLICY_EFFECTIVE_OVERLAP",
@@ -277,9 +289,17 @@ export function decideRetireWorkspacePolicy(
   if (current.state === "retired") {
     return err("WORKSPACE_POLICY_NOT_APPROVED", "Policy version is already retired.");
   }
+  const effectiveTo = command.payload.effectiveTo ?? current.effectiveTo;
+  if (!validEffectiveRange(current.effectiveFrom, effectiveTo)) {
+    return err(
+      "WORKSPACE_POLICY_EFFECTIVE_RANGE_INVALID",
+      "A policy effective end must be later than its effective start.",
+    );
+  }
   const policy: WorkspacePolicyDto = {
     ...current,
     state: "retired",
+    effectiveTo,
     retiredBy: command.actorId,
     retiredAt: recordedAt,
     reason: command.payload.reason,
@@ -309,6 +329,15 @@ export function resolveWorkspacePolicyAvailability(
   // retirement out of the business-effective interval itself.
   const currentRead = Date.parse(asOf) >= Date.parse(knowledgeAt);
   return [...WORKSPACE_POLICY_KINDS].map((policyKind) => {
+    if (policyDefinitionSchemas[policyKind] === null) {
+      return {
+        policyKind,
+        availability: "unavailable",
+        reason: "unsupported_definition_contract",
+        policyVersionId: null,
+        version: null,
+      } satisfies WorkspacePolicyAvailability;
+    }
     const knownVersions = policies
       .filter(
         (policy) =>

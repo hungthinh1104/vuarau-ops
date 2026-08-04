@@ -337,6 +337,7 @@ function PolicyStateActions(props: {
 }) {
   const [evidence, setEvidence] = useState("");
   const [reason, setReason] = useState("");
+  const [effectiveTo, setEffectiveTo] = useState(props.policy.effectiveTo?.slice(0, 16) ?? "");
   const [error, setError] = useState<string | null>(null);
   const canApprove = props.policy.state === "draft";
   const canRetire = props.policy.state !== "retired";
@@ -378,18 +379,30 @@ function PolicyStateActions(props: {
         </>
       ) : null}
       {canRetire ? (
-        <Button
-          tone="danger"
-          onClick={() => {
-            if (reason.trim() === "") {
-              setError("Cần lý do khi đưa policy về nghỉ.");
-              return;
-            }
-            props.onRetire({ policyVersionId: props.policy.id, reason: reason.trim() });
-          }}
-        >
-          Đưa về nghỉ
-        </Button>
+        <>
+          <TextInput
+            label="Kết thúc hiệu lực kinh doanh (tuỳ chọn)"
+            type="datetime-local"
+            value={effectiveTo}
+            onChange={(event) => setEffectiveTo(event.target.value)}
+          />
+          <Button
+            tone="danger"
+            onClick={() => {
+              if (reason.trim() === "") {
+                setError("Cần lý do khi đưa policy về nghỉ.");
+                return;
+              }
+              props.onRetire({
+                policyVersionId: props.policy.id,
+                effectiveTo: effectiveTo === "" ? null : new Date(effectiveTo).toISOString(),
+                reason: reason.trim(),
+              });
+            }}
+          >
+            Đưa về nghỉ
+          </Button>
+        </>
       ) : null}
       {error ? <p className="text-caption text-danger">{error}</p> : null}
     </div>
@@ -399,6 +412,12 @@ function PolicyStateActions(props: {
 function availabilityCopy(item: WorkspacePolicyAvailability): string {
   if (item.availability === "available")
     return `Version ${item.version ?? "?"} đang trong thời gian hiệu lực.`;
+  if (item.reason === "unsupported_definition_contract")
+    return "Capability này chưa có typed definition contract và không thể áp dụng.";
+  if (item.reason === "corrupt_definition")
+    return "Definition lưu trong policy bị hỏng; hệ thống fail-closed.";
+  if (item.reason === "corrupt_overlap")
+    return "Có nhiều version chồng thời gian; cần sửa dữ liệu trước khi áp dụng.";
   if (item.reason === "effective_window_not_started")
     return "Đã duyệt nhưng chưa tới ngày hiệu lực.";
   if (item.reason === "effective_window_closed") return "Version đã qua thời gian hiệu lực.";

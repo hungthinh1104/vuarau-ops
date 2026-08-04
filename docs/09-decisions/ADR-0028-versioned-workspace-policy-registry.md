@@ -25,18 +25,20 @@ draft → approved → retired
 ```
 
 Only a version approved by the read's knowledge cutoff and inside its business
-effective window is reported as available. Retirement closes the version from
-its retirement time forward but does not erase earlier historical availability.
+effective window is reported as available. A new calculation resolves against
+decision time and never selects a retired version; historical lineage may still
+load an approved or retired version to reproduce or correct an existing result.
+Retirement may also close the business interval explicitly for a successor.
 Overlapping active windows are rejected during approval. Missing, future, expired
-or retired policy is unavailable. V1–V16 backups restore
+or retired policy is unavailable for new decisions. V1–V16 backups restore
 with no policy rows; Backup V17 carries the registry, commercial supply commitments,
 supplier observations and customer demand observations.
 
-The registry is not a generic rule engine. Definitions are stored in a typed
-infrastructure envelope, and a bounded-context adapter may opt in only with its
-own policy-specific schema and effect contract. The first adapter is the
-read-only, source-backed inventory valuation slice; no current transaction or
-report reads an arbitrary definition as a default.
+The registry is not a generic rule engine. Definitions are stored in typed
+infrastructure envelopes, and each bounded-context adapter opts in through its
+policy-specific schema and effect contract. Valuation, planning,
+supplier-performance and management reads use decision-time resolution; no
+consumer reads an arbitrary or unsupported definition as a default.
 
 ## Consequences
 

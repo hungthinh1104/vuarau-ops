@@ -9,6 +9,7 @@ const movement = (
   unitCost: number | null,
   sourceType = quantityScaled > 0 ? "purchase_receipt" : "delivery_dispatch",
   reversalOfMovementId: string | null = null,
+  currency: string = "VND",
 ): InventoryValuationMovement => ({
   movementId: id as InventoryMovementId,
   qualityGradeId: null,
@@ -20,7 +21,12 @@ const movement = (
   reversalOfMovementId: reversalOfMovementId as InventoryMovementId | null,
   transactionTime: `2026-08-03T00:00:0${id.at(-1)}.000Z`,
   recordedAt: `2026-08-03T00:00:1${id.at(-1)}.000Z`,
-  unitCost: unitCost === null ? null : { amountMinor: unitCost, currency: "VND" },
+  unitCost:
+    unitCost === null
+      ? null
+      : ({ amountMinor: unitCost, currency } as unknown as NonNullable<
+          InventoryValuationMovement["unitCost"]
+        >),
 });
 
 describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-001", () => {
@@ -70,6 +76,21 @@ describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-
 
     expect(result.diagnostics).toContain("missing_unit_cost");
     expect(result.inventoryValue).toBeNull();
+  });
+
+  it("fails closed when valuation inputs contain mixed currencies", () => {
+    const rows = [
+      movement("1", 1_000, 100, "purchase_receipt", null, "VND"),
+      movement("2", 1_000, 100, "purchase_receipt", null, "USD"),
+      movement("3", 1_000, 100, "purchase_receipt", null, "USD"),
+    ];
+
+    for (const strategy of ["fifo", "moving_weighted_average"] as const) {
+      const result = calculateInventoryValuation(rows, strategy)[0]!;
+      expect(result.inventoryValue).toBeNull();
+      expect(result.averageUnitCost).toBeNull();
+      expect(result.diagnostics).toContain("mixed_currency");
+    }
   });
 
   it("does not pretend a specific actual cost exists without a dispatch lot reference", () => {
@@ -134,6 +155,27 @@ describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-
       quantityScaled: 1_000,
       cogs: { amountMinor: 100, currency: "VND" },
       inventoryValue: { amountMinor: 101, currency: "VND" },
+      diagnostics: [],
+    });
+  });
+
+  it("preserves the exact moving-average cost pool across repeated outflows", () => {
+    const result = calculateInventoryValuation(
+      [
+        movement("1", 1_000, 101),
+        movement("2", 1_000, 100),
+        movement("3", -500, null),
+        movement("4", -500, null),
+        movement("5", -500, null),
+        movement("6", -500, null),
+      ],
+      "moving_weighted_average",
+    )[0]!;
+
+    expect(result).toMatchObject({
+      quantityScaled: 0,
+      inventoryValue: null,
+      cogs: { amountMinor: 201, currency: "VND" },
       diagnostics: [],
     });
   });

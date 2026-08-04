@@ -18,10 +18,12 @@ business-time boundaries; `approvedAt` and `retiredAt` are system knowledge and
 lifecycle facts. Approval rejects an overlap in business-effective windows even
 when a later version is backdated. A decision resolver additionally requires the
 policy to be approved before `decisionAt` and not retired before that decision.
-A historical resolver uses only `knowledgeAt`, keeps the business window
-separate from retirement time, and fails closed on overlap or invalid lineage.
-Retirement therefore blocks new decisions without erasing the policy lineage
-needed to correct or reopen an already-recorded fact.
+A retirement command may close the business interval with an explicit
+`effectiveTo`, allowing a successor to begin at that boundary. A historical
+resolver uses only `knowledgeAt`, keeps the business window separate from
+retirement time, and fails closed on overlap or invalid lineage. Retirement
+therefore blocks new decisions without erasing the policy lineage needed to
+correct or reopen an already-recorded fact.
 
 ### BR-POLICY-003 — Drafts have no business effect
 
@@ -38,8 +40,9 @@ draft; a retired or already-approved version cannot be approved again.
 ### BR-POLICY-005 — Missing policy fails closed
 
 Availability returns `unavailable` with a reason when no approved effective
-version exists. The system must not infer a global default, zero, healthy state,
-overdue label, reorder recommendation, supplier score, COGS/profit or AI advice.
+version exists, or when a named capability has no typed definition contract.
+The system must not infer a global default, zero, healthy state, overdue label,
+reorder recommendation, supplier score, COGS/profit or AI advice.
 When multiple approved versions are effective for the same business time, the
 read is unavailable with a corruption diagnostic; it does not silently select a
 highest version. A future or expired version must not hide a lower version that

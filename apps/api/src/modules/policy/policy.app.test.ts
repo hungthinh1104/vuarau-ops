@@ -57,9 +57,7 @@ const draftInput = (
           defaultTermLabel: "7 ngày",
           customerTerms: [],
           graceDays: 0,
-          agingBuckets: [
-            { code: "current", label: "Chưa đến hạn", minDaysOverdue: 0, maxDaysOverdue: null },
-          ],
+          agingBuckets: [{ code: "1+", label: "Quá hạn", minDaysOverdue: 1, maxDaysOverdue: null }],
           creditControl: "information_only",
         },
       },

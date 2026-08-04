@@ -16,17 +16,21 @@ operating hour, shift, channel, valuation method or commercial outcome.
   actor, a reason and a valid effective range. Approval is audited and remains
   inactive outside its effective window.
 - `policy.retire` records an explicit state transition and is safe against a
-  concurrent state change. It does not rewrite facts recorded under the policy.
+  concurrent state change. Its optional `effectiveTo` closes the business
+  interval so a successor can start without a permanent overlap. It does not
+  rewrite facts recorded under the policy.
 - `policy.get`, `policy.list` and `policy.availability` are workspace-scoped
   reads. Availability is `unavailable` when no approved effective version exists;
   callers must not substitute a zero, default or recommendation.
-- Historical policy resolution uses the business `asOf` separately from the
-  server knowledge cutoff: approval must be known by that cutoff, while a later
-  retirement only closes business times at or after `retiredAt`. This preserves
-  historical availability without making a retired policy current.
-- The current registry is infrastructure. No existing Sale, Purchase, Payment,
-  Receiving, Inventory, Cashbook or Report command consumes an arbitrary policy
-  definition as an activated business rule.
+- New policy-dependent calculations use decision-time resolution, so a retired
+  policy is never selected for a new valuation, planning, supplier-performance
+  or management calculation. Historical resolution uses the business `asOf`
+  separately from the server knowledge cutoff and is reserved for reproducing
+  or correcting an existing result.
+- The registry remains typed infrastructure: only contracts present in the
+  authoritative registry can be stored or consumed. Unsupported capability
+  names return `unsupported_definition_contract`, distinct from a missing
+  approved version.
 
 ## Authorization and recovery
 

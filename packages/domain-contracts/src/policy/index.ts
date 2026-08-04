@@ -17,7 +17,6 @@ import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { supplierEvaluationPolicyDefinitionSchema } from "../supplier/index.ts";
-import type { SupplierEvaluationPolicyDefinition } from "../supplier/index.ts";
 import {
   costAllocationPolicyDefinitionSchema,
   inventoryValuationPolicyDefinitionSchema,
@@ -104,7 +103,7 @@ export type PaymentTermOverride = z.infer<typeof paymentTermOverrideSchema>;
 const agingBucketDefinitionSchema = z.object({
   code: z.string().trim().min(1).max(40),
   label: z.string().trim().min(1).max(100),
-  minDaysOverdue: z.int().nonnegative(),
+  minDaysOverdue: z.int().positive(),
   maxDaysOverdue: z.int().nonnegative().nullable(),
 });
 export type AgingBucketDefinition = z.infer<typeof agingBucketDefinitionSchema>;
@@ -140,6 +139,13 @@ export const paymentTermsAgingPolicyDefinitionSchema = z.object({
       const buckets = [...parameters.agingBuckets].sort(
         (left, right) => left.minDaysOverdue - right.minDaysOverdue,
       );
+      if (buckets[0]?.minDaysOverdue !== 1) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["agingBuckets"],
+          message: "Aging buckets must start at one and cover every overdue day.",
+        });
+      }
       const bucketCodes = new Set<string>();
       let openEndedIndex = -1;
       for (const [index, bucket] of buckets.entries()) {
@@ -353,19 +359,26 @@ export type SupportedWorkspacePolicyKind = {
   [K in WorkspacePolicyKind]: (typeof policyDefinitionSchemas)[K] extends z.ZodTypeAny ? K : never;
 }[WorkspacePolicyKind];
 
-export type WorkspacePolicyDefinition =
-  | z.infer<typeof inventoryValuationPolicyDefinitionSchema>
-  | z.infer<typeof costAllocationPolicyDefinitionSchema>
-  | PurchaseCorrectionPolicyDefinition
-  | PaymentTermsAgingPolicyDefinition
-  | PaymentAllocationPolicyDefinition
-  | CreditLimitPolicyDefinition
-  | StockPlanningPolicyDefinition
-  | StocktakeVariancePolicyDefinition
-  | OperationalClosePolicyDefinition
-  | SupplierEvaluationPolicyDefinition
-  | z.infer<typeof managementIntelligencePolicyDefinitionSchema>
-  | z.infer<typeof cashCustodyDepositPolicyDefinitionSchema>;
+type SupportedPolicyDefinitionSchema<K extends SupportedWorkspacePolicyKind> = Exclude<
+  (typeof policyDefinitionSchemas)[K],
+  null
+>;
+export type WorkspacePolicyDefinition = {
+  [K in SupportedWorkspacePolicyKind]: z.infer<SupportedPolicyDefinitionSchema<K>>;
+}[SupportedWorkspacePolicyKind];
+
+type SupportedPolicyRegistryEntry = {
+  [K in SupportedWorkspacePolicyKind]: [K, SupportedPolicyDefinitionSchema<K>];
+}[SupportedWorkspacePolicyKind];
+
+const supportedPolicyRegistryEntries = Object.entries(policyDefinitionSchemas).filter(
+  (entry): entry is SupportedPolicyRegistryEntry => entry[1] !== null,
+);
+
+/** Runtime options derived from the same registry used by every policy schema. */
+export const SUPPORTED_WORKSPACE_POLICY_KINDS = supportedPolicyRegistryEntries.map(
+  ([policyKind]) => policyKind,
+) as readonly SupportedWorkspacePolicyKind[];
 
 export function validatePolicyDefinition(policyKind: WorkspacePolicyKind, definition: unknown) {
   const schema = policyDefinitionSchemas[policyKind];
@@ -390,57 +403,38 @@ const workspacePolicyDtoBaseSchema = z.object({
   reason: z.string().nullable(),
 });
 
-export const workspacePolicyDtoSchema = z.discriminatedUnion("policyKind", [
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("inventory_valuation"),
-    definition: inventoryValuationPolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("cost_allocation"),
-    definition: costAllocationPolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("purchase_correction"),
-    definition: purchaseCorrectionPolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("payment_terms_aging"),
-    definition: paymentTermsAgingPolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("payment_allocation"),
-    definition: paymentAllocationPolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("credit_limit"),
-    definition: creditLimitPolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("stock_planning_reorder"),
-    definition: stockPlanningPolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("stocktake_variance"),
-    definition: stocktakeVariancePolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("supplier_evaluation"),
-    definition: supplierEvaluationPolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("operating_cycle_reconciliation"),
-    definition: operationalClosePolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("cash_custody_deposit"),
-    definition: cashCustodyDepositPolicyDefinitionSchema,
-  }),
-  workspacePolicyDtoBaseSchema.extend({
-    policyKind: z.literal("management_intelligence"),
-    definition: managementIntelligencePolicyDefinitionSchema,
-  }),
-] as const);
-export type WorkspacePolicyDto = z.infer<typeof workspacePolicyDtoSchema>;
+type PolicyVariantSchema = z.core.$ZodTypeDiscriminable<"policyKind">;
+
+function createPolicyVariantSchemas(
+  baseSchema: z.ZodObject,
+): [PolicyVariantSchema, ...PolicyVariantSchema[]] {
+  const variants = SUPPORTED_WORKSPACE_POLICY_KINDS.map((policyKind) => {
+    const definitionSchema = policyDefinitionSchemas[policyKind];
+    if (definitionSchema === null) {
+      throw new Error(`Missing policy definition contract for ${policyKind}.`);
+    }
+    return baseSchema.extend({
+      policyKind: z.literal(policyKind),
+      definition: definitionSchema,
+    });
+  });
+  return variants as unknown as [PolicyVariantSchema, ...PolicyVariantSchema[]];
+}
+
+type WorkspacePolicyDtoVariant<K extends SupportedWorkspacePolicyKind> = z.infer<
+  typeof workspacePolicyDtoBaseSchema
+> & {
+  policyKind: K;
+  definition: z.infer<SupportedPolicyDefinitionSchema<K>>;
+};
+export type WorkspacePolicyDto = {
+  [K in SupportedWorkspacePolicyKind]: WorkspacePolicyDtoVariant<K>;
+}[SupportedWorkspacePolicyKind];
+
+export const workspacePolicyDtoSchema = z.discriminatedUnion(
+  "policyKind",
+  createPolicyVariantSchemas(workspacePolicyDtoBaseSchema),
+) as unknown as z.ZodType<WorkspacePolicyDto>;
 
 /** Parses a persisted DTO and re-runs the registry validator at the adapter boundary. */
 export function parseWorkspacePolicyDto(input: unknown): WorkspacePolicyDto {
@@ -460,56 +454,20 @@ const policyVersionFieldsBaseSchema = z.object({
   reason: z.string().trim().max(500).nullable().default(null),
 });
 
-export const supportedWorkspacePolicyVersionFieldsSchema = z.discriminatedUnion("policyKind", [
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("inventory_valuation"),
-    definition: inventoryValuationPolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("cost_allocation"),
-    definition: costAllocationPolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("purchase_correction"),
-    definition: purchaseCorrectionPolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("payment_terms_aging"),
-    definition: paymentTermsAgingPolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("payment_allocation"),
-    definition: paymentAllocationPolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("credit_limit"),
-    definition: creditLimitPolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("stock_planning_reorder"),
-    definition: stockPlanningPolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("stocktake_variance"),
-    definition: stocktakeVariancePolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("supplier_evaluation"),
-    definition: supplierEvaluationPolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("operating_cycle_reconciliation"),
-    definition: operationalClosePolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("cash_custody_deposit"),
-    definition: cashCustodyDepositPolicyDefinitionSchema,
-  }),
-  policyVersionFieldsBaseSchema.extend({
-    policyKind: z.literal("management_intelligence"),
-    definition: managementIntelligencePolicyDefinitionSchema,
-  }),
-] as const);
+type WorkspacePolicyVersionFieldsVariant<K extends SupportedWorkspacePolicyKind> = z.infer<
+  typeof policyVersionFieldsBaseSchema
+> & {
+  policyKind: K;
+  definition: z.infer<SupportedPolicyDefinitionSchema<K>>;
+};
+export type SupportedWorkspacePolicyVersionFields = {
+  [K in SupportedWorkspacePolicyKind]: WorkspacePolicyVersionFieldsVariant<K>;
+}[SupportedWorkspacePolicyKind];
+
+export const supportedWorkspacePolicyVersionFieldsSchema = z.discriminatedUnion(
+  "policyKind",
+  createPolicyVariantSchemas(policyVersionFieldsBaseSchema),
+) as unknown as z.ZodType<SupportedWorkspacePolicyVersionFields>;
 
 export const createWorkspacePolicyDraftCommandSchema = defineCommand(
   supportedWorkspacePolicyVersionFieldsSchema,
@@ -532,6 +490,7 @@ export type ApproveWorkspacePolicyCommand = z.infer<typeof approveWorkspacePolic
 
 export const retireWorkspacePolicyPayloadSchema = z.object({
   policyVersionId: workspacePolicyVersionIdSchema,
+  effectiveTo: isoInstantSchema.nullable().default(null),
   reason: z.string().trim().min(1).max(500),
 });
 export const retireWorkspacePolicyCommandSchema = defineCommand(retireWorkspacePolicyPayloadSchema);
@@ -556,6 +515,7 @@ export const workspacePolicyAvailabilitySchema = z.object({
   policyKind: workspacePolicyKindSchema,
   availability: z.enum(["unavailable", "available"]),
   reason: z.enum([
+    "unsupported_definition_contract",
     "no_approved_version",
     "effective_window_not_started",
     "effective_window_closed",

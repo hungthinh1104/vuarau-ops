@@ -3,7 +3,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { workspacePolicies } from "../../schema/index.ts";
 import { fetchLimit, paged } from "../shared/read-helpers.ts";
 import { fromIso } from "../row-mappers.ts";
-import { toWorkspacePolicyDto } from "../shared/policy-mappers.ts";
+import { toCorruptWorkspacePolicyDto, tryToWorkspacePolicyDto } from "../shared/policy-mappers.ts";
 import type { Tx } from "../shared/types.ts";
 
 export const createWorkspacePolicyReadRepositories = (tx: Tx) => ({
@@ -19,7 +19,7 @@ export const createWorkspacePolicyReadRepositories = (tx: Tx) => ({
           ),
         )
         .limit(1);
-      return rows[0] === undefined ? null : toWorkspacePolicyDto(rows[0]);
+      return rows[0] === undefined ? null : tryToWorkspacePolicyDto(rows[0]);
     },
     async list({
       workspaceId,
@@ -46,10 +46,17 @@ export const createWorkspacePolicyReadRepositories = (tx: Tx) => ({
         .where(and(...filters))
         .orderBy(desc(workspacePolicies.createdAt), desc(workspacePolicies.id))
         .limit(fetchLimit(page));
-      return paged(rows.map(toWorkspacePolicyDto), page, (row) => ({
-        sortValue: row.createdAt,
-        id: row.id,
-      }));
+      return paged(
+        rows.flatMap((row) => {
+          const policy = tryToWorkspacePolicyDto(row);
+          return policy === null ? [] : [policy];
+        }),
+        page,
+        (row) => ({
+          sortValue: row.createdAt,
+          id: row.id,
+        }),
+      );
     },
     async listAll(workspaceId: string) {
       const rows = await tx
@@ -57,7 +64,7 @@ export const createWorkspacePolicyReadRepositories = (tx: Tx) => ({
         .from(workspacePolicies)
         .where(eq(workspacePolicies.workspaceId, workspaceId))
         .orderBy(desc(workspacePolicies.version), desc(workspacePolicies.id));
-      return rows.map(toWorkspacePolicyDto);
+      return rows.map((row) => tryToWorkspacePolicyDto(row) ?? toCorruptWorkspacePolicyDto(row));
     },
   },
 });

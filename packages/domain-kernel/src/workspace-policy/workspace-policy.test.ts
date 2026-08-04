@@ -32,9 +32,7 @@ const PAYMENT_TERMS_DEFINITION = {
     defaultTermLabel: "7 ngày",
     customerTerms: [],
     graceDays: 0,
-    agingBuckets: [
-      { code: "current", label: "Chưa đến hạn", minDaysOverdue: 0, maxDaysOverdue: null },
-    ],
+    agingBuckets: [{ code: "1+", label: "Quá hạn", minDaysOverdue: 1, maxDaysOverdue: null }],
     creditControl: "information_only" as const,
   },
 };
@@ -178,6 +176,9 @@ describe("workspace policy registry", () => {
     expect(before.find((entry) => entry.policyKind === "payment_terms_aging")?.reason).toBe(
       "no_approved_version",
     );
+    expect(
+      before.find((entry) => entry.policyKind === "receivable_payable_recognition")?.reason,
+    ).toBe("unsupported_definition_contract");
   });
 
   it("TC-POLICY-010 selects the highest approved version that is effective at the requested time", () => {
@@ -286,6 +287,71 @@ describe("workspace policy registry", () => {
     if (!approval.ok) expect(approval.error.code).toBe("WORKSPACE_POLICY_EFFECTIVE_OVERLAP");
   });
 
+  it("TC-POLICY-021 closes an open-ended policy before approving its successor", () => {
+    const current = approvedPolicy(1, "2026-08-01T00:00:00.000Z", null);
+    const retirement = decideRetireWorkspacePolicy(
+      retireWorkspacePolicyCommandSchema.parse({
+        commandId: id("120"),
+        idempotencyKey: "policy-retire-successor-001",
+        workspaceId: WORKSPACE,
+        actorId: ACTOR,
+        occurredAt: "2026-08-05T00:00:00.000Z",
+        payload: {
+          policyVersionId: current.id,
+          effectiveTo: "2026-08-10T00:00:00.000Z",
+          reason: "Đóng kỳ hiệu lực kinh doanh trước khi chuyển version.",
+        },
+      }),
+      current,
+      "2026-08-05T00:00:00.000Z",
+    );
+    expect(retirement.ok).toBe(true);
+    if (!retirement.ok) return;
+
+    const successor = {
+      ...approvedPolicy(2, "2026-08-10T00:00:00.000Z", null),
+      state: "draft" as const,
+      approvedBy: null,
+      approvedAt: null,
+    };
+    const approval = decideApproveWorkspacePolicy(
+      approveWorkspacePolicyCommandSchema.parse({
+        commandId: id("121"),
+        idempotencyKey: "policy-approve-successor-001",
+        workspaceId: WORKSPACE,
+        actorId: ACTOR,
+        occurredAt: "2026-08-05T00:01:00.000Z",
+        payload: {
+          policyVersionId: successor.id,
+          evidenceReferences: ["field://review/policy-successor-001"],
+          reason: "Version successor đã được đối chiếu.",
+        },
+      }),
+      successor,
+      "2026-08-05T00:01:00.000Z",
+      [retirement.value.policy],
+    );
+    expect(approval.ok).toBe(true);
+    if (!approval.ok) return;
+
+    expect(
+      resolvePolicyForDecision(
+        [retirement.value.policy, approval.value.policy],
+        "payment_terms_aging",
+        "2026-08-11T00:00:00.000Z",
+        "2026-08-11T00:00:00.000Z",
+      )?.id,
+    ).toBe(successor.id);
+    expect(
+      resolvePolicyAsKnownAt(
+        [retirement.value.policy, approval.value.policy],
+        "payment_terms_aging",
+        "2026-08-05T00:00:00.000Z",
+        "2026-08-11T00:00:00.000Z",
+      )?.id,
+    ).toBe(current.id);
+  });
+
   it("TC-POLICY-016 rejects policy kinds without a typed definition contract", () => {
     for (const policyKind of ["receivable_payable_recognition", "return_claim_credit"] as const) {
       const command = createWorkspacePolicyDraftCommandSchema.safeParse({
@@ -322,6 +388,28 @@ describe("workspace policy registry", () => {
     );
     expect(approval.ok).toBe(false);
     if (!approval.ok) expect(approval.error.code).toBe("WORKSPACE_POLICY_DEFINITION_INVALID");
+  });
+
+  it("TC-POLICY-022 exposes persisted definition corruption without selecting the row", () => {
+    const malformed = {
+      ...approvedPolicy(1, "2026-08-01T00:00:00.000Z", null),
+      definition: { contractVersion: 99, parameters: { broken: true } },
+    } as unknown as WorkspacePolicyDto;
+    expect(
+      resolvePolicyForDecision(
+        [malformed],
+        "payment_terms_aging",
+        "2026-08-03T00:00:00.000Z",
+        "2026-08-03T00:00:00.000Z",
+      ),
+    ).toBeNull();
+    expect(
+      resolveWorkspacePolicyAvailability(
+        [malformed],
+        "2026-08-03T00:00:00.000Z",
+        "2026-08-03T00:00:00.000Z",
+      ).find((entry) => entry.policyKind === "payment_terms_aging"),
+    ).toMatchObject({ availability: "unavailable", reason: "corrupt_definition" });
   });
 
   it("TC-POLICY-018 fails closed when backdated policy versions overlap in business time", () => {
@@ -381,5 +469,16 @@ describe("workspace policy registry", () => {
       },
     });
     expect(invalid.success).toBe(false);
+
+    const missingStart = paymentTermsAgingPolicyDefinitionSchema.safeParse({
+      ...PAYMENT_TERMS_DEFINITION,
+      parameters: {
+        ...PAYMENT_TERMS_DEFINITION.parameters,
+        agingBuckets: [
+          { code: "2+", label: "Quá hạn từ ngày thứ hai", minDaysOverdue: 2, maxDaysOverdue: null },
+        ],
+      },
+    });
+    expect(missingStart.success).toBe(false);
   });
 });

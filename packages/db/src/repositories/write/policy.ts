@@ -6,7 +6,7 @@ import type {
 import { parseWorkspacePolicyDto } from "@vuarau/domain-contracts";
 import { and, eq } from "drizzle-orm";
 import { workspacePolicies } from "../../schema/index.ts";
-import { toWorkspacePolicyDto } from "../shared/policy-mappers.ts";
+import { toCorruptWorkspacePolicyDto, tryToWorkspacePolicyDto } from "../shared/policy-mappers.ts";
 import type { Tx } from "../shared/types.ts";
 
 export const createWorkspacePolicyWriteRepositories = (tx: Tx) => ({
@@ -22,7 +22,9 @@ export const createWorkspacePolicyWriteRepositories = (tx: Tx) => ({
           ),
         )
         .limit(1);
-      return rows[0] === undefined ? null : toWorkspacePolicyDto(rows[0]);
+      return rows[0] === undefined
+        ? null
+        : (tryToWorkspacePolicyDto(rows[0]) ?? toCorruptWorkspacePolicyDto(rows[0]));
     },
     async listForUpdate(workspaceId: string, policyKind: WorkspacePolicyKind) {
       const rows = await tx
@@ -35,7 +37,7 @@ export const createWorkspacePolicyWriteRepositories = (tx: Tx) => ({
           ),
         )
         .for("update");
-      return rows.map(toWorkspacePolicyDto);
+      return rows.map((row) => tryToWorkspacePolicyDto(row) ?? toCorruptWorkspacePolicyDto(row));
     },
     async insert(policy: WorkspacePolicyDto) {
       const validated = parseWorkspacePolicyDto(policy);
@@ -70,6 +72,7 @@ export const createWorkspacePolicyWriteRepositories = (tx: Tx) => ({
         .update(workspacePolicies)
         .set({
           state: policy.state,
+          effectiveTo: validated.effectiveTo === null ? null : new Date(validated.effectiveTo),
           evidenceReferences: [...validated.evidenceReferences],
           approvedBy: validated.approvedBy,
           approvedAt: validated.approvedAt === null ? null : new Date(validated.approvedAt),

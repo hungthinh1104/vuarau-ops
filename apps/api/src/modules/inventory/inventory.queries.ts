@@ -25,7 +25,7 @@ import {
   canVoidPurchase,
   err,
   ok,
-  resolvePolicyAsKnownAt,
+  resolvePolicyForDecision,
   resolvePurchaseCorrectionPolicy,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -201,7 +201,7 @@ export async function getStockPlanning(ctx: CommandContext, input: StockPlanning
     permission: "inventory.read",
     execute: async ({ repos }) => {
       const calculatedAt = new Date().toISOString() as IsoInstant;
-      const policy = resolvePolicyAsKnownAt(
+      const policy = resolvePolicyForDecision(
         await repos.workspacePolicyReads.listAll(input.workspaceId),
         "stock_planning_reorder",
         input.asOf,
@@ -293,7 +293,7 @@ export const getInventoryValuation = (ctx: CommandContext, input: InventoryValua
     execute: async ({ repos }) => {
       const calculatedAt = new Date().toISOString() as IsoInstant;
       const policies = await repos.workspacePolicyReads.listAll(input.workspaceId);
-      const policy = resolvePolicyAsKnownAt(
+      const policy = resolvePolicyForDecision(
         policies,
         "inventory_valuation",
         input.asOf,

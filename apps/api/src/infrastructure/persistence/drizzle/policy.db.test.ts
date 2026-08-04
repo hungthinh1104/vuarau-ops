@@ -215,4 +215,57 @@ describe.skipIf(skipWithoutDatabase())("workspace policies against PostgreSQL", 
       expect(secondApproval.error.code).toBe("WORKSPACE_POLICY_EFFECTIVE_OVERLAP");
     }
   });
+
+  it("TC-POLICY-023 fails closed with a controlled diagnostic for corrupt persisted definitions", async () => {
+    const draft = await createWorkspacePolicyDraft(context(), {
+      ...envelope("corrupt-definition-draft"),
+      payload: {
+        policyVersionId: crypto.randomUUID(),
+        policyKind: "inventory_valuation",
+        version: 1,
+        effectiveFrom: "2026-08-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition: {
+          contractVersion: 1,
+          parameters: { strategy: "moving_weighted_average" },
+        },
+        evidenceReferences: [],
+        reason: "Dữ liệu hợp lệ trước khi mô phỏng corruption.",
+      },
+    });
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+
+    const approved = await approveWorkspacePolicy(context(), {
+      ...envelope("corrupt-definition-approve"),
+      payload: {
+        policyVersionId: draft.value.id,
+        evidenceReferences: ["field://policy/corrupt-definition"],
+        reason: "Duyệt trước khi mô phỏng dữ liệu persisted bị hỏng.",
+      },
+    });
+    expect(approved.ok).toBe(true);
+    if (!approved.ok) return;
+
+    await ctx.database.sql`
+      update workspace_policies
+      set definition = ${JSON.stringify({ contractVersion: 99, parameters: { broken: true } })}::jsonb
+      where id = ${approved.value.id}::uuid
+        and workspace_id = ${ctx.workspaceId}::uuid
+    `;
+
+    const availability = await getWorkspacePolicyAvailability(context(), {
+      workspaceId: ctx.workspaceId,
+      asOf: "2026-08-03T00:00:00.000Z",
+    });
+    expect(availability.ok).toBe(true);
+    if (availability.ok) {
+      expect(
+        availability.value.find((entry) => entry.policyKind === "inventory_valuation"),
+      ).toMatchObject({
+        availability: "unavailable",
+        reason: "corrupt_definition",
+      });
+    }
+  });
 });

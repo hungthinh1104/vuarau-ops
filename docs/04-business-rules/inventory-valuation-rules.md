@@ -12,10 +12,13 @@ workspace.
   unit and append-only inventory movement facts. Receipt unit cost is resolved
   from its immutable Purchase-line price. FIFO and moving weighted average use
   integer quantity and minor-unit arithmetic with deterministic ordering by
-  `transactionTime → recordedAt → movementId`. Net `cogs` includes dispatch
-  cost less cost restored by a customer return; non-dispatch outflows are
-  reported separately as `classifiedLossCost` and are included in the value
-  conservation calculation.
+  `transactionTime → recordedAt → movementId`. Moving weighted average keeps
+  an exact quantity/value cost pool; it does not recalculate rounded layer unit
+  costs. Therefore `previous value + inbound value = outflow cost + remaining
+value` remains true for repeated outflows. Net `cogs` includes dispatch cost
+  less cost restored by a customer return; non-dispatch outflows are reported
+  separately as `classifiedLossCost` and are included in the value conservation
+  calculation.
 - **BR-VALUATION-003** — A monetary result is unavailable when cost lineage is
   missing, currencies conflict, inventory becomes negative, or a
   `specific_actual_cost` is not approvable until an exact lot-attribution adapter
