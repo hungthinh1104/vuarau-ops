@@ -428,8 +428,16 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
         evidenceReferences: ["bank-statement://db-001"],
       },
     };
-    expect((await recordCashStatementMatch(context(), matchCommand)).ok).toBe(true);
-    expect((await recordCashStatementMatch(context(), matchCommand)).ok).toBe(true);
+    const concurrentMatchRetry = {
+      ...matchCommand,
+      commandId: crypto.randomUUID(),
+      idempotencyKey: "close-db-match-concurrent-retry",
+    };
+    const concurrentMatches = await Promise.all([
+      recordCashStatementMatch(context(), matchCommand),
+      recordCashStatementMatch(context(), concurrentMatchRetry),
+    ]);
+    expect(concurrentMatches.every((result) => result.ok)).toBe(true);
     const matchRows = await ctx.database.db
       .select({ id: cashStatementMatches.id })
       .from(cashStatementMatches)

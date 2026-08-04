@@ -25,6 +25,16 @@ export function logUnexpectedTrpcError(args: {
   });
 }
 
+export function safeTrpcErrorMessage(args: {
+  readonly message: string;
+  readonly code: string;
+  readonly hasDomainError: boolean;
+}): string {
+  return args.code === "INTERNAL_SERVER_ERROR" && !args.hasDomainError
+    ? "An unexpected server error occurred."
+    : args.message;
+}
+
 /**
  * The transport edge. This is the only place a domain refusal becomes a thrown
  * error — inside the domain, refusals are returned values that must be handled to
@@ -55,7 +65,15 @@ const t = initTRPC.context<ApiContext>().create({
       hasDomainError: domainError !== null,
     });
 
-    return { ...shape, data: { ...shape.data, domainError } };
+    return {
+      ...shape,
+      message: safeTrpcErrorMessage({
+        message: shape.message,
+        code: error.code,
+        hasDomainError: domainError !== null,
+      }),
+      data: { ...shape.data, domainError },
+    };
   },
 });
 

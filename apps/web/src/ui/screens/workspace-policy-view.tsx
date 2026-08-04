@@ -4,10 +4,12 @@ import type {
   ApproveWorkspacePolicyCommand,
   CreateWorkspacePolicyDraftCommand,
   RetireWorkspacePolicyCommand,
+  SupportedWorkspacePolicyKind,
   WorkspacePolicyAvailability,
   WorkspacePolicyDto,
   WorkspacePolicyKind,
 } from "@vuarau/domain-contracts";
+import { supportedWorkspacePolicyVersionFieldsSchema } from "@vuarau/domain-contracts";
 import { useState } from "react";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
@@ -56,7 +58,7 @@ export type WorkspacePolicyViewProps =
       readonly permissionDenied?: false;
       readonly policies: QueryLike<{ readonly items: readonly WorkspacePolicyDto[] }>;
       readonly availability: QueryLike<readonly WorkspacePolicyAvailability[]>;
-      readonly policyKinds: readonly WorkspacePolicyKind[];
+      readonly policyKinds: readonly SupportedWorkspacePolicyKind[];
       readonly canManage: boolean;
       readonly createCommand: CommandOutcomeView;
       readonly approveCommand: CommandOutcomeView;
@@ -216,7 +218,7 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
 function PolicyDraftForm(
   props: Extract<WorkspacePolicyViewProps, { readonly permissionDenied?: false }>,
 ) {
-  const [kind, setKind] = useState<WorkspacePolicyKind>(
+  const [kind, setKind] = useState<SupportedWorkspacePolicyKind>(
     props.policyKinds[0] ?? "payment_terms_aging",
   );
   const [version, setVersion] = useState("1");
@@ -243,7 +245,7 @@ function PolicyDraftForm(
       setFormError("Parameters phải là JSON object hợp lệ.");
       return;
     }
-    props.onCreate({
+    const candidate = {
       policyVersionId:
         crypto.randomUUID() as CreateWorkspacePolicyDraftCommand["payload"]["policyVersionId"],
       policyKind: kind,
@@ -256,7 +258,15 @@ function PolicyDraftForm(
         .map((value) => value.trim())
         .filter(Boolean),
       reason: reason.trim(),
-    });
+    };
+    const parsedPayload = supportedWorkspacePolicyVersionFieldsSchema.safeParse(candidate);
+    if (!parsedPayload.success) {
+      setFormError(
+        "Parameters không đúng contract của loại policy đã chọn; kiểm tra các trường bắt buộc.",
+      );
+      return;
+    }
+    props.onCreate(parsedPayload.data);
   }
 
   return (
@@ -272,7 +282,7 @@ function PolicyDraftForm(
           label="Loại policy"
           value={kind}
           options={props.policyKinds.map((value) => ({ value, label: KIND_COPY[value] }))}
-          onChange={(event) => setKind(event.target.value as WorkspacePolicyKind)}
+          onChange={(event) => setKind(event.target.value as SupportedWorkspacePolicyKind)}
         />
         <TextInput
           label="Version"

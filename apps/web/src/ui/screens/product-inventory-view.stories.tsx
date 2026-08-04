@@ -180,6 +180,7 @@ const readyValuation: {
         quantityScaled: 70_000,
         inventoryValue: { amountMinor: 700_000, currency: "VND" },
         cogs: { amountMinor: 100_000, currency: "VND" },
+        classifiedLossCost: null,
         averageUnitCost: { amountMinor: 10_000, currency: "VND" },
       },
     ],

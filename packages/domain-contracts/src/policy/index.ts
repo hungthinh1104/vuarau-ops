@@ -17,6 +17,12 @@ import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { supplierEvaluationPolicyDefinitionSchema } from "../supplier/index.ts";
+import type { SupplierEvaluationPolicyDefinition } from "../supplier/index.ts";
+import {
+  costAllocationPolicyDefinitionSchema,
+  inventoryValuationPolicyDefinitionSchema,
+} from "../valuation/index.ts";
+import { managementIntelligencePolicyDefinitionSchema } from "../management/index.ts";
 
 /**
  * Policy capabilities are named contracts, not a generic rule engine. A policy
@@ -105,14 +111,77 @@ export type AgingBucketDefinition = z.infer<typeof agingBucketDefinitionSchema>;
 
 export const paymentTermsAgingPolicyDefinitionSchema = z.object({
   contractVersion: z.literal(1),
-  parameters: z.object({
-    defaultTermDays: z.int().nonnegative().nullable(),
-    defaultTermLabel: z.string().trim().min(1).max(100),
-    customerTerms: z.array(paymentTermOverrideSchema).max(10_000),
-    graceDays: z.int().nonnegative(),
-    agingBuckets: z.array(agingBucketDefinitionSchema).min(1).max(20),
-    creditControl: creditControlModeSchema,
-  }),
+  parameters: z
+    .object({
+      defaultTermDays: z.int().nonnegative().nullable(),
+      defaultTermLabel: z.string().trim().min(1).max(100),
+      customerTerms: z.array(paymentTermOverrideSchema).max(10_000),
+      graceDays: z.int().nonnegative(),
+      agingBuckets: z.array(agingBucketDefinitionSchema).min(1).max(20),
+      // Credit enforcement has its own policy and command boundary. Keeping a
+      // second executable mode here would create an undocumented precedence
+      // rule, so this field is retained only as an informational compatibility
+      // marker until the policy is versioned away.
+      creditControl: z.literal("information_only"),
+    })
+    .superRefine((parameters, context) => {
+      const customerIds = new Set<string>();
+      for (const [index, term] of parameters.customerTerms.entries()) {
+        if (customerIds.has(term.customerId)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["customerTerms", index, "customerId"],
+            message: "A customer may have only one payment-term override.",
+          });
+        }
+        customerIds.add(term.customerId);
+      }
+
+      const buckets = [...parameters.agingBuckets].sort(
+        (left, right) => left.minDaysOverdue - right.minDaysOverdue,
+      );
+      const bucketCodes = new Set<string>();
+      let openEndedIndex = -1;
+      for (const [index, bucket] of buckets.entries()) {
+        if (bucketCodes.has(bucket.code)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["agingBuckets"],
+            message: "Aging bucket codes must be unique.",
+          });
+        }
+        bucketCodes.add(bucket.code);
+        if (bucket.maxDaysOverdue !== null && bucket.minDaysOverdue > bucket.maxDaysOverdue) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["agingBuckets"],
+            message: "An aging bucket minimum cannot exceed its maximum.",
+          });
+        }
+        if (bucket.maxDaysOverdue === null) {
+          if (openEndedIndex !== -1 || index !== buckets.length - 1) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["agingBuckets"],
+              message: "Only the final aging bucket may be open-ended.",
+            });
+          }
+          openEndedIndex = index;
+        }
+        const previous = buckets[index - 1];
+        if (
+          previous !== undefined &&
+          previous.maxDaysOverdue !== null &&
+          bucket.minDaysOverdue !== previous.maxDaysOverdue + 1
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["agingBuckets"],
+            message: "Aging buckets must not overlap or leave an undefined gap.",
+          });
+        }
+      }
+    }),
 });
 export type PaymentTermsAgingPolicyDefinition = z.infer<
   typeof paymentTermsAgingPolicyDefinitionSchema
@@ -259,25 +328,57 @@ export const workspacePolicyStateSchema = z.enum(WORKSPACE_POLICY_STATES);
 export type WorkspacePolicyState = z.infer<typeof workspacePolicyStateSchema>;
 
 /**
- * The registry stores a JSON-safe draft at this boundary. Policy-specific
- * adapters must validate their own typed definition before execution; an
- * unrecognized definition is never treated as a production default.
+ * One registry owns the relationship between a policy capability and its
+ * executable definition. `null` is deliberate: the capability is named in the
+ * product vocabulary but has no contract and therefore cannot be stored or run.
  */
-export const workspacePolicyDefinitionSchema = z.object({
-  contractVersion: z.int().positive(),
-  parameters: z.record(z.string(), z.unknown()),
-});
-export type WorkspacePolicyDefinition = z.infer<typeof workspacePolicyDefinitionSchema>;
+export const policyDefinitionSchemas = {
+  receivable_payable_recognition: null,
+  inventory_valuation: inventoryValuationPolicyDefinitionSchema,
+  cost_allocation: costAllocationPolicyDefinitionSchema,
+  return_claim_credit: null,
+  purchase_correction: purchaseCorrectionPolicyDefinitionSchema,
+  payment_terms_aging: paymentTermsAgingPolicyDefinitionSchema,
+  payment_allocation: paymentAllocationPolicyDefinitionSchema,
+  credit_limit: creditLimitPolicyDefinitionSchema,
+  stock_planning_reorder: stockPlanningPolicyDefinitionSchema,
+  stocktake_variance: stocktakeVariancePolicyDefinitionSchema,
+  supplier_evaluation: supplierEvaluationPolicyDefinitionSchema,
+  operating_cycle_reconciliation: operationalClosePolicyDefinitionSchema,
+  cash_custody_deposit: cashCustodyDepositPolicyDefinitionSchema,
+  management_intelligence: managementIntelligencePolicyDefinitionSchema,
+} satisfies Record<WorkspacePolicyKind, z.ZodTypeAny | null>;
 
-export const workspacePolicyDtoSchema = z.object({
+export type SupportedWorkspacePolicyKind = {
+  [K in WorkspacePolicyKind]: (typeof policyDefinitionSchemas)[K] extends z.ZodTypeAny ? K : never;
+}[WorkspacePolicyKind];
+
+export type WorkspacePolicyDefinition =
+  | z.infer<typeof inventoryValuationPolicyDefinitionSchema>
+  | z.infer<typeof costAllocationPolicyDefinitionSchema>
+  | PurchaseCorrectionPolicyDefinition
+  | PaymentTermsAgingPolicyDefinition
+  | PaymentAllocationPolicyDefinition
+  | CreditLimitPolicyDefinition
+  | StockPlanningPolicyDefinition
+  | StocktakeVariancePolicyDefinition
+  | OperationalClosePolicyDefinition
+  | SupplierEvaluationPolicyDefinition
+  | z.infer<typeof managementIntelligencePolicyDefinitionSchema>
+  | z.infer<typeof cashCustodyDepositPolicyDefinitionSchema>;
+
+export function validatePolicyDefinition(policyKind: WorkspacePolicyKind, definition: unknown) {
+  const schema = policyDefinitionSchemas[policyKind];
+  return schema === null ? { success: false as const, error: null } : schema.safeParse(definition);
+}
+
+const workspacePolicyDtoBaseSchema = z.object({
   id: workspacePolicyVersionIdSchema,
   workspaceId: workspaceIdSchema,
-  policyKind: workspacePolicyKindSchema,
   version: z.int().positive(),
   state: workspacePolicyStateSchema,
   effectiveFrom: isoInstantSchema,
   effectiveTo: isoInstantSchema.nullable(),
-  definition: workspacePolicyDefinitionSchema,
   evidenceReferences: evidenceReferencesDtoSchema,
   createdBy: actorIdSchema,
   createdAt: isoInstantSchema,
@@ -288,20 +389,131 @@ export const workspacePolicyDtoSchema = z.object({
   commandId: commandIdSchema,
   reason: z.string().nullable(),
 });
+
+export const workspacePolicyDtoSchema = z.discriminatedUnion("policyKind", [
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("inventory_valuation"),
+    definition: inventoryValuationPolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("cost_allocation"),
+    definition: costAllocationPolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("purchase_correction"),
+    definition: purchaseCorrectionPolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("payment_terms_aging"),
+    definition: paymentTermsAgingPolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("payment_allocation"),
+    definition: paymentAllocationPolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("credit_limit"),
+    definition: creditLimitPolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("stock_planning_reorder"),
+    definition: stockPlanningPolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("stocktake_variance"),
+    definition: stocktakeVariancePolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("supplier_evaluation"),
+    definition: supplierEvaluationPolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("operating_cycle_reconciliation"),
+    definition: operationalClosePolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("cash_custody_deposit"),
+    definition: cashCustodyDepositPolicyDefinitionSchema,
+  }),
+  workspacePolicyDtoBaseSchema.extend({
+    policyKind: z.literal("management_intelligence"),
+    definition: managementIntelligencePolicyDefinitionSchema,
+  }),
+] as const);
 export type WorkspacePolicyDto = z.infer<typeof workspacePolicyDtoSchema>;
 
-const policyVersionFieldsSchema = z.object({
+/** Parses a persisted DTO and re-runs the registry validator at the adapter boundary. */
+export function parseWorkspacePolicyDto(input: unknown): WorkspacePolicyDto {
+  const policy = workspacePolicyDtoSchema.parse(input);
+  if (!validatePolicyDefinition(policy.policyKind, policy.definition).success) {
+    throw new Error(`Invalid policy definition for ${policy.policyKind}.`);
+  }
+  return policy;
+}
+
+const policyVersionFieldsBaseSchema = z.object({
   policyVersionId: workspacePolicyVersionIdSchema,
-  policyKind: workspacePolicyKindSchema,
   version: z.int().positive(),
   effectiveFrom: isoInstantSchema,
   effectiveTo: isoInstantSchema.nullable().default(null),
-  definition: workspacePolicyDefinitionSchema,
   evidenceReferences: evidenceReferencesInputSchema,
   reason: z.string().trim().max(500).nullable().default(null),
 });
 
-export const createWorkspacePolicyDraftCommandSchema = defineCommand(policyVersionFieldsSchema);
+export const supportedWorkspacePolicyVersionFieldsSchema = z.discriminatedUnion("policyKind", [
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("inventory_valuation"),
+    definition: inventoryValuationPolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("cost_allocation"),
+    definition: costAllocationPolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("purchase_correction"),
+    definition: purchaseCorrectionPolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("payment_terms_aging"),
+    definition: paymentTermsAgingPolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("payment_allocation"),
+    definition: paymentAllocationPolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("credit_limit"),
+    definition: creditLimitPolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("stock_planning_reorder"),
+    definition: stockPlanningPolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("stocktake_variance"),
+    definition: stocktakeVariancePolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("supplier_evaluation"),
+    definition: supplierEvaluationPolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("operating_cycle_reconciliation"),
+    definition: operationalClosePolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("cash_custody_deposit"),
+    definition: cashCustodyDepositPolicyDefinitionSchema,
+  }),
+  policyVersionFieldsBaseSchema.extend({
+    policyKind: z.literal("management_intelligence"),
+    definition: managementIntelligencePolicyDefinitionSchema,
+  }),
+] as const);
+
+export const createWorkspacePolicyDraftCommandSchema = defineCommand(
+  supportedWorkspacePolicyVersionFieldsSchema,
+);
 export type CreateWorkspacePolicyDraftCommand = z.infer<
   typeof createWorkspacePolicyDraftCommandSchema
 >;
@@ -347,6 +559,8 @@ export const workspacePolicyAvailabilitySchema = z.object({
     "no_approved_version",
     "effective_window_not_started",
     "effective_window_closed",
+    "corrupt_definition",
+    "corrupt_overlap",
     "approved",
   ]),
   policyVersionId: workspacePolicyVersionIdSchema.nullable(),

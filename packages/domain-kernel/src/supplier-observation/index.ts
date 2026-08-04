@@ -46,6 +46,8 @@ export function decideRecordSupplierObservation(
       correctionTarget.facts.supplierId !== payload.facts.supplierId ||
       correctionTarget.facts.productId !== payload.facts.productId ||
       correctionTarget.facts.qualityGradeId !== payload.facts.qualityGradeId ||
+      correctionTarget.facts.supplierObservationGroupId !==
+        payload.facts.supplierObservationGroupId ||
       correctionTarget.facts.claimReference !== payload.facts.claimReference ||
       correctionTarget.facts.observationReference !== payload.facts.observationReference ||
       correctionTarget.facts.promisedQuantity?.unit !== payload.facts.promisedQuantity?.unit ||

@@ -13,7 +13,17 @@ const policy: WorkspacePolicyDto = {
   state: "draft",
   effectiveFrom: "2026-08-01T00:00:00.000Z",
   effectiveTo: null,
-  definition: { contractVersion: 1, parameters: {} },
+  definition: {
+    contractVersion: 1,
+    parameters: {
+      defaultTermDays: 7,
+      defaultTermLabel: "7 ngày",
+      customerTerms: [],
+      graceDays: 0,
+      agingBuckets: [{ code: "1+", label: "Quá hạn", minDaysOverdue: 1, maxDaysOverdue: null }],
+      creditControl: "information_only",
+    },
+  },
   evidenceReferences: [],
   createdBy: ACTOR_ID,
   createdAt: "2026-08-03T00:00:00.000Z",

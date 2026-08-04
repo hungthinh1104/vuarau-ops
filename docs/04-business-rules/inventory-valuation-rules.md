@@ -12,14 +12,15 @@ workspace.
   unit and append-only inventory movement facts. Receipt unit cost is resolved
   from its immutable Purchase-line price. FIFO and moving weighted average use
   integer quantity and minor-unit arithmetic with deterministic ordering by
-  `transactionTime → recordedAt → movementId`. Only `delivery_dispatch`
-  movements contribute to `cogs`; adjustment and other non-dispatch losses
-  consume inventory cost layers without being misreported as COGS.
+  `transactionTime → recordedAt → movementId`. Net `cogs` includes dispatch
+  cost less cost restored by a customer return; non-dispatch outflows are
+  reported separately as `classifiedLossCost` and are included in the value
+  conservation calculation.
 - **BR-VALUATION-003** — A monetary result is unavailable when cost lineage is
   missing, currencies conflict, inventory becomes negative, or a
-  `specific_actual_cost` dispatch lacks an exact lot reference. The system must
-  not substitute zero, stale projection data, inferred landed cost or a guessed
-  COGS/profit effect. A compensating movement must identify an existing
+  `specific_actual_cost` is not approvable until an exact lot-attribution adapter
+  exists. The system must not substitute zero, stale projection data, inferred
+  landed cost or a guessed COGS/profit effect. A compensating movement must identify an existing
   opposite-direction movement through `reversalOfMovementId`: receipt
   reversals remove the original receipt layer, while delivery returns restore
   the original dispatch cost allocation. Missing, inconsistent or already

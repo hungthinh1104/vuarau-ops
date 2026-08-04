@@ -29,6 +29,7 @@ import { isIP } from "node:net";
  */
 export const APP_ENVIRONMENTS = ["development", "pilot"] as const;
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
+export const DEFAULT_MAX_BATCH_OPERATIONS = 20;
 
 export type AuthConfig = {
   readonly issuer: string;
@@ -44,6 +45,7 @@ export type ServerConfig = {
   readonly publicAppOrigin: string | null;
   readonly requestLimits: {
     readonly maxBodyBytes: number;
+    readonly maxBatchOperations: number;
     readonly windowMs: number;
     readonly authenticatedRequestsPerWindow: number;
     readonly publicRequestsPerWindow: number;
@@ -89,6 +91,24 @@ const PUBLISHABLE = new Set([
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
 ]);
 const SECRET_SHAPED = /SECRET|PASSWORD|SERVICE_ROLE|PRIVATE|CREDENTIAL|JWT_SECRET/i;
+const SECURE_DATABASE_SSL_MODES = new Set(["require", "verify-ca", "verify-full"]);
+
+/**
+ * Pilot connections must state their TLS mode in the connection string. A
+ * deployment should not depend on a driver's changing default for transport
+ * encryption.
+ */
+export function databaseUrlUsesTls(databaseUrl: string): boolean {
+  try {
+    const parsed = new URL(databaseUrl);
+    if (parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") return false;
+    return SECURE_DATABASE_SSL_MODES.has(
+      parsed.searchParams.get("sslmode")?.trim().toLowerCase() ?? "",
+    );
+  } catch {
+    return false;
+  }
+}
 
 export function publishedSecrets(env: Env): readonly ConfigProblem[] {
   return Object.keys(env)
@@ -129,6 +149,22 @@ export function readServerConfig(env: Env): ConfigResult {
     fail("DATABASE_URL", "required");
   } else if (!/^postgres(ql)?:\/\//.test(databaseUrl)) {
     fail("DATABASE_URL", "must be a postgres:// or postgresql:// connection string");
+  } else if (isPilot && !databaseUrlUsesTls(databaseUrl)) {
+    fail(
+      "DATABASE_URL",
+      "must declare sslmode=require, verify-ca or verify-full in a pilot environment",
+    );
+  }
+
+  const devPrincipalFallback = present(env, "DEV_PRINCIPAL_FALLBACK");
+  if (devPrincipalFallback !== null && devPrincipalFallback !== "1") {
+    fail("DEV_PRINCIPAL_FALLBACK", "must be exactly 1 when enabled");
+  }
+  if (isPilot && devPrincipalFallback !== null) {
+    fail(
+      "DEV_PRINCIPAL_FALLBACK",
+      "must be absent in a pilot environment — local principal fallback is development-only",
+    );
   }
 
   const issuer = present(env, "SUPABASE_JWT_ISSUER");
@@ -185,6 +221,7 @@ export function readServerConfig(env: Env): ConfigResult {
   };
   const requestLimits = {
     maxBodyBytes: positiveInteger("MAX_REQUEST_BYTES", 1_048_576),
+    maxBatchOperations: positiveInteger("MAX_BATCH_OPERATIONS", DEFAULT_MAX_BATCH_OPERATIONS),
     windowMs: positiveInteger("RATE_LIMIT_WINDOW_MS", 60_000),
     authenticatedRequestsPerWindow: positiveInteger("RATE_LIMIT_AUTHENTICATED", 600),
     publicRequestsPerWindow: positiveInteger("RATE_LIMIT_PUBLIC", 60),
@@ -252,6 +289,7 @@ export function describeConfig(config: ServerConfig): readonly string[] {
     `verification:   ${"jwksUrl" in config.auth ? "JWKS (asymmetric)" : "HS256 shared secret"}`,
     `public origin:  ${config.publicAppOrigin ?? "(not set)"}`,
     `request bytes:  ${config.requestLimits.maxBodyBytes}`,
+    `batch operations:${config.requestLimits.maxBatchOperations}`,
     `rate window:    ${config.requestLimits.windowMs} ms`,
     `trusted proxies:${config.requestLimits.trustedProxyAddresses.length}`,
   ];

@@ -1549,6 +1549,10 @@ use_cases:
         TC-POLICY-014,
         TC-POLICY-015,
         TC-POLICY-016,
+        TC-POLICY-017,
+        TC-POLICY-018,
+        TC-POLICY-019,
+        TC-POLICY-020,
         TC-EXTENSION-001,
         TC-EXTENSION-002,
       ]
@@ -4167,7 +4171,7 @@ contract_tests:
     title: Customer account procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
   TC-AGING-006:
-    title: Debt aging reconciles supported manual adjustments with the canonical ledger
+    title: Debt aging fails closed when a manual adjustment has no allocation model
     file: packages/domain-kernel/src/debt/debt.test.ts
   TC-COMMAND-007:
     title: Malformed input returns INVALID_COMMAND_PAYLOAD, not a schema dump
@@ -4497,7 +4501,7 @@ contract_tests:
     title: Policy UI renders unavailable state without inventing a business result
     file: apps/web/src/ui/screens/workspace-policy-view.test.tsx
   TC-POLICY-010:
-    title: Policy availability selects the highest currently effective approved version
+    title: Policy availability fails closed on effective overlap and ignores future versions
     file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
   TC-POLICY-011:
     title: Historical policy resolution preserves pre-retirement facts and approval timing
@@ -4516,6 +4520,18 @@ contract_tests:
     file: apps/api/src/infrastructure/persistence/drizzle/policy.db.test.ts
   TC-POLICY-016:
     title: Untyped policy capabilities fail closed before persistence
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-017:
+    title: Approval revalidates malformed legacy policy definitions
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-018:
+    title: Historical policy resolution fails closed on backdated business overlap
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-019:
+    title: Retired policy versions remain valid correction lineage
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-020:
+    title: Payment-term definitions reject duplicate overrides and ambiguous aging buckets
     file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
   TC-EXTENSION-001:
     title: Reserved extension capabilities use proposal-only or canonical-command execution

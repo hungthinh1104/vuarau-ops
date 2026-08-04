@@ -24,7 +24,8 @@ import {
   decideStartStocktake,
   err,
   ok,
-  resolveEffectiveWorkspacePolicy,
+  loadHistoricalPolicyLineage,
+  resolvePolicyForDecision,
   stocktakeDto,
 } from "@vuarau/domain-kernel";
 import type { DomainResult } from "@vuarau/domain-kernel";
@@ -46,7 +47,7 @@ async function effectiveStocktakePolicy(
   }>
 > {
   const policies = await repos.workspacePolicyReads.listAll(workspaceId);
-  const policy = resolveEffectiveWorkspacePolicy(policies, "stocktake_variance", asOf, knowledgeAt);
+  const policy = resolvePolicyForDecision(policies, "stocktake_variance", asOf, knowledgeAt);
   if (policy === null) {
     return err(
       "STOCKTAKE_POLICY_UNAVAILABLE",
@@ -66,17 +67,18 @@ async function policyByVersion(
   policyVersionId: WorkspacePolicyVersionId,
 ) {
   const policy = await repos.workspacePolicies.findById(workspaceId, policyVersionId);
-  if (policy === null || policy.state !== "approved") {
+  const lineage = policy === null ? null : loadHistoricalPolicyLineage([policy], policyVersionId);
+  if (lineage === null) {
     return err(
       "STOCKTAKE_POLICY_UNAVAILABLE",
-      "The stocktake policy lineage is missing or is no longer approved.",
+      "The stocktake policy lineage is missing, invalid or unavailable for correction.",
     );
   }
-  const definition = stocktakeVariancePolicyDefinitionSchema.safeParse(policy.definition);
+  const definition = stocktakeVariancePolicyDefinitionSchema.safeParse(lineage.definition);
   if (!definition.success) {
     return err("STOCKTAKE_POLICY_UNAVAILABLE", "The stocktake policy lineage is invalid.");
   }
-  return ok({ policy, definition: definition.data });
+  return ok({ policy: lineage, definition: definition.data });
 }
 
 function auditBase(

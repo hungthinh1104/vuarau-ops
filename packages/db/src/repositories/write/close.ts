@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type {
   CashStatementMatchDto,
   OperationalCloseDto,
@@ -16,6 +16,11 @@ import { toCashStatementMatchDto, toOperationalCloseDto } from "../shared/close-
 
 export const createCloseWriteRepositories = (tx: Tx) => ({
   operationalCloses: {
+    async lockBusinessDate(workspaceId: WorkspaceId, businessDate: string) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`operational-close:${workspaceId}:${businessDate}`}, 0))`,
+      );
+    },
     async findByIdForUpdate(
       workspaceId: WorkspaceId,
       operationalCloseId: OperationalCloseDto["id"],
@@ -129,6 +134,19 @@ export const createCloseWriteRepositories = (tx: Tx) => ({
     },
   },
   cashStatementMatches: {
+    async lockMatchIdentity(
+      workspaceId: WorkspaceId,
+      cashMovementId: CashStatementMatchDto["cashMovementId"],
+      externalReference: string,
+    ) {
+      const lockKeys = [
+        `cash-movement:${workspaceId}:${cashMovementId}`,
+        `cash-reference:${workspaceId}:${externalReference}`,
+      ].sort();
+      for (const lockKey of lockKeys) {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
+      }
+    },
     async findByIdForUpdate(
       workspaceId: WorkspaceId,
       cashStatementMatchId: CashStatementMatchDto["id"],

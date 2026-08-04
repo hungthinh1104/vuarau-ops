@@ -13,3 +13,13 @@ packages:
 allowBuilds:
   esbuild: true
   sharp: false
+
+# Security overrides for transitive packages pinned by Next/tooling. Keep these
+# here because pnpm v11 reads workspace-level settings from this file.
+overrides:
+  postcss: 8.5.25
+  sharp: 0.35.3
+  brace-expansion@1.1.16: 1.1.18
+  brace-expansion@2.1.2: 2.1.4
+  brace-expansion@5.0.8: 5.0.9
+  esbuild@0.18.20: 0.25.12

@@ -1,12 +1,12 @@
 import type { WorkspacePolicyDto } from "@vuarau/domain-contracts";
-import { workspacePolicyDefinitionSchema } from "@vuarau/domain-contracts";
+import { parseWorkspacePolicyDto } from "@vuarau/domain-contracts";
 import type { workspacePolicies } from "../../schema/index.ts";
 import { toIso, toIsoOrNull } from "../row-mappers.ts";
 
 export function toWorkspacePolicyDto(
   row: typeof workspacePolicies.$inferSelect,
 ): WorkspacePolicyDto {
-  return {
+  return parseWorkspacePolicyDto({
     id: row.id as WorkspacePolicyDto["id"],
     workspaceId: row.workspaceId as WorkspacePolicyDto["workspaceId"],
     policyKind: row.policyKind,
@@ -14,7 +14,7 @@ export function toWorkspacePolicyDto(
     state: row.state,
     effectiveFrom: toIso(row.effectiveFrom),
     effectiveTo: toIsoOrNull(row.effectiveTo),
-    definition: workspacePolicyDefinitionSchema.parse(row.definition),
+    definition: row.definition,
     evidenceReferences: [...row.evidenceReferences],
     createdBy: row.createdBy as WorkspacePolicyDto["createdBy"],
     createdAt: toIso(row.createdAt),
@@ -24,5 +24,5 @@ export function toWorkspacePolicyDto(
     retiredAt: toIsoOrNull(row.retiredAt),
     commandId: row.commandId as WorkspacePolicyDto["commandId"],
     reason: row.reason,
-  };
+  });
 }

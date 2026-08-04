@@ -6,8 +6,10 @@ import type {
   WorkspaceId,
   WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
+import { idempotencyKeySchema } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
 import { calculateSupplierPerformance } from "./index.ts";
+import { decideRecordSupplierObservation } from "../supplier-observation/index.ts";
 
 const workspaceId = "00000000-0000-0000-0000-000000000001" as WorkspaceId;
 const supplierId = "00000000-0000-0000-0000-000000000002" as SupplierId;
@@ -141,6 +143,48 @@ describe("supplier performance", () => {
       valueScaled: 80_000,
       unit: "kg",
     });
+  });
+
+  it("rejects a correction that moves an observation into another fulfilment group", () => {
+    const original = observation("00000000-0000-0000-0000-000000000018", {
+      supplierObservationGroupId: "00000000-0000-4000-8000-000000000019",
+      promisedQuantity: { valueScaled: 100_000, unit: "kg" },
+    });
+    const correction = {
+      ...original,
+      id: "00000000-0000-0000-0000-000000000020" as SupplierObservationId,
+      caseKind: "correction" as const,
+      relatedObservationId: original.id,
+      facts: {
+        ...original.facts,
+        supplierObservationGroupId: "00000000-0000-4000-8000-000000000021",
+      },
+    };
+    const result = decideRecordSupplierObservation(
+      {
+        commandId: correction.commandId,
+        idempotencyKey: idempotencyKeySchema.parse("supplier-correction-group-001"),
+        workspaceId,
+        actorId: correction.actorId,
+        occurredAt: correction.transactionTime,
+        payload: {
+          supplierObservationId: correction.id,
+          kind: correction.kind,
+          caseKind: correction.caseKind,
+          description: correction.description,
+          participantWording: correction.participantWording,
+          facts: correction.facts,
+          evidenceReferences: correction.evidenceReferences,
+          relatedObservationId: correction.relatedObservationId,
+        },
+      },
+      correction.recordedAt,
+      original,
+      false,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.error.code).toBe("SUPPLIER_OBSERVATION_CORRECTION_IDENTITY_MISMATCH");
   });
 
   it("fails closed when quantity facts have no explicit promise-outcome group", () => {

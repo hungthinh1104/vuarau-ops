@@ -8,18 +8,8 @@ import type {
 } from "@vuarau/domain-contracts";
 import {
   WORKSPACE_POLICY_KINDS,
-  cashCustodyDepositPolicyDefinitionSchema,
-  creditLimitPolicyDefinitionSchema,
-  costAllocationPolicyDefinitionSchema,
-  inventoryValuationPolicyDefinitionSchema,
-  managementIntelligencePolicyDefinitionSchema,
-  paymentAllocationPolicyDefinitionSchema,
-  paymentTermsAgingPolicyDefinitionSchema,
-  purchaseCorrectionPolicyDefinitionSchema,
-  stockPlanningPolicyDefinitionSchema,
-  stocktakeVariancePolicyDefinitionSchema,
-  operationalClosePolicyDefinitionSchema,
-  supplierEvaluationPolicyDefinitionSchema,
+  parseWorkspacePolicyDto,
+  validatePolicyDefinition,
 } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
@@ -66,125 +56,18 @@ export function decideCreateWorkspacePolicyDraft(
       "A policy effective end must be later than its effective start.",
     );
   }
-  if (
-    command.payload.policyKind === "receivable_payable_recognition" ||
-    command.payload.policyKind === "return_claim_credit"
-  ) {
+  const definition = validatePolicyDefinition(
+    command.payload.policyKind,
+    command.payload.definition,
+  );
+  if (!definition.success) {
     return err(
       "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "This policy capability has no typed contract and cannot be recorded yet.",
+      "The policy definition is not a supported typed contract.",
       { policyKind: command.payload.policyKind },
     );
   }
-  if (
-    command.payload.policyKind === "purchase_correction" &&
-    !purchaseCorrectionPolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Purchase correction policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "inventory_valuation" &&
-    !inventoryValuationPolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Inventory valuation policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "cost_allocation" &&
-    !costAllocationPolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Cost allocation policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "payment_terms_aging" &&
-    !paymentTermsAgingPolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Payment terms and aging policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "payment_allocation" &&
-    !paymentAllocationPolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Payment allocation policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "credit_limit" &&
-    !creditLimitPolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Credit control policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "stock_planning_reorder" &&
-    !stockPlanningPolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Stock planning policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "stocktake_variance" &&
-    !stocktakeVariancePolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Stocktake variance policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "operating_cycle_reconciliation" &&
-    !operationalClosePolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Operational close policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "cash_custody_deposit" &&
-    !cashCustodyDepositPolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Cash custody and deposit policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "supplier_evaluation" &&
-    !supplierEvaluationPolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Supplier evaluation policy definition is not a supported contract.",
-    );
-  }
-  if (
-    command.payload.policyKind === "management_intelligence" &&
-    !managementIntelligencePolicyDefinitionSchema.safeParse(command.payload.definition).success
-  ) {
-    return err(
-      "WORKSPACE_POLICY_DEFINITION_INVALID",
-      "Management intelligence policy definition is not a supported contract.",
-    );
-  }
-  const policy: WorkspacePolicyDto = {
+  const policy = parseWorkspacePolicyDto({
     id: command.payload.policyVersionId,
     workspaceId: command.workspaceId,
     policyKind: command.payload.policyKind,
@@ -202,7 +85,7 @@ export function decideCreateWorkspacePolicyDraft(
     retiredAt: null,
     commandId: command.commandId,
     reason: command.payload.reason,
-  };
+  });
   return ok({
     policy,
     audit: audit(
@@ -220,27 +103,36 @@ function isApprovedAt(policy: WorkspacePolicyDto, knowledgeAt: IsoInstant): bool
   return policy.approvedAt !== null && Date.parse(policy.approvedAt) <= Date.parse(knowledgeAt);
 }
 
-function isEffectiveAt(
-  policy: WorkspacePolicyDto,
-  asOf: IsoInstant,
-  knowledgeAt: IsoInstant,
-): boolean {
-  const time = Date.parse(asOf);
+function isEffectiveForBusinessTime(policy: WorkspacePolicyDto, businessAt: IsoInstant): boolean {
+  const time = Date.parse(businessAt);
   return (
-    isApprovedAt(policy, knowledgeAt) &&
     time >= Date.parse(policy.effectiveFrom) &&
-    (policy.effectiveTo === null || time < Date.parse(policy.effectiveTo)) &&
-    (policy.retiredAt === null || time < Date.parse(policy.retiredAt))
+    (policy.effectiveTo === null || time < Date.parse(policy.effectiveTo))
   );
 }
 
-function activeInterval(policy: WorkspacePolicyDto): { start: number; end: number } | null {
-  if (policy.approvedAt === null) return null;
-  const start = Math.max(Date.parse(policy.effectiveFrom), Date.parse(policy.approvedAt));
-  const end = Math.min(
-    policy.effectiveTo === null ? Number.POSITIVE_INFINITY : Date.parse(policy.effectiveTo),
-    policy.retiredAt === null ? Number.POSITIVE_INFINITY : Date.parse(policy.retiredAt),
+function isValidPolicyDefinition(policy: WorkspacePolicyDto): boolean {
+  return validatePolicyDefinition(policy.policyKind, policy.definition).success;
+}
+
+function isEffectiveForDecision(
+  policy: WorkspacePolicyDto,
+  businessAt: IsoInstant,
+  decisionAt: IsoInstant,
+): boolean {
+  return (
+    (policy.state === "approved" || policy.state === "retired") &&
+    isApprovedAt(policy, decisionAt) &&
+    isEffectiveForBusinessTime(policy, businessAt) &&
+    (policy.retiredAt === null || Date.parse(decisionAt) < Date.parse(policy.retiredAt))
   );
+}
+
+function activeBusinessInterval(policy: WorkspacePolicyDto): { start: number; end: number } | null {
+  if (policy.approvedAt === null) return null;
+  const start = Date.parse(policy.effectiveFrom);
+  const end =
+    policy.effectiveTo === null ? Number.POSITIVE_INFINITY : Date.parse(policy.effectiveTo);
   return end <= start ? null : { start, end };
 }
 
@@ -249,11 +141,11 @@ export function hasOverlappingWorkspacePolicyEffectiveWindow(
   candidate: WorkspacePolicyDto,
   existingPolicies: readonly WorkspacePolicyDto[],
 ): boolean {
-  const candidateInterval = activeInterval(candidate);
+  const candidateInterval = activeBusinessInterval(candidate);
   if (candidateInterval === null) return false;
   return existingPolicies.some((existing) => {
     if (existing.id === candidate.id || existing.policyKind !== candidate.policyKind) return false;
-    const existingInterval = activeInterval(existing);
+    const existingInterval = activeBusinessInterval(existing);
     return (
       existingInterval !== null &&
       candidateInterval.start < existingInterval.end &&
@@ -262,20 +154,60 @@ export function hasOverlappingWorkspacePolicyEffectiveWindow(
   });
 }
 
-/** Returns the highest version approved and effective at the business `asOf`. */
-export function resolveEffectiveWorkspacePolicy(
+/** Resolves a policy usable by a new decision at a business and system time. */
+export function resolvePolicyForDecision(
   policies: readonly WorkspacePolicyDto[],
   policyKind: WorkspacePolicyDto["policyKind"],
-  asOf: IsoInstant,
-  knowledgeAt: IsoInstant = asOf,
+  businessAt: IsoInstant,
+  decisionAt: IsoInstant,
 ): WorkspacePolicyDto | null {
-  const effective = policies
+  const candidates = policies
     .filter(
-      (policy) => policy.policyKind === policyKind && isEffectiveAt(policy, asOf, knowledgeAt),
+      (policy) =>
+        policy.policyKind === policyKind && isEffectiveForDecision(policy, businessAt, decisionAt),
     )
     .sort((left, right) => right.version - left.version);
-  if (effective.length > 1) return null;
-  return effective[0] ?? null;
+  if (candidates.some((policy) => !isValidPolicyDefinition(policy))) return null;
+  if (candidates.length > 1) return null;
+  return candidates[0] ?? null;
+}
+
+/** Resolves a historical policy using only facts known at `knowledgeAt`. */
+export function resolvePolicyAsKnownAt(
+  policies: readonly WorkspacePolicyDto[],
+  policyKind: WorkspacePolicyDto["policyKind"],
+  businessAt: IsoInstant,
+  knowledgeAt: IsoInstant,
+): WorkspacePolicyDto | null {
+  const candidates = policies
+    .filter(
+      (policy) =>
+        policy.policyKind === policyKind &&
+        (policy.state === "approved" || policy.state === "retired") &&
+        isApprovedAt(policy, knowledgeAt) &&
+        isEffectiveForBusinessTime(policy, businessAt),
+    )
+    .sort((left, right) => right.version - left.version);
+  if (candidates.some((policy) => !isValidPolicyDefinition(policy))) return null;
+  if (candidates.length > 1) return null;
+  return candidates[0] ?? null;
+}
+
+/** Loads a persisted policy for a correction/reopen lineage, including retired rows. */
+export function loadHistoricalPolicyLineage(
+  policies: readonly WorkspacePolicyDto[],
+  policyVersionId: WorkspacePolicyDto["id"],
+): WorkspacePolicyDto | null {
+  const policy = policies.find((candidate) => candidate.id === policyVersionId) ?? null;
+  if (
+    policy === null ||
+    (policy.state !== "approved" && policy.state !== "retired") ||
+    policy.approvedAt === null ||
+    !isValidPolicyDefinition(policy)
+  ) {
+    return null;
+  }
+  return policy;
 }
 
 export function decideApproveWorkspacePolicy(
@@ -287,6 +219,13 @@ export function decideApproveWorkspacePolicy(
   if (current === null) return err("WORKSPACE_POLICY_NOT_FOUND", "Policy version was not found.");
   if (current.state !== "draft") {
     return err("WORKSPACE_POLICY_NOT_DRAFT", "Only a draft policy version can be approved.");
+  }
+  if (!isValidPolicyDefinition(current)) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "The policy definition is not a supported typed contract.",
+      { policyKind: current.policyKind },
+    );
   }
   if (command.payload.evidenceReferences.length === 0) {
     return err(
@@ -364,8 +303,13 @@ export function resolveWorkspacePolicyAvailability(
   asOf: IsoInstant,
   knowledgeAt: IsoInstant = asOf,
 ): readonly WorkspacePolicyAvailability[] {
+  // A request for a business time already known to the reader is a historical
+  // availability read. A request beyond the knowledge cutoff is a current
+  // readiness read, where system retirement closes the capability. This keeps
+  // retirement out of the business-effective interval itself.
+  const currentRead = Date.parse(asOf) >= Date.parse(knowledgeAt);
   return [...WORKSPACE_POLICY_KINDS].map((policyKind) => {
-    const approvedVersions = policies
+    const knownVersions = policies
       .filter(
         (policy) =>
           policy.policyKind === policyKind &&
@@ -374,10 +318,34 @@ export function resolveWorkspacePolicyAvailability(
           Date.parse(policy.approvedAt) <= Date.parse(knowledgeAt),
       )
       .sort((left, right) => right.version - left.version);
-    const effective = approvedVersions.filter((policy) =>
-      isEffectiveAt(policy, asOf, knowledgeAt),
-    )[0];
-    const latest = approvedVersions[0];
+    const effectiveVersions = knownVersions.filter(
+      (policy) =>
+        isEffectiveForBusinessTime(policy, asOf) &&
+        (!currentRead ||
+          policy.retiredAt === null ||
+          Date.parse(policy.retiredAt) > Date.parse(knowledgeAt)),
+    );
+    const hasInvalidDefinition = knownVersions.some((policy) => !isValidPolicyDefinition(policy));
+    const latest = knownVersions[0];
+    if (hasInvalidDefinition) {
+      return {
+        policyKind,
+        availability: "unavailable",
+        reason: "corrupt_definition",
+        policyVersionId: null,
+        version: null,
+      } satisfies WorkspacePolicyAvailability;
+    }
+    if (effectiveVersions.length > 1) {
+      return {
+        policyKind,
+        availability: "unavailable",
+        reason: "corrupt_overlap",
+        policyVersionId: null,
+        version: null,
+      } satisfies WorkspacePolicyAvailability;
+    }
+    const effective = effectiveVersions[0];
     if (effective === undefined) {
       if (latest === undefined) {
         return {

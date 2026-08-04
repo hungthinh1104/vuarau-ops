@@ -33,12 +33,14 @@ describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-
     expect(fifo).toMatchObject({
       quantityScaled: 1000,
       cogs: { amountMinor: 100, currency: "VND" },
+      classifiedLossCost: null,
       inventoryValue: { amountMinor: 200, currency: "VND" },
       diagnostics: [],
     });
     expect(movingAverage).toMatchObject({
       quantityScaled: 1000,
       cogs: { amountMinor: 150, currency: "VND" },
+      classifiedLossCost: null,
       inventoryValue: { amountMinor: 150, currency: "VND" },
       diagnostics: [],
     });
@@ -54,6 +56,7 @@ describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-
       quantityScaled: 1000,
       inventoryValue: null,
       cogs: null,
+      classifiedLossCost: null,
       averageUnitCost: null,
       diagnostics: [],
     });
@@ -88,7 +91,8 @@ describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-
     expect(returned).toMatchObject({
       quantityScaled: 1000,
       inventoryValue: { amountMinor: 100, currency: "VND" },
-      cogs: { amountMinor: 100, currency: "VND" },
+      cogs: { amountMinor: 0, currency: "VND" },
+      classifiedLossCost: null,
       diagnostics: [],
     });
 
@@ -97,6 +101,39 @@ describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-
       quantityScaled: 0,
       inventoryValue: null,
       cogs: null,
+      diagnostics: [],
+    });
+  });
+
+  it("preserves original receipt valuation when moving average reverses a later receipt", () => {
+    const receiptA = movement("1", 1_000, 100);
+    const receiptB = movement("2", 1_000, 200);
+    const reversalB = movement("3", -1_000, null, "purchase_receipt_reversal", "2");
+
+    const result = calculateInventoryValuation(
+      [receiptA, receiptB, reversalB],
+      "moving_weighted_average",
+    )[0]!;
+
+    expect(result).toMatchObject({
+      quantityScaled: 1_000,
+      inventoryValue: { amountMinor: 100, currency: "VND" },
+      cogs: null,
+      classifiedLossCost: null,
+      diagnostics: [],
+    });
+  });
+
+  it("keeps residual minor-unit value when moving-average unit cost is floored", () => {
+    const result = calculateInventoryValuation(
+      [movement("1", 1_000, 101), movement("2", 1_000, 100), movement("3", -1_000, null)],
+      "moving_weighted_average",
+    )[0]!;
+
+    expect(result).toMatchObject({
+      quantityScaled: 1_000,
+      cogs: { amountMinor: 100, currency: "VND" },
+      inventoryValue: { amountMinor: 101, currency: "VND" },
       diagnostics: [],
     });
   });
@@ -111,6 +148,7 @@ describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-
       quantityScaled: 500,
       inventoryValue: { amountMinor: 50, currency: "VND" },
       cogs: null,
+      classifiedLossCost: { amountMinor: 50, currency: "VND" },
       diagnostics: [],
     });
   });

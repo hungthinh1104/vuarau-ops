@@ -375,6 +375,12 @@ export function calculateDebtAging(
       .map((entry) => entry.amount),
     currency,
   );
+  if (manualAdjustmentBalance.amountMinor !== 0) {
+    // A manual adjustment changes the canonical customer balance but has no
+    // sale obligation to which its amount can be aged. Reconciliation alone
+    // must not make the sale rows look like a complete aging model.
+    diagnostics.add("non_sale_balance_not_allocated");
+  }
   const explainedSalesAndPayments = subtractMoney(
     sumMoney(
       sales.map((sale) => sale.amount),

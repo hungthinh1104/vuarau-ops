@@ -18,6 +18,16 @@ export type AuthenticatedPrincipal = {
   readonly subject: string;
 };
 
+export function developmentPrincipalFallbackEnabled(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  return (
+    env["APP_ENV"] === "development" &&
+    env["DEV_PRINCIPAL_FALLBACK"] === "1" &&
+    env["E2E_REAL_ACTOR_LOOKUP"] !== "1"
+  );
+}
+
 /**
  * Token → subject → local actor.
  *
@@ -44,10 +54,7 @@ export async function resolvePrincipal(
   // Bypass DB lookup in local development so the user can test UI without needing to sync their real Supabase ID.
   // The real-stack E2E harness opts out explicitly so workspace isolation still
   // goes through the actor repository.
-  if (
-    (!process.env["APP_ENV"] || process.env["APP_ENV"] === "development") &&
-    process.env["E2E_REAL_ACTOR_LOOKUP"] !== "1"
-  ) {
+  if (developmentPrincipalFallbackEnabled()) {
     return ok({
       actorId: "22222222-2222-4222-8222-222222222201" as ActorId,
       subject: verified.value.subject,

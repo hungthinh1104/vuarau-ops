@@ -13,8 +13,9 @@ import {
   decidePostSale,
   err,
   ok,
-  resolveEffectiveWorkspacePolicy,
+  resolvePolicyForDecision,
   resolvePaymentTerm,
+  resolveWorkspacePolicyAvailability,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
@@ -174,8 +175,21 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
 
       let paymentTermSnapshot = null;
       if (sale.dueAt === null) {
-        const policy = resolveEffectiveWorkspacePolicy(
-          await repos.workspacePolicyReads.listAll(command.workspaceId),
+        const policies = await repos.workspacePolicyReads.listAll(command.workspaceId);
+        const paymentTermsAvailability = resolveWorkspacePolicyAvailability(
+          policies,
+          sale.transactionTime,
+          recordedAt,
+        ).find((entry) => entry.policyKind === "payment_terms_aging");
+        if (paymentTermsAvailability?.reason === "corrupt_definition") {
+          return err(
+            "WORKSPACE_POLICY_DEFINITION_INVALID",
+            "The effective payment-terms policy is not a supported contract.",
+            { policyKind: "payment_terms_aging" },
+          );
+        }
+        const policy = resolvePolicyForDecision(
+          policies,
           "payment_terms_aging",
           sale.transactionTime,
           recordedAt,
@@ -212,12 +226,24 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
       }
 
       let creditLimitPolicyVersionId: WorkspacePolicyVersionId | null = null;
-      const creditPolicy = resolveEffectiveWorkspacePolicy(
-        await repos.workspacePolicyReads.listAll(command.workspaceId),
+      const policies = await repos.workspacePolicyReads.listAll(command.workspaceId);
+      const creditPolicy = resolvePolicyForDecision(
+        policies,
         "credit_limit",
         sale.transactionTime,
         recordedAt,
       );
+      if (
+        resolveWorkspacePolicyAvailability(policies, sale.transactionTime, recordedAt).some(
+          (entry) => entry.policyKind === "credit_limit" && entry.reason === "corrupt_definition",
+        )
+      ) {
+        return err(
+          "CREDIT_POLICY_UNAVAILABLE",
+          "The effective credit policy is not a supported contract.",
+          { policyKind: "credit_limit" },
+        );
+      }
       if (creditPolicy !== null) {
         const definition = creditLimitPolicyDefinitionSchema.safeParse(creditPolicy.definition);
         if (!definition.success) {

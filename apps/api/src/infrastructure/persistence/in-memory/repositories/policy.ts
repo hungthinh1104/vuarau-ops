@@ -1,5 +1,9 @@
 import type { Repositories } from "../../ports.ts";
-import type { WorkspacePolicyState } from "@vuarau/domain-contracts";
+import {
+  parseWorkspacePolicyDto,
+  validatePolicyDefinition,
+  type WorkspacePolicyState,
+} from "@vuarau/domain-contracts";
 import type { Store } from "../store.ts";
 import { key } from "../store.ts";
 
@@ -14,6 +18,9 @@ export const createWorkspacePolicyRepositories = (
         (policy) => policy.workspaceId === workspaceId && policy.policyKind === policyKind,
       ),
     insert: async (policy) => {
+      const validated = validatePolicyDefinition(policy.policyKind, policy.definition);
+      if (!validated.success) return false;
+      const parsed = parseWorkspacePolicyDto(policy);
       const policyKey = key(policy.workspaceId, policy.id);
       if (store.workspacePolicies.has(policyKey)) return false;
       if (
@@ -26,14 +33,17 @@ export const createWorkspacePolicyRepositories = (
       ) {
         return false;
       }
-      store.workspacePolicies.set(policyKey, policy);
+      store.workspacePolicies.set(policyKey, parsed);
       return true;
     },
     update: async (policy, expectedState: WorkspacePolicyState) => {
+      const validated = validatePolicyDefinition(policy.policyKind, policy.definition);
+      if (!validated.success) return false;
+      const parsed = parseWorkspacePolicyDto(policy);
       const policyKey = key(policy.workspaceId, policy.id);
       const current = store.workspacePolicies.get(policyKey);
       if (current === undefined || current.state !== expectedState) return false;
-      store.workspacePolicies.set(policyKey, policy);
+      store.workspacePolicies.set(policyKey, parsed);
       return true;
     },
   },

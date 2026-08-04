@@ -143,20 +143,15 @@ describe("UC-ACCOUNT-004 / BR-AGING-001 / TC-AGING-002", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value).toMatchObject({
-        status: "available",
+        status: "unavailable",
         policyVersionId: termsPolicy.id,
         allocationPolicyVersionId: allocationPolicy.id,
-        allocationStrategy: "oldest_due_first",
-        integrity: "healthy",
-        totals: { ledgerBalance: { amountMinor: 925_000, currency: "VND" } },
+        allocationStrategy: null,
+        integrity: "attention",
       });
-      expect(result.value.status === "available" && result.value.rows[0]).toMatchObject({
-        saleId: SALE_ID,
-        state: "overdue",
-        outstandingAmount: { amountMinor: 875_000, currency: "VND" },
-        daysOverdue: 2,
-        termSource: "sale_override",
-      });
+      expect(result.value.status === "unavailable" && result.value.diagnostics).toContain(
+        "non_sale_balance_not_allocated",
+      );
     }
   });
 

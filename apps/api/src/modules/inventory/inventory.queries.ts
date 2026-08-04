@@ -25,7 +25,7 @@ import {
   canVoidPurchase,
   err,
   ok,
-  resolveEffectiveWorkspacePolicy,
+  resolvePolicyAsKnownAt,
   resolvePurchaseCorrectionPolicy,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -201,7 +201,7 @@ export async function getStockPlanning(ctx: CommandContext, input: StockPlanning
     permission: "inventory.read",
     execute: async ({ repos }) => {
       const calculatedAt = new Date().toISOString() as IsoInstant;
-      const policy = resolveEffectiveWorkspacePolicy(
+      const policy = resolvePolicyAsKnownAt(
         await repos.workspacePolicyReads.listAll(input.workspaceId),
         "stock_planning_reorder",
         input.asOf,
@@ -293,7 +293,7 @@ export const getInventoryValuation = (ctx: CommandContext, input: InventoryValua
     execute: async ({ repos }) => {
       const calculatedAt = new Date().toISOString() as IsoInstant;
       const policies = await repos.workspacePolicyReads.listAll(input.workspaceId);
-      const policy = resolveEffectiveWorkspacePolicy(
+      const policy = resolvePolicyAsKnownAt(
         policies,
         "inventory_valuation",
         input.asOf,
@@ -341,7 +341,7 @@ export const getInventoryValuation = (ctx: CommandContext, input: InventoryValua
       const diagnostics = [...new Set(calculations.flatMap((row) => row.diagnostics))];
       if (diagnostics.length > 0) return unavailable(diagnostics, policy.id);
       const moneyValues = calculations.flatMap((row) =>
-        [row.inventoryValue, row.cogs, row.averageUnitCost].filter(
+        [row.inventoryValue, row.cogs, row.classifiedLossCost, row.averageUnitCost].filter(
           (value): value is NonNullable<typeof value> => value !== null,
         ),
       );
@@ -370,6 +370,7 @@ export const getInventoryValuation = (ctx: CommandContext, input: InventoryValua
           quantityScaled: row.quantityScaled,
           inventoryValue: row.inventoryValue,
           cogs: row.cogs,
+          classifiedLossCost: row.classifiedLossCost,
           averageUnitCost: row.averageUnitCost,
         })),
         currency: currencies[0] ?? null,

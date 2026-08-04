@@ -46,22 +46,24 @@ a configuration the API would refuse (BR-OPS-002).
 
 ### API process
 
-| Variable                      | Required        | Notes                                                           |
-| ----------------------------- | --------------- | --------------------------------------------------------------- |
-| `APP_ENV`                     | yes, `pilot`    | Turns on the stricter rules below. Defaults to `development`    |
-| `DATABASE_URL`                | yes             | `postgres://…`. Credentials belong to the deployment, not here  |
-| `SUPABASE_JWT_ISSUER`         | yes             | Must be **https** in a pilot                                    |
-| `SUPABASE_JWT_AUDIENCE`       | no              | Defaults to `authenticated`                                     |
-| `SUPABASE_JWKS_URL`           | yes, in a pilot | The **only** verification method a pilot accepts                |
-| `SUPABASE_JWT_SECRET`         | **refused**     | HS256 is a development and end-to-end path only                 |
-| `PUBLIC_APP_ORIGIN`           | yes, in a pilot | The https origin a phone opens. Must be https                   |
-| `NEXT_PUBLIC_E2E_AUTH_BRIDGE` | **refused**     | A Playwright-only bridge; `ops:check-env` rejects it in pilot   |
-| `PORT`                        | no              | Defaults to 3000                                                |
-| `MAX_REQUEST_BYTES`           | no              | Defaults to 1 MiB; positive integer                             |
-| `RATE_LIMIT_WINDOW_MS`        | no              | Defaults to 60 seconds                                          |
-| `RATE_LIMIT_AUTHENTICATED`    | no              | Defaults to 600 requests/window per validated client identity   |
-| `RATE_LIMIT_PUBLIC`           | no              | Defaults to 60 public document reads/window per client identity |
-| `TRUSTED_PROXY_ADDRESSES`     | yes, in a pilot | Exact immediate Next proxy IPs; never client/public ranges      |
+| Variable                      | Required         | Notes                                                                                                                              |
+| ----------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_ENV`                     | yes, `pilot`     | Turns on the stricter rules below. Defaults to `development`                                                                       |
+| `DATABASE_URL`                | yes              | `postgres://…`; pilot must include `sslmode=require`, `verify-ca` or `verify-full`. Credentials belong to the deployment, not here |
+| `SUPABASE_JWT_ISSUER`         | yes              | Must be **https** in a pilot                                                                                                       |
+| `SUPABASE_JWT_AUDIENCE`       | no               | Defaults to `authenticated`                                                                                                        |
+| `SUPABASE_JWKS_URL`           | yes, in a pilot  | The **only** verification method a pilot accepts                                                                                   |
+| `SUPABASE_JWT_SECRET`         | **refused**      | HS256 is a development and end-to-end path only                                                                                    |
+| `PUBLIC_APP_ORIGIN`           | yes, in a pilot  | The https origin a phone opens. Must be https                                                                                      |
+| `NEXT_PUBLIC_E2E_AUTH_BRIDGE` | **refused**      | A Playwright-only bridge; `ops:check-env` rejects it in pilot                                                                      |
+| `DEV_PRINCIPAL_FALLBACK`      | development only | Must be exactly `1` for the local fixed-principal shortcut; absent and refused in pilot                                            |
+| `PORT`                        | no               | Defaults to 3000                                                                                                                   |
+| `MAX_REQUEST_BYTES`           | no               | Defaults to 1 MiB; positive integer                                                                                                |
+| `MAX_BATCH_OPERATIONS`        | no               | Defaults to 20 tRPC procedures per batched request                                                                                 |
+| `RATE_LIMIT_WINDOW_MS`        | no               | Defaults to 60 seconds                                                                                                             |
+| `RATE_LIMIT_AUTHENTICATED`    | no               | Defaults to 600 requests/window per validated client identity                                                                      |
+| `RATE_LIMIT_PUBLIC`           | no               | Defaults to 60 public document reads/window per client identity                                                                    |
+| `TRUSTED_PROXY_ADDRESSES`     | yes, in a pilot  | Exact immediate Next proxy IPs; never client/public ranges                                                                         |
 
 ### Next application
 

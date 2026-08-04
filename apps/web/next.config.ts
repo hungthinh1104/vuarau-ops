@@ -14,11 +14,43 @@ import type { NextConfig } from "next";
  */
 const apiOrigin = process.env["NEXT_PUBLIC_API_ORIGIN"] ?? "http://localhost:3000";
 const distDir = process.env["NEXT_DIST_DIR"] ?? ".next";
+const safeOrigin = (value: string): string | null => {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+};
+const supabaseOrigin = safeOrigin(process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "");
+const connectSources = [
+  "'self'",
+  safeOrigin(apiOrigin),
+  "https://*.supabase.co",
+  "wss://*.supabase.co",
+  supabaseOrigin,
+  supabaseOrigin?.replace(/^https:/, "wss:"),
+].filter((source): source is string => source !== null);
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "style-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}`,
+  `connect-src ${[...new Set(connectSources)].join(" ")}`,
+  "worker-src 'self' blob:",
+  "child-src 'self' blob:",
+  "manifest-src 'self'",
+].join("; ");
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   ...(process.env.NODE_ENV === "production"
     ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]
     : []),
@@ -26,6 +58,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   distDir,
   transpilePackages: ["@vuarau/domain-contracts"],
   /*

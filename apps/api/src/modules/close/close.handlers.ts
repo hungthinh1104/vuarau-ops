@@ -24,7 +24,8 @@ import {
   decideReverseCashStatementMatch,
   err,
   ok,
-  resolveEffectiveWorkspacePolicy,
+  loadHistoricalPolicyLineage,
+  resolvePolicyForDecision,
 } from "@vuarau/domain-kernel";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
@@ -38,7 +39,7 @@ async function effectiveClosePolicy(
   asOf: RecordOperationalCloseCommand["occurredAt"],
   knowledgeAt: RecordOperationalCloseCommand["occurredAt"],
 ) {
-  const policy = resolveEffectiveWorkspacePolicy(
+  const policy = resolvePolicyForDecision(
     await repos.workspacePolicyReads.listAll(workspaceId),
     "operating_cycle_reconciliation",
     asOf,
@@ -66,7 +67,7 @@ async function effectiveDepositPolicy(
   asOf: RecordCashStatementMatchCommand["payload"]["statementAt"],
   knowledgeAt: RecordCashStatementMatchCommand["occurredAt"],
 ) {
-  const policy = resolveEffectiveWorkspacePolicy(
+  const policy = resolvePolicyForDecision(
     await repos.workspacePolicyReads.listAll(workspaceId),
     "cash_custody_deposit",
     asOf,
@@ -95,17 +96,18 @@ async function policyByVersion<T>(
   schema: { safeParse(input: unknown): { success: true; data: T } | { success: false } },
 ): Promise<DomainResult<{ policy: WorkspacePolicyDto; definition: T }>> {
   const current = await repos.workspacePolicies.findById(workspaceId, policyVersionId);
-  if (current === null || current.state !== "approved") {
+  const lineage = current === null ? null : loadHistoricalPolicyLineage([current], policyVersionId);
+  if (lineage === null) {
     return err(
       "OPERATIONAL_CLOSE_POLICY_UNAVAILABLE",
-      "Policy lineage is missing or no longer approved.",
+      "Policy lineage is missing, invalid or unavailable for historical correction.",
     );
   }
-  const definition = schema.safeParse(current.definition);
+  const definition = schema.safeParse(lineage.definition);
   if (!definition.success) {
     return err("OPERATIONAL_CLOSE_POLICY_UNAVAILABLE", "Policy lineage is invalid.");
   }
-  return ok({ policy: current, definition: definition.data });
+  return ok({ policy: lineage, definition: definition.data });
 }
 
 function auditBase(
@@ -129,6 +131,10 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
     ctx,
     requiredPermission: "operations.close",
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
+      await repos.operationalCloses.lockBusinessDate(
+        command.workspaceId,
+        command.payload.businessDate,
+      );
       const period = vietnamBusinessDayRange(
         command.payload.businessDate,
         operationalProfile.businessDayStartMinute,
@@ -241,6 +247,11 @@ export function recordCashStatementMatch(ctx: CommandContext, input: unknown) {
     requiredPermission: "cash.statement.match",
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
+      await repos.cashStatementMatches.lockMatchIdentity(
+        command.workspaceId,
+        command.payload.cashMovementId,
+        command.payload.externalReference,
+      );
       const policy = await effectiveDepositPolicy(
         repos,
         command.workspaceId,

@@ -256,6 +256,10 @@ function InventoryValuationResultView({ result }: { readonly result: InventoryVa
             <span className="tabular-nums">
               Giá vốn: {row.cogs === null ? "Không định giá" : formatMoney(row.cogs)}
             </span>
+            <span className="tabular-nums">
+              Hao hụt phân loại:{" "}
+              {row.classifiedLossCost === null ? "0 ₫" : formatMoney(row.classifiedLossCost)}
+            </span>
           </div>
         ))
       )}

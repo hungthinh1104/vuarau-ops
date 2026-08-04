@@ -29,6 +29,7 @@ export type InventoryValuationCalculation = {
   readonly quantityScaled: number;
   readonly inventoryValue: Money | null;
   readonly cogs: Money | null;
+  readonly classifiedLossCost: Money | null;
   readonly averageUnitCost: Money | null;
   readonly diagnostics: readonly string[];
   readonly inputReferences: readonly InventoryValuationSource[];
@@ -77,6 +78,27 @@ function consume(
 ): Money | null {
   let remaining = quantityScaled;
   let total: Money | null = null;
+  const movingAverageUnitCost =
+    strategy === "moving_weighted_average"
+      ? (() => {
+          const totalQuantity = layers.reduce(
+            (sum, candidate) => sum + candidate.quantityScaled,
+            0,
+          );
+          const totalValue = layers.reduce<Money | null>((sum, candidate) => {
+            const value = layerValue(candidate.quantityScaled, unit, candidate.unitCost);
+            return sum === null ? value : addMoney(sum, value);
+          }, null);
+          if (totalValue === null || totalQuantity === 0) {
+            diagnostics.add("mixed_currency");
+            return null;
+          }
+          return {
+            amountMinor: Math.floor((totalValue.amountMinor * 1000) / totalQuantity),
+            currency: totalValue.currency,
+          };
+        })()
+      : null;
   while (remaining > 0) {
     const layerIndex = 0;
     const layer = layers[layerIndex];
@@ -85,27 +107,7 @@ function consume(
       return total;
     }
     const taken = Math.min(remaining, layer.quantityScaled);
-    const unitCost =
-      strategy === "moving_weighted_average"
-        ? (() => {
-            const totalQuantity = layers.reduce(
-              (sum, candidate) => sum + candidate.quantityScaled,
-              0,
-            );
-            const totalValue = layers.reduce<Money | null>((sum, candidate) => {
-              const value = layerValue(candidate.quantityScaled, unit, candidate.unitCost);
-              return sum === null ? value : addMoney(sum, value);
-            }, null);
-            if (totalValue === null || totalQuantity === 0) {
-              diagnostics.add("mixed_currency");
-              return layer.unitCost;
-            }
-            return {
-              amountMinor: Math.floor((totalValue.amountMinor * 1000) / totalQuantity),
-              currency: totalValue.currency,
-            };
-          })()
-        : layer.unitCost;
+    const unitCost = movingAverageUnitCost ?? layer.unitCost;
     const value = layerValue(taken, unit, unitCost);
     total = total === null ? value : addMoney(total, value);
     if (total === null) diagnostics.add("mixed_currency");
@@ -162,6 +164,11 @@ export function calculateInventoryValuation(
       }));
       let quantityScaled = 0;
       let cogs: Money | null = null;
+      let grossCogs: Money | null = null;
+      let classifiedLossCost: Money | null = null;
+      let inboundValue: Money | null = null;
+      let inboundReversalValue: Money | null = null;
+      let returnRestorationValue: Money | null = null;
       const layers: Layer[] = [];
       const movementById = new Map<string, InventoryValuationMovement>(
         ordered.map((movement) => [movement.movementId as string, movement]),
@@ -195,6 +202,7 @@ export function calculateInventoryValuation(
               continue;
             }
             let remaining = movement.quantityScaled;
+            let restoredValue: Money | null = null;
             for (const allocation of allocations) {
               if (remaining === 0) break;
               const restored = Math.min(remaining, allocation.quantityScaled);
@@ -204,9 +212,34 @@ export function calculateInventoryValuation(
                 movementId: movement.movementId,
                 sourceId: movement.sourceId,
               });
+              const value = layerValue(restored, movement.unit, allocation.unitCost);
+              restoredValue = restoredValue === null ? value : addMoney(restoredValue, value);
               remaining -= restored;
             }
             if (remaining > 0) diagnostics.add("reversal_cost_quantity_unavailable");
+            if (restoredValue !== null) {
+              if (original.sourceType === "delivery_dispatch") {
+                returnRestorationValue =
+                  returnRestorationValue === null
+                    ? restoredValue
+                    : addMoney(returnRestorationValue, restoredValue);
+                cogs =
+                  cogs === null
+                    ? { amountMinor: -restoredValue.amountMinor, currency: restoredValue.currency }
+                    : addMoney(cogs, {
+                        amountMinor: -restoredValue.amountMinor,
+                        currency: restoredValue.currency,
+                      });
+              } else {
+                classifiedLossCost =
+                  classifiedLossCost === null
+                    ? { amountMinor: -restoredValue.amountMinor, currency: restoredValue.currency }
+                    : addMoney(classifiedLossCost, {
+                        amountMinor: -restoredValue.amountMinor,
+                        currency: restoredValue.currency,
+                      });
+              }
+            }
             continue;
           }
           if (movement.unitCost === null) {
@@ -222,21 +255,8 @@ export function calculateInventoryValuation(
             movementId: movement.movementId,
             sourceId: movement.sourceId,
           });
-          if (strategy === "moving_weighted_average") {
-            const totalQuantity = layers.reduce((sum, layer) => sum + layer.quantityScaled, 0);
-            const totalValue = layers.reduce<Money | null>((sum, layer) => {
-              const value = layerValue(layer.quantityScaled, movement.unit, layer.unitCost);
-              return sum === null ? value : addMoney(sum, value);
-            }, null);
-            if (totalValue === null) diagnostics.add("mixed_currency");
-            else {
-              const averageUnitCost = {
-                amountMinor: Math.floor((totalValue.amountMinor * 1000) / totalQuantity),
-                currency: totalValue.currency,
-              };
-              for (const layer of layers) layer.unitCost = averageUnitCost;
-            }
-          }
+          const value = layerValue(movement.quantityScaled, movement.unit, movement.unitCost);
+          inboundValue = inboundValue === null ? value : addMoney(inboundValue, value);
           continue;
         }
         if (movement.reversalOfMovementId !== null) {
@@ -252,6 +272,15 @@ export function calculateInventoryValuation(
               Math.abs(movement.quantityScaled),
               diagnostics,
             );
+            if (original.unitCost !== null) {
+              const value = layerValue(
+                Math.abs(movement.quantityScaled),
+                movement.unit,
+                original.unitCost,
+              );
+              inboundReversalValue =
+                inboundReversalValue === null ? value : addMoney(inboundReversalValue, value);
+            }
           }
           continue;
         }
@@ -269,17 +298,48 @@ export function calculateInventoryValuation(
         );
         allocationsByMovementId.set(movement.movementId, allocations);
         if (movement.sourceType === "delivery_dispatch" && amount !== null) {
+          grossCogs = grossCogs === null ? amount : addMoney(grossCogs, amount);
           cogs = cogs === null ? amount : addMoney(cogs, amount);
+        } else if (amount !== null) {
+          classifiedLossCost =
+            classifiedLossCost === null ? amount : addMoney(classifiedLossCost, amount);
         }
       }
 
+      const layerInventoryValue = layers.reduce<Money | null>((total, layer) => {
+        const value = layerValue(layer.quantityScaled, ordered[0]!.unit, layer.unitCost);
+        return total === null ? value : addMoney(total, value);
+      }, null);
+      const movingAverageInventoryValue = [
+        inboundValue,
+        returnRestorationValue,
+        inboundReversalValue === null
+          ? null
+          : {
+              amountMinor: -inboundReversalValue.amountMinor,
+              currency: inboundReversalValue.currency,
+            },
+        grossCogs === null
+          ? null
+          : { amountMinor: -grossCogs.amountMinor, currency: grossCogs.currency },
+        classifiedLossCost === null
+          ? null
+          : {
+              amountMinor: -classifiedLossCost.amountMinor,
+              currency: classifiedLossCost.currency,
+            },
+      ].reduce<Money | null>((total, value) => {
+        if (value === null) return total;
+        return total === null ? value : addMoney(total, value);
+      }, null);
       const inventoryValue =
         strategy === "no_valuation"
           ? null
-          : layers.reduce<Money | null>((total, layer) => {
-              const value = layerValue(layer.quantityScaled, ordered[0]!.unit, layer.unitCost);
-              return total === null ? value : addMoney(total, value);
-            }, null);
+          : strategy === "moving_weighted_average"
+            ? quantityScaled <= 0
+              ? null
+              : movingAverageInventoryValue
+            : layerInventoryValue;
       const averageUnitCost =
         inventoryValue === null || quantityScaled <= 0
           ? null
@@ -293,6 +353,7 @@ export function calculateInventoryValuation(
         quantityScaled,
         inventoryValue,
         cogs,
+        classifiedLossCost,
         averageUnitCost,
         diagnostics: [...diagnostics],
         inputReferences,

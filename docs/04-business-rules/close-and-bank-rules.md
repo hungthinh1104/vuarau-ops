@@ -24,16 +24,21 @@ definition, missing observation or cross-workspace reference fails closed.
 The first close for a workspace/date is immutable. Reopen is an append-only
 `OperationalCloseReopen` fact controlled by the approved policy and
 `expectedVersion`; after reopen, a new close may be recorded only when it
-explicitly supersedes the reopened close. The supersedes link and unique database
-constraint prevent two concurrent revisions of the same reopened state. A closed
-latest revision still blocks another close for that date.
+explicitly supersedes the reopened close. The command transaction takes a
+PostgreSQL advisory lock for `(workspaceId, businessDate)` before reading the
+current close, while the supersedes unique constraint prevents two concurrent
+revisions of the same reopened state. A closed latest revision still blocks
+another close for that date.
 
 ### BR-CASH-012 — Statement match is exact and financial-neutral
 
 `RecordCashStatementMatch` matches one existing CashMovement by workspace, account,
 amount, currency, source type and external reference under the approved
 `cash_custody_deposit` policy. It never changes CashMovement, CashBalance, customer
-debt or supplier payable. Matching the same command returns the original result.
+debt or supplier payable. The command transaction takes deterministic PostgreSQL
+advisory locks for the movement and external-reference identities before its
+active pre-check, so concurrent requests cannot both create an active match.
+Matching the same command returns the original result.
 
 ### BR-CASH-013 — Statement correction is compensation, not mutation
 

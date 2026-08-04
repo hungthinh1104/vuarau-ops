@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { describeConfig, publishedSecrets, readServerConfig, type Env } from "./config.ts";
+import {
+  databaseUrlUsesTls,
+  describeConfig,
+  publishedSecrets,
+  readServerConfig,
+  type Env,
+} from "./config.ts";
 
 /**
  * BR-OPS-002 / TC-OPS-001 — the server refuses to start on a configuration it
@@ -19,7 +25,7 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
 
   const pilot: Env = {
     APP_ENV: "pilot",
-    DATABASE_URL: "postgres://user:pw@db.internal:5432/vuarau",
+    DATABASE_URL: "postgresql://user:pw@db.internal:5432/vuarau?sslmode=require",
     SUPABASE_JWT_ISSUER: "https://project.supabase.co/auth/v1",
     SUPABASE_JWKS_URL: "https://project.supabase.co/auth/v1/.well-known/jwks.json",
     PUBLIC_APP_ORIGIN: "https://pilot.example.vn",
@@ -39,11 +45,12 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
     expect(result.config.port).toBe(3000);
   });
 
-  it("rejects unsafe request and rate-limit values together", () => {
+  it("rejects unsafe request, batch and rate-limit values together", () => {
     expect(
       problemsFor({
         ...development,
         MAX_REQUEST_BYTES: "0",
+        MAX_BATCH_OPERATIONS: "0",
         RATE_LIMIT_WINDOW_MS: "-1",
         RATE_LIMIT_AUTHENTICATED: "many",
         RATE_LIMIT_PUBLIC: "1.5",
@@ -51,6 +58,7 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
     ).toEqual(
       expect.arrayContaining([
         "MAX_REQUEST_BYTES",
+        "MAX_BATCH_OPERATIONS",
         "RATE_LIMIT_WINDOW_MS",
         "RATE_LIMIT_AUTHENTICATED",
         "RATE_LIMIT_PUBLIC",
@@ -60,6 +68,14 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
 
   it("accepts a pilot environment on JWKS", () => {
     expect(readServerConfig(pilot).ok).toBe(true);
+  });
+
+  it("requires an explicit TLS mode for pilot database connections", () => {
+    expect(databaseUrlUsesTls(pilot["DATABASE_URL"]!)).toBe(true);
+    expect(databaseUrlUsesTls("postgres://user:pw@db.internal:5432/vuarau")).toBe(false);
+    expect(
+      problemsFor({ ...pilot, DATABASE_URL: "postgres://user:pw@db.internal:5432/vuarau" }),
+    ).toContain("DATABASE_URL");
   });
 
   it("accepts only explicit exact trusted-proxy IP addresses", () => {
@@ -138,6 +154,16 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
 
   it("refuses an unknown APP_ENV rather than defaulting to the permissive one", () => {
     expect(problemsFor({ ...development, APP_ENV: "production" })).toContain("APP_ENV");
+  });
+
+  it("requires an explicit opt-in for the development principal fallback", () => {
+    expect(readServerConfig({ ...development, DEV_PRINCIPAL_FALLBACK: "1" }).ok).toBe(true);
+    expect(problemsFor({ ...development, DEV_PRINCIPAL_FALLBACK: "true" })).toContain(
+      "DEV_PRINCIPAL_FALLBACK",
+    );
+    expect(problemsFor({ ...pilot, DEV_PRINCIPAL_FALLBACK: "1" })).toContain(
+      "DEV_PRINCIPAL_FALLBACK",
+    );
   });
 });
 

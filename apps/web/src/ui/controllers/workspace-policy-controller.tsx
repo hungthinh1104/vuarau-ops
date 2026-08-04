@@ -5,6 +5,7 @@ import {
   approveWorkspacePolicyCommandSchema,
   createWorkspacePolicyDraftCommandSchema,
   retireWorkspacePolicyCommandSchema,
+  type SupportedWorkspacePolicyKind,
   type WorkspacePolicyKind,
   workspacePolicyKindSchema,
 } from "@vuarau/domain-contracts";
@@ -14,11 +15,9 @@ import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { WorkspacePolicyView } from "@/ui/screens/workspace-policy-view.tsx";
 
-const POLICY_KINDS: readonly WorkspacePolicyKind[] = [
-  "receivable_payable_recognition",
+const POLICY_KINDS: readonly SupportedWorkspacePolicyKind[] = [
   "inventory_valuation",
   "cost_allocation",
-  "return_claim_credit",
   "purchase_correction",
   "payment_terms_aging",
   "payment_allocation",
@@ -28,6 +27,7 @@ const POLICY_KINDS: readonly WorkspacePolicyKind[] = [
   "supplier_evaluation",
   "operating_cycle_reconciliation",
   "cash_custody_deposit",
+  "management_intelligence",
 ];
 
 export function WorkspacePolicyController() {

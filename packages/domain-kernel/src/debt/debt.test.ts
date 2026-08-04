@@ -140,7 +140,7 @@ describe("BR-AGING-001 / BR-AGING-002 / TC-AGING-001", () => {
     expect(result.diagnostics).toContain("manual_allocation_not_recorded");
   });
 
-  it("reconciles supported non-sale manual adjustments with the account ledger", () => {
+  it("fails closed when a non-sale manual adjustment has no aging allocation", () => {
     const result = calculateDebtAging(
       {
         sales: [
@@ -179,7 +179,7 @@ describe("BR-AGING-001 / BR-AGING-002 / TC-AGING-001", () => {
       "2026-01-10T00:00:00.000Z",
     );
 
-    expect(result.diagnostics).toEqual([]);
+    expect(result.diagnostics).toContain("non_sale_balance_not_allocated");
     expect(result.totals).toMatchObject({
       ledgerBalance: vnd(125_000),
       saleOutstanding: vnd(100_000),

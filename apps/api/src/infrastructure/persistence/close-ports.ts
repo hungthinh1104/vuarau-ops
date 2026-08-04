@@ -6,6 +6,8 @@ import type {
 } from "@vuarau/domain-contracts";
 
 export type OperationalCloseRepository = {
+  /** Serializes root/revision decisions for one workspace business date. */
+  lockBusinessDate(workspaceId: WorkspaceId, businessDate: string): Promise<void>;
   findByIdForUpdate(
     workspaceId: WorkspaceId,
     operationalCloseId: OperationalCloseDto["id"],
@@ -23,6 +25,12 @@ export type OperationalCloseRepository = {
 };
 
 export type CashStatementMatchRepository = {
+  /** Serializes the two active match identities inside the current transaction. */
+  lockMatchIdentity(
+    workspaceId: WorkspaceId,
+    cashMovementId: CashStatementMatchDto["cashMovementId"],
+    externalReference: string,
+  ): Promise<void>;
   findByIdForUpdate(
     workspaceId: WorkspaceId,
     cashStatementMatchId: CashStatementMatchDto["id"],

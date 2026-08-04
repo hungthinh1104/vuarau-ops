@@ -22,11 +22,14 @@ without those records it fails closed.
 ### BR-AGING-003 — Aging reconciles against canonical facts
 
 The read includes workspace-scoped source references and compares the account
-ledger balance with posted sales, supported non-sale manual adjustments, and
-effective payments. A Sale void changes the historical result only from its own
-`transactionTime` onward; a void recorded after `asOf` must not remove the Sale
-from that historical read. Mixed currencies or an unexplained ledger balance
-produce `attention` diagnostics, never a healthy financial answer.
+ledger balance with posted sales and effective payments. A non-zero manual
+adjustment changes canonical balance but is not an aged Sale obligation; until
+an explicit non-sale obligation/allocation model exists, aging returns
+`non_sale_balance_not_allocated` and cannot be healthy. A Sale void changes the
+historical result only from its own `transactionTime` onward; a void recorded
+after `asOf` must not remove the Sale from that historical read. Mixed
+currencies or an unexplained ledger balance produce `attention` diagnostics,
+never a healthy financial answer.
 
 ### BR-AGING-004 — Payment attribution is append-only and compensating
 

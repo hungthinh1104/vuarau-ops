@@ -11,20 +11,39 @@ export type RequestLimits = {
 
 type Bucket = { count: number; resetsAt: number };
 export type RateLimitDecision = { readonly allowed: boolean; readonly resetsAt: number };
+const MAX_BUCKETS = 10_000;
 
 export class FixedWindowRateLimiter {
   private readonly buckets = new Map<string, Bucket>();
   private readonly windowMs: number;
 
-  constructor(windowMs: number) {
+  constructor(
+    windowMs: number,
+    private readonly maxBuckets = MAX_BUCKETS,
+  ) {
     this.windowMs = windowMs;
   }
 
+  get size(): number {
+    return this.buckets.size;
+  }
+
   allow(key: string, limit: number, now = Date.now()): RateLimitDecision {
-    if (this.buckets.size >= 10_000) {
+    if (this.buckets.size >= this.maxBuckets) {
       for (const [bucketKey, bucket] of this.buckets) {
         if (bucket.resetsAt <= now) this.buckets.delete(bucketKey);
       }
+    }
+    if (this.buckets.size >= this.maxBuckets && !this.buckets.has(key)) {
+      let oldestKey: string | undefined;
+      let oldestReset = Number.POSITIVE_INFINITY;
+      for (const [bucketKey, bucket] of this.buckets) {
+        if (bucket.resetsAt < oldestReset) {
+          oldestKey = bucketKey;
+          oldestReset = bucket.resetsAt;
+        }
+      }
+      if (oldestKey !== undefined) this.buckets.delete(oldestKey);
     }
     const current = this.buckets.get(key);
     if (current === undefined || current.resetsAt <= now) {

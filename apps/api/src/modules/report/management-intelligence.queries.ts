@@ -4,10 +4,7 @@ import {
   type ManagementIntelligenceInput,
   type ManagementIntelligenceDto,
 } from "@vuarau/domain-contracts";
-import {
-  calculateManagementIntelligence,
-  resolveEffectiveWorkspacePolicy,
-} from "@vuarau/domain-kernel";
+import { calculateManagementIntelligence, resolvePolicyAsKnownAt } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery } from "../shared/read-pipeline.ts";
 
@@ -41,7 +38,7 @@ export function getManagementIntelligence(ctx: CommandContext, input: Management
     permission: "report.read",
     execute: async ({ repos }) => {
       const calculatedAt = ctx.deps.clock.now();
-      const policy = resolveEffectiveWorkspacePolicy(
+      const policy = resolvePolicyAsKnownAt(
         await repos.workspacePolicyReads.listAll(input.workspaceId),
         "management_intelligence",
         input.asOf,

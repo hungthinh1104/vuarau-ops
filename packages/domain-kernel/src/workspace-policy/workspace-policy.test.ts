@@ -4,6 +4,7 @@ import {
   actorIdSchema,
   commandIdSchema,
   createWorkspacePolicyDraftCommandSchema,
+  paymentTermsAgingPolicyDefinitionSchema,
   retireWorkspacePolicyCommandSchema,
   WORKSPACE_POLICY_KINDS,
   workspaceIdSchema,
@@ -14,7 +15,9 @@ import {
   decideApproveWorkspacePolicy,
   decideCreateWorkspacePolicyDraft,
   decideRetireWorkspacePolicy,
-  resolveEffectiveWorkspacePolicy,
+  loadHistoricalPolicyLineage,
+  resolvePolicyAsKnownAt,
+  resolvePolicyForDecision,
   resolveWorkspacePolicyAvailability,
 } from "./index.ts";
 
@@ -211,17 +214,36 @@ describe("workspace policy registry", () => {
     };
 
     expect(
-      resolveEffectiveWorkspacePolicy([retired], "payment_terms_aging", "2026-08-04T00:00:00.000Z"),
+      resolvePolicyAsKnownAt(
+        [retired],
+        "payment_terms_aging",
+        "2026-08-04T00:00:00.000Z",
+        "2026-08-04T00:00:00.000Z",
+      ),
     ).toEqual(retired);
     expect(
-      resolveEffectiveWorkspacePolicy([retired], "payment_terms_aging", "2026-08-05T00:00:00.000Z"),
+      resolvePolicyAsKnownAt(
+        [retired],
+        "payment_terms_aging",
+        "2026-08-05T00:00:00.000Z",
+        "2026-08-05T00:00:00.000Z",
+      ),
+    ).toEqual(retired);
+    expect(
+      resolvePolicyForDecision(
+        [retired],
+        "payment_terms_aging",
+        "2026-08-05T00:00:00.000Z",
+        "2026-08-05T00:00:00.000Z",
+      ),
     ).toBeNull();
 
     const beforeApproval = { ...approved, approvedAt: "2026-08-04T00:00:00.000Z" };
     expect(
-      resolveEffectiveWorkspacePolicy(
+      resolvePolicyAsKnownAt(
         [beforeApproval],
         "payment_terms_aging",
+        "2026-08-03T00:00:00.000Z",
         "2026-08-03T00:00:00.000Z",
       ),
     ).toBeNull();
@@ -266,15 +288,98 @@ describe("workspace policy registry", () => {
 
   it("TC-POLICY-016 rejects policy kinds without a typed definition contract", () => {
     for (const policyKind of ["receivable_payable_recognition", "return_claim_credit"] as const) {
-      const draft = decideCreateWorkspacePolicyDraft(
-        createWorkspacePolicyDraftCommandSchema.parse({
-          ...createCommand(),
-          payload: { ...createCommand().payload, policyKind },
-        }),
-        RECORDED_AT,
-      );
-      expect(draft.ok).toBe(false);
-      if (!draft.ok) expect(draft.error.code).toBe("WORKSPACE_POLICY_DEFINITION_INVALID");
+      const command = createWorkspacePolicyDraftCommandSchema.safeParse({
+        ...createCommand(),
+        payload: { ...createCommand().payload, policyKind },
+      });
+      expect(command.success).toBe(false);
     }
+  });
+
+  it("TC-POLICY-017 rejects a malformed legacy draft again during approval", () => {
+    const draft = decideCreateWorkspacePolicyDraft(createCommand(), RECORDED_AT);
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+    const malformed = {
+      ...draft.value.policy,
+      definition: { contractVersion: 99, parameters: { unexpected: true } },
+    } as unknown as WorkspacePolicyDto;
+    const approval = decideApproveWorkspacePolicy(
+      approveWorkspacePolicyCommandSchema.parse({
+        commandId: id("118"),
+        idempotencyKey: "policy-approve-malformed-001",
+        workspaceId: WORKSPACE,
+        actorId: ACTOR,
+        occurredAt: RECORDED_AT,
+        payload: {
+          policyVersionId: malformed.id,
+          evidenceReferences: ["field://review/malformed-policy"],
+          reason: "Không duyệt dữ liệu legacy hỏng.",
+        },
+      }),
+      malformed,
+      RECORDED_AT,
+    );
+    expect(approval.ok).toBe(false);
+    if (!approval.ok) expect(approval.error.code).toBe("WORKSPACE_POLICY_DEFINITION_INVALID");
+  });
+
+  it("TC-POLICY-018 fails closed when backdated policy versions overlap in business time", () => {
+    const retired = {
+      ...approvedPolicy(1, "2026-08-01T00:00:00.000Z", null),
+      state: "retired" as const,
+      retiredBy: actorIdSchema.parse(ACTOR),
+      retiredAt: "2026-08-05T00:00:00.000Z",
+    };
+    const backdated = {
+      ...approvedPolicy(2, "2026-08-01T00:00:00.000Z", null),
+      approvedAt: "2026-08-05T00:00:00.000Z",
+    };
+    expect(
+      resolvePolicyAsKnownAt(
+        [retired, backdated],
+        "payment_terms_aging",
+        "2026-08-02T00:00:00.000Z",
+        "2026-08-06T00:00:00.000Z",
+      ),
+    ).toBeNull();
+    expect(
+      resolveWorkspacePolicyAvailability(
+        [retired, backdated],
+        "2026-08-02T00:00:00.000Z",
+        "2026-08-06T00:00:00.000Z",
+      ).find((entry) => entry.policyKind === "payment_terms_aging"),
+    ).toMatchObject({ availability: "unavailable", reason: "corrupt_overlap" });
+  });
+
+  it("TC-POLICY-019 loads retired policy lineage for historical correction", () => {
+    const retired = {
+      ...approvedPolicy(1, "2026-08-01T00:00:00.000Z", null),
+      state: "retired" as const,
+      retiredBy: actorIdSchema.parse(ACTOR),
+      retiredAt: "2026-08-05T00:00:00.000Z",
+    };
+    expect(loadHistoricalPolicyLineage([retired], retired.id)).toEqual(retired);
+  });
+
+  it("TC-POLICY-020 rejects ambiguous payment-term and aging definitions", () => {
+    const invalid = paymentTermsAgingPolicyDefinitionSchema.safeParse({
+      contractVersion: 1,
+      parameters: {
+        defaultTermDays: 7,
+        defaultTermLabel: "7 ngày",
+        customerTerms: [
+          { customerId: WORKSPACE, label: "7 ngày", termDays: 7 },
+          { customerId: WORKSPACE, label: "14 ngày", termDays: 14 },
+        ],
+        graceDays: 0,
+        agingBuckets: [
+          { code: "1-7", label: "1–7", minDaysOverdue: 1, maxDaysOverdue: 7 },
+          { code: "1-7", label: "trùng", minDaysOverdue: 9, maxDaysOverdue: null },
+        ],
+        creditControl: "warning",
+      },
+    });
+    expect(invalid.success).toBe(false);
   });
 });

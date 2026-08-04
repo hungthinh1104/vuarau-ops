@@ -190,19 +190,10 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.status).toBe("available");
-      expect(result.value.status === "available" && result.value.totals.ledgerBalance).toEqual({
-        amountMinor: 70_000,
-        currency: "VND",
-      });
-      expect(result.value.status === "available" && result.value.rows[0]).toMatchObject({
-        state: "overdue",
-        dueAt: "2026-07-27T05:00:00.000Z",
-        termSource: "workspace_policy",
-        termPolicyVersionId: terms.value.id,
-        allocatedAmount: { amountMinor: 50_000, currency: "VND" },
-        outstandingAmount: { amountMinor: 50_000, currency: "VND" },
-      });
+      expect(result.value.status).toBe("unavailable");
+      expect(result.value.status === "unavailable" && result.value.diagnostics).toContain(
+        "non_sale_balance_not_allocated",
+      );
     }
   });
 

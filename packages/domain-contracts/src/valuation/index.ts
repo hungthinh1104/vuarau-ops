@@ -31,12 +31,22 @@ export const COST_ALLOCATION_STRATEGIES = [
 export const costAllocationStrategySchema = z.enum(COST_ALLOCATION_STRATEGIES);
 export type CostAllocationStrategy = z.infer<typeof costAllocationStrategySchema>;
 
-export const inventoryValuationPolicyDefinitionSchema = z.object({
-  contractVersion: z.literal(1),
-  parameters: z.object({
-    strategy: inventoryValuationStrategySchema,
-  }),
-});
+export const inventoryValuationPolicyDefinitionSchema = z
+  .object({
+    contractVersion: z.literal(1),
+    parameters: z.object({
+      strategy: inventoryValuationStrategySchema,
+    }),
+  })
+  .superRefine((definition, context) => {
+    if (definition.parameters.strategy === "specific_actual_cost") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["parameters", "strategy"],
+        message: "Specific actual cost requires an exact lot-attribution adapter before approval.",
+      });
+    }
+  });
 export type InventoryValuationPolicyDefinition = z.infer<
   typeof inventoryValuationPolicyDefinitionSchema
 >;
@@ -72,6 +82,7 @@ export const inventoryValuationRowSchema = z.object({
   quantityScaled: z.int(),
   inventoryValue: moneySchema.nullable(),
   cogs: moneySchema.nullable(),
+  classifiedLossCost: moneySchema.nullable(),
   averageUnitCost: moneySchema.nullable(),
 });
 export type InventoryValuationRow = z.infer<typeof inventoryValuationRowSchema>;

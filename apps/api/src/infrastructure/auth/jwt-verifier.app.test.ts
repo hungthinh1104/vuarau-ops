@@ -3,7 +3,7 @@ import { SignJWT } from "jose";
 import { ACTOR_ID, subjectFor } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { bearerTokenFrom, createSupabaseJwtVerifier } from "./jwt-verifier.ts";
-import { resolvePrincipal } from "./principal.ts";
+import { developmentPrincipalFallbackEnabled, resolvePrincipal } from "./principal.ts";
 
 /**
  * Real signing, real verification. These mint tokens with `jose` and hand them to
@@ -171,6 +171,28 @@ describe("BR-AUTH-005 / TC-AUTH-008", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("AUTHENTICATION_REQUIRED");
+  });
+});
+
+describe("TC-AUTH-012 — development principal fallback", () => {
+  it("requires an explicit development-only opt-in", () => {
+    expect(
+      developmentPrincipalFallbackEnabled({
+        APP_ENV: "development",
+        DEV_PRINCIPAL_FALLBACK: "1",
+      }),
+    ).toBe(true);
+    expect(developmentPrincipalFallbackEnabled({ APP_ENV: "development" })).toBe(false);
+    expect(
+      developmentPrincipalFallbackEnabled({
+        APP_ENV: "development",
+        DEV_PRINCIPAL_FALLBACK: "1",
+        E2E_REAL_ACTOR_LOOKUP: "1",
+      }),
+    ).toBe(false);
+    expect(
+      developmentPrincipalFallbackEnabled({ APP_ENV: "pilot", DEV_PRINCIPAL_FALLBACK: "1" }),
+    ).toBe(false);
   });
 });
 

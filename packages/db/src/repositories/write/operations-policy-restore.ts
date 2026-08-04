@@ -1,4 +1,8 @@
-import type { WorkspaceBackupV14, WorkspaceId } from "@vuarau/domain-contracts";
+import {
+  parseWorkspacePolicyDto,
+  type WorkspaceBackupV14,
+  type WorkspaceId,
+} from "@vuarau/domain-contracts";
 import { workspacePolicies } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -9,8 +13,11 @@ export async function restoreWorkspacePolicies(
   date: (value: unknown) => Date,
 ): Promise<void> {
   if (payload.workspacePolicies.length === 0) return;
+  const policies = payload.workspacePolicies.map((raw) =>
+    parseWorkspacePolicyDto({ ...raw, workspaceId }),
+  );
   await tx.insert(workspacePolicies).values(
-    payload.workspacePolicies.map((raw) => ({
+    policies.map((raw) => ({
       ...raw,
       workspaceId,
       effectiveFrom: date(raw["effectiveFrom"]),

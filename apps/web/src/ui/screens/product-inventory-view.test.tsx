@@ -103,6 +103,7 @@ describe("BR-VALUATION-003 / TC-VALUATION-004", () => {
           quantityScaled: 1_000,
           inventoryValue: { amountMinor: 100, currency: "VND" },
           cogs: { amountMinor: 50, currency: "VND" },
+          classifiedLossCost: null,
           averageUnitCost: { amountMinor: 100, currency: "VND" },
         },
       ],

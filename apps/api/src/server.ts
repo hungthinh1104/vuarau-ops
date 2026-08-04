@@ -6,7 +6,11 @@ import { appRouter } from "./infrastructure/trpc/router.ts";
 import { createContext } from "./infrastructure/trpc/context.ts";
 import { createSupabaseJwtVerifier, type JwtVerifier } from "./infrastructure/auth/jwt-verifier.ts";
 import { randomIdGenerator, systemClock } from "./infrastructure/clock.ts";
-import { describeConfig, readServerConfig } from "./infrastructure/config.ts";
+import {
+  DEFAULT_MAX_BATCH_OPERATIONS,
+  describeConfig,
+  readServerConfig,
+} from "./infrastructure/config.ts";
 import { log, withRequestId } from "./infrastructure/logging.ts";
 import { renderMetrics } from "./infrastructure/metrics.ts";
 import { createRequestGuard, safeRequestId } from "./infrastructure/request-guard.ts";
@@ -24,9 +28,14 @@ import { createPublicDocumentHandler } from "./modules/document/public-document.
  * shutdown remain environment responsibilities
  * (docs/11-operations/deployment-contract.md).
  */
-export function createApiHandler(deps: CommandDeps, verifier: JwtVerifier) {
+export function createApiHandler(
+  deps: CommandDeps,
+  verifier: JwtVerifier,
+  maxBatchSize = DEFAULT_MAX_BATCH_OPERATIONS,
+) {
   return createHTTPHandler({
     router: appRouter,
+    maxBatchSize,
     createContext: ({ req }) =>
       createContext({ deps, verifier, authorizationHeader: req.headers.authorization }),
   });
@@ -101,7 +110,7 @@ const deps: CommandDeps = {
 
 const health = createHealthHandler(() => checkReadiness(database));
 const publicDocument = createPublicDocumentHandler(deps);
-const trpc = createApiHandler(deps, verifier);
+const trpc = createApiHandler(deps, verifier, config.requestLimits.maxBatchOperations);
 const guard = createRequestGuard(config.requestLimits);
 
 createServer((req, res) => {

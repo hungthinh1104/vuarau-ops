@@ -6,6 +6,7 @@ export const createCloseRepositories = (
   store: Store,
 ): Pick<Repositories, "operationalCloses" | "cashStatementMatches"> => ({
   operationalCloses: {
+    lockBusinessDate: async () => undefined,
     findByIdForUpdate: async (workspaceId, operationalCloseId) =>
       store.operationalCloses.get(key(workspaceId, operationalCloseId)) ?? null,
     findByBusinessDate: async (workspaceId, businessDate) =>
@@ -62,6 +63,7 @@ export const createCloseRepositories = (
     },
   },
   cashStatementMatches: {
+    lockMatchIdentity: async () => undefined,
     findByIdForUpdate: async (workspaceId, cashStatementMatchId) =>
       store.cashStatementMatches.get(key(workspaceId, cashStatementMatchId)) ?? null,
     findByMovementId: async (workspaceId, cashMovementId) =>

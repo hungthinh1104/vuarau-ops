@@ -15,7 +15,7 @@ import {
   decideReversePaymentAllocation,
   err,
   ok,
-  resolveEffectiveWorkspacePolicy,
+  resolvePolicyForDecision,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
@@ -27,7 +27,7 @@ async function requireManualAllocationPolicy(
   knowledgeAt: RecordPaymentAllocationCommand["occurredAt"],
   repos: Repositories,
 ): Promise<DomainResult<null>> {
-  const policy = resolveEffectiveWorkspacePolicy(
+  const policy = resolvePolicyForDecision(
     await repos.workspacePolicyReads.listAll(workspaceId),
     "payment_allocation",
     asOf,

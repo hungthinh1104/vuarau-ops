@@ -23,6 +23,15 @@ describe("Request trust boundary", () => {
     expect(limiter.allow("public:ip", 2, 11_000).allowed).toBe(true);
   });
 
+  it("keeps the in-process bucket table bounded under identity churn", () => {
+    const limiter = new FixedWindowRateLimiter(1_000, 2);
+
+    expect(limiter.allow("client:one", 1, 10_000).allowed).toBe(true);
+    expect(limiter.allow("client:two", 1, 10_000).allowed).toBe(true);
+    expect(limiter.allow("client:three", 1, 10_001).allowed).toBe(true);
+    expect(limiter.size).toBe(2);
+  });
+
   it("uses the socket identity for a direct request", () => {
     expect(rateLimitClientIdentity("192.0.2.10", undefined, [])).toBe("192.0.2.10");
   });
