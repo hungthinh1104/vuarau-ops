@@ -58,7 +58,7 @@ test.describe("TC-E2E-022 — M9 account ledger truth", () => {
     await page.getByLabel("Số tiền hoàn").fill("50.000");
     await page.getByLabel("Lý do hoàn tác").fill("Khách đổi tiền lẻ");
     await page.getByRole("button", { name: "Xác nhận hoàn tác" }).click();
-    await expect(page.getByRole("status").getByText("Đã ghi nhận")).toBeVisible();
+    await expect(page.getByText("Đã ghi nhận", { exact: true })).toBeVisible();
 
     await page.goto(`/customers/${customerId}/account/adjust`);
     await chooseOption(page, "Hướng điều chỉnh", "Giảm công nợ");

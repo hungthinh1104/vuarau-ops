@@ -6,7 +6,15 @@ export function QuickSaleGradeState(props: {
   readonly loading: boolean;
   readonly error: boolean;
   readonly gradeCount: number;
+  readonly required?: boolean;
 }) {
+  if (props.required === false) {
+    return (
+      <p role="status" className="text-caption text-ink-muted">
+        Vựa này không dùng phẩm cấp; đơn sẽ giữ nguyên mặt hàng và đơn vị.
+      </p>
+    );
+  }
   if (props.gradeCount > 0) return null;
   if (props.loading) {
     return (

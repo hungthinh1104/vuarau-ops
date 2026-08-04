@@ -17,6 +17,7 @@ import { useEffect, useRef } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand, type CommandRunner } from "@/api/use-command.ts";
+import { useWorkflowCacheEffects } from "@/api/workflow-cache.ts";
 import {
   DeliveryReturnPanel,
   type DeliveryReturnIntent,
@@ -28,6 +29,7 @@ export function DeliveryDetailController() {
   const deliveryId = useParams<{ deliveryId: string }>().deliveryId as DeliveryId;
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const cache = useWorkflowCacheEffects();
   const router = useRouter();
   const query = useQuery(trpc.delivery.get.queryOptions({ workspaceId, deliveryId }));
   const dispatchMutation = useMutation(trpc.delivery.dispatch.mutationOptions());
@@ -48,10 +50,19 @@ export function DeliveryDetailController() {
   const documentId = useRef(crypto.randomUUID() as DocumentId);
 
   useEffect(() => {
-    if (dispatch.result !== null || delivered.result !== null || returned.result !== null) {
+    const changed = returned.result ?? delivered.result ?? dispatch.result;
+    if (changed !== null) {
+      void cache.deliveryChanged(workspaceId, changed);
       void query.refetch();
     }
-  }, [delivered.result, dispatch.result, query.refetch, returned.result]);
+  }, [
+    cache.deliveryChanged,
+    delivered.result,
+    dispatch.result,
+    query.refetch,
+    returned.result,
+    workspaceId,
+  ]);
   useEffect(() => {
     if (generated.result !== null) router.push(`/documents/${generated.result.id}`);
   }, [generated.result, router]);
@@ -86,7 +97,10 @@ export function DeliveryDetailController() {
           delivery={delivery}
           command={returned}
           returnId={returnId}
-          onChanged={() => void query.refetch()}
+          onChanged={(changed) => {
+            void cache.deliveryChanged(workspaceId, changed);
+            void query.refetch();
+          }}
         />
       )}
       feedback={
@@ -117,11 +131,11 @@ function DeliveryReturnCommandPanel(props: {
   readonly delivery: DeliveryDto;
   readonly command: CommandRunner<RecordDeliveryReturnCommand["payload"], DeliveryDto>;
   readonly returnId: { current: DeliveryReturnId };
-  readonly onChanged: () => void;
+  readonly onChanged: (delivery: DeliveryDto) => void;
 }) {
   const locked = props.command.phase.kind === "sending" || props.command.phase.kind === "unknown";
   useEffect(() => {
-    if (props.command.result !== null) props.onChanged();
+    if (props.command.result !== null) props.onChanged(props.command.result);
   }, [props.command.result, props.onChanged]);
   function submit(intent: DeliveryReturnIntent): void {
     void props.command.submit({
@@ -146,7 +160,7 @@ function DeliveryReturnCommandPanel(props: {
         <CommandOutcome
           command={props.command}
           attemptedAction="Ghi hàng trả"
-          onReload={props.onChanged}
+          onReload={() => props.onChanged(props.delivery)}
         />
       }
     />

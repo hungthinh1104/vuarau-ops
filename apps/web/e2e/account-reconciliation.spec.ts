@@ -26,7 +26,7 @@ test.describe("TC-E2E-023 — account reconciliation", () => {
     );
 
     await page.getByRole("button", { name: "Dựng lại số dư" }).click();
-    await expect(page.getByRole("status").getByText("Đã ghi nhận")).toBeVisible();
+    await expect(page.getByText("Đã ghi nhận", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Tải kết quả đối soát mới" }).click();
     await expect(page.getByText("Khớp", { exact: true })).toBeVisible();
 

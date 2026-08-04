@@ -97,8 +97,7 @@ export async function getSaleFulfilment(ctx: CommandContext, input: SaleFulfilme
         const remaining = line.quantity.valueScaled - net;
         const invalid =
           line.productId === null ||
-          line.qualityGradeId === null ||
-          line.qualityGradeName === null ||
+          (line.qualityGradeId !== null && line.qualityGradeName === null) ||
           amounts.dispatched < 0 ||
           amounts.returned < 0 ||
           amounts.returned > amounts.dispatched ||
@@ -128,7 +127,7 @@ export async function getSaleFulfilment(ctx: CommandContext, input: SaleFulfilme
           blockedReason:
             line.productId === null
               ? "legacy_product_unresolved"
-              : line.qualityGradeId === null || line.qualityGradeName === null
+              : line.qualityGradeId !== null && line.qualityGradeName === null
                 ? "legacy_quality_unclassified"
                 : invalid
                   ? "fulfilment_integrity_error"

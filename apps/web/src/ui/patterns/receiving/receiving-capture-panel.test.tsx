@@ -54,6 +54,28 @@ const grades: readonly QualityGradeDto[] = [
 ];
 
 describe("ReceivingCapturePanel", () => {
+  it("records an ungraded line when the workspace disables quality grades", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <ReceivingCapturePanel
+        purchase={purchase}
+        grades={grades}
+        gradesLoading={false}
+        qualityGradeRequired={false}
+        quantities={{ [`${purchase.lines[0]!.lineId}:ungraded`]: "10" }}
+        locked={false}
+        onQuantityChange={() => undefined}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Ghi phiếu nhận hàng" }));
+    expect(onSubmit).toHaveBeenCalledWith([
+      expect.objectContaining({ qualityGradeId: null, qualityGradeName: null }),
+    ]);
+  });
+
   it("fails visibly when current policy requires grade but no active grade exists", () => {
     render(
       <ReceivingCapturePanel

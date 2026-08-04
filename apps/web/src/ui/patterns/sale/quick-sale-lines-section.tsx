@@ -14,6 +14,7 @@ export function QuickSaleLinesSection(props: {
   readonly serverLineIndex: number | null;
   readonly disabled: boolean;
   readonly qualityGradeOptions: readonly { readonly value: string; readonly label: string }[];
+  readonly qualityGradeRequired?: boolean;
   readonly activeLineId: string;
   readonly priceResolution?: QueryLike<PriceResolutionDto>;
   readonly onApplyPriceRule: () => void;
@@ -49,6 +50,7 @@ export function QuickSaleLinesSection(props: {
             canRemove={props.lines.length > 1}
             disabled={props.disabled}
             qualityGradeOptions={props.qualityGradeOptions}
+            qualityGradeRequired={props.qualityGradeRequired ?? true}
             {...(line.lineId === props.activeLineId
               ? {
                   priceResolution: props.priceResolution,

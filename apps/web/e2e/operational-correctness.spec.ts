@@ -69,7 +69,7 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await chooseProductOption(page, productName);
     await page.getByLabel("Số lượng").fill("100");
     await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
-    await page.getByRole("button", { name: "Xác nhận đơn mua" }).click();
+    await page.getByRole("button", { name: /^Lưu và (mở )?nhận hàng$/ }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     await page.getByLabel("Loại 1").fill("70");
     await page.getByLabel(secondGrade).fill("30");
@@ -103,7 +103,7 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
       await page.goto(`/sales/${saleId}`);
       await page.getByRole("link", { name: "Tạo phiếu giao" }).click();
       await page.getByLabel(`Số lượng giao ${productName}`).fill(quantity);
-      await page.getByRole("button", { name: "Soạn phiếu giao" }).click();
+      await page.getByRole("button", { name: "Lưu phiếu giao" }).click();
       await page.waitForURL(/\/deliveries\/[0-9a-f-]+$/);
       deliveryIds.push(new URL(page.url()).pathname.split("/").at(-1)!);
       await page.getByRole("button", { name: "Xuất hàng / Bắt đầu giao" }).click();

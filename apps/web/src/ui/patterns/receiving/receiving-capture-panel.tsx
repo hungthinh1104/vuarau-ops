@@ -10,8 +10,8 @@ import { Textarea } from "@/ui/primitives/textarea.tsx";
 export type ReceivingCaptureIntentLine = {
   readonly purchaseLineId: PurchaseDto["lines"][number]["lineId"];
   readonly productId: PurchaseDto["lines"][number]["productId"];
-  readonly qualityGradeId: QualityGradeDto["id"];
-  readonly qualityGradeName: string;
+  readonly qualityGradeId: QualityGradeDto["id"] | null;
+  readonly qualityGradeName: string | null;
   readonly quantity: {
     readonly valueScaled: number;
     readonly unit: PurchaseDto["lines"][number]["quantity"]["unit"];
@@ -22,6 +22,7 @@ export type ReceivingCapturePanelProps = {
   readonly purchase: PurchaseDto;
   readonly grades: readonly QualityGradeDto[];
   readonly gradesLoading: boolean;
+  readonly qualityGradeRequired?: boolean;
   readonly quantities: Readonly<Record<string, string>>;
   readonly evidence?: string;
   readonly locked: boolean;
@@ -35,6 +36,7 @@ export function ReceivingCapturePanel({
   purchase,
   grades,
   gradesLoading,
+  qualityGradeRequired = true,
   quantities,
   evidence = "",
   locked,
@@ -43,8 +45,22 @@ export function ReceivingCapturePanel({
   onEvidenceChange = () => undefined,
   onSubmit,
 }: ReceivingCapturePanelProps) {
-  const lines = purchase.lines.flatMap((line) =>
-    grades.flatMap((grade) => {
+  const lines = purchase.lines.flatMap<ReceivingCaptureIntentLine>((line) => {
+    if (!qualityGradeRequired) {
+      const key = `${line.lineId}:ungraded`;
+      const valueScaled = Math.round(Number(quantities[key] ?? "0") * 1000);
+      if (valueScaled <= 0 || !Number.isSafeInteger(valueScaled)) return [];
+      return [
+        {
+          purchaseLineId: line.lineId,
+          productId: line.productId,
+          qualityGradeId: null,
+          qualityGradeName: null,
+          quantity: { valueScaled, unit: line.quantity.unit },
+        } satisfies ReceivingCaptureIntentLine,
+      ];
+    }
+    return grades.flatMap((grade) => {
       const key = `${line.lineId}:${grade.id}`;
       const valueScaled = Math.round(Number(quantities[key] ?? "0") * 1000);
       if (valueScaled <= 0 || !Number.isSafeInteger(valueScaled)) return [];
@@ -57,8 +73,8 @@ export function ReceivingCapturePanel({
           quantity: { valueScaled, unit: line.quantity.unit },
         } satisfies ReceivingCaptureIntentLine,
       ];
-    }),
-  );
+    });
+  });
 
   return (
     <section className="rounded-card border border-border bg-surface p-4">
@@ -78,24 +94,40 @@ export function ReceivingCapturePanel({
             <legend className="px-1 text-label font-semibold">
               {line.productName} · đặt {formatQuantity(line.quantity)}
             </legend>
-            {grades.map((grade) => {
-              const key = `${line.lineId}:${grade.id}`;
-              return (
-                <label
-                  key={key}
-                  className="grid gap-1 text-label sm:grid-cols-[1fr_10rem] sm:items-center"
-                >
-                  <span>{grade.name}</span>
-                  <Input
-                    inputMode="decimal"
-                    disabled={locked}
-                    aria-label={`${line.productName} · ${grade.name}`}
-                    value={quantities[key] ?? ""}
-                    onChange={(event) => onQuantityChange(key, event.target.value)}
-                  />
-                </label>
-              );
-            })}
+            {qualityGradeRequired
+              ? grades.map((grade) => {
+                  const key = `${line.lineId}:${grade.id}`;
+                  return (
+                    <label
+                      key={key}
+                      className="grid gap-1 text-label sm:grid-cols-[1fr_10rem] sm:items-center"
+                    >
+                      <span>{grade.name}</span>
+                      <Input
+                        inputMode="decimal"
+                        disabled={locked}
+                        aria-label={`${line.productName} · ${grade.name}`}
+                        value={quantities[key] ?? ""}
+                        onChange={(event) => onQuantityChange(key, event.target.value)}
+                      />
+                    </label>
+                  );
+                })
+              : (() => {
+                  const key = `${line.lineId}:ungraded`;
+                  return (
+                    <label className="grid gap-1 text-label sm:grid-cols-[1fr_10rem] sm:items-center">
+                      <span>Không phân loại</span>
+                      <Input
+                        inputMode="decimal"
+                        disabled={locked}
+                        aria-label={`${line.productName} · Không phân loại`}
+                        value={quantities[key] ?? ""}
+                        onChange={(event) => onQuantityChange(key, event.target.value)}
+                      />
+                    </label>
+                  );
+                })()}
           </fieldset>
         ))}
       </div>
@@ -109,9 +141,9 @@ export function ReceivingCapturePanel({
         hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."
       />
 
-      {gradesLoading ? (
+      {qualityGradeRequired && gradesLoading ? (
         <p className="mt-3 text-body-sm text-ink-muted">Đang tải phẩm cấp…</p>
-      ) : grades.length === 0 ? (
+      ) : qualityGradeRequired && grades.length === 0 ? (
         <p role="alert" className="mt-3 text-body-sm text-warning">
           Chưa có phẩm cấp đang dùng. Theo chính sách hiện tại chưa thể ghi lượng nhận mới.
         </p>

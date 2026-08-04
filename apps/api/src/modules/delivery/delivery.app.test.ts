@@ -16,6 +16,7 @@ import type {
   SaleId,
   SaleLineId,
 } from "@vuarau/domain-contracts";
+import { defaultWorkspaceOperationalProfile } from "@vuarau/domain-contracts";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
@@ -75,6 +76,96 @@ beforeEach(async () => {
 });
 
 describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
+  it("supports a depot that does not use quality grades", async () => {
+    harness.db.setOperationalProfile({
+      ...defaultWorkspaceOperationalProfile(WORKSPACE_ID),
+      qualityGradeMode: "disabled",
+    });
+    const ungradedSaleId = "00000000-0000-4000-8000-000000000d31" as SaleId;
+    const ungradedSaleLineId = "00000000-0000-4000-8000-000000000d32" as SaleLineId;
+    const ungradedDeliveryId = "00000000-0000-4000-8000-000000000d33" as DeliveryId;
+    const ungradedDeliveryLineId = "00000000-0000-4000-8000-000000000d34" as DeliveryLineId;
+
+    const draft = await createSaleDraft(harness.ctx, {
+      ...base("d30"),
+      payload: {
+        saleId: ungradedSaleId,
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [
+          {
+            lineId: ungradedSaleLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            productName: "Cà chua",
+            qualityGradeId: null,
+            qualityGradeName: null,
+            quantity: { valueScaled: 10_000, unit: "kg" },
+            unitPrice: { amountMinor: 10_000, currency: "VND" },
+          },
+        ],
+        note: null,
+        dueAt: null,
+        replacesSaleId: null,
+      },
+    });
+    expect(draft.ok).toBe(true);
+    const posted = await postSale(harness.ctx, {
+      ...base("d31"),
+      expectedVersion: 1,
+      payload: { saleId: ungradedSaleId },
+    });
+    expect(posted.ok).toBe(true);
+
+    const created = await createDeliveryDraft(harness.ctx, {
+      ...base("d32"),
+      payload: {
+        deliveryId: ungradedDeliveryId,
+        saleId: ungradedSaleId,
+        lines: [
+          {
+            deliveryLineId: ungradedDeliveryLineId,
+            saleLineId: ungradedSaleLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: null,
+            quantity: { valueScaled: 10_000, unit: "kg" },
+          },
+        ],
+        note: null,
+        evidenceReferences: [],
+      },
+    });
+    expect(created.ok).toBe(true);
+
+    const fulfilment = await getSaleFulfilment(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      saleId: ungradedSaleId,
+    });
+    expect(fulfilment.ok && fulfilment.value).toMatchObject({
+      integrity: "healthy",
+      lines: [
+        expect.objectContaining({
+          qualityGradeId: null,
+          qualityGradeName: null,
+          fulfilmentState: "unfulfilled",
+          blockedReason: null,
+        }),
+      ],
+    });
+
+    const dispatched = await dispatchDelivery(harness.ctx, {
+      ...base("d33"),
+      expectedVersion: 1,
+      payload: { deliveryId: ungradedDeliveryId },
+    });
+    expect(dispatched.ok).toBe(true);
+    const delivered = await markDeliveryDelivered(harness.ctx, {
+      ...base("d34"),
+      expectedVersion: 2,
+      payload: { deliveryId: ungradedDeliveryId },
+    });
+    expect(delivered.ok).toBe(true);
+  });
+
   it("TC-EVIDENCE-004 — keeps delivery and return evidence beside physical facts without changing debt", async () => {
     const debtBefore = harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID).length;
     const create = await createDeliveryDraft(harness.ctx, {

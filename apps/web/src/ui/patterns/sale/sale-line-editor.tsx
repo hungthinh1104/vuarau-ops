@@ -153,6 +153,7 @@ export type SaleLineEditorProps = {
     readonly value: string;
     readonly label: string;
   }[];
+  readonly qualityGradeRequired?: boolean;
   readonly onOpenProductPicker?: () => void;
   /** Resolution is shown only when this line has a complete server query context. */
   readonly priceResolution?: QueryLike<PriceResolutionDto>;
@@ -181,6 +182,7 @@ export function SaleLineEditor({
   onFocus,
   disabled = false,
   qualityGradeOptions = [],
+  qualityGradeRequired = true,
   onOpenProductPicker,
   priceResolution,
   onApplyPriceRule,
@@ -192,10 +194,11 @@ export function SaleLineEditor({
   const isFulfilmentReady =
     line.productId !== null &&
     line.productId !== undefined &&
-    line.qualityGradeId !== null &&
-    line.qualityGradeId !== undefined &&
-    line.qualityGradeName !== null &&
-    line.qualityGradeName !== undefined &&
+    (!qualityGradeRequired ||
+      (line.qualityGradeId !== null &&
+        line.qualityGradeId !== undefined &&
+        line.qualityGradeName !== null &&
+        line.qualityGradeName !== undefined)) &&
     total !== null;
 
   function focusRowField(field: string): void {
@@ -241,7 +244,9 @@ export function SaleLineEditor({
               disabled={disabled}
               value={line.productName}
               data-sale-field="product"
-              onKeyDown={(event) => focusField(event, "qualityGrade")}
+              onKeyDown={(event) =>
+                focusField(event, qualityGradeRequired ? "qualityGrade" : "quantity")
+              }
               onChange={(event) =>
                 onChange({ ...line, productName: event.target.value }, "product")
               }
@@ -265,33 +270,35 @@ export function SaleLineEditor({
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="col-span-2 md:col-span-1">
-            <Select
-              label="Phân hạng chất lượng"
-              required
-              disabled={disabled}
-              value={line.qualityGradeId ?? ""}
-              placeholder="Chọn hạng"
-              data-sale-field="qualityGrade"
-              onChange={(event) => {
-                const option = qualityGradeOptions.find(
-                  (candidate) => candidate.value === event.target.value,
-                );
-                onChange(
-                  {
-                    ...line,
-                    qualityGradeId: (event.target.value || null) as QualityGradeId | null,
-                    qualityGradeName: option?.label ?? null,
-                  },
-                  "qualityGrade",
-                );
-                if (option !== undefined) {
-                  requestAnimationFrame(() => focusRowField("quantity"));
-                }
-              }}
-              options={qualityGradeOptions}
-            />
-          </div>
+          {qualityGradeRequired ? (
+            <div className="col-span-2 md:col-span-1">
+              <Select
+                label="Phân hạng chất lượng"
+                required
+                disabled={disabled}
+                value={line.qualityGradeId ?? ""}
+                placeholder="Chọn hạng"
+                data-sale-field="qualityGrade"
+                onChange={(event) => {
+                  const option = qualityGradeOptions.find(
+                    (candidate) => candidate.value === event.target.value,
+                  );
+                  onChange(
+                    {
+                      ...line,
+                      qualityGradeId: (event.target.value || null) as QualityGradeId | null,
+                      qualityGradeName: option?.label ?? null,
+                    },
+                    "qualityGrade",
+                  );
+                  if (option !== undefined) {
+                    requestAnimationFrame(() => focusRowField("quantity"));
+                  }
+                }}
+                options={qualityGradeOptions}
+              />
+            </div>
+          ) : null}
           <QuantityInput
             label="Số lượng"
             required

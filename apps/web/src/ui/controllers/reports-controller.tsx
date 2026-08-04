@@ -1,16 +1,59 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import type { Cursor, ReportType } from "@vuarau/domain-contracts";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { ReportsView } from "@/ui/screens/reports-view.tsx";
 
+const OPERATIONAL_OVERVIEW_REPORTS = [
+  "customer_receivables",
+  "supplier_payables",
+  "inventory_by_product_unit",
+  "inventory_movement_report",
+  "outstanding_delivery",
+  "cash_balances",
+] as const satisfies readonly ReportType[];
+
 export function ReportsController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const metricDefinitions = useQuery(trpc.report.metrics.queryOptions({ workspaceId }));
+  const overviewReports = useQueries({
+    queries: OPERATIONAL_OVERVIEW_REPORTS.map((reportType) =>
+      trpc.report.operational.queryOptions({
+        workspaceId,
+        reportType,
+        businessDate: null,
+        productId: null,
+        unit: null,
+        cursor: null,
+        limit: 100,
+      }),
+    ),
+  });
+  const purchases = useQuery(
+    trpc.purchase.list.queryOptions({
+      workspaceId,
+      supplierId: null,
+      status: null,
+      cursor: null,
+      limit: 100,
+    }),
+  );
+  const sales = useQuery(
+    trpc.sale.list.queryOptions({
+      workspaceId,
+      customerId: null,
+      status: null,
+      financialState: null,
+      from: null,
+      to: null,
+      cursor: null,
+      limit: 100,
+    }),
+  );
   const [asOf] = useState(() => new Date().toISOString());
   const [reportType, setReportType] = useState<ReportType>("customer_account_activity");
   const [businessDate, setBusinessDate] = useState("");
@@ -56,6 +99,14 @@ export function ReportsController() {
   return (
     <ReportsView
       canRead={session.permissions.includes("report.read")}
+      overview={{
+        purchases,
+        sales,
+        reports: overviewReports.map((query, index) => ({
+          reportType: OPERATIONAL_OVERVIEW_REPORTS[index]!,
+          query,
+        })),
+      }}
       reportType={reportType}
       businessDate={businessDate}
       state={report.isPending ? "loading" : report.isError ? "error" : "ready"}

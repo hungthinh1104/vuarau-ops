@@ -1,9 +1,10 @@
 "use client";
 
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { rejectionStateOf } from "@/ui/domain/domain-error.ts";
 import { BusinessRejection } from "./business-rejection.tsx";
-import { CommandProgressNotice } from "./command-progress-notice.tsx";
 import { PermissionDenied } from "./permission-denied.tsx";
 import { StaleVersionNotice } from "./stale-version-notice.tsx";
 import { UnknownNetworkOutcome } from "./unknown-network-outcome.tsx";
@@ -14,6 +15,8 @@ export type CommandOutcomeProps = {
   readonly attemptedAction: string;
   readonly onReload: () => void;
   readonly onCancel?: () => void;
+  /** Multi-command flows may redirect after the final command only. */
+  readonly suppressSuccessToast?: boolean;
 };
 
 /**
@@ -33,7 +36,30 @@ export function CommandOutcome({
   attemptedAction,
   onReload,
   onCancel,
+  suppressSuccessToast = false,
 }: CommandOutcomeProps) {
+  const toastedCommand = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (suppressSuccessToast || command.phase.kind !== "succeeded") return;
+    const commandId = command.pending?.identity.commandId ?? null;
+    if (commandId === null || toastedCommand.current === commandId) return;
+    toastedCommand.current = commandId;
+    toast.success("Đã ghi nhận", {
+      description: attemptedAction,
+      duration: 2_500,
+    });
+  }, [
+    attemptedAction,
+    command.pending?.identity.commandId,
+    command.phase.kind,
+    suppressSuccessToast,
+  ]);
+
+  // Success is intentionally ephemeral. A redirecting workflow should not
+  // paint a second success banner for the one command that just navigated.
+  if (command.phase.kind === "sending" || command.phase.kind === "succeeded") return null;
+
   if (command.phase.kind === "unknown" && command.pending !== null) {
     return (
       <UnknownNetworkOutcome
@@ -75,11 +101,5 @@ export function CommandOutcome({
     return <BusinessRejection error={command.error} requestId={command.requestId} />;
   }
 
-  return (
-    <CommandProgressNotice
-      phase={command.phase}
-      attemptedAction={attemptedAction}
-      wasDuplicateSafeRetry={command.wasDuplicateSafeRetry}
-    />
-  );
+  return null;
 }

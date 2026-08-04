@@ -77,6 +77,29 @@ describe("TC-WEB-024 — keyboard/focus sequence", () => {
     expect(screen.getByLabelText(/Số lượng/)).toHaveFocus();
   });
 
+  it("skips quality grade when the workspace disables quality grading", async () => {
+    const user = userEvent.setup();
+    const onAdvance = vi.fn();
+    render(
+      <SaleLineEditor
+        {...baseProps}
+        line={{ ...readyLine(), qualityGradeId: null, qualityGradeName: null }}
+        qualityGradeRequired={false}
+        onChange={() => undefined}
+        onAdvance={onAdvance}
+      />,
+    );
+
+    expect(screen.queryByLabelText(/Phân hạng chất lượng/)).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText(/Mặt hàng/));
+    await user.keyboard("[Enter]");
+    expect(screen.getByLabelText(/Số lượng/)).toHaveFocus();
+
+    await user.click(screen.getByLabelText(/Đơn giá/));
+    await user.keyboard("[Enter]");
+    expect(onAdvance).toHaveBeenCalledOnce();
+  });
+
   it("advances from price when the line is fully fulfilment-ready", async () => {
     const user = userEvent.setup();
     const onAdvance = vi.fn();

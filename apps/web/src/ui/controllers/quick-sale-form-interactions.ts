@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 import type { SaleLineDraft } from "@/ui/patterns/sale/sale-line-editor.tsx";
 import type { SaleLineField } from "@/ui/patterns/sale/quick-sale-lines-section.tsx";
 import type { QuickSaleDraftState } from "@/ui/screens/quick-sale-view.tsx";
@@ -11,15 +10,6 @@ export function useQuickSaleFormInteractions(model: QuickSaleFormModel) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [posting, setPosting] = useState(false);
-  const toastedRef = useRef(false);
-
-  useEffect(() => {
-    if (model.postCommand.phase.kind === "succeeded" && !toastedRef.current) {
-      toastedRef.current = true;
-      toast.success("Đã chốt đơn thành công");
-    }
-  }, [model.postCommand.phase.kind]);
-
   function openProductPicker(lineId: string): void {
     model.setActiveLineId(lineId);
     model.setPickerProductQuery("");
@@ -48,10 +38,11 @@ export function useQuickSaleFormInteractions(model: QuickSaleFormModel) {
       model.resolved[index]?.total === null ||
       line.productId === null ||
       line.productId === undefined ||
-      line.qualityGradeId === null ||
-      line.qualityGradeId === undefined ||
-      line.qualityGradeName === null ||
-      line.qualityGradeName === undefined
+      (model.qualityGradeRequired &&
+        (line.qualityGradeId === null ||
+          line.qualityGradeId === undefined ||
+          line.qualityGradeName === null ||
+          line.qualityGradeName === undefined))
     ) {
       return;
     }

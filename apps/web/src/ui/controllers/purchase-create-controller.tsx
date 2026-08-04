@@ -4,16 +4,21 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   confirmPurchaseCommandSchema,
   createPurchaseDraftCommandSchema,
+  recordPurchaseReceiptCommandSchema,
   type ProductId,
   type PurchaseId,
   type PurchaseLineId,
+  type PurchaseReceiptId,
+  type PurchaseReceiptLineId,
   type SupplierId,
 } from "@vuarau/domain-contracts";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
+import { useWorkflowCacheEffects } from "@/api/workflow-cache.ts";
 import type { PurchaseDraftLine } from "@/ui/domain/purchase-form.ts";
 import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import {
@@ -34,8 +39,9 @@ export function PurchaseCreateController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const router = useRouter();
+  const cache = useWorkflowCacheEffects();
   const replacesPurchaseId = useSearchParams().get("replacesPurchaseId") as PurchaseId | null;
-  const purchaseId = useRef(crypto.randomUUID() as PurchaseId).current;
+  const purchaseIdRef = useRef<PurchaseId>(crypto.randomUUID() as PurchaseId);
   const [supplierId, setSupplierId] = useState<SupplierId | "">("");
   const [supplierQuery, setSupplierQuery] = useState("");
   const [lines, setLines] = useState<readonly PurchaseDraftLine[]>([newLine()]);
@@ -60,10 +66,23 @@ export function PurchaseCreateController() {
       limit: 100,
     }),
   );
+  const operationalProfile = useQuery(
+    trpc.session.operationalProfile.queryOptions({ workspaceId }),
+  );
   const createMutation = useMutation(trpc.purchase.createDraft.mutationOptions());
   const confirmMutation = useMutation(trpc.purchase.confirm.mutationOptions());
+  const receiptMutation = useMutation(trpc.receiving.record.mutationOptions());
   const create = useContractCommand(createPurchaseDraftCommandSchema, createMutation.mutateAsync);
   const confirm = useContractCommand(confirmPurchaseCommandSchema, confirmMutation.mutateAsync);
+  const receipt = useContractCommand(
+    recordPurchaseReceiptCommandSchema,
+    receiptMutation.mutateAsync,
+  );
+  const receiptIdRef = useRef<PurchaseReceiptId>(crypto.randomUUID() as PurchaseReceiptId);
+  const [partialCompletion, setPartialCompletion] = useState<{
+    readonly href: string;
+    readonly message: string;
+  } | null>(null);
 
   if (!session.permissions.includes("purchase.create")) return <PurchaseCreatePermissionView />;
 
@@ -101,9 +120,12 @@ export function PurchaseCreateController() {
   ].filter(
     (product, index, all) => all.findIndex((candidate) => candidate.id === product.id) === index,
   );
-  const save = async (shouldConfirm: boolean) => {
+  const save = async (action: "draft" | "receive" | "another") => {
+    setPartialCompletion(null);
+    create.reset();
+    confirm.reset();
     const draft = await create.submit({
-      purchaseId,
+      purchaseId: purchaseIdRef.current,
       supplierId: supplierId as SupplierId,
       currency: "VND",
       lines: payloadLines,
@@ -113,7 +135,22 @@ export function PurchaseCreateController() {
       replacesPurchaseId,
     });
     if (draft === null) return;
-    if (!shouldConfirm) {
+    await cache.purchaseCreated(workspaceId, draft);
+    if (action === "another") {
+      purchaseIdRef.current = crypto.randomUUID() as PurchaseId;
+      setSupplierId("");
+      setSupplierQuery("");
+      setLines([newLine()]);
+      setProductQuery("");
+      setNote("");
+      setEvidence("");
+      toast.success("Đã lưu đơn mua", {
+        description: "Bạn có thể tạo đơn mua tiếp theo.",
+        duration: 2_500,
+      });
+      return;
+    }
+    if (action === "draft") {
       router.replace(`/purchases/${draft.id}`);
       return;
     }
@@ -121,7 +158,40 @@ export function PurchaseCreateController() {
       { purchaseId: draft.id },
       { expectedVersion: draft.version },
     );
-    if (confirmed !== null) router.replace(`/purchases/${confirmed.id}`);
+    if (confirmed === null) {
+      setPartialCompletion({
+        href: `/purchases/${draft.id}`,
+        message: "Đơn mua đã được lưu nhưng chưa xác nhận. Mở đơn nháp để kiểm tra và tiếp tục.",
+      });
+      return;
+    }
+    if (action === "receive" && operationalProfile.data?.qualityGradeMode === "disabled") {
+      const received = await receipt.submit({
+        receiptId: receiptIdRef.current,
+        purchaseId: confirmed.id,
+        lines: payloadLines.map((line) => ({
+          receiptLineId: crypto.randomUUID() as PurchaseReceiptLineId,
+          purchaseLineId: line.lineId,
+          productId: line.productId,
+          qualityGradeId: null,
+          qualityGradeName: null,
+          quantity: line.quantity,
+        })),
+        note: null,
+        evidenceReferences: parseSourceEvidence(evidence),
+      });
+      if (received === null) {
+        setPartialCompletion({
+          href: `/purchases/${draft.id}`,
+          message:
+            "Đơn mua đã xác nhận nhưng phiếu nhận chưa ghi được. Mở đơn để kiểm tra và tiếp tục.",
+        });
+        return;
+      }
+      await cache.receivingChanged(workspaceId, confirmed.id);
+    }
+    await cache.purchaseChanged(workspaceId, confirmed.id);
+    router.replace(`/purchases/${confirmed.id}`);
   };
 
   return (
@@ -138,9 +208,16 @@ export function PurchaseCreateController() {
       note={note}
       evidence={evidence}
       valid={valid}
-      submitting={create.phase.kind === "sending" || confirm.phase.kind === "sending"}
+      submitting={
+        create.phase.kind === "sending" ||
+        confirm.phase.kind === "sending" ||
+        receipt.phase.kind === "sending"
+      }
       createCommand={create}
       confirmCommand={confirm}
+      receiptCommand={receipt}
+      qualityGradeRequired={operationalProfile.data?.qualityGradeMode !== "disabled"}
+      partialCompletion={partialCompletion}
       canConfirm={session.permissions.includes("purchase.confirm")}
       onSupplierChange={(value) => setSupplierId(value as SupplierId)}
       onLineChange={(lineId, patch) =>
@@ -154,7 +231,7 @@ export function PurchaseCreateController() {
       }
       onNoteChange={setNote}
       onEvidenceChange={setEvidence}
-      onSave={(shouldConfirm) => void save(shouldConfirm)}
+      onSave={(action) => void save(action)}
     />
   );
 }

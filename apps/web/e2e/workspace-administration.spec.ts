@@ -22,7 +22,7 @@ test.describe("TC-E2E-024 — workspace administration", () => {
     await member.getByRole("checkbox", { name: "Kế toán" }).check();
     await member.getByRole("checkbox", { name: "Bán hàng" }).uncheck();
     await member.getByRole("button", { name: "Lưu vai trò" }).click();
-    await expect(member.getByRole("status").getByText("Đã ghi nhận")).toBeVisible();
+    await expect(page.getByText("Đã ghi nhận", { exact: true })).toBeVisible();
 
     const memberPage = await page.context().newPage();
     await signInActor(memberPage, actorId);

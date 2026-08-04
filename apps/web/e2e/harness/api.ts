@@ -68,6 +68,45 @@ function envelope(extra: Envelope = {}): Envelope {
 }
 
 export const api = {
+  async setQualityGradeMode(mode: "disabled" | "required"): Promise<"disabled" | "required"> {
+    const profile = (await call(
+      "session.operationalProfile",
+      "query",
+      { workspaceId: E2E_WORKSPACE_ID },
+      "owner",
+    )) as {
+      purchasingMode: "disabled" | "purchase_receiving";
+      inventoryMode: "disabled" | "movement_ledger";
+      qualityGradeMode: "disabled" | "required";
+      deliveryMode: "disabled" | "sale_fulfilment";
+      cashbookMode: "disabled" | "accounts_ledger";
+      intakeMode: "direct_receipt" | "inspected_arrival";
+      weighingMode: "quantity_only" | "gross_tare_net";
+      businessDayStartMinute: number;
+      version: number;
+    };
+    await call(
+      "session.updateOperationalProfile",
+      "mutation",
+      {
+        ...envelope({ actorId: actorFor("owner"), expectedVersion: profile.version }),
+        payload: {
+          purchasingMode: profile.purchasingMode,
+          inventoryMode: profile.inventoryMode,
+          qualityGradeMode: mode,
+          deliveryMode: profile.deliveryMode,
+          cashbookMode: profile.cashbookMode,
+          intakeMode: profile.intakeMode,
+          weighingMode: profile.weighingMode,
+          businessDayStartMinute: profile.businessDayStartMinute,
+          reason: `E2E: ${mode === "disabled" ? "kiểm tra luồng không phẩm cấp" : "khôi phục phẩm cấp"}`,
+        },
+      },
+      "owner",
+    );
+    return profile.qualityGradeMode;
+  },
+
   async retirePurchaseCorrectionPolicies(): Promise<void> {
     const page = (await call(
       "policy.list",

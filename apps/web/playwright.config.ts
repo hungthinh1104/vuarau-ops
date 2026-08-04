@@ -112,7 +112,7 @@ export default defineConfig({
   webServer: hasDatabase
     ? [
         {
-          command: "node ../api/src/server.ts",
+          command: "pnpm exec tsx ../api/src/server.ts",
           /*
            * The readiness probe, which is exactly the question Playwright is
            * asking: configuration accepted **and** the database answering. It

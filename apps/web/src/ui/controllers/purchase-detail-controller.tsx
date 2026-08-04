@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
+import { useWorkflowCacheEffects } from "@/api/workflow-cache.ts";
 import { messageForCode } from "@/ui/copy.ts";
 import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
@@ -41,6 +42,7 @@ export function PurchaseDetailController() {
   const purchaseId = useParams<{ purchaseId: string }>().purchaseId as PurchaseId;
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const cache = useWorkflowCacheEffects();
   const purchase = useQuery(trpc.purchase.get.queryOptions({ workspaceId, purchaseId }));
   const operationalProfile = useQuery(
     trpc.session.operationalProfile.queryOptions({ workspaceId }),
@@ -98,6 +100,7 @@ export function PurchaseDetailController() {
   const [voidEvidence, setVoidEvidence] = useState("");
   const [voidReasonCode, setVoidReasonCode] = useState<PurchaseVoidReasonCode>("other");
   const refresh = useCallback(() => {
+    void cache.purchaseChanged(workspaceId, purchaseId);
     void Promise.all([
       purchase.refetch(),
       receipts.refetch(),
@@ -111,6 +114,9 @@ export function PurchaseDetailController() {
     purchase.refetch,
     receipts.refetch,
     receivingSummary.refetch,
+    cache.purchaseChanged,
+    purchaseId,
+    workspaceId,
   ]);
 
   useEffect(() => {
@@ -119,20 +125,22 @@ export function PurchaseDetailController() {
   }, [confirm.result, discard.result, refresh, voidCommand.result]);
   useEffect(() => {
     if (receipt.result === null) return;
+    void cache.receivingChanged(workspaceId, purchaseId);
     refresh();
     setReceiptQuantities({});
     setReceiptEvidence("");
     receiptLineIds.current.clear();
     receiptId.current = crypto.randomUUID() as PurchaseReceiptId;
     receipt.reset();
-  }, [receipt.result, receipt.reset, refresh]);
+  }, [cache.receivingChanged, purchaseId, receipt.result, receipt.reset, refresh, workspaceId]);
   useEffect(() => {
     if (reverse.result === null) return;
+    void cache.receivingChanged(workspaceId, purchaseId);
     refresh();
     setReverseTarget(null);
     reversalId.current = crypto.randomUUID() as PurchaseReceiptReversalId;
     reverse.reset();
-  }, [refresh, reverse.reset, reverse.result]);
+  }, [cache.receivingChanged, purchaseId, refresh, reverse.reset, reverse.result, workspaceId]);
 
   function recordReceipt(lines: readonly ReceivingCaptureIntentLine[]): void {
     const commandLines = lines.map((line) => {
@@ -240,6 +248,9 @@ export function PurchaseDetailController() {
                       gradesLoading={qualityGrades.isPending}
                       quantities={receiptQuantities}
                       evidence={receiptEvidence}
+                      qualityGradeRequired={
+                        operationalProfile.data?.qualityGradeMode === "required"
+                      }
                       locked={receiptLocked}
                       onQuantityChange={(key, value) =>
                         setReceiptQuantities((current) => ({ ...current, [key]: value }))

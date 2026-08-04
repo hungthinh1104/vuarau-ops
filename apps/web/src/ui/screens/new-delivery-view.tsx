@@ -1,9 +1,10 @@
 "use client";
 
 import type { SaleDetailDto, SaleFulfilmentDto, SaleId } from "@vuarau/domain-contracts";
+import type { ReactNode } from "react";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
+import { hasDeliverableLines } from "@/ui/domain/delivery-form.ts";
 import { formatQuantity } from "@/ui/format.ts";
-import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
@@ -16,36 +17,27 @@ export function NewDeliveryPermissionView() {
 export function NewDeliveryView(props: {
   readonly saleId: SaleId;
   readonly detail: SaleDetailDto;
-  readonly fulfilment: SaleFulfilmentDto | undefined;
+  readonly fulfilment: SaleFulfilmentDto;
   readonly quantities: Readonly<Record<string, string>>;
   readonly note: string;
   readonly evidence: string;
   readonly command: CommandOutcomeView;
+  readonly dispatchCommand: CommandOutcomeView;
+  readonly deliveredCommand: CommandOutcomeView;
+  readonly partialCompletion: { readonly deliveryId: string; readonly message: string } | null;
   readonly onQuantityChange: (saleLineId: string, value: string) => void;
   readonly onNoteChange: (value: string) => void;
   readonly onEvidenceChange: (value: string) => void;
-  readonly onSubmit: () => void;
+  readonly onSubmit: (action: "draft" | "deliver-all") => void;
   readonly onReload: () => void;
+  readonly feedback?: ReactNode;
 }) {
-  const blocked =
+  const sending =
     props.command.phase.kind === "sending" ||
-    props.fulfilment === undefined ||
-    props.fulfilment.lines.every(
-      (line) => line.fulfilmentState === "attention" || line.remaining.valueScaled === 0,
-    ) ||
-    props.fulfilment.lines.some((line) => {
-      const valueScaled = Math.round(
-        Number(props.quantities[line.saleLineId] ?? String(line.remaining.valueScaled / 1_000)) *
-          1_000,
-      );
-      return (
-        line.fulfilmentState !== "attention" &&
-        line.remaining.valueScaled > 0 &&
-        (!Number.isSafeInteger(valueScaled) ||
-          valueScaled <= 0 ||
-          valueScaled > line.remaining.valueScaled)
-      );
-    });
+    props.dispatchCommand.phase.kind === "sending" ||
+    props.deliveredCommand.phase.kind === "sending";
+  const canSave = !sending && hasDeliverableLines(props.detail, props.fulfilment, props.quantities);
+  const canDeliverAll = hasDeliverableLines(props.detail, props.fulfilment, {});
 
   return (
     <div className="flex max-w-3xl flex-col gap-5">
@@ -56,15 +48,11 @@ export function NewDeliveryView(props: {
       />
       <section className="rounded-card border border-border bg-surface p-4">
         <h2 className="font-semibold">Số lượng xuất kho</h2>
-        {props.fulfilment?.lines.map((summary) => {
+        {props.fulfilment.lines.map((summary) => {
           const saleLine = props.detail.sale.lines.find(
             (line) => line.lineId === summary.saleLineId,
           );
-          if (
-            saleLine?.productId == null ||
-            saleLine.qualityGradeId == null ||
-            summary.fulfilmentState === "attention"
-          ) {
+          if (saleLine?.productId == null || summary.fulfilmentState === "attention") {
             return (
               <p key={summary.saleLineId} role="alert" className="py-3 text-warning">
                 {summary.productName}: không thể soạn phiếu —{" "}
@@ -75,7 +63,7 @@ export function NewDeliveryView(props: {
           if (summary.remaining.valueScaled === 0) {
             return (
               <p key={summary.saleLineId} className="py-3">
-                {summary.productName} · {summary.qualityGradeName}: Đã giao đủ
+                {summary.productName} · {summary.qualityGradeName ?? "Không phân loại"}: Đã giao đủ
               </p>
             );
           }
@@ -84,7 +72,7 @@ export function NewDeliveryView(props: {
           return (
             <label key={summary.saleLineId} className="grid gap-2 border-b border-border py-3">
               <span>
-                {summary.productName} · {summary.qualityGradeName} · còn{" "}
+                {summary.productName} · {summary.qualityGradeName ?? "Không phân loại"} · còn{" "}
                 {formatQuantity(summary.remaining)}
               </span>
               <Input
@@ -115,14 +103,19 @@ export function NewDeliveryView(props: {
           />
         </label>
       </section>
-      <Button disabled={blocked} onClick={props.onSubmit}>
-        Soạn phiếu giao
-      </Button>
-      <CommandOutcome
-        command={props.command}
-        attemptedAction="Lưu phiếu giao"
-        onReload={props.onReload}
-      />
+      {props.feedback}
+      <div className="flex flex-wrap gap-3">
+        <Button disabled={!canSave} onClick={() => props.onSubmit("draft")}>
+          {sending ? "Đang lưu phiếu giao…" : "Lưu phiếu giao"}
+        </Button>
+        <Button
+          tone="secondary"
+          disabled={sending || !canDeliverAll}
+          onClick={() => props.onSubmit("deliver-all")}
+        >
+          {sending ? "Đang giao…" : "Giao tất cả"}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -34,7 +34,7 @@ test.describe("Depot operations (TC-E2E-030)", () => {
       await page.goto(`/sales/${saleId}`);
       await page.getByRole("link", { name: "Tạo phiếu giao" }).click();
       await page.getByLabel(`Số lượng giao ${productName}`).fill(quantity);
-      await page.getByRole("button", { name: "Soạn phiếu giao" }).click();
+      await page.getByRole("button", { name: "Lưu phiếu giao" }).click();
       await page.waitForURL(/\/deliveries\/[0-9a-f-]+$/);
       deliveryIds.push(new URL(page.url()).pathname.split("/").at(-1)!);
       await page.getByRole("button", { name: "Xuất hàng / Bắt đầu giao" }).click();

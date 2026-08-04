@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "dev": "node --env-file-if-exists=../../.env --watch src/server.ts",
+    "dev": "pnpm exec tsx --watch --env-file-if-exists=../../.env src/server.ts",
     "ops:rebuild-balance": "node src/operations/rebuild-account-balance.ts",
     "ops:pilot": "node src/operations/pilot-onboarding.ts",
     "ops:check-env": "node src/operations/check-env.ts",

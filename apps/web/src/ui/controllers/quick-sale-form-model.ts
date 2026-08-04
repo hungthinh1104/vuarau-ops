@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { hasPermission } from "@/api/session.ts";
+import { useWorkflowCacheEffects } from "@/api/workflow-cache.ts";
 import { useWorkflowMetrics } from "@/api/workflow-metrics.ts";
 import { useOffline } from "@/offline/provider.tsx";
 import { emptyLine, resolveLine } from "@/ui/patterns/sale/sale-line-editor.tsx";
@@ -51,8 +52,12 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   const metrics = useWorkflowMetrics();
 
   const offline = useOffline();
+  const cache = useWorkflowCacheEffects();
 
   const customer = useQuery(trpc.customer.get.queryOptions({ workspaceId, customerId }));
+  const operationalProfile = useQuery(
+    trpc.session.operationalProfile.queryOptions({ workspaceId }),
+  );
 
   const replacementSource = useQuery({
     ...trpc.sale.get.queryOptions({
@@ -116,13 +121,14 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   });
   const { capture, qualityGrades, qualityGradeOptions, visibleProducts, cachedCatalogFetchedAt } =
     catalog;
+  const qualityGradeRequired = operationalProfile.data?.qualityGradeMode !== "disabled";
 
   const activeLineResolution = resolveLine(activeLine);
   const priceResolutionReady =
     activeLine.productId !== null &&
     activeLine.productId !== undefined &&
-    activeLine.qualityGradeId !== null &&
-    activeLine.qualityGradeId !== undefined &&
+    (!qualityGradeRequired ||
+      (activeLine.qualityGradeId !== null && activeLine.qualityGradeId !== undefined)) &&
     activeLineResolution.quantity !== null;
   const priceResolution = useQuery({
     ...trpc.pricing.resolve.queryOptions({
@@ -218,15 +224,18 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   const resolved = lines.map(resolveLine);
 
   const allValid = resolved.every((line) => line.total !== null);
-  const fulfilmentReady = lines.every(
-    (line) =>
-      line.productId !== null &&
-      line.productId !== undefined &&
-      line.qualityGradeId !== null &&
-      line.qualityGradeId !== undefined &&
-      line.qualityGradeName !== null &&
-      line.qualityGradeName !== undefined,
-  );
+  const fulfilmentReady =
+    operationalProfile.isSuccess &&
+    lines.every(
+      (line) =>
+        line.productId !== null &&
+        line.productId !== undefined &&
+        (!qualityGradeRequired ||
+          (line.qualityGradeId !== null &&
+            line.qualityGradeId !== undefined &&
+            line.qualityGradeName !== null &&
+            line.qualityGradeName !== undefined)),
+    );
   const noProductMatch = activeLine.productName.trim().length > 0 && activeLine.productId == null;
   const mayCreateProduct = hasPermission(session, "product.create");
 
@@ -343,6 +352,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     if (saved !== null) {
       setDraft(saved);
       setDirty(false);
+      await cache.saleChanged(workspaceId, saved);
     }
     return saved;
   }
@@ -351,9 +361,18 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     if (postCommand.phase.kind === "succeeded" && postCommand.result !== null) {
       metrics.mark("post_confirmed_at");
       metrics.set("sale_line_count", lines.length);
+      void cache.saleChanged(workspaceId, postCommand.result);
       router.replace(`/sales/${postCommand.result.id}`);
     }
-  }, [postCommand.phase.kind, postCommand.result, router, metrics, lines.length]);
+  }, [
+    cache.saleChanged,
+    postCommand.phase.kind,
+    postCommand.result,
+    router,
+    metrics,
+    lines.length,
+    workspaceId,
+  ]);
 
   useEffect(() => {
     const post = offline.commands.find(
@@ -486,9 +505,11 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     priceResolution,
     applyResolvedPrice,
     productSearchLoading: catalog.productSearchLoading,
+    operationalProfile,
     noProductMatch,
     qualityGrades,
     qualityGradeOptions,
+    qualityGradeRequired,
     replacementPending,
     replacementSource,
     replacesSaleId,

@@ -73,7 +73,7 @@ test.describe("Product catalog", () => {
     await page.getByLabel("Tên mặt hàng").fill(renamed);
     await chooseOption(page, "Đơn vị gợi ý", "cái");
     await page.getByRole("button", { name: "Cập nhật mặt hàng" }).click();
-    await expect(page.getByRole("status").getByText("Đã ghi nhận", { exact: true })).toBeVisible();
+    await expect(page.getByText("Đã ghi nhận", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Ngưng mặt hàng" }).click();
     await expect(page.getByRole("button", { name: "Dùng lại mặt hàng" })).toBeVisible();
 
