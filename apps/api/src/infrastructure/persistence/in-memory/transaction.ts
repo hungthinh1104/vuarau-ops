@@ -8,6 +8,7 @@ import type {
   WorkspaceRole,
   DocumentDto,
   WorkspaceOperationalProfileDto,
+  WorkspacePolicyDto,
   CashMovementDto,
   CashAccountId,
   CashBalanceDto,
@@ -109,6 +110,11 @@ export class InMemoryDatabase {
 
   seedSupplier(supplier: SupplierState): void {
     this.store.suppliers.set(key(supplier.workspaceId, supplier.id), supplier);
+  }
+
+  /** Test-only corruption hook for a policy whose generic JSON is not executable. */
+  seedWorkspacePolicy(policy: WorkspacePolicyDto): void {
+    this.store.workspacePolicies.set(key(policy.workspaceId, policy.id), policy);
   }
 
   seedSale(sale: SaleState): void {

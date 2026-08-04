@@ -17,6 +17,7 @@ import {
   saleLineInputs,
   validDraftSale,
 } from "@vuarau/test-fixtures";
+import type { WorkspacePolicyDto } from "@vuarau/domain-contracts";
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { createSaleDraft } from "./create-sale-draft.handler.ts";
 import { postSale } from "./post-sale.handler.ts";
@@ -122,6 +123,40 @@ describe("BR-SALE-006 / TC-SALE-005", () => {
     const retried = await postSale(harness.ctx, postInput({ expectedVersion: 2 }));
     expect(retried.ok).toBe(true);
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(875_000);
+  });
+});
+
+describe("BR-SALE-017 / TC-SALE-031 — payment terms are executable policy contracts", () => {
+  it("fails closed when the effective payment-terms policy is malformed", async () => {
+    harness.db.seedWorkspacePolicy({
+      id: crypto.randomUUID(),
+      workspaceId: WORKSPACE_ID,
+      policyKind: "payment_terms_aging",
+      version: 1,
+      state: "approved",
+      effectiveFrom: "2026-07-01T00:00:00.000Z",
+      effectiveTo: null,
+      definition: {
+        contractVersion: 1,
+        parameters: { defaultTermDays: "seven" },
+      },
+      evidenceReferences: ["field://policy/malformed-payment-terms"],
+      createdBy: ACTOR_ID,
+      createdAt: "2026-07-01T00:00:00.000Z",
+      approvedBy: ACTOR_ID,
+      approvedAt: "2026-07-01T00:00:00.000Z",
+      retiredBy: null,
+      retiredAt: null,
+      commandId: crypto.randomUUID(),
+      reason: "Corrupted legacy policy fixture.",
+    } as unknown as WorkspacePolicyDto);
+    await createSaleDraft(harness.ctx, createInput());
+
+    const result = await postSale(harness.ctx, postInput());
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("WORKSPACE_POLICY_DEFINITION_INVALID");
+    expect(harness.db.accountEntries()).toHaveLength(0);
   });
 });
 

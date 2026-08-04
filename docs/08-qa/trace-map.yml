@@ -2198,9 +2198,10 @@ business_rules:
     risk: P1
     doc: docs/04-business-rules/sale-rules.md
     cases: [CASE-SALE-012]
-    tests: [TC-SALE-018]
+    tests: [TC-SALE-018, TC-SALE-031]
     implementation:
       - packages/domain-kernel/src/sale/sale-state.ts
+      - apps/api/src/modules/sale/post-sale.handler.ts
 
   BR-SALE-018:
     title: A draft may be edited or discarded; a posted sale may not
@@ -4062,6 +4063,9 @@ contract_tests:
   TC-SALE-030:
     title: Partial physical Return cannot trigger a full goods-returned receivable compensation
     file: apps/api/src/modules/sale/void-sale.app.test.ts
+  TC-SALE-031:
+    title: Malformed effective payment terms fail closed before Sale posting
+    file: apps/api/src/modules/sale/sale.app.test.ts
   TC-OPS-015:
     title: One synthetic depot day keeps four canonical truths independently reconciled
     file: apps/api/src/operations/full-depot-day.app.test.ts

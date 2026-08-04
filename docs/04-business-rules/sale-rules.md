@@ -249,8 +249,9 @@ computable from `transactionTime` and needs no due date; **overdue** is a judgem
 about a promise, and where there is no promise there is nothing to break.
 
 Policy-backed terms are versioned and retained on the posted Sale so later policy
-changes cannot rewrite historical aging. An aging read still fails closed when its
-effective terms or allocation policy is missing or invalid.
+changes cannot rewrite historical aging. Posting also fails closed when the
+effective policy exists but its generic JSON does not satisfy the typed
+payment-terms contract; it never silently falls back to no term.
 
 ---
 

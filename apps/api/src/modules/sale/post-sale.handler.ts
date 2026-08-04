@@ -182,15 +182,20 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
         );
         if (policy !== null) {
           const definition = paymentTermsAgingPolicyDefinitionSchema.safeParse(policy.definition);
-          if (definition.success) {
-            const term = resolvePaymentTerm(definition.data, sale.customerId, policy.id);
-            if (term !== null) {
-              paymentTermSnapshot = {
-                dueAt: addPaymentTermDays(sale.transactionTime, term.termDays),
-                source: term.source,
-                policyVersionId: term.policyVersionId,
-              };
-            }
+          if (!definition.success) {
+            return err(
+              "WORKSPACE_POLICY_DEFINITION_INVALID",
+              "The effective payment-terms policy is not a supported contract.",
+              { policyVersionId: policy.id, policyKind: policy.policyKind },
+            );
+          }
+          const term = resolvePaymentTerm(definition.data, sale.customerId, policy.id);
+          if (term !== null) {
+            paymentTermSnapshot = {
+              dueAt: addPaymentTermDays(sale.transactionTime, term.termDays),
+              source: term.source,
+              policyVersionId: term.policyVersionId,
+            };
           }
         }
       }
