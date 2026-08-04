@@ -20,6 +20,10 @@ operating hour, shift, channel, valuation method or commercial outcome.
 - `policy.get`, `policy.list` and `policy.availability` are workspace-scoped
   reads. Availability is `unavailable` when no approved effective version exists;
   callers must not substitute a zero, default or recommendation.
+- Historical policy resolution uses the business `asOf` separately from the
+  server knowledge cutoff: approval must be known by that cutoff, while a later
+  retirement only closes business times at or after `retiredAt`. This preserves
+  historical availability without making a retired policy current.
 - The current registry is infrastructure. No existing Sale, Purchase, Payment,
   Receiving, Inventory, Cashbook or Report command consumes an arbitrary policy
   definition as an activated business rule.

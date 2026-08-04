@@ -33,16 +33,23 @@ const envelope = (key: string, actorId = ACTOR_ID, workspaceId = WORKSPACE_ID) =
   occurredAt: TRANSACTION_TIME,
 });
 
-const draftInput = (key: string) => {
+const draftInput = (
+  key: string,
+  overrides: Partial<{
+    version: number;
+    effectiveFrom: string;
+    effectiveTo: string | null;
+  }> = {},
+) => {
   const policyVersionId = crypto.randomUUID();
   return {
     ...envelope(key),
     payload: {
       policyVersionId,
       policyKind: "payment_terms_aging" as const,
-      version: 1,
-      effectiveFrom: "2026-08-01T00:00:00.000Z",
-      effectiveTo: null,
+      version: overrides.version ?? 1,
+      effectiveFrom: overrides.effectiveFrom ?? "2026-08-01T00:00:00.000Z",
+      effectiveTo: overrides.effectiveTo ?? null,
       definition: {
         contractVersion: 1,
         parameters: {
@@ -168,5 +175,42 @@ describe("workspace policy registry", () => {
     });
     expect(foreignApprove.ok).toBe(false);
     if (!foreignApprove.ok) expect(foreignApprove.error.code).toBe("WORKSPACE_POLICY_NOT_FOUND");
+  });
+
+  it("TC-POLICY-013 rejects overlapping approvals in the application transaction", async () => {
+    const firstDraft = await createWorkspacePolicyDraft(
+      harness.ctx,
+      draftInput("policy-overlap-1"),
+    );
+    expect(firstDraft.ok).toBe(true);
+    if (!firstDraft.ok) return;
+    const firstApproval = await approveWorkspacePolicy(harness.ctx, {
+      ...envelope("policy-overlap-approve-1"),
+      payload: {
+        policyVersionId: firstDraft.value.id,
+        evidenceReferences: ["field://policy/overlap-1"],
+        reason: "Policy đầu tiên.",
+      },
+    });
+    expect(firstApproval.ok).toBe(true);
+
+    const secondDraft = await createWorkspacePolicyDraft(
+      harness.ctx,
+      draftInput("policy-overlap-2", { version: 2, effectiveFrom: "2026-08-02T00:00:00.000Z" }),
+    );
+    expect(secondDraft.ok).toBe(true);
+    if (!secondDraft.ok) return;
+    const secondApproval = await approveWorkspacePolicy(harness.ctx, {
+      ...envelope("policy-overlap-approve-2"),
+      payload: {
+        policyVersionId: secondDraft.value.id,
+        evidenceReferences: ["field://policy/overlap-2"],
+        reason: "Không được chồng cửa sổ hiệu lực.",
+      },
+    });
+    expect(secondApproval.ok).toBe(false);
+    if (!secondApproval.ok) {
+      expect(secondApproval.error.code).toBe("WORKSPACE_POLICY_EFFECTIVE_OVERLAP");
+    }
   });
 });

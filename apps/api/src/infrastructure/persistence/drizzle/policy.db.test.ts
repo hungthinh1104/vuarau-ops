@@ -10,6 +10,7 @@ import { randomIdGenerator } from "../../clock.ts";
 import {
   approveWorkspacePolicy,
   createWorkspacePolicyDraft,
+  retireWorkspacePolicy,
 } from "../../../modules/policy/policy.handlers.ts";
 import {
   getWorkspacePolicy,
@@ -98,6 +99,120 @@ describe.skipIf(skipWithoutDatabase())("workspace policies against PostgreSQL", 
         availability: "available",
         version: 1,
       });
+    }
+  });
+
+  it("TC-POLICY-014 preserves historical availability after PostgreSQL retirement", async () => {
+    const draft = await createWorkspacePolicyDraft(context(), {
+      ...envelope("historical-draft"),
+      payload: {
+        policyVersionId: crypto.randomUUID(),
+        policyKind: "inventory_valuation",
+        version: 1,
+        effectiveFrom: "2026-08-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition: {
+          contractVersion: 1,
+          parameters: { strategy: "moving_weighted_average" },
+        },
+        evidenceReferences: [],
+        reason: "Policy lịch sử.",
+      },
+    });
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+    const approved = await approveWorkspacePolicy(context(), {
+      ...envelope("historical-approve"),
+      payload: {
+        policyVersionId: draft.value.id,
+        evidenceReferences: ["field://valuation/historical"],
+        reason: "Đã duyệt policy lịch sử.",
+      },
+    });
+    expect(approved.ok).toBe(true);
+    if (!approved.ok) return;
+
+    const retired = await retireWorkspacePolicy(context(), {
+      ...envelope("historical-retire"),
+      payload: { policyVersionId: approved.value.id, reason: "Thay policy mới." },
+    });
+    expect(retired.ok).toBe(true);
+    if (!retired.ok) return;
+
+    const historical = await getWorkspacePolicyAvailability(context(), {
+      workspaceId: ctx.workspaceId,
+      asOf: "2026-08-02T00:00:00.000Z",
+    });
+    expect(historical.ok).toBe(true);
+    if (historical.ok) {
+      expect(
+        historical.value.find((entry) => entry.policyKind === "inventory_valuation"),
+      ).toMatchObject({
+        availability: "available",
+        version: 1,
+      });
+    }
+
+    const current = await getWorkspacePolicyAvailability(context(), {
+      workspaceId: ctx.workspaceId,
+      asOf: "2026-08-04T00:00:00.000Z",
+    });
+    expect(current.ok).toBe(true);
+    if (current.ok) {
+      expect(
+        current.value.find((entry) => entry.policyKind === "inventory_valuation"),
+      ).toMatchObject({
+        availability: "unavailable",
+        reason: "effective_window_closed",
+      });
+    }
+  });
+
+  it("TC-POLICY-015 rejects overlapping PostgreSQL approvals", async () => {
+    const create = (label: string, version: number, effectiveFrom: string) =>
+      createWorkspacePolicyDraft(context(), {
+        ...envelope(label),
+        payload: {
+          policyVersionId: crypto.randomUUID(),
+          policyKind: "inventory_valuation" as const,
+          version,
+          effectiveFrom,
+          effectiveTo: null,
+          definition: {
+            contractVersion: 1 as const,
+            parameters: { strategy: "moving_weighted_average" as const },
+          },
+          evidenceReferences: [],
+          reason: "Kiểm tra cửa sổ policy.",
+        },
+      });
+    const first = await create("overlap-draft-1", 1, "2026-08-01T00:00:00.000Z");
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const firstApproval = await approveWorkspacePolicy(context(), {
+      ...envelope("overlap-approve-1"),
+      payload: {
+        policyVersionId: first.value.id,
+        evidenceReferences: ["field://valuation/overlap-1"],
+        reason: "Policy đầu tiên.",
+      },
+    });
+    expect(firstApproval.ok).toBe(true);
+
+    const second = await create("overlap-draft-2", 2, "2026-08-02T00:00:00.000Z");
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    const secondApproval = await approveWorkspacePolicy(context(), {
+      ...envelope("overlap-approve-2"),
+      payload: {
+        policyVersionId: second.value.id,
+        evidenceReferences: ["field://valuation/overlap-2"],
+        reason: "Không cho phép chồng cửa sổ.",
+      },
+    });
+    expect(secondApproval.ok).toBe(false);
+    if (!secondApproval.ok) {
+      expect(secondApproval.error.code).toBe("WORKSPACE_POLICY_EFFECTIVE_OVERLAP");
     }
   });
 });

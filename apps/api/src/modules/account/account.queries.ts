@@ -144,11 +144,13 @@ export function getCustomerDebtAging(
         policies,
         "payment_terms_aging",
         input.asOf,
+        calculatedAt,
       );
       const allocationPolicy = resolveEffectiveWorkspacePolicy(
         policies,
         "payment_allocation",
         input.asOf,
+        calculatedAt,
       );
       const sources = await repos.accountReads.debtAgingSources(input);
       const unavailable = (diagnostics: readonly string[]): DebtAgingResult =>

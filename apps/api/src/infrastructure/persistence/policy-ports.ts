@@ -20,6 +20,10 @@ export type WorkspacePolicyRepository = {
     workspaceId: WorkspaceId,
     policyVersionId: WorkspacePolicyVersionId,
   ): Promise<WorkspacePolicyDto | null>;
+  listForUpdate(
+    workspaceId: WorkspaceId,
+    policyKind: WorkspacePolicyKind,
+  ): Promise<readonly WorkspacePolicyDto[]>;
   insert(policy: WorkspacePolicyDto): Promise<boolean>;
   update(policy: WorkspacePolicyDto, expectedState: WorkspacePolicyState): Promise<boolean>;
 };

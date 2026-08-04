@@ -205,6 +205,7 @@ export async function getStockPlanning(ctx: CommandContext, input: StockPlanning
         await repos.workspacePolicyReads.listAll(input.workspaceId),
         "stock_planning_reorder",
         input.asOf,
+        calculatedAt,
       );
       const unavailable = (
         diagnostics: string[],
@@ -292,7 +293,12 @@ export const getInventoryValuation = (ctx: CommandContext, input: InventoryValua
     execute: async ({ repos }) => {
       const calculatedAt = new Date().toISOString() as IsoInstant;
       const policies = await repos.workspacePolicyReads.listAll(input.workspaceId);
-      const policy = resolveEffectiveWorkspacePolicy(policies, "inventory_valuation", input.asOf);
+      const policy = resolveEffectiveWorkspacePolicy(
+        policies,
+        "inventory_valuation",
+        input.asOf,
+        calculatedAt,
+      );
       const sources = await repos.inventoryReads.valuationSources({
         workspaceId: input.workspaceId,
         productId: input.productId,

@@ -40,10 +40,12 @@ export function getManagementIntelligence(ctx: CommandContext, input: Management
     workspaceId: input.workspaceId,
     permission: "report.read",
     execute: async ({ repos }) => {
+      const calculatedAt = ctx.deps.clock.now();
       const policy = resolveEffectiveWorkspacePolicy(
         await repos.workspacePolicyReads.listAll(input.workspaceId),
         "management_intelligence",
         input.asOf,
+        calculatedAt,
       );
       if (policy === null) {
         return unavailable(input, null, null, ["no_effective_management_intelligence_policy"]);

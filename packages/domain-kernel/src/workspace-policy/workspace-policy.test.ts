@@ -14,6 +14,7 @@ import {
   decideApproveWorkspacePolicy,
   decideCreateWorkspacePolicyDraft,
   decideRetireWorkspacePolicy,
+  resolveEffectiveWorkspacePolicy,
   resolveWorkspacePolicyAvailability,
 } from "./index.ts";
 
@@ -73,7 +74,7 @@ function approvedPolicy(
     createdBy: actorIdSchema.parse(ACTOR),
     createdAt: RECORDED_AT,
     approvedBy: actorIdSchema.parse(ACTOR),
-    approvedAt: RECORDED_AT,
+    approvedAt: "2026-07-31T10:00:00.000Z",
     retiredBy: null,
     retiredAt: null,
     commandId: commandIdSchema.parse(id(String(300 + version))),
@@ -198,5 +199,68 @@ describe("workspace policy registry", () => {
       availability: "available",
       version: 1,
     });
+  });
+
+  it("TC-POLICY-011 preserves historical availability after retirement and approval timing", () => {
+    const approved = approvedPolicy(1, "2026-08-01T00:00:00.000Z", null);
+    const retired = {
+      ...approved,
+      state: "retired" as const,
+      retiredBy: actorIdSchema.parse(ACTOR),
+      retiredAt: "2026-08-05T00:00:00.000Z",
+    };
+
+    expect(
+      resolveEffectiveWorkspacePolicy([retired], "payment_terms_aging", "2026-08-04T00:00:00.000Z"),
+    ).toEqual(retired);
+    expect(
+      resolveEffectiveWorkspacePolicy([retired], "payment_terms_aging", "2026-08-05T00:00:00.000Z"),
+    ).toBeNull();
+
+    const beforeApproval = { ...approved, approvedAt: "2026-08-04T00:00:00.000Z" };
+    expect(
+      resolveEffectiveWorkspacePolicy(
+        [beforeApproval],
+        "payment_terms_aging",
+        "2026-08-03T00:00:00.000Z",
+      ),
+    ).toBeNull();
+  });
+
+  it("TC-POLICY-012 rejects overlapping approved effective windows", () => {
+    const draft = decideCreateWorkspacePolicyDraft(
+      createWorkspacePolicyDraftCommandSchema.parse({
+        ...createCommand(),
+        payload: {
+          ...createCommand().payload,
+          policyVersionId: id("111"),
+          version: 2,
+          effectiveFrom: "2026-08-05T00:00:00.000Z",
+        },
+      }),
+      RECORDED_AT,
+    );
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+
+    const approval = decideApproveWorkspacePolicy(
+      approveWorkspacePolicyCommandSchema.parse({
+        commandId: id("112"),
+        idempotencyKey: "policy-approve-overlap-001",
+        workspaceId: WORKSPACE,
+        actorId: ACTOR,
+        occurredAt: RECORDED_AT,
+        payload: {
+          policyVersionId: draft.value.policy.id,
+          evidenceReferences: ["field://review/payment-terms-overlap-001"],
+          reason: "Không cho phép hai version active cùng thời điểm.",
+        },
+      }),
+      draft.value.policy,
+      RECORDED_AT,
+      [approvedPolicy(1, "2026-08-01T00:00:00.000Z", null)],
+    );
+    expect(approval.ok).toBe(false);
+    if (!approval.ok) expect(approval.error.code).toBe("WORKSPACE_POLICY_EFFECTIVE_OVERLAP");
   });
 });

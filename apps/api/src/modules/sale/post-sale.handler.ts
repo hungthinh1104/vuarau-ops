@@ -178,6 +178,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
           await repos.workspacePolicyReads.listAll(command.workspaceId),
           "payment_terms_aging",
           sale.transactionTime,
+          recordedAt,
         );
         if (policy !== null) {
           const definition = paymentTermsAgingPolicyDefinitionSchema.safeParse(policy.definition);
@@ -210,6 +211,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
         await repos.workspacePolicyReads.listAll(command.workspaceId),
         "credit_limit",
         sale.transactionTime,
+        recordedAt,
       );
       if (creditPolicy !== null) {
         const definition = creditLimitPolicyDefinitionSchema.safeParse(creditPolicy.definition);

@@ -36,11 +36,13 @@ async function effectiveClosePolicy(
   repos: Repositories,
   workspaceId: RecordOperationalCloseCommand["workspaceId"],
   asOf: RecordOperationalCloseCommand["occurredAt"],
+  knowledgeAt: RecordOperationalCloseCommand["occurredAt"],
 ) {
   const policy = resolveEffectiveWorkspacePolicy(
     await repos.workspacePolicyReads.listAll(workspaceId),
     "operating_cycle_reconciliation",
     asOf,
+    knowledgeAt,
   );
   if (policy === null) {
     return err(
@@ -62,11 +64,13 @@ async function effectiveDepositPolicy(
   repos: Repositories,
   workspaceId: RecordCashStatementMatchCommand["workspaceId"],
   asOf: RecordCashStatementMatchCommand["payload"]["statementAt"],
+  knowledgeAt: RecordCashStatementMatchCommand["occurredAt"],
 ) {
   const policy = resolveEffectiveWorkspacePolicy(
     await repos.workspacePolicyReads.listAll(workspaceId),
     "cash_custody_deposit",
     asOf,
+    knowledgeAt,
   );
   if (policy === null) {
     return err(
@@ -129,7 +133,7 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
         command.payload.businessDate,
         operationalProfile.businessDayStartMinute,
       );
-      const policy = await effectiveClosePolicy(repos, command.workspaceId, period.end);
+      const policy = await effectiveClosePolicy(repos, command.workspaceId, period.end, recordedAt);
       if (!policy.ok) return policy;
       const existing = await repos.operationalCloses.findByBusinessDate(
         command.workspaceId,
@@ -230,6 +234,7 @@ export function recordCashStatementMatch(ctx: CommandContext, input: unknown) {
         repos,
         command.workspaceId,
         command.payload.statementAt,
+        recordedAt,
       );
       if (!policy.ok) return policy;
       const movement =

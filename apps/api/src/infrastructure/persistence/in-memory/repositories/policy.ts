@@ -9,6 +9,10 @@ export const createWorkspacePolicyRepositories = (
   workspacePolicies: {
     findById: async (workspaceId, policyVersionId) =>
       store.workspacePolicies.get(key(workspaceId, policyVersionId)) ?? null,
+    listForUpdate: async (workspaceId, policyKind) =>
+      [...store.workspacePolicies.values()].filter(
+        (policy) => policy.workspaceId === workspaceId && policy.policyKind === policyKind,
+      ),
     insert: async (policy) => {
       const policyKey = key(policy.workspaceId, policy.id);
       if (store.workspacePolicies.has(policyKey)) return false;

@@ -58,7 +58,11 @@ export function approveWorkspacePolicy(ctx: CommandContext, input: unknown) {
         command.workspaceId,
         command.payload.policyVersionId,
       );
-      const decision = decideApproveWorkspacePolicy(command, current, recordedAt);
+      const existingPolicies =
+        current === null
+          ? []
+          : await repos.workspacePolicies.listForUpdate(command.workspaceId, current.policyKind);
+      const decision = decideApproveWorkspacePolicy(command, current, recordedAt, existingPolicies);
       if (!decision.ok) return decision;
       if (!(await repos.workspacePolicies.update(decision.value.policy, "draft"))) {
         return err("WORKSPACE_POLICY_VERSION_CONFLICT", "Policy version changed concurrently.");

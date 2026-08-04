@@ -40,6 +40,7 @@ export async function getSupplierPerformance(ctx: CommandContext, input: Supplie
     workspaceId: input.workspaceId,
     permission: "supplier.read",
     execute: async ({ repos }) => {
+      const calculatedAt = ctx.deps.clock.now();
       const supplier = await repos.suppliers.findById(input.workspaceId, input.supplierId);
       if (supplier === null) return null;
 
@@ -47,6 +48,7 @@ export async function getSupplierPerformance(ctx: CommandContext, input: Supplie
         await repos.workspacePolicyReads.listAll(input.workspaceId),
         "supplier_evaluation",
         input.asOf,
+        calculatedAt,
       );
       if (policy === null) {
         return unavailable(input, null, null, ["no_effective_supplier_evaluation_policy"]);

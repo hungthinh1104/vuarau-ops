@@ -38,6 +38,7 @@ async function effectiveStocktakePolicy(
   repos: Repositories,
   workspaceId: StartStocktakeCommand["workspaceId"],
   asOf: StartStocktakeCommand["payload"]["asOf"],
+  knowledgeAt: StartStocktakeCommand["occurredAt"],
 ): Promise<
   DomainResult<{
     policy: WorkspacePolicyDto;
@@ -45,7 +46,7 @@ async function effectiveStocktakePolicy(
   }>
 > {
   const policies = await repos.workspacePolicyReads.listAll(workspaceId);
-  const policy = resolveEffectiveWorkspacePolicy(policies, "stocktake_variance", asOf);
+  const policy = resolveEffectiveWorkspacePolicy(policies, "stocktake_variance", asOf, knowledgeAt);
   if (policy === null) {
     return err(
       "STOCKTAKE_POLICY_UNAVAILABLE",
@@ -104,6 +105,7 @@ export function startStocktake(ctx: CommandContext, input: unknown) {
         repos,
         command.workspaceId,
         command.payload.asOf,
+        recordedAt,
       );
       if (!policy.ok) return policy;
       const decision = decideStartStocktake(command, policy.value.policy.id, recordedAt);

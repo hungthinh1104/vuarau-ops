@@ -1,4 +1,8 @@
-import type { WorkspacePolicyDto, WorkspacePolicyState } from "@vuarau/domain-contracts";
+import type {
+  WorkspacePolicyDto,
+  WorkspacePolicyKind,
+  WorkspacePolicyState,
+} from "@vuarau/domain-contracts";
 import { and, eq } from "drizzle-orm";
 import { workspacePolicies } from "../../schema/index.ts";
 import { toWorkspacePolicyDto } from "../shared/policy-mappers.ts";
@@ -18,6 +22,19 @@ export const createWorkspacePolicyWriteRepositories = (tx: Tx) => ({
         )
         .limit(1);
       return rows[0] === undefined ? null : toWorkspacePolicyDto(rows[0]);
+    },
+    async listForUpdate(workspaceId: string, policyKind: WorkspacePolicyKind) {
+      const rows = await tx
+        .select()
+        .from(workspacePolicies)
+        .where(
+          and(
+            eq(workspacePolicies.workspaceId, workspaceId),
+            eq(workspacePolicies.policyKind, policyKind),
+          ),
+        )
+        .for("update");
+      return rows.map(toWorkspacePolicyDto);
     },
     async insert(policy: WorkspacePolicyDto) {
       const rows = await tx

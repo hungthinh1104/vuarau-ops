@@ -206,29 +206,73 @@ export function decideCreateWorkspacePolicyDraft(
   });
 }
 
-/** Returns the highest version that is approved and effective at `asOf`. */
+function isApprovedAt(policy: WorkspacePolicyDto, knowledgeAt: IsoInstant): boolean {
+  return policy.approvedAt !== null && Date.parse(policy.approvedAt) <= Date.parse(knowledgeAt);
+}
+
+function isEffectiveAt(
+  policy: WorkspacePolicyDto,
+  asOf: IsoInstant,
+  knowledgeAt: IsoInstant,
+): boolean {
+  const time = Date.parse(asOf);
+  return (
+    isApprovedAt(policy, knowledgeAt) &&
+    time >= Date.parse(policy.effectiveFrom) &&
+    (policy.effectiveTo === null || time < Date.parse(policy.effectiveTo)) &&
+    (policy.retiredAt === null || time < Date.parse(policy.retiredAt))
+  );
+}
+
+function activeInterval(policy: WorkspacePolicyDto): { start: number; end: number } | null {
+  if (policy.approvedAt === null) return null;
+  const start = Math.max(Date.parse(policy.effectiveFrom), Date.parse(policy.approvedAt));
+  const end = Math.min(
+    policy.effectiveTo === null ? Number.POSITIVE_INFINITY : Date.parse(policy.effectiveTo),
+    policy.retiredAt === null ? Number.POSITIVE_INFINITY : Date.parse(policy.retiredAt),
+  );
+  return end <= start ? null : { start, end };
+}
+
+/** Returns whether an approved version would overlap another active version. */
+export function hasOverlappingWorkspacePolicyEffectiveWindow(
+  candidate: WorkspacePolicyDto,
+  existingPolicies: readonly WorkspacePolicyDto[],
+): boolean {
+  const candidateInterval = activeInterval(candidate);
+  if (candidateInterval === null) return false;
+  return existingPolicies.some((existing) => {
+    if (existing.id === candidate.id || existing.policyKind !== candidate.policyKind) return false;
+    const existingInterval = activeInterval(existing);
+    return (
+      existingInterval !== null &&
+      candidateInterval.start < existingInterval.end &&
+      existingInterval.start < candidateInterval.end
+    );
+  });
+}
+
+/** Returns the highest version approved and effective at the business `asOf`. */
 export function resolveEffectiveWorkspacePolicy(
   policies: readonly WorkspacePolicyDto[],
   policyKind: WorkspacePolicyDto["policyKind"],
   asOf: IsoInstant,
+  knowledgeAt: IsoInstant = asOf,
 ): WorkspacePolicyDto | null {
-  return (
-    policies
-      .filter(
-        (policy) =>
-          policy.policyKind === policyKind &&
-          policy.state === "approved" &&
-          Date.parse(asOf) >= Date.parse(policy.effectiveFrom) &&
-          (policy.effectiveTo === null || Date.parse(asOf) < Date.parse(policy.effectiveTo)),
-      )
-      .sort((left, right) => right.version - left.version)[0] ?? null
-  );
+  const effective = policies
+    .filter(
+      (policy) => policy.policyKind === policyKind && isEffectiveAt(policy, asOf, knowledgeAt),
+    )
+    .sort((left, right) => right.version - left.version);
+  if (effective.length > 1) return null;
+  return effective[0] ?? null;
 }
 
 export function decideApproveWorkspacePolicy(
   command: ApproveWorkspacePolicyCommand,
   current: WorkspacePolicyDto | null,
   recordedAt: IsoInstant,
+  existingPolicies: readonly WorkspacePolicyDto[] = [],
 ): DomainResult<{ policy: WorkspacePolicyDto; audit: AuditDraft }> {
   if (current === null) return err("WORKSPACE_POLICY_NOT_FOUND", "Policy version was not found.");
   if (current.state !== "draft") {
@@ -251,6 +295,13 @@ export function decideApproveWorkspacePolicy(
     approvedAt: recordedAt,
     reason: command.payload.reason,
   };
+  if (hasOverlappingWorkspacePolicyEffectiveWindow(policy, existingPolicies)) {
+    return err(
+      "WORKSPACE_POLICY_EFFECTIVE_OVERLAP",
+      "An approved policy version overlaps another active version of the same capability.",
+      { policyKind: policy.policyKind, version: policy.version },
+    );
+  }
   return ok({
     policy,
     audit: audit(
@@ -301,15 +352,20 @@ export function decideRetireWorkspacePolicy(
 export function resolveWorkspacePolicyAvailability(
   policies: readonly WorkspacePolicyDto[],
   asOf: IsoInstant,
+  knowledgeAt: IsoInstant = asOf,
 ): readonly WorkspacePolicyAvailability[] {
   return [...WORKSPACE_POLICY_KINDS].map((policyKind) => {
     const approvedVersions = policies
-      .filter((policy) => policy.policyKind === policyKind && policy.state === "approved")
+      .filter(
+        (policy) =>
+          policy.policyKind === policyKind &&
+          (policy.state === "approved" || policy.state === "retired") &&
+          policy.approvedAt !== null &&
+          Date.parse(policy.approvedAt) <= Date.parse(knowledgeAt),
+      )
       .sort((left, right) => right.version - left.version);
-    const effective = approvedVersions.filter(
-      (policy) =>
-        Date.parse(asOf) >= Date.parse(policy.effectiveFrom) &&
-        (policy.effectiveTo === null || Date.parse(asOf) < Date.parse(policy.effectiveTo)),
+    const effective = approvedVersions.filter((policy) =>
+      isEffectiveAt(policy, asOf, knowledgeAt),
     )[0];
     const latest = approvedVersions[0];
     if (effective === undefined) {

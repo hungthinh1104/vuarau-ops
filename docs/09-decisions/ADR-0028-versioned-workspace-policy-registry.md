@@ -24,8 +24,11 @@ metadata. The lifecycle is:
 draft → approved → retired
 ```
 
-Only an approved version inside its effective window is reported as available.
-Missing, future, expired or retired policy is unavailable. V1–V16 backups restore
+Only a version approved by the read's knowledge cutoff and inside its business
+effective window is reported as available. Retirement closes the version from
+its retirement time forward but does not erase earlier historical availability.
+Overlapping active windows are rejected during approval. Missing, future, expired
+or retired policy is unavailable. V1–V16 backups restore
 with no policy rows; Backup V17 carries the registry, commercial supply commitments,
 supplier observations and customer demand observations.
 

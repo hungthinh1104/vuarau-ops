@@ -51,6 +51,7 @@ export function getWorkspacePolicyAvailability(
       resolveWorkspacePolicyAvailability(
         await repos.workspacePolicyReads.listAll(input.workspaceId),
         input.asOf,
+        ctx.deps.clock.now(),
       ),
   });
 }

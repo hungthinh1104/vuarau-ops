@@ -1542,6 +1542,11 @@ use_cases:
         TC-POLICY-008,
         TC-POLICY-009,
         TC-POLICY-010,
+        TC-POLICY-011,
+        TC-POLICY-012,
+        TC-POLICY-013,
+        TC-POLICY-014,
+        TC-POLICY-015,
         TC-EXTENSION-001,
         TC-EXTENSION-002,
       ]
@@ -3512,7 +3517,19 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/workspace-policy-rules.md
     cases: []
-    tests: [TC-POLICY-003, TC-POLICY-004, TC-POLICY-008, TC-POLICY-009, TC-POLICY-010]
+    tests:
+      [
+        TC-POLICY-003,
+        TC-POLICY-004,
+        TC-POLICY-008,
+        TC-POLICY-009,
+        TC-POLICY-010,
+        TC-POLICY-011,
+        TC-POLICY-012,
+        TC-POLICY-013,
+        TC-POLICY-014,
+        TC-POLICY-015,
+      ]
     implementation:
       - packages/domain-kernel/src/workspace-policy/index.ts
       - apps/api/src/modules/policy/policy.queries.ts
@@ -4469,6 +4486,21 @@ contract_tests:
   TC-POLICY-010:
     title: Policy availability selects the highest currently effective approved version
     file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-011:
+    title: Historical policy resolution preserves pre-retirement facts and approval timing
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-012:
+    title: Domain policy approval rejects overlapping effective windows
+    file: packages/domain-kernel/src/workspace-policy/workspace-policy.test.ts
+  TC-POLICY-013:
+    title: Application policy approval rejects overlapping effective windows transactionally
+    file: apps/api/src/modules/policy/policy.app.test.ts
+  TC-POLICY-014:
+    title: PostgreSQL policy retirement preserves historical availability
+    file: apps/api/src/infrastructure/persistence/drizzle/policy.db.test.ts
+  TC-POLICY-015:
+    title: PostgreSQL policy approval rejects overlapping effective windows
+    file: apps/api/src/infrastructure/persistence/drizzle/policy.db.test.ts
   TC-EXTENSION-001:
     title: Reserved extension capabilities use proposal-only or canonical-command execution
     file: packages/domain-kernel/src/extension/extension-boundary.test.ts

@@ -24,12 +24,14 @@ import { runCommand } from "../shared/command-pipeline.ts";
 async function requireManualAllocationPolicy(
   workspaceId: RecordPaymentAllocationCommand["workspaceId"],
   asOf: RecordPaymentAllocationCommand["occurredAt"],
+  knowledgeAt: RecordPaymentAllocationCommand["occurredAt"],
   repos: Repositories,
 ): Promise<DomainResult<null>> {
   const policy = resolveEffectiveWorkspacePolicy(
     await repos.workspacePolicyReads.listAll(workspaceId),
     "payment_allocation",
     asOf,
+    knowledgeAt,
   );
   if (policy === null) {
     return err(
@@ -65,6 +67,7 @@ export function recordPaymentAllocation(
       const policy = await requireManualAllocationPolicy(
         command.workspaceId,
         command.occurredAt,
+        recordedAt,
         repos,
       );
       if (!policy.ok) return policy;

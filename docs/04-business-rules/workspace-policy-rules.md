@@ -13,9 +13,13 @@ is indistinguishable from not found to the caller.
 ### BR-POLICY-002 — Versions and effective ranges are explicit
 
 One workspace may not create the same `policyKind` and `version` twice. An
-effective end must be after its start. A policy can be approved before its start
-and is unavailable until the effective window opens; it is unavailable after the
-window closes.
+effective end must be after its start. Approval and retirement timestamps are
+part of the historical policy fact: a policy is eligible only when it was
+approved by the read's knowledge cutoff, is inside its business effective
+window, and was not retired before that business time. Retirement therefore
+closes future availability without erasing a historical read. Approval rejects
+an overlap with another active version of the same capability; the resolver
+fails closed if corrupt data still contains more than one effective version.
 
 ### BR-POLICY-003 — Drafts have no business effect
 
