@@ -377,6 +377,7 @@ export const supplierObservationFactsSchema = z.object({
   supplierId: supplierIdSchema.nullable().default(null),
   productId: productIdSchema.nullable().default(null),
   qualityGradeId: qualityGradeIdSchema.nullable().default(null),
+  supplierObservationGroupId: z.uuid().nullable().default(null),
   role: z.string().trim().max(200).nullable().default(null),
   sourceArea: z.string().trim().max(500).nullable().default(null),
   pickupResponsibility: z.string().trim().max(500).nullable().default(null),

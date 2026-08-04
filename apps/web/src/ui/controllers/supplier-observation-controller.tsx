@@ -129,6 +129,7 @@ export function SupplierObservationController() {
         supplierId: supplierId === "" ? null : supplierId,
         productId: productId === "" ? null : productId,
         qualityGradeId: qualityGradeId === "" ? null : qualityGradeId,
+        supplierObservationGroupId: null,
         role: role.trim() || null,
         sourceArea: sourceArea.trim() || null,
         pickupResponsibility: pickupResponsibility.trim() || null,

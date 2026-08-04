@@ -176,6 +176,7 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
           supplierId: null,
           productId: null,
           qualityGradeId: null,
+          supplierObservationGroupId: null,
           role: "hợp tác xã",
           sourceArea: "Đức Trọng",
           pickupResponsibility: "nhà cung cấp",

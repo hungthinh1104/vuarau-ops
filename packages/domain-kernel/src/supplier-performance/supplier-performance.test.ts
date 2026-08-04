@@ -37,6 +37,7 @@ function observation(
       supplierId,
       productId: null,
       qualityGradeId: null,
+      supplierObservationGroupId: "00000000-0000-4000-8000-000000000006",
       role: null,
       sourceArea: null,
       pickupResponsibility: null,
@@ -140,6 +141,34 @@ describe("supplier performance", () => {
       valueScaled: 80_000,
       unit: "kg",
     });
+  });
+
+  it("fails closed when quantity facts have no explicit promise-outcome group", () => {
+    const result = calculate([
+      observation("00000000-0000-0000-0000-000000000015", {
+        supplierObservationGroupId: null,
+        promisedQuantity: { valueScaled: 100_000, unit: "kg" },
+        actualQuantity: { valueScaled: 90_000, unit: "kg" },
+      }),
+    ]);
+
+    expect(result).toMatchObject({
+      status: "unavailable",
+      diagnostics: ["supplier_quantity_lineage_missing"],
+    });
+  });
+
+  it("preserves fulfilment above one hundred percent for a linked group", () => {
+    const result = calculate([
+      observation("00000000-0000-0000-0000-000000000016", {
+        supplierObservationGroupId: "00000000-0000-4000-8000-000000000017",
+        promisedQuantity: { valueScaled: 100_000, unit: "kg" },
+        actualQuantity: { valueScaled: 110_000, unit: "kg" },
+      }),
+    ]);
+
+    expect(result.status).toBe("available");
+    expect(result.quantityMetrics[0]?.fulfilmentRateBasisPoints).toBe(11_000);
   });
 
   it("fails closed when evidence is below the approved minimum", () => {

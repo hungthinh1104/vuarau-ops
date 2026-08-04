@@ -170,6 +170,7 @@ const supplierObservationInput = (overrides: Record<string, unknown> = {}) => ({
       supplierId: null,
       productId: null,
       qualityGradeId: null,
+      supplierObservationGroupId: null,
       role: "hợp tác xã",
       sourceArea: "Đức Trọng",
       pickupResponsibility: "nhà cung cấp",

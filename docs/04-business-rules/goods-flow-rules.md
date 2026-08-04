@@ -25,11 +25,14 @@ claim that a depot has validated the workflow in live operations.
   performance score.
 - **BR-SUPPLIER-007** — Supplier performance is a read-only, workspace-scoped
   summary of non-superseded `SupplierObservation` facts inside the effective
-  `supplier_evaluation` policy window. It preserves the policy version, uses
-  integer quantity/rate arithmetic and returns source observation IDs. Missing
-  or invalid policy/evidence fails closed. It never ranks a Supplier,
-  recommends a Purchase or creates payable, inventory, claim or other command
-  effects.
+  `supplier_evaluation` policy window. Quantity fulfilment is calculated only
+  from facts carrying the same explicit `supplierObservationGroupId`; missing
+  promise/outcome lineage fails closed rather than pairing unrelated evidence.
+  Fulfilment may exceed 100%, so rates use unbounded nonnegative basis points.
+  It preserves the policy version, uses integer arithmetic and returns source
+  observation IDs. Missing or invalid policy/evidence fails closed. It never
+  ranks a Supplier, recommends a Purchase or creates payable, inventory, claim
+  or other command effects.
 
 ## Purchase
 

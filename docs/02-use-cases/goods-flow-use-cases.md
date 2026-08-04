@@ -118,7 +118,10 @@ source-linked delivery, acceptance and timing facts for one Supplier.
   `supplier_evaluation` policy and summarizes non-superseded observations in its
   policy window.
 - **Lineage:** the response preserves policy version, calculation version and
-  source observation IDs; quantities and rates are derived with integer arithmetic.
+  source observation IDs; quantity rates require a shared explicit
+  `supplierObservationGroupId` linking the promise and outcome facts, and use
+  integer arithmetic. A linked delivery above the promise is reported above
+  100%, not clamped.
 - **Boundary:** insufficient or invalid policy/evidence returns `unavailable`.
   The read never ranks a Supplier, recommends a Purchase or creates a payable,
   inventory, claim or other mutation.

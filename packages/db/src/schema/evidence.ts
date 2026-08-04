@@ -360,6 +360,7 @@ export const supplierObservations = pgTable(
     supplierId: uuid("supplier_id"),
     productId: uuid("product_id"),
     qualityGradeId: uuid("quality_grade_id"),
+    supplierObservationGroupId: uuid("supplier_observation_group_id"),
     role: text("role"),
     sourceArea: text("source_area"),
     pickupResponsibility: text("pickup_responsibility"),

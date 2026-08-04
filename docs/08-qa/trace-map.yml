@@ -1727,7 +1727,7 @@ business_rules:
     risk: P1
     doc: docs/04-business-rules/goods-flow-rules.md
     cases: []
-    tests: [TC-SUPPLIER-PERFORMANCE-001]
+    tests: [TC-SUPPLIER-PERFORMANCE-001, TC-SUPPLIER-PERFORMANCE-002]
     implementation:
       - packages/domain-kernel/src/supplier-performance/index.ts
       - apps/api/src/modules/supplier/supplier-performance.queries.ts
@@ -4133,6 +4133,9 @@ contract_tests:
   TC-SUPPLIER-PERFORMANCE-001:
     title: PostgreSQL preserves policy-backed Supplier performance lineage and exact rates
     file: apps/api/src/infrastructure/persistence/drizzle/supplier-performance.db.test.ts
+  TC-SUPPLIER-PERFORMANCE-002:
+    title: Supplier fulfilment requires explicit promise-outcome lineage and allows over-fulfilment
+    file: packages/domain-kernel/src/supplier-performance/supplier-performance.test.ts
   TC-PRODUCT-001:
     title: Product application tests prove lifecycle search duplicate identity and workspace authority
     file: apps/api/src/modules/product/product.app.test.ts

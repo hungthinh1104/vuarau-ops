@@ -19,6 +19,7 @@ export function toSupplierObservationDto(
       supplierId: row.supplierId as SupplierObservationDto["facts"]["supplierId"],
       productId: row.productId as SupplierObservationDto["facts"]["productId"],
       qualityGradeId: row.qualityGradeId as SupplierObservationDto["facts"]["qualityGradeId"],
+      supplierObservationGroupId: row.supplierObservationGroupId,
       role: row.role,
       sourceArea: row.sourceArea,
       pickupResponsibility: row.pickupResponsibility,

@@ -21,6 +21,12 @@ type QuantityTotals = {
   rejectedPresent: boolean;
 };
 type QuantityTotalField = "promised" | "actual" | "accepted" | "rejected";
+type LinkedQuantityTotals = {
+  promised: bigint;
+  actual: bigint;
+  promisedPresent: boolean;
+  actualPresent: boolean;
+};
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -76,6 +82,28 @@ function addQuantity(
 function safeQuantity(value: bigint, unit: Unit, present: boolean): Quantity | null {
   if (value > BigInt(Number.MAX_SAFE_INTEGER)) return null;
   return quantityOrNull(value, unit, present);
+}
+
+function addLinkedQuantity(
+  groups: Map<string, LinkedQuantityTotals>,
+  groupId: string,
+  quantity: Quantity | null,
+  field: "promised" | "actual",
+): void {
+  if (quantity === null) return;
+  const key = `${groupId}:${quantity.unit}`;
+  const current =
+    groups.get(key) ??
+    ({
+      promised: 0n,
+      actual: 0n,
+      promisedPresent: false,
+      actualPresent: false,
+    } satisfies LinkedQuantityTotals);
+  current[field] += BigInt(quantity.valueScaled);
+  if (field === "promised") current.promisedPresent = true;
+  if (field === "actual") current.actualPresent = true;
+  groups.set(key, current);
 }
 
 function unavailable(
@@ -162,6 +190,7 @@ export function calculateSupplierPerformance(
   }
 
   const totals = new Map<Unit, QuantityTotals>();
+  const linkedQuantities = new Map<string, LinkedQuantityTotals>();
   let timingMeasured = 0;
   let onTime = 0;
   let late = 0;
@@ -180,6 +209,35 @@ export function calculateSupplierPerformance(
         ["invalid_supplier_quantity_fact"],
         measurements,
         measurements.length,
+      );
+    }
+    const hasQuantityFact =
+      facts.promisedQuantity !== null ||
+      facts.actualQuantity !== null ||
+      facts.acceptedQuantity !== null ||
+      facts.rejectedQuantity !== null;
+    if (hasQuantityFact && facts.supplierObservationGroupId === null) {
+      return unavailable(
+        input,
+        windowStart,
+        input.policyVersionId,
+        ["supplier_quantity_lineage_missing"],
+        measurements,
+        measurements.length,
+      );
+    }
+    if (facts.supplierObservationGroupId !== null) {
+      addLinkedQuantity(
+        linkedQuantities,
+        facts.supplierObservationGroupId,
+        facts.promisedQuantity,
+        "promised",
+      );
+      addLinkedQuantity(
+        linkedQuantities,
+        facts.supplierObservationGroupId,
+        facts.actualQuantity,
+        "actual",
       );
     }
     if (facts.expectedAt !== null && facts.actualAt !== null) {
@@ -210,7 +268,21 @@ export function calculateSupplierPerformance(
         actualQuantity,
         acceptedQuantity,
         rejectedQuantity,
-        fulfilmentRateBasisPoints: ratioBasisPoints(values.actual, values.promised),
+        fulfilmentRateBasisPoints: (() => {
+          const linked = [...linkedQuantities.entries()]
+            .filter(
+              ([key, group]) =>
+                key.endsWith(`:${unit}`) && group.promisedPresent && group.actualPresent,
+            )
+            .reduce(
+              (sum, [, group]) => ({
+                promised: sum.promised + group.promised,
+                actual: sum.actual + group.actual,
+              }),
+              { promised: 0n, actual: 0n },
+            );
+          return ratioBasisPoints(linked.actual, linked.promised);
+        })(),
         acceptanceRateBasisPoints: ratioBasisPoints(
           values.accepted,
           values.accepted + values.rejected,

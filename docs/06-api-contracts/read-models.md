@@ -102,8 +102,10 @@ margin, recommendation or supplier-performance score.
 `SupplierObservation` facts for one Supplier and one workspace. It resolves the
 effective approved `supplier_evaluation` policy, returns integer quantities/rates,
 policy and calculation versions, and exposes `sourceObservationIds` for lineage.
-Missing or invalid policy/evidence returns `unavailable`; the read never ranks,
-recommends or creates a financial, inventory or claim effect.
+Quantity rates require an explicit shared `supplierObservationGroupId` linking
+promise and outcome facts; unrelated observations are never paired. Missing or
+invalid policy/evidence returns `unavailable`; the read never ranks, recommends
+or creates a financial, inventory or claim effect.
 
 `delivery.fulfilment` is derived from Sale, Dispatch and Return facts and exposes
 ordered, dispatched, returned, net-fulfilled and remaining quantities plus an

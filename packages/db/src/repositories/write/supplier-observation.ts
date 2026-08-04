@@ -60,6 +60,7 @@ export const createSupplierObservationWriteRepositories = (tx: Tx) => ({
           supplierId: facts.supplierId,
           productId: facts.productId,
           qualityGradeId: facts.qualityGradeId,
+          supplierObservationGroupId: facts.supplierObservationGroupId,
           role: facts.role,
           sourceArea: facts.sourceArea,
           pickupResponsibility: facts.pickupResponsibility,

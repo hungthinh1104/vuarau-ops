@@ -77,6 +77,7 @@ async function recordObservation(id: SupplierObservationId) {
         supplierId: SUPPLIER_ID,
         productId: null,
         qualityGradeId: null,
+        supplierObservationGroupId: "00000000-0000-4000-8000-000000000022",
         role: null,
         sourceArea: null,
         pickupResponsibility: null,

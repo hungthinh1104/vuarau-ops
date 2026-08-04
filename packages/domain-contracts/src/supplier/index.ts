@@ -123,7 +123,9 @@ const supplierPerformanceQuantityMetricSchema = z.object({
   actualQuantity: quantitySchema.nullable(),
   acceptedQuantity: quantitySchema.nullable(),
   rejectedQuantity: quantitySchema.nullable(),
-  fulfilmentRateBasisPoints: z.int().min(0).max(10_000).nullable(),
+  // Fulfilment may legitimately exceed 100% when a linked delivery contains
+  // more quantity than was promised; only the denominator-zero case is null.
+  fulfilmentRateBasisPoints: z.int().nonnegative().nullable(),
   acceptanceRateBasisPoints: z.int().min(0).max(10_000).nullable(),
 });
 export type SupplierPerformanceQuantityMetric = z.infer<

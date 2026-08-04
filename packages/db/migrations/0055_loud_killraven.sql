@@ -1,0 +1,1 @@
+ALTER TABLE "supplier_observations" ADD COLUMN "supplier_observation_group_id" uuid;
