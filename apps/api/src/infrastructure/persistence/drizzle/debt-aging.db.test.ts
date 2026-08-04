@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createDbTestContext,
   createUnitOfWork,
@@ -13,6 +13,7 @@ import {
 } from "../../../modules/policy/policy.handlers.ts";
 import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
+import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
 import { getCustomerDebtAging } from "../../../modules/account/account.queries.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
 import { recordPaymentAllocation } from "../../../modules/account/payment-allocation.handlers.ts";
@@ -30,8 +31,8 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
     occurredAt,
   });
 
-  beforeAll(async () => {
-    ctx = await createDbTestContext("debt-aging");
+  beforeEach(async () => {
+    ctx = await createDbTestContext(`debt-aging-${crypto.randomUUID()}`);
     deps = {
       uow: createUnitOfWork(ctx.database.db, randomIdGenerator) as CommandDeps["uow"],
       clock: { now: () => "2026-08-04T00:00:00.000Z" },
@@ -39,7 +40,7 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
     owner = { deps, principal: { actorId: ctx.actorId, subject: ctx.subject } };
   });
 
-  afterAll(async () => {
+  afterEach(async () => {
     await ctx?.close();
   });
 
@@ -184,6 +185,132 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
         allocatedAmount: { amountMinor: 50_000, currency: "VND" },
         outstandingAmount: { amountMinor: 50_000, currency: "VND" },
       });
+    }
+  });
+
+  it("BR-AGING-003 / TC-AGING-003 — filters a sale void by its business time", async () => {
+    const termsDraft = await createWorkspacePolicyDraft(owner, {
+      ...envelope("db-aging-as-of-terms-draft", "2026-07-01T00:00:00.000Z"),
+      payload: {
+        policyVersionId: crypto.randomUUID(),
+        policyKind: "payment_terms_aging",
+        version: 1,
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition: {
+          contractVersion: 1,
+          parameters: {
+            defaultTermDays: 7,
+            defaultTermLabel: "7 ngày",
+            customerTerms: [],
+            graceDays: 0,
+            agingBuckets: [
+              { code: "1-30", label: "1–30 ngày", minDaysOverdue: 1, maxDaysOverdue: 30 },
+            ],
+            creditControl: "information_only",
+          },
+        },
+        evidenceReferences: [],
+        reason: "DB historical debt terms.",
+      },
+    });
+    expect(termsDraft.ok).toBe(true);
+    if (!termsDraft.ok) return;
+    const terms = await approveWorkspacePolicy(owner, {
+      ...envelope("db-aging-as-of-terms-approve", "2026-07-01T00:00:00.000Z"),
+      payload: {
+        policyVersionId: termsDraft.value.id,
+        evidenceReferences: ["field://debt/db-as-of-terms"],
+        reason: "DB historical debt terms approved.",
+      },
+    });
+    expect(terms.ok).toBe(true);
+    if (!terms.ok) return;
+
+    const allocationDraft = await createWorkspacePolicyDraft(owner, {
+      ...envelope("db-aging-as-of-allocation-draft", "2026-07-01T00:00:00.000Z"),
+      payload: {
+        policyVersionId: crypto.randomUUID(),
+        policyKind: "payment_allocation",
+        version: 1,
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition: { contractVersion: 1, parameters: { strategy: "oldest_due_first" } },
+        evidenceReferences: [],
+        reason: "DB historical debt allocation.",
+      },
+    });
+    expect(allocationDraft.ok).toBe(true);
+    if (!allocationDraft.ok) return;
+    const allocation = await approveWorkspacePolicy(owner, {
+      ...envelope("db-aging-as-of-allocation-approve", "2026-07-01T00:00:00.000Z"),
+      payload: {
+        policyVersionId: allocationDraft.value.id,
+        evidenceReferences: ["field://debt/db-as-of-allocation"],
+        reason: "DB historical debt allocation approved.",
+      },
+    });
+    expect(allocation.ok).toBe(true);
+    if (!allocation.ok) return;
+
+    const saleId = crypto.randomUUID();
+    const draft = await createSaleDraft(owner, {
+      ...envelope("db-aging-as-of-sale-draft"),
+      payload: {
+        saleId,
+        customerId: ctx.customerId,
+        currency: "VND",
+        lines: [
+          {
+            lineId: crypto.randomUUID(),
+            productId: ctx.productIds[0],
+            productName: "Cà chua",
+            qualityGradeId: ctx.qualityGradeId,
+            qualityGradeName: "Loại 1",
+            quantity: { valueScaled: 1_000, unit: "kg" },
+            unitPrice: { amountMinor: 100_000, currency: "VND" },
+          },
+        ],
+        note: null,
+        evidenceReferences: [],
+        dueAt: "2026-07-21T00:00:00.000Z",
+        replacesSaleId: null,
+      },
+    });
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+    const posted = await postSale(owner, {
+      ...envelope("db-aging-as-of-sale-post"),
+      expectedVersion: 1,
+      payload: { saleId },
+    });
+    expect(posted.ok).toBe(true);
+    if (!posted.ok) return;
+
+    const voided = await voidSale(owner, {
+      ...envelope("db-aging-as-of-sale-void", "2026-08-03T00:00:00.000Z"),
+      payload: {
+        saleVoidId: crypto.randomUUID(),
+        saleId,
+        reasonCode: "wrong_amount",
+        reason: "DB void after historical cutoff.",
+      },
+    });
+    expect(voided.ok).toBe(true);
+
+    const historical = await getCustomerDebtAging(owner, {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+      asOf: "2026-08-01T00:00:00.000Z",
+    });
+    expect(historical.ok).toBe(true);
+    if (historical.ok && historical.value.status === "available") {
+      expect(historical.value.rows).toContainEqual(
+        expect.objectContaining({
+          saleId,
+          outstandingAmount: { amountMinor: 100_000, currency: "VND" },
+        }),
+      );
     }
   });
 });

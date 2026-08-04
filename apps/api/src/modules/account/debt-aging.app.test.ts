@@ -13,17 +13,18 @@ import { getCustomerDebtAging } from "./account.queries.ts";
 import { createWorkspacePolicyDraft, approveWorkspacePolicy } from "../policy/policy.handlers.ts";
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
+import { voidSale } from "../sale/void-sale.handler.ts";
 import { exportWorkspaceBackup } from "../operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../operations/restore-workspace.handler.ts";
 import { workspaceIdSchema } from "@vuarau/domain-contracts";
 
-function envelope(key: string) {
+function envelope(key: string, occurredAt = TRANSACTION_TIME) {
   return {
     commandId: crypto.randomUUID(),
     idempotencyKey: key,
     workspaceId: WORKSPACE_ID,
     actorId: ACTOR_ID,
-    occurredAt: TRANSACTION_TIME,
+    occurredAt,
   };
 }
 
@@ -237,5 +238,91 @@ describe("UC-ACCOUNT-004 / BR-AGING-001 / TC-AGING-002", () => {
       paymentTermsSource: "workspace_policy",
       dueAt: "2026-07-26T22:00:00.000Z",
     });
+  });
+
+  it("BR-AGING-003 / TC-AGING-003 — keeps a future void in historical aging", async () => {
+    const harness = createHarness();
+    await approvePolicy(harness, "payment_terms_aging", {
+      contractVersion: 1,
+      parameters: {
+        defaultTermDays: 7,
+        defaultTermLabel: "7 ngày",
+        customerTerms: [],
+        graceDays: 0,
+        agingBuckets: [{ code: "1-30", label: "1–30 ngày", minDaysOverdue: 1, maxDaysOverdue: 30 }],
+        creditControl: "information_only",
+      },
+    });
+    await approvePolicy(harness, "payment_allocation", {
+      contractVersion: 1,
+      parameters: { strategy: "oldest_due_first" },
+    });
+
+    const saleId = crypto.randomUUID();
+    const created = await createSaleDraft(harness.ctx, {
+      ...envelope("debt-as-of-sale-create"),
+      payload: {
+        saleId,
+        customerId: CUSTOMER_ID,
+        currency: "VND",
+        lines: [...saleLineInputs],
+        note: null,
+        evidenceReferences: [],
+        dueAt: "2026-07-21T00:00:00.000Z",
+        replacesSaleId: null,
+      },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const posted = await postSale(harness.ctx, {
+      ...envelope("debt-as-of-sale-post"),
+      expectedVersion: 1,
+      payload: { saleId },
+    });
+    expect(posted.ok).toBe(true);
+    if (!posted.ok) return;
+
+    harness.clock.set("2026-08-05T00:00:00.000Z");
+    const voided = await voidSale(harness.ctx, {
+      ...envelope("debt-as-of-sale-void", "2026-08-05T00:00:00.000Z"),
+      payload: {
+        saleVoidId: crypto.randomUUID(),
+        saleId,
+        reasonCode: "wrong_amount",
+        reason: "Void sau thời điểm kiểm tra lịch sử.",
+      },
+    });
+    expect(voided.ok).toBe(true);
+
+    const historical = await getCustomerDebtAging(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+      asOf: "2026-08-01T00:00:00.000Z",
+    });
+    expect(historical.ok).toBe(true);
+    if (historical.ok && historical.value.status === "available") {
+      expect(historical.value.rows).toContainEqual(
+        expect.objectContaining({
+          saleId,
+          outstandingAmount: { amountMinor: 875_000, currency: "VND" },
+        }),
+      );
+      expect(historical.value.totals.ledgerBalance).toEqual({
+        amountMinor: 875_000,
+        currency: "VND",
+      });
+    }
+
+    const current = await getCustomerDebtAging(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+      asOf: "2026-08-06T00:00:00.000Z",
+    });
+    expect(current.ok).toBe(true);
+    if (current.ok && current.value.status === "available") {
+      expect(current.value.rows).not.toContainEqual(expect.objectContaining({ saleId }));
+      expect(current.value.totals.ledgerBalance).toEqual({ amountMinor: 0, currency: "VND" });
+    }
   });
 });

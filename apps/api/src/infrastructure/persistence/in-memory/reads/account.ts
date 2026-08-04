@@ -211,7 +211,7 @@ export const createAccountReads = (store: Store): Pick<Repositories, "accountRea
             sale.workspaceId === workspaceId &&
             sale.customerId === customerId &&
             sale.status === "posted" &&
-            sale.voidRecord === null &&
+            (sale.voidRecord === null || sale.voidRecord.transactionTime > asOf) &&
             sale.transactionTime <= asOf,
         )
         .map((sale) => ({

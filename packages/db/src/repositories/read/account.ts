@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   actors,
@@ -279,7 +279,7 @@ export const createAccountReadRepositories = (tx: Tx) => ({
             eq(sales.workspaceId, workspaceId),
             eq(sales.customerId, customerId),
             eq(sales.status, "posted"),
-            isNull(saleVoids.id),
+            or(isNull(saleVoids.id), gt(saleVoids.transactionTime, asOfDate)),
             lte(sales.transactionTime, asOfDate),
           ),
         )

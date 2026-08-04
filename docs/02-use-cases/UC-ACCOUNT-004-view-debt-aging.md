@@ -24,8 +24,11 @@ diagnostics. No global term, bucket, or allocation strategy is inferred.
 2. Resolve the highest approved policy version effective at `asOf`.
 3. Read posted sales, payments, reversals, and account ledger entries scoped to
    the workspace and customer.
-4. Calculate deterministic rows using the configured allocation strategy.
-5. Return policy version IDs, source references, totals, calculation version and
+4. Apply Sale voids by their business `transactionTime`: a void after `asOf`
+   remains outside the historical result, while a void at or before `asOf`
+   compensates the Sale.
+5. Calculate deterministic rows using the configured allocation strategy.
+6. Return policy version IDs, source references, totals, calculation version and
    integrity diagnostics.
 
 Posted Sales without an explicit term carry a payment-term snapshot resolved at
