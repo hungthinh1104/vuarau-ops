@@ -105,8 +105,15 @@ export function SupplierDetailView(props: SupplierDetailViewProps) {
                   <p>Chưa có dòng mua đã chốt.</p>
                 ) : (
                   <div className="overflow-x-auto rounded-card border border-border bg-surface shadow-sm">
-                    <table className="data-table min-w-full text-body-sm">
+                    <table className="data-table w-full min-w-full text-body-sm">
                       <caption className="sr-only">Lịch sử giá mua đã chốt</caption>
+                      <colgroup>
+                        <col className="w-[35%]" />
+                        <col className="w-[15%]" />
+                        <col className="w-[18%]" />
+                        <col className="w-[18%]" />
+                        <col className="w-[14%]" />
+                      </colgroup>
                       <thead className="sticky top-0 z-10">
                         <tr>
                           <th scope="col" className="px-4 py-3 font-medium">
@@ -310,10 +317,17 @@ function SupplierPerformanceSection({
           {performance.quantityMetrics.length === 0 ? (
             <p className="text-body-sm text-ink-muted">Chưa có dữ kiện số lượng đủ cùng đơn vị.</p>
           ) : (
-            <div className="overflow-x-auto rounded-card border border-border">
-              <table className="data-table min-w-full text-body-sm">
+            <div className="overflow-x-auto rounded-card border border-border bg-surface shadow-sm">
+              <table className="data-table w-full min-w-full text-body-sm">
                 <caption className="sr-only">Dữ kiện số lượng nhà cung cấp</caption>
-                <thead>
+                <colgroup>
+                  <col className="w-[24%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[19%]" />
+                </colgroup>
+                <thead className="sticky top-0 z-10">
                   <tr>
                     <th scope="col" className="px-3 py-2 text-left font-medium">
                       Đơn vị

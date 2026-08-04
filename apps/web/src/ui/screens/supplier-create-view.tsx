@@ -4,8 +4,8 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
-import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type SupplierCreateViewProps = {
   readonly displayName: string;
@@ -22,24 +22,23 @@ export function SupplierCreateView(props: SupplierCreateViewProps) {
   return (
     <div className="flex max-w-xl flex-col gap-4">
       <PageHeader title="Thêm nhà cung cấp" back={{ href: "/suppliers", label: "Hủy" }} />
-      <label className="text-label">
-        Tên nhà cung cấp
-        <Input
-          value={props.displayName}
-          onChange={(event) => props.onDisplayName(event.target.value)}
-        />
-      </label>
-      <label className="text-label">
-        Số điện thoại
-        <Input value={props.phone} onChange={(event) => props.onPhone(event.target.value)} />
-      </label>
-      <label className="text-label">
-        Ghi chú
-        <TextareaControl
-          value={props.note}
-          onChange={(event) => props.onNote(event.target.value)}
-        />
-      </label>
+      <TextInput
+        label="Tên nhà cung cấp"
+        value={props.displayName}
+        onChange={(event) => props.onDisplayName(event.target.value)}
+        autoFocus
+      />
+      <TextInput
+        label="Số điện thoại"
+        value={props.phone}
+        onChange={(event) => props.onPhone(event.target.value)}
+        inputMode="tel"
+      />
+      <Textarea
+        label="Ghi chú"
+        value={props.note}
+        onChange={(event) => props.onNote(event.target.value)}
+      />
       <Button
         disabled={props.displayName.trim().length === 0 || props.command.phase.kind === "sending"}
         onClick={props.onCreate}

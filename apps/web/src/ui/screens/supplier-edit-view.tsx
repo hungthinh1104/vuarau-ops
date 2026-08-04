@@ -8,8 +8,8 @@ import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
-import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type SupplierEditViewProps = {
   readonly query: QueryLike<SupplierDto>;
@@ -53,24 +53,22 @@ export function SupplierEditView(props: SupplierEditViewProps) {
             title="Sửa nhà cung cấp"
             back={{ href: `/suppliers/${supplier.id}`, label: "Quay lại" }}
           />
-          <label className="text-label">
-            Tên
-            <Input
-              value={props.displayName}
-              onChange={(event) => props.onDisplayName(event.target.value)}
-            />
-          </label>
-          <label className="text-label">
-            Số điện thoại
-            <Input value={props.phone} onChange={(event) => props.onPhone(event.target.value)} />
-          </label>
-          <label className="text-label">
-            Ghi chú
-            <TextareaControl
-              value={props.note}
-              onChange={(event) => props.onNote(event.target.value)}
-            />
-          </label>
+          <TextInput
+            label="Tên nhà cung cấp"
+            value={props.displayName}
+            onChange={(event) => props.onDisplayName(event.target.value)}
+          />
+          <TextInput
+            label="Số điện thoại"
+            value={props.phone}
+            onChange={(event) => props.onPhone(event.target.value)}
+            inputMode="tel"
+          />
+          <Textarea
+            label="Ghi chú"
+            value={props.note}
+            onChange={(event) => props.onNote(event.target.value)}
+          />
           <Button
             disabled={
               props.displayName.trim().length === 0 || props.update.phase.kind === "sending"
@@ -79,13 +77,11 @@ export function SupplierEditView(props: SupplierEditViewProps) {
           >
             Lưu thay đổi
           </Button>
-          <label className="text-label">
-            Lý do đổi trạng thái
-            <Input
-              value={props.lifecycleReason}
-              onChange={(event) => props.onLifecycleReason(event.target.value)}
-            />
-          </label>
+          <TextInput
+            label="Lý do đổi trạng thái"
+            value={props.lifecycleReason}
+            onChange={(event) => props.onLifecycleReason(event.target.value)}
+          />
           <Button
             tone="secondary"
             disabled={

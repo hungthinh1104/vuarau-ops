@@ -72,6 +72,8 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     noProductMatch,
     qualityGrades,
     qualityGradeOptions,
+    qualityGradeRequired,
+    operationalProfile,
     replacementPending,
     replacementSource,
     replacesSaleId,
@@ -184,6 +186,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               serverLineIndex={serverLineIndex}
               disabled={locallyQueued}
               qualityGradeOptions={qualityGradeOptions}
+              qualityGradeRequired={qualityGradeRequired}
               activeLineId={activeLineId}
               priceResolution={priceResolution}
               onApplyPriceRule={applyResolvedPrice}
@@ -211,8 +214,9 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               )}
               <QuickSaleGradeState
                 loading={qualityGrades.isPending}
-                error={qualityGrades.isError}
+                error={qualityGrades.isError || operationalProfile.isError}
                 gradeCount={qualityGradeOptions.length}
+                required={qualityGradeRequired}
               />
             </>
           }
@@ -295,6 +299,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               <CommandOutcome
                 command={postCommand}
                 attemptedAction="Chốt đơn"
+                suppressSuccessToast
                 onReload={() => window.location.reload()}
               />
             </>
@@ -368,7 +373,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                 actions={
                   <>
                     <Button tone="secondary" onClick={() => setConfirmOpen(false)}>
-                      Quay lại
+                      Hủy
                     </Button>
                     <Button
                       onClick={() => void handleConfirmedPost()}

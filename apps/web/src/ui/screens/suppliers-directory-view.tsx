@@ -89,13 +89,19 @@ export function SuppliersDirectoryView({
                 ))}
               </ul>
               <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
-                <table className="data-table min-w-[700px] text-left text-body-sm">
+                <table className="data-table w-full min-w-[650px] text-left text-body-sm">
+                  <colgroup>
+                    <col className="w-[40%]" />
+                    <col className="w-[25%]" />
+                    <col className="w-[20%]" />
+                    <col className="w-[15%]" />
+                  </colgroup>
                   <thead className="sticky top-0 z-10">
                     <tr>
                       <th className="px-3 py-2">Nhà cung cấp</th>
                       <th className="px-3 py-2">Điện thoại</th>
                       <th className="px-3 py-2">Trạng thái</th>
-                      <th className="px-3 py-2">Thao tác</th>
+                      <th className="px-3 py-2 text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -106,7 +112,7 @@ export function SuppliersDirectoryView({
                         <td className="px-3 py-2">
                           {supplier.isActive ? "Đang hoạt động" : "Đã ngưng"}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 text-right">
                           <Link
                             href={`/suppliers/${supplier.id}`}
                             className="font-semibold text-info underline-offset-4 hover:underline"

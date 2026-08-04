@@ -6,8 +6,8 @@ import type { CustomerOrderDraftLine } from "@/ui/domain/customer-order-form.ts"
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 import { UNIT_LABEL_VI, UNITS, type Unit } from "@vuarau/domain-contracts";
 
@@ -74,7 +74,7 @@ export function CustomerOrderCreateView(props: {
       {props.lines.map((line, index) => (
         <fieldset
           key={line.lineId}
-          className="grid gap-3 rounded-card border border-border bg-surface p-4 md:grid-cols-5"
+          className="grid gap-3 rounded-card border border-border bg-surface p-4 grid-cols-1 md:grid-cols-3 lg:grid-cols-6"
         >
           <legend className="px-2 font-semibold">Dòng {index + 1}</legend>
           <Select
@@ -95,25 +95,19 @@ export function CustomerOrderCreateView(props: {
               });
             }}
           />
-          <label className="text-label">
-            Tên mặt hàng ghi nhận
-            <Input
-              value={line.productName}
-              onChange={(event) =>
-                props.onLineChange(line.lineId, { productName: event.target.value })
-              }
-            />
-          </label>
-          <label className="text-label">
-            Số lượng
-            <Input
-              inputMode="decimal"
-              value={line.quantity}
-              onChange={(event) =>
-                props.onLineChange(line.lineId, { quantity: event.target.value })
-              }
-            />
-          </label>
+          <TextInput
+            label="Tên mặt hàng ghi nhận"
+            value={line.productName}
+            onChange={(event) =>
+              props.onLineChange(line.lineId, { productName: event.target.value })
+            }
+          />
+          <TextInput
+            label="Số lượng"
+            inputMode="decimal"
+            value={line.quantity}
+            onChange={(event) => props.onLineChange(line.lineId, { quantity: event.target.value })}
+          />
           <Select
             label="Đơn vị"
             value={line.unit}
@@ -122,34 +116,33 @@ export function CustomerOrderCreateView(props: {
               props.onLineChange(line.lineId, { unit: event.target.value as Unit })
             }
           />
-          <label className="text-label">
-            Đơn giá (nghìn đồng, có thể để trống)
-            <Input
-              inputMode="numeric"
-              value={line.price}
-              onChange={(event) => props.onLineChange(line.lineId, { price: event.target.value })}
-            />
-          </label>
-          <Button
-            tone="secondary"
-            disabled={props.lines.length === 1}
-            onClick={() => props.onRemoveLine(line.lineId)}
-          >
-            Xoá dòng
-          </Button>
+          <TextInput
+            label="Đơn giá (kđ)"
+            inputMode="numeric"
+            value={line.price}
+            onChange={(event) => props.onLineChange(line.lineId, { price: event.target.value })}
+          />
+          <div className="flex items-end pb-0.5">
+            <Button
+              tone="secondary"
+              disabled={props.lines.length === 1}
+              onClick={() => props.onRemoveLine(line.lineId)}
+              fullWidth
+            >
+              Xoá dòng
+            </Button>
+          </div>
         </fieldset>
       ))}
       <Button tone="secondary" onClick={props.onAddLine}>
         Thêm dòng
       </Button>
-      <label className="text-label">
-        Hạn thanh toán dự kiến (không bắt buộc)
-        <Input
-          type="date"
-          value={props.dueAt}
-          onChange={(event) => props.onDueAtChange(event.target.value)}
-        />
-      </label>
+      <TextInput
+        label="Hạn thanh toán dự kiến (không bắt buộc)"
+        type="date"
+        value={props.dueAt}
+        onChange={(event) => props.onDueAtChange(event.target.value)}
+      />
       <Textarea
         label="Ghi chú"
         value={props.note}

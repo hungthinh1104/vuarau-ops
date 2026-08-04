@@ -130,7 +130,16 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
       </ul>
 
       <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
-        <table className="data-table min-w-[1060px] text-left text-body-sm">
+        <table className="data-table w-full min-w-[900px] text-left text-body-sm">
+          <colgroup>
+            <col className="w-[18%]" />
+            <col className="w-[25%]" />
+            <col className="w-[10%]" />
+            <col className="w-[15%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[8%]" />
+          </colgroup>
           <thead className="sticky top-0 z-10">
             <tr>
               <th className="px-3 py-2">Thời điểm</th>
@@ -139,7 +148,7 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
               <th className="px-3 py-2 text-right">Tổng đơn</th>
               <th className="px-3 py-2">Công nợ</th>
               <th className="px-3 py-2">Trạng thái</th>
-              <th className="px-3 py-2">Thao tác</th>
+              <th className="px-3 py-2 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -177,7 +186,7 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
                         : "Đã bỏ"}
                   </Badge>
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2 text-right">
                   <Link
                     href={`/sales/${sale.id}`}
                     className="font-semibold text-info underline-offset-4 hover:underline"

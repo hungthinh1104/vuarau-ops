@@ -77,7 +77,15 @@ export function PurchasesDirectoryView({
                 ))}
               </ul>
               <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
-                <table className="data-table min-w-[980px] text-left text-body-sm">
+                <table className="data-table w-full min-w-[840px] text-left text-body-sm">
+                  <colgroup>
+                    <col className="w-[16%]" />
+                    <col className="w-[34%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[10%]" />
+                  </colgroup>
                   <thead className="sticky top-0 z-10">
                     <tr>
                       <th className="px-3 py-2">Ngày</th>
@@ -85,7 +93,7 @@ export function PurchasesDirectoryView({
                       <th className="px-3 py-2">Số dòng</th>
                       <th className="px-3 py-2 text-right">Tổng mua</th>
                       <th className="px-3 py-2">Trạng thái</th>
-                      <th className="px-3 py-2">Thao tác</th>
+                      <th className="px-3 py-2 text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -105,7 +113,7 @@ export function PurchasesDirectoryView({
                             ? "Đã hoàn tác"
                             : PURCHASE_STATUS_COPY[purchase.status]}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 text-right">
                           <Link
                             href={`/purchases/${purchase.id}`}
                             className="font-semibold text-info underline-offset-4 hover:underline"

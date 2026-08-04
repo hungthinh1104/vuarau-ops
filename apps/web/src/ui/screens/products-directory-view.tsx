@@ -124,7 +124,7 @@ export function ProductsDirectoryView({
                       <th className="px-3 py-2">Tên gọi khác</th>
                       <th className="px-3 py-2">Đơn vị ưu tiên</th>
                       <th className="px-3 py-2">Trạng thái</th>
-                      <th className="px-3 py-2">Thao tác</th>
+                      <th className="px-3 py-2 text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">

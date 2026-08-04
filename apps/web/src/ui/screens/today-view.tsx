@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowRight,
   BarChart3,
   ClipboardList,
   PackageCheck,
@@ -174,10 +173,6 @@ function QuickAction({ action, primary = false }: { action: TodayAction; primary
           {action.description}
         </span>
       </span>
-      <ArrowRight
-        aria-hidden="true"
-        className="h-5 w-5 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5"
-      />
     </Link>
   );
 }
@@ -219,7 +214,6 @@ function WorkQueue({
                     </span>
                     <span className="block text-caption text-ink-muted">{item.secondary}</span>
                   </span>
-                  <ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-muted" />
                 </Link>
               </li>
             ))}
@@ -233,7 +227,7 @@ function WorkQueue({
         href={href}
         className="mt-3 inline-flex min-h-10 items-center gap-1 text-body-sm font-semibold text-info hover:underline"
       >
-        Mở danh sách <ArrowRight aria-hidden="true" className="h-4 w-4" />
+        Mở danh sách
       </Link>
     </section>
   );

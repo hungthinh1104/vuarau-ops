@@ -119,14 +119,21 @@ function CustomerRows({ items }: { readonly items: readonly CustomerSummaryDto[]
         ))}
       </ul>
       <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
-        <table className="data-table min-w-[860px] text-left text-body-sm">
+        <table className="data-table w-full min-w-[760px] text-left text-body-sm">
+          <colgroup>
+            <col className="w-[30%]" />
+            <col className="w-[20%]" />
+            <col className="w-[18%]" />
+            <col className="w-[20%]" />
+            <col className="w-[12%]" />
+          </colgroup>
           <thead className="sticky top-0 z-10">
             <tr>
               <th className="px-3 py-2">Khách hàng</th>
               <th className="px-3 py-2">Điện thoại</th>
               <th className="px-3 py-2">Trạng thái</th>
               <th className="px-3 py-2 text-right">Công nợ</th>
-              <th className="px-3 py-2">Thao tác</th>
+              <th className="px-3 py-2 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-border divide-y">
@@ -140,7 +147,7 @@ function CustomerRows({ items }: { readonly items: readonly CustomerSummaryDto[]
                   <td className="tabular px-3 py-2 text-right">
                     {balance.label} {balance.amount ?? "Chưa có số dư"}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 text-right">
                     <Link
                       href={`/customers/${customer.id}`}
                       className="font-semibold text-info underline-offset-4 hover:underline"

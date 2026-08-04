@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 export type SignInProps = {
@@ -125,7 +125,7 @@ export function SignIn({ signIn }: SignInProps) {
             href="/"
             className="group flex items-center gap-1.5 text-ink-muted hover:text-ink transition-colors"
           >
-            <ArrowRight className="h-3.5 w-3.5 rotate-180 transition-transform group-hover:-translate-x-1" />
+            <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
             Về trang chủ
           </Link>
         </div>

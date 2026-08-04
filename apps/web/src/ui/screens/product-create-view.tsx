@@ -7,8 +7,8 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
 
 export type ProductCreateViewProps = {
   readonly name: string;
@@ -26,10 +26,12 @@ export function ProductCreateView(props: ProductCreateViewProps) {
   return (
     <div className="flex max-w-xl flex-col gap-4">
       <PageHeader title="Thêm mặt hàng" back={{ href: "/products", label: "Hủy" }} />
-      <label className="text-label">
-        Tên mặt hàng
-        <Input value={props.name} onChange={(event) => props.onName(event.target.value)} />
-      </label>
+      <TextInput
+        label="Tên mặt hàng"
+        value={props.name}
+        onChange={(event) => props.onName(event.target.value)}
+        autoFocus
+      />
       {props.name.trim().length > 0 && (props.candidates?.length ?? 0) > 0 ? (
         <section className="rounded-card border border-warning/40 bg-warning-soft p-3">
           <h2 className="text-label font-semibold">Tên gần giống đã có</h2>
@@ -47,14 +49,12 @@ export function ProductCreateView(props: ProductCreateViewProps) {
           </p>
         </section>
       ) : null}
-      <label className="text-label">
-        Tên gọi khác
-        <Input
-          value={props.aliases}
-          onChange={(event) => props.onAliases(event.target.value)}
-          placeholder="Phân cách bằng dấu phẩy"
-        />
-      </label>
+      <TextInput
+        label="Tên gọi khác"
+        value={props.aliases}
+        onChange={(event) => props.onAliases(event.target.value)}
+        placeholder="Phân cách bằng dấu phẩy"
+      />
       <Select
         label="Đơn vị gợi ý"
         value={props.unit}

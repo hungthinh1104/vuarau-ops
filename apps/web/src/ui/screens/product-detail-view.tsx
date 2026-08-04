@@ -10,8 +10,8 @@ import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
+import { TextInput } from "@/ui/primitives/text-input.tsx";
 
 export type ProductDetailViewProps = {
   readonly query: QueryLike<ProductDto>;
@@ -55,17 +55,16 @@ export function ProductDetailView(props: ProductDetailViewProps) {
           >
             Xem tồn kho và biến động vật lý
           </Link>
-          <label className="text-label">
-            Tên mặt hàng
-            <Input value={props.name} onChange={(event) => props.onName(event.target.value)} />
-          </label>
-          <label className="text-label">
-            Tên gọi khác
-            <Input
-              value={props.aliases}
-              onChange={(event) => props.onAliases(event.target.value)}
-            />
-          </label>
+          <TextInput
+            label="Tên mặt hàng"
+            value={props.name}
+            onChange={(event) => props.onName(event.target.value)}
+          />
+          <TextInput
+            label="Tên gọi khác"
+            value={props.aliases}
+            onChange={(event) => props.onAliases(event.target.value)}
+          />
           <Select
             label="Đơn vị gợi ý"
             value={props.unit}

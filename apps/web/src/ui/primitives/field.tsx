@@ -34,7 +34,7 @@ export function Field({ label, hint, error, required = false, children }: FieldP
       .join(" ") || undefined;
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 w-full">
       <label htmlFor={inputId} className="text-label font-semibold text-ink">
         {label}
         {required ? (

@@ -5,7 +5,6 @@ import type {
   GoodsArrivalLineInput,
   WorkspaceOperationalProfileDto,
 } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -46,17 +45,15 @@ export function IntakeArrivalDetailView({
                 description={`${detail.vehicleReference ?? "Không ghi xe"} · ${new Date(
                   detail.transactionTime,
                 ).toLocaleString("vi-VN")}`}
+                {...(detail.purchaseId !== null
+                  ? { back: { href: `/purchases/${detail.purchaseId}`, label: "Mở đơn mua nguồn" } }
+                  : {})}
               />
               <ArrivalSummary
                 arrival={detail}
                 canReverse={canReverse}
                 reverseControl={reverseControl}
               />
-              {detail.purchaseId !== null ? (
-                <Link href={`/purchases/${detail.purchaseId}`} className="text-info underline">
-                  ← Quay lại đơn mua
-                </Link>
-              ) : null}
               <div className="grid gap-4">
                 {detail.lines.map((line) => renderLine(line, detail.reversal === null))}
               </div>

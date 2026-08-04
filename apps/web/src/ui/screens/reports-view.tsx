@@ -4,10 +4,15 @@ import type {
   MetricDefinition,
   ManagementIntelligenceDto,
   OperationalReportDto,
+  Page,
+  PurchaseDto,
+  Quantity,
   ReportMetricDefinitionsDto,
   ReportType,
+  SaleSummaryDto,
 } from "@vuarau/domain-contracts";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
@@ -45,8 +50,18 @@ export const REPORT_TYPE_OPTIONS: readonly { value: ReportType; label: string }[
   { value: "expense_report", label: "Chi phí vận hành" },
 ];
 
+type OperationalOverviewProps = {
+  readonly purchases: QueryLike<Page<PurchaseDto>>;
+  readonly sales: QueryLike<Page<SaleSummaryDto>>;
+  readonly reports: readonly {
+    readonly reportType: ReportType;
+    readonly query: QueryLike<OperationalReportDto>;
+  }[];
+};
+
 export function ReportsView(props: {
   readonly canRead: boolean;
+  readonly overview?: OperationalOverviewProps;
   readonly reportType: ReportType;
   readonly businessDate: string;
   readonly state: "loading" | "ready" | "error";
@@ -67,11 +82,10 @@ export function ReportsView(props: {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Báo cáo"
-        description="Đọc số liệu từ dữ liệu nguồn; mọi con số vận hành phải quay lại được chứng từ tạo ra nó."
+        title="Tổng quan vận hành"
+        description="Các số liệu làm việc hôm nay, lấy từ nguồn chuẩn và có thể mở ngược về chứng từ."
       />
-      <MetricCatalog query={props.metrics} onRetry={props.onMetricsRetry} />
-      <ManagementSnapshot query={props.intelligence} onRetry={props.onIntelligenceRetry} />
+      {props.overview === undefined ? null : <OperationalOverview {...props.overview} />}
       <div className="grid gap-3 border-y border-border py-4 md:grid-cols-3 md:items-end">
         <Select
           label="Loại báo cáo"
@@ -108,7 +122,144 @@ export function ReportsView(props: {
       ) : (
         <ReportResult result={props.result} onNextPage={props.onNextPage} />
       )}
+      <ManagementSnapshot query={props.intelligence} onRetry={props.onIntelligenceRetry} />
+      <MetricCatalog query={props.metrics} onRetry={props.onMetricsRetry} />
     </div>
+  );
+}
+
+function OperationalOverview(props: OperationalOverviewProps) {
+  const report = (type: ReportType) =>
+    props.reports.find((item) => item.reportType === type)?.query;
+  return (
+    <section aria-labelledby="operational-overview-title" className="grid gap-3">
+      <div>
+        <h2 id="operational-overview-title" className="text-subheading font-semibold">
+          Việc và số liệu chính
+        </h2>
+        <p className="text-body-sm text-ink-muted">
+          Đơn mua, nhập hàng, tồn kho, bán hàng, giao hàng còn lại, công nợ và tiền được ưu tiên ở
+          đây. Metric nâng cao chỉ xuất hiện phía dưới khi đủ nguồn và policy.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <OverviewListCard query={props.purchases} title="Đơn mua" kind="purchases" />
+        <OverviewReportCard
+          query={report("inventory_movement_report")}
+          title="Đã nhập hàng"
+          kind="received"
+        />
+        <OverviewReportCard
+          query={report("inventory_by_product_unit")}
+          title="Tồn kho"
+          kind="stock"
+        />
+        <OverviewListCard query={props.sales} title="Đơn bán" kind="sales" />
+        <OverviewReportCard
+          query={report("outstanding_delivery")}
+          title="Còn phải giao"
+          kind="outstanding"
+        />
+        <OverviewReportCard query={report("customer_receivables")} title="Phải thu" kind="amount" />
+        <OverviewReportCard query={report("supplier_payables")} title="Phải trả" kind="amount" />
+        <OverviewReportCard query={report("cash_balances")} title="Tiền" kind="amount" />
+      </div>
+    </section>
+  );
+}
+
+function OverviewListCard(props: {
+  readonly query: QueryLike<Page<PurchaseDto> | Page<SaleSummaryDto>>;
+  readonly title: string;
+  readonly kind: "purchases" | "sales";
+}) {
+  if (props.query.isPending)
+    return <OverviewCardShell title={props.title}>Đang tải…</OverviewCardShell>;
+  if (props.query.isError || props.query.data === undefined) {
+    return <OverviewCardShell title={props.title}>Chưa tải được dữ liệu</OverviewCardShell>;
+  }
+  const total = props.query.data.items.reduce((sum, item) => sum + item.totalAmount.amountMinor, 0);
+  return (
+    <OverviewCardShell title={props.title} status="Đang có dữ liệu">
+      <strong className="tabular text-heading text-ink">
+        {formatMoney({ amountMinor: total, currency: "VND" })}
+      </strong>
+      <span className="text-body-sm text-ink-muted">
+        {props.query.data.items.length} {props.kind === "purchases" ? "đơn mua" : "đơn bán"} trong
+        phạm vi tải hiện tại
+      </span>
+    </OverviewCardShell>
+  );
+}
+
+function OverviewReportCard(props: {
+  readonly query: QueryLike<OperationalReportDto> | undefined;
+  readonly title: string;
+  readonly kind: "received" | "stock" | "outstanding" | "amount";
+}) {
+  if (props.query === undefined || props.query.isPending) {
+    return <OverviewCardShell title={props.title}>Đang tải…</OverviewCardShell>;
+  }
+  if (props.query.isError || props.query.data === undefined) {
+    return <OverviewCardShell title={props.title}>Chưa tải được dữ liệu</OverviewCardShell>;
+  }
+  const report = props.query.data;
+  if (report.integrity !== "healthy") {
+    return (
+      <OverviewCardShell title={props.title} status="Đang khóa số liệu">
+        Cần đối chiếu nguồn
+      </OverviewCardShell>
+    );
+  }
+  const quantities: Quantity[] =
+    props.kind === "received"
+      ? report.page.items
+          .filter((row) => row.sourceType === "purchase_receipt")
+          .reduce<Quantity[]>((all, row) => addQuantity(all, row.quantity), [])
+      : [...report.totals.quantities];
+  return (
+    <OverviewCardShell title={props.title} status="Đã đối chiếu">
+      {props.kind === "amount" && report.totals.amount !== null ? (
+        <strong className="tabular text-heading text-ink">
+          {formatMoney(report.totals.amount)}
+        </strong>
+      ) : quantities.length > 0 ? (
+        quantities.map((quantity) => (
+          <strong key={quantity.unit} className="tabular text-heading text-ink">
+            {formatQuantity(quantity)}
+          </strong>
+        ))
+      ) : (
+        <span className="text-body-sm text-ink-muted">Chưa có dữ liệu</span>
+      )}
+    </OverviewCardShell>
+  );
+}
+
+function OverviewCardShell(props: {
+  readonly title: string;
+  readonly status?: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <article className="grid gap-2 rounded-card border border-border bg-surface p-4">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-semibold">{props.title}</h3>
+        {props.status === undefined ? null : <Badge tone="neutral">{props.status}</Badge>}
+      </div>
+      {props.children}
+    </article>
+  );
+}
+
+function addQuantity(quantities: readonly Quantity[], quantity: Quantity | null) {
+  if (quantity === null) return [...quantities];
+  const existing = quantities.find((item) => item.unit === quantity.unit);
+  if (existing === undefined) return [...quantities, quantity];
+  return quantities.map((item) =>
+    item.unit === quantity.unit
+      ? { ...item, valueScaled: item.valueScaled + quantity.valueScaled }
+      : item,
   );
 }
 
@@ -335,7 +486,14 @@ function ReportResult(props: {
           id="report-sources"
           className="overflow-x-auto rounded-card border border-border bg-surface shadow-sm"
         >
-          <table className="data-table min-w-[820px] text-left text-body-sm">
+          <table className="data-table w-full min-w-[760px] text-left text-body-sm">
+            <colgroup>
+              <col className="w-[32%]" />
+              <col className="w-[25%]" />
+              <col className="w-[20%]" />
+              <col className="w-[13%]" />
+              <col className="w-[10%]" />
+            </colgroup>
             <thead className="sticky top-0 z-10">
               <tr>
                 <th className="p-3">Nguồn</th>
