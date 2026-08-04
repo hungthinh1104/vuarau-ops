@@ -11,7 +11,8 @@ import { err, ok } from "../shared/result.ts";
 export function decideRecordSupplierObservation(
   command: RecordSupplierObservationCommand,
   recordedAt: IsoInstant,
-  correctionTargetExists: boolean,
+  correctionTarget: SupplierObservationDto | null,
+  correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{ observation: SupplierObservationDto; audit: AuditDraft }> {
   const { payload } = command;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
@@ -26,10 +27,36 @@ export function decideRecordSupplierObservation(
       "Only a correction observation may link to an earlier supplier observation.",
     );
   }
-  if (payload.caseKind === "correction" && !correctionTargetExists) {
+  if (payload.caseKind === "correction" && correctionTarget === null) {
     return err(
       "SUPPLIER_OBSERVATION_CORRECTION_TARGET_NOT_FOUND",
       "The supplier observation being corrected was not found in this workspace.",
+    );
+  }
+  if (payload.caseKind === "correction" && correctionTargetAlreadyCorrected) {
+    return err(
+      "SUPPLIER_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED",
+      "Only the current supplier observation chain tip may be corrected.",
+    );
+  }
+  if (
+    payload.caseKind === "correction" &&
+    correctionTarget !== null &&
+    (correctionTarget.kind !== payload.kind ||
+      correctionTarget.facts.supplierId !== payload.facts.supplierId ||
+      correctionTarget.facts.productId !== payload.facts.productId ||
+      correctionTarget.facts.qualityGradeId !== payload.facts.qualityGradeId ||
+      correctionTarget.facts.claimReference !== payload.facts.claimReference ||
+      correctionTarget.facts.observationReference !== payload.facts.observationReference ||
+      correctionTarget.facts.promisedQuantity?.unit !== payload.facts.promisedQuantity?.unit ||
+      correctionTarget.facts.actualQuantity?.unit !== payload.facts.actualQuantity?.unit ||
+      correctionTarget.facts.acceptedQuantity?.unit !== payload.facts.acceptedQuantity?.unit ||
+      correctionTarget.facts.rejectedQuantity?.unit !== payload.facts.rejectedQuantity?.unit ||
+      correctionTarget.facts.price?.currency !== payload.facts.price?.currency)
+  ) {
+    return err(
+      "SUPPLIER_OBSERVATION_CORRECTION_IDENTITY_MISMATCH",
+      "A supplier correction must preserve the supplier, product, grade, source, kind, unit and currency identity.",
     );
   }
 

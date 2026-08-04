@@ -433,4 +433,80 @@ describe.skipIf(skipWithoutDatabase())("cost observations against PostgreSQL", (
     expect(page.ok).toBe(true);
     if (page.ok) expect(page.value.items.map((item) => item.id)).toContain(demandObservationId);
   });
+
+  it("TC-EVIDENCE-069 — PostgreSQL rejects supplier correction identity changes and forks", async () => {
+    const supplierFacts = {
+      supplierId: null,
+      productId: null,
+      qualityGradeId: null,
+      role: "hợp tác xã",
+      sourceArea: "Đức Trọng",
+      pickupResponsibility: "nhà cung cấp",
+      packingResponsibility: "nhà cung cấp",
+      transportResponsibility: "nhà cung cấp",
+      expectedLeadTimeText: "mỗi ngày",
+      paymentArrangement: "trao đổi",
+      traceabilityLevel: "phiếu lô giấy",
+      promisedQuantity: { valueScaled: 200_000, unit: "kg" },
+      actualQuantity: { valueScaled: 190_000, unit: "kg" },
+      acceptedQuantity: null,
+      rejectedQuantity: null,
+      expectedAt: "2026-08-04T02:00:00.000Z",
+      actualAt: "2026-08-04T03:00:00.000Z",
+      price: null,
+      claimReference: null,
+      observationReference: "note://supplier/db-001",
+    };
+    const mismatch = await recordSupplierObservation(context(), {
+      ...envelope("supplier-observation-mismatch"),
+      payload: {
+        supplierObservationId: crypto.randomUUID() as SupplierObservationId,
+        kind: "actual_quantity",
+        caseKind: "correction",
+        description: "Đổi nhầm loại quan sát.",
+        participantWording: "Không cùng identity.",
+        facts: supplierFacts,
+        evidenceReferences: ["photo://supplier/db-mismatch"],
+        relatedObservationId: supplierObservationId,
+      },
+    });
+    expect(mismatch.ok).toBe(false);
+    if (!mismatch.ok) {
+      expect(mismatch.error.code).toBe("SUPPLIER_OBSERVATION_CORRECTION_IDENTITY_MISMATCH");
+    }
+
+    const correctionId = crypto.randomUUID() as SupplierObservationId;
+    const correction = await recordSupplierObservation(context(), {
+      ...envelope("supplier-observation-correction"),
+      payload: {
+        supplierObservationId: correctionId,
+        kind: "role",
+        caseKind: "correction",
+        description: "Sửa lại diễn giải nguồn.",
+        participantWording: "Giữ nguyên identity của observation.",
+        facts: supplierFacts,
+        evidenceReferences: ["photo://supplier/db-correction"],
+        relatedObservationId: supplierObservationId,
+      },
+    });
+    expect(correction.ok).toBe(true);
+
+    const fork = await recordSupplierObservation(context(), {
+      ...envelope("supplier-observation-fork"),
+      payload: {
+        supplierObservationId: crypto.randomUUID() as SupplierObservationId,
+        kind: "role",
+        caseKind: "correction",
+        description: "Fork không hợp lệ.",
+        participantWording: "Cùng target đã có correction.",
+        facts: supplierFacts,
+        evidenceReferences: ["photo://supplier/db-fork"],
+        relatedObservationId: supplierObservationId,
+      },
+    });
+    expect(fork.ok).toBe(false);
+    if (!fork.ok) {
+      expect(fork.error.code).toBe("SUPPLIER_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED");
+    }
+  });
 });

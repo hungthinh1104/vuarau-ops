@@ -29,7 +29,7 @@ two handlers cannot disagree about whether the same failure is worth retrying.
 | `WORKSPACE_ACCESS_DENIED`                       | Actor is not a member of the target workspace                                                                          | `workspaceId`                            | no        | BR-CUSTOMER-002              | `FORBIDDEN`             |
 | `WORKSPACE_MEMBERSHIP_INACTIVE`                 | Membership exists but was revoked. Distinct from the row above because the operator's remedy differs                   | `workspaceId`                            | no        | BR-AUTH-003                  | `FORBIDDEN`             |
 | `PERMISSION_DENIED`                             | Active member, but their role lacks the permission                                                                     | `permission`, `role`, `workspaceId`      | no        | BR-AUTH-004, BR-AUTH-006     | `FORBIDDEN`             |
-| `WORKSPACE_POLICY_DEFINITION_INVALID`           | Effective policy JSON does not satisfy the typed contract required by the command                                    | `policyVersionId`, `policyKind`          | no        | BR-SALE-017                  | `BAD_REQUEST`           |
+| `WORKSPACE_POLICY_DEFINITION_INVALID`           | Effective policy JSON does not satisfy the typed contract required by the command                                      | `policyVersionId`, `policyKind`          | no        | BR-SALE-017                  | `BAD_REQUEST`           |
 | `CUSTOMER_NOT_FOUND`                            | No such customer in this workspace                                                                                     | `customerId`                             | no        | —                            | `NOT_FOUND`             |
 | `CUSTOMER_NAME_REQUIRED`                        | Display name blank after trimming                                                                                      | —                                        | no        | BR-CUSTOMER-001              | `BAD_REQUEST`           |
 | `SALE_NOT_FOUND`                                | No such sale in this workspace                                                                                         | `saleId`                                 | no        | —                            | `NOT_FOUND`             |
@@ -85,6 +85,25 @@ two handlers cannot disagree about whether the same failure is worth retrying.
 ¹ A version conflict is _not_ retryable with the same payload: the client must
 re-read the aggregate and let the user decide. Blind retry would reintroduce the
 lost update the check exists to prevent.
+
+Observation correction codes are intentionally specific: a target that is
+already corrected is a chain conflict, while changed identity dimensions are a
+bad correction payload.
+
+| Code                                                                | Meaning                                                        | Details         | Retryable | Rule            | HTTP / tRPC   |
+| ------------------------------------------------------------------- | -------------------------------------------------------------- | --------------- | --------- | --------------- | ------------- |
+| `COST_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`              | Target is not the current cost-observation chain tip           | `observationId` | no        | BR-EVIDENCE-003 | `CONFLICT`    |
+| `COST_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                     | Cost correction changes immutable source identity              | `observationId` | no        | BR-EVIDENCE-003 | `BAD_REQUEST` |
+| `RECONCILIATION_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`    | Target is not the current reconciliation-observation chain tip | `observationId` | no        | BR-EVIDENCE-006 | `CONFLICT`    |
+| `RECONCILIATION_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`           | Reconciliation correction changes immutable scope identity     | `observationId` | no        | BR-EVIDENCE-006 | `BAD_REQUEST` |
+| `DEBT_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`              | Target is not the current debt-observation chain tip           | `observationId` | no        | BR-EVIDENCE-009 | `CONFLICT`    |
+| `DEBT_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                     | Debt correction changes immutable account identity             | `observationId` | no        | BR-EVIDENCE-009 | `BAD_REQUEST` |
+| `SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED` | Target is not the current supply-observation chain tip         | `observationId` | no        | BR-EVIDENCE-012 | `CONFLICT`    |
+| `SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`        | Supply correction changes immutable commitment identity        | `observationId` | no        | BR-EVIDENCE-012 | `BAD_REQUEST` |
+| `SUPPLIER_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`          | Target is not the current supplier-observation chain tip       | `observationId` | no        | BR-EVIDENCE-015 | `CONFLICT`    |
+| `SUPPLIER_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                 | Supplier correction changes immutable source identity          | `observationId` | no        | BR-EVIDENCE-015 | `BAD_REQUEST` |
+| `DEMAND_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`            | Target is not the current demand-observation chain tip         | `observationId` | no        | BR-EVIDENCE-018 | `CONFLICT`    |
+| `DEMAND_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                   | Demand correction changes immutable source identity            | `observationId` | no        | BR-EVIDENCE-018 | `BAD_REQUEST` |
 
 ## Lifecycle codes
 

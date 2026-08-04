@@ -88,9 +88,10 @@ not real-worker adoption.
 - **BR-EVIDENCE-002** — Recording a CostObservation creates no COGS, profit,
   payable, receivable or inventory effect. Those meanings require explicit
   workspace policy and a separate canonical command.
-- **BR-EVIDENCE-003** — A correction is a new immutable CostObservation linked to an
-  existing observation in the same workspace. Identity, authorization,
-  idempotency, transaction time and recorded time use the common command contract.
+- **BR-EVIDENCE-003** — A correction is a new immutable CostObservation linked
+  only to the current chain tip in the same workspace. Its immutable source,
+  kind, product, grade, unit and currency identity must match the target; forks
+  and cycles are refused. The target is locked during the command.
 
 ## Operational reconciliation observations
 
@@ -103,9 +104,9 @@ not real-worker adoption.
   an inventory movement. Those effects require explicit workspace policy and a
   separate canonical command.
 - **BR-EVIDENCE-006** — A correction is a new immutable ReconciliationObservation
-  linked to an existing observation in the same workspace. Identity,
-  authorization, idempotency, transaction time and recorded time use the common
-  command contract.
+  linked only to the current chain tip in the same workspace. Its immutable
+  scope, kind, entity, unit and currency identity must match the target; forks
+  and cycles are refused. The target is locked during the command.
 
 ## Debt-term observations
 
@@ -118,9 +119,9 @@ not real-worker adoption.
   Those meanings require an explicit accepted workspace policy and canonical
   command.
 - **BR-EVIDENCE-009** — A correction is a new immutable DebtObservation linked
-  to an existing observation in the same workspace. Identity, authorization,
-  idempotency, transaction time and recorded time use the common command
-  contract.
+  only to the current chain tip in the same workspace. Its immutable customer,
+  kind, source reference and currency identity must match the target; forks and
+  cycles are refused. The target is locked during the command.
 
 ## Supply commitment observations
 
@@ -133,9 +134,10 @@ not real-worker adoption.
   state, supplier score or recommendation. Those meanings require field
   evidence, an accepted workspace policy and a separate canonical command.
 - **BR-EVIDENCE-012** — A correction is a new immutable
-  SupplyCommitmentObservation linked to an existing observation in the same
-  workspace. Identity, authorization, idempotency, transaction time and
-  recorded time use the common command contract.
+  SupplyCommitmentObservation linked only to the current chain tip in the same
+  workspace. Its immutable supplier, product, grade, source, kind and unit
+  identity must match the target; forks and cycles are refused. The target is
+  locked during the command.
 
 ## Supplier relationship and performance observations
 
@@ -148,9 +150,10 @@ not real-worker adoption.
   recommendation. Those meanings require field evidence, an accepted workspace
   policy and a separate canonical command.
 - **BR-EVIDENCE-015** — A correction is a new immutable SupplierObservation
-  linked to an existing observation in the same workspace. Identity,
-  authorization, idempotency, transaction time and recorded time use the common
-  command contract.
+  linked only to the current chain tip in the same workspace. Its immutable
+  supplier, product, grade, source, kind, unit and currency identity must match
+  the target; forks and cycles are refused. The target is locked during the
+  command.
 
 ## Customer demand observations
 
@@ -162,6 +165,6 @@ not real-worker adoption.
   recommendation. Those meanings require canonical facts, an accepted workspace
   policy and a separate command.
 - **BR-EVIDENCE-018** — A correction is a new immutable DemandObservation linked
-  to an existing observation in the same workspace. Identity, authorization,
-  idempotency, transaction time and recorded time use the common command
-  contract.
+  only to the current chain tip in the same workspace. Its immutable customer,
+  product, grade, source, kind and unit identity must match the target; forks and
+  cycles are refused. The target is locked during the command.

@@ -20,6 +20,33 @@ export const createCostObservationWriteRepositories = (tx: Tx) => ({
         .limit(1);
       return rows[0] === undefined ? null : toCostObservationDto(rows[0]);
     },
+    async findByIdForUpdate(workspaceId: string, observationId: string) {
+      const rows = await tx
+        .select()
+        .from(costObservations)
+        .where(
+          and(
+            eq(costObservations.workspaceId, workspaceId),
+            eq(costObservations.id, observationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      return rows[0] === undefined ? null : toCostObservationDto(rows[0]);
+    },
+    async findCorrectionByTarget(workspaceId: string, observationId: string) {
+      const rows = await tx
+        .select()
+        .from(costObservations)
+        .where(
+          and(
+            eq(costObservations.workspaceId, workspaceId),
+            eq(costObservations.relatedObservationId, observationId),
+          ),
+        )
+        .limit(1);
+      return rows[0] === undefined ? null : toCostObservationDto(rows[0]);
+    },
     async insert(observation: CostObservationDto) {
       const result = await tx
         .insert(costObservations)

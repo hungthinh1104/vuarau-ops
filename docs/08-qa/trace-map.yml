@@ -3370,7 +3370,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/depot-operations-rules.md
     cases: []
-    tests: [TC-EVIDENCE-061]
+    tests: [TC-EVIDENCE-061, TC-EVIDENCE-068, TC-EVIDENCE-069]
     implementation:
       - packages/domain-kernel/src/supplier-observation/index.ts
       - apps/api/src/modules/evidence/evidence.handlers.ts
@@ -4540,6 +4540,12 @@ contract_tests:
   TC-EVIDENCE-067:
     title: Demand observation UI shows source facts without Sale or planning intelligence
     file: apps/web/src/ui/screens/demand-observation-view.test.tsx
+  TC-EVIDENCE-068:
+    title: Observation corrections preserve immutable identity and cannot fork a chain
+    file: apps/api/src/modules/evidence/evidence.app.test.ts
+  TC-EVIDENCE-069:
+    title: PostgreSQL rejects supplier correction identity changes and forks
+    file: apps/api/src/infrastructure/persistence/drizzle/evidence.db.test.ts
 
   TC-VALUATION-001:
     title: Inventory valuation strategies use deterministic integer arithmetic and fail closed

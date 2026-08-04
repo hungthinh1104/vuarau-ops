@@ -15,7 +15,8 @@ import { err, ok } from "../shared/result.ts";
 export function decideRecordSupplyCommitmentObservation(
   command: RecordSupplyCommitmentObservationCommand,
   recordedAt: IsoInstant,
-  correctionTargetExists: boolean,
+  correctionTarget: SupplyCommitmentObservationDto | null,
+  correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{
   observation: SupplyCommitmentObservationDto;
   audit: AuditDraft;
@@ -33,10 +34,32 @@ export function decideRecordSupplyCommitmentObservation(
       "Only a correction observation may link to an earlier observation.",
     );
   }
-  if (payload.caseKind === "correction" && !correctionTargetExists) {
+  if (payload.caseKind === "correction" && correctionTarget === null) {
     return err(
       "SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_TARGET_NOT_FOUND",
       "The observation being corrected was not found in this workspace.",
+    );
+  }
+  if (payload.caseKind === "correction" && correctionTargetAlreadyCorrected) {
+    return err(
+      "SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED",
+      "Only the current supply commitment observation chain tip may be corrected.",
+    );
+  }
+  if (
+    payload.caseKind === "correction" &&
+    correctionTarget !== null &&
+    (correctionTarget.kind !== payload.kind ||
+      correctionTarget.facts.supplierId !== payload.facts.supplierId ||
+      correctionTarget.facts.productId !== payload.facts.productId ||
+      correctionTarget.facts.qualityGradeId !== payload.facts.qualityGradeId ||
+      correctionTarget.facts.commitmentReference !== payload.facts.commitmentReference ||
+      correctionTarget.facts.promisedQuantity?.unit !== payload.facts.promisedQuantity?.unit ||
+      correctionTarget.facts.minimumOrder?.unit !== payload.facts.minimumOrder?.unit)
+  ) {
+    return err(
+      "SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_IDENTITY_MISMATCH",
+      "A supply commitment correction must preserve the supplier, product, grade, source, kind and unit identity.",
     );
   }
 

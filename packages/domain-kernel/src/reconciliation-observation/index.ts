@@ -10,7 +10,8 @@ import { err, ok } from "../shared/result.ts";
 export function decideRecordReconciliationObservation(
   command: RecordReconciliationObservationCommand,
   recordedAt: IsoInstant,
-  correctionTargetExists: boolean,
+  correctionTarget: ReconciliationObservationDto | null,
+  correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{
   observation: ReconciliationObservationDto;
   audit: AuditDraft;
@@ -28,10 +29,33 @@ export function decideRecordReconciliationObservation(
       "Only a correction observation may link to an earlier observation.",
     );
   }
-  if (payload.caseKind === "correction" && !correctionTargetExists) {
+  if (payload.caseKind === "correction" && correctionTarget === null) {
     return err(
       "RECONCILIATION_OBSERVATION_CORRECTION_TARGET_NOT_FOUND",
       "The observation being corrected was not found in this workspace.",
+    );
+  }
+  if (payload.caseKind === "correction" && correctionTargetAlreadyCorrected) {
+    return err(
+      "RECONCILIATION_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED",
+      "Only the current reconciliation observation chain tip may be corrected.",
+    );
+  }
+  if (
+    payload.caseKind === "correction" &&
+    correctionTarget !== null &&
+    (correctionTarget.kind !== payload.kind ||
+      correctionTarget.facts.productId !== payload.facts.productId ||
+      correctionTarget.facts.qualityGradeId !== payload.facts.qualityGradeId ||
+      correctionTarget.facts.scopeReference !== payload.facts.scopeReference ||
+      correctionTarget.facts.expectedAmount?.currency !== payload.facts.expectedAmount?.currency ||
+      correctionTarget.facts.observedAmount?.currency !== payload.facts.observedAmount?.currency ||
+      correctionTarget.facts.expectedQuantity?.unit !== payload.facts.expectedQuantity?.unit ||
+      correctionTarget.facts.observedQuantity?.unit !== payload.facts.observedQuantity?.unit)
+  ) {
+    return err(
+      "RECONCILIATION_OBSERVATION_CORRECTION_IDENTITY_MISMATCH",
+      "A reconciliation correction must preserve the scope, kind, product, grade, unit and currency identity.",
     );
   }
 

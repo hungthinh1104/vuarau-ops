@@ -19,6 +19,33 @@ export const createReconciliationObservationWriteRepositories = (tx: Tx) => ({
         .limit(1);
       return rows[0] === undefined ? null : toReconciliationObservationDto(rows[0]);
     },
+    async findByIdForUpdate(workspaceId: string, observationId: string) {
+      const rows = await tx
+        .select()
+        .from(reconciliationObservations)
+        .where(
+          and(
+            eq(reconciliationObservations.workspaceId, workspaceId),
+            eq(reconciliationObservations.id, observationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      return rows[0] === undefined ? null : toReconciliationObservationDto(rows[0]);
+    },
+    async findCorrectionByTarget(workspaceId: string, observationId: string) {
+      const rows = await tx
+        .select()
+        .from(reconciliationObservations)
+        .where(
+          and(
+            eq(reconciliationObservations.workspaceId, workspaceId),
+            eq(reconciliationObservations.relatedObservationId, observationId),
+          ),
+        )
+        .limit(1);
+      return rows[0] === undefined ? null : toReconciliationObservationDto(rows[0]);
+    },
     async insert(observation: ReconciliationObservationDto) {
       const rows = await tx
         .insert(reconciliationObservations)

@@ -19,6 +19,33 @@ export const createSupplierObservationWriteRepositories = (tx: Tx) => ({
         .limit(1);
       return rows[0] === undefined ? null : toSupplierObservationDto(rows[0]);
     },
+    async findByIdForUpdate(workspaceId: string, observationId: string) {
+      const rows = await tx
+        .select()
+        .from(supplierObservations)
+        .where(
+          and(
+            eq(supplierObservations.workspaceId, workspaceId),
+            eq(supplierObservations.id, observationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      return rows[0] === undefined ? null : toSupplierObservationDto(rows[0]);
+    },
+    async findCorrectionByTarget(workspaceId: string, observationId: string) {
+      const rows = await tx
+        .select()
+        .from(supplierObservations)
+        .where(
+          and(
+            eq(supplierObservations.workspaceId, workspaceId),
+            eq(supplierObservations.relatedObservationId, observationId),
+          ),
+        )
+        .limit(1);
+      return rows[0] === undefined ? null : toSupplierObservationDto(rows[0]);
+    },
     async insert(observation: SupplierObservationDto) {
       const facts = observation.facts;
       const rows = await tx

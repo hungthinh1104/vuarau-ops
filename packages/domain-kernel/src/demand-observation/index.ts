@@ -15,7 +15,8 @@ import { err, ok } from "../shared/result.ts";
 export function decideRecordDemandObservation(
   command: RecordDemandObservationCommand,
   recordedAt: IsoInstant,
-  correctionTargetExists: boolean,
+  correctionTarget: DemandObservationDto | null,
+  correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{ observation: DemandObservationDto; audit: AuditDraft }> {
   const { payload } = command;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
@@ -30,10 +31,32 @@ export function decideRecordDemandObservation(
       "Only a correction demand observation may link to an earlier observation.",
     );
   }
-  if (payload.caseKind === "correction" && !correctionTargetExists) {
+  if (payload.caseKind === "correction" && correctionTarget === null) {
     return err(
       "DEMAND_OBSERVATION_CORRECTION_TARGET_NOT_FOUND",
       "The demand observation being corrected was not found in this workspace.",
+    );
+  }
+  if (payload.caseKind === "correction" && correctionTargetAlreadyCorrected) {
+    return err(
+      "DEMAND_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED",
+      "Only the current demand observation chain tip may be corrected.",
+    );
+  }
+  if (
+    payload.caseKind === "correction" &&
+    correctionTarget !== null &&
+    (correctionTarget.kind !== payload.kind ||
+      correctionTarget.facts.customerId !== payload.facts.customerId ||
+      correctionTarget.facts.productId !== payload.facts.productId ||
+      correctionTarget.facts.qualityGradeId !== payload.facts.qualityGradeId ||
+      correctionTarget.facts.demandReference !== payload.facts.demandReference ||
+      correctionTarget.facts.requestedQuantity?.unit !== payload.facts.requestedQuantity?.unit ||
+      correctionTarget.facts.minimumQuantity?.unit !== payload.facts.minimumQuantity?.unit)
+  ) {
+    return err(
+      "DEMAND_OBSERVATION_CORRECTION_IDENTITY_MISMATCH",
+      "A demand correction must preserve the customer, product, grade, source, kind and unit identity.",
     );
   }
 

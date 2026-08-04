@@ -38,7 +38,12 @@ const command = (label: string, overrides: Record<string, unknown> = {}) =>
 
 describe("reconciliation observation domain", () => {
   it("BR-EVIDENCE-004 / TC-EVIDENCE-027 — preserves expected and observed facts without a derived variance", () => {
-    const result = decideRecordReconciliationObservation(command("normal"), recordedAt, false);
+    const result = decideRecordReconciliationObservation(
+      command("normal"),
+      recordedAt,
+      null,
+      false,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -61,7 +66,14 @@ describe("reconciliation observation domain", () => {
   });
 
   it("BR-EVIDENCE-005 / TC-EVIDENCE-028 — correction is a new linked observation", () => {
-    const targetId = id("000000000002");
+    const target = decideRecordReconciliationObservation(
+      command("target"),
+      recordedAt,
+      null,
+      false,
+    );
+    if (!target.ok) return;
+    const targetId = target.value.observation.id;
     const result = decideRecordReconciliationObservation(
       command("correction", {
         reconciliationObservationId: id("000000000003"),
@@ -69,7 +81,8 @@ describe("reconciliation observation domain", () => {
         relatedObservationId: targetId,
       }),
       recordedAt,
-      true,
+      target.value.observation,
+      false,
     );
 
     expect(result.ok).toBe(true);
@@ -86,12 +99,14 @@ describe("reconciliation observation domain", () => {
         relatedObservationId: null,
       }),
       recordedAt,
+      null,
       false,
     );
     const nonCorrectionLink = decideRecordReconciliationObservation(
       command("non-correction-link", { relatedObservationId: id("000000000004") }),
       recordedAt,
-      true,
+      null,
+      false,
     );
 
     expect(missingTarget.ok).toBe(false);

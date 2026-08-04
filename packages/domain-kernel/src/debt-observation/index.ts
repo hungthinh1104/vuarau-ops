@@ -14,7 +14,8 @@ import { err, ok } from "../shared/result.ts";
 export function decideRecordDebtObservation(
   command: RecordDebtObservationCommand,
   recordedAt: IsoInstant,
-  correctionTargetExists: boolean,
+  correctionTarget: DebtObservationDto | null,
+  correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{ observation: DebtObservationDto; audit: AuditDraft }> {
   const { payload } = command;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
@@ -29,10 +30,29 @@ export function decideRecordDebtObservation(
       "Only a correction observation may link to an earlier observation.",
     );
   }
-  if (payload.caseKind === "correction" && !correctionTargetExists) {
+  if (payload.caseKind === "correction" && correctionTarget === null) {
     return err(
       "DEBT_OBSERVATION_CORRECTION_TARGET_NOT_FOUND",
       "The observation being corrected was not found in this workspace.",
+    );
+  }
+  if (payload.caseKind === "correction" && correctionTargetAlreadyCorrected) {
+    return err(
+      "DEBT_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED",
+      "Only the current debt observation chain tip may be corrected.",
+    );
+  }
+  if (
+    payload.caseKind === "correction" &&
+    correctionTarget !== null &&
+    (correctionTarget.kind !== payload.kind ||
+      correctionTarget.facts.customerId !== payload.facts.customerId ||
+      correctionTarget.facts.paymentReference !== payload.facts.paymentReference ||
+      correctionTarget.facts.amount?.currency !== payload.facts.amount?.currency)
+  ) {
+    return err(
+      "DEBT_OBSERVATION_CORRECTION_IDENTITY_MISMATCH",
+      "A debt correction must preserve the customer, kind, source reference and currency identity.",
     );
   }
 

@@ -19,6 +19,33 @@ export const createDebtObservationWriteRepositories = (tx: Tx) => ({
         .limit(1);
       return rows[0] === undefined ? null : toDebtObservationDto(rows[0]);
     },
+    async findByIdForUpdate(workspaceId: string, observationId: string) {
+      const rows = await tx
+        .select()
+        .from(debtObservations)
+        .where(
+          and(
+            eq(debtObservations.workspaceId, workspaceId),
+            eq(debtObservations.id, observationId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      return rows[0] === undefined ? null : toDebtObservationDto(rows[0]);
+    },
+    async findCorrectionByTarget(workspaceId: string, observationId: string) {
+      const rows = await tx
+        .select()
+        .from(debtObservations)
+        .where(
+          and(
+            eq(debtObservations.workspaceId, workspaceId),
+            eq(debtObservations.relatedObservationId, observationId),
+          ),
+        )
+        .limit(1);
+      return rows[0] === undefined ? null : toDebtObservationDto(rows[0]);
+    },
     async insert(observation: DebtObservationDto) {
       const rows = await tx
         .insert(debtObservations)

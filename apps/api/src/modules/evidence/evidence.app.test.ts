@@ -501,6 +501,54 @@ describe("supplier observation application", () => {
     expect(foreign.ok).toBe(false);
     if (!foreign.ok) expect(foreign.error.code).toBe("SUPPLIER_OBSERVATION_NOT_FOUND");
   });
+
+  it("TC-EVIDENCE-068 — corrections preserve identity and cannot fork a chain", async () => {
+    const first = await recordSupplierObservation(harness.ctx, supplierObservationInput());
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const mismatched = await recordSupplierObservation(
+      harness.ctx,
+      supplierObservationInput({
+        payload: {
+          ...supplierObservationInput().payload,
+          supplierObservationId: uuid<SupplierObservationId>(),
+          kind: "actual_quantity",
+          caseKind: "correction",
+          relatedObservationId: first.value.id,
+        },
+      }),
+    );
+    expect(mismatched.ok).toBe(false);
+    if (!mismatched.ok) {
+      expect(mismatched.error.code).toBe("SUPPLIER_OBSERVATION_CORRECTION_IDENTITY_MISMATCH");
+    }
+
+    const correctionPayload = {
+      ...supplierObservationInput().payload,
+      supplierObservationId: uuid<SupplierObservationId>(),
+      caseKind: "correction" as const,
+      relatedObservationId: first.value.id,
+    };
+    const correction = await recordSupplierObservation(harness.ctx, {
+      ...supplierObservationInput(),
+      payload: correctionPayload,
+    });
+    expect(correction.ok).toBe(true);
+    if (!correction.ok) return;
+
+    const fork = await recordSupplierObservation(harness.ctx, {
+      ...supplierObservationInput(),
+      payload: {
+        ...correctionPayload,
+        supplierObservationId: uuid<SupplierObservationId>(),
+      },
+    });
+    expect(fork.ok).toBe(false);
+    if (!fork.ok) {
+      expect(fork.error.code).toBe("SUPPLIER_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED");
+    }
+  });
 });
 
 describe("demand observation application", () => {

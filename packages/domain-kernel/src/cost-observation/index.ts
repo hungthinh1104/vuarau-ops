@@ -10,7 +10,8 @@ import { err, ok } from "../shared/result.ts";
 export function decideRecordCostObservation(
   command: RecordCostObservationCommand,
   recordedAt: IsoInstant,
-  correctionTargetExists: boolean,
+  correctionTarget: CostObservationDto | null,
+  correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{ observation: CostObservationDto; audit: AuditDraft }> {
   const { payload } = command;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
@@ -25,10 +26,31 @@ export function decideRecordCostObservation(
       "Only a correction observation may link to an earlier observation.",
     );
   }
-  if (payload.caseKind === "correction" && !correctionTargetExists) {
+  if (payload.caseKind === "correction" && correctionTarget === null) {
     return err(
       "COST_OBSERVATION_CORRECTION_TARGET_NOT_FOUND",
       "The observation being corrected was not found in this workspace.",
+    );
+  }
+  if (payload.caseKind === "correction" && correctionTargetAlreadyCorrected) {
+    return err(
+      "COST_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED",
+      "Only the current cost observation chain tip may be corrected.",
+    );
+  }
+  if (
+    payload.caseKind === "correction" &&
+    correctionTarget !== null &&
+    (correctionTarget.kind !== payload.kind ||
+      correctionTarget.facts.productId !== payload.facts.productId ||
+      correctionTarget.facts.qualityGradeId !== payload.facts.qualityGradeId ||
+      correctionTarget.facts.sourceReference !== payload.facts.sourceReference ||
+      correctionTarget.facts.quantity?.unit !== payload.facts.quantity?.unit ||
+      correctionTarget.facts.amount?.currency !== payload.facts.amount?.currency)
+  ) {
+    return err(
+      "COST_OBSERVATION_CORRECTION_IDENTITY_MISMATCH",
+      "A cost correction must preserve the source, kind, product, grade, unit and currency identity.",
     );
   }
 

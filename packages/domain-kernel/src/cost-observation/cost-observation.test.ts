@@ -35,7 +35,7 @@ const command = (label: string, overrides: Record<string, unknown> = {}) =>
 
 describe("cost observation domain", () => {
   it("BR-EVIDENCE-001 / TC-EVIDENCE-015 — preserves source-linked facts without effects", () => {
-    const result = decideRecordCostObservation(command("normal"), recordedAt, false);
+    const result = decideRecordCostObservation(command("normal"), recordedAt, null, false);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -56,7 +56,9 @@ describe("cost observation domain", () => {
   });
 
   it("BR-EVIDENCE-002 / TC-EVIDENCE-016 — correction is a new linked observation", () => {
-    const targetId = id("000000000002");
+    const target = decideRecordCostObservation(command("target"), recordedAt, null, false);
+    if (!target.ok) return;
+    const targetId = target.value.observation.id;
     const result = decideRecordCostObservation(
       command("correction", {
         costObservationId: id("000000000003"),
@@ -64,7 +66,8 @@ describe("cost observation domain", () => {
         relatedObservationId: targetId,
       }),
       recordedAt,
-      true,
+      target.value.observation,
+      false,
     );
 
     expect(result.ok).toBe(true);
@@ -80,6 +83,7 @@ describe("cost observation domain", () => {
         relatedObservationId: null,
       }),
       recordedAt,
+      null,
       false,
     );
     const nonCorrectionLink = decideRecordCostObservation(
@@ -87,7 +91,8 @@ describe("cost observation domain", () => {
         relatedObservationId: id("000000000004"),
       }),
       recordedAt,
-      true,
+      null,
+      false,
     );
 
     expect(missingTarget.ok).toBe(false);

@@ -39,7 +39,7 @@ function command(overrides: Record<string, unknown> = {}) {
 }
 
 it("TC-EVIDENCE-033 preserves debt evidence without a ledger effect", () => {
-  const result = decideRecordDebtObservation(command(), RECORDED_AT, false);
+  const result = decideRecordDebtObservation(command(), RECORDED_AT, null, false);
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.value.observation.facts.agreedDueAt, "2026-08-07T17:00:00.000Z");
@@ -63,10 +63,20 @@ it("TC-EVIDENCE-034 requires a same-workspace correction target", () => {
       },
     }),
     RECORDED_AT,
+    null,
     false,
   );
   assert.equal(missing.ok, false);
   if (!missing.ok) assert.equal(missing.error.code, "DEBT_OBSERVATION_CORRECTION_TARGET_NOT_FOUND");
+
+  const target = decideRecordDebtObservation(
+    command({ payload: { ...command().payload, debtObservationId: id("102") } }),
+    RECORDED_AT,
+    null,
+    false,
+  );
+  assert.equal(target.ok, true);
+  if (!target.ok) return;
 
   const linked = decideRecordDebtObservation(
     command({
@@ -77,7 +87,8 @@ it("TC-EVIDENCE-034 requires a same-workspace correction target", () => {
       },
     }),
     RECORDED_AT,
-    true,
+    target.value.observation,
+    false,
   );
   assert.equal(linked.ok, true);
 });

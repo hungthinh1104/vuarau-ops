@@ -42,11 +42,15 @@ export function recordCostObservation(ctx: CommandContext, input: unknown) {
       const target =
         command.payload.relatedObservationId === null
           ? null
-          : await repos.costObservations.findById(
+          : await repos.costObservations.findByIdForUpdate(
               command.workspaceId,
               command.payload.relatedObservationId,
             );
-      const decision = decideRecordCostObservation(command, recordedAt, target !== null);
+      const successor =
+        target === null
+          ? null
+          : await repos.costObservations.findCorrectionByTarget(command.workspaceId, target.id);
+      const decision = decideRecordCostObservation(command, recordedAt, target, successor !== null);
       if (!decision.ok) return decision;
       if (!(await repos.costObservations.insert(decision.value.observation))) {
         return err(
@@ -76,11 +80,23 @@ export function recordReconciliationObservation(ctx: CommandContext, input: unkn
       const target =
         command.payload.relatedObservationId === null
           ? null
-          : await repos.reconciliationObservations.findById(
+          : await repos.reconciliationObservations.findByIdForUpdate(
               command.workspaceId,
               command.payload.relatedObservationId,
             );
-      const decision = decideRecordReconciliationObservation(command, recordedAt, target !== null);
+      const successor =
+        target === null
+          ? null
+          : await repos.reconciliationObservations.findCorrectionByTarget(
+              command.workspaceId,
+              target.id,
+            );
+      const decision = decideRecordReconciliationObservation(
+        command,
+        recordedAt,
+        target,
+        successor !== null,
+      );
       if (!decision.ok) return decision;
       if (!(await repos.reconciliationObservations.insert(decision.value.observation))) {
         return err(
@@ -110,11 +126,15 @@ export function recordDebtObservation(ctx: CommandContext, input: unknown) {
       const target =
         command.payload.relatedObservationId === null
           ? null
-          : await repos.debtObservations.findById(
+          : await repos.debtObservations.findByIdForUpdate(
               command.workspaceId,
               command.payload.relatedObservationId,
             );
-      const decision = decideRecordDebtObservation(command, recordedAt, target !== null);
+      const successor =
+        target === null
+          ? null
+          : await repos.debtObservations.findCorrectionByTarget(command.workspaceId, target.id);
+      const decision = decideRecordDebtObservation(command, recordedAt, target, successor !== null);
       if (!decision.ok) return decision;
       if (!(await repos.debtObservations.insert(decision.value.observation))) {
         return err(
@@ -144,14 +164,22 @@ export function recordSupplyCommitmentObservation(ctx: CommandContext, input: un
       const target =
         command.payload.relatedObservationId === null
           ? null
-          : await repos.supplyCommitmentObservations.findById(
+          : await repos.supplyCommitmentObservations.findByIdForUpdate(
               command.workspaceId,
               command.payload.relatedObservationId,
+            );
+      const successor =
+        target === null
+          ? null
+          : await repos.supplyCommitmentObservations.findCorrectionByTarget(
+              command.workspaceId,
+              target.id,
             );
       const decision = decideRecordSupplyCommitmentObservation(
         command,
         recordedAt,
-        target !== null,
+        target,
+        successor !== null,
       );
       if (!decision.ok) return decision;
       if (!(await repos.supplyCommitmentObservations.insert(decision.value.observation))) {
@@ -182,11 +210,20 @@ export function recordSupplierObservation(ctx: CommandContext, input: unknown) {
       const target =
         command.payload.relatedObservationId === null
           ? null
-          : await repos.supplierObservations.findById(
+          : await repos.supplierObservations.findByIdForUpdate(
               command.workspaceId,
               command.payload.relatedObservationId,
             );
-      const decision = decideRecordSupplierObservation(command, recordedAt, target !== null);
+      const successor =
+        target === null
+          ? null
+          : await repos.supplierObservations.findCorrectionByTarget(command.workspaceId, target.id);
+      const decision = decideRecordSupplierObservation(
+        command,
+        recordedAt,
+        target,
+        successor !== null,
+      );
       if (!decision.ok) return decision;
       if (!(await repos.supplierObservations.insert(decision.value.observation))) {
         return err(
@@ -216,11 +253,20 @@ export function recordDemandObservation(ctx: CommandContext, input: unknown) {
       const target =
         command.payload.relatedObservationId === null
           ? null
-          : await repos.demandObservations.findById(
+          : await repos.demandObservations.findByIdForUpdate(
               command.workspaceId,
               command.payload.relatedObservationId,
             );
-      const decision = decideRecordDemandObservation(command, recordedAt, target !== null);
+      const successor =
+        target === null
+          ? null
+          : await repos.demandObservations.findCorrectionByTarget(command.workspaceId, target.id);
+      const decision = decideRecordDemandObservation(
+        command,
+        recordedAt,
+        target,
+        successor !== null,
+      );
       if (!decision.ok) return decision;
       if (!(await repos.demandObservations.insert(decision.value.observation))) {
         return err(
