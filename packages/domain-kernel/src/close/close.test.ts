@@ -88,7 +88,7 @@ describe("close domain invariants", () => {
       [cash],
       closePolicy,
       crypto.randomUUID() as never,
-      { start: "2026-07-19T17:00:00.000+07:00", end: occurredAt },
+      { start: "2026-07-19T17:00:00.000+07:00", end: "2026-07-20T17:00:00.000+07:00" },
       recordedAt,
     );
     expect(result).toMatchObject({
@@ -119,10 +119,62 @@ describe("close domain invariants", () => {
       [cash, inventory],
       closePolicy,
       crypto.randomUUID() as never,
-      { start: "2026-07-19T17:00:00.000+07:00", end: occurredAt },
+      { start: "2026-07-19T17:00:00.000+07:00", end: "2026-07-20T17:00:00.000+07:00" },
       recordedAt,
     );
     expect(result).toMatchObject({ ok: false, error: { code: "WORKSPACE_ACCESS_DENIED" } });
+  });
+
+  it("accepts observed-only measurements and rejects observations outside the business period", () => {
+    const cash = observation("cash_count");
+    const observedOnly = observation("inventory_count");
+    const observedOnlyWithNoExpected = {
+      ...observedOnly,
+      facts: {
+        ...observedOnly.facts,
+        expectedQuantity: null,
+      },
+    };
+    const command = recordOperationalCloseCommandSchema.parse({
+      commandId: crypto.randomUUID(),
+      idempotencyKey: "close-domain-period-001",
+      workspaceId,
+      actorId,
+      occurredAt,
+      payload: {
+        operationalCloseId: operationalCloseIdSchema.parse(crypto.randomUUID()),
+        businessDate: "2026-07-20",
+        observationIds: [cash.id, observedOnly.id],
+        evidenceReferences: ["review://close/period-001"],
+        reason: "Đối chiếu có số thực tế.",
+      },
+    });
+    const accepted = decideRecordOperationalClose(
+      command,
+      [cash, observedOnlyWithNoExpected],
+      closePolicy,
+      crypto.randomUUID() as never,
+      { start: "2026-07-19T17:00:00.000+07:00", end: "2026-07-20T17:00:00.000+07:00" },
+      recordedAt,
+    );
+    expect(accepted.ok).toBe(true);
+
+    const outOfPeriod = {
+      ...observedOnly,
+      transactionTime: "2026-07-18T05:00:00.000+07:00",
+    };
+    const rejected = decideRecordOperationalClose(
+      command,
+      [cash, outOfPeriod],
+      closePolicy,
+      crypto.randomUUID() as never,
+      { start: "2026-07-19T17:00:00.000+07:00", end: "2026-07-20T17:00:00.000+07:00" },
+      recordedAt,
+    );
+    expect(rejected).toMatchObject({
+      ok: false,
+      error: { code: "OPERATIONAL_CLOSE_OBSERVATIONS_INVALID" },
+    });
   });
 
   it("requires exact account, amount and allowed source when matching a cash movement", () => {

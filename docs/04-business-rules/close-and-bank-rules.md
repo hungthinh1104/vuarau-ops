@@ -14,7 +14,9 @@ cash, debt, payable or inventory.
 
 The only supported strategy is `observation_signoff`. It requires exactly one
 observation for every configured kind and each observation must carry a measurable
-expected amount, observed amount, quantity or item count. Missing policy, malformed
+expected amount, observed amount, quantity or item count. An observation must
+also have `transactionTime` inside the closed business-day period; an observed
+value is sufficient when no expected value exists. Missing policy, malformed
 definition, missing observation or cross-workspace reference fails closed.
 
 ### BR-CLOSE-003 — A business date has one explicit state transition

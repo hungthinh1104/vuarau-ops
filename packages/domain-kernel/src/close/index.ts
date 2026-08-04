@@ -37,7 +37,9 @@ function requiredObservationSet(
     observations.some(
       (observation) =>
         observation.facts.expectedAmount === null &&
+        observation.facts.observedAmount === null &&
         observation.facts.expectedQuantity === null &&
+        observation.facts.observedQuantity === null &&
         observation.facts.itemCount === null,
     )
   ) {
@@ -71,6 +73,18 @@ export function decideRecordOperationalClose(
     policy.parameters.requiredObservationKinds,
   );
   if (!observationCheck.ok) return observationCheck;
+  if (
+    observations.some(
+      (observation) =>
+        Date.parse(observation.transactionTime) < Date.parse(period.start) ||
+        Date.parse(observation.transactionTime) >= Date.parse(period.end),
+    )
+  ) {
+    return err(
+      "OPERATIONAL_CLOSE_OBSERVATIONS_INVALID",
+      "Every close observation must belong to the closed business period.",
+    );
+  }
   const close: OperationalCloseDto = {
     id: command.payload.operationalCloseId,
     workspaceId: command.workspaceId,

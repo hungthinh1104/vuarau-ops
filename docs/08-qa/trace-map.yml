@@ -3424,7 +3424,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/close-and-bank-rules.md
     cases: []
-    tests: [TC-CLOSE-001, TC-CLOSE-002]
+    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-006]
     implementation:
       - packages/domain-contracts/src/policy/index.ts
       - packages/domain-kernel/src/workspace-policy/index.ts
@@ -4588,6 +4588,9 @@ contract_tests:
   TC-CLOSE-005:
     title: PostgreSQL persists exact statement match and append-only reversal
     file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
+  TC-CLOSE-006:
+    title: Close accepts observed-only facts and rejects observations outside the business period
+    file: packages/domain-kernel/src/close/close.test.ts
   TC-OPS-018:
     title: Backup V19 carries close, reopen, statement-match and reversal lineage
     file: apps/api/src/modules/operations/operations.app.test.ts

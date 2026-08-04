@@ -531,7 +531,7 @@ describe("M14 logical operations evidence", () => {
       ...envelope("close"),
       payload: {
         operationalCloseId,
-        businessDate: "2026-08-03",
+        businessDate: "2026-07-23",
         observationIds: [observationId],
         evidenceReferences: ["review://backup-close/001"],
         reason: "Đã signoff cuối ngày.",
