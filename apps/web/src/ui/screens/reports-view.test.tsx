@@ -1,6 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import {
   REPORT_METRIC_DEFINITIONS_DTO,
+  type DashboardOrderStatusCountsDto,
+  type DashboardSeriesDto,
+  type DashboardSummaryDto,
+  type DashboardTopProductsDto,
   type ManagementIntelligenceDto,
   type OperationalReportDto,
 } from "@vuarau/domain-contracts";
@@ -88,6 +92,72 @@ const intelligence: ManagementIntelligenceDto = {
   ],
 };
 
+const dashboardSummary: DashboardSummaryDto = {
+  workspaceId: WORKSPACE_ID,
+  asOf: "2026-08-04T00:00:00.000Z",
+  sales: {
+    availability: { state: "available", diagnostics: [], updatedAt: null },
+    amount: { amountMinor: 875_000, currency: "VND" },
+    count: 1,
+  },
+  purchases: {
+    availability: { state: "available", diagnostics: [], updatedAt: null },
+    amount: { amountMinor: 0, currency: "VND" },
+    count: 0,
+  },
+  received: {
+    availability: { state: "available", diagnostics: [], updatedAt: null },
+    quantities: [],
+    count: 0,
+  },
+  stock: {
+    availability: {
+      state: "unavailable",
+      diagnostics: ["projection_unavailable"],
+      updatedAt: null,
+    },
+    quantities: [],
+    count: 0,
+  },
+  outstandingDelivery: {
+    availability: { state: "available", diagnostics: [], updatedAt: null },
+    quantities: [],
+    count: 0,
+  },
+  receivables: {
+    availability: { state: "available", diagnostics: [], updatedAt: null },
+    amount: { amountMinor: 0, currency: "VND" },
+    count: 0,
+  },
+  payables: {
+    availability: { state: "available", diagnostics: [], updatedAt: null },
+    amount: { amountMinor: 0, currency: "VND" },
+    count: 0,
+  },
+  cash: {
+    availability: { state: "available", diagnostics: [], updatedAt: null },
+    amount: { amountMinor: 0, currency: "VND" },
+    count: 0,
+  },
+};
+const dashboardSeries: DashboardSeriesDto = {
+  workspaceId: WORKSPACE_ID,
+  asOf: dashboardSummary.asOf,
+  points: [],
+};
+const dashboardStatusCounts: DashboardOrderStatusCountsDto = {
+  workspaceId: WORKSPACE_ID,
+  asOf: dashboardSummary.asOf,
+  commercial: [],
+  physical: [],
+  financial: [],
+};
+const dashboardTopProducts: DashboardTopProductsDto = {
+  workspaceId: WORKSPACE_ID,
+  asOf: dashboardSummary.asOf,
+  products: [],
+};
+
 function renderView(overrides: Partial<React.ComponentProps<typeof ReportsView>> = {}) {
   return render(
     <ReportsView
@@ -159,5 +229,23 @@ describe("ReportsView", () => {
     expect(screen.getByText("Đang khóa số liệu")).toBeInTheDocument();
     expect(screen.getByText(/Báo cáo đang khóa vì projection chưa đối chiếu/)).toBeInTheDocument();
     expect(screen.queryByText("Không có dòng phù hợp")).not.toBeInTheDocument();
+  });
+
+  it("renders a server aggregate and keeps an unavailable widget local", () => {
+    renderView({
+      overview: {
+        summary: ready(dashboardSummary),
+        series: ready(dashboardSeries),
+        statusCounts: ready(dashboardStatusCounts),
+        topProducts: ready(dashboardTopProducts),
+        onRetry: () => undefined,
+      },
+    });
+    expect(screen.getByRole("heading", { name: "Doanh số đã post" })).toBeInTheDocument();
+    expect(screen.getByText("875.000 ₫")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Tồn kho hiện tại" }).closest("article"),
+    ).toHaveTextContent("N/A");
+    expect(screen.queryByText(/trong phạm vi tải hiện tại/)).not.toBeInTheDocument();
   });
 });

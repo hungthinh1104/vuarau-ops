@@ -33,8 +33,18 @@ export function useWorkflowCacheEffects() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: trpc.report.operational.queryKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.report.intelligence.queryKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.dashboard.summary.queryKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.dashboard.salesSeries.queryKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.dashboard.orderStatusCounts.queryKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.dashboard.topProducts.queryKey() }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.dashboard.operationsBoard.infiniteQueryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.dashboard.operationsBoardCounts.queryKey(),
+        }),
       ]),
-    [queryClient, trpc.report.intelligence, trpc.report.operational],
+    [queryClient, trpc.dashboard, trpc.report.intelligence, trpc.report.operational],
   );
 
   const inventoryChanged = useCallback(

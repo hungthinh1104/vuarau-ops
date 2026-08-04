@@ -40,6 +40,7 @@ const ICONS: Readonly<Record<string, LucideIcon>> = {
   "/customers": Users,
   "/suppliers": Warehouse,
   "/reports": FileBarChart,
+  "/operations-board": FileBarChart,
   "/workspace/operations": Settings2,
   "/workspace": UserRoundCog,
 };

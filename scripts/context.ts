@@ -345,7 +345,7 @@ export async function runContext(
       addResult(resultMap, path, reasons);
     }
     if (!folder && candidatePaths.some((path) => path.startsWith("apps/web/"))) {
-      for (const path of ["docs/design.md", "docs/WEB-ADMIN.md", "docs/MOBILE-POS.md"]) {
+      for (const path of ["docs/design.md", "docs/06-api-contracts/ui-state-catalog.md"]) {
         if (pathExists(path) && !isExcluded(path, includeArchive))
           addResult(docs, path, ["surface-context"]);
       }

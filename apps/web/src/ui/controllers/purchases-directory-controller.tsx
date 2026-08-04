@@ -1,8 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import type { Cursor, Page, PurchaseDto } from "@vuarau/domain-contracts";
-import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { PurchasesDirectoryView } from "@/ui/screens/purchases-directory-view.tsx";
@@ -10,31 +9,40 @@ import { PurchasesDirectoryView } from "@/ui/screens/purchases-directory-view.ts
 export function PurchasesDirectoryController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
-  const [cursor, setCursor] = useState<Cursor | null>(null);
-  const [pages, setPages] = useState<readonly Page<PurchaseDto>[]>([]);
-  const purchases = useQuery(
-    trpc.purchase.list.queryOptions({
-      workspaceId,
-      supplierId: null,
-      status: null,
-      cursor,
-      limit: 25,
-    }),
+  const purchases = useInfiniteQuery(
+    trpc.purchase.list.infiniteQueryOptions(
+      {
+        workspaceId,
+        supplierId: null,
+        status: null,
+        limit: 25,
+      },
+      {
+        initialCursor: null,
+        getNextPageParam: (page) => page.nextCursor ?? undefined,
+      },
+    ),
   );
-  useEffect(() => {
-    if (!purchases.data) return;
-    setPages((current) => (cursor === null ? [purchases.data!] : [...current, purchases.data!]));
-  }, [cursor, purchases.data]);
-  const rows = pages.flatMap((page) => page.items);
-  const nextCursor = pages.at(-1)?.nextCursor ?? null;
+  const rows = useMemo(() => {
+    const seen = new Set<string>();
+    return (purchases.data?.pages ?? [])
+      .flatMap((page) => page.items)
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      });
+  }, [purchases.data?.pages]);
+  const firstPage = purchases.data?.pages[0];
+  const lastPage = purchases.data?.pages.at(-1);
   return (
     <PurchasesDirectoryView
-      query={purchases}
+      query={{ ...purchases, data: firstPage }}
       rows={rows}
-      nextCursor={nextCursor}
+      nextCursor={purchases.hasNextPage ? (lastPage?.nextCursor ?? null) : null}
       isFetching={purchases.isFetching}
       onRetry={() => void purchases.refetch()}
-      onLoadMore={() => setCursor(nextCursor)}
+      onLoadMore={() => void purchases.fetchNextPage()}
       canCreate={session.permissions.includes("purchase.create")}
     />
   );

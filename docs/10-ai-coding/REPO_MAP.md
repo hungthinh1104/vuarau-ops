@@ -19,7 +19,8 @@ apps/
   web/                                  Next App Router application
     src/app/(app)/                     authenticated route tree: customers, sales, payments,
                                        purchases, suppliers, inventory, intake, delivery,
-                                       pricing, reports, operations, quality, evidence, policy and workspace surfaces
+                                       pricing, reports, operations, quality, evidence, policy,
+                                       workspace and operations-board surfaces
     src/app/auth/ and src/app/login/   authentication routes
     src/api/                           session, workspace, tRPC client and command identity
     src/offline/                       IndexedDB cache, sync engine and offline provider
@@ -50,6 +51,15 @@ measures production-runtime p75 LCP, INP and CLS for the customer directory.
 The root App Router also provides a shared loading skeleton and safe error
 boundary; route-specific screens own their query, empty, permission and business
 rejection states.
+
+Operational analytics are not derived in the browser: `apps/api/src/modules/dashboard/`
+and `packages/db/src/repositories/read/dashboard.ts` own the summary, time series,
+status-count, top-product and operations-board reads. The reports screen consumes
+those aggregates; `apps/web/src/ui/controllers/operations-board-controller.tsx`
+uses the tRPC infinite-query contract and `operations-board-view.tsx` owns the
+TanStack Table composition. `/events` carries only workspace-scoped invalidation
+signals from PostgreSQL LISTEN/NOTIFY; the browser refetches canonical tRPC reads.
+It is not a data cache or a second source of truth.
 
 ## E2E and validation surfaces
 

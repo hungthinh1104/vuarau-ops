@@ -17,7 +17,6 @@ import { WORKSPACE_ROLE_COPY, RoleSetPicker } from "@/ui/patterns/workspace/role
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 

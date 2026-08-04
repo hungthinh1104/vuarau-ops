@@ -11,8 +11,9 @@ source_of_truth: true
 > A calm, high-confidence workspace for a busy produce depot.
 
 This is the single visual and interaction contract for the web admin and POS.
-`WEB-ADMIN.md` and `MOBILE-POS.md` define surface workflows; runtime contracts,
-business rules and UI-state contracts outrank this document.
+Use-case documents define surface workflows and
+`06-api-contracts/ui-state-catalog.md` defines their supported UI states; runtime
+contracts and business rules outrank this document.
 
 ## Direction
 

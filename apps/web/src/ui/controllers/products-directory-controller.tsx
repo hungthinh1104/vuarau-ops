@@ -1,8 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import type { Cursor, Page, ProductDto } from "@vuarau/domain-contracts";
-import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useDebounced } from "@/api/use-debounced.ts";
@@ -15,60 +14,65 @@ export function ProductsDirectoryController() {
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<boolean | null>(null);
-  const [cursor, setCursor] = useState<Cursor | null>(null);
-  const [pages, setPages] = useState<readonly Page<ProductDto>[]>([]);
-  const search = useQuery(
-    trpc.product.search.queryOptions({
-      workspaceId,
-      query: useDebounced(query, 250),
-      isActive: activeFilter,
-      cursor,
-      limit: 25,
-    }),
+  const search = useInfiniteQuery(
+    trpc.product.search.infiniteQueryOptions(
+      {
+        workspaceId,
+        query: useDebounced(query, 250),
+        isActive: activeFilter,
+        limit: 25,
+      },
+      {
+        initialCursor: null,
+        getNextPageParam: (page) => page.nextCursor ?? undefined,
+      },
+    ),
   );
   useEffect(() => {
-    if (!search.data) return;
-    setPages((current) => (cursor === null ? [search.data!] : [...current, search.data!]));
+    const pages = search.data?.pages ?? [];
     const fetchedAt = new Date().toISOString();
     void offline.cacheProducts(
-      search.data.items.map((product) => ({
-        ...offline.partition,
-        productId: product.id,
-        displayName: product.displayName,
-        aliases: product.aliases,
-        preferredUnit: product.preferredUnit,
-        fetchedAt,
-      })),
+      pages
+        .flatMap((page) => page.items)
+        .map((product) => ({
+          ...offline.partition,
+          productId: product.id,
+          displayName: product.displayName,
+          aliases: product.aliases,
+          preferredUnit: product.preferredUnit,
+          fetchedAt,
+        })),
     );
-  }, [cursor, offline, search.data]);
-  const products = pages.flatMap((page) => page.items);
-  const nextCursor = pages.at(-1)?.nextCursor ?? null;
-  const reset = () => {
-    setCursor(null);
-    setPages([]);
-  };
+  }, [offline, search.data?.pages]);
+  const products = useMemo(() => {
+    const seen = new Set<string>();
+    return (search.data?.pages ?? [])
+      .flatMap((page) => page.items)
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      });
+  }, [search.data?.pages]);
   return (
     <ProductsDirectoryView
       queryText={query}
       onQueryChange={(value) => {
         setQuery(value);
-        reset();
       }}
       onClearQuery={() => {
         setQuery("");
-        reset();
       }}
       activeFilter={activeFilter}
       onFilterChange={(value) => {
         setActiveFilter(value);
-        reset();
       }}
-      search={search}
+      search={{ ...search, data: search.data?.pages[0] }}
       products={products}
-      nextCursor={nextCursor}
+      nextCursor={search.hasNextPage ? (search.data?.pages.at(-1)?.nextCursor ?? null) : null}
       isFetching={search.isFetching}
       onRetry={() => void search.refetch()}
-      onLoadMore={() => setCursor(nextCursor)}
+      onLoadMore={() => void search.fetchNextPage()}
       canReadQuality={session.permissions.includes("quality.read")}
       canCreate={session.permissions.includes("product.create")}
     />

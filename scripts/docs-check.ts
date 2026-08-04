@@ -90,8 +90,6 @@ const REQUIRED = [
   "10-ai-coding/REVIEW_CHECKLIST.md",
   "10-ai-coding/CHANGE_PROTOCOL.md",
   "design.md",
-  "WEB-ADMIN.md",
-  "MOBILE-POS.md",
   "11-operations/deployment-contract.md",
   "11-operations/device-smoke-check.md",
 ];
@@ -246,15 +244,15 @@ export function checkRoutingContracts(sources: RoutingContractSources): string[]
     failures.push(`${standardPath}: must not define a second dependency graph`);
   }
 
-  const webAdminPath = "docs/WEB-ADMIN.md";
+  const analyticsContractPath = "docs/06-api-contracts/read-models.md";
   requireText(
-    webAdminPath,
-    "#### Policy gate",
-    "analytics candidates must have an explicit policy gate",
+    analyticsContractPath,
+    "`unavailable`, with their policy gates and next evidence",
+    "analytics candidates must remain explicitly unavailable until policy and source facts exist",
   );
   requireText(
-    webAdminPath,
-    "never as zero, a stale projection or a recommendation",
+    analyticsContractPath,
+    "numeric fallback for an unavailable metric",
     "unresolved analytics policy must fail closed",
   );
 
@@ -288,7 +286,7 @@ async function main(): Promise<void> {
     "docs/10-ai-coding/REVIEW_CHECKLIST.md",
     "docs/10-ai-coding/CHANGE_PROTOCOL.md",
     "docs/10-ai-coding/ENGINEERING_STANDARD.md",
-    "docs/WEB-ADMIN.md",
+    "docs/06-api-contracts/read-models.md",
   ];
   const routingSources = Object.fromEntries(
     routingPaths.map((path) => [path, readFileSync(join(ROOT, path), "utf8")]),

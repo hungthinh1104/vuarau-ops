@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type {
   CommandEnvelope,
+  DashboardEvent,
   IsoInstant,
   Permission,
   WorkspaceOperationalProfileDto,
@@ -36,6 +37,8 @@ import { authorizeWorkspaceAccess } from "./authorization.ts";
 export type CommandDeps = {
   readonly uow: UnitOfWork;
   readonly clock: Clock;
+  /** Optional post-commit invalidation signal; canonical facts remain in PostgreSQL. */
+  readonly publishInvalidation?: (event: DashboardEvent) => Promise<void>;
 };
 
 /**
@@ -157,8 +160,9 @@ export async function runCommand<
     });
   };
 
+  let accepted = false;
   try {
-    return await deps.uow.transaction(async (repos) => {
+    const result = await deps.uow.transaction(async (repos) => {
       // 4. Identity, membership, and permission — before any business data is
       //    read, and before the idempotency key is claimed, so an unauthorized
       //    caller cannot burn somebody else's key.
@@ -237,9 +241,37 @@ export async function runCommand<
 
       // 11. Store the result so a retry gets the answer, not "already done".
       await repos.receipts.complete(command.workspaceId, command.idempotencyKey, result.value);
+      accepted = true;
       record("accepted", null);
       return result;
     });
+    if (accepted && result.ok && deps.publishInvalidation !== undefined) {
+      const payload = command.payload;
+      const candidateEntityId =
+        typeof payload === "object" && payload !== null
+          ? Object.entries(payload as Record<string, unknown>).find(
+              ([name, value]) =>
+                typeof value === "string" && (name === "id" || name.endsWith("Id")),
+            )?.[1]
+          : undefined;
+      const entityId = typeof candidateEntityId === "string" ? candidateEntityId : null;
+      try {
+        await deps.publishInvalidation({
+          workspaceId: command.workspaceId,
+          entityType: commandType,
+          entityId,
+          occurredAt: recordedAt,
+        });
+      } catch {
+        log({
+          event: "exception",
+          requestId: currentRequestId(),
+          procedure: commandType,
+          code: "DASHBOARD_INVALIDATION_FAILED",
+        });
+      }
+    }
+    return result;
   } catch (error) {
     if (error instanceof RollbackForRejection) {
       const rejection = error.rejection as DomainResult<TResult>;

@@ -9,6 +9,7 @@ import { createInventoryReadRepositories } from "./read/inventory.ts";
 import { createDeliveryReadRepositories } from "./read/delivery.ts";
 import { createDocumentReadRepositories } from "./read/document.ts";
 import { createReportReadRepositories } from "./read/report.ts";
+import { createDashboardReadRepositories } from "./read/dashboard.ts";
 import { createSaleReadRepositories } from "./read/sale.ts";
 import { createPaymentReadRepositories } from "./read/payment.ts";
 import { createAccountReadRepositories } from "./read/account.ts";
@@ -36,6 +37,7 @@ export function createReadRepositories(tx: Tx) {
     ...createDeliveryReadRepositories(tx),
     ...createDocumentReadRepositories(tx),
     ...createReportReadRepositories(tx),
+    ...createDashboardReadRepositories(tx),
     ...createSaleReadRepositories(tx),
     ...createPaymentReadRepositories(tx),
     ...createAccountReadRepositories(tx),

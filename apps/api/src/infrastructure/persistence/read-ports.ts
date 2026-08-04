@@ -95,6 +95,7 @@ import type { SupplyCommitmentReadRepository } from "./supply-commitment-read-po
 import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
 import type { CloseReadRepositories } from "./close-read-ports.ts";
 import type { OperationsReadRepository } from "./operations-read-ports.ts";
+import type { DashboardReadRepository } from "./dashboard-read-ports.ts";
 /**
  * Read ports, separate from the write ports on purpose.
  *
@@ -111,7 +112,6 @@ import type { OperationsReadRepository } from "./operations-read-ports.ts";
  * query that returns the page. A read that fans out per row is a read that gets
  * slower exactly as the depot gets busier.
  */
-
 /** What every paged query takes, beyond its own filters. */
 export type PageQuery = {
   /** Decoded from the opaque cursor; null means the first page. */
@@ -120,11 +120,7 @@ export type PageQuery = {
   readonly limit: number;
 };
 
-/**
- * One page plus the position to resume from. `nextSortValue` is null exactly when
- * the source had no further rows — decided by reading `limit + 1` and discarding
- * the extra, never by a second count query.
- */
+/** One page plus the position to resume from; `next` is null at the end. */
 export type PageResult<TRow> = {
   readonly rows: readonly TRow[];
   readonly next: CursorPosition | null;
@@ -682,6 +678,7 @@ export type ReadRepositories = {
   readonly deliveryReads: DeliveryReadRepository;
   readonly documentReads: DocumentReadRepository;
   readonly reportReads: ReportReadRepository;
+  readonly dashboardReads: DashboardReadRepository;
   readonly saleReads: SaleReadRepository;
   readonly paymentReads: PaymentReadRepository;
   readonly accountReads: AccountReadRepository;

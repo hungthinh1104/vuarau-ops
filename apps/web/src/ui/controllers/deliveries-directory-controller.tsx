@@ -1,52 +1,48 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import type { DeliveryDto } from "@vuarau/domain-contracts";
-import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
-import { pageStateForWorkspace, type WorkspacePageState } from "@/api/workspace-page-state.ts";
 import { DeliveriesDirectoryView } from "@/ui/screens/deliveries-directory-view.tsx";
 
 export function DeliveriesDirectoryController() {
   const { workspaceId } = useSession();
   const trpc = useTRPC();
-  const [pageState, setPageState] = useState<WorkspacePageState<DeliveryDto>>({
-    workspaceId,
-    cursor: null,
-    pages: [],
-  });
-  const visible = pageStateForWorkspace(pageState, workspaceId);
-  const deliveries = useQuery(
-    trpc.delivery.list.queryOptions({
-      workspaceId,
-      saleId: null,
-      status: null,
-      cursor: visible.cursor,
-      limit: 25,
-    }),
-  );
-  useEffect(() => {
-    if (!deliveries.data) return;
-    setPageState((current) => {
-      const scoped = pageStateForWorkspace(current, workspaceId);
-      return {
+  const deliveries = useInfiniteQuery(
+    trpc.delivery.list.infiniteQueryOptions(
+      {
         workspaceId,
-        cursor: scoped.cursor,
-        pages: scoped.cursor === null ? [deliveries.data!] : [...scoped.pages, deliveries.data!],
-      };
-    });
-  }, [deliveries.data, workspaceId]);
-  const rows = visible.pages.flatMap((page) => page.items);
-  const nextCursor = visible.pages.at(-1)?.nextCursor ?? null;
+        saleId: null,
+        status: null,
+        limit: 25,
+      },
+      {
+        initialCursor: null,
+        getNextPageParam: (page) => page.nextCursor ?? undefined,
+      },
+    ),
+  );
+  const rows = useMemo(() => {
+    const seen = new Set<string>();
+    return (deliveries.data?.pages ?? [])
+      .flatMap((page) => page.items)
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      });
+  }, [deliveries.data?.pages]);
+  const firstPage = deliveries.data?.pages[0];
+  const lastPage = deliveries.data?.pages.at(-1);
   return (
     <DeliveriesDirectoryView
-      query={deliveries}
+      query={{ ...deliveries, data: firstPage }}
       rows={rows}
-      nextCursor={nextCursor}
+      nextCursor={deliveries.hasNextPage ? (lastPage?.nextCursor ?? null) : null}
       isFetching={deliveries.isFetching}
       onRetry={() => void deliveries.refetch()}
-      onLoadMore={() => setPageState({ ...visible, cursor: nextCursor })}
+      onLoadMore={() => void deliveries.fetchNextPage()}
     />
   );
 }

@@ -98,7 +98,7 @@ export function SupplierPaymentReversalView({
   return (
     <section className="rounded-card border border-warning/40 p-4">
       <h2 className="font-semibold">Hoàn tác thanh toán</h2>
-        <TextInput
+      <TextInput
         label="Số tiền (nghìn đồng)"
         inputMode="numeric"
         value={amount}

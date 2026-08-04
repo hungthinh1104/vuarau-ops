@@ -554,6 +554,7 @@ export const api = {
     productId: string;
     productName: string;
     quantityScaled: number;
+    qualityGradeId?: string | null;
   }): Promise<{ saleId: string; saleLineId: string }> {
     const saleId = crypto.randomUUID();
     const saleLineId = crypto.randomUUID();
@@ -571,8 +572,9 @@ export const api = {
               lineId: saleLineId,
               productId: input.productId,
               productName: input.productName,
-              qualityGradeId: E2E_QUALITY_GRADE_ID,
-              qualityGradeName: "Loại 1",
+              qualityGradeId:
+                input.qualityGradeId === undefined ? E2E_QUALITY_GRADE_ID : input.qualityGradeId,
+              qualityGradeName: input.qualityGradeId === null ? null : "Loại 1",
               quantity: { valueScaled: input.quantityScaled, unit: "kg" },
               unitPrice: { amountMinor: 10_000, currency: "VND" },
             },

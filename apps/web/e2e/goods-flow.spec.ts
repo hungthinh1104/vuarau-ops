@@ -54,7 +54,7 @@ test.describe("Goods Truth", () => {
     await chooseSupplier(page, supplierName);
     await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("100");
-    await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
+    await page.getByLabel("Đơn giá (kđ)").fill("10");
     await page.getByRole("button", { name: /^Lưu và (mở )?nhận hàng$/ }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     const purchaseId = new URL(page.url()).pathname.split("/").at(-1)!;
@@ -171,7 +171,7 @@ test.describe("Goods Truth", () => {
     await chooseSupplier(page, supplierName);
     await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("100");
-    await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
+    await page.getByLabel("Đơn giá (kđ)").fill("10");
     await page.getByRole("button", { name: /^Lưu và (mở )?nhận hàng$/ }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     const purchaseId = new URL(page.url()).pathname.split("/").at(-1)!;
@@ -192,7 +192,7 @@ test.describe("Goods Truth", () => {
     await chooseSupplier(page, supplierName);
     await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("20");
-    await page.getByLabel("Đơn giá (nghìn đồng)").fill("11");
+    await page.getByLabel("Đơn giá (kđ)").fill("11");
     await page.getByRole("button", { name: /^Lưu và (mở )?nhận hàng$/ }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     await expect(page.getByText(/đã nhận 0 kg · còn lại 20 kg/)).toBeVisible();

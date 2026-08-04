@@ -1,16 +1,27 @@
 "use client";
 
 import type {
+  DashboardOrderStatusCountsDto,
+  DashboardSeriesDto,
+  DashboardSummaryDto,
+  DashboardTopProductsDto,
   MetricDefinition,
   ManagementIntelligenceDto,
   OperationalReportDto,
-  Page,
-  PurchaseDto,
-  Quantity,
   ReportMetricDefinitionsDto,
   ReportType,
-  SaleSummaryDto,
 } from "@vuarau/domain-contracts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
@@ -51,12 +62,11 @@ export const REPORT_TYPE_OPTIONS: readonly { value: ReportType; label: string }[
 ];
 
 type OperationalOverviewProps = {
-  readonly purchases: QueryLike<Page<PurchaseDto>>;
-  readonly sales: QueryLike<Page<SaleSummaryDto>>;
-  readonly reports: readonly {
-    readonly reportType: ReportType;
-    readonly query: QueryLike<OperationalReportDto>;
-  }[];
+  readonly summary: QueryLike<DashboardSummaryDto>;
+  readonly series: QueryLike<DashboardSeriesDto>;
+  readonly statusCounts: QueryLike<DashboardOrderStatusCountsDto>;
+  readonly topProducts: QueryLike<DashboardTopProductsDto>;
+  readonly onRetry: () => void;
 };
 
 export function ReportsView(props: {
@@ -129,8 +139,6 @@ export function ReportsView(props: {
 }
 
 function OperationalOverview(props: OperationalOverviewProps) {
-  const report = (type: ReportType) =>
-    props.reports.find((item) => item.reportType === type)?.query;
   return (
     <section aria-labelledby="operational-overview-title" className="grid gap-3">
       <div>
@@ -138,101 +146,205 @@ function OperationalOverview(props: OperationalOverviewProps) {
           Việc và số liệu chính
         </h2>
         <p className="text-body-sm text-ink-muted">
-          Đơn mua, nhập hàng, tồn kho, bán hàng, giao hàng còn lại, công nợ và tiền được ưu tiên ở
-          đây. Metric nâng cao chỉ xuất hiện phía dưới khi đủ nguồn và policy.
+          Tổng hợp từ aggregate server-side; metric lỗi chỉ ảnh hưởng chính widget đó.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <OverviewListCard query={props.purchases} title="Đơn mua" kind="purchases" />
-        <OverviewReportCard
-          query={report("inventory_movement_report")}
-          title="Đã nhập hàng"
-          kind="received"
-        />
-        <OverviewReportCard
-          query={report("inventory_by_product_unit")}
-          title="Tồn kho"
-          kind="stock"
-        />
-        <OverviewListCard query={props.sales} title="Đơn bán" kind="sales" />
-        <OverviewReportCard
-          query={report("outstanding_delivery")}
-          title="Còn phải giao"
-          kind="outstanding"
-        />
-        <OverviewReportCard query={report("customer_receivables")} title="Phải thu" kind="amount" />
-        <OverviewReportCard query={report("supplier_payables")} title="Phải trả" kind="amount" />
-        <OverviewReportCard query={report("cash_balances")} title="Tiền" kind="amount" />
+      <DashboardCards query={props.summary} onRetry={props.onRetry} />
+      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+        <SalesTrendChart query={props.series} onRetry={props.onRetry} />
+        <StatusDistribution query={props.statusCounts} onRetry={props.onRetry} />
       </div>
+      <TopProducts query={props.topProducts} onRetry={props.onRetry} />
     </section>
   );
 }
 
-function OverviewListCard(props: {
-  readonly query: QueryLike<Page<PurchaseDto> | Page<SaleSummaryDto>>;
-  readonly title: string;
-  readonly kind: "purchases" | "sales";
+function DashboardCards(props: {
+  readonly query: QueryLike<DashboardSummaryDto>;
+  readonly onRetry: () => void;
 }) {
-  if (props.query.isPending)
-    return <OverviewCardShell title={props.title}>Đang tải…</OverviewCardShell>;
-  if (props.query.isError || props.query.data === undefined) {
-    return <OverviewCardShell title={props.title}>Chưa tải được dữ liệu</OverviewCardShell>;
-  }
-  const total = props.query.data.items.reduce((sum, item) => sum + item.totalAmount.amountMinor, 0);
+  if (props.query.isPending) return <p role="status">Đang tải tổng quan…</p>;
+  if (props.query.isError || props.query.data === undefined)
+    return <WidgetUnavailable title="Tổng quan" onRetry={props.onRetry} />;
+  const summary = props.query.data;
   return (
-    <OverviewCardShell title={props.title} status="Đang có dữ liệu">
-      <strong className="tabular text-heading text-ink">
-        {formatMoney({ amountMinor: total, currency: "VND" })}
-      </strong>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <AmountCard title="Doanh số đã post" widget={summary.sales} />
+      <AmountCard title="Giá trị đơn mua" widget={summary.purchases} />
+      <QuantityCard title="Đã nhận hàng" widget={summary.received} />
+      <QuantityCard title="Tồn kho hiện tại" widget={summary.stock} />
+      <QuantityCard title="Còn phải giao" widget={summary.outstandingDelivery} />
+      <AmountCard title="Phải thu" widget={summary.receivables} />
+      <AmountCard title="Phải trả" widget={summary.payables} />
+      <AmountCard title="Tiền" widget={summary.cash} />
+    </div>
+  );
+}
+
+function AmountCard(props: {
+  readonly title: string;
+  readonly widget: DashboardSummaryDto["sales"];
+}) {
+  return (
+    <OverviewCardShell title={props.title} status={props.widget.availability.state}>
+      {props.widget.amount === null ? (
+        <strong className="text-heading">N/A</strong>
+      ) : (
+        <strong className="tabular text-heading text-ink">
+          {formatMoney(props.widget.amount)}
+        </strong>
+      )}
       <span className="text-body-sm text-ink-muted">
-        {props.query.data.items.length} {props.kind === "purchases" ? "đơn mua" : "đơn bán"} trong
-        phạm vi tải hiện tại
+        {props.widget.count} bản ghi ·{" "}
+        {props.widget.availability.diagnostics.join(", ") || "đã cập nhật"}
       </span>
     </OverviewCardShell>
   );
 }
 
-function OverviewReportCard(props: {
-  readonly query: QueryLike<OperationalReportDto> | undefined;
+function QuantityCard(props: {
   readonly title: string;
-  readonly kind: "received" | "stock" | "outstanding" | "amount";
+  readonly widget: DashboardSummaryDto["received"];
 }) {
-  if (props.query === undefined || props.query.isPending) {
-    return <OverviewCardShell title={props.title}>Đang tải…</OverviewCardShell>;
-  }
-  if (props.query.isError || props.query.data === undefined) {
-    return <OverviewCardShell title={props.title}>Chưa tải được dữ liệu</OverviewCardShell>;
-  }
-  const report = props.query.data;
-  if (report.integrity !== "healthy") {
-    return (
-      <OverviewCardShell title={props.title} status="Đang khóa số liệu">
-        Cần đối chiếu nguồn
-      </OverviewCardShell>
-    );
-  }
-  const quantities: Quantity[] =
-    props.kind === "received"
-      ? report.page.items
-          .filter((row) => row.sourceType === "purchase_receipt")
-          .reduce<Quantity[]>((all, row) => addQuantity(all, row.quantity), [])
-      : [...report.totals.quantities];
   return (
-    <OverviewCardShell title={props.title} status="Đã đối chiếu">
-      {props.kind === "amount" && report.totals.amount !== null ? (
-        <strong className="tabular text-heading text-ink">
-          {formatMoney(report.totals.amount)}
-        </strong>
-      ) : quantities.length > 0 ? (
-        quantities.map((quantity) => (
+    <OverviewCardShell title={props.title} status={props.widget.availability.state}>
+      {props.widget.quantities.length === 0 ? (
+        <strong className="text-heading">N/A</strong>
+      ) : (
+        props.widget.quantities.map((quantity) => (
           <strong key={quantity.unit} className="tabular text-heading text-ink">
             {formatQuantity(quantity)}
           </strong>
         ))
-      ) : (
-        <span className="text-body-sm text-ink-muted">Chưa có dữ liệu</span>
       )}
+      <span className="text-body-sm text-ink-muted">
+        {props.widget.count} nguồn ·{" "}
+        {props.widget.availability.diagnostics.join(", ") || "đã cập nhật"}
+      </span>
     </OverviewCardShell>
+  );
+}
+
+function WidgetUnavailable(props: { readonly title: string; readonly onRetry: () => void }) {
+  return (
+    <OverviewCardShell title={props.title} status="unavailable">
+      N/A{" "}
+      <Button tone="secondary" onClick={props.onRetry}>
+        Thử lại
+      </Button>
+    </OverviewCardShell>
+  );
+}
+
+function SalesTrendChart(props: {
+  readonly query: QueryLike<DashboardSeriesDto>;
+  readonly onRetry: () => void;
+}) {
+  if (props.query.isPending)
+    return <OverviewCardShell title="Doanh số 30 ngày">Đang tải…</OverviewCardShell>;
+  if (props.query.isError || props.query.data === undefined)
+    return <WidgetUnavailable title="Doanh số 30 ngày" onRetry={props.onRetry} />;
+  return (
+    <section
+      className="rounded-card border border-border bg-surface p-4"
+      aria-labelledby="sales-trend-title"
+    >
+      <h3 id="sales-trend-title" className="font-semibold">
+        Doanh số và đơn bán · 30 ngày
+      </h3>
+      <div className="mt-4 h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={props.query.data.points}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip
+              formatter={(value) => formatMoney({ amountMinor: Number(value), currency: "VND" })}
+            />
+            <Line
+              type="monotone"
+              dataKey="sales.amountMinor"
+              name="Doanh số"
+              stroke="var(--color-accent)"
+              strokeWidth={2}
+              dot={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
+
+function StatusDistribution(props: {
+  readonly query: QueryLike<DashboardOrderStatusCountsDto>;
+  readonly onRetry: () => void;
+}) {
+  if (props.query.isPending)
+    return <OverviewCardShell title="Trạng thái đơn">Đang tải…</OverviewCardShell>;
+  if (props.query.isError || props.query.data === undefined)
+    return <WidgetUnavailable title="Trạng thái đơn" onRetry={props.onRetry} />;
+  const rows = props.query.data.physical;
+  return (
+    <section
+      className="rounded-card border border-border bg-surface p-4"
+      aria-labelledby="status-title"
+    >
+      <h3 id="status-title" className="font-semibold">
+        Trạng thái vật lý
+      </h3>
+      <div className="mt-4 h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis type="number" allowDecimals={false} />
+            <YAxis type="category" dataKey="key" width={110} />
+            <Tooltip />
+            <Bar dataKey="count" name="Đơn" fill="var(--color-accent)" radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
+
+function TopProducts(props: {
+  readonly query: QueryLike<DashboardTopProductsDto>;
+  readonly onRetry: () => void;
+}) {
+  if (props.query.isPending)
+    return <OverviewCardShell title="Top mặt hàng">Đang tải…</OverviewCardShell>;
+  if (props.query.isError || props.query.data === undefined)
+    return <WidgetUnavailable title="Top mặt hàng" onRetry={props.onRetry} />;
+  return (
+    <section
+      className="rounded-card border border-border bg-surface p-4"
+      aria-labelledby="top-products-title"
+    >
+      <h3 id="top-products-title" className="font-semibold">
+        Top mặt hàng theo doanh số
+      </h3>
+      <div className="mt-3 overflow-x-auto">
+        <table className="data-table w-full text-left text-body-sm">
+          <thead>
+            <tr>
+              <th className="p-3">Mặt hàng</th>
+              <th className="p-3">Sản lượng</th>
+              <th className="p-3">Doanh số</th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.query.data.products.map((product) => (
+              <tr key={`${product.productId ?? product.productName}:${product.quantity.unit}`}>
+                <td className="p-3 font-semibold">{product.productName}</td>
+                <td className="p-3">{formatQuantity(product.quantity)}</td>
+                <td className="p-3 tabular">{formatMoney(product.sales)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -249,17 +361,6 @@ function OverviewCardShell(props: {
       </div>
       {props.children}
     </article>
-  );
-}
-
-function addQuantity(quantities: readonly Quantity[], quantity: Quantity | null) {
-  if (quantity === null) return [...quantities];
-  const existing = quantities.find((item) => item.unit === quantity.unit);
-  if (existing === undefined) return [...quantities, quantity];
-  return quantities.map((item) =>
-    item.unit === quantity.unit
-      ? { ...item, valueScaled: item.valueScaled + quantity.valueScaled }
-      : item,
   );
 }
 

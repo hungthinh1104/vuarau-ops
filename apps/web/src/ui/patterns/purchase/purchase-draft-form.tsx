@@ -113,9 +113,7 @@ export function PurchaseDraftForm(props: {
             label="Số lượng"
             inputMode="decimal"
             value={line.quantity}
-            onChange={(event) =>
-              props.onLineChange(line.lineId, { quantity: event.target.value })
-            }
+            onChange={(event) => props.onLineChange(line.lineId, { quantity: event.target.value })}
           />
           <Select
             label="Đơn vị"

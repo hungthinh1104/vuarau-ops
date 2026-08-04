@@ -1,8 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import type { Cursor, CustomerSummaryDto, Page } from "@vuarau/domain-contracts";
-import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useDebounced } from "@/api/use-debounced.ts";
@@ -13,44 +12,47 @@ export function CustomersDirectoryController() {
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<boolean | null>(null);
-  const [cursor, setCursor] = useState<Cursor | null>(null);
-  const [pages, setPages] = useState<readonly Page<CustomerSummaryDto>[]>([]);
   const debounced = useDebounced(query, 250);
-  const customers = useQuery(
-    trpc.customer.search.queryOptions({
-      workspaceId,
-      query: debounced,
-      isActive: activeFilter,
-      cursor,
-      limit: 25,
-    }),
+  const customers = useInfiniteQuery(
+    trpc.customer.search.infiniteQueryOptions(
+      {
+        workspaceId,
+        query: debounced,
+        isActive: activeFilter,
+        limit: 25,
+      },
+      {
+        initialCursor: null,
+        getNextPageParam: (page) => page.nextCursor ?? undefined,
+      },
+    ),
   );
-  useEffect(() => {
-    setCursor(null);
-    setPages([]);
-  }, [workspaceId, debounced, activeFilter]);
-  useEffect(() => {
-    if (!customers.data) return;
-    setPages((current) => (cursor === null ? [customers.data!] : [...current, customers.data!]));
-  }, [cursor, customers.data]);
-  const items = pages.flatMap((page) => page.items);
-  const nextCursor = pages.at(-1)?.nextCursor ?? null;
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    return (customers.data?.pages ?? [])
+      .flatMap((page) => page.items)
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      });
+  }, [customers.data?.pages]);
   return (
     <CustomersDirectoryView
       items={items}
       query={query}
       activeFilter={activeFilter === null ? "all" : activeFilter ? "active" : "inactive"}
-      queryState={customers}
+      queryState={{ ...customers, data: customers.data?.pages[0] }}
       isFetching={customers.isFetching}
       isError={customers.isError}
-      hasMore={nextCursor !== null}
+      hasMore={customers.hasNextPage === true}
       canManageWorkspace={session.permissions.includes("workspace.manage")}
       canCreateCustomer={session.permissions.includes("customer.create")}
       onQueryChange={setQuery}
       onFilterChange={(filter) => setActiveFilter(filter === "all" ? null : filter === "active")}
       onClearQuery={() => setQuery("")}
       onLoadMore={() => {
-        if (nextCursor !== null) setCursor(nextCursor);
+        void customers.fetchNextPage();
       }}
       onRetry={() => void customers.refetch()}
     />

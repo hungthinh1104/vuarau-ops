@@ -44,6 +44,12 @@ export const NAVIGATION_REGISTRY: readonly NavigationItem[] = [
   { label: "Nhà cung cấp", href: "/suppliers", activeMode: "section", permission: "supplier.read" },
   { label: "Báo cáo", href: "/reports", activeMode: "section", permission: "report.read" },
   {
+    label: "Bảng điều hành",
+    href: "/operations-board",
+    activeMode: "section",
+    permission: "report.read",
+  },
+  {
     label: "Vận hành",
     href: "/workspace/operations",
     activeMode: "section",
@@ -83,7 +89,7 @@ const DESKTOP_STRUCTURE = [
     ],
   },
   { label: "Quan hệ", refs: ["/customers", "/suppliers"] },
-  { label: "Báo cáo", refs: ["/reports"] },
+  { label: "Báo cáo", refs: ["/reports", "/operations-board"] },
   { label: "Hệ thống", refs: ["/workspace/operations", "/workspace"] },
 ];
 

@@ -60,7 +60,7 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       await chooseSupplier(page, supplierName);
       await choosePurchaseProduct(page, productName);
       await page.getByLabel("Số lượng").fill("10");
-      await page.getByLabel("Đơn giá (nghìn đồng)").fill("10");
+      await page.getByLabel("Đơn giá (kđ)").fill("10");
       await page.getByRole("button", { name: "Lưu và nhận hàng" }).click();
       await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
       await expect(page.getByText(/đã nhận 10 kg · còn lại 0 kg/)).toBeVisible();
@@ -74,8 +74,24 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
 
       await page.goto("/reports");
       await expect(page.getByRole("heading", { name: "Tổng quan vận hành" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Đã nhập hàng" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Tồn kho" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Đã nhận hàng" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Tồn kho hiện tại" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Doanh số và đơn bán · 30 ngày" }),
+      ).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Trạng thái vật lý" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Top mặt hàng theo doanh số" })).toBeVisible();
+
+      const observer = await page.context().newPage();
+      await signIn(observer, "owner");
+      await observer.goto("/reports");
+      await expect(observer.getByRole("heading", { name: "Tổng quan vận hành" })).toBeVisible();
+
+      await page.goto("/operations-board");
+      await expect(page.getByRole("heading", { name: "Bảng điều hành" })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: "Thương mại" })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: "Vật lý" })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: "Tài chính" })).toBeVisible();
 
       const customerId = await api.createCustomer(`Khách workflow ${suffix}`);
       await page.goto(`/customers/${customerId}/sales/new`);
@@ -85,13 +101,25 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       await saleLine.getByLabel("Số lượng").fill("10");
       await saleLine.getByLabel("Đơn giá").fill("10.000");
       await expect(page.getByLabel(/Phân hạng chất lượng/)).toHaveCount(0);
+      const observerRefresh = observer.waitForResponse(
+        (response) => response.url().includes("dashboard.summary") && response.status() === 200,
+        { timeout: 15_000 },
+      );
       await page.getByRole("button", { name: "Chốt đơn" }).click();
       const confirmation = page.getByRole("dialog").getByRole("button", { name: "Chốt đơn" });
       await confirmation.press("Enter");
+      await observerRefresh;
       await page.waitForURL(/\/sales\/[0-9a-f-]+$/);
       const saleId = new URL(page.url()).pathname.split("/").at(-1)!;
       await expect(page.getByText("Còn 10 kg")).toBeVisible();
 
+      await page.goto("/operations-board");
+      const saleLink = page.getByRole("link").and(page.locator(`a[href="/sales/${saleId}"]`));
+      await expect(saleLink).toBeVisible();
+      await page.getByRole("button", { name: /Cần giao/ }).click();
+      await expect(saleLink).toBeVisible();
+
+      await page.goto(`/sales/${saleId}`);
       await page.getByRole("link", { name: "Tạo phiếu giao" }).click();
       await expect(page.getByText(/Không phân loại/)).toBeVisible();
       await page.getByRole("button", { name: "Giao tất cả" }).click();
@@ -113,6 +141,7 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       await expect(page.getByRole("heading", { name: "Tổng quan vận hành" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Còn phải giao" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Phải thu" })).toBeVisible();
+      await observer.close();
     } finally {
       await api.setQualityGradeMode(previousQualityGradeMode);
     }

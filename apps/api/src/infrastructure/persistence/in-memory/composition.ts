@@ -57,6 +57,7 @@ import { createCustomerOrderReads } from "./reads/customer-order.ts";
 import { createSupplyCommitmentReads } from "./reads/supply-commitment.ts";
 import { createQualityGradeReads } from "./reads/quality.ts";
 import { createReportReads } from "./reads/report.ts";
+import { createDashboardReads } from "./reads/dashboard.ts";
 import { createSaleReads } from "./reads/sale.ts";
 import { createSupplierReads } from "./reads/supplier.ts";
 
@@ -103,6 +104,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createDeliveryReads(store),
   ...createDocumentReads(store),
   ...createReportReads(store),
+  ...createDashboardReads(store),
   ...createSaleReads(store),
   ...createPaymentReads(store),
   ...createAccountReads(store),

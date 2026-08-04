@@ -1,8 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import type { Cursor, Page, SupplierDto } from "@vuarau/domain-contracts";
-import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useDebounced } from "@/api/use-debounced.ts";
@@ -12,44 +11,45 @@ export function SuppliersDirectoryController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
-  const [cursor, setCursor] = useState<Cursor | null>(null);
-  const [pages, setPages] = useState<readonly Page<SupplierDto>[]>([]);
-  const search = useQuery(
-    trpc.supplier.search.queryOptions({
-      workspaceId,
-      query: useDebounced(query, 250),
-      isActive: null,
-      cursor,
-      limit: 25,
-    }),
+  const search = useInfiniteQuery(
+    trpc.supplier.search.infiniteQueryOptions(
+      {
+        workspaceId,
+        query: useDebounced(query, 250),
+        isActive: null,
+        limit: 25,
+      },
+      {
+        initialCursor: null,
+        getNextPageParam: (page) => page.nextCursor ?? undefined,
+      },
+    ),
   );
-  useEffect(() => {
-    if (!search.data) return;
-    setPages((current) => (cursor === null ? [search.data!] : [...current, search.data!]));
-  }, [cursor, search.data]);
-  const suppliers = pages.flatMap((page) => page.items);
-  const nextCursor = pages.at(-1)?.nextCursor ?? null;
-  const reset = () => {
-    setCursor(null);
-    setPages([]);
-  };
+  const suppliers = useMemo(() => {
+    const seen = new Set<string>();
+    return (search.data?.pages ?? [])
+      .flatMap((page) => page.items)
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      });
+  }, [search.data?.pages]);
   return (
     <SuppliersDirectoryView
       queryText={query}
       onQueryChange={(value) => {
         setQuery(value);
-        reset();
       }}
       onClearQuery={() => {
         setQuery("");
-        reset();
       }}
-      search={search}
+      search={{ ...search, data: search.data?.pages[0] }}
       suppliers={suppliers}
-      nextCursor={nextCursor}
+      nextCursor={search.hasNextPage ? (search.data?.pages.at(-1)?.nextCursor ?? null) : null}
       isFetching={search.isFetching}
       onRetry={() => void search.refetch()}
-      onLoadMore={() => setCursor(nextCursor)}
+      onLoadMore={() => void search.fetchNextPage()}
       canCreate={session.permissions.includes("supplier.create")}
     />
   );

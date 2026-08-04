@@ -17,6 +17,7 @@
     "@gsap/react": "^2.1.2",
     "@supabase/supabase-js": "^2.110.8",
     "@tanstack/react-query": "^5.90.5",
+    "@tanstack/react-table": "^8.21.3",
     "@trpc/client": "^11.7.1",
     "@trpc/tanstack-react-query": "^11.7.1",
     "@vuarau/domain-contracts": "workspace:*",
@@ -26,6 +27,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.65.0",
+    "recharts": "^3.10.1",
     "sonner": "^2.0.7",
     "zod": "^4.4.3"
   },

@@ -24,6 +24,7 @@ import {
   cachedWorkspaces,
 } from "@/offline/session-cache.ts";
 import { requestIdOf } from "@/lib/request-id.ts";
+import { LiveInvalidation } from "./live-invalidation.tsx";
 
 /**
  * What every production route sits behind: a verified identity, an explicitly
@@ -258,6 +259,7 @@ function ResolveSession({
   return (
     <SessionContext.Provider value={{ session, workspaceId, workspaceName: choice.name }}>
       <OfflineProvider session={session} workspaceId={workspaceId}>
+        <LiveInvalidation workspaceId={workspaceId} />
         <ConnectedWorkspaceShell
           workspaceName={choice.name}
           session={session}

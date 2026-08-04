@@ -10,7 +10,7 @@ const paths = [
   "docs/10-ai-coding/REVIEW_CHECKLIST.md",
   "docs/10-ai-coding/CHANGE_PROTOCOL.md",
   "docs/10-ai-coding/ENGINEERING_STANDARD.md",
-  "docs/WEB-ADMIN.md",
+  "docs/06-api-contracts/read-models.md",
 ] as const;
 
 function sources(): Record<string, string> {
@@ -90,10 +90,9 @@ test("engineering standard delegates dependency graph to REPO_MAP", () => {
 
 test("analytics candidates stay blocked until their business policy exists", () => {
   const fixture = sources();
-  fixture["docs/WEB-ADMIN.md"] = fixture["docs/WEB-ADMIN.md"]!.replace(
-    "#### Policy gate",
-    "#### Dashboard ideas",
-  );
+  fixture["docs/06-api-contracts/read-models.md"] = fixture[
+    "docs/06-api-contracts/read-models.md"
+  ]!.replace("`unavailable`, with their policy gates and next evidence", "dashboard ideas");
   assert.ok(
     checkRoutingContracts(fixture).some((failure) => failure.includes("analytics candidates")),
   );
