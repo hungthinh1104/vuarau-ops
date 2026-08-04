@@ -30,12 +30,12 @@ describe.skipIf(skipWithoutDatabase())("inventory valuation against PostgreSQL",
     deps,
     principal: { actorId: ctx.actorId, subject: ctx.subject },
   });
-  const command = (label: string) => ({
+  const command = (label: string, occurredAt = "2026-07-20T05:00:00.000Z") => ({
     commandId: crypto.randomUUID(),
     idempotencyKey: `valuation-db-${label}-${crypto.randomUUID()}`,
     workspaceId: ctx.workspaceId,
     actorId: ctx.actorId,
-    occurredAt: "2026-07-20T05:00:00.000Z",
+    occurredAt,
   });
 
   beforeEach(async () => {
@@ -185,7 +185,7 @@ describe.skipIf(skipWithoutDatabase())("inventory valuation against PostgreSQL",
     }
 
     const reversed = await reversePurchaseReceipt(context(), {
-      ...command("receipt-reverse"),
+      ...command("receipt-reverse", "2026-07-20T06:00:00.000Z"),
       payload: {
         reversalId: crypto.randomUUID(),
         receiptId,
