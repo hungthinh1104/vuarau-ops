@@ -42,7 +42,7 @@ export function decideRecordSupplyCommitmentObservation(
   }
   if (payload.caseKind === "correction" && correctionTargetAlreadyCorrected) {
     return err(
-      "SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED",
+      "SUPPLY_COMMITMENT_OBSERVATION_TARGET_ALREADY_CORRECTED",
       "Only the current supply commitment observation chain tip may be corrected.",
     );
   }
@@ -58,7 +58,7 @@ export function decideRecordSupplyCommitmentObservation(
       correctionTarget.facts.minimumOrder?.unit !== payload.facts.minimumOrder?.unit)
   ) {
     return err(
-      "SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_IDENTITY_MISMATCH",
+      "SUPPLY_COMMITMENT_OBSERVATION_IDENTITY_MISMATCH",
       "A supply commitment correction must preserve the supplier, product, grade, source, kind and unit identity.",
     );
   }

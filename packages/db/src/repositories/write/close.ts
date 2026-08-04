@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type {
   CashStatementMatchDto,
   OperationalCloseDto,
@@ -162,14 +162,58 @@ export const createCloseWriteRepositories = (tx: Tx) => ({
         await tx
           .select()
           .from(cashStatementMatches)
+          .leftJoin(
+            cashStatementMatchReversals,
+            and(
+              eq(cashStatementMatchReversals.workspaceId, cashStatementMatches.workspaceId),
+              eq(cashStatementMatchReversals.cashStatementMatchId, cashStatementMatches.id),
+            ),
+          )
           .where(
             and(
               eq(cashStatementMatches.workspaceId, workspaceId),
               eq(cashStatementMatches.cashMovementId, cashMovementId),
+              isNull(cashStatementMatchReversals.id),
+            ),
+          )
+          .limit(1)
+      )[0]?.cash_statement_matches;
+      if (row === undefined) return null;
+      const reversal = (
+        await tx
+          .select()
+          .from(cashStatementMatchReversals)
+          .where(
+            and(
+              eq(cashStatementMatchReversals.workspaceId, workspaceId),
+              eq(cashStatementMatchReversals.cashStatementMatchId, row.id),
             ),
           )
           .limit(1)
       )[0];
+      return toCashStatementMatchDto(row, reversal);
+    },
+    async findByExternalReference(workspaceId: WorkspaceId, externalReference: string) {
+      const row = (
+        await tx
+          .select()
+          .from(cashStatementMatches)
+          .leftJoin(
+            cashStatementMatchReversals,
+            and(
+              eq(cashStatementMatchReversals.workspaceId, cashStatementMatches.workspaceId),
+              eq(cashStatementMatchReversals.cashStatementMatchId, cashStatementMatches.id),
+            ),
+          )
+          .where(
+            and(
+              eq(cashStatementMatches.workspaceId, workspaceId),
+              eq(cashStatementMatches.externalReference, externalReference),
+              isNull(cashStatementMatchReversals.id),
+            ),
+          )
+          .limit(1)
+      )[0]?.cash_statement_matches;
       if (row === undefined) return null;
       const reversal = (
         await tx

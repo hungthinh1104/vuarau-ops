@@ -462,5 +462,15 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
       .from(cashStatementMatchReversals)
       .where(eq(cashStatementMatchReversals.cashStatementMatchId, matchId));
     expect(reversalRows).toHaveLength(1);
+
+    const rematched = await recordCashStatementMatch(context(), {
+      ...command("close-db-rematch"),
+      payload: {
+        ...matchCommand.payload,
+        cashStatementMatchId: crypto.randomUUID(),
+        externalReference: "BANK-DB-002",
+      },
+    });
+    expect(rematched).toMatchObject({ ok: true, value: { reversal: null, version: 1 } });
   });
 });

@@ -121,11 +121,11 @@ export const cashStatementMatches = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
-    uniqueIndex("cash_statement_matches_workspace_movement_uq").on(
+    index("cash_statement_matches_workspace_movement_idx").on(
       table.workspaceId,
       table.cashMovementId,
     ),
-    uniqueIndex("cash_statement_matches_workspace_reference_uq").on(
+    index("cash_statement_matches_workspace_reference_idx").on(
       table.workspaceId,
       table.externalReference,
     ),

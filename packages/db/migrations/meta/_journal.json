@@ -372,6 +372,13 @@
       "when": 1785797903645,
       "tag": "0052_demonic_wrecking_crew",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1785807920896,
+      "tag": "0053_easy_smiling_tiger",
+      "breakpoints": true
     }
   ]
 }

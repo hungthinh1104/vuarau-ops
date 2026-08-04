@@ -35,8 +35,9 @@ debt or supplier payable. Matching the same command returns the original result.
 ### BR-CASH-013 — Statement correction is compensation, not mutation
 
 Reversal appends one `CashStatementMatchReversal` after authorization and an
-`expectedVersion` check. The original match remains readable, and reversing a match
-does not create a cash movement or ledger entry.
+`expectedVersion` check. The original match remains readable, its movement and
+external reference leave the active-match set, and a later statement can rematch
+them without creating a cash movement or ledger entry.
 
 ### BR-CASH-014 — Backup and restore preserve reconciliation lineage
 

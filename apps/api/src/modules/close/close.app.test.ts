@@ -324,5 +324,15 @@ describe("cash statement matching", () => {
       ok: true,
       value: { version: 2, reversal: { id: expect.any(String) } },
     });
+
+    const rematched = await recordCashStatementMatch(harness.ctx, {
+      ...envelope("rematch"),
+      payload: {
+        ...command.payload,
+        cashStatementMatchId: uuid(),
+        externalReference: "BANK-STATEMENT-002",
+      },
+    });
+    expect(rematched).toMatchObject({ ok: true, value: { reversal: null, version: 1 } });
   });
 });

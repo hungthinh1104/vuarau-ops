@@ -31,6 +31,10 @@ export type CashStatementMatchRepository = {
     workspaceId: WorkspaceId,
     cashMovementId: CashStatementMatchDto["cashMovementId"],
   ): Promise<CashStatementMatchDto | null>;
+  findByExternalReference(
+    workspaceId: WorkspaceId,
+    externalReference: string,
+  ): Promise<CashStatementMatchDto | null>;
   insert(match: CashStatementMatchDto): Promise<boolean>;
   insertReversal(reversal: {
     id: CashStatementMatchReversalId;

@@ -244,10 +244,15 @@ export function recordCashStatementMatch(ctx: CommandContext, input: unknown) {
             command.payload.cashAccountId,
           )
         ).find((candidate) => candidate.id === command.payload.cashMovementId) ?? null;
-      const existing = await repos.cashStatementMatches.findByMovementId(
+      const existingByMovement = await repos.cashStatementMatches.findByMovementId(
         command.workspaceId,
         command.payload.cashMovementId,
       );
+      const existingByReference = await repos.cashStatementMatches.findByExternalReference(
+        command.workspaceId,
+        command.payload.externalReference,
+      );
+      const existing = existingByMovement ?? existingByReference;
       const decision = decideRecordCashStatementMatch(
         command,
         movement,

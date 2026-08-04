@@ -90,20 +90,20 @@ Observation correction codes are intentionally specific: a target that is
 already corrected is a chain conflict, while changed identity dimensions are a
 bad correction payload.
 
-| Code                                                                | Meaning                                                        | Details         | Retryable | Rule            | HTTP / tRPC   |
-| ------------------------------------------------------------------- | -------------------------------------------------------------- | --------------- | --------- | --------------- | ------------- |
-| `COST_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`              | Target is not the current cost-observation chain tip           | `observationId` | no        | BR-EVIDENCE-003 | `CONFLICT`    |
-| `COST_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                     | Cost correction changes immutable source identity              | `observationId` | no        | BR-EVIDENCE-003 | `BAD_REQUEST` |
-| `RECONCILIATION_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`    | Target is not the current reconciliation-observation chain tip | `observationId` | no        | BR-EVIDENCE-006 | `CONFLICT`    |
-| `RECONCILIATION_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`           | Reconciliation correction changes immutable scope identity     | `observationId` | no        | BR-EVIDENCE-006 | `BAD_REQUEST` |
-| `DEBT_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`              | Target is not the current debt-observation chain tip           | `observationId` | no        | BR-EVIDENCE-009 | `CONFLICT`    |
-| `DEBT_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                     | Debt correction changes immutable account identity             | `observationId` | no        | BR-EVIDENCE-009 | `BAD_REQUEST` |
-| `SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED` | Target is not the current supply-observation chain tip         | `observationId` | no        | BR-EVIDENCE-012 | `CONFLICT`    |
-| `SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`        | Supply correction changes immutable commitment identity        | `observationId` | no        | BR-EVIDENCE-012 | `BAD_REQUEST` |
-| `SUPPLIER_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`          | Target is not the current supplier-observation chain tip       | `observationId` | no        | BR-EVIDENCE-015 | `CONFLICT`    |
-| `SUPPLIER_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                 | Supplier correction changes immutable source identity          | `observationId` | no        | BR-EVIDENCE-015 | `BAD_REQUEST` |
-| `DEMAND_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`            | Target is not the current demand-observation chain tip         | `observationId` | no        | BR-EVIDENCE-018 | `CONFLICT`    |
-| `DEMAND_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                   | Demand correction changes immutable source identity            | `observationId` | no        | BR-EVIDENCE-018 | `BAD_REQUEST` |
+| Code                                                             | Meaning                                                        | Details         | Retryable | Rule            | HTTP / tRPC   |
+| ---------------------------------------------------------------- | -------------------------------------------------------------- | --------------- | --------- | --------------- | ------------- |
+| `COST_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`           | Target is not the current cost-observation chain tip           | `observationId` | no        | BR-EVIDENCE-003 | `CONFLICT`    |
+| `COST_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                  | Cost correction changes immutable source identity              | `observationId` | no        | BR-EVIDENCE-003 | `BAD_REQUEST` |
+| `RECONCILIATION_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED` | Target is not the current reconciliation-observation chain tip | `observationId` | no        | BR-EVIDENCE-006 | `CONFLICT`    |
+| `RECONCILIATION_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`        | Reconciliation correction changes immutable scope identity     | `observationId` | no        | BR-EVIDENCE-006 | `BAD_REQUEST` |
+| `DEBT_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`           | Target is not the current debt-observation chain tip           | `observationId` | no        | BR-EVIDENCE-009 | `CONFLICT`    |
+| `DEBT_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                  | Debt correction changes immutable account identity             | `observationId` | no        | BR-EVIDENCE-009 | `BAD_REQUEST` |
+| `SUPPLY_COMMITMENT_OBSERVATION_TARGET_ALREADY_CORRECTED`         | Target is not the current supply-observation chain tip         | `observationId` | no        | BR-EVIDENCE-012 | `CONFLICT`    |
+| `SUPPLY_COMMITMENT_OBSERVATION_IDENTITY_MISMATCH`                | Supply correction changes immutable commitment identity        | `observationId` | no        | BR-EVIDENCE-012 | `BAD_REQUEST` |
+| `SUPPLIER_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`       | Target is not the current supplier-observation chain tip       | `observationId` | no        | BR-EVIDENCE-015 | `CONFLICT`    |
+| `SUPPLIER_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`              | Supplier correction changes immutable source identity          | `observationId` | no        | BR-EVIDENCE-015 | `BAD_REQUEST` |
+| `DEMAND_OBSERVATION_CORRECTION_TARGET_ALREADY_CORRECTED`         | Target is not the current demand-observation chain tip         | `observationId` | no        | BR-EVIDENCE-018 | `CONFLICT`    |
+| `DEMAND_OBSERVATION_CORRECTION_IDENTITY_MISMATCH`                | Demand correction changes immutable source identity            | `observationId` | no        | BR-EVIDENCE-018 | `BAD_REQUEST` |
 
 ## Lifecycle codes
 

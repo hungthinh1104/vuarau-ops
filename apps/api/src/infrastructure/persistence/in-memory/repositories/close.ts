@@ -48,12 +48,23 @@ export const createCloseRepositories = (
       store.cashStatementMatches.get(key(workspaceId, cashStatementMatchId)) ?? null,
     findByMovementId: async (workspaceId, cashMovementId) =>
       [...store.cashStatementMatches.values()].find(
-        (match) => match.workspaceId === workspaceId && match.cashMovementId === cashMovementId,
+        (match) =>
+          match.workspaceId === workspaceId &&
+          match.cashMovementId === cashMovementId &&
+          match.reversal === null,
+      ) ?? null,
+    findByExternalReference: async (workspaceId, externalReference) =>
+      [...store.cashStatementMatches.values()].find(
+        (match) =>
+          match.workspaceId === workspaceId &&
+          match.externalReference === externalReference &&
+          match.reversal === null,
       ) ?? null,
     insert: async (match) => {
       const duplicate = [...store.cashStatementMatches.values()].some(
         (current) =>
           current.workspaceId === match.workspaceId &&
+          current.reversal === null &&
           (current.id === match.id ||
             current.cashMovementId === match.cashMovementId ||
             current.externalReference === match.externalReference),
