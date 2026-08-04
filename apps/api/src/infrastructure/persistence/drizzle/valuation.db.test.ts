@@ -16,7 +16,10 @@ import {
   confirmPurchase,
   createPurchaseDraft,
 } from "../../../modules/purchase/purchase.handlers.ts";
-import { recordPurchaseReceipt } from "../../../modules/inventory/inventory.handlers.ts";
+import {
+  recordPurchaseReceipt,
+  reversePurchaseReceipt,
+} from "../../../modules/inventory/inventory.handlers.ts";
 import { getInventoryValuation } from "../../../modules/inventory/inventory.queries.ts";
 import { createSupplier } from "../../../modules/supplier/supplier.handlers.ts";
 
@@ -54,6 +57,7 @@ describe.skipIf(skipWithoutDatabase())("inventory valuation against PostgreSQL",
     const purchaseId = crypto.randomUUID() as PurchaseId;
     const purchaseLineId = crypto.randomUUID() as PurchaseLineId;
     const policyVersionId = crypto.randomUUID();
+    const receiptId = crypto.randomUUID();
 
     expect(
       (
@@ -145,7 +149,7 @@ describe.skipIf(skipWithoutDatabase())("inventory valuation against PostgreSQL",
         await recordPurchaseReceipt(context(), {
           ...command("receipt"),
           payload: {
-            receiptId: crypto.randomUUID(),
+            receiptId,
             purchaseId,
             lines: [
               {
@@ -177,6 +181,33 @@ describe.skipIf(skipWithoutDatabase())("inventory valuation against PostgreSQL",
         status: "available",
         policyVersionId,
         rows: [{ quantityScaled: 1_000, inventoryValue: { amountMinor: 100, currency: "VND" } }],
+      });
+    }
+
+    const reversed = await reversePurchaseReceipt(context(), {
+      ...command("receipt-reverse"),
+      payload: {
+        reversalId: crypto.randomUUID(),
+        receiptId,
+        reasonCode: "other",
+        reason: "Huỷ receipt để kiểm tra lineage.",
+        evidenceReferences: ["photo://valuation-reversal"],
+      },
+    });
+    expect(reversed.ok).toBe(true);
+
+    const afterReversal = await getInventoryValuation(context(), {
+      workspaceId: ctx.workspaceId,
+      productId,
+      qualityGradeId: gradeId,
+      unit: "kg",
+      asOf: "2026-07-21T00:00:00.000Z",
+    });
+    expect(afterReversal.ok).toBe(true);
+    if (afterReversal.ok) {
+      expect(afterReversal.value).toMatchObject({
+        status: "available",
+        rows: [{ quantityScaled: 0, inventoryValue: null, cogs: null }],
       });
     }
   });

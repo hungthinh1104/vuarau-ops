@@ -34,8 +34,20 @@ export type InventoryValuationCalculation = {
   readonly inputReferences: readonly InventoryValuationSource[];
 };
 
-type Layer = { quantityScaled: number; unitCost: Money; sourceId: string };
+type CostAllocation = { quantityScaled: number; unitCost: Money };
+type Layer = {
+  quantityScaled: number;
+  unitCost: Money;
+  movementId: string;
+  sourceId: string;
+};
 type DiagnosticSink = { add(value: string): void };
+
+const reversalSourceTypes = new Set([
+  "purchase_receipt_reversal",
+  "delivery_return",
+  "quality_disposition_reversal",
+]);
 
 function compareMovement(left: InventoryValuationMovement, right: InventoryValuationMovement) {
   return left.transactionTime !== right.transactionTime
@@ -61,6 +73,7 @@ function consume(
   unit: Unit,
   strategy: InventoryValuationStrategy,
   diagnostics: DiagnosticSink,
+  allocations: CostAllocation[],
 ): Money | null {
   let remaining = quantityScaled;
   let total: Money | null = null;
@@ -96,11 +109,32 @@ function consume(
     const value = layerValue(taken, unit, unitCost);
     total = total === null ? value : addMoney(total, value);
     if (total === null) diagnostics.add("mixed_currency");
+    allocations.push({ quantityScaled: taken, unitCost });
     layer.quantityScaled -= taken;
     remaining -= taken;
     if (layer.quantityScaled === 0) layers.splice(layerIndex, 1);
   }
   return total;
+}
+
+function removeFromMovementLayer(
+  layers: Layer[],
+  movementId: string,
+  quantityScaled: number,
+  diagnostics: DiagnosticSink,
+): void {
+  let remaining = quantityScaled;
+  for (const layer of layers) {
+    if (remaining === 0) break;
+    if (layer.movementId !== movementId) continue;
+    const taken = Math.min(remaining, layer.quantityScaled);
+    layer.quantityScaled -= taken;
+    remaining -= taken;
+  }
+  for (let index = layers.length - 1; index >= 0; index -= 1) {
+    if (layers[index]!.quantityScaled === 0) layers.splice(index, 1);
+  }
+  if (remaining > 0) diagnostics.add("reversal_quantity_unavailable");
 }
 
 export function calculateInventoryValuation(
@@ -129,11 +163,52 @@ export function calculateInventoryValuation(
       let quantityScaled = 0;
       let cogs: Money | null = null;
       const layers: Layer[] = [];
+      const movementById = new Map<string, InventoryValuationMovement>(
+        ordered.map((movement) => [movement.movementId as string, movement]),
+      );
+      const allocationsByMovementId = new Map<string, CostAllocation[]>();
 
       for (const movement of ordered) {
         quantityScaled += movement.quantityScaled;
         if (strategy === "no_valuation") continue;
+        if (
+          reversalSourceTypes.has(movement.sourceType) &&
+          movement.reversalOfMovementId === null
+        ) {
+          diagnostics.add("reversal_lineage_missing");
+          continue;
+        }
         if (movement.quantityScaled > 0) {
+          if (movement.reversalOfMovementId !== null) {
+            const original = movementById.get(movement.reversalOfMovementId);
+            if (original === undefined) {
+              diagnostics.add("reversal_lineage_missing");
+              continue;
+            }
+            if (original.quantityScaled >= 0) {
+              diagnostics.add("reversal_direction_invalid");
+              continue;
+            }
+            const allocations = allocationsByMovementId.get(original.movementId);
+            if (allocations === undefined) {
+              diagnostics.add("reversal_cost_lineage_missing");
+              continue;
+            }
+            let remaining = movement.quantityScaled;
+            for (const allocation of allocations) {
+              if (remaining === 0) break;
+              const restored = Math.min(remaining, allocation.quantityScaled);
+              layers.push({
+                quantityScaled: restored,
+                unitCost: allocation.unitCost,
+                movementId: movement.movementId,
+                sourceId: movement.sourceId,
+              });
+              remaining -= restored;
+            }
+            if (remaining > 0) diagnostics.add("reversal_cost_quantity_unavailable");
+            continue;
+          }
           if (movement.unitCost === null) {
             diagnostics.add("missing_unit_cost");
             continue;
@@ -144,6 +219,7 @@ export function calculateInventoryValuation(
           layers.push({
             quantityScaled: movement.quantityScaled,
             unitCost: movement.unitCost,
+            movementId: movement.movementId,
             sourceId: movement.sourceId,
           });
           if (strategy === "moving_weighted_average") {
@@ -163,17 +239,38 @@ export function calculateInventoryValuation(
           }
           continue;
         }
-        const amount =
-          strategy === "specific_actual_cost"
-            ? (diagnostics.add("specific_cost_reference_missing"), null)
-            : consume(
-                layers,
-                Math.abs(movement.quantityScaled),
-                movement.unit,
-                strategy,
-                diagnostics,
-              );
-        if (amount !== null) cogs = cogs === null ? amount : addMoney(cogs, amount);
+        if (movement.reversalOfMovementId !== null) {
+          const original = movementById.get(movement.reversalOfMovementId);
+          if (original === undefined) {
+            diagnostics.add("reversal_lineage_missing");
+          } else if (original.quantityScaled <= 0) {
+            diagnostics.add("reversal_direction_invalid");
+          } else {
+            removeFromMovementLayer(
+              layers,
+              original.movementId,
+              Math.abs(movement.quantityScaled),
+              diagnostics,
+            );
+          }
+          continue;
+        }
+        if (strategy === "specific_actual_cost" && movement.sourceType === "delivery_dispatch") {
+          diagnostics.add("specific_cost_reference_missing");
+        }
+        const allocations: CostAllocation[] = [];
+        const amount = consume(
+          layers,
+          Math.abs(movement.quantityScaled),
+          movement.unit,
+          strategy,
+          diagnostics,
+          allocations,
+        );
+        allocationsByMovementId.set(movement.movementId, allocations);
+        if (movement.sourceType === "delivery_dispatch" && amount !== null) {
+          cogs = cogs === null ? amount : addMoney(cogs, amount);
+        }
       }
 
       const inventoryValue =

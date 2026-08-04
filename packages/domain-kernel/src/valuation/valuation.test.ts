@@ -8,6 +8,7 @@ const movement = (
   quantityScaled: number,
   unitCost: number | null,
   sourceType = quantityScaled > 0 ? "purchase_receipt" : "delivery_dispatch",
+  reversalOfMovementId: string | null = null,
 ): InventoryValuationMovement => ({
   movementId: id as InventoryMovementId,
   qualityGradeId: null,
@@ -16,7 +17,7 @@ const movement = (
   sourceType,
   sourceId: productId,
   sourceLineId: id,
-  reversalOfMovementId: null,
+  reversalOfMovementId: reversalOfMovementId as InventoryMovementId | null,
   transactionTime: `2026-08-03T00:00:0${id.at(-1)}.000Z`,
   recordedAt: `2026-08-03T00:00:1${id.at(-1)}.000Z`,
   unitCost: unitCost === null ? null : { amountMinor: unitCost, currency: "VND" },
@@ -75,5 +76,54 @@ describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-
     )[0]!;
 
     expect(result.diagnostics).toContain("specific_cost_reference_missing");
+  });
+
+  it("uses reversal lineage for receipt reversals and customer returns", () => {
+    const receipt = movement("1", 1000, 100);
+    const dispatch = movement("2", -1000, null, "delivery_dispatch");
+    const customerReturn = movement("3", 1000, null, "delivery_return", "2");
+    const receiptReversal = movement("4", -1000, null, "purchase_receipt_reversal", "1");
+
+    const returned = calculateInventoryValuation([receipt, dispatch, customerReturn], "fifo")[0]!;
+    expect(returned).toMatchObject({
+      quantityScaled: 1000,
+      inventoryValue: { amountMinor: 100, currency: "VND" },
+      cogs: { amountMinor: 100, currency: "VND" },
+      diagnostics: [],
+    });
+
+    const reversed = calculateInventoryValuation([receipt, receiptReversal], "fifo")[0]!;
+    expect(reversed).toMatchObject({
+      quantityScaled: 0,
+      inventoryValue: null,
+      cogs: null,
+      diagnostics: [],
+    });
+  });
+
+  it("does not classify adjustment loss as COGS", () => {
+    const result = calculateInventoryValuation(
+      [movement("1", 1000, 100), movement("2", -500, null, "inventory_adjustment")],
+      "fifo",
+    )[0]!;
+
+    expect(result).toMatchObject({
+      quantityScaled: 500,
+      inventoryValue: { amountMinor: 50, currency: "VND" },
+      cogs: null,
+      diagnostics: [],
+    });
+  });
+
+  it("fails closed when a compensation has missing or invalid lineage", () => {
+    const receipt = movement("1", 1000, 100);
+    const missingLineage = movement("2", -1000, null, "purchase_receipt_reversal");
+    const wrongDirection = movement("3", 1000, null, "delivery_return", "1");
+
+    const missing = calculateInventoryValuation([receipt, missingLineage], "fifo")[0]!;
+    expect(missing.diagnostics).toContain("reversal_lineage_missing");
+
+    const invalid = calculateInventoryValuation([receipt, wrongDirection], "fifo")[0]!;
+    expect(invalid.diagnostics).toContain("reversal_direction_invalid");
   });
 });

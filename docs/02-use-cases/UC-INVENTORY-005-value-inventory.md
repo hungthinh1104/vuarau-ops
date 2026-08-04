@@ -19,6 +19,13 @@ effective at that time.
 - Receipt costs come from the immutable Purchase line referenced by the
   Receipt. Inventory movements without a trustworthy cost lineage do not become
   zero-cost stock.
+- Only `delivery_dispatch` contributes to the returned `cogs` amount. Inventory
+  adjustments and other non-dispatch movements are reflected in stock layers,
+  not classified as COGS.
+- Compensating movements must point to an opposite-direction source movement
+  with `reversalOfMovementId`. A purchase-receipt reversal removes the original
+  receipt layer, and a delivery return restores the original dispatch
+  allocation. Missing or exhausted lineage makes the result unavailable.
 - The query returns `unavailable` with diagnostics when policy or cost lineage
   is missing, currencies conflict, inventory is negative, or a specific-cost
   lot reference is unavailable. The UI must not display an estimated amount.
