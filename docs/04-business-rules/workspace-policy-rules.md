@@ -50,6 +50,10 @@ adapter must define its own canonical effect, authorization, idempotency,
 concurrency, transaction, read model, correction, PostgreSQL and recovery
 evidence before activation.
 
+Policy capabilities without a typed definition contract are rejected at draft
+creation. A generic JSON envelope is not sufficient evidence to approve or
+activate a receivable/payable recognition or return/claim-credit rule.
+
 ## Related
 
 - [UC-POLICY-001](../02-use-cases/UC-POLICY-001-manage-workspace-policy-version.md)

@@ -263,4 +263,18 @@ describe("workspace policy registry", () => {
     expect(approval.ok).toBe(false);
     if (!approval.ok) expect(approval.error.code).toBe("WORKSPACE_POLICY_EFFECTIVE_OVERLAP");
   });
+
+  it("TC-POLICY-016 rejects policy kinds without a typed definition contract", () => {
+    for (const policyKind of ["receivable_payable_recognition", "return_claim_credit"] as const) {
+      const draft = decideCreateWorkspacePolicyDraft(
+        createWorkspacePolicyDraftCommandSchema.parse({
+          ...createCommand(),
+          payload: { ...createCommand().payload, policyKind },
+        }),
+        RECORDED_AT,
+      );
+      expect(draft.ok).toBe(false);
+      if (!draft.ok) expect(draft.error.code).toBe("WORKSPACE_POLICY_DEFINITION_INVALID");
+    }
+  });
 });

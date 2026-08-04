@@ -67,6 +67,16 @@ export function decideCreateWorkspacePolicyDraft(
     );
   }
   if (
+    command.payload.policyKind === "receivable_payable_recognition" ||
+    command.payload.policyKind === "return_claim_credit"
+  ) {
+    return err(
+      "WORKSPACE_POLICY_DEFINITION_INVALID",
+      "This policy capability has no typed contract and cannot be recorded yet.",
+      { policyKind: command.payload.policyKind },
+    );
+  }
+  if (
     command.payload.policyKind === "purchase_correction" &&
     !purchaseCorrectionPolicyDefinitionSchema.safeParse(command.payload.definition).success
   ) {
