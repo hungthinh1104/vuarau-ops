@@ -15,6 +15,7 @@ import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
 import { getCustomerDebtAging } from "../../../modules/account/account.queries.ts";
+import { adjustCustomerDebt } from "../../../modules/account/adjust-debt.handler.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
 import { recordPaymentAllocation } from "../../../modules/account/payment-allocation.handlers.ts";
 
@@ -169,6 +170,19 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
     });
     expect(allocation.ok).toBe(true);
 
+    const adjustment = await adjustCustomerDebt(owner, {
+      ...envelope("db-aging-manual-adjustment", "2026-07-31T05:00:00.000Z"),
+      payload: {
+        adjustmentId: crypto.randomUUID(),
+        customerId: ctx.customerId,
+        direction: "increase",
+        amount: { amountMinor: 20_000, currency: "VND" },
+        reasonCode: "opening_balance",
+        reason: "DB manual adjustment is part of canonical debt truth.",
+      },
+    });
+    expect(adjustment.ok).toBe(true);
+
     const result = await getCustomerDebtAging(owner, {
       workspaceId: ctx.workspaceId,
       customerId: ctx.customerId,
@@ -177,6 +191,10 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.status).toBe("available");
+      expect(result.value.status === "available" && result.value.totals.ledgerBalance).toEqual({
+        amountMinor: 70_000,
+        currency: "VND",
+      });
       expect(result.value.status === "available" && result.value.rows[0]).toMatchObject({
         state: "overdue",
         dueAt: "2026-07-27T05:00:00.000Z",

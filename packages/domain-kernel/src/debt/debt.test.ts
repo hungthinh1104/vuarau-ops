@@ -140,6 +140,52 @@ describe("BR-AGING-001 / BR-AGING-002 / TC-AGING-001", () => {
     expect(result.diagnostics).toContain("manual_allocation_not_recorded");
   });
 
+  it("reconciles supported non-sale manual adjustments with the account ledger", () => {
+    const result = calculateDebtAging(
+      {
+        sales: [
+          {
+            saleId: saleId("7"),
+            customerId,
+            amount: vnd(100_000),
+            transactionTime: "2026-01-01T00:00:00.000Z",
+            dueAt: "2026-01-02T00:00:00.000Z",
+          },
+        ],
+        payments: [],
+        ledgerEntries: [
+          {
+            entryId: "00000000-0000-4000-8000-000000000017",
+            sourceType: "sale_posting",
+            sourceId: saleId("7"),
+            customerId,
+            amount: vnd(100_000),
+            transactionTime: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            entryId: "00000000-0000-4000-8000-000000000018",
+            sourceType: "manual_adjustment",
+            sourceId: "00000000-0000-4000-8000-000000000019",
+            customerId,
+            amount: vnd(25_000),
+            transactionTime: "2026-01-02T00:00:00.000Z",
+          },
+        ],
+        allocations: [],
+        allocationReversals: [],
+      },
+      terms,
+      "oldest_due_first",
+      "2026-01-10T00:00:00.000Z",
+    );
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.totals).toMatchObject({
+      ledgerBalance: vnd(125_000),
+      saleOutstanding: vnd(100_000),
+    });
+  });
+
   it("fails closed when a policy-derived sale has no policy lineage", () => {
     const result = calculateDebtAging(
       {

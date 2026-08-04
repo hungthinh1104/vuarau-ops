@@ -6,8 +6,8 @@
 
 Answer which posted, non-voided sales remain outstanding, which are overdue,
 which payments are allocated, and which money is still unallocated. The read is
-derived from the customer account ledger plus immutable sale/payment facts; it is
-not a second balance source.
+derived from the customer account ledger plus immutable sale/payment facts and
+supported manual-adjustment facts; it is not a second balance source.
 
 ## Preconditions
 

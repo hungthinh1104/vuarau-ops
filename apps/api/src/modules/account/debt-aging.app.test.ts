@@ -14,6 +14,7 @@ import { createWorkspacePolicyDraft, approveWorkspacePolicy } from "../policy/po
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
 import { voidSale } from "../sale/void-sale.handler.ts";
+import { adjustCustomerDebt } from "./adjust-debt.handler.ts";
 import { exportWorkspaceBackup } from "../operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../operations/restore-workspace.handler.ts";
 import { workspaceIdSchema } from "@vuarau/domain-contracts";
@@ -120,6 +121,19 @@ describe("UC-ACCOUNT-004 / BR-AGING-001 / TC-AGING-002", () => {
     });
     expect(posted.ok).toBe(true);
 
+    const adjustment = await adjustCustomerDebt(harness.ctx, {
+      ...envelope("debt-manual-adjustment"),
+      payload: {
+        adjustmentId: crypto.randomUUID(),
+        customerId: CUSTOMER_ID,
+        direction: "increase",
+        amount: { amountMinor: 50_000, currency: "VND" },
+        reasonCode: "opening_balance",
+        reason: "Nợ cũ được đối chiếu từ sổ giấy.",
+      },
+    });
+    expect(adjustment.ok).toBe(true);
+
     const result = await getCustomerDebtAging(harness.ctx, {
       workspaceId: WORKSPACE_ID,
       customerId: CUSTOMER_ID,
@@ -134,6 +148,7 @@ describe("UC-ACCOUNT-004 / BR-AGING-001 / TC-AGING-002", () => {
         allocationPolicyVersionId: allocationPolicy.id,
         allocationStrategy: "oldest_due_first",
         integrity: "healthy",
+        totals: { ledgerBalance: { amountMinor: 925_000, currency: "VND" } },
       });
       expect(result.value.status === "available" && result.value.rows[0]).toMatchObject({
         saleId: SALE_ID,

@@ -369,13 +369,23 @@ export function calculateDebtAging(
     paymentRows.map((row) => row.effectiveAmount),
     currency,
   );
-  const explainedBalance = subtractMoney(
+  const manualAdjustmentBalance = sumMoney(
+    sources.ledgerEntries
+      .filter((entry) => entry.sourceType === "manual_adjustment")
+      .map((entry) => entry.amount),
+    currency,
+  );
+  const explainedSalesAndPayments = subtractMoney(
     sumMoney(
       sales.map((sale) => sale.amount),
       currency,
     ),
     effectivePayments,
   );
+  const explainedBalance = {
+    amountMinor: explainedSalesAndPayments.amountMinor + manualAdjustmentBalance.amountMinor,
+    currency,
+  };
   if (ledgerBalance.amountMinor !== explainedBalance.amountMinor) {
     diagnostics.add("ledger_not_explained_by_sales_and_payments");
   }

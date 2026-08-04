@@ -592,6 +592,7 @@ use_cases:
     tests:
       - TC-AGING-001
       - TC-AGING-002
+      - TC-AGING-006
       - TC-AGING-005
     implementation:
       - packages/domain-contracts/src/debt/index.ts
@@ -2530,7 +2531,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/debt-aging-rules.md
     cases: []
-    tests: [TC-AGING-001, TC-AGING-002, TC-AGING-003]
+    tests: [TC-AGING-001, TC-AGING-002, TC-AGING-003, TC-AGING-006]
     implementation:
       - packages/domain-kernel/src/debt/index.ts
       - packages/domain-contracts/src/debt/index.ts
@@ -2540,7 +2541,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/debt-aging-rules.md
     cases: []
-    tests: [TC-AGING-001, TC-AGING-002, TC-AGING-003]
+    tests: [TC-AGING-001, TC-AGING-002, TC-AGING-003, TC-AGING-006]
     implementation:
       - packages/domain-kernel/src/debt/index.ts
       - packages/db/src/repositories/read/account.ts
@@ -4162,6 +4163,9 @@ contract_tests:
   TC-ACCOUNT-008:
     title: Customer account procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
+  TC-AGING-006:
+    title: Debt aging reconciles supported manual adjustments with the canonical ledger
+    file: packages/domain-kernel/src/debt/debt.test.ts
   TC-COMMAND-007:
     title: Malformed input returns INVALID_COMMAND_PAYLOAD, not a schema dump
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
