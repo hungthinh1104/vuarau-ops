@@ -65,18 +65,23 @@ spec files include `apps/web/e2e/offline-quick-sale.spec.ts` and
 
 The repository checks are split by feedback speed:
 
-| Command                                                   | Scope                                                                                                          |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `pnpm test:fast`                                          | domain, application, contract and web Vitest projects                                                          |
-| `pnpm check:static`                                       | format, lint, typecheck, boundaries, source, UI/docs/truth checks, context, trace and security-surface checks  |
-| `pnpm verify`                                             | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                     |
-| `pnpm context <query>`                                    | targeted docs/tests/implementation retrieval for an agent                                                      |
-| `pnpm perf:production-scale` / `pnpm rehearse:migrations` | disposable production-shape performance and fresh/idempotent migration evidence; both run as separate CI gates |
+| Command                                                   | Scope                                                                                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test:fast`                                          | domain, application, contract and web Vitest projects                                                                                      |
+| `pnpm check:static`                                       | format, lint, typecheck, boundaries, source, UI/docs/truth checks, context, trace and security-surface checks                              |
+| `pnpm verify`                                             | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                                                 |
+| `pnpm verify:release`                                     | canonical release gate: static checks, migration drift, isolated production-scale performance, recovery, builds and production-runtime E2E |
+| `pnpm context <query>`                                    | targeted docs/tests/implementation retrieval for an agent                                                                                  |
+| `pnpm perf:production-scale` / `pnpm rehearse:migrations` | disposable production-shape performance and fresh/idempotent migration evidence; both run as separate CI gates                             |
 
 `pnpm context <folder>` is exhaustive for that active tracked folder by default;
 ID and free-text queries use the normal result limits unless `--all` is passed.
 All query types keep archive, generated-output, lockfile and migration-snapshot
 exclusions.
+`pnpm verify:release` requires `DATABASE_URL` for functional checks and a
+different `RELEASE_PERF_DATABASE_URL` for the disposable production-scale
+performance rehearsal; it refuses to run the performance workload against the
+functional database.
 Policy queries resolve the versioned registry implementation and its disabled
 availability tests; they do not imply that policy-sensitive metrics are active.
 
@@ -129,7 +134,9 @@ The root script entry points are implemented in `scripts/dev.ts`,
 `scripts/field-observation.ts`,
 `scripts/repository-truth-check.ts`, `scripts/boundary-check.ts`,
 `scripts/source-boundary-check.ts`, `scripts/security-surface-check.ts` and
-`scripts/pilot-dry-run.ts`.
+`scripts/pilot-dry-run.ts`. The release gate and migration drift check are
+implemented in `scripts/verify-release.ts` and
+`scripts/db-generate-check.ts`.
 
 ## Where does my change go?
 

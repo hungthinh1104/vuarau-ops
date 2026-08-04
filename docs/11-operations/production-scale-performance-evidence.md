@@ -22,7 +22,10 @@ vendor-independent promises.
 
 ## Dataset and method
 
-`pnpm perf:production-scale` creates one isolated workspace with:
+`pnpm perf:production-scale` creates one isolated workspace. The canonical
+release command runs it against the separate database supplied through
+`RELEASE_PERF_DATABASE_URL`; it must never share the functional test/E2E
+database:
 
 ```text
 10,000 customers
