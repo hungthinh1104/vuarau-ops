@@ -4,6 +4,7 @@ import {
   date,
   foreignKey,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -26,6 +27,7 @@ export const operationalCloses = pgTable(
       .notNull()
       .references(() => workspaces.id),
     businessDate: date("business_date", { mode: "string" }).notNull(),
+    supersedesOperationalCloseId: uuid("supersedes_operational_close_id"),
     periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
     periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
     observationIds: uuid("observation_ids").array().notNull(),
@@ -39,17 +41,27 @@ export const operationalCloses = pgTable(
     commandId: uuid("command_id")
       .notNull()
       .references(() => commandReceipts.commandId),
+    version: integer("version").notNull().default(1),
     reason: text("reason").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
-    uniqueIndex("operational_closes_workspace_date_uq").on(table.workspaceId, table.businessDate),
+    index("operational_closes_workspace_date_idx").on(table.workspaceId, table.businessDate),
+    uniqueIndex("operational_closes_workspace_supersedes_uq").on(
+      table.workspaceId,
+      table.supersedesOperationalCloseId,
+    ),
     index("operational_closes_workspace_time_idx").on(
       table.workspaceId,
       table.businessDate,
       table.recordedAt,
       table.id,
     ),
+    foreignKey({
+      columns: [table.workspaceId, table.supersedesOperationalCloseId],
+      foreignColumns: [table.workspaceId, table.id],
+      name: "operational_closes_workspace_supersedes_fk",
+    }),
     foreignKey({
       columns: [table.workspaceId, table.policyVersionId],
       foreignColumns: [workspacePolicies.workspaceId, workspacePolicies.id],
@@ -58,6 +70,7 @@ export const operationalCloses = pgTable(
     check("operational_closes_period_ck", sql`${table.periodEnd} > ${table.periodStart}`),
     check("operational_closes_observations_ck", sql`cardinality(${table.observationIds}) > 0`),
     check("operational_closes_evidence_ck", sql`cardinality(${table.evidenceReferences}) > 0`),
+    check("operational_closes_version_ck", sql`${table.version} > 0`),
   ],
 );
 

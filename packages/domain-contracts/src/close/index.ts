@@ -31,6 +31,7 @@ const closePeriodSchema = z.object({
 
 const operationalClosePayloadSchema = z.object({
   operationalCloseId: operationalCloseIdSchema,
+  supersedesOperationalCloseId: operationalCloseIdSchema.nullable().default(null),
   businessDate: z.iso.date(),
   observationIds: z.array(reconciliationObservationIdSchema).min(1).max(20),
   evidenceReferences: evidenceReferencesInputSchema.refine((refs) => refs.length > 0, {
@@ -67,6 +68,7 @@ export const operationalCloseDtoSchema = z.object({
   id: operationalCloseIdSchema,
   workspaceId: workspaceIdSchema,
   businessDate: z.iso.date(),
+  supersedesOperationalCloseId: operationalCloseIdSchema.nullable(),
   period: closePeriodSchema,
   state: operationalCloseStateSchema,
   version: z.int().positive(),

@@ -19,11 +19,14 @@ also have `transactionTime` inside the closed business-day period; an observed
 value is sufficient when no expected value exists. Missing policy, malformed
 definition, missing observation or cross-workspace reference fails closed.
 
-### BR-CLOSE-003 — A business date has one explicit state transition
+### BR-CLOSE-003 — Close revisions preserve the full append-only cycle
 
-The workspace/date uniqueness constraint prevents two close identities. Reopen is
-an append-only `OperationalCloseReopen` fact controlled by the approved policy and
-`expectedVersion`; a retry or stale version cannot create a second transition.
+The first close for a workspace/date is immutable. Reopen is an append-only
+`OperationalCloseReopen` fact controlled by the approved policy and
+`expectedVersion`; after reopen, a new close may be recorded only when it
+explicitly supersedes the reopened close. The supersedes link and unique database
+constraint prevent two concurrent revisions of the same reopened state. A closed
+latest revision still blocks another close for that date.
 
 ### BR-CASH-012 — Statement match is exact and financial-neutral
 

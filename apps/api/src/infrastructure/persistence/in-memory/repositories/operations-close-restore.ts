@@ -21,6 +21,8 @@ export function restoreCloseFacts(
     );
     const row = remap({
       ...raw,
+      supersedesOperationalCloseId: raw["supersedesOperationalCloseId"] ?? null,
+      version: raw["version"] ?? 1,
       evidenceReferences: raw["evidenceReferences"] ?? [],
       observationIds: raw["observationIds"] ?? [],
       reopen:

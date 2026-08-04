@@ -379,6 +379,13 @@
       "when": 1785807920896,
       "tag": "0053_easy_smiling_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1785808831192,
+      "tag": "0054_boring_khan",
+      "breakpoints": true
     }
   ]
 }

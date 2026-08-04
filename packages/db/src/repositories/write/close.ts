@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type {
   CashStatementMatchDto,
   OperationalCloseDto,
@@ -59,6 +59,11 @@ export const createCloseWriteRepositories = (tx: Tx) => ({
               eq(operationalCloses.businessDate, businessDate),
             ),
           )
+          .orderBy(
+            desc(operationalCloses.recordedAt),
+            desc(operationalCloses.transactionTime),
+            desc(operationalCloses.id),
+          )
           .limit(1)
       )[0];
       if (row === undefined) return null;
@@ -83,6 +88,7 @@ export const createCloseWriteRepositories = (tx: Tx) => ({
           id: close.id,
           workspaceId: close.workspaceId,
           businessDate: close.businessDate,
+          supersedesOperationalCloseId: close.supersedesOperationalCloseId,
           periodStart: fromIso(close.period.start),
           periodEnd: fromIso(close.period.end),
           observationIds: [...close.observationIds],
@@ -92,6 +98,7 @@ export const createCloseWriteRepositories = (tx: Tx) => ({
           recordedAt: fromIso(close.recordedAt),
           actorId: close.actorId,
           commandId: close.commandId,
+          version: close.version,
           reason: close.reason,
         })
         .onConflictDoNothing()

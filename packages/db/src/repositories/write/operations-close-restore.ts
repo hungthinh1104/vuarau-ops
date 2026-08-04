@@ -20,6 +20,8 @@ export async function restoreCloseFacts(
         const row = scoped(raw);
         return {
           ...row,
+          supersedesOperationalCloseId: row["supersedesOperationalCloseId"] ?? null,
+          version: row["version"] ?? 1,
           periodStart: date(
             row["periodStart"] ?? (row["period"] as Record<string, unknown>)?.["start"],
           ),

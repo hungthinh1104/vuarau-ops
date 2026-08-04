@@ -15,9 +15,11 @@ export function toOperationalCloseDto(
     id: row.id as OperationalCloseDto["id"],
     workspaceId: row.workspaceId as OperationalCloseDto["workspaceId"],
     businessDate: row.businessDate,
+    supersedesOperationalCloseId: row.supersedesOperationalCloseId as
+      OperationalCloseDto["id"] | null,
     period: { start: toIso(row.periodStart), end: toIso(row.periodEnd) },
     state: reopen === undefined ? "closed" : "reopened",
-    version: reopen === undefined ? 1 : 2,
+    version: reopen === undefined ? row.version : row.version + 1,
     observationIds: row.observationIds as OperationalCloseDto["observationIds"],
     evidenceReferences: row.evidenceReferences,
     policyVersionId: row.policyVersionId as OperationalCloseDto["policyVersionId"],

@@ -234,6 +234,48 @@ describe("operational close", () => {
       operationalCloseId,
     });
     expect(read).toMatchObject({ ok: true, value: { state: "reopened", version: 2 } });
+
+    const revisedCloseId = operationalCloseIdSchema.parse(uuid());
+    const revised = await recordOperationalClose(harness.ctx, {
+      ...envelope("reclose"),
+      payload: {
+        ...command.payload,
+        operationalCloseId: revisedCloseId,
+        supersedesOperationalCloseId: operationalCloseId,
+        reason: "Đóng lại sau khi xử lý chênh lệch.",
+      },
+    });
+    expect(revised).toMatchObject({
+      ok: true,
+      value: {
+        id: revisedCloseId,
+        supersedesOperationalCloseId: operationalCloseId,
+        state: "closed",
+        version: 3,
+      },
+    });
+
+    const duplicateRevision = await recordOperationalClose(harness.ctx, {
+      ...envelope("duplicate-reclose"),
+      payload: {
+        ...command.payload,
+        operationalCloseId: uuid(),
+        supersedesOperationalCloseId: operationalCloseId,
+      },
+    });
+    expect(duplicateRevision).toMatchObject({
+      ok: false,
+      error: { code: "OPERATIONAL_CLOSE_ALREADY_EXISTS" },
+    });
+
+    const revisedRead = await getOperationalClose(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      operationalCloseId: revisedCloseId,
+    });
+    expect(revisedRead).toMatchObject({
+      ok: true,
+      value: { state: "closed", version: 3, supersedesOperationalCloseId: operationalCloseId },
+    });
   });
 });
 

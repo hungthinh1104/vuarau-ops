@@ -139,8 +139,17 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
         command.workspaceId,
         command.payload.businessDate,
       );
-      if (existing !== null) {
+      if (existing !== null && existing.state !== "reopened") {
         return err("OPERATIONAL_CLOSE_ALREADY_EXISTS", "This business date is already closed.");
+      }
+      if (
+        (existing === null && command.payload.supersedesOperationalCloseId !== null) ||
+        (existing !== null && command.payload.supersedesOperationalCloseId !== existing.id)
+      ) {
+        return err(
+          "OPERATIONAL_CLOSE_STATE_INVALID",
+          "A close revision must explicitly supersede the currently reopened close.",
+        );
       }
       const observations = await Promise.all(
         command.payload.observationIds.map((id) =>
@@ -157,6 +166,8 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
         policy.value.policy.id,
         period,
         recordedAt,
+        existing?.id ?? null,
+        (existing?.version ?? 0) + 1,
       );
       if (!decision.ok) return decision;
       if (!(await repos.operationalCloses.insert(decision.value.close))) {

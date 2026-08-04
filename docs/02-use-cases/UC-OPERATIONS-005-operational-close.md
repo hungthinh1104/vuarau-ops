@@ -13,10 +13,12 @@ close fact, not a recalculation of any ledger.
 - Preconditions: an approved effective `operating_cycle_reconciliation` policy;
   every required observation belongs to the workspace and is measurable.
 - Input: close ID, business date, observation IDs, evidence references and reason.
-- State: one `closed` row per workspace/business date, then optionally one
-  append-only `reopened` row when the policy permits it.
+- State: an immutable `closed` row per revision, optionally followed by one
+  append-only `reopened` fact; after reopen, one explicitly linked close revision
+  may supersede it.
 - Idempotency: identical command identity returns the original committed result;
-  date uniqueness prevents a second close.
+  the latest closed revision prevents another close, while a reopened revision
+  requires its explicit supersedes link.
 - Concurrency: reopen requires the current `expectedVersion`.
 - Effects: no customer/supplier ledger, CashMovement or InventoryMovement is
   created by the close itself.

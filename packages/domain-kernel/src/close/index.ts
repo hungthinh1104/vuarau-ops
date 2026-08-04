@@ -58,6 +58,8 @@ export function decideRecordOperationalClose(
   policyVersionId: WorkspacePolicyVersionId,
   period: OperationalCloseDto["period"],
   recordedAt: IsoInstant,
+  supersedesOperationalCloseId: OperationalCloseDto["id"] | null = null,
+  version = 1,
 ): DomainResult<{ close: OperationalCloseDto; audit: AuditDraft }> {
   if (observations.some((observation) => observation.workspaceId !== command.workspaceId)) {
     return err("WORKSPACE_ACCESS_DENIED", "Close observations must belong to the workspace.");
@@ -89,9 +91,10 @@ export function decideRecordOperationalClose(
     id: command.payload.operationalCloseId,
     workspaceId: command.workspaceId,
     businessDate: command.payload.businessDate,
+    supersedesOperationalCloseId,
     period,
     state: "closed",
-    version: 1,
+    version,
     observationIds: [...command.payload.observationIds],
     evidenceReferences: [...command.payload.evidenceReferences],
     policyVersionId,

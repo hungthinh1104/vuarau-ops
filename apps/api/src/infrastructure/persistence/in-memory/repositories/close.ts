@@ -9,18 +9,36 @@ export const createCloseRepositories = (
     findByIdForUpdate: async (workspaceId, operationalCloseId) =>
       store.operationalCloses.get(key(workspaceId, operationalCloseId)) ?? null,
     findByBusinessDate: async (workspaceId, businessDate) =>
-      [...store.operationalCloses.values()].find(
-        (close) => close.workspaceId === workspaceId && close.businessDate === businessDate,
-      ) ?? null,
+      [...store.operationalCloses.values()]
+        .filter((close) => close.workspaceId === workspaceId && close.businessDate === businessDate)
+        .sort((left, right) =>
+          right.recordedAt === left.recordedAt
+            ? right.id.localeCompare(left.id)
+            : right.recordedAt.localeCompare(left.recordedAt),
+        )[0] ?? null,
     insert: async (close) => {
       const closeKey = key(close.workspaceId, close.id);
+      const current = [...store.operationalCloses.values()]
+        .filter(
+          (candidate) =>
+            candidate.workspaceId === close.workspaceId &&
+            candidate.businessDate === close.businessDate,
+        )
+        .sort((left, right) =>
+          right.recordedAt === left.recordedAt
+            ? right.id.localeCompare(left.id)
+            : right.recordedAt.localeCompare(left.recordedAt),
+        )[0];
       if (
         store.operationalCloses.has(closeKey) ||
-        [...store.operationalCloses.values()].some(
-          (current) =>
-            current.workspaceId === close.workspaceId &&
-            current.businessDate === close.businessDate,
-        )
+        (current !== undefined &&
+          (current.state !== "reopened" || close.supersedesOperationalCloseId !== current.id)) ||
+        (close.supersedesOperationalCloseId !== null &&
+          [...store.operationalCloses.values()].some(
+            (candidate) =>
+              candidate.workspaceId === close.workspaceId &&
+              candidate.supersedesOperationalCloseId === close.supersedesOperationalCloseId,
+          ))
       ) {
         return false;
       }
