@@ -10,16 +10,29 @@ import { ReportsView } from "@/ui/screens/reports-view.tsx";
 export function ReportsController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
-  const metricDefinitions = useQuery(trpc.report.metrics.queryOptions({ workspaceId }));
+  const [dashboardAdvancedOpen, setDashboardAdvancedOpen] = useState(false);
+  const [managementAdvancedOpen, setManagementAdvancedOpen] = useState(false);
+  const metricDefinitions = useQuery(
+    trpc.report.metrics.queryOptions({ workspaceId }, { enabled: managementAdvancedOpen }),
+  );
   const dashboardSummary = useQuery(trpc.dashboard.summary.queryOptions({ workspaceId }));
   const dashboardSeries = useQuery(
-    trpc.dashboard.salesSeries.queryOptions({ workspaceId, days: 30 }),
+    trpc.dashboard.salesSeries.queryOptions(
+      { workspaceId, days: 30 },
+      { enabled: dashboardAdvancedOpen },
+    ),
   );
   const dashboardStatusCounts = useQuery(
-    trpc.dashboard.orderStatusCounts.queryOptions({ workspaceId }),
+    trpc.dashboard.orderStatusCounts.queryOptions(
+      { workspaceId },
+      { enabled: dashboardAdvancedOpen },
+    ),
   );
   const dashboardTopProducts = useQuery(
-    trpc.dashboard.topProducts.queryOptions({ workspaceId, limit: 8 }),
+    trpc.dashboard.topProducts.queryOptions(
+      { workspaceId, limit: 8 },
+      { enabled: dashboardAdvancedOpen },
+    ),
   );
   const [asOf] = useState(() => new Date().toISOString());
   const [reportType, setReportType] = useState<ReportType>("customer_account_activity");
@@ -44,11 +57,14 @@ export function ReportsController() {
   );
   const report = useQuery(trpc.report.operational.queryOptions(input));
   const intelligence = useQuery(
-    trpc.report.intelligence.queryOptions({
-      workspaceId,
-      asOf,
-      businessDate: businessDate || null,
-    }),
+    trpc.report.intelligence.queryOptions(
+      {
+        workspaceId,
+        asOf,
+        businessDate: businessDate || null,
+      },
+      { enabled: managementAdvancedOpen },
+    ),
   );
   const csv = useQuery({
     ...trpc.report.csv.queryOptions({ ...input, cursor: null, limit: 100 }),
@@ -66,16 +82,22 @@ export function ReportsController() {
   return (
     <ReportsView
       canRead={session.permissions.includes("report.read")}
+      advancedOpen={managementAdvancedOpen}
+      onAdvancedOpenChange={setManagementAdvancedOpen}
       overview={{
         summary: dashboardSummary,
         series: dashboardSeries,
         statusCounts: dashboardStatusCounts,
         topProducts: dashboardTopProducts,
+        advancedOpen: dashboardAdvancedOpen,
+        onAdvancedOpenChange: setDashboardAdvancedOpen,
         onRetry: () => {
           void dashboardSummary.refetch();
-          void dashboardSeries.refetch();
-          void dashboardStatusCounts.refetch();
-          void dashboardTopProducts.refetch();
+          if (dashboardAdvancedOpen) {
+            void dashboardSeries.refetch();
+            void dashboardStatusCounts.refetch();
+            void dashboardTopProducts.refetch();
+          }
         },
       }}
       reportType={reportType}

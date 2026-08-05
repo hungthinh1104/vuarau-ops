@@ -26,7 +26,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { copyForReportDiagnostic, copyForReportMetric } from "@/ui/copy.ts";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { DisclosureSection, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -72,11 +72,15 @@ type OperationalOverviewProps = {
   readonly statusCounts: QueryLike<DashboardOrderStatusCountsDto>;
   readonly topProducts: QueryLike<DashboardTopProductsDto>;
   readonly onRetry: () => void;
+  readonly advancedOpen?: boolean;
+  readonly onAdvancedOpenChange?: (open: boolean) => void;
 };
 
 export function ReportsView(props: {
   readonly canRead: boolean;
   readonly overview?: OperationalOverviewProps;
+  readonly advancedOpen?: boolean;
+  readonly onAdvancedOpenChange?: (open: boolean) => void;
   readonly reportType: ReportType;
   readonly businessDate: string;
   readonly state: "loading" | "ready" | "error";
@@ -93,6 +97,8 @@ export function ReportsView(props: {
   readonly onNextPage: () => void;
 }) {
   if (!props.canRead) return <p role="alert">Bạn không có quyền đọc báo cáo.</p>;
+  const advancedOpen = props.advancedOpen ?? false;
+  const onAdvancedOpenChange = props.onAdvancedOpenChange ?? (() => undefined);
 
   return (
     <div className="flex flex-col gap-6">
@@ -100,7 +106,13 @@ export function ReportsView(props: {
         title="Tổng quan vận hành"
         description="Các số liệu làm việc hôm nay, lấy từ nguồn chuẩn và có thể mở ngược về chứng từ."
       />
-      {props.overview === undefined ? null : <OperationalOverview {...props.overview} />}
+      {props.overview === undefined ? null : (
+        <OperationalOverview
+          {...props.overview}
+          advancedOpen={advancedOpen}
+          onAdvancedOpenChange={onAdvancedOpenChange}
+        />
+      )}
       <div className="grid gap-3 border-y border-border py-4 md:grid-cols-3 md:items-end">
         <Select
           label="Loại báo cáo"
@@ -137,13 +149,24 @@ export function ReportsView(props: {
       ) : (
         <ReportResult result={props.result} onNextPage={props.onNextPage} />
       )}
-      <ManagementSnapshot query={props.intelligence} onRetry={props.onIntelligenceRetry} />
-      <MetricCatalog query={props.metrics} onRetry={props.onMetricsRetry} />
+      <DisclosureSection
+        title="Chỉ số nâng cao"
+        description="Mở khi cần xem biểu đồ, đối chiếu và chỉ số quản lý chi tiết."
+        open={advancedOpen}
+        onOpenChange={onAdvancedOpenChange}
+      >
+        <div className="grid gap-6">
+          <ManagementSnapshot query={props.intelligence} onRetry={props.onIntelligenceRetry} />
+          <MetricCatalog query={props.metrics} onRetry={props.onMetricsRetry} />
+        </div>
+      </DisclosureSection>
     </div>
   );
 }
 
 function OperationalOverview(props: OperationalOverviewProps) {
+  const advancedOpen = props.advancedOpen ?? false;
+  const onAdvancedOpenChange = props.onAdvancedOpenChange ?? (() => undefined);
   return (
     <section aria-labelledby="operational-overview-title" className="grid gap-3">
       <div>
@@ -155,11 +178,20 @@ function OperationalOverview(props: OperationalOverviewProps) {
         </p>
       </div>
       <DashboardCards query={props.summary} onRetry={props.onRetry} />
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <SalesTrendChart query={props.series} onRetry={props.onRetry} />
-        <StatusDistribution query={props.statusCounts} onRetry={props.onRetry} />
-      </div>
-      <TopProducts query={props.topProducts} onRetry={props.onRetry} />
+      <DisclosureSection
+        title="Biểu đồ và mặt hàng nổi bật"
+        description="Chỉ tải dữ liệu chi tiết sau khi mở phần này."
+        open={advancedOpen}
+        onOpenChange={onAdvancedOpenChange}
+      >
+        <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+          <SalesTrendChart query={props.series} onRetry={props.onRetry} />
+          <StatusDistribution query={props.statusCounts} onRetry={props.onRetry} />
+        </div>
+        <div className="mt-4">
+          <TopProducts query={props.topProducts} onRetry={props.onRetry} />
+        </div>
+      </DisclosureSection>
     </section>
   );
 }
@@ -173,7 +205,7 @@ function DashboardCards(props: {
     return <WidgetUnavailable title="Tổng quan" onRetry={props.onRetry} />;
   const summary = props.query.data;
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 xl:grid-cols-4">
       <AmountCard title="Doanh số đã chốt" widget={summary.sales} />
       <AmountCard title="Giá trị đơn mua" widget={summary.purchases} />
       <QuantityCard title="Đã nhận hàng" widget={summary.received} />
@@ -370,7 +402,7 @@ function OverviewCardShell(props: {
   readonly children: ReactNode;
 }) {
   return (
-    <article className="grid gap-2 rounded-card border border-border bg-surface p-4">
+    <div className="grid gap-2 border-b border-border py-3">
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold">{props.title}</h3>
         {props.status === undefined ? null : (
@@ -378,7 +410,7 @@ function OverviewCardShell(props: {
         )}
       </div>
       {props.children}
-    </article>
+    </div>
   );
 }
 
@@ -558,7 +590,7 @@ function ReportResult(props: {
           {result.totals.amount !== null ? (
             <a
               href="#report-sources"
-              className="rounded-card border border-border bg-surface-muted/50 p-3 hover:border-border-strong"
+              className="rounded-card border border-border bg-surface-muted p-3 hover:border-border-strong"
             >
               <span className="block text-caption text-ink-muted">Tổng giá trị</span>
               <strong className="tabular mt-1 block text-heading text-ink">
@@ -570,7 +602,7 @@ function ReportResult(props: {
             <a
               key={quantity.unit}
               href="#report-sources"
-              className="rounded-card border border-border bg-surface-muted/50 p-3 hover:border-border-strong"
+              className="rounded-card border border-border bg-surface-muted p-3 hover:border-border-strong"
             >
               <span className="block text-caption text-ink-muted">
                 Tổng tất cả hạng hàng · {quantity.unit}
@@ -599,7 +631,7 @@ function ReportResult(props: {
       ) : (
         <div
           id="report-sources"
-          className="overflow-x-auto rounded-card border border-border bg-surface shadow-sm"
+          className="overflow-x-auto rounded-card border border-border bg-surface"
         >
           <table className="data-table w-full min-w-[760px] text-left text-body-sm">
             <colgroup>

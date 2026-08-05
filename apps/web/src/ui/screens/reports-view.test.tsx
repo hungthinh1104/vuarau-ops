@@ -162,6 +162,8 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ReportsView>>
   return render(
     <ReportsView
       canRead
+      advancedOpen
+      onAdvancedOpenChange={() => undefined}
       reportType="inventory_by_product_unit"
       businessDate=""
       state="ready"
@@ -213,6 +215,16 @@ describe("ReportsView", () => {
     expect(screen.queryByText(/COGS|profit|forecast/i)).not.toBeInTheDocument();
   });
 
+  it("keeps advanced report content closed until the user opens it", () => {
+    renderView({ advancedOpen: false });
+    expect(screen.getByRole("button", { name: "Chỉ số nâng cao" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.queryByRole("heading", { name: "Ảnh chụp vận hành" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Chỉ số quản lý" })).not.toBeInTheDocument();
+  });
+
   it("fails visibly instead of rendering stale totals when the report read fails", () => {
     renderView({ state: "error", result: null });
     expect(screen.getByRole("alert")).toHaveTextContent("Không hiển thị tổng cũ");
@@ -246,7 +258,7 @@ describe("ReportsView", () => {
     expect(screen.getByRole("heading", { name: "Doanh số đã chốt" })).toBeInTheDocument();
     expect(screen.getByText("875.000 ₫")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Tồn kho hiện tại" }).closest("article"),
+      screen.getByRole("heading", { name: "Tồn kho hiện tại" }).parentElement?.parentElement,
     ).toHaveTextContent("N/A");
     expect(screen.queryByText(/trong phạm vi tải hiện tại/)).not.toBeInTheDocument();
   });
