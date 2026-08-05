@@ -1,7 +1,9 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { SaleDetailDto, SaleFulfilmentDto } from "@vuarau/domain-contracts";
 import { describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { saleReplacement } from "@/fixtures/sale.fixtures.ts";
 import { NewDeliveryView } from "./new-delivery-view.tsx";
 
@@ -57,6 +59,7 @@ describe("NewDeliveryView", () => {
         quantities={{}}
         note=""
         evidence=""
+        onsiteCompletion={false}
         command={command}
         dispatchCommand={command}
         deliveredCommand={command}
@@ -64,15 +67,16 @@ describe("NewDeliveryView", () => {
         onQuantityChange={() => undefined}
         onNoteChange={() => undefined}
         onEvidenceChange={() => undefined}
+        onOnsiteCompletionChange={() => undefined}
         onSubmit={onSubmit}
         onReload={() => undefined}
       />,
     );
 
     expect(screen.getByText(/Không phân loại/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Giao tất cả" })).toBeEnabled();
-    await screen.getByRole("button", { name: "Giao tất cả" }).click();
-    expect(onSubmit).toHaveBeenCalledWith("deliver-all");
+    expect(screen.getByRole("button", { name: "Xuất kho & bắt đầu giao" })).toBeEnabled();
+    await screen.getByRole("button", { name: "Xuất kho & bắt đầu giao" }).click();
+    expect(onSubmit).toHaveBeenCalledWith("dispatch", false);
   });
 
   it("does not submit when every line has no remaining quantity", () => {
@@ -88,6 +92,7 @@ describe("NewDeliveryView", () => {
         quantities={{}}
         note=""
         evidence=""
+        onsiteCompletion={false}
         command={command}
         dispatchCommand={command}
         deliveredCommand={command}
@@ -95,12 +100,51 @@ describe("NewDeliveryView", () => {
         onQuantityChange={() => undefined}
         onNoteChange={() => undefined}
         onEvidenceChange={() => undefined}
+        onOnsiteCompletionChange={() => undefined}
         onSubmit={onSubmit}
         onReload={() => undefined}
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Giao tất cả" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Lưu phiếu giao" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Xuất kho & bắt đầu giao" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Lưu để giao sau" })).toBeDisabled();
+  });
+
+  it("requires an explicit onsite option before completing immediately", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    function Harness() {
+      const [onsiteCompletion, setOnsiteCompletion] = useState(false);
+      return (
+        <NewDeliveryView
+          saleId={saleReplacement.id}
+          detail={detail}
+          fulfilment={fulfilment}
+          quantities={{}}
+          note=""
+          evidence=""
+          onsiteCompletion={onsiteCompletion}
+          command={command}
+          dispatchCommand={command}
+          deliveredCommand={command}
+          partialCompletion={null}
+          onQuantityChange={() => undefined}
+          onNoteChange={() => undefined}
+          onEvidenceChange={() => undefined}
+          onOnsiteCompletionChange={setOnsiteCompletion}
+          onSubmit={onSubmit}
+          onReload={() => undefined}
+        />
+      );
+    }
+    render(<Harness />);
+
+    expect(screen.getByRole("button", { name: "Xuất kho & bắt đầu giao" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Xuất kho & giao tại chỗ" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Khách nhận tại chỗ" }));
+    await user.click(screen.getByRole("button", { name: "Xuất kho & giao tại chỗ" }));
+    expect(onSubmit).toHaveBeenCalledWith("dispatch", true);
   });
 });

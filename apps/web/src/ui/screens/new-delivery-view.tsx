@@ -4,8 +4,10 @@ import type { SaleDetailDto, SaleFulfilmentDto, SaleId } from "@vuarau/domain-co
 import type { ReactNode } from "react";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { hasDeliverableLines } from "@/ui/domain/delivery-form.ts";
+import { copyForBlockedReason } from "@/ui/copy.ts";
 import { formatQuantity } from "@/ui/format.ts";
 import { Button } from "@/ui/primitives/button.tsx";
+import { Checkbox } from "@/ui/primitives/checkbox.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
@@ -21,6 +23,7 @@ export function NewDeliveryView(props: {
   readonly quantities: Readonly<Record<string, string>>;
   readonly note: string;
   readonly evidence: string;
+  readonly onsiteCompletion: boolean;
   readonly command: CommandOutcomeView;
   readonly dispatchCommand: CommandOutcomeView;
   readonly deliveredCommand: CommandOutcomeView;
@@ -28,7 +31,8 @@ export function NewDeliveryView(props: {
   readonly onQuantityChange: (saleLineId: string, value: string) => void;
   readonly onNoteChange: (value: string) => void;
   readonly onEvidenceChange: (value: string) => void;
-  readonly onSubmit: (action: "draft" | "deliver-all") => void;
+  readonly onOnsiteCompletionChange: (value: boolean) => void;
+  readonly onSubmit: (action: "draft" | "dispatch", completeOnsite: boolean) => void;
   readonly onReload: () => void;
   readonly feedback?: ReactNode;
 }) {
@@ -42,7 +46,7 @@ export function NewDeliveryView(props: {
   return (
     <div className="flex max-w-3xl flex-col gap-5">
       <PageHeader
-        title="Tạo phiếu giao"
+        title={`Giao đơn ${props.detail.displayReference}`}
         description={props.detail.displayReference}
         back={{ href: `/sales/${props.saleId}`, label: "Đơn bán" }}
       />
@@ -55,8 +59,8 @@ export function NewDeliveryView(props: {
           if (saleLine?.productId == null || summary.fulfilmentState === "attention") {
             return (
               <p key={summary.saleLineId} role="alert" className="py-3 text-warning">
-                {summary.productName}: không thể soạn phiếu —{" "}
-                {summary.blockedReason ?? "dữ liệu thực hiện không toàn vẹn"}.
+                {summary.productName}: chưa thể tạo phiếu —{" "}
+                {copyForBlockedReason(summary.blockedReason)}.
               </p>
             );
           }
@@ -92,7 +96,7 @@ export function NewDeliveryView(props: {
           />
         </label>
         <label className="mt-3 grid gap-2">
-          <span>Nguồn chứng cứ vận hành</span>
+          <span>Ảnh hoặc phiếu liên quan</span>
           <span className="text-caption text-ink-muted">
             Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo chuyển động
             kho.
@@ -103,17 +107,36 @@ export function NewDeliveryView(props: {
           />
         </label>
       </section>
+      <label className="flex items-start gap-3 rounded-card border border-border bg-surface p-4">
+        <Checkbox
+          checked={props.onsiteCompletion}
+          onChange={(event) => props.onOnsiteCompletionChange(event.target.checked)}
+          disabled={sending}
+          aria-label="Khách nhận tại chỗ"
+        />
+        <span>
+          <span className="block font-semibold">Khách nhận tại chỗ</span>
+          <span className="block text-body-sm text-ink-muted">
+            Chỉ chọn khi khách đã nhận ngay tại vựa; hệ thống sẽ xác nhận giao xong sau khi xuất
+            kho.
+          </span>
+        </span>
+      </label>
       {props.feedback}
       <div className="flex flex-wrap gap-3">
-        <Button disabled={!canSave} onClick={() => props.onSubmit("draft")}>
-          {sending ? "Đang lưu phiếu giao…" : "Lưu phiếu giao"}
+        <Button disabled={!canSave} onClick={() => props.onSubmit("draft", false)}>
+          {sending ? "Đang lưu…" : "Lưu để giao sau"}
         </Button>
         <Button
           tone="secondary"
           disabled={sending || !canDeliverAll}
-          onClick={() => props.onSubmit("deliver-all")}
+          onClick={() => props.onSubmit("dispatch", props.onsiteCompletion)}
         >
-          {sending ? "Đang giao…" : "Giao tất cả"}
+          {sending
+            ? "Đang xuất kho…"
+            : props.onsiteCompletion
+              ? "Xuất kho & giao tại chỗ"
+              : "Xuất kho & bắt đầu giao"}
         </Button>
       </div>
     </div>

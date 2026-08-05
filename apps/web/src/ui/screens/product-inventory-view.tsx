@@ -14,6 +14,7 @@ import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
+import { copyForReportDiagnostic } from "@/ui/copy.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
@@ -105,7 +106,7 @@ export function ProductInventoryView({
             Định giá tồn kho
           </h2>
           <p className="text-body-sm text-ink-muted">
-            Kết quả chỉ hiện khi workspace đã chọn policy định giá có hiệu lực.
+            Kết quả chỉ hiện khi vựa đã có cách tính giá trị tồn kho đang dùng.
           </p>
         </div>
         <QueryStates query={valuationQuery} loadingLabel="Đang tính giá trị tồn kho">
@@ -119,7 +120,7 @@ export function ProductInventoryView({
             Kế hoạch tồn kho
           </h2>
           <p className="text-body-sm text-ink-muted">
-            Chỉ hiển thị khuyến nghị khi workspace đã duyệt policy lập kế hoạch.
+            Chỉ hiển thị khuyến nghị khi vựa đã duyệt cách lập kế hoạch tồn kho.
           </p>
         </div>
         <QueryStates query={planningQuery} loadingLabel="Đang tính kế hoạch tồn kho">
@@ -129,7 +130,7 @@ export function ProductInventoryView({
 
       <section className="grid gap-3 border-y border-border py-4 md:grid-cols-2">
         <Select
-          label="Lọc theo phẩm cấp"
+          label="Lọc theo hạng hàng"
           value={gradeFilter === undefined ? "" : (gradeFilter ?? "legacy")}
           onChange={(event) =>
             onGradeFilterChange(
@@ -140,7 +141,7 @@ export function ProductInventoryView({
                   : (event.target.value as QualityGradeId),
             )
           }
-          placeholder="Tất cả phẩm cấp, không cộng gộp"
+          placeholder="Tất cả hạng hàng, không cộng gộp"
           options={[
             ...(balances.some((row) => row.qualityGradeId === null)
               ? [{ value: "legacy", label: "Chưa phân loại (lịch sử)" }]
@@ -204,13 +205,14 @@ function StockPlanningResultView({
   if (result.status === "unavailable") {
     return (
       <p className="rounded-card border border-border bg-canvas p-3 text-body-sm">
-        Kế hoạch chưa sẵn sàng: {result.diagnostics.join(", ") || "chưa có policy hiệu lực"}.
+        Kế hoạch chưa sẵn sàng:{" "}
+        {result.diagnostics.map(copyForReportDiagnostic).join(", ") || "chưa có cấu hình hiệu lực"}.
       </p>
     );
   }
   const rows = result.rows.filter((row) => row.productId === productId);
   return rows.length === 0 ? (
-    <p className="text-body-sm text-ink-muted">Mặt hàng này chưa có rule tồn kho.</p>
+    <p className="text-body-sm text-ink-muted">Mặt hàng này chưa có quy tắc tồn kho.</p>
   ) : (
     <div className="grid gap-2">
       {rows.map((row) => (
@@ -218,7 +220,7 @@ function StockPlanningResultView({
           key={`${row.qualityGradeId ?? "legacy"}:${row.unit}`}
           className="grid gap-1 rounded-card border border-border bg-surface p-3 sm:grid-cols-3"
         >
-          <span>{row.qualityGradeId ?? "Chưa phân loại"}</span>
+          <span>{row.qualityGradeId === null ? "Chưa phân loại" : "Hạng hàng đã chọn"}</span>
           <span className="tabular-nums">Hiện tại: {formatQuantity(row.currentQuantity)}</span>
           <span className="tabular-nums">Đề xuất: {formatQuantity(row.suggestedQuantity)}</span>
         </div>
@@ -231,14 +233,15 @@ function InventoryValuationResultView({ result }: { readonly result: InventoryVa
   if (result.status === "unavailable") {
     return (
       <p role="status" className="rounded-card border border-warning/30 bg-warning-soft p-3">
-        Định giá chưa sẵn sàng: {result.diagnostics.join(", ")}. Không hiển thị số tiền ước đoán.
+        Định giá chưa sẵn sàng: {result.diagnostics.map(copyForReportDiagnostic).join(", ")}. Không
+        hiển thị số tiền ước đoán.
       </p>
     );
   }
   return (
     <div className="grid gap-2">
       <p className="text-caption text-ink-muted">
-        Strategy: {result.strategy} · Policy: {result.policyVersionId}
+        Cách tính: {result.strategy === "fifo" ? "Nhập trước, xuất trước" : "Bình quân"}
       </p>
       {result.rows.length === 0 ? (
         <p className="text-body-sm text-ink-muted">Chưa có dữ liệu định giá trong phạm vi này.</p>
@@ -348,9 +351,9 @@ function movementLabel(source: InventoryMovementDto["sourceType"]): string {
     case "delivery_return":
       return "Hàng trả lại";
     case "inventory_reclassification":
-      return "Chuyển phẩm cấp";
+      return "Chuyển hạng hàng";
     case "quality_disposition":
-      return "Chấp nhận sau kiểm định";
+      return "Chấp nhận sau kiểm hàng";
     case "quality_disposition_reversal":
       return "Hoàn tác chấp nhận chất lượng";
     case "stocktake_variance":

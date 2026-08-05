@@ -102,13 +102,13 @@ export function DeliveryReturnPanel({
         />
       </label>
       <label className="grid gap-2 py-2">
-        <span className="text-label">Nguồn chứng cứ vận hành</span>
+        <span className="text-label">Ảnh hoặc phiếu liên quan</span>
         <span className="text-caption text-ink-muted">
           Mỗi dòng một tham chiếu; chỉ lưu nguồn đối chiếu, không tự suy ra hoàn tiền hay giảm nợ.
         </span>
         <TextareaControl
           disabled={completed || locked}
-          aria-label="Nguồn chứng cứ vận hành"
+          aria-label="Ảnh hoặc phiếu liên quan"
           value={evidence}
           onChange={(event) => setEvidence(event.target.value)}
         />

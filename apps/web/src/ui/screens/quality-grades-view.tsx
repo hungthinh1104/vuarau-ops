@@ -52,20 +52,19 @@ export function QualityGradesView({
   return (
     <div className="flex max-w-4xl flex-col gap-6">
       <PageHeader
-        title="Phẩm cấp hàng"
-        description="Danh mục phân hạng thương mại của lượng hàng, ví dụ Loại 1 / Loại 2 / Dạt. Đây chưa phải hệ thống kiểm định chất lượng hay ghi lỗi hàng."
+        title="Hạng hàng"
+        description="Danh mục hạng hàng của lượng hàng, ví dụ Loại 1 / Loại 2 / Dạt. Đây không phải nơi ghi lỗi hàng."
       />
 
       <p className="rounded-card border border-info/30 bg-info-soft px-4 py-3 text-body-sm">
-        Theo chính sách phần mềm hiện tại, đơn bán và lượng nhận mới phải chọn một phẩm cấp đang
-        dùng. Chính sách này còn chờ chủ vựa xác nhận trước pilot; không tạo phẩm cấp “mặc định” chỉ
-        để bỏ qua quyết định.
+        Theo cách vận hành hiện tại, đơn bán và lượng nhận mới phải chọn một hạng hàng đang dùng.
+        Không tạo hạng hàng “mặc định” chỉ để bỏ qua quyết định.
       </p>
 
       {mayManage ? (
         <section className="grid gap-3 border-y border-border py-4 sm:grid-cols-[1fr_10rem_auto]">
           <TextInput
-            label="Tên phẩm cấp"
+            label="Tên hạng hàng"
             placeholder="Ví dụ: Loại 1"
             value={createName}
             onChange={(event) => onCreateNameChange(event.target.value)}
@@ -77,7 +76,7 @@ export function QualityGradesView({
             onChange={(event) => onCreateSortOrderChange(event.target.value)}
           />
           <Button className="self-end" disabled={!canCreate} onClick={onCreate}>
-            Thêm phẩm cấp
+            Thêm hạng hàng
           </Button>
           {createFeedback === undefined ? null : (
             <div className="sm:col-span-3">{createFeedback}</div>
@@ -87,14 +86,14 @@ export function QualityGradesView({
 
       <section className="grid gap-3 border-b border-border pb-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <SearchInput
-          label="Tìm phẩm cấp"
+          label="Tìm hạng hàng"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           onClear={() => onSearchChange("")}
-          placeholder="Tên phẩm cấp"
+          placeholder="Tên hạng hàng"
         />
         <FilterChipGroup
-          label="Lọc trạng thái phẩm cấp"
+          label="Lọc trạng thái hạng hàng"
           value={activeFilter}
           options={[
             { value: "all", label: "Tất cả" },
@@ -107,14 +106,14 @@ export function QualityGradesView({
 
       <QueryStates
         query={query}
-        loadingLabel="Đang tải phẩm cấp"
-        attemptedAction="Xem danh mục phẩm cấp"
+        loadingLabel="Đang tải hạng hàng"
+        attemptedAction="Xem danh mục hạng hàng"
         onRetry={onRetry}
       >
         {(page) =>
           page.items.length === 0 ? (
             <EmptyState
-              title={search.trim().length > 0 ? "Không tìm thấy phẩm cấp" : "Chưa có phẩm cấp"}
+              title={search.trim().length > 0 ? "Không tìm thấy hạng hàng" : "Chưa có hạng hàng"}
               description={
                 search.trim().length > 0
                   ? "Đổi từ khoá hoặc trạng thái lọc để tìm lại."

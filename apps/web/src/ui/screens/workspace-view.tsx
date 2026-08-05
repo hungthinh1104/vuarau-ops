@@ -29,7 +29,7 @@ export function WorkspacePermissionView(props: {
       attemptedAction="Quản lý thành viên"
       error={{
         code: "PERMISSION_DENIED",
-        message: "Role set does not carry workspace.manage.",
+        message: "Bạn không có quyền quản lý thành viên của vựa.",
         details: { permission: "workspace.manage", role: props.role, roles: props.roles },
         retryable: false,
       }}
@@ -88,7 +88,7 @@ export function WorkspaceView(props: {
         Vận hành, kiểm tra và sao lưu
       </Link>
       <Link href="/workspace/policies" className="text-info underline">
-        Chính sách theo vựa
+        Quy định vận hành
       </Link>
     </div>
   );
@@ -113,7 +113,7 @@ export function OperationalProfileView(props: {
   const options = {
     purchasingMode: [
       ["disabled", "Không theo dõi"],
-      ["purchase_receiving", "Purchase và nhận hàng"],
+      ["purchase_receiving", "Đơn mua và nhận hàng"],
     ],
     inventoryMode: [
       ["disabled", "Không theo dõi"],
@@ -121,19 +121,19 @@ export function OperationalProfileView(props: {
     ],
     intakeMode: [
       ["direct_receipt", "Nhận thẳng vào kho"],
-      ["inspected_arrival", "Hàng đến, kiểm định, quyết định"],
+      ["inspected_arrival", "Nhận hàng, kiểm hàng, xử lý"],
     ],
     weighingMode: [
       ["quantity_only", "Chỉ nhập số lượng"],
-      ["gross_tare_net", "Gross / tare / net"],
+      ["gross_tare_net", "Tổng cân / trọng lượng bì / khối lượng hàng"],
     ],
     qualityGradeMode: [
       ["disabled", "Không bắt buộc"],
-      ["required", "Bắt buộc grade"],
+      ["required", "Bắt buộc chọn hạng hàng"],
     ],
     deliveryMode: [
       ["disabled", "Không tách luồng"],
-      ["sale_fulfilment", "Delivery riêng"],
+      ["sale_fulfilment", "Tách bước giao hàng"],
     ],
     cashbookMode: [
       ["disabled", "Không theo dõi vị trí tiền"],
@@ -169,7 +169,7 @@ export function OperationalProfileView(props: {
           }
         />
         <ProfileSelect
-          label="Luồng hàng đến"
+          label="Cách nhận hàng"
           value={fields.intakeMode}
           options={options.intakeMode}
           onChange={(value) =>

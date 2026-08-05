@@ -17,7 +17,7 @@ export function QuarantineResolution({
 }) {
   return activeChild || eligibleValueScaled === 0 ? (
     <section className="rounded-card border border-border bg-canvas p-3 text-body-sm text-ink-muted">
-      Lượng cách ly {formatQuantity(allocation.quantity)} đã có quyết định xử lý hiệu lực.
+      Lượng tạm giữ {formatQuantity(allocation.quantity)} đã có quyết định xử lý hiệu lực.
     </section>
   ) : (
     child

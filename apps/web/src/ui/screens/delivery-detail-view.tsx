@@ -73,7 +73,7 @@ export function DeliveryDetailView({
               <div>
                 <h2 className="font-semibold">Hàng giao</h2>
                 <p className="text-body-sm text-ink-muted">
-                  Xuất hàng mới làm giảm tồn kho. “Đã giao khách” chỉ xác nhận chuyến đã tới nơi.
+                  Xuất kho làm giảm tồn kho. Xác nhận giao xong là bước riêng sau khi khách đã nhận.
                 </p>
               </div>
               {delivery.returns.length > 0 ? (
@@ -105,15 +105,15 @@ export function DeliveryDetailView({
             ))}
           </section>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-card border border-border bg-surface/95 p-3 shadow-lg backdrop-blur">
             {delivery.status === "draft" && canDispatch ? (
               <Button disabled={dispatchLocked} onClick={() => onDispatch(delivery)}>
-                {dispatchLocked ? "Đang xác nhận xuất hàng" : "Xuất hàng / Bắt đầu giao"}
+                {dispatchLocked ? "Đang xuất kho…" : "Xuất kho & bắt đầu giao"}
               </Button>
             ) : null}
             {delivery.status === "dispatched" && canComplete ? (
               <Button disabled={completeLocked} onClick={() => onComplete(delivery)}>
-                {completeLocked ? "Đang xác nhận" : "Đã giao khách"}
+                {completeLocked ? "Đang xác nhận…" : "Xác nhận giao xong"}
               </Button>
             ) : null}
             {canGenerateDocument ? (

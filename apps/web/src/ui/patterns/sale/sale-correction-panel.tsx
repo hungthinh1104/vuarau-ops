@@ -33,7 +33,7 @@ export type SaleCorrectionPanelProps = {
 const REASON_OPTIONS = [
   { value: "wrong_amount", label: "Sai số tiền hoặc giá" },
   { value: "wrong_customer", label: "Sai khách hàng" },
-  { value: "goods_returned", label: "Toàn bộ hàng đã trả / bị từ chối" },
+  { value: "goods_returned", label: "Toàn bộ hàng đã trả nhà cung cấp" },
   { value: "duplicate_entry", label: "Ghi trùng đơn" },
   { value: "cancelled_by_customer", label: "Khách hủy đơn" },
   { value: "other", label: "Khác" },
@@ -104,7 +104,7 @@ export function SaleCorrectionPanel({
             className="rounded-card border border-warning/30 bg-warning-soft p-3 text-body-sm"
           >
             Đơn vẫn còn hàng thực giao chưa trả hết. Không thể hoàn tác toàn bộ công nợ bằng lý do
-            này: hãy ghi đúng lượng hàng thực trả; hậu quả tiền của trả một phần đang chờ ASM-037.
+            này: hãy ghi đúng lượng hàng thực trả; phần tiền sẽ được đối soát theo kết quả trả hàng.
           </p>
         ) : null}
         {reasonCode === "goods_returned" && goodsReturnStatus === "unknown" ? (
@@ -163,7 +163,7 @@ export function SaleCorrectionPanel({
           disabled={disabled}
         />
         <Textarea
-          label="Nguồn chứng cứ vận hành"
+          label="Ảnh hoặc phiếu liên quan"
           value={evidence}
           onChange={(event) => setEvidence(event.target.value)}
           hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."

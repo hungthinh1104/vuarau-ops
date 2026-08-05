@@ -31,6 +31,6 @@ describe("Quick Sale support UI", () => {
 
   it("surfaces missing grade configuration instead of inventing a default", () => {
     render(<QuickSaleGradeState loading={false} error={false} gradeCount={0} />);
-    expect(screen.getByRole("alert")).toHaveTextContent("đừng tạo phẩm cấp giả");
+    expect(screen.getByRole("alert")).toHaveTextContent("bổ sung hạng hàng thật");
   });
 });

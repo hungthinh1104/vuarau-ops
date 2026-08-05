@@ -254,7 +254,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                 }}
               />
               <Textarea
-                label="Nguồn chứng cứ vận hành (mỗi dòng một tham chiếu)"
+                label="Ảnh hoặc phiếu liên quan (mỗi dòng một tham chiếu)"
                 hint="Ví dụ: order://..., photo://..., note://... — chỉ lưu liên kết nguồn, không tự tạo hiệu ứng tiền/hàng."
                 rows={3}
                 disabled={locallyQueued}

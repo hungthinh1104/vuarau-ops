@@ -88,7 +88,9 @@ describe("SupplyCommitmentEvidenceView", () => {
 
     expect(screen.getByRole("heading", { name: "Cam kết nguồn cung" })).toBeInTheDocument();
     expect(screen.getByText("Số lượng hứa: 200 kg")).toBeInTheDocument();
-    expect(screen.getByText(/Chưa kết luận phải trả, tồn kho, reorder/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Chưa kết luận phải trả, tồn kho, nhu cầu nhập thêm/),
+    ).toBeInTheDocument();
     expect(screen.getByText("voice://supply/ui-001")).toBeInTheDocument();
   });
 });

@@ -128,12 +128,12 @@ describe("SupplierObservationView", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Nhà cung cấp liên quan")).toBeInTheDocument();
     expect(screen.getByLabelText("Số lượng được nhận")).toBeInTheDocument();
-    expect(screen.getByLabelText("Mã claim / khiếu nại")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mã khiếu nại")).toBeInTheDocument();
     expect(screen.getByText("Nguồn hàng: Đức Trọng")).toBeInTheDocument();
     expect(screen.getByText("Đã hứa: 200 kg")).toBeInTheDocument();
     expect(screen.getByText("Được nhận: 185 kg")).toBeInTheDocument();
-    expect(screen.getByText("Claim: claim://supplier/ui-002")).toBeInTheDocument();
-    expect(screen.getByText(/Chưa kết luận score, ranking/)).toBeInTheDocument();
+    expect(screen.getByText("Khiếu nại: claim://supplier/ui-002")).toBeInTheDocument();
+    expect(screen.getByText(/Chưa kết luận điểm xếp hạng/)).toBeInTheDocument();
     expect(screen.getByText("photo://supplier/ui-001")).toBeInTheDocument();
   });
 });

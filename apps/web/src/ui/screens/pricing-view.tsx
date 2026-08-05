@@ -29,7 +29,7 @@ import { TextInput } from "@/ui/primitives/text-input.tsx";
 const KIND_COPY: Readonly<Record<PriceRuleKind, string>> = {
   list: "Giá niêm yết",
   customer: "Giá riêng khách hàng",
-  override: "Giá override",
+  override: "Giá thay thế",
 };
 
 export type PricingViewProps = {
@@ -99,12 +99,11 @@ export function PricingView(props: PricingViewProps) {
     <div className="flex max-w-6xl flex-col gap-6">
       <PageHeader
         title="Bảng giá"
-        description="Các rule giá exact-money đã ghi. Rule là dữ kiện append-only; giá trên đơn đã chốt không bị thay đổi theo bảng này."
+        description="Các quy tắc giá chính xác đã ghi. Mỗi quy tắc được giữ nguyên; giá trên đơn đã chốt không bị thay đổi theo bảng này."
       />
       <p className="rounded-card border border-info/30 bg-info-soft px-4 py-3 text-body-sm">
-        Precedence, chiết khấu, phí vận hành và ngưỡng số lượng là rule explicit đang chờ xác nhận
-        thực địa. Màn hình không tự tính biên lợi nhuận, không đổi đơn vị và không tự sửa giá đơn đã
-        chốt.
+        Thứ tự ưu tiên, chiết khấu, phí vận hành và ngưỡng số lượng đang chờ xác nhận thực địa. Màn
+        hình không tự tính biên lợi nhuận, không đổi đơn vị và không tự sửa giá đơn đã chốt.
       </p>
 
       {props.mayManage ? (
@@ -119,7 +118,7 @@ export function PricingView(props: PricingViewProps) {
       <section aria-labelledby="pricing-history-title" className="grid gap-3">
         <div>
           <h2 id="pricing-history-title" className="text-subheading font-semibold">
-            Lịch sử rule giá
+            Lịch sử quy tắc giá
           </h2>
           <p className="text-caption text-ink-muted">
             Hiển thị theo thời điểm hiệu lực; không có thao tác sửa hoặc xoá.
@@ -129,8 +128,8 @@ export function PricingView(props: PricingViewProps) {
           {() =>
             props.items.length === 0 ? (
               <EmptyState
-                title="Chưa có rule giá"
-                description="Ghi rule đầu tiên khi vựa đã thống nhất cách áp dụng giá."
+                title="Chưa có quy tắc giá"
+                description="Ghi quy tắc đầu tiên khi vựa đã thống nhất cách áp dụng giá."
               />
             ) : (
               <>
@@ -153,7 +152,7 @@ export function PricingView(props: PricingViewProps) {
                 </ul>
                 <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
                   <table className="data-table w-full min-w-[1050px] table-fixed text-left text-body-sm">
-                    <caption className="sr-only">Lịch sử rule giá</caption>
+                    <caption className="sr-only">Lịch sử quy tắc giá</caption>
                     <colgroup>
                       <col className="w-[18%]" />
                       <col className="w-[17%]" />
@@ -216,7 +215,7 @@ export function PricingView(props: PricingViewProps) {
         {props.nextCursor === null ? null : (
           <LoadMoreFooter
             visibleCount={props.items.length}
-            noun="rule giá"
+            noun="quy tắc giá"
             loading={props.isFetching}
             onLoadMore={props.onLoadMore}
           />
@@ -259,10 +258,10 @@ function PriceRuleForm(
     >
       <div>
         <h2 id="pricing-record-title" className="text-subheading font-semibold">
-          Ghi rule giá
+          Ghi quy tắc giá
         </h2>
         <p className="text-caption text-ink-muted">
-          Mỗi lần ghi tạo một rule mới; không cập nhật rule cũ.
+          Mỗi lần ghi tạo một quy tắc mới; không cập nhật quy tắc cũ.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
@@ -282,16 +281,16 @@ function PriceRuleForm(
           options={props.productOptions}
         />
         <Select
-          label="Loại rule"
+          label="Loại quy tắc giá"
           value={props.kind}
           onChange={(event) => props.onKind(event.target.value as PriceRuleKind)}
           options={PRICE_RULE_KINDS.map((value) => ({ value, label: KIND_COPY[value] }))}
         />
         <Select
-          label="Phẩm cấp (tuỳ chọn)"
+          label="Hạng hàng (tuỳ chọn)"
           value={props.qualityGradeId}
           onChange={(event) => props.onQualityGradeId(event.target.value)}
-          placeholder="Tất cả phẩm cấp"
+          placeholder="Tất cả hạng hàng"
           options={props.gradeOptions}
         />
         {props.kind === "customer" ? (
@@ -369,13 +368,11 @@ function PriceRuleForm(
         <div className="rounded-card border border-border bg-surface-muted p-3">
           <p className="text-caption text-ink-muted">Giá cuối dự kiến</p>
           <p className="text-subheading font-bold">{preview}</p>
-          <p className="text-caption text-ink-muted">
-            Server vẫn là nơi quyết định và từ chối giá âm.
-          </p>
+          <p className="text-caption text-ink-muted">Hệ thống sẽ kiểm tra và không nhận giá âm.</p>
         </div>
       </div>
       <TextInput
-        label={props.kind === "override" ? "Lý do override" : "Lý do (tuỳ chọn)"}
+        label={props.kind === "override" ? "Lý do thay thế" : "Lý do (tuỳ chọn)"}
         value={props.reason}
         onChange={(event) => props.onReason(event.target.value)}
         required={props.kind === "override"}
@@ -387,11 +384,11 @@ function PriceRuleForm(
       )}
       <div className="flex flex-wrap items-center gap-3">
         <Button disabled={props.command.phase.kind === "sending"} onClick={props.onSubmit}>
-          {props.command.phase.kind === "sending" ? "Đang ghi rule" : "Ghi rule giá"}
+          {props.command.phase.kind === "sending" ? "Đang ghi quy tắc" : "Ghi quy tắc giá"}
         </Button>
         <CommandOutcome
           command={props.command}
-          attemptedAction="Ghi rule giá"
+          attemptedAction="Ghi quy tắc giá"
           onReload={() => void props.onReload()}
         />
       </div>
@@ -407,7 +404,7 @@ function scopeCopy(
   return (
     <span className="flex flex-wrap items-center gap-1">
       <Badge tone="neutral">{KIND_COPY[rule.kind]}</Badge>
-      <span>{gradeName ?? "Mọi phẩm cấp"}</span>
+      <span>{gradeName ?? "Mọi hạng hàng"}</span>
       {rule.customerId === null ? null : (
         <span>· {customerName ?? `Mã ${shortId(rule.customerId)}`}</span>
       )}

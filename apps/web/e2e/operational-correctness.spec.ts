@@ -1,5 +1,4 @@
 import { api } from "./harness/api.ts";
-import { E2E_QUALITY_GRADE_ID } from "./harness/environment.ts";
 import { expect, signIn, test } from "./harness/signed-in.ts";
 import type { Locator, Page } from "@playwright/test";
 
@@ -32,6 +31,17 @@ async function chooseProduct(page: Page, productName: string): Promise<void> {
   await product.press("Enter");
 }
 
+async function createQualityGrade(page: Page, name: string): Promise<void> {
+  await page.goto("/quality-grades");
+  await page.getByLabel("Tên hạng hàng").fill(name);
+  await page.getByLabel("Thứ tự").fill("-10000");
+  const addGrade = page.getByRole("button", { name: "Thêm hạng hàng" });
+  await addGrade.focus();
+  await addGrade.press("Enter");
+  await page.getByLabel("Tìm hạng hàng").fill(name);
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
+}
+
 test.describe("Operational correctness (TC-E2E-032)", () => {
   test("preserves Product, grade, fulfilment, inventory and money truth end to end", async ({
     page,
@@ -39,15 +49,11 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await signIn(page, "owner");
 
     const suffix = Date.now();
+    const primaryGrade = `Hạng A ${suffix}`;
     const secondGrade = `Hạng B ${suffix}`;
-    await page.goto("/quality-grades");
-    await page.getByLabel("Tên phẩm cấp").fill(secondGrade);
-    await page.getByLabel("Thứ tự").fill("-10000");
-    const addGrade = page.getByRole("button", { name: "Thêm phẩm cấp" });
-    await addGrade.focus();
-    await addGrade.press("Enter");
-    await page.getByLabel("Tìm phẩm cấp").fill(secondGrade);
-    await expect(page.getByText(secondGrade, { exact: true })).toBeVisible();
+    await createQualityGrade(page, primaryGrade);
+    await createQualityGrade(page, secondGrade);
+    const primaryGradeId = await api.qualityGradeIdByName(primaryGrade);
     const secondGradeId = await api.qualityGradeIdByName(secondGrade);
 
     const productName = `Cà M23 ${suffix}`;
@@ -71,9 +77,10 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await page.getByLabel("Đơn giá (kđ)").fill("10");
     await page.getByRole("button", { name: /^Lưu và (mở )?nhận hàng$/ }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
-    await page.getByLabel("Loại 1").fill("70");
-    await page.getByLabel(secondGrade).fill("30");
-    await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
+    await page.getByRole("button", { name: "Chia theo hạng" }).click();
+    await page.getByLabel(`${productName} · ${primaryGrade}`).fill("70");
+    await page.getByLabel(`${productName} · ${secondGrade}`).fill("30");
+    await page.getByRole("button", { name: "Ghi phiếu nhập kho" }).click();
     await expect(page.getByText(/đã nhận 100 kg · còn lại 0 kg/)).toBeVisible();
 
     await page.goto(`/products/${productId}/inventory`);
@@ -84,7 +91,7 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await page.goto(`/customers/${customerId}/sales/new`);
     const saleLine = page.getByTestId("sale-line-0");
     await chooseProduct(page, productName);
-    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
+    await chooseOption(page, "Phân hạng chất lượng", primaryGrade);
     await chooseOption(page, "Đơn vị", "kg");
     await saleLine.getByLabel("Số lượng").fill("80");
     await saleLine.getByLabel("Đơn giá").fill("10.000");
@@ -101,13 +108,13 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     const deliveryIds: string[] = [];
     for (const quantity of ["50", "30"]) {
       await page.goto(`/sales/${saleId}`);
-      await page.getByRole("link", { name: "Tạo phiếu giao" }).click();
+      await page.getByRole("link", { name: "Giao đơn" }).click();
       await page.getByLabel(`Số lượng giao ${productName}`).fill(quantity);
-      await page.getByRole("button", { name: "Lưu phiếu giao" }).click();
+      await page.getByRole("button", { name: "Lưu để giao sau" }).click();
       await page.waitForURL(/\/deliveries\/[0-9a-f-]+$/);
       deliveryIds.push(new URL(page.url()).pathname.split("/").at(-1)!);
-      await page.getByRole("button", { name: "Xuất hàng / Bắt đầu giao" }).click();
-      await page.getByRole("button", { name: "Đã giao khách" }).click();
+      await page.getByRole("button", { name: "Xuất kho & bắt đầu giao" }).click();
+      await page.getByRole("button", { name: "Xác nhận giao xong" }).click();
     }
 
     await page.goto(`/deliveries/${deliveryIds[0]}`);
@@ -120,19 +127,19 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await expect(page.getByText("Còn 10 kg")).toBeVisible();
 
     await page.goto(`/products/${productId}/inventory`);
-    const reclass = page.getByRole("region", { name: "Chuyển phẩm cấp" });
-    await chooseOption(page, "Từ phẩm cấp", secondGrade);
-    await chooseOption(page, "Sang phẩm cấp", "Loại 1");
+    const reclass = page.getByRole("region", { name: "Chuyển hạng hàng" });
+    await chooseOption(page, "Từ hạng hàng", secondGrade);
+    await chooseOption(page, "Sang hạng hàng", primaryGrade);
     await reclass.getByLabel("Số lượng").fill("10");
     await reclass.getByLabel("Lý do").fill("Phân loại lại cuối ngày");
-    await reclass.getByRole("button", { name: "Ghi chuyển phẩm cấp" }).click();
+    await reclass.getByRole("button", { name: "Ghi chuyển hạng hàng" }).click();
     await expect(page.getByRole("paragraph").filter({ hasText: /^10 kg$/ })).toBeVisible();
     await expect(page.getByRole("paragraph").filter({ hasText: /^20 kg$/ })).toBeVisible();
 
     const adjustment = page.getByRole("region", { name: "Điều chỉnh tồn kho" });
     await chooseOption(page, "Hướng", "Giảm");
     await adjustment.getByLabel("Số lượng").fill("4");
-    await chooseOption(page, "Phẩm cấp", "Loại 1");
+    await chooseOption(page, "Hạng hàng", primaryGrade);
     await chooseOption(page, "Lý do", "Hư hỏng");
     await adjustment.getByLabel("Giải thích").fill("Dập sau một ngày");
     await adjustment.getByRole("button", { name: "Ghi điều chỉnh" }).click();
@@ -140,7 +147,7 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await expect(page.getByRole("paragraph").filter({ hasText: /^6 kg$/ })).toBeVisible();
     await expect(page.getByRole("paragraph").filter({ hasText: /^20 kg$/ })).toBeVisible();
     expect(await api.balance(customerId)).toEqual(debtAfterPost);
-    expect(await api.inventoryReconciliation(productId, E2E_QUALITY_GRADE_ID, "kg")).toMatchObject({
+    expect(await api.inventoryReconciliation(productId, primaryGradeId, "kg")).toMatchObject({
       status: "consistent",
       diagnostics: [],
     });

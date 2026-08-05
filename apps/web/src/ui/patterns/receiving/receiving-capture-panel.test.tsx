@@ -70,7 +70,7 @@ describe("ReceivingCapturePanel", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Ghi phiếu nhận hàng" }));
+    await user.click(screen.getByRole("button", { name: "Ghi phiếu nhập kho" }));
     expect(onSubmit).toHaveBeenCalledWith([
       expect.objectContaining({ qualityGradeId: null, qualityGradeName: null }),
     ]);
@@ -88,8 +88,8 @@ describe("ReceivingCapturePanel", () => {
         onSubmit={() => undefined}
       />,
     );
-    expect(screen.getByRole("alert")).toHaveTextContent("Chưa có phẩm cấp đang dùng");
-    expect(screen.getByRole("button", { name: "Ghi phiếu nhận hàng" })).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Chưa có hạng hàng đang dùng");
+    expect(screen.getByRole("button", { name: "Ghi phiếu nhập kho" })).toBeDisabled();
   });
 
   it("submits accepted stock by exact product, grade and unit", async () => {
@@ -109,6 +109,7 @@ describe("ReceivingCapturePanel", () => {
         onSubmit={onSubmit}
       />,
     );
+    await user.click(screen.getByRole("button", { name: "Chia theo hạng" }));
     fireEvent.change(screen.getByLabelText("Cà chua · Loại 1"), { target: { value: "70" } });
     rerender(
       <ReceivingCapturePanel
@@ -121,7 +122,7 @@ describe("ReceivingCapturePanel", () => {
         onSubmit={onSubmit}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Ghi phiếu nhận hàng" }));
+    await user.click(screen.getByRole("button", { name: "Ghi phiếu nhập kho" }));
     expect(onSubmit).toHaveBeenCalledWith([
       {
         purchaseLineId: purchase.lines[0]!.lineId,
@@ -131,5 +132,26 @@ describe("ReceivingCapturePanel", () => {
         quantity: { valueScaled: 70_000, unit: "kg" },
       },
     ]);
+  });
+
+  it("keeps one ungraded line by default while allowing optional grade splitting", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <ReceivingCapturePanel
+        purchase={purchase}
+        grades={grades}
+        gradesLoading={false}
+        qualityGradeRequired={false}
+        quantities={{}}
+        locked={false}
+        onQuantityChange={() => undefined}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.getByLabelText("Cà chua · Không phân loại")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Chia theo hạng" }));
+    expect(screen.getByLabelText("Cà chua · Loại 1")).toBeInTheDocument();
   });
 });

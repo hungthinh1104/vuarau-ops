@@ -367,14 +367,14 @@ function PriceResolutionNotice(props: {
   if (query.isPending) {
     return (
       <p role="status" className="text-caption text-ink-muted">
-        Đang kiểm tra rule giá…
+        Đang kiểm tra quy tắc giá…
       </p>
     );
   }
   if (query.isError || query.data === undefined) {
     return (
       <p role="status" className="rounded-input bg-warning-soft px-3 py-2 text-caption text-ink">
-        Chưa kiểm tra được rule giá. Nhập giá đã thống nhất; hệ thống không tự đoán giá.
+        Chưa kiểm tra được quy tắc giá. Nhập giá đã thống nhất; hệ thống không tự đoán giá.
       </p>
     );
   }
@@ -382,8 +382,8 @@ function PriceResolutionNotice(props: {
   if (query.data.status === "none") {
     return (
       <p role="status" className="rounded-input bg-surface-muted px-3 py-2 text-caption text-ink">
-        Chưa có rule giá phù hợp cho mặt hàng, phẩm cấp, đơn vị và số lượng này. Nhập giá đã thống
-        nhất.
+        Chưa có quy tắc giá phù hợp cho mặt hàng, hạng hàng, đơn vị và số lượng này. Nhập giá đã
+        thống nhất.
       </p>
     );
   }
@@ -391,8 +391,8 @@ function PriceResolutionNotice(props: {
   if (query.data.status === "ambiguous" || query.data.selected === null) {
     return (
       <p role="status" className="rounded-input bg-warning-soft px-3 py-2 text-caption text-ink">
-        Có nhiều rule giá cùng mức ưu tiên. Hệ thống không tự chọn; xác nhận giá thủ công trước khi
-        chốt.
+        Có nhiều quy tắc giá cùng mức ưu tiên. Hệ thống không tự chọn; xác nhận giá thủ công trước
+        khi chốt.
       </p>
     );
   }
@@ -406,14 +406,14 @@ function PriceResolutionNotice(props: {
       className="flex flex-wrap items-center justify-between gap-3 rounded-input border border-info/30 bg-info-soft px-3 py-2 text-caption text-ink"
     >
       <span>
-        Rule giá đã chọn:{" "}
+        Quy tắc giá đã chọn:{" "}
         <strong className="tabular">{formatMoney(selected.finalUnitPrice)}</strong>
       </span>
       {alreadyApplied ? (
         <span className="font-semibold text-info">Đã áp dụng</span>
       ) : (
         <Button tone="secondary" onClick={props.onApply}>
-          Dùng giá rule này
+          Dùng giá này
         </Button>
       )}
     </div>

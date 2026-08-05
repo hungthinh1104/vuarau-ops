@@ -91,7 +91,9 @@ describe("DemandObservationView", () => {
     expect(screen.getByRole("heading", { name: "Nhu cầu và đơn đặt dự kiến" })).toBeInTheDocument();
     expect(screen.getByLabelText("Khách hàng liên quan")).toBeInTheDocument();
     expect(screen.getByText("Nhu cầu: 30 kg")).toBeInTheDocument();
-    expect(screen.getByText(/Chưa tạo Sale, công nợ, forecast/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Chưa tạo Sale, công nợ, tồn kho hay đề xuất nhập thêm/),
+    ).toBeInTheDocument();
     expect(screen.getByText("voice://demand/ui-001")).toBeInTheDocument();
   });
 });

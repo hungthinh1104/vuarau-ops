@@ -73,7 +73,8 @@ export function InventoryAdjustmentPanel({
       <p className="mt-1 text-body-sm text-ink-muted">
         Chỉ dùng cho số dư đầu kỳ, kiểm đếm, hư hỏng, hao hụt hoặc fact vật lý không có chứng từ
         nguồn tốt hơn. Điều chỉnh này chỉ đổi tồn kho; không dùng để giả lập trả nhà cung cấp, hoàn
-        tác phiếu nhận hay giảm công nợ. Supplier return còn chờ ASM-038.
+        tác phiếu nhập kho hay giảm công nợ. Nếu hàng trả nhà cung cấp, hãy dùng đúng quy trình trả
+        hàng.
       </p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <Select
@@ -102,11 +103,11 @@ export function InventoryAdjustmentPanel({
         />
       </div>
       <Select
-        label="Phẩm cấp"
+        label="Hạng hàng"
         value={qualityGradeId ?? ""}
         disabled={completed || locked}
         onChange={(event) => setQualityGradeId(event.target.value as QualityGradeId)}
-        placeholder="Chọn phẩm cấp"
+        placeholder="Chọn hạng hàng"
         options={grades.map((item) => ({ value: item.id, label: item.name }))}
       />
       <Select

@@ -25,7 +25,7 @@ import { Textarea } from "@/ui/primitives/textarea.tsx";
 const KIND_COPY: Readonly<Record<CostObservationKind, string>> = {
   purchase_price: "Giá mua được quan sát",
   accepted_quantity: "Số lượng nhận đạt",
-  rejected_quantity: "Số lượng từ chối",
+  rejected_quantity: "Số lượng trả nhà cung cấp",
   packing_material: "Chi phí bao bì",
   labor_handling: "Chi phí công / xử lý",
   transport: "Chi phí vận chuyển",
@@ -75,8 +75,8 @@ export function EvidenceView(props: {
   return (
     <div className="flex max-w-5xl flex-col gap-6">
       <PageHeader
-        title="Ghi nhận bằng chứng chi phí"
-        description="Lưu quan sát nguồn cho chi phí, hao hụt và số lượng. Bản ghi này không tự tạo COGS, lợi nhuận, công nợ hay tồn kho."
+        title="Ghi nhận ảnh hoặc phiếu chi phí"
+        description="Lưu quan sát nguồn cho chi phí, hao hụt và số lượng. Bản ghi này không tự tạo doanh thu, lợi nhuận, công nợ hay tồn kho."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -107,7 +107,7 @@ export function EvidenceView(props: {
               href="/evidence/debt"
               className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
             >
-              Bằng chứng công nợ
+              Ảnh hoặc phiếu công nợ
             </Link>
           </div>
         }
@@ -119,10 +119,14 @@ export function EvidenceView(props: {
             Lịch sử quan sát nguồn
           </h2>
           <p className="text-caption text-ink-muted">
-            Các bản ghi là append-only; sửa sai bằng một bản ghi điều chỉnh có liên kết.
+            Mỗi bản ghi được giữ nguyên; sửa sai bằng một bản ghi điều chỉnh có liên kết.
           </p>
         </div>
-        <QueryStates query={props.query} loadingLabel="Đang tải bằng chứng" onRetry={props.onRetry}>
+        <QueryStates
+          query={props.query}
+          loadingLabel="Đang tải ảnh hoặc phiếu liên quan"
+          onRetry={props.onRetry}
+        >
           {() =>
             props.items.length === 0 ? (
               <EmptyState
@@ -207,14 +211,14 @@ function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
         label="Tham chiếu nguồn nội bộ (tuỳ chọn)"
         value={props.sourceReference}
         onChange={(event) => props.onSourceReference(event.target.value)}
-        hint="Mã phiếu hoặc liên kết canonical nếu có; không tự suy ra effect."
+        hint="Mã phiếu hoặc liên kết liên quan nếu có; không tự tạo tác động vào sổ."
       />
       <Textarea
-        label="Nguồn bằng chứng"
+        label="Ảnh hoặc phiếu liên quan"
         required
         value={props.evidenceReferences}
         onChange={(event) => props.onEvidenceReferences(event.target.value)}
-        hint="Mỗi dòng một ảnh, phiếu giấy, biên nhận hoặc link tới kho evidence được phê duyệt."
+        hint="Mỗi dòng một ảnh, phiếu giấy, biên nhận hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (
         <TextInput

@@ -1,4 +1,5 @@
 import type { AccountAdjustmentDetailDto } from "@vuarau/domain-contracts";
+import { copyForReasonCode } from "@/ui/copy.ts";
 import { formatInstant, formatSignedMoney } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -32,7 +33,7 @@ export function AccountAdjustmentDetailView({ query, onRetry }: AccountAdjustmen
             <div>
               <dt>Lý do</dt>
               <dd>
-                {item.reasonCode} — {item.reason}
+                {copyForReasonCode(item.reasonCode)} — {item.reason}
               </dd>
             </div>
             <div>
@@ -49,7 +50,7 @@ export function AccountAdjustmentDetailView({ query, onRetry }: AccountAdjustmen
             </div>
             <div>
               <dt>Trạng thái sau điều chỉnh</dt>
-              <dd>{item.accountEffect.classificationAfter}</dd>
+              <dd>{ledgerClassificationCopy(item.accountEffect.classificationAfter)}</dd>
             </div>
             <div>
               <dt>Thời điểm giao dịch</dt>
@@ -64,11 +65,11 @@ export function AccountAdjustmentDetailView({ query, onRetry }: AccountAdjustmen
               <dd>{item.actor.displayName}</dd>
             </div>
             <div>
-              <dt>Command</dt>
+              <dt>Mã tham chiếu</dt>
               <dd>{item.commandId}</dd>
             </div>
             <div>
-              <dt>Workspace</dt>
+              <dt>Vựa</dt>
               <dd>{item.workspace.name}</dd>
             </div>
           </dl>
@@ -76,4 +77,11 @@ export function AccountAdjustmentDetailView({ query, onRetry }: AccountAdjustmen
       )}
     </QueryStates>
   );
+}
+
+function ledgerClassificationCopy(value: string): string {
+  if (value === "receivable") return "Khách còn nợ vựa";
+  if (value === "customer_credit") return "Vựa còn nợ khách";
+  if (value === "settled") return "Đã thanh toán đủ";
+  return "Cần kiểm tra";
 }

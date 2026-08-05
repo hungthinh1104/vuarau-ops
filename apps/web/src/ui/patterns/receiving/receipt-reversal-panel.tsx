@@ -24,7 +24,8 @@ export function ReceiptReversalPanel(props: {
       <p className="mt-1 text-body-sm text-ink-muted">
         Chỉ dùng khi chính phiếu nhận đã ghi sai. Hoàn tác tạo biến động ngược và giữ phiếu gốc
         trong lịch sử. Không dùng cho hàng đã nhận đúng rồi mới trả nhà cung cấp: nghiệp vụ đó còn
-        chờ ASM-038 và có thể đồng thời ảnh hưởng hàng, công nợ hoặc khiếu nại.
+        Nếu hàng đã nhận đúng rồi mới trả nhà cung cấp, hãy tạo yêu cầu xử lý riêng để tránh làm sai
+        tồn kho hoặc công nợ.
       </p>
       <label className="mt-3 grid gap-2 text-label">
         Giải thích

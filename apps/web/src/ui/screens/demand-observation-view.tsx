@@ -82,7 +82,7 @@ export function DemandObservationView(props: {
     <div className="flex max-w-5xl flex-col gap-6">
       <PageHeader
         title="Nhu cầu và đơn đặt dự kiến"
-        description="Ghi lại nhu cầu khách hàng trước khi chốt Sale. Bản ghi chưa tạo Sale, công nợ, tồn kho, forecast hay reorder recommendation."
+        description="Ghi lại nhu cầu khách hàng trước khi chốt Sale. Bản ghi chưa tạo Sale, công nợ, tồn kho, dự báo hay đề xuất nhập thêm."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -107,7 +107,7 @@ export function DemandObservationView(props: {
             Lịch sử nhu cầu
           </h2>
           <p className="text-caption text-ink-muted">
-            Append-only; sửa sai bằng bản ghi mới có liên kết.
+            Mỗi bản ghi được giữ nguyên; sửa sai bằng bản ghi mới có liên kết.
           </p>
         </div>
         <QueryStates query={props.query} loadingLabel="Đang tải nhu cầu" onRetry={props.onRetry}>
@@ -152,10 +152,10 @@ function DemandObservationForm(props: Parameters<typeof DemandObservationView>[0
           onChange={(event) => props.onProductId(event.target.value)}
         />
         <Select
-          label="Phẩm cấp liên quan"
+          label="Hạng hàng liên quan"
           value={props.qualityGradeId}
           options={props.qualityGradeOptions}
-          placeholder="Không gắn phẩm cấp"
+          placeholder="Không gắn hạng hàng"
           onChange={(event) => props.onQualityGradeId(event.target.value)}
         />
         <Select
@@ -220,11 +220,11 @@ function DemandObservationForm(props: Parameters<typeof DemandObservationView>[0
         />
       </div>
       <Textarea
-        label="Nguồn bằng chứng"
+        label="Ảnh hoặc phiếu liên quan"
         required
         value={props.evidenceReferences}
         onChange={(event) => props.onEvidenceReferences(event.target.value)}
-        hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết tới kho evidence được phê duyệt."
+        hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (
         <TextInput
@@ -282,7 +282,7 @@ function DemandObservationCard({ item }: { readonly item: DemandObservationDto }
         )}
       </div>
       <p className="mt-3 text-caption text-ink-muted">
-        Chưa tạo Sale, công nợ, forecast, thiếu hàng hay reorder.
+        Chưa tạo Sale, công nợ, tồn kho hay đề xuất nhập thêm.
       </p>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (

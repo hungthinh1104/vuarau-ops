@@ -91,7 +91,7 @@ export function ArrivalLineController({
                       eligibleValueScaled={state.eligibleQuantity.valueScaled}
                       gradeRequired={profile.qualityGradeMode === "required"}
                       allowQuarantine
-                      title="3. Quyết định kết quả chất lượng"
+                      title="2. Kết quả kiểm hàng"
                       onChanged={refresh}
                     />
                   ) : undefined

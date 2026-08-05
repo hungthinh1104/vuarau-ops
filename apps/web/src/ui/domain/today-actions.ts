@@ -60,7 +60,7 @@ const ACTIONS: readonly TodayAction[] = [
   },
   {
     label: "Bảng giá",
-    description: "Xem và ghi các rule giá exact-money đã được vựa thống nhất.",
+    description: "Xem và ghi các quy tắc giá chính xác đã được vựa thống nhất.",
     href: "/pricing",
     permission: "pricing.read",
     area: "more",

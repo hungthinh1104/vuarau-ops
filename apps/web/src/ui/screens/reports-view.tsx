@@ -25,6 +25,7 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
+import { copyForReportDiagnostic, copyForReportMetric } from "@/ui/copy.ts";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -47,13 +48,17 @@ const REPORT_STATUS_COPY: Readonly<Record<string, string>> = {
   cash_in: "Tiền vào",
   cash_out: "Tiền ra",
   expense: "Chi phí",
+  healthy: "Đã đối chiếu",
+  unavailable: "Chưa sẵn sàng",
 };
+
+const reportStatusCopy = (value: string): string => REPORT_STATUS_COPY[value] ?? "Cần kiểm tra";
 
 export const REPORT_TYPE_OPTIONS: readonly { value: ReportType; label: string }[] = [
   { value: "customer_account_activity", label: "Biến động công nợ khách hàng" },
   { value: "customer_receivables", label: "Phải thu khách hàng" },
   { value: "supplier_payables", label: "Phải trả nhà cung cấp" },
-  { value: "inventory_by_product_unit", label: "Tồn kho theo mặt hàng, phẩm cấp và đơn vị" },
+  { value: "inventory_by_product_unit", label: "Tồn kho theo mặt hàng, hạng hàng và đơn vị" },
   { value: "inventory_movement_report", label: "Biến động tồn kho" },
   { value: "outstanding_delivery", label: "Hàng còn phải giao" },
   { value: "cash_balances", label: "Số dư các tài khoản tiền" },
@@ -146,7 +151,7 @@ function OperationalOverview(props: OperationalOverviewProps) {
           Việc và số liệu chính
         </h2>
         <p className="text-body-sm text-ink-muted">
-          Tổng hợp từ aggregate server-side; metric lỗi chỉ ảnh hưởng chính widget đó.
+          Tổng hợp từ số liệu đã ghi; một chỉ số lỗi chỉ ảnh hưởng đúng phần đó.
         </p>
       </div>
       <DashboardCards query={props.summary} onRetry={props.onRetry} />
@@ -169,7 +174,7 @@ function DashboardCards(props: {
   const summary = props.query.data;
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <AmountCard title="Doanh số đã post" widget={summary.sales} />
+      <AmountCard title="Doanh số đã chốt" widget={summary.sales} />
       <AmountCard title="Giá trị đơn mua" widget={summary.purchases} />
       <QuantityCard title="Đã nhận hàng" widget={summary.received} />
       <QuantityCard title="Tồn kho hiện tại" widget={summary.stock} />
@@ -186,7 +191,10 @@ function AmountCard(props: {
   readonly widget: DashboardSummaryDto["sales"];
 }) {
   return (
-    <OverviewCardShell title={props.title} status={props.widget.availability.state}>
+    <OverviewCardShell
+      title={props.title}
+      status={reportStatusCopy(props.widget.availability.state)}
+    >
       {props.widget.amount === null ? (
         <strong className="text-heading">N/A</strong>
       ) : (
@@ -196,7 +204,8 @@ function AmountCard(props: {
       )}
       <span className="text-body-sm text-ink-muted">
         {props.widget.count} bản ghi ·{" "}
-        {props.widget.availability.diagnostics.join(", ") || "đã cập nhật"}
+        {props.widget.availability.diagnostics.map(copyForReportDiagnostic).join(", ") ||
+          "đã cập nhật"}
       </span>
     </OverviewCardShell>
   );
@@ -207,7 +216,10 @@ function QuantityCard(props: {
   readonly widget: DashboardSummaryDto["received"];
 }) {
   return (
-    <OverviewCardShell title={props.title} status={props.widget.availability.state}>
+    <OverviewCardShell
+      title={props.title}
+      status={reportStatusCopy(props.widget.availability.state)}
+    >
       {props.widget.quantities.length === 0 ? (
         <strong className="text-heading">N/A</strong>
       ) : (
@@ -219,7 +231,8 @@ function QuantityCard(props: {
       )}
       <span className="text-body-sm text-ink-muted">
         {props.widget.count} nguồn ·{" "}
-        {props.widget.availability.diagnostics.join(", ") || "đã cập nhật"}
+        {props.widget.availability.diagnostics.map(copyForReportDiagnostic).join(", ") ||
+          "đã cập nhật"}
       </span>
     </OverviewCardShell>
   );
@@ -284,7 +297,10 @@ function StatusDistribution(props: {
     return <OverviewCardShell title="Trạng thái đơn">Đang tải…</OverviewCardShell>;
   if (props.query.isError || props.query.data === undefined)
     return <WidgetUnavailable title="Trạng thái đơn" onRetry={props.onRetry} />;
-  const rows = props.query.data.physical;
+  const rows = props.query.data.physical.map((row) => ({
+    label: reportStatusCopy(row.key),
+    count: row.count,
+  }));
   return (
     <section
       className="rounded-card border border-border bg-surface p-4"
@@ -298,7 +314,7 @@ function StatusDistribution(props: {
           <BarChart data={rows} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
             <XAxis type="number" allowDecimals={false} />
-            <YAxis type="category" dataKey="key" width={110} />
+            <YAxis type="category" dataKey="label" width={110} />
             <Tooltip />
             <Bar dataKey="count" name="Đơn" fill="var(--color-accent)" radius={[0, 4, 4, 0]} />
           </BarChart>
@@ -357,7 +373,9 @@ function OverviewCardShell(props: {
     <article className="grid gap-2 rounded-card border border-border bg-surface p-4">
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold">{props.title}</h3>
-        {props.status === undefined ? null : <Badge tone="neutral">{props.status}</Badge>}
+        {props.status === undefined ? null : (
+          <Badge tone="neutral">{reportStatusCopy(props.status)}</Badge>
+        )}
       </div>
       {props.children}
     </article>
@@ -375,8 +393,8 @@ function ManagementSnapshot(props: {
           Ảnh chụp vận hành
         </h2>
         <p className="text-body-sm text-ink-muted">
-          Các tổng số được chọn bởi policy và lấy lại từ report nguồn; đây không phải COGS, profit,
-          forecast, điểm hay đề xuất.
+          Các tổng số được lấy từ sổ và giao dịch đã ghi; chỉ số nâng cao sẽ chỉ hiện khi đủ dữ liệu
+          đối chiếu.
         </p>
       </div>
       <QueryStates
@@ -393,15 +411,16 @@ function ManagementSnapshot(props: {
             >
               <p className="font-semibold">Ảnh chụp vận hành chưa khả dụng.</p>
               <p className="text-body-sm text-ink-muted">
-                {snapshot.diagnostics.join(", ") || "Thiếu policy hoặc nguồn đối chiếu."}
+                {snapshot.diagnostics.map(copyForReportDiagnostic).join(", ") ||
+                  "Thiếu dữ liệu đối chiếu."}
               </p>
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {snapshot.indicators.map((indicator) => {
-                const title = REPORT_TYPE_OPTIONS.find(
-                  (option) => option.value === indicator.reportType,
-                )?.label;
+                const title =
+                  REPORT_TYPE_OPTIONS.find((option) => option.value === indicator.reportType)
+                    ?.label ?? "Báo cáo liên quan";
                 return (
                   <article
                     key={indicator.reportType}
@@ -423,9 +442,7 @@ function ManagementSnapshot(props: {
                         {formatQuantity(quantity)}
                       </span>
                     ))}
-                    <p className="text-caption text-ink-muted">
-                      Nguồn: report.{indicator.sourceReportType}
-                    </p>
+                    <p className="text-caption text-ink-muted">Dữ liệu đã đối chiếu</p>
                   </article>
                 );
               })}
@@ -445,17 +462,17 @@ function MetricCatalog(props: {
     <section aria-labelledby="metric-catalog-title" className="grid gap-3">
       <div>
         <h2 id="metric-catalog-title" className="text-subheading font-semibold">
-          Metric quản trị
+          Chỉ số quản lý
         </h2>
         <p className="text-body-sm text-ink-muted">
-          Chỉ metric có đủ policy, nguồn chuẩn và integrity contract mới được phép có số. Các mục
-          chưa đủ evidence hiện rõ gate thay vì hiện số 0.
+          Chỉ số chỉ hiện khi đủ dữ liệu và đối chiếu. Mục chưa đủ dữ liệu sẽ được báo rõ thay vì
+          hiện số 0.
         </p>
       </div>
       <QueryStates
         query={props.query}
-        loadingLabel="Đang tải catalog metric"
-        attemptedAction="Xem catalog metric quản trị"
+        loadingLabel="Đang tải danh sách chỉ số quản lý"
+        attemptedAction="Xem danh sách chỉ số quản lý"
         onRetry={props.onRetry}
       >
         {(catalog) => (
@@ -471,18 +488,17 @@ function MetricCatalog(props: {
 }
 
 function MetricCard({ definition }: { readonly definition: MetricDefinition }) {
+  const copy = copyForReportMetric(definition.metricId);
   if (definition.availability === "unavailable") {
     return (
       <li className="grid gap-2 rounded-card border border-warning/30 bg-warning-soft/40 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <h3 className="font-semibold">{definition.label}</h3>
+          <h3 className="font-semibold">{copy.label}</h3>
           <Badge tone="warning">Chưa khả dụng</Badge>
         </div>
-        <p className="text-body-sm text-ink">{definition.reason}</p>
-        <p className="text-caption text-ink-muted">
-          Gate: <strong>{definition.blockedBy.join(", ")}</strong>
-        </p>
-        <p className="text-caption text-ink-muted">Evidence tiếp theo: {definition.nextEvidence}</p>
+        <p className="text-body-sm text-ink">{copy.description}</p>
+        <p className="text-caption text-ink-muted">Điều kiện: {copy.condition}</p>
+        <p className="text-caption text-ink-muted">Bước tiếp theo: {copy.nextStep}</p>
       </li>
     );
   }
@@ -490,17 +506,15 @@ function MetricCard({ definition }: { readonly definition: MetricDefinition }) {
   return (
     <li className="grid gap-2 rounded-card border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="font-semibold">{definition.label}</h3>
+        <h3 className="font-semibold">{copy.label}</h3>
         <Badge tone={definition.availability === "available" ? "positive" : "info"}>
           {definition.availability === "available" ? "Đang có" : "Có cảnh báo"}
         </Badge>
       </div>
-      <p className="text-body-sm">{definition.formula}</p>
+      <p className="text-body-sm">{copy.formula}</p>
+      <p className="text-caption text-ink-muted">Dữ liệu: {copy.sources}</p>
       <p className="text-caption text-ink-muted">
-        Nguồn: {definition.canonicalSources.join(", ")} · integrity: {definition.integrity}
-      </p>
-      <p className="text-caption text-ink-muted">
-        Drill-down: {definition.drilldown} · hành động: {definition.action}
+        Chi tiết: {copy.drilldown} · việc tiếp theo: {copy.action}
       </p>
     </li>
   );
@@ -537,7 +551,7 @@ function ReportResult(props: {
             role="alert"
             className="rounded-input bg-warning-soft px-3 py-2 text-body-sm text-warning"
           >
-            {diagnostic}
+            {copyForReportDiagnostic(diagnostic)}
           </p>
         ))}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -559,7 +573,7 @@ function ReportResult(props: {
               className="rounded-card border border-border bg-surface-muted/50 p-3 hover:border-border-strong"
             >
               <span className="block text-caption text-ink-muted">
-                Tổng tất cả phẩm cấp · {quantity.unit}
+                Tổng tất cả hạng hàng · {quantity.unit}
               </span>
               <strong className="tabular mt-1 block text-heading text-ink">
                 {formatQuantity({ valueScaled: quantity.valueScaled, unit: quantity.unit })}
@@ -598,7 +612,7 @@ function ReportResult(props: {
             <thead className="sticky top-0 z-10">
               <tr>
                 <th className="p-3">Nguồn</th>
-                <th className="p-3">Phẩm cấp</th>
+                <th className="p-3">Hạng hàng</th>
                 <th className="p-3">Thời điểm</th>
                 <th className="p-3 text-right">Giá trị</th>
                 <th className="p-3">Trạng thái</th>
@@ -634,7 +648,7 @@ function ReportResult(props: {
                         ? formatQuantity(row.quantity)
                         : "—"}
                   </td>
-                  <td className="p-3">{REPORT_STATUS_COPY[row.status] ?? row.status}</td>
+                  <td className="p-3">{REPORT_STATUS_COPY[row.status] ?? "Cần kiểm tra"}</td>
                 </tr>
               ))}
             </tbody>

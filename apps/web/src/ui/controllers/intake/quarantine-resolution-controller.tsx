@@ -37,7 +37,7 @@ export function QuarantineResolutionController({
   return (
     <QueryStates
       query={summary}
-      loadingLabel="Đang kiểm tra lượng cách ly"
+      loadingLabel="Đang kiểm tra lượng tạm giữ"
       onRetry={() => void summary.refetch()}
     >
       {(state) => (
@@ -52,7 +52,7 @@ export function QuarantineResolutionController({
               eligibleValueScaled={state.eligibleQuantity.valueScaled}
               gradeRequired={gradeRequired}
               allowQuarantine={false}
-              title={`Xử lý lại lượng cách ly ${allocation.quantity.valueScaled / 1000} ${allocation.quantity.unit}`}
+              title={`Xử lý lại lượng tạm giữ ${allocation.quantity.valueScaled / 1000} ${allocation.quantity.unit}`}
               onChanged={() => {
                 void summary.refetch();
                 onChanged();

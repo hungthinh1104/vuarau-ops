@@ -145,7 +145,7 @@ function SaleReceipt(props: {
         <thead>
           <tr>
             <th>Mặt hàng</th>
-            <th>Phẩm cấp</th>
+            <th>Hạng hàng</th>
             <th className="text-right">Số lượng</th>
             <th className="text-right">Đơn giá</th>
             <th className="text-right">Thành tiền</th>
@@ -319,7 +319,7 @@ function DeliveryNote(props: {
         <thead>
           <tr>
             <th>Mặt hàng</th>
-            <th>Phẩm cấp</th>
+            <th>Hạng hàng</th>
             <th className="text-right">Giao</th>
             <th className="text-right">Đã trả</th>
           </tr>

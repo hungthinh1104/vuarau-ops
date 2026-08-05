@@ -74,7 +74,7 @@ export function DebtEvidenceView(props: {
   return (
     <div className="flex max-w-5xl flex-col gap-6">
       <PageHeader
-        title="Bằng chứng công nợ"
+        title="Ảnh hoặc phiếu công nợ"
         description="Lưu điều khoản, ngày hẹn và tham chiếu thu hồi từ hiện trường. Bản ghi không tự tạo overdue, phân bổ thanh toán hay thay đổi sổ công nợ."
         actions={
           <>
@@ -82,7 +82,7 @@ export function DebtEvidenceView(props: {
               href="/evidence"
               className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
             >
-              Bằng chứng chi phí
+              Ảnh hoặc phiếu chi phí
             </Link>
             <Link
               href="/evidence/supply"
@@ -112,12 +112,12 @@ export function DebtEvidenceView(props: {
             Lịch sử quan sát
           </h2>
           <p className="text-caption text-ink-muted">
-            Quan sát là append-only; sửa sai bằng bản ghi điều chỉnh có liên kết.
+            Mỗi bản ghi được giữ nguyên; sửa sai bằng bản ghi điều chỉnh có liên kết.
           </p>
         </div>
         <QueryStates
           query={props.query}
-          loadingLabel="Đang tải bằng chứng công nợ"
+          loadingLabel="Đang tải ảnh hoặc phiếu công nợ"
           onRetry={props.onRetry}
         >
           {() =>
@@ -215,11 +215,11 @@ function DebtObservationForm(props: Parameters<typeof DebtEvidenceView>[0]) {
         />
       </div>
       <Textarea
-        label="Nguồn bằng chứng"
+        label="Ảnh hoặc phiếu liên quan"
         required
         value={props.evidenceReferences}
         onChange={(event) => props.onEvidenceReferences(event.target.value)}
-        hint="Mỗi dòng một phiếu, ảnh, tin nhắn hoặc link tới kho evidence được phê duyệt."
+        hint="Mỗi dòng một phiếu, ảnh, tin nhắn hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (
         <TextInput

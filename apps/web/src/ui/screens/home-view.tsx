@@ -18,7 +18,7 @@ export function HomeView() {
         <h2 className="text-subheading font-semibold">Các luồng vận hành</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-body-sm text-ink-muted">
           <li>Bán hàng, thanh toán và theo dõi công nợ khách.</li>
-          <li>Mua hàng, nhận hàng, kiểm định và quản lý tồn kho.</li>
+          <li>Mua hàng, nhận hàng, kiểm hàng và quản lý tồn kho.</li>
           <li>Giao hàng, hàng trả, báo cáo và khôi phục dữ liệu.</li>
           <li>Làm việc khi mất mạng với hàng đợi đồng bộ an toàn.</li>
         </ul>

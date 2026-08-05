@@ -6,6 +6,7 @@ import type {
   QualityGradeDto,
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -65,6 +66,8 @@ export function DispositionForm({
   onEvidenceChange,
   onSubmit,
 }: DispositionFormProps) {
+  const [showIssueFields, setShowIssueFields] = useState(false);
+  const [showGrade, setShowGrade] = useState(false);
   const acceptedValue = Number(values.accepted) * 1000;
   const canSubmit = !locked && total > 0 && total <= eligibleValueScaled && !gradeMissing;
 
@@ -77,35 +80,51 @@ export function DispositionForm({
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <NumberInput
-          label={`Chấp nhận (${unit})`}
+          label={`Đạt (${unit})`}
           value={values.accepted}
           onChange={(value) => onValueChange("accepted", value)}
         />
-        {allowQuarantine ? (
-          <NumberInput
-            label={`Cách ly (${unit})`}
-            value={values.quarantined}
-            onChange={(value) => onValueChange("quarantined", value)}
-          />
-        ) : null}
-        <NumberInput
-          label={`Từ chối (${unit})`}
-          value={values.rejected}
-          onChange={(value) => onValueChange("rejected", value)}
-        />
-        <NumberInput
-          label={`Hủy bỏ (${unit})`}
-          value={values.disposed}
-          onChange={(value) => onValueChange("disposed", value)}
-        />
       </div>
-      {acceptedValue > 0 ? (
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button tone="secondary" type="button" onClick={() => setShowGrade((current) => !current)}>
+          {showGrade ? "Ẩn hạng hàng" : "Chia theo hạng"}
+        </Button>
+        <Button
+          tone="secondary"
+          type="button"
+          onClick={() => setShowIssueFields((current) => !current)}
+        >
+          {showIssueFields ? "Ẩn hàng lỗi" : "Có hàng lỗi"}
+        </Button>
+      </div>
+      {showIssueFields ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {allowQuarantine ? (
+            <NumberInput
+              label={`Tạm giữ (${unit})`}
+              value={values.quarantined}
+              onChange={(value) => onValueChange("quarantined", value)}
+            />
+          ) : null}
+          <NumberInput
+            label={`Trả nhà cung cấp (${unit})`}
+            value={values.rejected}
+            onChange={(value) => onValueChange("rejected", value)}
+          />
+          <NumberInput
+            label={`Loại bỏ (${unit})`}
+            value={values.disposed}
+            onChange={(value) => onValueChange("disposed", value)}
+          />
+        </div>
+      ) : null}
+      {acceptedValue > 0 && showGrade ? (
         <Select
-          label={`Phẩm cấp cho lượng chấp nhận ${gradeRequired ? "(bắt buộc)" : "(không bắt buộc)"}`}
+          label={`Hạng hàng cho phần đạt ${gradeRequired ? "(bắt buộc)" : "(không bắt buộc)"}`}
           value={gradeId}
           onChange={(event) => onGradeChange(event.target.value)}
           options={[
-            { value: "", label: "Không gán phẩm cấp" },
+            { value: "", label: "Chưa chọn hạng hàng" },
             ...grades.map((grade) => ({ value: grade.id, label: grade.name })),
           ]}
         />
@@ -116,11 +135,11 @@ export function DispositionForm({
       </label>
       <Textarea
         className="mt-3"
-        label="Nguồn chứng cứ vận hành"
+        label="Ảnh hoặc phiếu liên quan"
         value={evidence}
         disabled={locked}
         onChange={(event) => onEvidenceChange(event.target.value)}
-        hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả ngoài quyết định đã ghi."
+        hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản."
       />
       {total > eligibleValueScaled ? (
         <p role="alert" className="mt-2 text-caption text-danger">
@@ -128,11 +147,11 @@ export function DispositionForm({
         </p>
       ) : gradeMissing ? (
         <p role="alert" className="mt-2 text-caption text-danger">
-          Vựa đang bắt buộc phẩm cấp cho lượng nhập kho.
+          Vựa đang yêu cầu chọn hạng hàng cho phần đạt.
         </p>
       ) : null}
       <Button className="mt-3" disabled={!canSubmit} onClick={onSubmit}>
-        {locked ? "Đang ghi quyết định" : "Xác nhận quyết định"}
+        {locked ? "Đang lưu kết quả" : "Lưu kết quả kiểm hàng"}
       </Button>
       {feedback}
     </details>

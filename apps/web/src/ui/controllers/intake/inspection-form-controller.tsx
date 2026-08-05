@@ -114,7 +114,7 @@ export function InspectionFormController({
       feedback={
         <CommandOutcome
           command={command}
-          attemptedAction="Ghi nhận kiểm định"
+          attemptedAction="Ghi nhận kiểm hàng"
           onReload={onChanged}
         />
       }

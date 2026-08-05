@@ -325,7 +325,7 @@ function InventoryReclassificationCommandPanel(props: {
       feedback={
         <CommandOutcome
           command={command}
-          attemptedAction="Chuyển phẩm cấp"
+          attemptedAction="Chuyển hạng hàng"
           onReload={props.onChanged}
         />
       }

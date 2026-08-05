@@ -64,7 +64,7 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       await page.getByRole("button", { name: "Lưu và nhận hàng" }).click();
       await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
       await expect(page.getByText(/đã nhận 10 kg · còn lại 0 kg/)).toBeVisible();
-      await expect(page.getByText(/Không phân loại/)).toBeVisible();
+      await expect(page.getByText("Số lượng thực nhận", { exact: true })).toBeVisible();
 
       expect(await api.inventoryBalances(productId)).toEqual(
         expect.arrayContaining([
@@ -120,12 +120,17 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       await expect(saleLink).toBeVisible();
 
       await page.goto(`/sales/${saleId}`);
-      await page.getByRole("link", { name: "Tạo phiếu giao" }).click();
-      await expect(page.getByText(/Không phân loại/)).toBeVisible();
-      await page.getByRole("button", { name: "Giao tất cả" }).click();
+      await page.getByRole("link", { name: "Giao đơn" }).click();
+      await page.waitForURL(/\/sales\/[0-9a-f-]+\/deliveries\/new$/);
+      await expect(page.getByLabel(/Số lượng giao/)).toHaveValue("10");
+      await page.getByRole("button", { name: "Xuất kho & bắt đầu giao" }).click();
       await page.waitForURL(/\/deliveries\/[0-9a-f-]+$/);
-      await expect(page.getByText("Đã giao", { exact: true })).toBeVisible();
+      await expect(page.getByText("Đang giao", { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Xác nhận giao xong" })).toBeVisible();
       await expect(page.getByText("Đã ghi nhận", { exact: true })).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Xác nhận giao xong" }).click();
+      await expect(page.getByText("Đã giao", { exact: true })).toBeVisible();
 
       expect(await api.inventoryBalances(productId)).toEqual(
         expect.arrayContaining([
@@ -140,7 +145,7 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       await page.goto("/reports");
       await expect(page.getByRole("heading", { name: "Tổng quan vận hành" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Còn phải giao" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Phải thu" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Phải thu", exact: true })).toBeVisible();
       await observer.close();
     } finally {
       await api.setQualityGradeMode(previousQualityGradeMode);

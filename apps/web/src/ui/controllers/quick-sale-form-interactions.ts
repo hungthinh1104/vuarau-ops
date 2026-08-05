@@ -89,7 +89,7 @@ export function useQuickSaleFormInteractions(model: QuickSaleFormModel) {
           (productChanged || unitChanged || qualityGradeChanged || quantityChanged)
         ) {
           model.setUnitNotice(
-            "Giá rule đã xoá vì điều kiện mặt hàng, phẩm cấp, đơn vị hoặc số lượng thay đổi.",
+            "Giá áp dụng đã xoá vì mặt hàng, hạng hàng, đơn vị hoặc số lượng thay đổi.",
           );
           model.metrics.count("price_rule_cleared_after_context_change");
           return {

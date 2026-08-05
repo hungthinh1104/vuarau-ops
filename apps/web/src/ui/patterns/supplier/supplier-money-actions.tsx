@@ -55,7 +55,7 @@ export function SupplierMoneyActions(props: SupplierMoneyActionsProps) {
             onChange={(event) => props.onPaymentAmount(event.target.value)}
           />
           <Textarea
-            label="Bằng chứng nguồn"
+            label="Ảnh hoặc phiếu liên quan"
             value={props.paymentEvidence}
             onChange={(event) => props.onPaymentEvidence(event.target.value)}
           />
@@ -86,7 +86,8 @@ export function SupplierMoneyActions(props: SupplierMoneyActionsProps) {
           </h2>
           <p className="mt-1 text-body-sm text-ink-muted">
             Chỉ ghi fact tiền không có Purchase nguồn. Không dùng để bù cho hàng trả nhà cung cấp:
-            thao tác này không chuyển tồn kho và ASM-038 chưa định nghĩa credit/claim tương ứng.
+            thao tác này không chuyển tồn kho. Nếu cần trả nhà cung cấp, hãy dùng quy trình trả
+            hàng.
           </p>
           <Select
             label="Hướng điều chỉnh"

@@ -82,7 +82,7 @@ export function QualityGradesController() {
       createFeedback={
         <CommandOutcome
           command={createCommand}
-          attemptedAction="Tạo phẩm cấp hàng"
+          attemptedAction="Tạo hạng hàng"
           onReload={() => void refresh()}
         />
       }
@@ -162,12 +162,12 @@ function QualityGradeCommandRow(props: {
         <>
           <CommandOutcome
             command={update}
-            attemptedAction="Cập nhật phẩm cấp"
+            attemptedAction="Cập nhật hạng hàng"
             onReload={() => void props.onChanged()}
           />
           <CommandOutcome
             command={lifecycle}
-            attemptedAction="Đổi trạng thái phẩm cấp"
+            attemptedAction="Đổi trạng thái hạng hàng"
             onReload={() => void props.onChanged()}
           />
         </>

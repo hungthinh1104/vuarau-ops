@@ -57,7 +57,7 @@ describe("SaleCorrectionPanel", () => {
 
     await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
     await user.click(
-      await screen.findByRole("option", { name: "Toàn bộ hàng đã trả / bị từ chối" }),
+      await screen.findByRole("option", { name: "Toàn bộ hàng đã trả nhà cung cấp" }),
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent(/còn hàng thực giao chưa trả hết/i);
@@ -72,7 +72,7 @@ describe("SaleCorrectionPanel", () => {
 
     await user.click(screen.getByRole("combobox", { name: "Loại điều chỉnh" }));
     await user.click(
-      await screen.findByRole("option", { name: "Toàn bộ hàng đã trả / bị từ chối" }),
+      await screen.findByRole("option", { name: "Toàn bộ hàng đã trả nhà cung cấp" }),
     );
     await user.type(
       screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }),
@@ -128,7 +128,7 @@ describe("SaleCorrectionPanel", () => {
 
     await user.type(screen.getByRole("textbox", { name: /Lý do điều chỉnh/ }), "Đối chiếu lại");
     await user.type(
-      screen.getByRole("textbox", { name: /Nguồn chứng cứ vận hành/ }),
+      screen.getByRole("textbox", { name: /Ảnh hoặc phiếu liên quan/ }),
       "photo://sale/001\n photo://sale/001, note://sale/002",
     );
     await user.click(screen.getByRole("button", { name: "Xác nhận void" }));

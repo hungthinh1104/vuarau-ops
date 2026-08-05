@@ -83,7 +83,7 @@ export function ReconciliationEvidenceView(props: {
             href="/evidence"
             className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
           >
-            Bằng chứng chi phí
+            Ảnh hoặc phiếu chi phí
           </Link>
         }
       />
@@ -94,7 +94,7 @@ export function ReconciliationEvidenceView(props: {
             Lịch sử quan sát đối soát
           </h2>
           <p className="text-caption text-ink-muted">
-            Ghi nhận là append-only; sửa sai bằng một bản ghi điều chỉnh có liên kết.
+            Mỗi bản ghi được giữ nguyên; sửa sai bằng một bản ghi điều chỉnh có liên kết.
           </p>
         </div>
         <QueryStates
@@ -208,11 +208,11 @@ function ObservationForm(props: Parameters<typeof ReconciliationEvidenceView>[0]
         onChange={(event) => props.onScopeReference(event.target.value)}
       />
       <Textarea
-        label="Nguồn bằng chứng"
+        label="Ảnh hoặc phiếu liên quan"
         required
         value={props.evidenceReferences}
         onChange={(event) => props.onEvidenceReferences(event.target.value)}
-        hint="Mỗi dòng một ảnh, phiếu giấy hoặc liên kết tới kho evidence được phê duyệt."
+        hint="Mỗi dòng một ảnh, phiếu giấy hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (
         <TextInput
@@ -284,7 +284,7 @@ function ObservationCard({ item }: { readonly item: ReconciliationObservationDto
         <Fact label="Phạm vi" value={item.facts.scopeReference} />
       </dl>
       <p className="mt-3 text-caption text-ink-muted">
-        Chưa tính chênh lệch và chưa tạo effect sổ tiền, công nợ hoặc tồn kho.
+        Chưa tính chênh lệch và chưa tạo tác động vào sổ tiền, công nợ hoặc tồn kho.
       </p>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (

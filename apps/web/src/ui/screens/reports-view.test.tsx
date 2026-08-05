@@ -191,24 +191,26 @@ describe("ReportsView", () => {
 
   it("labels cross-grade quantity totals as informational aggregation", () => {
     renderView();
-    expect(screen.getByText("Tổng tất cả phẩm cấp · kg")).toBeInTheDocument();
+    expect(screen.getByText("Tổng tất cả hạng hàng · kg")).toBeInTheDocument();
   });
 
   it("surfaces blocked management metrics with their next evidence", () => {
     renderView();
-    expect(screen.getByRole("heading", { name: "Metric quản trị" })).toBeInTheDocument();
-    const cogsCard = screen.getByRole("heading", { name: "COGS" }).closest("li");
+    expect(screen.getByRole("heading", { name: "Chỉ số quản lý" })).toBeInTheDocument();
+    const cogsCard = screen.getByRole("heading", { name: "Giá vốn hàng bán" }).closest("li");
     expect(cogsCard).not.toBeNull();
-    expect(cogsCard).toHaveTextContent("Gate: ASM-039, ASM-040");
-    expect(cogsCard).toHaveTextContent("Evidence tiếp theo:");
+    expect(cogsCard).toHaveTextContent("Điều kiện:");
+    expect(cogsCard).toHaveTextContent("Bước tiếp theo:");
     expect(screen.queryByText("0 ₫")).not.toBeInTheDocument();
   });
 
   it("renders management snapshot lineage without turning it into a new KPI", () => {
     renderView();
     expect(screen.getByRole("heading", { name: "Ảnh chụp vận hành" })).toBeInTheDocument();
-    expect(screen.getByText("Nguồn: report.inventory_by_product_unit")).toBeInTheDocument();
-    expect(screen.getByText(/đây không phải COGS, profit, forecast/)).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Tồn kho theo mặt hàng, hạng hàng và đơn vị").length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(/COGS|profit|forecast/i)).not.toBeInTheDocument();
   });
 
   it("fails visibly instead of rendering stale totals when the report read fails", () => {
@@ -241,7 +243,7 @@ describe("ReportsView", () => {
         onRetry: () => undefined,
       },
     });
-    expect(screen.getByRole("heading", { name: "Doanh số đã post" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Doanh số đã chốt" })).toBeInTheDocument();
     expect(screen.getByText("875.000 ₫")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Tồn kho hiện tại" }).closest("article"),

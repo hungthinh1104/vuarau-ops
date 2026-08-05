@@ -44,6 +44,7 @@ export function NewDeliveryController() {
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
   const [evidence, setEvidence] = useState("");
+  const [onsiteCompletion, setOnsiteCompletion] = useState(false);
   const [partialCompletion, setPartialCompletion] = useState<{
     readonly deliveryId: DeliveryId;
     readonly message: string;
@@ -68,6 +69,7 @@ export function NewDeliveryController() {
               quantities={quantities}
               note={note}
               evidence={evidence}
+              onsiteCompletion={onsiteCompletion}
               command={command}
               dispatchCommand={dispatch}
               deliveredCommand={delivered}
@@ -77,12 +79,13 @@ export function NewDeliveryController() {
               }
               onNoteChange={setNote}
               onEvidenceChange={setEvidence}
-              onSubmit={(action) => {
+              onOnsiteCompletionChange={setOnsiteCompletion}
+              onSubmit={(action, completeOnsite) => {
                 setPartialCompletion(null);
                 const lines = buildDeliveryDraftLines(
                   detail,
                   fulfilmentDetail,
-                  action === "deliver-all" ? {} : quantities,
+                  action === "dispatch" ? {} : quantities,
                   (lineId) => {
                     const existing = lineIds.current.get(lineId);
                     if (existing !== undefined) return existing;
@@ -121,6 +124,10 @@ export function NewDeliveryController() {
                     return;
                   }
                   await cache.deliveryChanged(workspaceId, dispatched);
+                  if (!completeOnsite) {
+                    router.replace(`/deliveries/${created.id}`);
+                    return;
+                  }
                   const completed = await delivered.submit(
                     { deliveryId: dispatched.id },
                     { expectedVersion: dispatched.version },
@@ -129,11 +136,12 @@ export function NewDeliveryController() {
                     setPartialCompletion({
                       deliveryId: created.id,
                       message:
-                        "Hàng đã xuất kho nhưng chưa xác nhận giao khách. Kiểm tra và tiếp tục từ phiếu giao.",
+                        "Đã xuất kho nhưng chưa xác nhận khách nhận tại chỗ. Mở phiếu giao để tiếp tục.",
                     });
+                    return;
                   }
-                  if (completed !== null) await cache.deliveryChanged(workspaceId, completed);
-                  if (completed !== null) router.replace(`/deliveries/${created.id}`);
+                  await cache.deliveryChanged(workspaceId, completed);
+                  router.replace(`/deliveries/${created.id}`);
                 })();
               }}
               onReload={() => void Promise.all([sale.refetch(), fulfilment.refetch()])}
@@ -141,19 +149,19 @@ export function NewDeliveryController() {
                 <>
                   <CommandOutcome
                     command={command}
-                    attemptedAction="Lưu phiếu giao"
+                    attemptedAction="Lưu để giao sau"
                     suppressSuccessToast
                     onReload={() => void Promise.all([sale.refetch(), fulfilment.refetch()])}
                   />
                   <CommandOutcome
                     command={dispatch}
-                    attemptedAction="Xuất hàng"
+                    attemptedAction="Xuất kho và bắt đầu giao"
                     suppressSuccessToast
                     onReload={() => void fulfilment.refetch()}
                   />
                   <CommandOutcome
                     command={delivered}
-                    attemptedAction="Xác nhận giao khách"
+                    attemptedAction="Xác nhận giao xong"
                     suppressSuccessToast
                     onReload={() => void fulfilment.refetch()}
                   />

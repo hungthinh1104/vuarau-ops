@@ -23,7 +23,7 @@ export function QualityIssuesPermissionView(props: {
       attemptedAction="Quản lý mã lỗi chất lượng"
       error={{
         code: "PERMISSION_DENIED",
-        message: "Role set does not carry quality.issue.manage.",
+        message: "Bạn không có quyền quản lý lý do hàng không đạt.",
         details: {
           permission: "quality.issue.manage",
           role: props.role,

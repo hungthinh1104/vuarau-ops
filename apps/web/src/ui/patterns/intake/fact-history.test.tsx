@@ -41,7 +41,7 @@ describe("FactHistory source evidence", () => {
       />,
     );
 
-    expect(screen.getByText("Bằng chứng nguồn")).toBeInTheDocument();
+    expect(screen.getByText("Ảnh hoặc phiếu liên quan")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "https://evidence.example.test/intake/1101/photo-1" }),
     ).toHaveAttribute("href", "https://evidence.example.test/intake/1101/photo-1");

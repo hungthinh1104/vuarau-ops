@@ -31,17 +31,17 @@ export function IntakeArrivalDetailView({
   renderLine,
 }: IntakeArrivalDetailViewProps) {
   return (
-    <QueryStates query={arrival} loadingLabel="Đang tải lần hàng đến" onRetry={onRetryArrival}>
+    <QueryStates query={arrival} loadingLabel="Đang tải lần nhận hàng" onRetry={onRetryArrival}>
       {(detail) => (
         <QueryStates
           query={profile}
-          loadingLabel="Đang tải cấu hình kiểm định"
+          loadingLabel="Đang tải cách xử lý hàng"
           onRetry={onRetryProfile}
         >
           {(_operationalProfile) => (
             <div className="grid gap-6">
               <PageHeader
-                title="Hàng đến và kiểm định"
+                title="Nhận hàng và kiểm hàng"
                 description={`${detail.vehicleReference ?? "Không ghi xe"} · ${new Date(
                   detail.transactionTime,
                 ).toLocaleString("vi-VN")}`}

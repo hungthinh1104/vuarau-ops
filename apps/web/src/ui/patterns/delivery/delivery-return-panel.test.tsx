@@ -41,7 +41,7 @@ describe("DeliveryReturnPanel", () => {
     await user.type(screen.getByLabelText("Số lượng trả Cà chua"), "3");
     expect(submit).toBeDisabled();
     await user.type(screen.getByLabelText("Lý do"), "Khách trả lại hàng dập");
-    await user.type(screen.getByLabelText("Nguồn chứng cứ vận hành"), "photo://return/001");
+    await user.type(screen.getByLabelText("Ảnh hoặc phiếu liên quan"), "photo://return/001");
     await user.click(submit);
     expect(onSubmit).toHaveBeenCalledWith({
       lines: [

@@ -107,12 +107,12 @@ export function DeliveryDetailController() {
         <>
           <CommandOutcome
             command={dispatch}
-            attemptedAction="Xuất hàng / Bắt đầu giao"
+            attemptedAction="Xuất kho và bắt đầu giao"
             onReload={() => void query.refetch()}
           />
           <CommandOutcome
             command={delivered}
-            attemptedAction="Đã giao khách"
+            attemptedAction="Xác nhận giao xong"
             onReload={() => void query.refetch()}
           />
           <CommandOutcome

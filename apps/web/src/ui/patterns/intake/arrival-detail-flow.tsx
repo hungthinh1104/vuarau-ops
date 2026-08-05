@@ -79,12 +79,23 @@ export function ArrivalLineFlow({
     <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
       <LineStateHeader line={line} state={state} />
       {history}
-      {active && inspection !== undefined ? inspection : null}
-      {active && disposition !== undefined ? disposition : null}
+      {active && (inspection !== undefined || disposition !== undefined) ? (
+        <div className="grid gap-3 rounded-card border border-brand/20 bg-canvas p-3">
+          <div>
+            <h3 className="font-semibold">Kiểm hàng và xử lý</h3>
+            <p className="text-body-sm text-ink-muted">
+              Ghi một lần kiểm hàng, sau đó chia số lượng đạt, tạm giữ, trả nhà cung cấp hoặc loại
+              bỏ.
+            </p>
+          </div>
+          {inspection}
+          {disposition}
+        </div>
+      ) : null}
       {active && quarantine !== undefined ? quarantine : null}
       {active && inspected > state.sourceQuantity.valueScaled ? (
         <p role="alert" className="text-caption text-danger">
-          Lượng kiểm định không thể vượt lượng hàng đã đến.
+          Số lượng kiểm hàng không thể vượt số lượng đã nhận.
         </p>
       ) : null}
     </section>
@@ -105,7 +116,7 @@ function LineStateHeader({
         <div>
           <h2 className="text-subheading font-semibold">{line.productName}</h2>
           <p className="text-body-sm text-ink-muted">
-            Hàng đến {formatQuantity(line.arrivedQuantity)}
+            Đã nhận {formatQuantity(line.arrivedQuantity)}
             {line.supplierLotCode ? ` · lô ${line.supplierLotCode}` : ""}
           </p>
         </div>
@@ -115,7 +126,7 @@ function LineStateHeader({
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Metric
-          label="Đã đến"
+          label="Đã nhận"
           value={state.sourceQuantity.valueScaled}
           unit={line.arrivedQuantity.unit}
         />
@@ -133,12 +144,13 @@ function LineStateHeader({
       </div>
       {line.weighing ? (
         <p className="text-caption text-ink-muted">
-          Gross {formatQuantity(line.weighing.grossWeight)} · tare{" "}
-          {formatQuantity(line.weighing.tareWeight)} · net {formatQuantity(line.weighing.netWeight)}
+          Tổng cân {formatQuantity(line.weighing.grossWeight)} · trọng lượng bì{" "}
+          {formatQuantity(line.weighing.tareWeight)} · khối lượng hàng{" "}
+          {formatQuantity(line.weighing.netWeight)}
         </p>
       ) : null}
       {line.note ? (
-        <p className="text-caption text-ink-muted">Ghi chú hàng đến: {line.note}</p>
+        <p className="text-caption text-ink-muted">Ghi chú nhận hàng: {line.note}</p>
       ) : null}
     </div>
   );

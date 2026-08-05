@@ -12,14 +12,14 @@ describe("TC-WEB-029 — role-aware pilot navigation", () => {
     expect(sales).toContain("Đơn hàng");
     expect(sales).toContain("Khách hàng");
     expect(sales).not.toContain("Đơn mua");
-    expect(sales).not.toContain("Hàng đến");
+    expect(sales).not.toContain("Nhận hàng");
     expect(sales).not.toContain("Thành viên");
 
     const warehouse = navigationFor(permissionsForRole("warehouse"))
       .flatMap((group) => group.items)
       .map((item) => item.label);
     expect(warehouse).toContain("Đơn mua");
-    expect(warehouse).toContain("Hàng đến");
+    expect(warehouse).toContain("Nhận hàng");
     expect(warehouse).toContain("Tồn kho");
     expect(warehouse).not.toContain("Thành viên");
 

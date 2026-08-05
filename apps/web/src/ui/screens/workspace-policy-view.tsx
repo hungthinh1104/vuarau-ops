@@ -27,12 +27,12 @@ const KIND_COPY: Readonly<Record<WorkspacePolicyKind, string>> = {
   receivable_payable_recognition: "Ghi nhận phải thu / phải trả",
   inventory_valuation: "Định giá tồn kho",
   cost_allocation: "Phân bổ chi phí",
-  return_claim_credit: "Đổi trả / claim / credit",
-  purchase_correction: "Sửa đơn mua sau receiving",
+  return_claim_credit: "Đổi trả / ghi giảm",
+  purchase_correction: "Sửa phần tiền sau khi nhập hàng",
   payment_terms_aging: "Điều khoản và tuổi nợ",
   payment_allocation: "Phân bổ thanh toán",
   credit_limit: "Hạn mức tín dụng",
-  stock_planning_reorder: "Lập kế hoạch / reorder",
+  stock_planning_reorder: "Lập kế hoạch / nhập thêm",
   stocktake_variance: "Chênh lệch kiểm kê",
   supplier_evaluation: "Đánh giá nhà cung cấp",
   operating_cycle_reconciliation: "Đối soát chu kỳ vận hành",
@@ -43,7 +43,7 @@ const KIND_COPY: Readonly<Record<WorkspacePolicyKind, string>> = {
 const STATE_COPY: Readonly<Record<WorkspacePolicyDto["state"], string>> = {
   draft: "Bản nháp",
   approved: "Đã duyệt",
-  retired: "Đã nghỉ",
+  retired: "Đã ngừng",
 };
 
 const STATE_TONE: Readonly<Record<WorkspacePolicyDto["state"], BadgeTone>> = {
@@ -73,10 +73,10 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
   if (props.permissionDenied) {
     return (
       <PermissionDenied
-        attemptedAction="Xem chính sách của vựa"
+        attemptedAction="Xem quy định vận hành của vựa"
         error={{
           code: "PERMISSION_DENIED",
-          message: "Role set does not carry policy.read.",
+          message: "Bạn không có quyền xem phần quy định vận hành.",
           details: { permission: "policy.read" },
           retryable: false,
         }}
@@ -87,15 +87,14 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
   return (
     <div className="flex max-w-6xl flex-col gap-6">
       <PageHeader
-        title="Chính sách theo vựa"
-        description="Ghi nhận policy đang được xem xét cùng evidence. Chưa có policy nào tự làm thay đổi tiền, hàng hoặc báo cáo."
+        title="Quy định vận hành"
+        description="Ghi nhận cách vựa xử lý tiền, hàng và báo cáo. Việc lưu quy định chưa tự thay đổi số liệu."
       />
       <section className="rounded-card border border-info/30 bg-info-soft px-4 py-4">
         <h2 className="text-subheading font-semibold">Ranh giới an toàn</h2>
         <p className="mt-1 text-body-sm text-ink-muted">
-          Bản nháp và policy chưa tới thời điểm hiệu lực đều không được dùng làm mặc định. COGS,
-          tuổi nợ, reorder, điểm nhà cung cấp và AI vẫn unavailable; ảnh chụp vận hành chỉ đọc các
-          tổng số từ report nguồn đã có integrity.
+          Bản nháp và quy định chưa tới thời điểm hiệu lực chưa được dùng. Các phần chưa đủ dữ liệu
+          sẽ báo rõ thay vì tự đoán.
         </p>
       </section>
       {props.canManage ? <PolicyDraftForm {...props} /> : null}
@@ -105,12 +104,12 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
             Khả năng áp dụng hiện tại
           </h2>
           <p className="text-caption text-ink-muted">
-            Unavailable là trạng thái có chủ ý, không phải số 0.
+            Chưa sẵn sàng là trạng thái có chủ ý, không phải số 0.
           </p>
         </div>
         <QueryStates
           query={props.availability}
-          loadingLabel="Đang tải trạng thái policy"
+          loadingLabel="Đang tải trạng thái quy định"
           onRetry={props.onRetry}
         >
           {(items) => (
@@ -136,22 +135,22 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
       <section aria-labelledby="policy-history-title" className="grid gap-3">
         <div>
           <h2 id="policy-history-title" className="text-subheading font-semibold">
-            Lịch sử policy
+            Lịch sử quy định
           </h2>
           <p className="text-caption text-ink-muted">
-            Version là bất biến; thay đổi tạo version hoặc state transition mới.
+            Mỗi phiên bản đã lưu được giữ nguyên; thay đổi sẽ tạo phiên bản mới.
           </p>
         </div>
         <QueryStates
           query={props.policies}
-          loadingLabel="Đang tải lịch sử policy"
+          loadingLabel="Đang tải lịch sử quy định"
           onRetry={props.onRetry}
         >
           {(page) =>
             page.items.length === 0 ? (
               <EmptyState
-                title="Chưa có policy"
-                description="Tạo bản nháp sau khi đã có evidence từ vận hành thực tế."
+                title="Chưa có quy định"
+                description="Tạo bản nháp sau khi đã có thông tin từ vận hành thực tế."
               />
             ) : (
               <ul className="grid gap-3">
@@ -173,7 +172,7 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
                     </div>
                     <p className="mt-2 text-body-sm">{policy.reason ?? "Không có ghi chú."}</p>
                     <p className="mt-1 text-caption text-ink-muted">
-                      Evidence:{" "}
+                      Ảnh hoặc phiếu liên quan:{" "}
                       {policy.evidenceReferences.length === 0
                         ? "chưa có"
                         : policy.evidenceReferences.join(", ")}
@@ -196,17 +195,17 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
         <div className="grid gap-2">
           <CommandOutcome
             command={props.createCommand}
-            attemptedAction="Tạo bản nháp policy"
+            attemptedAction="Tạo bản nháp quy định"
             onReload={props.onRetry}
           />
           <CommandOutcome
             command={props.approveCommand}
-            attemptedAction="Duyệt policy"
+            attemptedAction="Duyệt quy định"
             onReload={props.onRetry}
           />
           <CommandOutcome
             command={props.retireCommand}
-            attemptedAction="Nghỉ policy"
+            attemptedAction="Ngừng quy định"
             onReload={props.onRetry}
           />
         </div>
@@ -242,7 +241,7 @@ function PolicyDraftForm(
       if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") throw new Error();
       parsedParameters = parsed as Record<string, unknown>;
     } catch {
-      setFormError("Parameters phải là JSON object hợp lệ.");
+      setFormError("Thông số phải là nội dung hợp lệ.");
       return;
     }
     const candidate = {
@@ -261,9 +260,7 @@ function PolicyDraftForm(
     };
     const parsedPayload = supportedWorkspacePolicyVersionFieldsSchema.safeParse(candidate);
     if (!parsedPayload.success) {
-      setFormError(
-        "Parameters không đúng contract của loại policy đã chọn; kiểm tra các trường bắt buộc.",
-      );
+      setFormError("Thông số chưa đủ cho loại quy định đã chọn; kiểm tra các trường bắt buộc.");
       return;
     }
     props.onCreate(parsedPayload.data);
@@ -272,14 +269,14 @@ function PolicyDraftForm(
   return (
     <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
       <div>
-        <h2 className="text-subheading font-semibold">Tạo bản nháp policy</h2>
+        <h2 className="text-subheading font-semibold">Tạo bản nháp quy định</h2>
         <p className="mt-1 text-caption text-ink-muted">
-          Chỉ lưu cấu hình để review; chưa kích hoạt business effect.
+          Chỉ lưu để xem lại; chưa làm thay đổi số liệu.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <Select
-          label="Loại policy"
+          label="Loại quy định"
           value={kind}
           options={props.policyKinds.map((value) => ({ value, label: KIND_COPY[value] }))}
           onChange={(event) => setKind(event.target.value as SupportedWorkspacePolicyKind)}
@@ -305,16 +302,16 @@ function PolicyDraftForm(
         />
       </div>
       <Textarea
-        label="Evidence references (mỗi dòng một reference)"
+        label="Ảnh hoặc phiếu liên quan (mỗi dòng một mục)"
         value={evidence}
         onChange={(event) => setEvidence(event.target.value)}
-        hint="Bản nháp có thể để trống; approval bắt buộc phải có evidence."
+        hint="Bản nháp có thể để trống; khi duyệt cần có thông tin liên quan."
       />
       <Textarea
-        label="Parameters JSON"
+        label="Thông số áp dụng"
         value={parameters}
         onChange={(event) => setParameters(event.target.value)}
-        hint="Infrastructure envelope; chưa có policy adapter nào đọc nó."
+        hint="Các thông số dùng để tính toán theo loại quy định đã chọn."
       />
       <TextInput
         label="Lý do"
@@ -346,10 +343,10 @@ function PolicyStateActions(props: {
       {canApprove ? (
         <>
           <Textarea
-            label="Evidence để duyệt"
+            label="Ảnh hoặc phiếu liên quan để duyệt"
             value={evidence}
             onChange={(event) => setEvidence(event.target.value)}
-            hint="Mỗi dòng một reference; duyệt policy không có evidence sẽ bị từ chối."
+            hint="Mỗi dòng một mục; cần ít nhất một mục để duyệt."
           />
           <TextInput
             label="Lý do duyệt"
@@ -363,7 +360,7 @@ function PolicyStateActions(props: {
                 .map((value) => value.trim())
                 .filter(Boolean);
               if (evidenceReferences.length === 0 || reason.trim() === "") {
-                setError("Cần evidence và lý do trước khi duyệt.");
+                setError("Cần thông tin liên quan và lý do trước khi duyệt.");
                 return;
               }
               setError(null);
@@ -390,7 +387,7 @@ function PolicyStateActions(props: {
             tone="danger"
             onClick={() => {
               if (reason.trim() === "") {
-                setError("Cần lý do khi đưa policy về nghỉ.");
+                setError("Cần lý do khi ngừng quy định.");
                 return;
               }
               props.onRetire({
@@ -400,7 +397,7 @@ function PolicyStateActions(props: {
               });
             }}
           >
-            Đưa về nghỉ
+            Ngừng quy định
           </Button>
         </>
       ) : null}
@@ -413,13 +410,13 @@ function availabilityCopy(item: WorkspacePolicyAvailability): string {
   if (item.availability === "available")
     return `Version ${item.version ?? "?"} đang trong thời gian hiệu lực.`;
   if (item.reason === "unsupported_definition_contract")
-    return "Capability này chưa có typed definition contract và không thể áp dụng.";
+    return "Cách tính này chưa được hỗ trợ nên chưa thể áp dụng.";
   if (item.reason === "corrupt_definition")
-    return "Definition lưu trong policy bị hỏng; hệ thống fail-closed.";
+    return "Thông tin quy định bị hỏng nên hệ thống tạm dừng áp dụng.";
   if (item.reason === "corrupt_overlap")
-    return "Có nhiều version chồng thời gian; cần sửa dữ liệu trước khi áp dụng.";
+    return "Có nhiều phiên bản trùng thời gian; cần kiểm tra trước khi áp dụng.";
   if (item.reason === "effective_window_not_started")
-    return "Đã duyệt nhưng chưa tới ngày hiệu lực.";
-  if (item.reason === "effective_window_closed") return "Version đã qua thời gian hiệu lực.";
-  return "Chưa có version đã duyệt và đang hiệu lực.";
+    return "Đã duyệt nhưng chưa tới ngày bắt đầu.";
+  if (item.reason === "effective_window_closed") return "Phiên bản đã hết thời gian áp dụng.";
+  return "Chưa có phiên bản đã duyệt và đang áp dụng.";
 }

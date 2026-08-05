@@ -67,13 +67,13 @@ function parseInstant(raw: string, label: string): { value: string } | { error: 
  */
 export function parsePriceRuleForm(input: PriceRuleFormInput): PriceRuleFormResult {
   if (input.productId.length === 0) {
-    return { ok: false, error: "Chọn mặt hàng trước khi ghi rule." };
+    return { ok: false, error: "Chọn mặt hàng trước khi ghi quy tắc giá." };
   }
   if (input.kind === "customer" && input.customerId.length === 0) {
-    return { ok: false, error: "Rule theo khách hàng phải chọn khách hàng." };
+    return { ok: false, error: "Quy tắc theo khách hàng phải chọn khách hàng." };
   }
   if (input.kind !== "customer" && input.customerId.length > 0) {
-    return { ok: false, error: "Chỉ rule theo khách hàng mới được gắn khách hàng." };
+    return { ok: false, error: "Chỉ quy tắc theo khách hàng mới được gắn khách hàng." };
   }
 
   const base = parseMoneyText(input.basePrice, "VND");
@@ -118,7 +118,7 @@ export function parsePriceRuleForm(input: PriceRuleFormInput): PriceRuleFormResu
 
   const reason = input.reason.trim();
   if (input.kind === "override" && reason.length === 0) {
-    return { ok: false, error: "Rule override phải có lý do." };
+    return { ok: false, error: "Quy tắc thay thế phải có lý do." };
   }
   if (reason.length > 500) {
     return { ok: false, error: "Lý do không được dài quá 500 ký tự." };

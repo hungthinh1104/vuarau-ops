@@ -15,6 +15,268 @@ export const CUSTOMER_ORDER_STATUS_COPY: Readonly<Record<CustomerOrderStatus, st
 };
 
 /**
+ * The only UI vocabulary registry. Domain values stay stable in the API; this
+ * registry is the worker-facing translation layer and must be used whenever a
+ * value can reach rendered copy.
+ */
+export const UI_COPY_REGISTRY = {
+  status: {
+    delivery: {
+      draft: "Chờ xuất kho",
+      dispatched: "Đang giao",
+      delivered: "Đã giao",
+      cancelled: "Đã loại bỏ",
+    },
+    purchase: {
+      draft: "Nháp",
+      confirmed: "Đã xác nhận",
+      discarded: "Đã loại bỏ",
+    },
+    sale: {
+      draft: "Nháp",
+      posted: "Đã chốt",
+      discarded: "Đã loại bỏ",
+    },
+  },
+  qualityOutcome: {
+    accepted: "Đạt",
+    quarantined: "Tạm giữ",
+    rejected: "Trả nhà cung cấp",
+    disposed: "Loại bỏ",
+  },
+  severity: {
+    minor: "Nhẹ",
+    moderate: "Vừa",
+    severe: "Nặng",
+  },
+  reasonCode: {
+    wrong_amount: "Sai số tiền",
+    wrong_customer: "Sai khách hàng",
+    goods_returned: "Khách trả hàng",
+    wrong_quantity: "Sai số lượng",
+    other: "Lý do khác",
+    count_correction: "Điều chỉnh kiểm đếm",
+    spoilage: "Hư hỏng",
+    opening_balance: "Số dư ban đầu",
+    write_off: "Ghi giảm công nợ",
+    wrong_supplier: "Sai nhà cung cấp",
+    wrong_product: "Sai mặt hàng",
+    wrong_price: "Sai giá",
+    duplicate: "Trùng chứng từ",
+    commercial_correction: "Sửa phần tiền sau khi nhập hàng",
+    shrinkage: "Hao hụt",
+  },
+  blockedReason: {
+    missing_product: "Thiếu mặt hàng liên kết",
+    invalid_product: "Mặt hàng chưa hợp lệ",
+    integrity_failure: "Dữ liệu cần được kiểm tra",
+  },
+  permission: {
+    "delivery.create": "Tạo phiếu giao",
+    "delivery.dispatch": "Xuất kho và bắt đầu giao",
+    "delivery.complete": "Xác nhận giao xong",
+    "intake.record": "Ghi nhận hàng nhập",
+    "quality.inspect": "Kiểm hàng",
+    "quality.disposition": "Xử lý hàng lỗi",
+  },
+  report: {
+    metric: {
+      revenue: {
+        label: "Doanh thu",
+        description: "Chưa đủ dữ liệu để ghi nhận doanh thu an toàn.",
+        condition: "Cần chốt thời điểm ghi nhận và đối chiếu với chứng từ.",
+        nextStep: "Bổ sung các trường hợp thực tế đã được xác nhận.",
+        formula: "Tổng tiền của các đơn bán đã chốt trong kỳ.",
+        sources: "Đơn bán đã chốt",
+        drilldown: "Mở các đơn bán nguồn",
+        action: "Kiểm tra chứng từ gốc trước khi sử dụng số liệu.",
+      },
+      cogs: {
+        label: "Giá vốn hàng bán",
+        description: "Chưa đủ dữ liệu để tính giá vốn an toàn.",
+        condition: "Cần chốt cách định giá và cách phân bổ chi phí.",
+        nextStep: "Bổ sung các trường hợp định giá và sửa số liệu đã được xác nhận.",
+        formula: "Giá trị vốn của hàng đã xuất bán trong kỳ.",
+        sources: "Phiếu nhập kho và phiếu xuất kho",
+        drilldown: "Mở các phiếu hàng nguồn",
+        action: "Kiểm tra số liệu gốc; không tự sửa số tồn.",
+      },
+      gross_profit: {
+        label: "Lợi nhuận gộp",
+        description: "Chưa đủ dữ liệu để tính lợi nhuận gộp.",
+        condition: "Cần có cả doanh thu và giá vốn đã được đối chiếu.",
+        nextStep: "Hoàn tất dữ liệu doanh thu và giá vốn cho cùng kỳ.",
+        formula: "Doanh thu trừ giá vốn hàng bán.",
+        sources: "Đơn bán và phiếu hàng đã đối chiếu",
+        drilldown: "Mở các chứng từ nguồn",
+        action: "Kiểm tra chứng từ gốc trước khi dùng kết quả.",
+      },
+      gross_margin: {
+        label: "Biên lợi nhuận gộp",
+        description: "Chưa đủ dữ liệu để tính biên lợi nhuận.",
+        condition: "Cần có doanh thu và giá vốn hợp lệ, khác 0.",
+        nextStep: "Bổ sung dữ liệu kỳ so sánh đã được xác nhận.",
+        formula: "Lợi nhuận gộp chia cho doanh thu.",
+        sources: "Đơn bán và phiếu hàng đã đối chiếu",
+        drilldown: "Mở các chứng từ nguồn",
+        action: "Kiểm tra kỳ và chứng từ gốc trước khi so sánh.",
+      },
+      waste_value: {
+        label: "Giá trị hao hụt",
+        description: "Chưa đủ dữ liệu để tính giá trị hao hụt.",
+        condition: "Cần thống nhất cách ghi nhận hàng hư, hàng lỗi và hàng trả.",
+        nextStep: "Bổ sung các trường hợp hao hụt có chứng từ liên quan.",
+        formula: "Giá trị của phần hàng được ghi nhận là hao hụt trong kỳ.",
+        sources: "Phiếu kiểm hàng và phiếu xử lý hàng lỗi",
+        drilldown: "Mở các phiếu xử lý nguồn",
+        action: "Kiểm tra ảnh hoặc phiếu liên quan.",
+      },
+      waste_rate: {
+        label: "Tỷ lệ hao hụt",
+        description: "Chưa đủ dữ liệu để tính tỷ lệ hao hụt.",
+        condition: "Cần xác định đủ phần hàng hao hụt và tổng lượng làm mẫu số.",
+        nextStep: "Bổ sung các kỳ có số liệu hao hụt đã được xác nhận.",
+        formula: "Lượng hao hụt chia cho tổng lượng làm mẫu số.",
+        sources: "Phiếu nhập kho và phiếu xử lý hàng lỗi",
+        drilldown: "Mở các phiếu xử lý nguồn",
+        action: "Kiểm tra số lượng gốc trước khi so sánh.",
+      },
+      price_margin_change: {
+        label: "Biến động giá và biên",
+        description: "Chưa đủ dữ liệu để so sánh giá và biên.",
+        condition: "Cần có giá vốn làm mốc so sánh cho các kỳ.",
+        nextStep: "Bổ sung giá vốn và kỳ so sánh đã được xác nhận.",
+        formula: "So sánh giá bán và biên giữa các kỳ.",
+        sources: "Đơn bán và phiếu hàng đã đối chiếu",
+        drilldown: "Mở các chứng từ nguồn",
+        action: "Kiểm tra giá và số lượng trên chứng từ gốc.",
+      },
+      receivable_aging: {
+        label: "Tuổi nợ phải thu",
+        description: "Chưa đủ dữ liệu để chia nhóm tuổi nợ phải thu.",
+        condition: "Cần có điều khoản thanh toán và ngày đến hạn rõ ràng.",
+        nextStep: "Bổ sung các trường hợp thanh toán và phân bổ đã được xác nhận.",
+        formula: "Phân nhóm khoản phải thu theo số ngày còn lại hoặc đã quá hạn.",
+        sources: "Sổ công nợ khách hàng và phiếu thu",
+        drilldown: "Mở chi tiết công nợ",
+        action: "Kiểm tra ngày đến hạn và các khoản đã thu.",
+      },
+      payable_aging: {
+        label: "Tuổi nợ phải trả",
+        description: "Chưa đủ dữ liệu để chia nhóm tuổi nợ phải trả.",
+        condition: "Cần có thời điểm ghi nhận và điều khoản thanh toán nhà cung cấp.",
+        nextStep: "Bổ sung các trường hợp thanh toán và phân bổ đã được xác nhận.",
+        formula: "Phân nhóm khoản phải trả theo số ngày còn lại hoặc đã quá hạn.",
+        sources: "Sổ phải trả nhà cung cấp và phiếu chi",
+        drilldown: "Mở chi tiết phải trả",
+        action: "Kiểm tra ngày đến hạn và các khoản đã chi.",
+      },
+      inventory_health: {
+        label: "Sức khoẻ tồn kho",
+        description: "Chưa đủ dữ liệu để đánh giá tồn kho.",
+        condition: "Cần thống nhất ngưỡng tồn và cách xử lý chênh lệch.",
+        nextStep: "Bổ sung ngưỡng tồn và các trường hợp kiểm kê đã xác nhận.",
+        formula: "Đánh giá số lượng tồn theo ngưỡng đã được chốt.",
+        sources: "Số dư tồn kho và phiếu kiểm kê",
+        drilldown: "Mở chi tiết tồn kho",
+        action: "Kiểm tra số dư và phiếu kiểm kê liên quan.",
+      },
+      reorder_risk: {
+        label: "Rủi ro cần nhập thêm",
+        description: "Chưa đủ dữ liệu để cảnh báo cần nhập thêm.",
+        condition: "Cần có mức tối thiểu, mức mục tiêu và thời gian cung ứng.",
+        nextStep: "Bổ sung ngưỡng nhập thêm theo mặt hàng và đơn vị.",
+        formula: "So sánh tồn hiện tại với ngưỡng nhập thêm đã chốt.",
+        sources: "Số dư tồn kho và cấu hình nhập thêm",
+        drilldown: "Mở chi tiết mặt hàng",
+        action: "Kiểm tra tồn thực tế trước khi tạo đơn mua.",
+      },
+      cash_gap: {
+        label: "Khoảng thiếu tiền dự kiến",
+        description: "Chưa đủ dữ liệu để ước tính khoảng thiếu tiền.",
+        condition: "Cần có số liệu chốt ca, nộp tiền và thanh toán đối chiếu.",
+        nextStep: "Bổ sung các lần chốt và đối chiếu sao kê đã xác nhận.",
+        formula: "So sánh tiền dự kiến với các khoản phải thu, phải trả trong kỳ.",
+        sources: "Sổ tiền, công nợ và sao kê",
+        drilldown: "Mở chi tiết tiền và công nợ",
+        action: "Kiểm tra các khoản chưa được đối chiếu.",
+      },
+      shift_close_variance: {
+        label: "Chênh lệch chốt ca",
+        description: "Chưa đủ dữ liệu để tính chênh lệch chốt ca.",
+        condition: "Cần có lần chốt ca đã ghi nhận cùng số tiền kiểm đếm.",
+        nextStep: "Ghi nhận và đối chiếu một lần chốt ca đầy đủ.",
+        formula: "Tiền thực đếm trừ số tiền theo sổ tại thời điểm chốt.",
+        sources: "Lần chốt ca và sổ tiền",
+        drilldown: "Mở chi tiết chốt ca",
+        action: "Kiểm tra số tiền đếm và các giao dịch trong ca.",
+      },
+      bank_reconciliation: {
+        label: "Đối chiếu ngân hàng",
+        description: "Chưa đủ dữ liệu để đối chiếu ngân hàng.",
+        condition: "Cần có sao kê và quy tắc ghép giao dịch đã được xác nhận.",
+        nextStep: "Bổ sung sao kê và xử lý các dòng chưa ghép.",
+        formula: "Ghép giao dịch trong sổ với dòng sao kê tương ứng.",
+        sources: "Sổ tiền và sao kê ngân hàng",
+        drilldown: "Mở các dòng chưa ghép",
+        action: "Kiểm tra từng dòng trước khi xác nhận đối chiếu.",
+      },
+      supplier_performance: {
+        label: "Hiệu quả nhà cung cấp",
+        description: "Tóm tắt lượng đã hẹn, đã nhận và đạt theo từng nhà cung cấp.",
+        condition: "Chỉ dùng các ghi nhận đã được duyệt và còn hiệu lực.",
+        nextStep: "Mở các ghi nhận nguồn khi cần kiểm tra.",
+        formula: "So sánh lượng đã hẹn, đã nhận, đạt và thời điểm giao hàng.",
+        sources: "Ghi nhận nhà cung cấp",
+        drilldown: "Mở các ghi nhận nguồn",
+        action: "Kiểm tra dữ liệu gốc; không tự xếp hạng hoặc tạo đơn mua.",
+      },
+    },
+    diagnostic: {
+      projection_unavailable: "Bản tổng hợp chưa đối chiếu được với dữ liệu gốc.",
+      workspace_integrity_attention: "Dữ liệu trong vựa cần được kiểm tra.",
+    },
+  },
+} as const;
+
+export type ReportMetricCopy =
+  (typeof UI_COPY_REGISTRY.report.metric)[keyof typeof UI_COPY_REGISTRY.report.metric];
+
+export function copyForReportMetric(metricId: string): ReportMetricCopy {
+  return (
+    UI_COPY_REGISTRY.report.metric[metricId as keyof typeof UI_COPY_REGISTRY.report.metric] ??
+    UI_COPY_REGISTRY.report.metric.revenue
+  );
+}
+
+export function copyForReportDiagnostic(diagnostic: string): string {
+  return (
+    UI_COPY_REGISTRY.report.diagnostic[
+      diagnostic as keyof typeof UI_COPY_REGISTRY.report.diagnostic
+    ] ?? "Số liệu cần được kiểm tra trước khi sử dụng."
+  );
+}
+
+export type QualityOutcomeCopyKey = keyof typeof UI_COPY_REGISTRY.qualityOutcome;
+
+export function copyForBlockedReason(reason: string | null | undefined): string {
+  if (reason === null || reason === undefined || reason.trim() === "") {
+    return "Chưa thể thực hiện lúc này. Hãy kiểm tra lại thông tin.";
+  }
+  return (
+    UI_COPY_REGISTRY.blockedReason[reason as keyof typeof UI_COPY_REGISTRY.blockedReason] ??
+    "Chưa thể thực hiện lúc này. Hãy kiểm tra lại thông tin."
+  );
+}
+
+export function copyForReasonCode(reason: string | null | undefined): string {
+  if (reason === null || reason === undefined || reason.trim() === "") return "Lý do khác";
+  return (
+    UI_COPY_REGISTRY.reasonCode[reason as keyof typeof UI_COPY_REGISTRY.reasonCode] ?? "Lý do khác"
+  );
+}
+
+/**
  * Vietnamese copy, keyed by the stable rejection code.
  *
  * The rule this file exists to enforce: **never render `error.message` as the
@@ -46,13 +308,13 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
     "Cấu hình vận hành vừa được người khác thay đổi. Hãy tải lại.",
   WORKSPACE_PROFILE_UNCHANGED: "Cấu hình vận hành không có thay đổi.",
   WORKSPACE_WORKFLOW_DISABLED: "Quy trình này đang tắt trong cấu hình của vựa.",
-  WORKSPACE_POLICY_ALREADY_EXISTS: "Phiên bản policy này đã tồn tại trong vựa.",
-  WORKSPACE_POLICY_NOT_FOUND: "Không tìm thấy phiên bản policy này.",
-  WORKSPACE_POLICY_NOT_DRAFT: "Chỉ policy ở trạng thái nháp mới có thể được duyệt.",
-  WORKSPACE_POLICY_NOT_APPROVED: "Policy này đã được ngừng hiệu lực.",
-  WORKSPACE_POLICY_EVIDENCE_REQUIRED: "Cần ít nhất một tham chiếu bằng chứng để duyệt policy.",
-  WORKSPACE_POLICY_VERSION_CONFLICT: "Policy vừa được người khác thay đổi. Hãy tải lại.",
-  WORKSPACE_POLICY_EFFECTIVE_RANGE_INVALID: "Khoảng hiệu lực của policy không hợp lệ.",
+  WORKSPACE_POLICY_ALREADY_EXISTS: "Phiên bản quy định này đã tồn tại trong vựa.",
+  WORKSPACE_POLICY_NOT_FOUND: "Không tìm thấy phiên bản quy định này.",
+  WORKSPACE_POLICY_NOT_DRAFT: "Chỉ quy định ở trạng thái nháp mới có thể được duyệt.",
+  WORKSPACE_POLICY_NOT_APPROVED: "Quy định này đã được ngừng hiệu lực.",
+  WORKSPACE_POLICY_EVIDENCE_REQUIRED: "Cần ít nhất một tham chiếu để duyệt quy định.",
+  WORKSPACE_POLICY_VERSION_CONFLICT: "Quy định vừa được người khác thay đổi. Hãy tải lại.",
+  WORKSPACE_POLICY_EFFECTIVE_RANGE_INVALID: "Khoảng hiệu lực của quy định không hợp lệ.",
 
   CUSTOMER_NOT_FOUND: "Không tìm thấy khách hàng này.",
   CUSTOMER_NAME_REQUIRED: "Tên khách hàng không được để trống.",
@@ -97,10 +359,10 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   PURCHASE_HAS_ACTIVE_RECEIPTS:
     "Đơn mua đã có hàng thực nhận nên chưa thể hoàn tác thương mại. Chỉ hoàn tác phiếu nhận nếu chính phiếu nhận đã ghi sai; không đảo hàng thật chỉ để sửa đơn mua.",
   PURCHASE_CORRECTION_POLICY_UNAVAILABLE:
-    "Chưa có policy sửa đơn mua sau receiving được workspace phê duyệt và đang hiệu lực.",
+    "Chưa có quy định sửa phần tiền sau khi nhập hàng được vựa duyệt và đang áp dụng.",
   PURCHASE_VOID_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tác đơn mua.",
-  RECEIPT_NOT_FOUND: "Không tìm thấy phiếu nhận hàng.",
-  RECEIPT_ALREADY_REVERSED: "Phiếu nhận hàng đã được hoàn tác.",
+  RECEIPT_NOT_FOUND: "Không tìm thấy phiếu nhập kho.",
+  RECEIPT_ALREADY_REVERSED: "Phiếu nhập kho đã được hoàn tác.",
   RECEIPT_QUANTITY_EXCEEDS_PURCHASE: "Số lượng nhận vượt số lượng đã mua.",
   RECEIPT_UNIT_MISMATCH: "Đơn vị nhận hàng không khớp dòng mua.",
   RECEIPT_REVERSAL_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tác nhận hàng.",
@@ -214,21 +476,21 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   QUALITY_ISSUE_CODE_VERSION_CONFLICT: "Mã lỗi chất lượng vừa được người khác cập nhật.",
   QUALITY_ISSUE_CODE_ALREADY_ACTIVE: "Mã lỗi chất lượng đang hoạt động.",
   QUALITY_ISSUE_CODE_ALREADY_INACTIVE: "Mã lỗi chất lượng đã ngừng sử dụng.",
-  GOODS_ARRIVAL_NOT_FOUND: "Không tìm thấy lần hàng đến này.",
-  GOODS_ARRIVAL_ALREADY_REVERSED: "Lần hàng đến đã được hoàn tác.",
+  GOODS_ARRIVAL_NOT_FOUND: "Không tìm thấy lần nhận hàng này.",
+  GOODS_ARRIVAL_ALREADY_REVERSED: "Lần nhận hàng đã được hoàn tác.",
   GOODS_ARRIVAL_HAS_DOWNSTREAM_FACTS:
-    "Lần hàng đến đã có kiểm định hoặc quyết định xử lý nên không thể hoàn tác trực tiếp.",
-  GOODS_ARRIVAL_LINE_INVALID: "Có dòng hàng đến không hợp lệ.",
-  GOODS_ARRIVAL_PURCHASE_MISMATCH: "Hàng đến không khớp nhà cung cấp hoặc dòng mua đã chọn.",
+    "Lần nhận hàng đã có kiểm hàng hoặc quyết định xử lý nên không thể hoàn tác trực tiếp.",
+  GOODS_ARRIVAL_LINE_INVALID: "Có dòng nhận hàng không hợp lệ.",
+  GOODS_ARRIVAL_PURCHASE_MISMATCH: "Nhận hàng không khớp nhà cung cấp hoặc dòng mua đã chọn.",
   WEIGHING_REQUIRED: "Vựa này yêu cầu ghi cân tổng, bì và khối lượng tịnh.",
   WEIGHING_NOT_USED: "Vựa này không sử dụng quy trình cân tổng–bì–tịnh.",
   WEIGHING_INVALID: "Số cân không hợp lệ; khối lượng tịnh phải bằng tổng trừ bì.",
-  QUALITY_INSPECTION_NOT_FOUND: "Không tìm thấy lần kiểm định chất lượng.",
-  QUALITY_INSPECTION_ALREADY_REVERSED: "Lần kiểm định đã được hoàn tác.",
-  QUALITY_INSPECTION_QUANTITY_EXCEEDS_ARRIVAL: "Số lượng kiểm định vượt số hàng đến.",
-  QUALITY_INSPECTION_INVALID: "Nội dung kiểm định chất lượng không hợp lệ.",
+  QUALITY_INSPECTION_NOT_FOUND: "Không tìm thấy lần kiểm hàng chất lượng.",
+  QUALITY_INSPECTION_ALREADY_REVERSED: "Lần kiểm hàng đã được hoàn tác.",
+  QUALITY_INSPECTION_QUANTITY_EXCEEDS_ARRIVAL: "Số lượng kiểm hàng vượt số nhận hàng.",
+  QUALITY_INSPECTION_INVALID: "Nội dung kiểm hàng chất lượng không hợp lệ.",
   QUALITY_INSPECTION_HAS_DOWNSTREAM_FACTS:
-    "Kiểm định đã được dùng để xử lý hàng nên không thể hoàn tác trực tiếp.",
+    "Lần kiểm hàng đã được dùng để xử lý hàng nên không thể hoàn tác trực tiếp.",
   QUALITY_DISPOSITION_SOURCE_NOT_FOUND: "Không tìm thấy nguồn hàng cần xử lý chất lượng.",
   QUALITY_DISPOSITION_SOURCE_REVERSED: "Nguồn hàng đã bị hoàn tác nên không thể xử lý tiếp.",
   QUALITY_DISPOSITION_QUANTITY_EXCEEDS_REMAINING:
@@ -237,11 +499,10 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   QUALITY_DISPOSITION_NOT_FOUND: "Không tìm thấy quyết định xử lý chất lượng.",
   QUALITY_DISPOSITION_ALREADY_REVERSED: "Quyết định xử lý chất lượng đã được hoàn tác.",
   QUALITY_DISPOSITION_HAS_DOWNSTREAM_FACTS:
-    "Lô cách ly đã được xử lý tiếp nên không thể hoàn tác quyết định trước.",
+    "Lô tạm giữ đã được xử lý tiếp nên không thể hoàn tác quyết định trước.",
   COST_OBSERVATION_CORRECTION_TARGET_REQUIRED:
     "Bản ghi điều chỉnh phải chỉ rõ quan sát nguồn cần sửa.",
-  COST_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
-    "Không tìm thấy quan sát nguồn trong workspace này.",
+  COST_OBSERVATION_CORRECTION_TARGET_NOT_FOUND: "Không tìm thấy thông tin nguồn trong vựa này.",
   COST_OBSERVATION_CORRECTION_LINK_INVALID:
     "Chỉ quan sát điều chỉnh mới được liên kết với bản ghi trước.",
   COST_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát chi phí hoặc hao hụt.",
@@ -249,7 +510,7 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   RECONCILIATION_OBSERVATION_CORRECTION_TARGET_REQUIRED:
     "Bản điều chỉnh đối soát phải chỉ rõ quan sát gốc.",
   RECONCILIATION_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
-    "Không tìm thấy quan sát đối soát gốc trong workspace này.",
+    "Không tìm thấy thông tin đối soát gốc trong vựa này.",
   RECONCILIATION_OBSERVATION_CORRECTION_LINK_INVALID:
     "Chỉ bản điều chỉnh mới được liên kết tới quan sát trước.",
   RECONCILIATION_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát đối soát.",
@@ -257,7 +518,7 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   DEBT_OBSERVATION_CORRECTION_TARGET_REQUIRED:
     "Bản điều chỉnh công nợ phải chỉ rõ quan sát cần điều chỉnh.",
   DEBT_OBSERVATION_CORRECTION_TARGET_NOT_FOUND:
-    "Không tìm thấy quan sát công nợ cần điều chỉnh trong workspace này.",
+    "Không tìm thấy thông tin công nợ cần điều chỉnh trong vựa này.",
   DEBT_OBSERVATION_CORRECTION_LINK_INVALID:
     "Chỉ bản quan sát điều chỉnh mới được liên kết quan sát trước đó.",
   DEBT_OBSERVATION_NOT_FOUND: "Không tìm thấy quan sát điều khoản công nợ.",
@@ -285,22 +546,15 @@ export function messageForCode(code: DomainRejectionCode, serverMessage?: string
 }
 
 export const DELIVERY_STATUS_COPY: Readonly<Record<DeliveryStatus, string>> = {
-  draft: "Cần xuất hàng",
-  dispatched: "Đang giao",
-  delivered: "Đã giao",
-  cancelled: "Đã hủy",
+  ...UI_COPY_REGISTRY.status.delivery,
 };
 
 export const PURCHASE_STATUS_COPY: Readonly<Record<PurchaseStatus, string>> = {
-  draft: "Nháp",
-  confirmed: "Đã xác nhận",
-  discarded: "Đã bỏ",
+  ...UI_COPY_REGISTRY.status.purchase,
 };
 
 export const SALE_STATUS_COPY: Readonly<Record<SaleStatus, string>> = {
-  draft: "Nháp",
-  posted: "Đã chốt",
-  discarded: "Đã bỏ",
+  ...UI_COPY_REGISTRY.status.sale,
 };
 
 export const SALE_DUE_COPY: Readonly<Record<SaleDueState, string>> = {

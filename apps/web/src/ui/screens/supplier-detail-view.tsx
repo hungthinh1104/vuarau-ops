@@ -281,15 +281,17 @@ function SupplierPerformanceSection({
           Hiệu quả nhà cung cấp
         </h2>
         <p className="text-caption text-ink-muted">
-          Tóm tắt dữ kiện giao, nhận và thời gian theo policy đã duyệt; không phải điểm xếp hạng hay
-          đề xuất mua hàng.
+          Tóm tắt số liệu giao, nhận và thời gian theo quy định đã duyệt; đây không phải điểm xếp
+          hạng hay đề xuất mua hàng.
         </p>
       </div>
       {performance.status === "unavailable" ? (
         <div role="status" className="rounded-input bg-warning-soft px-3 py-2 text-body-sm">
           <p>Chưa có kết quả hiệu quả nhà cung cấp.</p>
           <p className="text-caption text-ink-muted">
-            {performance.diagnostics.join(", ") || "Nguồn dữ kiện chưa đủ để tính."}
+            {performance.diagnostics.length > 0
+              ? "Dữ liệu liên quan chưa đủ để tính."
+              : "Nguồn dữ kiện chưa đủ để tính."}
           </p>
         </div>
       ) : (
@@ -377,8 +379,8 @@ function SupplierPerformanceSection({
         </>
       )}
       <p className="text-caption text-ink-muted">
-        Policy v{performance.policyVersion ?? "chưa có"} · nguồn{" "}
-        {performance.sourceObservationIds.length}
+        Quy định phiên bản {performance.policyVersion ?? "chưa có"} ·{" "}
+        {performance.sourceObservationIds.length} mục liên quan
       </p>
     </section>
   );

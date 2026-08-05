@@ -90,7 +90,7 @@ export function InventoryStocktakePanel({
               options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
             />
             <Select
-              label="Phẩm cấp"
+              label="Hạng hàng"
               value={qualityGradeId ?? "legacy"}
               disabled={locked || session.status === "approved"}
               onChange={(event) =>

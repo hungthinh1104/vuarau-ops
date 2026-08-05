@@ -32,14 +32,14 @@ test.describe("Depot operations (TC-E2E-030)", () => {
 
     for (const quantity of ["60", "40"]) {
       await page.goto(`/sales/${saleId}`);
-      await page.getByRole("link", { name: "Tạo phiếu giao" }).click();
+      await page.getByRole("link", { name: "Giao đơn" }).click();
       await page.getByLabel(`Số lượng giao ${productName}`).fill(quantity);
-      await page.getByRole("button", { name: "Lưu phiếu giao" }).click();
+      await page.getByRole("button", { name: "Lưu để giao sau" }).click();
       await page.waitForURL(/\/deliveries\/[0-9a-f-]+$/);
       deliveryIds.push(new URL(page.url()).pathname.split("/").at(-1)!);
-      await page.getByRole("button", { name: "Xuất hàng / Bắt đầu giao" }).click();
+      await page.getByRole("button", { name: "Xuất kho & bắt đầu giao" }).click();
       await expect(page.getByText("Đang giao", { exact: true })).toBeVisible();
-      await page.getByRole("button", { name: "Đã giao khách" }).click();
+      await page.getByRole("button", { name: "Xác nhận giao xong" }).click();
       await expect(page.getByText("Đã giao", { exact: true })).toBeVisible();
     }
 

@@ -223,12 +223,12 @@ describe("TC-WEB-022 — the line editor", () => {
     render(
       <SaleLineEditor
         {...base}
-        serverIssue="Máy chủ từ chối dòng này."
+        serverIssue="Máy chủ chưa nhận được dòng này."
         onChange={() => undefined}
         onRemove={() => undefined}
       />,
     );
-    expect(screen.getByRole("alert")).toHaveTextContent("Máy chủ từ chối dòng này.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Máy chủ chưa nhận được dòng này.");
   });
 
   it("keeps what was typed while reporting an issue on the same row", async () => {
@@ -368,9 +368,9 @@ describe("TC-WEB-025 — price rule resolution states", () => {
     );
 
     expect(screen.getByRole("status")).toHaveTextContent("18.000 ₫");
-    expect(screen.getByRole("button", { name: "Dùng giá rule này" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dùng giá này" })).toBeInTheDocument();
     expect(onApply).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Dùng giá rule này" }));
+    await user.click(screen.getByRole("button", { name: "Dùng giá này" }));
     expect(onApply).toHaveBeenCalledOnce();
   });
 
@@ -382,8 +382,8 @@ describe("TC-WEB-025 — price rule resolution states", () => {
       />,
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent("Chưa có rule giá phù hợp");
-    expect(screen.queryByRole("button", { name: "Dùng giá rule này" })).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("Chưa có quy tắc giá phù hợp");
+    expect(screen.queryByRole("button", { name: "Dùng giá này" })).toBeNull();
   });
 
   it("does not choose between rules with equal precedence", () => {
@@ -402,7 +402,7 @@ describe("TC-WEB-025 — price rule resolution states", () => {
     );
 
     expect(screen.getByRole("status")).toHaveTextContent("không tự chọn");
-    expect(screen.queryByRole("button", { name: "Dùng giá rule này" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Dùng giá này" })).toBeNull();
   });
 });
 

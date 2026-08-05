@@ -39,7 +39,7 @@ export function buildArrivalLines(
     const state = states[line.lineId] ?? EMPTY_INTAKE_LINE;
     const gross = scaledQuantity(state.gross);
     const tare = scaledQuantity(state.tare);
-    const quantity = scaledQuantity(state.quantity);
+    const quantity = scaledQuantity(state.quantity) ?? line.quantity.valueScaled;
     const valueScaled = weighing
       ? gross !== null && tare !== null
         ? gross - tare

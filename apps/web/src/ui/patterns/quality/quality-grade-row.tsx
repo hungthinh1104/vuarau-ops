@@ -105,7 +105,7 @@ export function QualityGradeRow({
                 setEditing(false);
               }}
             >
-              {grade.isActive ? "Ngưng phẩm cấp" : "Dùng lại phẩm cấp"}
+              {grade.isActive ? "Ngưng hạng hàng" : "Dùng lại hạng hàng"}
             </Button>
           </div>
         ) : null}
@@ -114,7 +114,7 @@ export function QualityGradeRow({
       {editing ? (
         <section className="grid gap-3 rounded-card border border-border bg-surface-muted p-3 sm:grid-cols-[1fr_10rem_auto]">
           <TextInput
-            label="Tên phẩm cấp"
+            label="Tên hạng hàng"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
@@ -129,7 +129,7 @@ export function QualityGradeRow({
             disabled={!updateValid || busy}
             onClick={() => void submitUpdate()}
           >
-            Cập nhật phẩm cấp
+            Cập nhật hạng hàng
           </Button>
         </section>
       ) : null}
@@ -155,7 +155,7 @@ export function QualityGradeRow({
             {grade.isActive ? "Xác nhận ngưng" : "Xác nhận dùng lại"}
           </Button>
           <p className="text-caption text-ink-muted sm:col-span-2">
-            Chỉ ảnh hưởng lựa chọn cho giao dịch mới. Chứng từ và tồn kho lịch sử vẫn giữ phẩm cấp
+            Chỉ ảnh hưởng lựa chọn cho giao dịch mới. Chứng từ và tồn kho lịch sử vẫn giữ hạng hàng
             đã ghi.
           </p>
         </section>

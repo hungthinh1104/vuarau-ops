@@ -80,6 +80,21 @@ export function IntakeCreateController() {
           [lineId]: { ...EMPTY_INTAKE_LINE, ...current[lineId], ...patch },
         }))
       }
+      onFillRemaining={() => {
+        if (!purchase.data || weighing) return;
+        setLines(
+          Object.fromEntries(
+            purchase.data.lines.map((line) => [
+              line.lineId,
+              {
+                ...EMPTY_INTAKE_LINE,
+                ...(lines[line.lineId] ?? {}),
+                quantity: String(line.quantity.valueScaled / 1000),
+              },
+            ]),
+          ),
+        );
+      }}
       onSubmit={() => {
         if (!purchase.data) return;
         void command.submit({

@@ -88,7 +88,7 @@ function ReverseInspectionController({
       feedback={
         <CommandOutcome
           command={command}
-          attemptedAction="Hoàn tác kiểm định"
+          attemptedAction="Hoàn tác kiểm hàng"
           onReload={onChanged}
         />
       }

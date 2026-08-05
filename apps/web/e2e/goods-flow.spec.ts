@@ -18,6 +18,17 @@ async function chooseProduct(page: Parameters<typeof signIn>[0], productName: st
   await page.getByRole("option", { name: productName, exact: true }).click();
 }
 
+async function createQualityGrade(page: Parameters<typeof signIn>[0], name: string) {
+  await page.goto("/quality-grades");
+  await page.getByLabel("Tên hạng hàng").fill(name);
+  await page.getByLabel("Thứ tự").fill("-10000");
+  const addGrade = page.getByRole("button", { name: "Thêm hạng hàng" });
+  await addGrade.focus();
+  await addGrade.press("Enter");
+  await page.getByLabel("Tìm hạng hàng").fill(name);
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
+}
+
 test.describe("Goods Truth", () => {
   test("keeps Purchase payable and physical receipts separate and attributable", async ({
     page,
@@ -25,17 +36,13 @@ test.describe("Goods Truth", () => {
     await signIn(page, "owner");
     await api.retirePurchaseCorrectionPolicies();
 
-    await page.goto("/quality-grades");
-    const qualityGradeName = `Loại 2 Goods ${Date.now()}`;
-    await page.getByLabel("Tên phẩm cấp").fill(qualityGradeName);
-    await page.getByLabel("Thứ tự").fill("-10000");
-    const addGrade = page.getByRole("button", { name: "Thêm phẩm cấp" });
-    await addGrade.focus();
-    await addGrade.press("Enter");
-    await page.getByLabel("Tìm phẩm cấp").fill(qualityGradeName);
-    await expect(page.getByText(qualityGradeName, { exact: true })).toBeVisible();
+    const suffix = Date.now();
+    const primaryQualityGradeName = `Loại 1 Goods ${suffix}`;
+    const qualityGradeName = `Loại 2 Goods ${suffix}`;
+    await createQualityGrade(page, primaryQualityGradeName);
+    await createQualityGrade(page, qualityGradeName);
 
-    const productName = `${String(Number.MAX_SAFE_INTEGER - Date.now()).padStart(16, "0")} Cải Goods`;
+    const productName = `${String(Number.MAX_SAFE_INTEGER - suffix).padStart(16, "0")} Cải Goods`;
     await page.goto("/products/new");
     await page.getByLabel("Tên mặt hàng").fill(productName);
     await chooseOption(page, "Đơn vị gợi ý", "kg");
@@ -72,27 +79,23 @@ test.describe("Goods Truth", () => {
     await expect(page.getByText("600.000 ₫")).toBeVisible();
 
     await page.goto(`/purchases/${purchaseId}`);
-    await page.getByLabel("Loại 1").fill("60");
-    await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
-    await expect(page.getByRole("link", { name: /^Phiếu nhận hàng / })).toHaveCount(1);
+    await page.getByRole("button", { name: "Chia theo hạng" }).click();
+    await page.getByLabel(`${productName} · ${primaryQualityGradeName}`).fill("60");
+    await page.getByRole("button", { name: "Ghi phiếu nhập kho" }).click();
+    await expect(page.getByRole("link", { name: /^Phiếu nhập kho / })).toHaveCount(1);
 
     await page.getByLabel(qualityGradeName).fill("40");
-    await page
-      .getByRole("button", { name: "Ghi phiếu nhận hàng" })
-      .evaluate((button: HTMLButtonElement) => {
-        button.click();
-        button.click();
-      });
-    await expect(page.getByRole("link", { name: /^Phiếu nhận hàng / })).toHaveCount(2);
+    await page.getByRole("button", { name: "Ghi phiếu nhập kho" }).click();
+    await expect(page.getByRole("link", { name: /^Phiếu nhập kho / })).toHaveCount(2);
     await expect(page.getByText(/đã nhận 100 kg · còn lại 0 kg/)).toBeVisible();
 
-    await page.getByLabel("Loại 1").fill("1");
-    await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
+    await page.getByLabel(`${productName} · ${primaryQualityGradeName}`).fill("1");
+    await page.getByRole("button", { name: "Ghi phiếu nhập kho" }).click();
     await expect(
       page.getByRole("alert").filter({ hasText: "Số lượng nhận vượt số lượng đã mua" }),
     ).toBeVisible();
 
-    await expect(page.getByRole("status")).toContainText("Hãy tạo và phê duyệt policy");
+    await expect(page.getByRole("status")).toContainText("Hãy tạo và phê duyệt quy định");
 
     for (let index = 0; index < 2; index += 1) {
       await page.getByRole("button", { name: "Hoàn tác phiếu nhận" }).first().click();
@@ -113,7 +116,7 @@ test.describe("Goods Truth", () => {
     expect(inventory).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          qualityGradeName: "Loại 1",
+          qualityGradeName: primaryQualityGradeName,
           unit: "kg",
           quantityScaled: 0,
           movementCount: 2,
@@ -152,6 +155,9 @@ test.describe("Goods Truth", () => {
     await signIn(page, "owner");
     await api.approvePurchaseCorrectionPolicy();
 
+    const primaryQualityGradeName = `Loại 1 correction ${Date.now()}`;
+    await createQualityGrade(page, primaryQualityGradeName);
+
     const productName = `${String(Number.MAX_SAFE_INTEGER - Date.now()).padStart(16, "0")} Cải correction`;
     await page.goto("/products/new");
     await page.getByLabel("Tên mặt hàng").fill(productName);
@@ -176,10 +182,11 @@ test.describe("Goods Truth", () => {
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     const purchaseId = new URL(page.url()).pathname.split("/").at(-1)!;
 
-    await page.getByLabel("Loại 1").fill("30");
-    await page.getByRole("button", { name: "Ghi phiếu nhận hàng" }).click();
+    await page.getByRole("button", { name: "Chia theo hạng" }).click();
+    await page.getByLabel(`${productName} · ${primaryQualityGradeName}`).fill("30");
+    await page.getByRole("button", { name: "Ghi phiếu nhập kho" }).click();
     await expect(page.getByText(/đã nhận 30 kg · còn lại 70 kg/)).toBeVisible();
-    await chooseOption(page, "Lý do", "Sửa thương mại sau receiving");
+    await chooseOption(page, "Lý do", "Sửa phần tiền sau khi nhập hàng");
     await page
       .getByLabel("Giải thích")
       .last()

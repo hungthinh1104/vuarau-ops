@@ -61,7 +61,7 @@ export function OperationsView(props: {
         </p>
         {props.blockedCount > 0 ? (
           <p role="alert" className="mt-2 text-body-sm text-warning">
-            Có intent offline bị chặn. Không tạo giao dịch thay thế trước khi xác định outcome.
+            Có thay đổi chưa đồng bộ. Không tạo giao dịch thay thế trước khi xác định kết quả.
           </p>
         ) : null}
         <Button className="mt-3" tone="secondary" onClick={props.onRetrySync}>
@@ -83,10 +83,10 @@ export function OperationsView(props: {
       />
 
       <section className="rounded-card border border-border bg-surface p-4">
-        <h2 className="text-subheading font-semibold">Sao lưu logic và phục hồi workspace</h2>
+        <h2 className="text-subheading font-semibold">Sao lưu và phục hồi vựa</h2>
         <p className="text-body-sm">
-          File này là bản xuất logic của dữ liệu ứng dụng để kiểm tra hoặc phục hồi vào một
-          workspace trống. Đây không phải PITR hay quy trình phục hồi hạ tầng production.
+          File này là bản xuất logic của dữ liệu ứng dụng để kiểm tra hoặc phục hồi vào một vựa
+          trống. Đây là bản sao dữ liệu để kiểm tra và phục hồi có chủ đích.
         </p>
         {props.exportCompleted ? (
           <Button className="mt-3" tone="secondary" onClick={props.onResetExport}>
@@ -112,7 +112,7 @@ export function OperationsView(props: {
         </div>
         {props.fileError === null ? null : <p role="alert">{props.fileError}</p>}
         {props.validationPending && props.backupSelected ? (
-          <p role="status">Đang kiểm tra digest và compatibility…</p>
+          <p role="status">Đang kiểm tra file sao lưu…</p>
         ) : null}
         {props.validation !== null ? (
           <p role={props.validation.valid ? "status" : "alert"}>
@@ -125,7 +125,7 @@ export function OperationsView(props: {
         {props.validation?.valid === true && props.backupSelected ? (
           <div className="mt-3 flex flex-col gap-2 rounded-card border border-warning/40 bg-warning-soft p-3">
             <p className="text-body-sm font-semibold">
-              Chỉ tiếp tục nếu workspace đích trống và đây là recovery operation có chủ đích.
+              Chỉ tiếp tục nếu vựa đích trống và đây là lần phục hồi có chủ đích.
             </p>
             <TextInput
               label="Lý do phục hồi"
@@ -145,14 +145,13 @@ export function OperationsView(props: {
                 ? "Đã phục hồi"
                 : props.restoreLocked
                   ? "Đang xác định kết quả…"
-                  : "Phục hồi vào workspace trống"}
+                  : "Phục hồi vào vựa trống"}
             </Button>
             {props.restoreOutcome}
           </div>
         ) : null}
         <p className="mt-3 text-caption text-ink-muted">
-          Không gộp backup vào sổ đang hoạt động. PITR, encrypted daily backup, RPO/RTO và restore
-          drill production được vận hành bằng runbook/provider evidence riêng.
+          Không gộp bản sao lưu vào sổ đang hoạt động.
         </p>
       </section>
     </div>
@@ -171,7 +170,7 @@ function ReconciliationPanel(props: {
         <div>
           <h2 className="text-subheading font-semibold">Chốt vận hành và đối chiếu sao kê</h2>
           <p className="text-body-sm text-ink-muted">
-            Chỉ hiển thị các signoff và match đã ghi nhận; không suy ra “đã chốt” từ projection.
+            Chỉ hiển thị các lần chốt và đối chiếu đã ghi nhận; không tự suy ra trạng thái.
           </p>
         </div>
         {props.state === "error" ? (
@@ -180,7 +179,7 @@ function ReconciliationPanel(props: {
           </Button>
         ) : null}
       </div>
-      {props.state === "loading" ? <p role="status">Đang tải bằng chứng đối chiếu…</p> : null}
+      {props.state === "loading" ? <p role="status">Đang tải thông tin đối chiếu…</p> : null}
       {props.state === "error" ? (
         <p role="alert" className="mt-3 text-body-sm text-danger">
           Không đọc được dữ liệu đối chiếu. Trạng thái close/match chưa được xác định.
@@ -191,7 +190,7 @@ function ReconciliationPanel(props: {
           <div>
             <h3 className="text-label font-semibold">Ngày vận hành</h3>
             {props.operationalCloses.length === 0 ? (
-              <p className="text-body-sm text-ink-muted">Chưa có ngày nào được signoff.</p>
+              <p className="text-body-sm text-ink-muted">Chưa có ngày nào được chốt.</p>
             ) : (
               <ul className="mt-2 space-y-2" aria-label="Các ngày vận hành đã chốt">
                 {props.operationalCloses.map((close) => (
@@ -203,8 +202,7 @@ function ReconciliationPanel(props: {
                       </Badge>
                     </div>
                     <p className="mt-1 text-caption text-ink-muted">
-                      {close.observationIds.length} phạm vi · policy{" "}
-                      {close.policyVersionId.slice(0, 8)} · v{close.version}
+                      {close.observationIds.length} mục liên quan · lần chốt v{close.version}
                     </p>
                   </li>
                 ))}
@@ -212,9 +210,9 @@ function ReconciliationPanel(props: {
             )}
           </div>
           <div>
-            <h3 className="text-label font-semibold">Sao kê đã match</h3>
+            <h3 className="text-label font-semibold">Sao kê đã đối chiếu</h3>
             {props.statementMatches.length === 0 ? (
-              <p className="text-body-sm text-ink-muted">Chưa có dòng sao kê nào được match.</p>
+              <p className="text-body-sm text-ink-muted">Chưa có dòng sao kê nào được đối chiếu.</p>
             ) : (
               <ul className="mt-2 space-y-2" aria-label="Các dòng sao kê đã đối chiếu">
                 {props.statementMatches.map((match) => (
@@ -222,7 +220,7 @@ function ReconciliationPanel(props: {
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{match.externalReference}</span>
                       <Badge tone={match.reversal === null ? "positive" : "warning"}>
-                        {match.reversal === null ? "Đã match" : "Đã đảo"}
+                        {match.reversal === null ? "Đã đối chiếu" : "Đã đảo"}
                       </Badge>
                     </div>
                     <p className="mt-1 text-caption text-ink-muted">

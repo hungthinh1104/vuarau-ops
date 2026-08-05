@@ -47,7 +47,7 @@ export function ReverseArrivalController({
       feedback={
         <CommandOutcome
           command={command}
-          attemptedAction="Hoàn tác hàng đến"
+          attemptedAction="Hoàn tác nhận hàng"
           onReload={onChanged}
         />
       }

@@ -20,7 +20,7 @@ export function QuickSaleFooter(props: {
   const postDisabledReason = !props.mayPost
     ? "Bạn không có quyền chốt đơn."
     : !props.fulfilmentReady
-      ? "Chọn Product canonical và phẩm cấp cho mọi dòng trước khi chốt."
+      ? "Chọn mặt hàng và hạng hàng cho mọi dòng trước khi chốt."
       : props.replacementPending
         ? "Đang tải đơn cần thay thế…"
         : props.locallyQueued

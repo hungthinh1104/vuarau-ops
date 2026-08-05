@@ -78,10 +78,10 @@ describe("WorkspacePolicyView", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Chính sách theo vựa" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Quy định vận hành" })).toBeInTheDocument();
     expect(screen.getByText("Chưa đủ điều kiện")).toBeInTheDocument();
-    expect(screen.getByText(/Chưa có version đã duyệt/)).toBeInTheDocument();
+    expect(screen.getByText(/Chưa có phiên bản đã duyệt/)).toBeInTheDocument();
     expect(screen.getByText(/chưa có/)).toBeInTheDocument();
-    expect(screen.getByText(/Chưa có policy nào tự làm thay đổi tiền/)).toBeInTheDocument();
+    expect(screen.getByText(/Việc lưu quy định chưa tự thay đổi số liệu/)).toBeInTheDocument();
   });
 });

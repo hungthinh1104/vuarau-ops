@@ -2,6 +2,7 @@
 
 import type { Cursor, DeliveryDto, Page } from "@vuarau/domain-contracts";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
 import { formatInstant } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
@@ -9,6 +10,7 @@ import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 
 export type DeliveriesDirectoryViewProps = {
@@ -35,23 +37,54 @@ export function DeliveriesDirectoryView({
   onRetry,
   onLoadMore,
 }: DeliveriesDirectoryViewProps) {
+  const [tab, setTab] = useState<"waiting" | "in_progress" | "delivered">("waiting");
+  const visibleRows = useMemo(
+    () =>
+      rows.filter((delivery) =>
+        tab === "waiting"
+          ? delivery.status === "draft"
+          : tab === "in_progress"
+            ? delivery.status === "dispatched"
+            : delivery.status === "delivered",
+      ),
+    [rows, tab],
+  );
   return (
     <div className="grid gap-6">
       <PageHeader
         title="Giao hàng"
         description="Các phiếu giao hiện có cùng trạng thái và hàng cần giao."
       />
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Trạng thái giao hàng">
+        {(
+          [
+            ["waiting", "Chờ giao"],
+            ["in_progress", "Đang giao"],
+            ["delivered", "Đã giao"],
+          ] as const
+        ).map(([value, label]) => (
+          <Button
+            key={value}
+            tone={tab === value ? "primary" : "secondary"}
+            role="tab"
+            aria-selected={tab === value}
+            onClick={() => setTab(value)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
       <QueryStates query={query} loadingLabel="Đang tải phiếu giao" onRetry={onRetry}>
         {() =>
-          rows.length === 0 ? (
+          visibleRows.length === 0 ? (
             <EmptyState
-              title="Chưa có phiếu giao"
-              description="Phiếu giao sẽ xuất hiện khi đơn đã chốt được đưa sang bước giao hàng."
+              title={tab === "waiting" ? "Chưa có đơn chờ giao" : "Chưa có đơn ở trạng thái này"}
+              description="Các đơn sẽ xuất hiện ở đây khi chuyển sang trạng thái tương ứng."
             />
           ) : (
             <>
               <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface lg:hidden">
-                {rows.map((delivery) => (
+                {visibleRows.map((delivery) => (
                   <li key={delivery.id}>
                     <Link
                       href={`/deliveries/${delivery.id}`}
@@ -93,7 +126,7 @@ export function DeliveriesDirectoryView({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {rows.map((delivery) => (
+                    {visibleRows.map((delivery) => (
                       <tr key={delivery.id} className="hover:bg-surface-muted">
                         <td className="px-3 py-2 font-medium">
                           {delivery.lines[0]?.productName ?? "Chưa có dòng hàng"}

@@ -246,6 +246,12 @@ export function PurchaseDetailController() {
                       purchase={detail}
                       grades={qualityGrades.data?.items ?? []}
                       gradesLoading={qualityGrades.isPending}
+                      remainingByLine={Object.fromEntries(
+                        (receivingSummary.data?.lines ?? []).map((line) => [
+                          line.purchaseLineId,
+                          line.remaining.valueScaled,
+                        ]),
+                      )}
                       quantities={receiptQuantities}
                       evidence={receiptEvidence}
                       qualityGradeRequired={

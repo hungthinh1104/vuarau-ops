@@ -127,6 +127,39 @@ test("rejects command contract escapes in controllers", async () => {
   ]);
 });
 
+test("rejects engineering vocabulary and raw domain enums in rendered UI", async () => {
+  const result = await checkFixture({
+    "apps/web/src/ui/screens/customer-view.tsx":
+      "export function CustomerView({ row }: { row: { reasonCode: string } }) { return <section><p>Policy unavailable</p><span>{row.reasonCode}</span></section>; }",
+  });
+  assert.deepEqual(result.failures, [
+    'apps/web/src/ui/screens/customer-view.tsx: visible copy contains forbidden engineering term "policy"',
+    "apps/web/src/ui/screens/customer-view.tsx: renders a raw domain enum; use the authoritative UI copy registry",
+  ]);
+});
+
+test("rejects engineering vocabulary in controller feedback copy", async () => {
+  const result = await checkFixture({
+    "apps/web/src/ui/controllers/intake-controller.tsx":
+      'export const feedback = { attemptedAction: "Hoàn tác kiểm định" };',
+  });
+  assert.deepEqual(result.failures, [
+    'apps/web/src/ui/controllers/intake-controller.tsx: visible copy contains forbidden engineering term "kiểm định"',
+  ]);
+});
+
+test("accepts translated status and reason copy", async () => {
+  const result = await checkFixture({
+    "apps/web/src/app/(app)/customers/page.tsx":
+      'import { CustomersController } from "@/ui/controllers/customers-controller.ts"; export default function Page() { return <CustomersController />; }',
+    "apps/web/src/ui/controllers/customers-controller.ts":
+      "export function CustomersController() { return null; }",
+    "apps/web/src/ui/screens/customers-view.tsx":
+      "export function CustomersView() { return <section><span>Đang giao</span><p>Đã đối chiếu</p></section>; }",
+  });
+  assert.deepEqual(result.failures, []);
+});
+
 test("accepts the intended direction", async () => {
   const result = await checkFixture({
     "apps/web/src/app/(app)/customers/page.tsx":

@@ -11,7 +11,7 @@ export function SourceEvidenceList({
 
   return (
     <div className={className}>
-      <p className="text-caption font-semibold text-ink-muted">Bằng chứng nguồn</p>
+      <p className="text-caption font-semibold text-ink-muted">Ảnh hoặc phiếu liên quan</p>
       <ul className="mt-1 grid gap-1 break-words text-caption">
         {references.map((reference, index) => (
           <li key={`${index}:${reference}`}>

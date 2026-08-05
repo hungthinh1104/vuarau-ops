@@ -88,7 +88,7 @@ describe("DebtEvidenceView", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Bằng chứng công nợ" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ảnh hoặc phiếu công nợ" })).toBeInTheDocument();
     expect(screen.getByText(/Ngày hẹn: .*08\/08\/2026/)).toBeInTheDocument();
     expect(screen.getByText(/Chưa kết luận overdue hoặc thay đổi ledger/)).toBeInTheDocument();
     expect(screen.getByText("note://debt/ui-001")).toBeInTheDocument();

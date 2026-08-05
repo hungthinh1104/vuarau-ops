@@ -57,12 +57,12 @@ export function AccountReconciliationView(props: AccountReconciliationViewProps)
 
       <section className="flex flex-col gap-3">
         <Button tone="secondary" disabled={props.evidenceFetching} onClick={props.onEvidence}>
-          {props.evidenceFetching ? "Đang tạo bằng chứng" : "Xuất bằng chứng JSON"}
+          {props.evidenceFetching ? "Đang tạo bản đối soát" : "Xuất bản đối soát"}
         </Button>
         {props.evidence ? (
           <details open className="rounded-card border border-border p-4">
-            <summary className="cursor-pointer font-semibold">Bằng chứng đối soát</summary>
-            <section aria-label="Bằng chứng JSON" className="mt-3">
+            <summary className="cursor-pointer font-semibold">Chi tiết đối soát</summary>
+            <section aria-label="Chi tiết đối soát" className="mt-3">
               <pre className="max-h-96 overflow-auto whitespace-pre-wrap text-caption">
                 {JSON.stringify(props.evidence, null, 2)}
               </pre>
@@ -111,7 +111,9 @@ function ReconciliationResult(
           {result.kind === "consistent" ? "Khớp" : "Có sai lệch"}
         </Summary>
         <Summary label="Số dòng sổ cái">{result.ledger.entryCount}</Summary>
-        <Summary label="Phân loại">{result.ledger.classification}</Summary>
+        <Summary label="Loại số dư">
+          {ledgerClassificationCopy(result.ledger.classification)}
+        </Summary>
         <Summary label="Giao dịch mới nhất">
           {result.ledger.latestTransactionTime === null
             ? "Chưa có"
@@ -187,4 +189,11 @@ function DiagnosticList({
       ))}
     </ul>
   );
+}
+
+function ledgerClassificationCopy(value: string): string {
+  if (value === "receivable") return "Khách còn nợ vựa";
+  if (value === "customer_credit") return "Vựa còn nợ khách";
+  if (value === "settled") return "Đã thanh toán đủ";
+  return "Cần kiểm tra";
 }

@@ -8,8 +8,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
-import { messageForCode } from "@/ui/copy.ts";
+import { DELIVERY_STATUS_COPY, copyForBlockedReason, messageForCode } from "@/ui/copy.ts";
 import { formatInstant, formatMoney, formatQuantity, formatRecordedGap } from "@/ui/format.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
@@ -309,7 +308,7 @@ function SaleFulfilmentSection(props: {
         <div>
           <h2 className="text-subheading font-semibold">Thực hiện giao hàng</h2>
           <p className="text-body-sm text-ink-muted">
-            Giao hàng là Goods Truth riêng. Chốt đơn đã ghi công nợ; xuất hàng mới làm giảm tồn kho.
+            Chốt đơn ghi công nợ; xuất kho mới làm giảm tồn kho và bắt đầu giao hàng.
           </p>
         </div>
         {props.mayCreateDelivery ? (
@@ -317,7 +316,7 @@ function SaleFulfilmentSection(props: {
             href={`/sales/${props.sale.id}/deliveries/new`}
             className="font-semibold text-info underline-offset-4 hover:underline"
           >
-            Tạo phiếu giao
+            Giao đơn
           </Link>
         ) : null}
       </div>
@@ -331,7 +330,7 @@ function SaleFulfilmentSection(props: {
         >
           Đơn này thay thế một đơn đã có hàng thực giao. Hệ thống không tạo phiếu giao mới vì như
           vậy sẽ ghi nhận hàng đi lần hai. Giữ nguyên lịch sử giao hàng cũ và xử lý theo quy trình
-          điều chỉnh sau giao khi ASM-035 được chốt.
+          điều chỉnh sau giao theo quy trình đã được phê duyệt.
         </p>
       ) : null}
 
@@ -379,7 +378,7 @@ function FulfilmentState(props: {
   if (props.state === "attention") {
     return (
       <span className="text-warning">
-        Cần xử lý: {props.blockedReason ?? "dữ liệu không toàn vẹn"}
+        Cần kiểm tra: {copyForBlockedReason(props.blockedReason)}
       </span>
     );
   }

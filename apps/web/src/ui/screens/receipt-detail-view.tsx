@@ -2,6 +2,7 @@
 
 import type { PurchaseReceiptDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
+import { copyForReasonCode } from "@/ui/copy.ts";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -17,11 +18,11 @@ export function ReceiptDetailView({
   readonly onRetry: () => void;
 }) {
   return (
-    <QueryStates query={query} loadingLabel="Đang tải phiếu nhận" onRetry={onRetry}>
+    <QueryStates query={query} loadingLabel="Đang tải phiếu nhập kho" onRetry={onRetry}>
       {(detail) => (
         <div className="flex max-w-3xl flex-col gap-4">
           <PageHeader
-            title={`Phiếu nhận ${detail.id.slice(0, 8).toUpperCase()}`}
+            title={`Phiếu nhập kho ${detail.id.slice(0, 8).toUpperCase()}`}
             description={`${formatInstant(detail.transactionTime)}${
               detail.recordedAt === detail.transactionTime
                 ? ""
@@ -54,7 +55,7 @@ export function ReceiptDetailView({
             <section className="rounded-card border border-warning/40 bg-warning-soft p-4">
               <Badge tone="warning">Đã hoàn tác</Badge>
               <p>
-                {detail.reversal.reasonCode}: {detail.reversal.reason}
+                {copyForReasonCode(detail.reversal.reasonCode)}: {detail.reversal.reason}
               </p>
               <SourceEvidenceList
                 references={detail.reversal.evidenceReferences}

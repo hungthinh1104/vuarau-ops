@@ -84,10 +84,10 @@ describe("EvidenceView", () => {
     renderView();
 
     expect(
-      screen.getByRole("heading", { name: "Ghi nhận bằng chứng chi phí" }),
+      screen.getByRole("heading", { name: "Ghi nhận ảnh hoặc phiếu chi phí" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/không tự tạo COGS, lợi nhuận, công nợ hay tồn kho/),
+      screen.getByText(/không tự tạo doanh thu, lợi nhuận, công nợ hay tồn kho/),
     ).toBeInTheDocument();
     expect(screen.getByText("photo://receiving/001")).toBeInTheDocument();
     expect(screen.getByText("125.000 ₫")).toBeInTheDocument();

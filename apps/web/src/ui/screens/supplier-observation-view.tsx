@@ -30,7 +30,7 @@ const KIND_COPY: Readonly<Record<SupplierObservationKind, string>> = {
   pickup_responsibility: "Trách nhiệm lấy hàng",
   packing_responsibility: "Trách nhiệm đóng gói",
   transport_responsibility: "Trách nhiệm vận chuyển",
-  expected_lead_time: "Lead time dự kiến",
+  expected_lead_time: "Thời gian cung ứng dự kiến",
   payment_arrangement: "Thỏa thuận thanh toán",
   traceability_level: "Mức truy xuất",
   promised_quantity: "Số lượng đã hứa",
@@ -38,8 +38,8 @@ const KIND_COPY: Readonly<Record<SupplierObservationKind, string>> = {
   expected_arrival: "Thời điểm dự kiến",
   actual_arrival: "Thời điểm thực tế",
   accepted_quantity: "Số lượng được nhận",
-  rejected_quantity: "Số lượng bị từ chối",
-  claim: "Khiếu nại / claim",
+  rejected_quantity: "Số lượng trả nhà cung cấp",
+  claim: "Khiếu nại",
   price: "Giá được quan sát",
   other: "Quan sát khác",
 };
@@ -134,7 +134,7 @@ export function SupplierObservationView(props: {
             Lịch sử quan sát
           </h2>
           <p className="text-caption text-ink-muted">
-            Append-only; sửa sai bằng bản ghi mới có liên kết.
+            Mỗi bản ghi được giữ nguyên; sửa sai bằng bản ghi mới có liên kết.
           </p>
         </div>
         <QueryStates
@@ -209,10 +209,10 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           onChange={(event) => props.onProductId(event.target.value)}
         />
         <Select
-          label="Phẩm cấp liên quan"
+          label="Hạng hàng liên quan"
           value={props.qualityGradeId}
           options={props.qualityGradeOptions}
-          placeholder="Không gắn phẩm cấp"
+          placeholder="Không gắn hạng hàng"
           onChange={(event) => props.onQualityGradeId(event.target.value)}
         />
         <TextInput
@@ -241,7 +241,7 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           onChange={(event) => props.onTransportResponsibility(event.target.value)}
         />
         <TextInput
-          label="Lead time theo lời người tham gia"
+          label="Thời gian cung ứng theo lời người tham gia"
           value={props.leadTime}
           onChange={(event) => props.onLeadTime(event.target.value)}
         />
@@ -274,7 +274,7 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           onChange={(event) => props.onAcceptedQuantity(event.target.value)}
         />
         <TextInput
-          label="Số lượng bị từ chối"
+          label="Số lượng trả nhà cung cấp"
           inputMode="decimal"
           value={props.rejectedQuantity}
           onChange={(event) => props.onRejectedQuantity(event.target.value)}
@@ -304,17 +304,17 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           onChange={(event) => props.onPrice(event.target.value)}
         />
         <TextInput
-          label="Mã claim / khiếu nại"
+          label="Mã khiếu nại"
           value={props.claimReference}
           onChange={(event) => props.onClaimReference(event.target.value)}
         />
       </div>
       <Textarea
-        label="Nguồn bằng chứng"
+        label="Ảnh hoặc phiếu liên quan"
         required
         value={props.evidenceReferences}
         onChange={(event) => props.onEvidenceReferences(event.target.value)}
-        hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết tới kho evidence được phê duyệt."
+        hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (
         <TextInput
@@ -376,17 +376,17 @@ function SupplierObservationCard({ item }: { readonly item: SupplierObservationD
           <span>Được nhận: {formatQuantity(item.facts.acceptedQuantity)}</span>
         )}
         {item.facts.rejectedQuantity === null ? null : (
-          <span>Bị từ chối: {formatQuantity(item.facts.rejectedQuantity)}</span>
+          <span>Trả nhà cung cấp: {formatQuantity(item.facts.rejectedQuantity)}</span>
         )}
         {item.facts.price === null ? null : (
           <span>Giá quan sát: {item.facts.price.amountMinor.toLocaleString("vi-VN")} VND</span>
         )}
         {item.facts.claimReference === null ? null : (
-          <span>Claim: {item.facts.claimReference}</span>
+          <span>Khiếu nại: {item.facts.claimReference}</span>
         )}
       </div>
       <p className="mt-3 text-caption text-ink-muted">
-        Chưa kết luận score, ranking, phải trả, tồn kho hoặc khuyến nghị.
+        Chưa kết luận điểm xếp hạng, phải trả, tồn kho hoặc khuyến nghị.
       </p>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (

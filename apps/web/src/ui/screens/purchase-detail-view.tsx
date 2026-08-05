@@ -9,7 +9,7 @@ import type {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
-import { PURCHASE_STATUS_COPY } from "@/ui/copy.ts";
+import { copyForBlockedReason, copyForReasonCode, PURCHASE_STATUS_COPY } from "@/ui/copy.ts";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
@@ -107,21 +107,21 @@ export function PurchaseInspectedIntakeView(props: {
     <section className="rounded-card border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-subheading font-semibold">Hàng đến và kiểm định</h2>
+          <h2 className="text-subheading font-semibold">Nhận hàng và kiểm hàng</h2>
           <p className="mt-1 max-w-2xl text-body-sm text-ink-muted">
-            Luồng này chưa đưa hàng vào kho ngay. Ghi nhận hàng đến, kiểm số lượng/chất lượng, rồi
-            quyết định phần chấp nhận, cách ly, từ chối hoặc hủy.
+            Ghi nhận hàng đã nhận, kiểm số lượng/chất lượng, rồi chia phần đạt, tạm giữ, trả nhà
+            cung cấp hoặc loại bỏ.
           </p>
         </div>
         {props.canRecord ? (
-          <LinkButton href={`/intake/new?purchaseId=${props.purchase.id}`}>Ghi hàng đến</LinkButton>
+          <LinkButton href={`/intake/new?purchaseId=${props.purchase.id}`}>Nhận hàng</LinkButton>
         ) : null}
       </div>
       {props.loading ? (
-        <p className="mt-4 text-body-sm text-ink-muted">Đang tải các lần hàng đến…</p>
+        <p className="mt-4 text-body-sm text-ink-muted">Đang tải các lần nhận hàng…</p>
       ) : props.arrivals.length === 0 ? (
         <p className="mt-4 text-body-sm text-ink-muted">
-          Chưa có lần hàng đến nào cho đơn mua này.
+          Chưa có lần nhận hàng nào cho đơn mua này.
         </p>
       ) : (
         <ul className="mt-4 grid gap-2">
@@ -129,7 +129,7 @@ export function PurchaseInspectedIntakeView(props: {
             <li key={arrival.id}>
               <Link
                 href={`/intake/${arrival.id}`}
-                aria-label={`Phiếu hàng đến ${arrival.id}`}
+                aria-label={`Lần nhận hàng ${arrival.id}`}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-button border border-border px-3 py-2 hover:bg-canvas"
               >
                 <span className="text-label font-semibold">
@@ -176,7 +176,7 @@ export function PurchaseVoidView(props: {
         className="rounded-card border border-danger/30 bg-surface p-4 text-body-sm"
       >
         Không kiểm tra được hàng đã nhận nên chưa thể hoàn tác đơn mua. Tải lại để tránh đảo công nợ
-        trong khi Goods Truth chưa rõ.
+        khi số liệu hàng chưa rõ.
       </section>
     );
   if (props.state === "blocked")
@@ -186,18 +186,18 @@ export function PurchaseVoidView(props: {
         className="rounded-card border border-warning/30 bg-warning-soft p-4 text-body-sm"
       >
         <p className="font-semibold">Chưa thể hoàn tác đơn mua này</p>
-        <p className="mt-1">{props.blockedReason}</p>
+        <p className="mt-1">{copyForBlockedReason(props.blockedReason)}</p>
         {props.blockedCode === "PURCHASE_HAS_ACTIVE_RECEIPTS" ? (
           <p className="mt-2 text-ink-muted">
-            Nếu phiếu nhận hàng tự nó ghi sai, hãy hoàn tác phiếu nhận đó. Nếu hàng đã thực sự được
-            nhận và đơn mua thương mại bị sai, hãy cấu hình policy được phê duyệt trước; không tạo
+            Nếu phiếu nhập kho tự nó ghi sai, hãy hoàn tác phiếu đó. Nếu hàng đã thực sự được nhận
+            và phần tiền của đơn mua bị sai, hãy cấu hình quy định được phê duyệt trước; không tạo
             chuyển động kho giả để mở khóa nút này.
           </p>
         ) : null}
         {props.blockedCode === "PURCHASE_CORRECTION_POLICY_UNAVAILABLE" ? (
           <p className="mt-2 text-ink-muted">
-            Hãy tạo và phê duyệt policy “Sửa đơn mua sau receiving” trong phần Workspace trước khi
-            thực hiện bù trừ thương mại.
+            Hãy tạo và phê duyệt quy định “Sửa phần tiền sau khi nhập hàng” trong phần Cấu hình
+            trước khi thực hiện bù trừ thương mại.
           </p>
         ) : null}
       </section>
@@ -207,8 +207,8 @@ export function PurchaseVoidView(props: {
       <h2 className="font-semibold">Hoàn tác đơn mua</h2>
       {props.commercialCorrectionAllowed ? (
         <p className="mb-3 text-body-sm text-ink-muted">
-          Đơn mua đã có receiving. Chọn “Sửa thương mại sau receiving” để bù trừ công nợ; phiếu nhận
-          và tồn kho hiện có được giữ nguyên, không tự đảo rồi nhận lại hàng.
+          Đơn mua đã có hàng nhập kho. Chọn “Sửa phần tiền sau khi nhập hàng” để bù trừ công nợ;
+          phiếu nhập và tồn kho hiện có được giữ nguyên, không tự đảo rồi nhận lại hàng.
         </p>
       ) : null}
       <Select
@@ -223,7 +223,7 @@ export function PurchaseVoidView(props: {
           { value: "wrong_price", label: "Sai giá" },
           { value: "duplicate", label: "Trùng" },
           ...(props.commercialCorrectionAllowed
-            ? [{ value: "commercial_correction", label: "Sửa thương mại sau receiving" }]
+            ? [{ value: "commercial_correction", label: "Sửa phần tiền sau khi nhập hàng" }]
             : []),
           { value: "other", label: "Khác" },
         ]}
@@ -237,7 +237,7 @@ export function PurchaseVoidView(props: {
         />
       </label>
       <Textarea
-        label="Nguồn chứng cứ vận hành"
+        label="Ảnh hoặc phiếu liên quan"
         value={props.voidEvidence}
         onChange={(event) => props.onEvidenceChange(event.target.value)}
         hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."
@@ -311,8 +311,8 @@ export function PurchaseDetailView({
       <section className="border-y border-border py-3 text-body-sm">
         <p className="font-semibold">Ý nghĩa hiện tại</p>
         <p className="mt-1 text-ink-muted">
-          Xác nhận đơn mua là commercial/money truth theo chính sách hiện tại; hàng chỉ vào tồn khi
-          có Phiếu nhận. Hai thời điểm này không được gộp thành một trạng thái.
+          Xác nhận đơn mua ghi nhận phần tiền phải trả; hàng chỉ vào tồn kho sau khi có phiếu nhập.
+          Hai việc này được ghi riêng để số liệu luôn rõ ràng.
         </p>
       </section>
 
@@ -333,7 +333,7 @@ export function PurchaseDetailView({
         <section className="rounded-card border border-warning/40 bg-warning-soft p-4">
           <h2 className="font-semibold">Đơn mua đã được hoàn tác</h2>
           <p className="mt-1 text-body-sm">
-            {purchase.voidRecord.reasonCode}: {purchase.voidRecord.reason}
+            {copyForReasonCode(purchase.voidRecord.reasonCode)}: {purchase.voidRecord.reason}
           </p>
           <p className="mt-1 font-semibold tabular-nums">
             {formatMoney(purchase.voidRecord.amount)}
@@ -381,9 +381,9 @@ function ReceivingHistory(props: {
   return (
     <section className="flex flex-col gap-3">
       <div>
-        <h2 className="text-subheading font-semibold">Phiếu nhận hàng</h2>
+        <h2 className="text-subheading font-semibold">Phiếu nhập kho</h2>
         <p className="text-body-sm text-ink-muted">
-          Tổng nhận là physical truth riêng; hoàn tác phiếu nhận không sửa lại đơn mua gốc.
+          Tổng nhập kho được theo dõi riêng; hoàn tác phiếu nhập không sửa lại đơn mua gốc.
         </p>
       </div>
 
@@ -409,7 +409,7 @@ function ReceivingHistory(props: {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <Link
                   href={`/receipts/${item.id}`}
-                  aria-label={`Phiếu nhận hàng ${item.id}`}
+                  aria-label={`Phiếu nhập kho ${item.id}`}
                   className="font-semibold text-info underline-offset-4 hover:underline"
                 >
                   {formatInstant(item.transactionTime)}

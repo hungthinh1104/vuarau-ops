@@ -44,13 +44,13 @@ describe("QualityGradeRow", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Sửa" }));
-    const name = screen.getByLabelText("Tên phẩm cấp");
+    const name = screen.getByLabelText("Tên hạng hàng");
     await user.clear(name);
     await user.type(name, "Loại đặc biệt");
     const order = screen.getByLabelText("Thứ tự");
     await user.clear(order);
     await user.type(order, "25");
-    await user.click(screen.getByRole("button", { name: "Cập nhật phẩm cấp" }));
+    await user.click(screen.getByRole("button", { name: "Cập nhật hạng hàng" }));
 
     expect(onUpdate).toHaveBeenCalledWith({ name: "Loại đặc biệt", sortOrder: 25 });
   });
@@ -67,7 +67,7 @@ describe("QualityGradeRow", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Ngưng phẩm cấp" }));
+    await user.click(screen.getByRole("button", { name: "Ngưng hạng hàng" }));
     expect(screen.getByRole("button", { name: "Xác nhận ngưng" })).toBeDisabled();
     await user.type(screen.getByLabelText("Lý do ngưng"), "Không còn dùng cách phân loại này");
     await user.click(screen.getByRole("button", { name: "Xác nhận ngưng" }));

@@ -1,4 +1,5 @@
 import type { InventoryMovementDto } from "@vuarau/domain-contracts";
+import { copyForReasonCode } from "@/ui/copy.ts";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -27,15 +28,15 @@ export function InventoryAdjustmentDetailView({
           <dl className="grid grid-cols-2 gap-2 rounded-card border border-border bg-surface p-4">
             <dt>Thay đổi</dt>
             <dd className="text-right font-bold">{formatQuantity(movement.quantity)}</dd>
-            <dt>Mã lý do</dt>
-            <dd className="text-right">{movement.reasonCode}</dd>
+            <dt>Lý do</dt>
+            <dd className="text-right">{copyForReasonCode(movement.reasonCode)}</dd>
             <dt>Giải thích</dt>
             <dd className="text-right">{movement.reason}</dd>
             <dt>Thời điểm giao dịch</dt>
             <dd className="text-right">{formatInstant(movement.transactionTime)}</dd>
             <dt>Ghi nhận</dt>
             <dd className="text-right">{formatInstant(movement.recordedAt)}</dd>
-            <dt>Command</dt>
+            <dt>Mã tham chiếu</dt>
             <dd className="break-all text-right">{movement.commandId}</dd>
           </dl>
         </div>

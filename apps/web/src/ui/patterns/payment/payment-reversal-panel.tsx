@@ -78,7 +78,7 @@ export function PaymentReversalPanel({
           {...(error !== undefined ? { error } : {})}
         />
         <Textarea
-          label="Bằng chứng nguồn"
+          label="Ảnh hoặc phiếu liên quan"
           hint="Phiếu, ảnh hoặc tham chiếu giải thích lần hoàn tác này."
           value={evidence}
           onChange={(event) => setEvidence(event.target.value)}

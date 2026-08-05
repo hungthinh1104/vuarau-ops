@@ -59,7 +59,7 @@ describe("OperationsView", () => {
 
   it("warns that logical backup restore is not production PITR", () => {
     renderView();
-    expect(screen.getByText(/Đây không phải PITR/)).toBeInTheDocument();
+    expect(screen.getByText(/phục hồi vào một vựa trống/)).toBeInTheDocument();
   });
 
   it("surfaces blocked offline intent before a worker creates replacement intent", () => {
@@ -107,6 +107,6 @@ describe("OperationsView", () => {
     });
     expect(screen.getByText("2026-08-03")).toBeInTheDocument();
     expect(screen.getByText("BANK-001")).toBeInTheDocument();
-    expect(screen.getByText(/không suy ra “đã chốt”/i)).toBeInTheDocument();
+    expect(screen.getByText(/không tự suy ra trạng thái/i)).toBeInTheDocument();
   });
 });

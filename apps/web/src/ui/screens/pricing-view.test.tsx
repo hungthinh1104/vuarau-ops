@@ -135,14 +135,14 @@ describe("PricingView", () => {
     expect(screen.getByText("Cô Hoà — quán cơm Tân Bình")).toBeInTheDocument();
     expect(screen.getAllByText("98.500 ₫").length).toBeGreaterThan(0);
     expect(screen.getByText(/không tự tính biên lợi nhuận/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ghi rule giá" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ghi quy tắc giá" })).toBeInTheDocument();
   });
 
   it("keeps the catalogue available without management controls", () => {
     render(<PricingView {...props({ mayManage: false })} />);
 
-    expect(screen.getByRole("heading", { name: "Lịch sử rule giá" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Ghi rule giá" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ghi rule giá" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Lịch sử quy tắc giá" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Ghi quy tắc giá" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ghi quy tắc giá" })).not.toBeInTheDocument();
   });
 });

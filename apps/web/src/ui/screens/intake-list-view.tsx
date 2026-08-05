@@ -19,10 +19,10 @@ export function IntakeListView(props: IntakeListViewProps) {
   if (!props.canRead) {
     return (
       <PermissionDenied
-        attemptedAction="Xem hàng đến"
+        attemptedAction="Xem danh sách nhận hàng"
         error={{
           code: "PERMISSION_DENIED",
-          message: "Role set does not carry intake.read.",
+          message: "Bạn không có quyền xem danh sách nhận hàng.",
           details: { permission: "intake.read", role: props.role, roles: props.roles },
           retryable: false,
         }}
@@ -33,14 +33,18 @@ export function IntakeListView(props: IntakeListViewProps) {
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Hàng đến và kiểm định"
-        description="Theo dõi custody, cân, kiểm định và phần được chấp nhận vào kho."
+        title="Nhận hàng"
+        description="Theo dõi hàng đã nhận, số cân và phần đã nhập kho."
       />
-      <QueryStates query={props.query} loadingLabel="Đang tải hàng đến" onRetry={props.onRetry}>
+      <QueryStates
+        query={props.query}
+        loadingLabel="Đang tải danh sách nhận hàng"
+        onRetry={props.onRetry}
+      >
         {(page) =>
           page.items.length === 0 ? (
             <section className="rounded-card border border-border bg-surface p-5 text-body-sm text-ink-muted">
-              Chưa có lần hàng đến nào. Bắt đầu từ một đơn mua đã xác nhận.
+              Chưa có lần nhận hàng nào. Bắt đầu từ một đơn mua đã xác nhận.
             </section>
           ) : (
             <ul className="grid gap-3">

@@ -41,21 +41,21 @@ describe("price rule form validation", () => {
   });
 
   it.each([
-    ["missing product", { productId: "" }, "Chọn mặt hàng trước khi ghi rule."],
+    ["missing product", { productId: "" }, "Chọn mặt hàng trước khi ghi quy tắc giá."],
     [
       "customer rule without customer",
       { customerId: "" },
-      "Rule theo khách hàng phải chọn khách hàng.",
+      "Quy tắc theo khách hàng phải chọn khách hàng.",
     ],
     [
       "list rule with customer",
       { kind: "list" as const },
-      "Chỉ rule theo khách hàng mới được gắn khách hàng.",
+      "Chỉ quy tắc theo khách hàng mới được gắn khách hàng.",
     ],
     [
       "override without reason",
       { kind: "override" as const, customerId: "", reason: "" },
-      "Rule override phải có lý do.",
+      "Quy tắc thay thế phải có lý do.",
     ],
   ])("refuses %s before a command is built", (_label, override, error) => {
     expect(parse(override)).toEqual({ ok: false, error });

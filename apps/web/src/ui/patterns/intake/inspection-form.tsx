@@ -52,18 +52,16 @@ export function InspectionForm({
 }: InspectionFormProps) {
   return (
     <details className="rounded-card border border-border p-3">
-      <summary className="cursor-pointer text-label font-semibold">
-        2. Ghi kết quả kiểm định
-      </summary>
+      <summary className="cursor-pointer text-label font-semibold">1. Kiểm hàng</summary>
       <div className="mt-3 grid gap-3">
         <NumberInput
-          label={`Lượng đã kiểm (${line.arrivedQuantity.unit}) · còn tối đa ${maxValueScaled / 1000}`}
+          label={`Số lượng đã kiểm (${line.arrivedQuantity.unit}) · còn tối đa ${maxValueScaled / 1000}`}
           value={quantity}
           onChange={onQuantityChange}
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <Select
-            label="Vấn đề phát hiện (không bắt buộc)"
+            label="Lý do hàng không đạt (không bắt buộc)"
             value={issueId}
             onChange={(event) => onIssueChange(event.target.value)}
             options={[
@@ -75,7 +73,7 @@ export function InspectionForm({
             ]}
           />
           <Select
-            label="Mức độ"
+            label="Mức độ ảnh hưởng"
             value={severity}
             disabled={issueId === ""}
             onChange={(event) =>
@@ -89,7 +87,7 @@ export function InspectionForm({
           />
         </div>
         <label className="grid gap-2 text-label">
-          Ghi chú vấn đề
+          Ghi chú hàng không đạt
           <Input
             value={issueNote}
             disabled={issueId === ""}
@@ -97,11 +95,11 @@ export function InspectionForm({
           />
         </label>
         <label className="grid gap-2 text-label">
-          Bằng chứng (mỗi đường dẫn cách nhau bằng dấu phẩy)
+          Ảnh hoặc phiếu liên quan (mỗi đường dẫn cách nhau bằng dấu phẩy)
           <Input value={evidence} onChange={(event) => onEvidenceChange(event.target.value)} />
         </label>
         <label className="grid gap-2 text-label">
-          Ghi chú kiểm định
+          Ghi chú kiểm hàng
           <TextareaControl value={note} onChange={(event) => onNoteChange(event.target.value)} />
         </label>
         <Button
@@ -110,7 +108,7 @@ export function InspectionForm({
           }
           onClick={onSubmit}
         >
-          {locked ? "Đang ghi kiểm định" : "Xác nhận kiểm định"}
+          {locked ? "Đang ghi kiểm hàng" : "Xác nhận đã kiểm hàng"}
         </Button>
         {feedback}
       </div>

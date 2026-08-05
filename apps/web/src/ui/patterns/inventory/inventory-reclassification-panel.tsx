@@ -66,26 +66,26 @@ export function InventoryReclassificationPanel({
       className="rounded-card border border-border bg-surface p-4"
     >
       <h2 id="inventory-reclassification-title" className="text-subheading font-semibold">
-        Chuyển phẩm cấp
+        Chuyển hạng hàng
       </h2>
       <p className="text-body-sm text-ink-muted">
         Ghi hai biến động bù trừ trong cùng giao dịch; tổng số lượng không đổi.
       </p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <Select
-          label="Từ phẩm cấp"
+          label="Từ hạng hàng"
           value={fromGradeId ?? ""}
           disabled={completed || locked}
           onChange={(event) => setFromGradeId(event.target.value as QualityGradeId)}
-          placeholder="Chọn phẩm cấp nguồn"
+          placeholder="Chọn hạng hàng nguồn"
           options={grades.map((grade) => ({ value: grade.id, label: grade.name }))}
         />
         <Select
-          label="Sang phẩm cấp"
+          label="Sang hạng hàng"
           value={toGradeId ?? ""}
           disabled={completed || locked}
           onChange={(event) => setToGradeId(event.target.value as QualityGradeId)}
-          placeholder="Chọn phẩm cấp đích"
+          placeholder="Chọn hạng hàng đích"
           options={grades.map((grade) => ({ value: grade.id, label: grade.name }))}
         />
         <TextInput
@@ -111,7 +111,7 @@ export function InventoryReclassificationPanel({
       />
       {completed ? (
         <Button tone="secondary" onClick={resetForm}>
-          Ghi chuyển phẩm cấp khác
+          Ghi chuyển hạng hàng khác
         </Button>
       ) : (
         <Button
@@ -128,7 +128,7 @@ export function InventoryReclassificationPanel({
             });
           }}
         >
-          Ghi chuyển phẩm cấp
+          Ghi chuyển hạng hàng
         </Button>
       )}
       {feedback}

@@ -16,6 +16,56 @@ const PILL_CONTAINER =
   /<(?:article|details|div|fieldset|output|section)\b[^>]*className="[^"]*\brounded-button\b/;
 const VISUAL_TOKEN_ESCAPE =
   /(?:font-(?:mono|serif)|font-\[[^\]]+\]|(?:bg|text|border)-\[(?:#|rgb|hsl)|(?:linear|radial|conic)-gradient)/;
+const VISIBLE_COPY_PROP =
+  /\b(?:label|title|description|placeholder|hint|aria-label|message|attemptedAction|loadingLabel|serverIssue|unitNotice)\s*(?:=|:)\s*["'`]([^\n"'`]+)["'`]/g;
+const JSX_TEXT = /<([A-Za-z][\w-]*)\b[^>]*>\s*([A-Za-zÀ-ỹ][^<{]*?)\s*<\/\1>/g;
+const RAW_ENUM_RENDER =
+  /<(?:p|span|dd|dt|li|strong|small|h[1-6]|Badge|output)\b[^>]*>\s*\{[^}]*\.(?:reasonCode|blockedReason|severity|outcome|classification|status|state)\s*\}/;
+const VISIBLE_ENGINEERING_TERMS = [
+  "policy",
+  "workspace",
+  "receiving",
+  "metadata",
+  "semantics",
+  "asm-",
+  "goods truth",
+  "commercial truth",
+  "commercial/money truth",
+  "physical truth",
+  "evidence",
+  "forecast",
+  "reorder",
+  "cogs",
+  "profit",
+  "append-only",
+  "canonical",
+  "effect",
+  "rule",
+  "claim",
+  "lead time",
+  "phẩm cấp",
+  "kiểm định",
+  "cách ly",
+  "từ chối",
+  "hủy bỏ",
+  "hàng đến",
+  "phiếu nhận hàng",
+  "nguồn chứng cứ vận hành",
+  "gross",
+  "tare",
+  "net",
+];
+
+function visibleCopyOf(source: string): string[] {
+  return [
+    ...[...source.matchAll(JSX_TEXT)].map((match) => match[2]!.trim()),
+    ...[...source.matchAll(VISIBLE_COPY_PROP)].map((match) => match[1]!.trim()),
+  ].filter(Boolean);
+}
+
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+}
 
 async function* sourceFiles(directory: string): AsyncGenerator<string> {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -54,6 +104,28 @@ export async function checkUiArchitecture(root: string): Promise<UiArchitectureR
     const source = await readFile(absolutePath, "utf8");
     const imports = importsOf(source);
     checked += 1;
+
+    if (
+      path.includes("/ui/screens/") ||
+      path.includes("/ui/patterns/") ||
+      path.includes("/ui/landing/") ||
+      path.includes("/ui/controllers/") ||
+      path.endsWith("/ui/copy.ts")
+    ) {
+      const renderSource = withoutComments(source);
+      const visibleCopy = visibleCopyOf(renderSource);
+      const forbiddenTerm = VISIBLE_ENGINEERING_TERMS.find((term) =>
+        visibleCopy.some((copy) => copy.toLowerCase().includes(term)),
+      );
+      if (forbiddenTerm !== undefined) {
+        failures.push(
+          `${path}: visible copy contains forbidden engineering term "${forbiddenTerm}"`,
+        );
+      }
+      if (RAW_ENUM_RENDER.test(renderSource)) {
+        failures.push(`${path}: renders a raw domain enum; use the authoritative UI copy registry`);
+      }
+    }
 
     if (path.includes("/ui/primitives/")) {
       failures.push(

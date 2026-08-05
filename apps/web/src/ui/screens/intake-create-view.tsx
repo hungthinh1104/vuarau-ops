@@ -38,6 +38,7 @@ export type IntakeCreateViewProps = {
   readonly onNote: (value: string) => void;
   readonly onEvidence?: (value: string) => void;
   readonly onLineChange: (lineId: string, patch: Partial<IntakeLineState>) => void;
+  readonly onFillRemaining: () => void;
   readonly onSubmit: () => void;
   readonly onPurchaseRetry: () => void;
   readonly onProfileRetry: () => void;
@@ -48,10 +49,10 @@ export function IntakeCreateView(props: IntakeCreateViewProps) {
   if (!props.canRecord) {
     return (
       <PermissionDenied
-        attemptedAction="Ghi nhận hàng đến"
+        attemptedAction="Ghi nhận hàng đã nhận"
         error={{
           code: "PERMISSION_DENIED",
-          message: "Role set does not carry intake.record.",
+          message: "Bạn không có quyền ghi nhận hàng.",
           details: { permission: "intake.record", role: props.role, roles: props.roles },
           retryable: false,
         }}
@@ -85,6 +86,7 @@ export function IntakeCreateView(props: IntakeCreateViewProps) {
               onNote={props.onNote}
               onEvidence={props.onEvidence ?? (() => undefined)}
               onLineChange={props.onLineChange}
+              onFillRemaining={props.onFillRemaining}
               onSubmit={props.onSubmit}
               onRetry={props.onPurchaseRetry}
             />
@@ -108,6 +110,7 @@ function IntakeForm({
   onNote,
   onEvidence = () => undefined,
   onLineChange,
+  onFillRemaining,
   onSubmit,
   onRetry,
 }: Omit<
@@ -128,8 +131,8 @@ function IntakeForm({
   if (operationalProfile.intakeMode !== "inspected_arrival") {
     return (
       <section role="alert" className="rounded-card border border-warning p-4">
-        Vựa đang dùng luồng nhận thẳng vào kho. Hãy đổi cấu hình vận hành trước khi ghi hàng đến
-        kiểm định.
+        Vựa đang dùng luồng nhận thẳng vào kho. Hãy đổi cấu hình vận hành trước khi ghi nhận hàng
+        cần kiểm.
       </section>
     );
   }
@@ -138,8 +141,8 @@ function IntakeForm({
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Ghi nhận hàng đến"
-        description={`Nhà cung cấp ${detail.supplierId} · ${weighing ? "cân gross / tare / net" : "nhập số lượng"}`}
+        title="Nhận hàng"
+        description={`Nhà cung cấp ${detail.supplierId} · ${weighing ? "ghi tổng cân, bì và khối lượng hàng" : "nhập số lượng thực nhận"}`}
       />
       <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
         <TextInput
@@ -150,11 +153,11 @@ function IntakeForm({
           placeholder="Ví dụ: 51C-123.45"
         />
         <Textarea
-          label="Nguồn chứng cứ vận hành"
+          label="Ảnh hoặc phiếu liên quan"
           value={evidence}
           disabled={locked}
           onChange={(event) => onEvidence(event.target.value)}
-          hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; đây chỉ là metadata nguồn."
+          hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản."
         />
         {detail.lines.map((line) => {
           const state = lines[line.lineId] ?? EMPTY_INTAKE_LINE;
@@ -172,17 +175,17 @@ function IntakeForm({
               {weighing ? (
                 <div className="grid gap-3 sm:grid-cols-4">
                   <NumberField
-                    label="Gross"
+                    label="Tổng cân"
                     value={state.gross}
                     onChange={(value) => onLineChange(line.lineId, { gross: value })}
                   />
                   <NumberField
-                    label="Tare"
+                    label="Trọng lượng bì"
                     value={state.tare}
                     onChange={(value) => onLineChange(line.lineId, { tare: value })}
                   />
                   <label className="grid gap-2 text-label">
-                    Net
+                    Khối lượng hàng
                     <output className="rounded-input border border-border bg-canvas px-3 py-2">
                       {net !== null && net > 0 ? `${net / 1000} ${line.quantity.unit}` : "—"}
                     </output>
@@ -218,15 +221,24 @@ function IntakeForm({
             </fieldset>
           );
         })}
+        {!weighing ? (
+          <Button tone="secondary" disabled={locked} onClick={onFillRemaining}>
+            Nhận đủ số còn lại
+          </Button>
+        ) : null}
         <Textarea
           label="Ghi chú chuyến hàng"
           value={note}
           onChange={(event) => onNote(event.target.value)}
         />
         <Button disabled={locked || commandLines.length === 0} onClick={onSubmit}>
-          {locked ? "Đang ghi hàng đến" : "Xác nhận hàng đã đến"}
+          {locked ? "Đang ghi phiếu nhập kho" : "Xác nhận đã nhận hàng"}
         </Button>
-        <CommandOutcome command={command} attemptedAction="Ghi nhận hàng đến" onReload={onRetry} />
+        <CommandOutcome
+          command={command}
+          attemptedAction="Ghi nhận phiếu nhập kho"
+          onReload={onRetry}
+        />
       </section>
     </div>
   );

@@ -59,7 +59,7 @@ export function SupplierPaymentDetailView({
           <SourceEvidenceList references={detail.evidenceReferences} />
           {detail.reversals.map((reversal) => (
             <div key={reversal.id} className="rounded-card border border-border bg-surface p-4">
-              <h2 className="font-semibold">Bằng chứng hoàn tác</h2>
+              <h2 className="font-semibold">Ảnh hoặc phiếu hoàn tác</h2>
               <p className="text-body-sm text-ink-muted">{reversal.reason}</p>
               <SourceEvidenceList references={reversal.evidenceReferences} className="mt-2" />
             </div>
@@ -110,7 +110,7 @@ export function SupplierPaymentReversalView({
         onChange={(event) => onReasonChange(event.target.value)}
       />
       <Textarea
-        label="Bằng chứng nguồn"
+        label="Ảnh hoặc phiếu liên quan"
         value={evidence}
         onChange={(event) => onEvidenceChange(event.target.value)}
       />

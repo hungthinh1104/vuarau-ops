@@ -45,7 +45,7 @@ export function QuickSaleLinesSection(props: {
             index={index}
             issues={props.submitted ? (props.resolved[index]?.issues ?? {}) : {}}
             {...(props.serverLineIndex === index
-              ? { serverIssue: "Máy chủ từ chối dòng này. Kiểm tra số lượng và đơn giá." }
+              ? { serverIssue: "Máy chủ chưa nhận được dòng này. Kiểm tra số lượng và đơn giá." }
               : {})}
             canRemove={props.lines.length > 1}
             disabled={props.disabled}

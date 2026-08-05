@@ -72,7 +72,7 @@ export function SupplyCommitmentEvidenceView(props: {
     <div className="flex max-w-5xl flex-col gap-6">
       <PageHeader
         title="Cam kết nguồn cung"
-        description="Ghi lại lời hứa, khả năng có hàng và thời điểm dự kiến từ nhà cung cấp, nông hộ hoặc đầu mối. Bản ghi chưa tạo mua hàng, phải trả, tồn kho, reorder hay điểm nhà cung cấp."
+        description="Ghi lại lời hứa, khả năng có hàng và thời điểm dự kiến từ nhà cung cấp, nông hộ hoặc đầu mối. Bản ghi chưa tạo mua hàng, phải trả, tồn kho, đề xuất nhập thêm hay điểm nhà cung cấp."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -97,7 +97,8 @@ export function SupplyCommitmentEvidenceView(props: {
             Lịch sử quan sát nguồn cung
           </h2>
           <p className="text-caption text-ink-muted">
-            Append-only; sửa sai bằng một bản ghi mới có liên kết tới quan sát trước.
+            Mỗi bản ghi được giữ nguyên; sửa sai bằng một bản ghi mới có liên kết tới quan sát
+            trước.
           </p>
         </div>
         <QueryStates
@@ -196,11 +197,11 @@ function SupplyCommitmentForm(props: Parameters<typeof SupplyCommitmentEvidenceV
         />
       </div>
       <Textarea
-        label="Nguồn bằng chứng"
+        label="Ảnh hoặc phiếu liên quan"
         required
         value={props.evidenceReferences}
         onChange={(event) => props.onEvidenceReferences(event.target.value)}
-        hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết tới kho evidence được phê duyệt."
+        hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (
         <TextInput
@@ -258,7 +259,7 @@ function SupplyCommitmentCard({ item }: { readonly item: SupplyCommitmentObserva
         )}
       </div>
       <p className="mt-3 text-caption text-ink-muted">
-        Chưa kết luận phải trả, tồn kho, reorder hoặc hiệu suất nhà cung cấp.
+        Chưa kết luận phải trả, tồn kho, nhu cầu nhập thêm hoặc hiệu suất nhà cung cấp.
       </p>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (

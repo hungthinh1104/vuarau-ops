@@ -119,8 +119,8 @@ export function PaymentCreateView(props: PaymentCreateViewProps) {
               rows={2}
             />
             <Textarea
-              label="Bằng chứng nguồn"
-              hint="Mỗi dòng một tham chiếu: phiếu, ảnh, biên lai hoặc kho bằng chứng được duyệt."
+              label="Ảnh hoặc phiếu liên quan"
+              hint="Mỗi dòng một tham chiếu: phiếu, ảnh hoặc biên lai đã được duyệt."
               value={props.evidence}
               onChange={(event) => props.onEvidence(event.target.value)}
               rows={2}

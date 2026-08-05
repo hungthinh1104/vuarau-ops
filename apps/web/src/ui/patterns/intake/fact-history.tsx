@@ -6,6 +6,7 @@ import type {
   QualityInspectionDto,
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
+import { UI_COPY_REGISTRY } from "@/ui/copy.ts";
 import { formatQuantity } from "@/ui/format.ts";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -31,14 +32,14 @@ export function FactHistory({
   if (facts.inspections.length === 0 && facts.dispositions.length === 0) {
     return (
       <section className="rounded-card bg-canvas p-3 text-body-sm text-ink-muted">
-        Chưa có kiểm định hoặc quyết định chất lượng.
+        Chưa có lần kiểm hàng hoặc kết quả xử lý.
       </section>
     );
   }
   return (
     <details className="rounded-card border border-border p-3">
       <summary className="cursor-pointer text-label font-semibold">
-        Lịch sử kiểm định và quyết định ({facts.inspections.length + facts.dispositions.length})
+        Lịch sử kiểm hàng và xử lý ({facts.inspections.length + facts.dispositions.length})
       </summary>
       <div className="mt-3 grid gap-3">
         {facts.inspections.map((inspection) => (
@@ -46,7 +47,7 @@ export function FactHistory({
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="text-label font-semibold">
-                  Kiểm định {formatQuantity(inspection.inspectedQuantity)}
+                  Kiểm hàng {formatQuantity(inspection.inspectedQuantity)}
                 </p>
                 <p className="text-caption text-ink-muted">
                   {new Date(inspection.transactionTime).toLocaleString("vi-VN")}
@@ -60,7 +61,7 @@ export function FactHistory({
               <ul className="mt-2 grid gap-1 text-body-sm">
                 {inspection.issues.map((issue) => (
                   <li key={`${inspection.id}:${issue.qualityIssueCodeId}`}>
-                    {issue.qualityIssueCode} · {issue.qualityIssueName} · {issue.severity}
+                    {issue.qualityIssueName} · {UI_COPY_REGISTRY.severity[issue.severity]}
                   </li>
                 ))}
               </ul>
@@ -69,7 +70,7 @@ export function FactHistory({
             )}
             {inspection.note ? (
               <p className="mt-2 text-caption text-ink-muted">
-                Ghi chú kiểm định: {inspection.note}
+                Ghi chú kiểm hàng: {inspection.note}
               </p>
             ) : null}
             <SourceEvidenceList
@@ -86,8 +87,8 @@ export function FactHistory({
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="text-label font-semibold">
-                  Quyết định từ{" "}
-                  {disposition.source.type === "arrival_line" ? "hàng đến" : "lượng cách ly"}
+                  Kết quả từ{" "}
+                  {disposition.source.type === "arrival_line" ? "hàng đã nhận" : "lượng tạm giữ"}
                 </p>
                 <p className="text-caption text-ink-muted">
                   {new Date(disposition.transactionTime).toLocaleString("vi-VN")}
@@ -121,10 +122,10 @@ export function FactHistory({
 
 const outcomeLabel = (outcome: QualityDispositionDto["allocations"][number]["outcome"]) =>
   ({
-    accepted: "Chấp nhận",
-    quarantined: "Cách ly",
-    rejected: "Từ chối",
-    disposed: "Hủy bỏ",
+    accepted: UI_COPY_REGISTRY.qualityOutcome.accepted,
+    quarantined: UI_COPY_REGISTRY.qualityOutcome.quarantined,
+    rejected: UI_COPY_REGISTRY.qualityOutcome.rejected,
+    disposed: UI_COPY_REGISTRY.qualityOutcome.disposed,
   })[outcome];
 
 export function ReverseInspectionControl({
@@ -143,7 +144,7 @@ export function ReverseInspectionControl({
   return (
     <details className="mt-3 border-t border-border pt-2">
       <summary className="cursor-pointer text-caption font-semibold text-danger">
-        Hoàn tác kiểm định
+        Hoàn tác kiểm hàng
       </summary>
       <div className="mt-2 grid gap-2">
         <Input
@@ -152,7 +153,7 @@ export function ReverseInspectionControl({
           onChange={(event) => onReasonChange(event.target.value)}
         />
         <Button tone="danger" disabled={locked || reason.trim().length === 0} onClick={onSubmit}>
-          {locked ? "Đang hoàn tác" : "Xác nhận hoàn tác kiểm định"}
+          {locked ? "Đang hoàn tác" : "Xác nhận hoàn tác kiểm hàng"}
         </Button>
         {feedback}
       </div>

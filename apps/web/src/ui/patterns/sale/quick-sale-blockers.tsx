@@ -11,7 +11,7 @@ export function QuickSaleGradeState(props: {
   if (props.required === false) {
     return (
       <p role="status" className="text-caption text-ink-muted">
-        Vựa này không dùng phẩm cấp; đơn sẽ giữ nguyên mặt hàng và đơn vị.
+        Vựa này không dùng hạng hàng; đơn sẽ giữ nguyên mặt hàng và đơn vị.
       </p>
     );
   }
@@ -19,14 +19,14 @@ export function QuickSaleGradeState(props: {
   if (props.loading) {
     return (
       <p role="status" className="text-caption text-ink-muted">
-        Đang tải phẩm cấp…
+        Đang tải hạng hàng…
       </p>
     );
   }
   if (props.error) {
     return (
       <p role="alert" className="text-caption text-danger">
-        Không tải được phẩm cấp. Chưa thể chốt đơn.
+        Không tải được hạng hàng. Chưa thể chốt đơn.
       </p>
     );
   }
@@ -35,8 +35,8 @@ export function QuickSaleGradeState(props: {
       role="alert"
       className="rounded-card border border-warning/30 bg-warning-soft p-3 text-body-sm"
     >
-      Vựa chưa cấu hình phẩm cấp đang dùng. Theo chính sách hiện tại chưa thể chốt đơn; đừng tạo
-      phẩm cấp giả chỉ để bỏ qua ASM-032.
+      Vựa chưa cấu hình hạng hàng đang dùng. Chưa thể chốt đơn; hãy bổ sung hạng hàng thật thay vì
+      tạo dữ liệu giả.
     </p>
   );
 }
@@ -55,7 +55,8 @@ export function QuickSaleUnresolvedProduct(props: {
     >
       <p className="font-semibold">Mặt hàng chưa có trong danh mục</p>
       <p className="mt-1 text-ink-muted">
-        Đơn đã chốt phải giữ Product canonical để Delivery và tồn kho không đoán từ tên hiển thị.
+        Đơn đã chốt phải giữ đúng mặt hàng trong danh mục để giao và tính tồn kho không phải đoán từ
+        tên hiển thị.
       </p>
       {props.mayCreateProduct ? (
         <Button

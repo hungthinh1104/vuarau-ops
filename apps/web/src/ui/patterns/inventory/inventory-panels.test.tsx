@@ -74,8 +74,8 @@ describe("inventory command panels", () => {
         onStartAnother={onStartAnother}
       />,
     );
-    expect(screen.queryByRole("button", { name: "Ghi chuyển phẩm cấp" })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Ghi chuyển phẩm cấp khác" }));
+    expect(screen.queryByRole("button", { name: "Ghi chuyển hạng hàng" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Ghi chuyển hạng hàng khác" }));
     expect(onStartAnother).toHaveBeenCalledTimes(1);
   });
 });
