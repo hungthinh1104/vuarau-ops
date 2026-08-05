@@ -23,10 +23,10 @@ export function Toaster() {
       mobileOffset={{ bottom: 80, left: 16, right: 16 }}
       toastOptions={{
         className:
-          "group flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3 text-body-sm text-ink",
+          "pointer-events-none group flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3 text-body-sm text-ink",
         classNames: {
           toast:
-            "group flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3 text-body-sm text-ink",
+            "pointer-events-none group flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3 text-body-sm text-ink",
           description: "text-ink-muted",
           actionButton:
             "ml-auto rounded-button bg-brand px-3 py-1.5 text-label font-semibold text-white hover:bg-brand-hover",

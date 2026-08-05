@@ -28,7 +28,7 @@ export function Sheet({ open, title, onClose, children, actions }: SheetProps) {
       <Drawer.VirtualKeyboardProvider>
         <Drawer.Portal>
           <Drawer.Backdrop className="fixed inset-0 bg-ink/40" />
-          <Drawer.Viewport className="pointer-events-none fixed inset-0 flex items-end justify-center sm:items-stretch sm:justify-end">
+          <Drawer.Viewport className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end">
             <Drawer.Popup
               className={[
                 "pointer-events-auto mt-auto flex max-h-[96svh] w-full max-w-none flex-col",
