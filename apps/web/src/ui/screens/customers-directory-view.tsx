@@ -7,7 +7,12 @@ import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
-import { PageActions, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageActions,
+  PageHeader,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
@@ -51,26 +56,30 @@ export function CustomersDirectoryView(props: CustomersDirectoryViewProps) {
         }
       />
 
-      <div className="grid gap-3 border-y border-border py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <SearchInput
-          label="Tìm khách hàng"
-          placeholder="Tên hoặc số điện thoại"
-          value={props.query}
-          onChange={(event) => props.onQueryChange(event.target.value)}
-          onClear={props.onClearQuery}
-          autoFocus
-        />
-        <FilterChipGroup
-          label="Lọc trạng thái khách hàng"
-          value={props.activeFilter}
-          options={[
-            { value: "all", label: "Tất cả" },
-            { value: "active", label: "Đang hoạt động" },
-            { value: "inactive", label: "Đã ngưng" },
-          ]}
-          onChange={props.onFilterChange}
-        />
-      </div>
+      <DirectoryToolbar
+        search={
+          <SearchInput
+            label="Tìm khách hàng"
+            placeholder="Tên hoặc số điện thoại"
+            value={props.query}
+            onChange={(event) => props.onQueryChange(event.target.value)}
+            onClear={props.onClearQuery}
+            autoFocus
+          />
+        }
+        filters={
+          <FilterChipGroup
+            label="Lọc trạng thái khách hàng"
+            value={props.activeFilter}
+            options={[
+              { value: "all", label: "Tất cả" },
+              { value: "active", label: "Đang hoạt động" },
+              { value: "inactive", label: "Đã ngưng" },
+            ]}
+            onChange={props.onFilterChange}
+          />
+        }
+      />
 
       <QueryStates
         query={props.queryState}
@@ -118,7 +127,7 @@ function CustomerRows({ items }: { readonly items: readonly CustomerSummaryDto[]
           </li>
         ))}
       </ul>
-      <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
+      <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
         <table className="data-table w-full min-w-[760px] text-left text-body-sm">
           <colgroup>
             <col className="w-[30%]" />
@@ -168,10 +177,7 @@ function CustomerRows({ items }: { readonly items: readonly CustomerSummaryDto[]
 function CustomerRow({ customer }: { readonly customer: CustomerSummaryDto }) {
   const balance = describeBalance(customer.balance, customer.classification);
   return (
-    <Link
-      href={`/customers/${customer.id}`}
-      className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
-    >
+    <MobileRecordCard href={`/customers/${customer.id}`}>
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-body font-medium text-ink">{customer.displayName}</span>
         <span className="text-caption text-ink-muted">
@@ -187,6 +193,6 @@ function CustomerRow({ customer }: { readonly customer: CustomerSummaryDto }) {
           </span>
         </span>
       </span>
-    </Link>
+    </MobileRecordCard>
   );
 }

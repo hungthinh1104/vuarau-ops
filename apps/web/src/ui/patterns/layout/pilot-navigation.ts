@@ -80,7 +80,7 @@ const DESKTOP_STRUCTURE = [
   { label: "Cấu hình", refs: ["/quality-grades", "/quality-issues"] },
   { label: "Quan hệ", refs: ["/customers", "/suppliers"] },
   { label: "Báo cáo", refs: ["/reports", "/operations-board"] },
-  { label: "Hệ thống", refs: ["/workspace/operations", "/workspace"] },
+  { label: "Quản trị", refs: ["/workspace/operations", "/workspace"] },
 ];
 
 export function navigationFor(permissions: readonly Permission[]): readonly NavigationGroup[] {

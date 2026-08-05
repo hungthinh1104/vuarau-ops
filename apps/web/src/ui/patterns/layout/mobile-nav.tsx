@@ -5,32 +5,33 @@ import {
   House,
   PackageCheck,
   ReceiptText,
-  Settings2,
+  ShoppingBasket,
   ShoppingCart,
-  Truck,
-  Users,
-  WalletCards,
-  type LucideIcon,
+  Boxes,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Permission, WorkspaceRole } from "@vuarau/domain-contracts";
 import { todayActionsFor } from "@/ui/domain/today-actions.ts";
 import { activeNavigationHref, hasPermissionFor } from "./pilot-navigation.ts";
+import { useWorkspaceChrome } from "./workspace-chrome.tsx";
 
 const ITEMS = [
-  { label: "Hôm nay", href: "/today", activeHref: "/today", icon: House },
-  { label: "Đơn hàng", href: "/sales", activeHref: "/sales", icon: ReceiptText },
-  { label: "Khách hàng", href: "/customers", activeHref: "/customers", icon: Users },
+  { label: "Hôm nay", href: "/today", activeHrefs: ["/today"], icon: House },
+  {
+    label: "Mua",
+    href: "/purchases",
+    activeHrefs: ["/purchases", "/intake"],
+    icon: ShoppingBasket,
+  },
+  {
+    label: "Bán",
+    href: "/sales",
+    activeHrefs: ["/sales", "/sales/new", "/customer-orders", "/deliveries"],
+    icon: ReceiptText,
+  },
+  { label: "Kho", href: "/products", activeHrefs: ["/products", "/pricing"], icon: Boxes },
 ] as const;
-
-const ROLE_WORK: Readonly<Record<WorkspaceRole, { label: string; icon: LucideIcon }>> = {
-  owner: { label: "Cảnh báo", icon: Settings2 },
-  accountant: { label: "Thanh toán", icon: WalletCards },
-  sales: { label: "Ghi đơn", icon: ShoppingCart },
-  warehouse: { label: "Nhận / Soạn", icon: PackageCheck },
-  delivery: { label: "Chuyến giao", icon: Truck },
-};
 
 export function MobileNav({
   permissions,
@@ -56,12 +57,11 @@ export function MobileNavView({
   const todayActions = todayActionsFor(permissions, role);
   const hasWork = todayActions.some((action) => action.area === "work");
   const hasMore = todayActions.some((action) => action.area === "more");
-  const roleWork = ROLE_WORK[role];
   const workItem = {
-    label: roleWork.label,
+    label: "Việc hôm nay",
     href: "/today#work",
     activeHref: null,
-    icon: roleWork.icon,
+    icon: role === "warehouse" ? PackageCheck : ShoppingCart,
   } as const;
   const moreItem = {
     label: "Thêm",
@@ -74,16 +74,21 @@ export function MobileNavView({
     ...(hasWork ? [workItem] : []),
     ...(hasMore ? [moreItem] : []),
   ].slice(0, 5);
+  const chrome = useWorkspaceChrome();
+
+  if (chrome?.actionDockCount !== undefined && chrome.actionDockCount > 0) return null;
 
   return (
     <nav
       aria-label="Điều hướng di động"
       className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-2 right-2 sm:left-4 sm:right-4 z-40 lg:hidden pointer-events-none"
     >
-      <div className="mx-auto max-w-[420px] pointer-events-auto p-1.5 rounded-[24px] sm:rounded-3xl border border-border bg-surface/70 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-ink/5">
+      <div className="mx-auto max-w-[420px] pointer-events-auto rounded-card border border-border bg-surface p-1.5">
         <ul className="flex items-center justify-between gap-1">
           {visibleItems.map((item) => {
-            const active = item.activeHref !== null && activeHref === item.activeHref;
+            const activeHrefs =
+              "activeHrefs" in item ? (item.activeHrefs as readonly string[]) : [];
+            const active = activeHrefs.includes(activeHref ?? "");
             const Icon = item.icon;
             return (
               <li key={`${item.label}:${item.href}`} className="flex-1">
@@ -91,8 +96,8 @@ export function MobileNavView({
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={[
-                    "touch-target relative flex min-h-[60px] w-full flex-col items-center justify-center gap-1 rounded-[18px] sm:rounded-[20px] transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                    active ? "bg-surface shadow-sm ring-1 ring-ink/5" : "hover:bg-surface/50",
+                    "touch-target relative flex min-h-[60px] w-full flex-col items-center justify-center gap-1 rounded-input transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    active ? "bg-brand-soft" : "hover:bg-surface-muted",
                   ].join(" ")}
                 >
                   <Icon
@@ -105,7 +110,7 @@ export function MobileNavView({
                   />
                   <span
                     className={[
-                      "text-[9px] sm:text-[10px] font-bold transition-colors duration-200 tracking-tight whitespace-nowrap",
+                      "text-caption font-semibold transition-colors whitespace-nowrap",
                       active ? "text-primary" : "text-ink-muted/80",
                     ].join(" ")}
                   >
@@ -114,7 +119,7 @@ export function MobileNavView({
                   {active ? (
                     <span
                       aria-hidden="true"
-                      className="absolute -top-[5px] h-1.5 w-5 sm:w-6 rounded-full bg-primary shadow-[0_2px_8px_rgba(59,166,241,0.6)]"
+                      className="absolute -top-[5px] h-1.5 w-6 rounded-pill bg-primary"
                     />
                   ) : null}
                 </Link>

@@ -8,17 +8,26 @@ function renderRole(role: WorkspaceRole) {
   return screen.getByRole("navigation", { name: "Điều hướng di động" });
 }
 
-describe("MobileNav role projection", () => {
-  it.each([
-    ["owner", "Cảnh báo"],
-    ["accountant", "Thanh toán"],
-    ["sales", "Ghi đơn"],
-    ["warehouse", "Nhận / Soạn"],
-    ["delivery", "Chuyến giao"],
-  ] as const)("uses the %s work label", (role, label) => {
-    const nav = renderRole(role);
-    expect(nav).toHaveTextContent(label);
-    expect(nav.querySelector('a[href="/today#work"]')).toBeInTheDocument();
+describe("MobileNav capability map", () => {
+  it.each(["owner", "accountant", "sales", "warehouse", "delivery"] as const)(
+    "keeps stable destinations for %s",
+    (role) => {
+      const nav = renderRole(role);
+      expect(nav).toHaveTextContent("Hôm nay");
+      expect(nav).toHaveTextContent("Kho");
+      expect(nav.querySelector('a[href="/today#work"]')).toBeInTheDocument();
+    },
+  );
+
+  it("marks the purchase destination active for receiving routes", () => {
+    render(
+      <MobileNavView
+        permissions={permissionsForRole("owner")}
+        role="owner"
+        pathname="/intake/123"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Mua" })).toHaveAttribute("aria-current", "page");
   });
 
   it("never renders more than five destinations", () => {

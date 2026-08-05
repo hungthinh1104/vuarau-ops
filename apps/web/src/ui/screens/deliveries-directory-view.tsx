@@ -7,11 +7,16 @@ import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
 import { formatInstant } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageHeader,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
 
 export type DeliveriesDirectoryViewProps = {
   readonly query: QueryLike<Page<DeliveryDto>>;
@@ -38,16 +43,22 @@ export function DeliveriesDirectoryView({
   onLoadMore,
 }: DeliveriesDirectoryViewProps) {
   const [tab, setTab] = useState<"waiting" | "in_progress" | "delivered">("waiting");
+  const [queryText, setQueryText] = useState("");
   const visibleRows = useMemo(
     () =>
-      rows.filter((delivery) =>
-        tab === "waiting"
-          ? delivery.status === "draft"
-          : tab === "in_progress"
-            ? delivery.status === "dispatched"
-            : delivery.status === "delivered",
+      rows.filter(
+        (delivery) =>
+          (tab === "waiting"
+            ? delivery.status === "draft"
+            : tab === "in_progress"
+              ? delivery.status === "dispatched"
+              : delivery.status === "delivered") &&
+          [delivery.id, delivery.lines.map((line) => line.productName).join(" ")]
+            .join(" ")
+            .toLocaleLowerCase("vi-VN")
+            .includes(queryText.trim().toLocaleLowerCase("vi-VN")),
       ),
-    [rows, tab],
+    [queryText, rows, tab],
   );
   return (
     <div className="grid gap-6">
@@ -55,25 +66,38 @@ export function DeliveriesDirectoryView({
         title="Giao hàng"
         description="Các phiếu giao hiện có cùng trạng thái và hàng cần giao."
       />
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Trạng thái giao hàng">
-        {(
-          [
-            ["waiting", "Chờ giao"],
-            ["in_progress", "Đang giao"],
-            ["delivered", "Đã giao"],
-          ] as const
-        ).map(([value, label]) => (
-          <Button
-            key={value}
-            tone={tab === value ? "primary" : "secondary"}
-            role="tab"
-            aria-selected={tab === value}
-            onClick={() => setTab(value)}
-          >
-            {label}
-          </Button>
-        ))}
-      </div>
+      <DirectoryToolbar
+        search={
+          <SearchInput
+            label="Tìm phiếu giao"
+            placeholder="Mã phiếu hoặc mặt hàng"
+            value={queryText}
+            onChange={(event) => setQueryText(event.target.value)}
+            onClear={() => setQueryText("")}
+          />
+        }
+        filters={
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Trạng thái giao hàng">
+            {(
+              [
+                ["waiting", "Chờ giao"],
+                ["in_progress", "Đang giao"],
+                ["delivered", "Đã giao"],
+              ] as const
+            ).map(([value, label]) => (
+              <Button
+                key={value}
+                tone={tab === value ? "primary" : "secondary"}
+                role="tab"
+                aria-selected={tab === value}
+                onClick={() => setTab(value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        }
+      />
       <QueryStates query={query} loadingLabel="Đang tải phiếu giao" onRetry={onRetry}>
         {() =>
           visibleRows.length === 0 ? (
@@ -86,10 +110,7 @@ export function DeliveriesDirectoryView({
               <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface lg:hidden">
                 {visibleRows.map((delivery) => (
                   <li key={delivery.id}>
-                    <Link
-                      href={`/deliveries/${delivery.id}`}
-                      className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
-                    >
+                    <MobileRecordCard href={`/deliveries/${delivery.id}`}>
                       <span>
                         <strong>
                           {delivery.lines[0]?.productName ?? "Phiếu chưa có dòng hàng"}
@@ -101,11 +122,11 @@ export function DeliveriesDirectoryView({
                       <Badge tone={deliveryTone(delivery.status)}>
                         {DELIVERY_STATUS_COPY[delivery.status]}
                       </Badge>
-                    </Link>
+                    </MobileRecordCard>
                   </li>
                 ))}
               </ul>
-              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
+              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
                 <table className="data-table w-full min-w-[840px] text-left text-body-sm">
                   <colgroup>
                     <col className="w-[32%]" />

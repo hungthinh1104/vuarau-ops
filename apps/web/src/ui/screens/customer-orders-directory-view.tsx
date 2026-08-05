@@ -2,14 +2,20 @@
 
 import type { Cursor, CustomerOrderDto, Page } from "@vuarau/domain-contracts";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { formatDate, formatMoney, formatQuantity } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageHeader,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
 
 const STATUS_COPY = {
   draft: "Nháp",
@@ -37,6 +43,23 @@ export function CustomerOrdersDirectoryView(props: {
   readonly onRetry: () => void;
   readonly onLoadMore: () => void;
 }) {
+  const [queryText, setQueryText] = useState("");
+  const visibleRows = useMemo(() => {
+    const normalized = queryText.trim().toLocaleLowerCase("vi-VN");
+    if (normalized.length === 0) return props.rows;
+    return props.rows.filter((order) =>
+      [
+        order.id,
+        order.customerId ?? "",
+        order.lines.map((line) => line.productName).join(" "),
+        CHANNEL_COPY[order.channel],
+      ]
+        .join(" ")
+        .toLocaleLowerCase("vi-VN")
+        .includes(normalized),
+    );
+  }, [props.rows, queryText]);
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -48,9 +71,20 @@ export function CustomerOrdersDirectoryView(props: {
           ) : null
         }
       />
+      <DirectoryToolbar
+        search={
+          <SearchInput
+            label="Tìm đơn đặt hàng"
+            placeholder="Mã đơn, khách hoặc mặt hàng"
+            value={queryText}
+            onChange={(event) => setQueryText(event.target.value)}
+            onClear={() => setQueryText("")}
+          />
+        }
+      />
       <QueryStates query={props.query} loadingLabel="Đang tải đơn đặt hàng" onRetry={props.onRetry}>
         {() =>
-          props.rows.length === 0 ? (
+          visibleRows.length === 0 ? (
             <EmptyState
               title="Chưa có đơn đặt hàng"
               description="Tạo bản ghi đầu tiên khi khách chốt nhu cầu nhưng chưa cần ghi nhận đơn bán."
@@ -58,12 +92,9 @@ export function CustomerOrdersDirectoryView(props: {
           ) : (
             <>
               <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface lg:hidden">
-                {props.rows.map((order) => (
+                {visibleRows.map((order) => (
                   <li key={order.id}>
-                    <Link
-                      href={`/customer-orders/${order.id}`}
-                      className="flex min-h-[72px] justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
-                    >
+                    <MobileRecordCard href={`/customer-orders/${order.id}`}>
                       <span className="min-w-0">
                         <strong className="block truncate">
                           {order.lines[0]?.productName ?? "Chưa có mặt hàng"}
@@ -74,11 +105,11 @@ export function CustomerOrdersDirectoryView(props: {
                         </span>
                       </span>
                       <Badge tone={badgeTone(order.status)}>{STATUS_COPY[order.status]}</Badge>
-                    </Link>
+                    </MobileRecordCard>
                   </li>
                 ))}
               </ul>
-              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
+              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
                 <table className="data-table w-full min-w-[940px] table-fixed text-left text-body-sm">
                   <colgroup>
                     <col className="w-[22%]" />
@@ -99,7 +130,7 @@ export function CustomerOrdersDirectoryView(props: {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {props.rows.map((order) => (
+                    {visibleRows.map((order) => (
                       <tr key={order.id} className="hover:bg-surface-muted">
                         <td className="data-table-primary px-3 py-2">
                           <Link
@@ -141,7 +172,7 @@ export function CustomerOrdersDirectoryView(props: {
       </QueryStates>
       {props.nextCursor !== null ? (
         <LoadMoreFooter
-          visibleCount={props.rows.length}
+          visibleCount={visibleRows.length}
           noun="đơn đặt hàng"
           loading={props.isFetching}
           onLoadMore={props.onLoadMore}

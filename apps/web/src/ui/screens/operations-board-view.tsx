@@ -66,9 +66,9 @@ const SORTS: readonly { value: OperationsBoardSort; label: string }[] = [
 
 function stateLabel(value: string): string {
   const labels: Record<string, string> = {
-    posted: "Đã post",
+    posted: "Đã chốt",
     confirmed: "Đã xác nhận",
-    voided: "Đã hủy",
+    voided: "Đã loại bỏ",
     needs_receiving: "Cần nhận",
     needs_delivery: "Cần giao",
     in_delivery: "Đang giao",
@@ -80,7 +80,7 @@ function stateLabel(value: string): string {
     overdue: "Quá hạn",
     attention: "Cần kiểm tra",
   };
-  return labels[value] ?? value;
+  return labels[value] ?? "Cần kiểm tra";
 }
 
 function stateTone(value: string): "info" | "warning" | "positive" | "neutral" {
@@ -106,18 +106,16 @@ const columnHelper = createColumnHelper<OperationsBoardRow>();
 function columns() {
   return [
     columnHelper.accessor("reference", {
-      header: "Mã",
+      header: "Đơn / đối tác",
       cell: (info) => (
-        <Link href={info.row.original.href} className="font-semibold text-info hover:underline">
-          {info.getValue()}
-        </Link>
+        <div className="grid gap-1">
+          <Link href={info.row.original.href} className="font-semibold text-info hover:underline">
+            {info.getValue()}
+          </Link>
+          <span className="text-caption text-ink-muted">{info.row.original.counterparty}</span>
+        </div>
       ),
     }),
-    columnHelper.accessor("kind", {
-      header: "Loại",
-      cell: (info) => (info.getValue() === "sale" ? "Bán" : "Mua"),
-    }),
-    columnHelper.accessor("counterparty", { header: "Đối tác" }),
     columnHelper.accessor("amount", {
       header: "Giá trị",
       cell: (info) => (
@@ -125,31 +123,38 @@ function columns() {
       ),
     }),
     columnHelper.accessor("commercialState", {
-      header: "Thương mại",
+      header: "Đơn hàng",
       cell: (info) => (
-        <Badge tone={stateTone(info.getValue())}>{stateLabel(info.getValue())}</Badge>
+        <div className="grid gap-1">
+          <span className="text-caption text-ink-muted">
+            {info.row.original.kind === "sale" ? "Bán" : "Mua"}
+          </span>
+          <Badge tone={stateTone(info.getValue())}>{stateLabel(info.getValue())}</Badge>
+        </div>
       ),
     }),
     columnHelper.accessor("physicalState", {
-      header: "Vật lý",
+      header: "Hàng hóa",
       cell: (info) => (
         <Badge tone={stateTone(info.getValue())}>{stateLabel(info.getValue())}</Badge>
       ),
     }),
     columnHelper.accessor("financialState", {
-      header: "Tài chính",
+      header: "Thanh toán",
       cell: (info) => (
         <Badge tone={stateTone(info.getValue())}>{stateLabel(info.getValue())}</Badge>
       ),
     }),
-    columnHelper.accessor("ageSeconds", {
-      header: "Tuổi đơn",
-      cell: (info) => <span className="whitespace-nowrap">{ageLabel(info.getValue())}</span>,
-    }),
-    columnHelper.accessor("nextAction", { header: "Việc tiếp theo" }),
     columnHelper.accessor("updatedAt", {
-      header: "Cập nhật",
-      cell: (info) => <span className="whitespace-nowrap">{formatInstant(info.getValue())}</span>,
+      header: "Việc tiếp theo",
+      cell: (info) => (
+        <div className="grid gap-1">
+          <span className="font-medium">{info.row.original.nextAction}</span>
+          <span className="text-caption text-ink-muted">
+            {ageLabel(info.row.original.ageSeconds)} · {formatInstant(info.getValue())}
+          </span>
+        </div>
+      ),
     }),
   ];
 }
@@ -181,7 +186,7 @@ function CountStrip({
           aria-pressed={active === item.value}
           onClick={() => onChange(item.value)}
           className={[
-            "shrink-0 rounded-full border px-3 py-2 text-body-sm transition-colors",
+            "shrink-0 rounded-pill border px-3 py-2 text-body-sm transition-colors",
             active === item.value
               ? "border-primary bg-primary/10 text-primary"
               : "border-border bg-surface text-ink-muted hover:text-ink",
@@ -205,7 +210,7 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
     <div className="grid gap-5">
       <PageHeader
         title="Bảng điều hành"
-        description="Theo dõi riêng trạng thái thương mại, vật lý và tài chính của đơn mua và đơn bán."
+        description="Theo dõi đơn, hàng hóa và thanh toán của các đơn mua và đơn bán."
       />
       {counts === undefined ? null : (
         <CountStrip counts={counts} active={props.filter} onChange={props.onFilterChange} />
@@ -238,7 +243,7 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
               description="Các đơn mới sẽ xuất hiện sau khi được xác nhận hoặc post."
             />
           ) : (
-            <div className="overflow-x-auto rounded-card border border-border bg-surface shadow-sm">
+            <div className="overflow-x-auto rounded-card border border-border bg-surface">
               <table className="data-table w-full min-w-[1320px] text-left text-body-sm">
                 <thead>
                   <tr>

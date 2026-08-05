@@ -4,7 +4,11 @@ import type { Cursor, Page, SupplierDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageHeader,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -44,15 +48,17 @@ export function SuppliersDirectoryView({
           canCreate ? <LinkButton href="/suppliers/new">Thêm nhà cung cấp</LinkButton> : null
         }
       />
-      <div className="border-y border-border py-4 sm:max-w-xl">
-        <SearchInput
-          label="Tìm nhà cung cấp"
-          placeholder="Tên hoặc số điện thoại"
-          value={queryText}
-          onChange={(event) => onQueryChange(event.target.value)}
-          onClear={onClearQuery}
-        />
-      </div>
+      <DirectoryToolbar
+        search={
+          <SearchInput
+            label="Tìm nhà cung cấp"
+            placeholder="Tên hoặc số điện thoại"
+            value={queryText}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onClear={onClearQuery}
+          />
+        }
+      />
       <QueryStates query={search} loadingLabel="Đang tải nhà cung cấp" onRetry={onRetry}>
         {() =>
           suppliers.length === 0 ? (
@@ -73,10 +79,7 @@ export function SuppliersDirectoryView({
               <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface lg:hidden">
                 {suppliers.map((supplier) => (
                   <li key={supplier.id}>
-                    <Link
-                      href={`/suppliers/${supplier.id}`}
-                      className="flex min-h-[64px] justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
-                    >
+                    <MobileRecordCard href={`/suppliers/${supplier.id}`}>
                       <span>
                         <strong>{supplier.displayName}</strong>
                         <span className="block text-caption text-ink-muted">
@@ -84,11 +87,11 @@ export function SuppliersDirectoryView({
                         </span>
                       </span>
                       {supplier.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
-                    </Link>
+                    </MobileRecordCard>
                   </li>
                 ))}
               </ul>
-              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
+              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
                 <table className="data-table w-full min-w-[650px] text-left text-body-sm">
                   <colgroup>
                     <col className="w-[40%]" />

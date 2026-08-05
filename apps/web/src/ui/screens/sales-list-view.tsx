@@ -2,15 +2,22 @@
 
 import type { SaleSummaryDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { formatInstant, formatMoney } from "@/ui/format.ts";
 import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
-import { PageActions, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageActions,
+  PageHeader,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
 
 export type SalesListFilter = "all" | "draft" | "posted" | "voided";
 
@@ -35,6 +42,18 @@ export function SalesListView({
   onLoadMore,
   onRetry,
 }: SalesListViewProps) {
+  const [queryText, setQueryText] = useState("");
+  const visibleRows = useMemo(() => {
+    const normalized = queryText.trim().toLocaleLowerCase("vi-VN");
+    if (normalized.length === 0) return rows;
+    return rows.filter((sale) =>
+      [sale.id, sale.customerDisplayName, formatInstant(sale.transactionTime)]
+        .join(" ")
+        .toLocaleLowerCase("vi-VN")
+        .includes(normalized),
+    );
+  }, [queryText, rows]);
+
   return (
     <div className="grid gap-6">
       <PageHeader
@@ -49,36 +68,47 @@ export function SalesListView({
         }
       />
 
-      <div className="border-y border-border py-4">
-        <FilterChipGroup
-          label="Lọc trạng thái đơn hàng"
-          value={filter}
-          options={[
-            { value: "all", label: "Tất cả" },
-            { value: "draft", label: "Nháp" },
-            { value: "posted", label: "Đã chốt" },
-            { value: "voided", label: "Đã hoàn tác" },
-          ]}
-          onChange={onFilterChange}
-        />
-      </div>
+      <DirectoryToolbar
+        search={
+          <SearchInput
+            label="Tìm đơn hàng"
+            placeholder="Mã đơn hoặc tên khách"
+            value={queryText}
+            onChange={(event) => setQueryText(event.target.value)}
+            onClear={() => setQueryText("")}
+          />
+        }
+        filters={
+          <FilterChipGroup
+            label="Lọc trạng thái đơn hàng"
+            value={filter}
+            options={[
+              { value: "all", label: "Tất cả" },
+              { value: "draft", label: "Nháp" },
+              { value: "posted", label: "Đã chốt" },
+              { value: "voided", label: "Đã hoàn tác" },
+            ]}
+            onChange={onFilterChange}
+          />
+        }
+      />
 
       <QueryStates query={query} loadingLabel="Đang tải đơn hàng" onRetry={onRetry}>
         {() =>
-          rows.length === 0 ? (
+          visibleRows.length === 0 ? (
             <EmptyState
               title="Chưa có đơn hàng"
               description="Ghi đơn đầu tiên để bắt đầu theo dõi bán hàng và công nợ."
             />
           ) : (
-            <SalesRows rows={rows} />
+            <SalesRows rows={visibleRows} />
           )
         }
       </QueryStates>
 
       {hasMore ? (
         <LoadMoreFooter
-          visibleCount={rows.length}
+          visibleCount={visibleRows.length}
           noun="đơn hàng"
           loading={query.isFetching}
           onLoadMore={onLoadMore}
@@ -94,10 +124,7 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
       <ul className="overflow-hidden rounded-card border border-border bg-surface divide-y divide-border lg:hidden">
         {rows.map((sale) => (
           <li key={sale.id}>
-            <Link
-              href={`/sales/${sale.id}`}
-              className="flex min-h-[64px] flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
-            >
+            <MobileRecordCard href={`/sales/${sale.id}`}>
               <span>
                 <strong>{sale.customerDisplayName}</strong>
                 <span className="block text-caption text-ink-muted">
@@ -124,12 +151,12 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
                         : "Đã bỏ"}
                 </Badge>
               </span>
-            </Link>
+            </MobileRecordCard>
           </li>
         ))}
       </ul>
 
-      <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
+      <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
         <table className="data-table w-full min-w-[900px] text-left text-body-sm">
           <colgroup>
             <col className="w-[18%]" />

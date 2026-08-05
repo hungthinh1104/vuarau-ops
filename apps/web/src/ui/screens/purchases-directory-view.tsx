@@ -2,15 +2,21 @@
 
 import type { Cursor, Page, PurchaseDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { PURCHASE_STATUS_COPY } from "@/ui/copy.ts";
 import { formatDate, formatMoney } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageHeader,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
 
 export type PurchasesDirectoryViewProps = {
   readonly query: QueryLike<Page<PurchaseDto>>;
@@ -31,15 +37,42 @@ export function PurchasesDirectoryView({
   onLoadMore,
   canCreate,
 }: PurchasesDirectoryViewProps) {
+  const [queryText, setQueryText] = useState("");
+  const visibleRows = useMemo(() => {
+    const normalized = queryText.trim().toLocaleLowerCase("vi-VN");
+    if (normalized.length === 0) return rows;
+    return rows.filter((purchase) =>
+      [
+        purchase.id,
+        purchase.lines.map((line) => line.productName).join(" "),
+        formatDate(purchase.transactionTime),
+      ]
+        .join(" ")
+        .toLocaleLowerCase("vi-VN")
+        .includes(normalized),
+    );
+  }, [queryText, rows]);
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Đơn mua"
         actions={canCreate ? <LinkButton href="/purchases/new">Tạo đơn mua</LinkButton> : null}
       />
+      <DirectoryToolbar
+        search={
+          <SearchInput
+            label="Tìm đơn mua"
+            placeholder="Mã đơn hoặc mặt hàng"
+            value={queryText}
+            onChange={(event) => setQueryText(event.target.value)}
+            onClear={() => setQueryText("")}
+          />
+        }
+      />
       <QueryStates query={query} loadingLabel="Đang tải đơn mua" onRetry={onRetry}>
         {() =>
-          rows.length === 0 ? (
+          visibleRows.length === 0 ? (
             <EmptyState
               title="Chưa có đơn mua"
               description="Tạo đơn mua đầu tiên khi cần ghi hàng nhập từ nhà cung cấp."
@@ -47,12 +80,9 @@ export function PurchasesDirectoryView({
           ) : (
             <>
               <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface lg:hidden">
-                {rows.map((purchase) => (
+                {visibleRows.map((purchase) => (
                   <li key={purchase.id}>
-                    <Link
-                      href={`/purchases/${purchase.id}`}
-                      className="flex min-h-[64px] justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
-                    >
+                    <MobileRecordCard href={`/purchases/${purchase.id}`}>
                       <span>
                         <strong>{formatMoney(purchase.totalAmount)}</strong>
                         <span className="block text-caption text-ink-muted">
@@ -72,11 +102,11 @@ export function PurchasesDirectoryView({
                           ? "Đã hoàn tác"
                           : PURCHASE_STATUS_COPY[purchase.status]}
                       </Badge>
-                    </Link>
+                    </MobileRecordCard>
                   </li>
                 ))}
               </ul>
-              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
+              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
                 <table className="data-table w-full min-w-[840px] text-left text-body-sm">
                   <colgroup>
                     <col className="w-[16%]" />
@@ -97,7 +127,7 @@ export function PurchasesDirectoryView({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {rows.map((purchase) => (
+                    {visibleRows.map((purchase) => (
                       <tr key={purchase.id} className="hover:bg-surface-muted">
                         <td className="px-3 py-2">{formatDate(purchase.transactionTime)}</td>
                         <td className="px-3 py-2">
@@ -132,7 +162,7 @@ export function PurchasesDirectoryView({
       </QueryStates>
       {nextCursor !== null ? (
         <LoadMoreFooter
-          visibleCount={rows.length}
+          visibleCount={visibleRows.length}
           noun="đơn mua"
           loading={isFetching}
           onLoadMore={onLoadMore}

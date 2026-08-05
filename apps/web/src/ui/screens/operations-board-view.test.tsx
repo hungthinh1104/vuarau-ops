@@ -40,7 +40,7 @@ const query = {
 };
 
 describe("OperationsBoardView", () => {
-  it("keeps commercial, physical and financial states visible in one row", () => {
+  it("keeps order, goods and payment states visible in one row", () => {
     render(
       <OperationsBoardView
         query={query}
@@ -55,11 +55,11 @@ describe("OperationsBoardView", () => {
         onLoadMore={() => undefined}
       />,
     );
-    expect(screen.getByRole("columnheader", { name: "Thương mại" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Vật lý" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Tài chính" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Đơn hàng" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Hàng hóa" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Thanh toán" })).toBeInTheDocument();
     const dataRow = screen.getByRole("row", { name: /SALE-1/ });
-    expect(within(dataRow).getByText("Đã post")).toBeInTheDocument();
+    expect(within(dataRow).getByText("Đã chốt")).toBeInTheDocument();
     expect(screen.getAllByText("Cần giao").length).toBeGreaterThanOrEqual(2);
     expect(within(dataRow).getByText("Chờ thanh toán")).toBeInTheDocument();
   });

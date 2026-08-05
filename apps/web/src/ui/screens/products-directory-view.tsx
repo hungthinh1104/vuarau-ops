@@ -6,7 +6,12 @@ import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
-import { PageActions, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageActions,
+  PageHeader,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
@@ -40,7 +45,6 @@ export function ProductsDirectoryView({
   isFetching,
   onRetry,
   onLoadMore,
-  canReadQuality,
   canCreate,
 }: ProductsDirectoryViewProps) {
   return (
@@ -49,34 +53,33 @@ export function ProductsDirectoryView({
         title="Danh mục mặt hàng"
         actions={
           <PageActions>
-            {canReadQuality ? (
-              <LinkButton href="/quality-grades" tone="secondary">
-                Phân hạng chất lượng
-              </LinkButton>
-            ) : null}
             {canCreate ? <LinkButton href="/products/new">Thêm mặt hàng</LinkButton> : null}
           </PageActions>
         }
       />
-      <div className="grid gap-3 border-y border-border py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <SearchInput
-          label="Tìm mặt hàng"
-          placeholder="Tên hoặc tên gọi khác"
-          value={queryText}
-          onChange={(event) => onQueryChange(event.target.value)}
-          onClear={onClearQuery}
-        />
-        <FilterChipGroup
-          label="Lọc trạng thái mặt hàng"
-          value={activeFilter === null ? "all" : activeFilter ? "active" : "inactive"}
-          options={[
-            { value: "all", label: "Tất cả" },
-            { value: "active", label: "Đang dùng" },
-            { value: "inactive", label: "Đã ngưng" },
-          ]}
-          onChange={(value) => onFilterChange(value === "all" ? null : value === "active")}
-        />
-      </div>
+      <DirectoryToolbar
+        search={
+          <SearchInput
+            label="Tìm mặt hàng"
+            placeholder="Tên hoặc tên gọi khác"
+            value={queryText}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onClear={onClearQuery}
+          />
+        }
+        filters={
+          <FilterChipGroup
+            label="Lọc trạng thái mặt hàng"
+            value={activeFilter === null ? "all" : activeFilter ? "active" : "inactive"}
+            options={[
+              { value: "all", label: "Tất cả" },
+              { value: "active", label: "Đang dùng" },
+              { value: "inactive", label: "Đã ngưng" },
+            ]}
+            onChange={(value) => onFilterChange(value === "all" ? null : value === "active")}
+          />
+        }
+      />
       <QueryStates query={search} loadingLabel="Đang tải mặt hàng" onRetry={onRetry}>
         {() =>
           products.length === 0 ? (
@@ -93,10 +96,7 @@ export function ProductsDirectoryView({
               <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface lg:hidden">
                 {products.map((product) => (
                   <li key={product.id}>
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="flex min-h-[64px] justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
-                    >
+                    <MobileRecordCard href={`/products/${product.id}`}>
                       <span>
                         <strong>{product.displayName}</strong>
                         <span className="block text-caption text-ink-muted">
@@ -105,11 +105,11 @@ export function ProductsDirectoryView({
                         </span>
                       </span>
                       {product.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
-                    </Link>
+                    </MobileRecordCard>
                   </li>
                 ))}
               </ul>
-              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface shadow-sm lg:block">
+              <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
                 <table className="data-table w-full min-w-[780px] table-fixed text-left text-body-sm">
                   <colgroup>
                     <col className="w-[24%]" />

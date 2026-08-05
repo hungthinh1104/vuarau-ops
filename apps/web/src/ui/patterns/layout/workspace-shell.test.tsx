@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   ownerSession,
@@ -53,7 +53,7 @@ describe("Goods Truth workspace navigation", () => {
     for (const link of quickSaleLinks) expect(link).toHaveAttribute("href", "/sales/new");
   });
 
-  it("keeps depot, user, role, workspace change and sign-out visible", () => {
+  it("keeps depot visible and places account actions behind the account menu", () => {
     render(
       <WorkspaceShell
         workspaceName={WORKSPACE_NAME}
@@ -66,13 +66,16 @@ describe("Goods Truth workspace navigation", () => {
       </WorkspaceShell>,
     );
     expect(screen.getByText(WORKSPACE_NAME)).toBeVisible();
+    const accountButton = screen.getByRole("button", { name: "Mở tài khoản" });
+    expect(accountButton).toBeVisible();
+    fireEvent.click(accountButton);
     expect(screen.getByText("sales@example.com")).toBeVisible();
     expect(screen.getByText("Bán hàng")).toBeVisible();
     expect(screen.getByRole("button", { name: "Đổi vựa" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Đăng xuất" })).toBeVisible();
   });
 
-  it("marks the current desktop destination and exposes the five mobile concepts", () => {
+  it("marks the current desktop destination and exposes the stable mobile capability map", () => {
     render(
       <WorkspaceShell
         workspaceName={WORKSPACE_NAME}
@@ -89,22 +92,17 @@ describe("Goods Truth workspace navigation", () => {
       "#main-content",
     );
     expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
-    for (const label of ["Hôm nay", "Đơn hàng", "Khách hàng", "Ghi đơn", "Thêm"]) {
-      expect(
-        screen
-          .getByRole("navigation", { name: "Điều hướng di động" })
-          .querySelector(
-            `a[href="${label === "Hôm nay" ? "/today" : label === "Đơn hàng" ? "/sales" : label === "Khách hàng" ? "/customers" : label === "Ghi đơn" ? "/today#work" : "/today#more"}"]`,
-          ),
-      ).not.toBeNull();
+    const mobile = within(screen.getByRole("navigation", { name: "Điều hướng di động" }));
+    for (const label of ["Hôm nay", "Bán", "Kho", "Việc hôm nay", "Thêm"]) {
+      expect(mobile.getByRole("link", { name: label })).toBeInTheDocument();
     }
   });
 
   it.each([
-    ["/sales/new", salesSession, "Ghi đơn nhanh", null],
-    ["/sales", salesSession, "Đơn hàng", "Đơn hàng"],
-    ["/sales/00000000-0000-0000-0000-000000000001", salesSession, "Đơn hàng", "Đơn hàng"],
-    ["/customers", salesSession, "Khách hàng", "Khách hàng"],
+    ["/sales/new", salesSession, "Ghi đơn nhanh", "Bán"],
+    ["/sales", salesSession, "Đơn hàng", "Bán"],
+    ["/sales/00000000-0000-0000-0000-000000000001", salesSession, "Đơn hàng", "Bán"],
+    ["/customers", salesSession, "Khách hàng", null],
     ["/workspace/operations", ownerSession, "Vận hành", null],
     ["/today", salesSession, "Hôm nay", "Hôm nay"],
   ])("exposes one current location for %s", (pathname, session, desktopLabel, mobileLabel) => {
