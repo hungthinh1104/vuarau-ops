@@ -54,7 +54,7 @@ test.describe("Product catalog", () => {
     await expect(line.getByRole("textbox", { name: "Mặt hàng" })).toHaveValue(name);
     await expect(line.getByRole("combobox", { name: "Đơn vị" })).toContainText("kg");
     await expect(line.getByLabel("Đơn giá")).toHaveValue("");
-    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
+    await chooseOption(page, "Hạng hàng", "Loại 1");
     await line.getByLabel("Số lượng").fill("2");
     await line.getByLabel("Đơn giá").fill("20.000");
     await page.getByRole("button", { name: "Chốt đơn", exact: true }).click();
@@ -98,7 +98,7 @@ test.describe("Product catalog", () => {
     await expect(
       page.getByRole("status").filter({ hasText: "Tạo mặt hàng trong đơn" }),
     ).toBeVisible();
-    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
+    await chooseOption(page, "Hạng hàng", "Loại 1");
     await freeTextLine.getByLabel("Số lượng").fill("1");
     await freeTextLine.getByLabel("Đơn giá").fill("10.000");
     await page.getByRole("button", { name: "Chốt đơn", exact: true }).click();

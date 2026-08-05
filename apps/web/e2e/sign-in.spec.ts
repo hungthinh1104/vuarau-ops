@@ -66,7 +66,9 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     // owner work area to its role-specific bottom-nav label.
     const ownerWorkLink = page.getByRole("link", {
       name:
-        page.viewportSize()?.width && page.viewportSize()!.width < 1024 ? "Cảnh báo" : "Vận hành",
+        page.viewportSize()?.width && page.viewportSize()!.width < 1024
+          ? "Việc hôm nay"
+          : "Vận hành",
     });
     await expect(ownerWorkLink).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
@@ -102,7 +104,7 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
     const salesRoleMarker =
       page.viewportSize()?.width && page.viewportSize()!.width < 1024
-        ? page.getByRole("link", { name: "Ghi đơn" })
+        ? page.getByRole("link", { name: "Bán" })
         : page.getByText("Bán hàng");
     await expect(salesRoleMarker).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();

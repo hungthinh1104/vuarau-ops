@@ -100,7 +100,7 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       const saleLine = page.getByTestId("sale-line-0");
       await saleLine.getByLabel("Số lượng").fill("10");
       await saleLine.getByLabel("Đơn giá").fill("10.000");
-      await expect(page.getByLabel(/Phân hạng chất lượng/)).toHaveCount(0);
+      await expect(page.getByLabel(/Hạng hàng/)).toHaveCount(0);
       const observerRefresh = observer.waitForResponse(
         (response) => response.url().includes("dashboard.summary") && response.status() === 200,
         { timeout: 15_000 },

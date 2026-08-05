@@ -91,7 +91,7 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await page.goto(`/customers/${customerId}/sales/new`);
     const saleLine = page.getByTestId("sale-line-0");
     await chooseProduct(page, productName);
-    await chooseOption(page, "Phân hạng chất lượng", primaryGrade);
+    await chooseOption(page, "Hạng hàng", primaryGrade);
     await chooseOption(page, "Đơn vị", "kg");
     await saleLine.getByLabel("Số lượng").fill("80");
     await saleLine.getByLabel("Đơn giá").fill("10.000");

@@ -22,7 +22,7 @@ async function postSale(page: Page, customerId: string): Promise<void> {
   await page.goto(`/customers/${customerId}/sales/new`);
   const line = page.getByTestId("sale-line-0");
   await chooseProduct(page, "Cà chua");
-  await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
+  await chooseOption(page, "Hạng hàng", "Loại 1");
   await line.getByLabel("Số lượng").fill("1");
   await line.getByLabel("Đơn giá").fill("500.000");
   await page.getByRole("button", { name: "Chốt đơn", exact: true }).click();

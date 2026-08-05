@@ -45,7 +45,7 @@ async function fillLine(page: Page, index: number, line: Line): Promise<void> {
   await product.focus();
   await product.press("Enter");
   await expect(picker).toBeHidden();
-  await chooseLineOption(page, row, "Phân hạng chất lượng", "Loại 1");
+  await chooseLineOption(page, row, "Hạng hàng", "Loại 1");
   await row.getByLabel("Số lượng").fill(line.quantity);
   if (line.unit !== undefined) {
     const unitLabel = line.unit === "bo" ? "bó" : line.unit === "thung" ? "thùng" : line.unit;
@@ -145,7 +145,7 @@ test.describe("TC-E2E-013 — an empty sale is refused", () => {
     await expect(postButton).toBeDisabled();
     await expect(postButton).toHaveAttribute(
       "title",
-      "Chọn Product canonical và phẩm cấp cho mọi dòng trước khi chốt.",
+      "Chọn mặt hàng và hạng hàng cho mọi dòng trước khi chốt.",
     );
 
     // Nothing reached the server: no draft, no sale, no account entry.

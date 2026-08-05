@@ -40,7 +40,7 @@ test.describe("Durable offline Quick Sale", () => {
     await expect(page.getByRole("textbox", { name: "Mặt hàng" })).toBeVisible();
 
     await chooseProduct(page, "Rau muống");
-    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
+    await chooseOption(page, "Hạng hàng", "Loại 1");
     await chooseOption(page, "Đơn vị", "bó");
     await page.getByLabel("Số lượng").fill("10");
     await page.getByLabel("Đơn giá").fill("12.000");
@@ -128,7 +128,7 @@ test.describe("Durable offline Quick Sale", () => {
 
     await context.setOffline(false);
     await chooseProduct(page, "Cà chua");
-    await chooseOption(page, "Phân hạng chất lượng", "Loại 1");
+    await chooseOption(page, "Hạng hàng", "Loại 1");
     await page.getByLabel("Số lượng").fill("3");
     await page.getByLabel("Đơn giá").fill("15.000");
     await context.setOffline(true);
