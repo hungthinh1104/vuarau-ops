@@ -44,8 +44,8 @@ export function ThemeToggle() {
     <Button
       tone="secondary"
       onClick={toggle}
-      className="rounded-xl px-2 sm:px-2.5 h-9 sm:h-10 bg-surface/50 border-border shadow-sm ring-1 ring-ink/5 hover:bg-surface transition-all"
-      aria-label="Toggle theme"
+      className="touch-target px-2 hover:bg-surface-muted"
+      aria-label="Chuyển giao diện"
       title={isDark ? "Chuyển sang giao diện Sáng" : "Chuyển sang giao diện Tối"}
     >
       {isDark ? (

@@ -138,6 +138,20 @@ test("rejects engineering vocabulary and raw domain enums in rendered UI", async
   ]);
 });
 
+test("rejects glass surfaces, raw radii and floating actions", async () => {
+  const result = await checkFixture({
+    "apps/web/src/ui/screens/customer-view.tsx":
+      'export function CustomerView() { return <section className="rounded-xl bg-surface/80 shadow-lg">Khách hàng</section>; }',
+    "apps/web/src/ui/screens/payment-view.tsx":
+      'export function PaymentView() { return <div className="fixed bottom-0">Lưu</div>; }',
+  });
+  assert.deepEqual(result.failures, [
+    "apps/web/src/ui/screens/customer-view.tsx: uses glassmorphism or decorative shadow; use flat token surfaces",
+    "apps/web/src/ui/screens/customer-view.tsx: uses a raw radius token; use rounded-button, rounded-input, rounded-card or rounded-pill",
+    "apps/web/src/ui/screens/payment-view.tsx: owns a floating action surface; compose ActionDock instead",
+  ]);
+});
+
 test("rejects engineering vocabulary in controller feedback copy", async () => {
   const result = await checkFixture({
     "apps/web/src/ui/controllers/intake-controller.tsx":

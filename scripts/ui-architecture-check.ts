@@ -21,6 +21,10 @@ const VISIBLE_COPY_PROP =
 const JSX_TEXT = /<([A-Za-z][\w-]*)\b[^>]*>\s*([A-Za-zÀ-ỹ][^<{]*?)\s*<\/\1>/g;
 const RAW_ENUM_RENDER =
   /<(?:p|span|dd|dt|li|strong|small|h[1-6]|Badge|output)\b[^>]*>\s*\{[^}]*\.(?:reasonCode|blockedReason|severity|outcome|classification|status|state)\s*\}/;
+const GLASS_OR_DECORATIVE_EFFECT =
+  /(?:backdrop-blur|bg-(?:surface|surface-muted)\/\d|\bshadow(?:-[^\s"]+)?)/;
+const RAW_RADIUS = /\brounded-(?:\[[^\]]+\]|none|sm|md|lg|xl|2xl|3xl|full)\b/;
+const FLOATING_ACTION = /(?:fixed|sticky)[^"\n]*(?:bottom|inset-x)/;
 const VISIBLE_ENGINEERING_TERMS = [
   "policy",
   "workspace",
@@ -124,6 +128,25 @@ export async function checkUiArchitecture(root: string): Promise<UiArchitectureR
       }
       if (RAW_ENUM_RENDER.test(renderSource)) {
         failures.push(`${path}: renders a raw domain enum; use the authoritative UI copy registry`);
+      }
+      if (!path.includes("/ui/landing/")) {
+        if (GLASS_OR_DECORATIVE_EFFECT.test(renderSource)) {
+          failures.push(
+            `${path}: uses glassmorphism or decorative shadow; use flat token surfaces`,
+          );
+        }
+        if (RAW_RADIUS.test(renderSource)) {
+          failures.push(
+            `${path}: uses a raw radius token; use rounded-button, rounded-input, rounded-card or rounded-pill`,
+          );
+        }
+        if (
+          FLOATING_ACTION.test(renderSource) &&
+          !path.endsWith("/action-dock.tsx") &&
+          !path.endsWith("/mobile-nav.tsx")
+        ) {
+          failures.push(`${path}: owns a floating action surface; compose ActionDock instead`);
+        }
       }
     }
 

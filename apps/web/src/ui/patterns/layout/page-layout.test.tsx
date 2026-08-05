@@ -1,6 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { PageHeader } from "./page-layout.tsx";
+import {
+  DisclosureSection,
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageFrame,
+  PageHeader,
+} from "./page-layout.tsx";
 
 describe("PageHeader", () => {
   it("renders title alone", () => {
@@ -39,5 +45,45 @@ describe("PageHeader", () => {
     );
     expect(screen.getByTestId("status-badge")).toBeInTheDocument();
     expect(screen.getByText("Hoàn thành")).toBeInTheDocument();
+  });
+});
+
+describe("operational layout patterns", () => {
+  it("uses the documented content widths", () => {
+    const { rerender } = render(<PageFrame size="narrow">Nội dung</PageFrame>);
+    expect(screen.getByText("Nội dung")).toHaveClass("max-w-[800px]");
+    rerender(<PageFrame size="wide">Nội dung rộng</PageFrame>);
+    expect(screen.getByText("Nội dung rộng")).toHaveClass("max-w-[1320px]");
+  });
+
+  it("keeps disclosure state and action labels accessible", () => {
+    render(
+      <DisclosureSection title="Lịch sử" defaultOpen={false}>
+        <p>Chi tiết</p>
+      </DisclosureSection>,
+    );
+    const summary = screen.getByRole("button", { name: "Lịch sử" });
+    expect(summary).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(summary);
+    expect(summary).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Chi tiết")).toBeVisible();
+  });
+
+  it("provides semantic directory and mobile record surfaces", () => {
+    render(
+      <>
+        <DirectoryToolbar
+          search={
+            <label>
+              Tìm
+              <input aria-label="Tìm" />
+            </label>
+          }
+        />
+        <MobileRecordCard href="/products/1">Mặt hàng</MobileRecordCard>
+      </>,
+    );
+    expect(screen.getByRole("textbox", { name: "Tìm" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Mặt hàng" })).toHaveAttribute("href", "/products/1");
   });
 });

@@ -13,7 +13,17 @@
 // layout
 export { AppNav } from "./layout/app-nav.tsx";
 export { MobileNav } from "./layout/mobile-nav.tsx";
-export { PageActions, PageHeader, Section } from "./layout/page-layout.tsx";
+export {
+  DetailLayout,
+  DirectoryToolbar,
+  DisclosureSection,
+  MobileRecordCard,
+  PageActions,
+  PageFrame,
+  PageHeader,
+  Section,
+  SummaryRail,
+} from "./layout/page-layout.tsx";
 export { LinkButton, type LinkButtonProps } from "@/ui/primitives/link-button.tsx";
 export { WorkspaceShell, type WorkspaceShellProps } from "./layout/workspace-shell.tsx";
 

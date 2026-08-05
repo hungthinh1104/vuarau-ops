@@ -140,6 +140,18 @@ customer context → product selection → compact cart → persistent total/act
 Draft, post, retry, conflict and offline states must preserve entered values.
 The dock never hides total, debt impact, blocked state or the primary action.
 
+### Application shell and responsive contract
+
+Authenticated operational pages use a flat sticky top bar with a structural border. The bar surfaces only the vựa đang làm việc, exceptional sync state (queued, blocked or offline) and AccountMenu. Theme, đổi vựa, vai trò and đăng xuất belong inside the account menu; a healthy sync state is silent.
+
+Desktop navigation is a 240px sidebar that may collapse to a 72px icon rail. The collapsed choice is local to the device. Cấu hình and Quản trị start collapsed but remain keyboard accessible and preserve aria-current. Mobile navigation keeps the capability map stable: Hôm nay · Mua · Bán · Kho · Thêm. It must not replace those destinations with role-specific labels. When an ActionDock is mounted, mobile navigation is hidden until that dock unmounts.
+
+Page content uses one of three bounded frames: form narrow (800px), detail standard (1120px) and directory/report wide (1320px). Detail pages place source content and history in the main column and a sticky SummaryRail on desktop; on small screens the summary moves above the action dock.
+
+ActionDock is the only shared decision surface for a consequential transaction. It owns the visible summary, rejection/partial feedback, secondary actions and exactly one primary action. A screen must not create a second fixed or sticky bottom action bar. DisclosureSection hides secondary history, evidence, charts and management metrics until requested and exposes its state with aria-expanded and keyboard focus.
+
+Directories keep search visible. A single filter axis uses chips; several filters use a sheet on small screens and an inline toolbar on desktop. Desktop tables and MobileRecordCard rows expose the same record order and semantic actions; they must not create duplicate hidden locators.
+
 ## States, motion and accessibility
 
 - Keep order, payment, fulfillment and sync as separate state dimensions.

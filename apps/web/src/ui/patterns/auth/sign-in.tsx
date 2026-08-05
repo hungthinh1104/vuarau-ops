@@ -33,27 +33,19 @@ export function SignIn({ signIn }: SignInProps) {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-4 overflow-hidden bg-canvas selection:bg-primary/30">
-      {/* Aurora Background (Adapts opacity for light/dark) */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center dark:opacity-100 opacity-50">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] rounded-[100%] bg-primary/10 blur-[120px]" />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-blue-500/10 blur-[120px]" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full bg-emerald-500/10 blur-[120px]" />
-      </div>
-
-      <main className="relative w-full max-w-[440px] z-10">
-        {/* Floating Glass Card */}
-        <div className="rounded-[32px] border border-border bg-surface/80 p-8 sm:p-10 shadow-2xl backdrop-blur-2xl ring-1 ring-ink/5">
-          <div className="flex flex-col items-center mb-8 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-primary/10 dark:bg-primary/20 border border-primary/20 p-2.5 shadow-[0_0_30px_rgba(59,166,241,0.2)] mb-5">
+    <div className="flex min-h-screen w-full items-center justify-center bg-canvas p-4 selection:bg-brand-soft">
+      <main className="w-full max-w-[440px]">
+        <div className="rounded-card border border-border bg-surface p-6 sm:p-8">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-card border border-border bg-brand-soft p-2.5">
               <img
                 src="/icon/cauliflower-svgrepo-com.svg"
                 alt="Vựa Rau Logo"
                 className="h-full w-full object-contain"
               />
             </div>
-            <h1 className="text-[28px] font-bold text-ink tracking-tight mb-2">Đăng nhập</h1>
-            <p className="text-sm text-ink-muted">
+            <h1 className="text-heading font-bold text-ink">Đăng nhập</h1>
+            <p className="mt-2 text-body-sm text-ink-muted">
               Vui lòng sử dụng tài khoản được cấp bởi người vận hành vựa.
             </p>
           </div>
@@ -68,7 +60,6 @@ export function SignIn({ signIn }: SignInProps) {
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="!h-12 !rounded-xl transition-all"
             />
 
             <div className="flex flex-col gap-2">
@@ -79,7 +70,6 @@ export function SignIn({ signIn }: SignInProps) {
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="!h-12 !rounded-xl transition-all"
                 {...(error !== null ? { error } : {})}
               />
               <div className="flex justify-end mt-1">
@@ -88,7 +78,7 @@ export function SignIn({ signIn }: SignInProps) {
                   tone="link"
                   aria-pressed={showPassword}
                   onClick={() => setShowPassword((visible) => !visible)}
-                  className="min-h-8 text-[12px] font-medium text-ink-muted transition-colors hover:text-ink"
+                  className="min-h-8 text-caption font-medium text-ink-muted transition-colors hover:text-ink"
                 >
                   {showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                 </Button>
@@ -97,25 +87,24 @@ export function SignIn({ signIn }: SignInProps) {
 
             <Button
               type="submit"
-              className="mt-2 h-12 w-full rounded-xl bg-primary text-[15px] font-bold text-white shadow-[0_4px_14px_rgba(59,166,241,0.4)] hover:bg-primary/90 hover:shadow-[0_6px_20px_rgba(59,166,241,0.6)] transition-all disabled:opacity-50 disabled:shadow-none"
+              fullWidth
               disabled={busy || email.trim().length === 0 || password.length === 0}
             >
               {busy ? "Đang đăng nhập…" : "Đăng nhập"}
             </Button>
           </form>
 
-          <div className="mt-8 flex items-center justify-center gap-2 text-[13px] text-ink-muted">
+          <div className="mt-8 flex items-center justify-center gap-2 text-caption text-ink-muted">
             <ShieldCheck className="h-4 w-4" />
             <span>Kết nối an toàn & mã hóa đầu cuối</span>
           </div>
         </div>
 
-        {/* Floating links outside card */}
-        <div className="mt-8 flex flex-col items-center gap-4 text-sm text-ink-muted">
+        <div className="mt-6 flex flex-col items-center gap-4 text-body-sm text-ink-muted">
           <p>
             Chưa có tài khoản?{" "}
             <span
-              className="text-ink-muted/70 cursor-not-allowed"
+              className="text-ink-muted"
               title="Chỉ người vận hành mới có quyền tạo tài khoản nội bộ"
             >
               Liên hệ quản lý
@@ -123,7 +112,7 @@ export function SignIn({ signIn }: SignInProps) {
           </p>
           <Link
             href="/"
-            className="group flex items-center gap-1.5 text-ink-muted hover:text-ink transition-colors"
+            className="group flex items-center gap-1.5 text-ink-muted transition-colors hover:text-ink"
           >
             <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
             Về trang chủ
@@ -139,9 +128,9 @@ export function SignIn({ signIn }: SignInProps) {
  */
 export function SignInUnconfigured() {
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 bg-canvas">
-      <main className="mx-auto max-w-md w-full">
-        <div className="rounded-[32px] border border-border bg-surface/80 p-8 backdrop-blur-2xl text-center ring-1 ring-ink/5">
+    <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
+      <main className="w-full max-w-[440px]">
+        <div className="rounded-card border border-border bg-surface p-6 text-center sm:p-8">
           <EmptyState
             title="Chưa cấu hình đăng nhập"
             description="Bản triển khai này thiếu NEXT_PUBLIC_SUPABASE_URL và NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. Báo người cài đặt hệ thống."
