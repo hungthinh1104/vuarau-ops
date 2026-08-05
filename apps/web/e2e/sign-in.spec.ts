@@ -68,12 +68,15 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
       name:
         page.viewportSize()?.width && page.viewportSize()!.width < 1024
           ? "Việc hôm nay"
-          : "Vận hành",
+          : "Hôm nay",
     });
     await expect(ownerWorkLink).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Đăng xuất" }).click();
+    await page.getByRole("button", { name: "Mở tài khoản" }).click();
+    const accountMenu = page.getByRole("dialog");
+    await expect(accountMenu).toBeVisible();
+    await accountMenu.getByRole("button", { name: "Đăng xuất" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "Đăng nhập" })).toBeVisible();
     await expect(page.getByLabel("Mật khẩu")).toBeVisible();
@@ -100,12 +103,12 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     // role, permissions and cached SessionDto are not renderable.
     await expect(page.getByRole("heading", { name: "Chọn vựa" })).toBeVisible();
     await expect(page.getByText("Chủ vựa")).toBeHidden();
-    await expect(page.getByRole("link", { name: "Vận hành" })).toBeHidden();
+    await expect(page.getByRole("link", { name: "Thành viên" })).toBeHidden();
     await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
     const salesRoleMarker =
       page.viewportSize()?.width && page.viewportSize()!.width < 1024
         ? page.getByRole("link", { name: "Bán" })
-        : page.getByText("Bán hàng");
+        : page.getByRole("link", { name: "Đơn hàng" });
     await expect(salesRoleMarker).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
   });

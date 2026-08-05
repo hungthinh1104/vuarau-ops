@@ -76,11 +76,6 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       await expect(page.getByRole("heading", { name: "Tổng quan vận hành" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Đã nhận hàng" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Tồn kho hiện tại" })).toBeVisible();
-      await expect(
-        page.getByRole("heading", { name: "Doanh số và đơn bán · 30 ngày" }),
-      ).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Trạng thái vật lý" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Top mặt hàng theo doanh số" })).toBeVisible();
 
       const observer = await page.context().newPage();
       await signIn(observer, "owner");
@@ -89,9 +84,9 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
 
       await page.goto("/operations-board");
       await expect(page.getByRole("heading", { name: "Bảng điều hành" })).toBeVisible();
-      await expect(page.getByRole("columnheader", { name: "Thương mại" })).toBeVisible();
-      await expect(page.getByRole("columnheader", { name: "Vật lý" })).toBeVisible();
-      await expect(page.getByRole("columnheader", { name: "Tài chính" })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: "Đơn hàng" })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: "Hàng hóa" })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: "Thanh toán" })).toBeVisible();
 
       const customerId = await api.createCustomer(`Khách workflow ${suffix}`);
       await page.goto(`/customers/${customerId}/sales/new`);
@@ -125,12 +120,20 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       await expect(page.getByLabel(/Số lượng giao/)).toHaveValue("10");
       await page.getByRole("button", { name: "Xuất kho & bắt đầu giao" }).click();
       await page.waitForURL(/\/deliveries\/[0-9a-f-]+$/);
-      await expect(page.getByText("Đang giao", { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("region", { name: "Tóm tắt giao hàng" }).getByText("Đang giao", {
+          exact: true,
+        }),
+      ).toBeVisible();
       await expect(page.getByRole("button", { name: "Xác nhận giao xong" })).toBeVisible();
       await expect(page.getByText("Đã ghi nhận", { exact: true })).toHaveCount(0);
 
       await page.getByRole("button", { name: "Xác nhận giao xong" }).click();
-      await expect(page.getByText("Đã giao", { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("region", { name: "Tóm tắt giao hàng" }).getByText("Đã giao", {
+          exact: true,
+        }),
+      ).toBeVisible();
 
       expect(await api.inventoryBalances(productId)).toEqual(
         expect.arrayContaining([

@@ -30,6 +30,11 @@ const hasDatabase = !endToEndDisabled();
 
 const apiEnvironment = {
   DATABASE_URL: databaseUrl,
+  // The acceptance suite deliberately serializes 100 browser journeys through
+  // one local client identity. Keep production's 600-request window unchanged,
+  // but prevent catalog keystrokes and cache probes from turning a valid later
+  // journey into a transport-level 429.
+  RATE_LIMIT_AUTHENTICATED: "10000",
   // Keep E2E on the real actor lookup path. Local development may use its
   // convenience principal fallback, but acceptance must prove workspace and
   // membership isolation through PostgreSQL.

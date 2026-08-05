@@ -38,9 +38,17 @@ test.describe("Depot operations (TC-E2E-030)", () => {
       await page.waitForURL(/\/deliveries\/[0-9a-f-]+$/);
       deliveryIds.push(new URL(page.url()).pathname.split("/").at(-1)!);
       await page.getByRole("button", { name: "Xuất kho & bắt đầu giao" }).click();
-      await expect(page.getByText("Đang giao", { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("region", { name: "Tóm tắt giao hàng" }).getByText("Đang giao", {
+          exact: true,
+        }),
+      ).toBeVisible();
       await page.getByRole("button", { name: "Xác nhận giao xong" }).click();
-      await expect(page.getByText("Đã giao", { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("region", { name: "Tóm tắt giao hàng" }).getByText("Đã giao", {
+          exact: true,
+        }),
+      ).toBeVisible();
     }
 
     await page.goto(`/deliveries/${deliveryIds[0]}`);

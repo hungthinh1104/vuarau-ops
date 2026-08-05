@@ -107,7 +107,28 @@ export const api = {
     return profile.qualityGradeMode;
   },
 
+  async resetQualityGradeFixture(): Promise<void> {
+    const database = createDatabase(requiredDatabaseUrl(), { max: 1 });
+    try {
+      await database.sql`
+        update quality_grades
+        set is_active = false, updated_at = now()
+        where workspace_id = ${E2E_WORKSPACE_ID}::uuid
+          and id <> ${E2E_QUALITY_GRADE_ID}::uuid
+      `;
+      await database.sql`
+        update quality_grades
+        set is_active = true, updated_at = now()
+        where workspace_id = ${E2E_WORKSPACE_ID}::uuid
+          and id = ${E2E_QUALITY_GRADE_ID}::uuid
+      `;
+    } finally {
+      await database.sql.end();
+    }
+  },
+
   async retirePurchaseCorrectionPolicies(): Promise<void> {
+    const effectiveTo = new Date().toISOString();
     const page = (await call(
       "policy.list",
       "query",
@@ -129,17 +150,41 @@ export const api = {
           ...envelope({ actorId: actorFor("owner") }),
           payload: {
             policyVersionId: policy.id,
+            effectiveTo,
             reason: "E2E cleanup: isolate the generic purchase void scenario.",
           },
         },
         "owner",
       );
     }
+
+    // Older local E2E runs may have retired this fixture before effectiveTo was
+    // supplied. Repair only those disposable test rows so a rerun does not
+    // make a valid successor look overlapping forever. Production data is
+    // changed only through the policy command above.
+    const database = createDatabase(requiredDatabaseUrl(), { max: 1 });
+    try {
+      await database.sql`
+        update workspace_policies
+        set effective_to = now()
+        where workspace_id = ${E2E_WORKSPACE_ID}::uuid
+          and policy_kind = 'purchase_correction'
+          and state = 'retired'
+          and effective_to is null
+          and effective_from < now()
+      `;
+    } finally {
+      await database.sql.end();
+    }
   },
 
   async approvePurchaseCorrectionPolicy(): Promise<string> {
+    // Keep this fixture self-contained when the correction test is run alone,
+    // and close retired policies at their actual test-harness retirement time.
+    await api.retirePurchaseCorrectionPolicies();
     const policyVersionId = crypto.randomUUID();
     const policyVersion = Date.now() % 2_000_000_000;
+    const effectiveFrom = new Date().toISOString();
     await call(
       "policy.createDraft",
       "mutation",
@@ -149,7 +194,7 @@ export const api = {
           policyVersionId,
           policyKind: "purchase_correction",
           version: policyVersion,
-          effectiveFrom: "2026-01-01T00:00:00.000Z",
+          effectiveFrom,
           effectiveTo: null,
           definition: {
             contractVersion: 1,

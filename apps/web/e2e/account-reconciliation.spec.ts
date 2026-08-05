@@ -19,9 +19,9 @@ test.describe("TC-E2E-023 — account reconciliation", () => {
     await expect(page.getByText("999.999 ₫", { exact: true })).toBeVisible();
     await expect(page.getByText("500.000 ₫", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Xuất bằng chứng JSON" }).click();
-    await expect(page.getByText("Bằng chứng đối soát", { exact: true })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Bằng chứng JSON" })).toContainText(
+    await page.getByRole("button", { name: "Xuất bản đối soát" }).click();
+    await expect(page.getByText("Chi tiết đối soát", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Chi tiết đối soát" })).toContainText(
       "projection_balance_mismatch",
     );
 

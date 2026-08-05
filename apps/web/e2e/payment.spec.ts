@@ -43,6 +43,7 @@ test.describe("TC-E2E-001 — find and open a customer", () => {
     } else {
       await row.click();
     }
+    await page.waitForURL(/\/customers\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { name })).toBeVisible();
     await expect(page.getByText("Còn nợ", { exact: true })).toBeVisible();
   });

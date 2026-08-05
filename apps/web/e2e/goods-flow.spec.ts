@@ -34,6 +34,7 @@ test.describe("Goods Truth", () => {
     page,
   }) => {
     await signIn(page, "owner");
+    await api.resetQualityGradeFixture();
     await api.retirePurchaseCorrectionPolicies();
 
     const suffix = Date.now();
@@ -153,6 +154,7 @@ test.describe("Goods Truth", () => {
     page,
   }) => {
     await signIn(page, "owner");
+    await api.resetQualityGradeFixture();
     await api.approvePurchaseCorrectionPolicy();
 
     const primaryQualityGradeName = `Loại 1 correction ${Date.now()}`;

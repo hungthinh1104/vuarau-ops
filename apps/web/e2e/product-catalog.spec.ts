@@ -95,9 +95,7 @@ test.describe("Product catalog", () => {
     const replacementName = `${renamed} mới`;
     await freeTextLine.getByRole("textbox", { name: "Mặt hàng" }).fill(replacementName);
     await page.getByRole("button", { name: /Tạo mặt hàng/ }).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: "Tạo mặt hàng trong đơn" }),
-    ).toBeVisible();
+    await expect(page.getByText("Mặt hàng chưa có trong danh mục", { exact: true })).toBeVisible();
     await chooseOption(page, "Hạng hàng", "Loại 1");
     await freeTextLine.getByLabel("Số lượng").fill("1");
     await freeTextLine.getByLabel("Đơn giá").fill("10.000");
