@@ -18,8 +18,8 @@ export const NoActiveGrades: Story = {
   render: () => (
     <div className="max-w-lg">
       <EmptyState
-        title="Chưa có phẩm cấp đang dùng"
-        description="Theo chính sách hiện tại, phải cấu hình phẩm cấp trước khi chốt đơn hoặc nhận hàng."
+        title="Chưa có hạng hàng đang dùng"
+        description="Theo cách tính hiện tại, cần cấu hình hạng hàng trước khi chốt đơn hoặc nhận hàng."
       />
     </div>
   ),

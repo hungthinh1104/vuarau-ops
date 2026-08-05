@@ -54,8 +54,8 @@ describe("SaleDetailView cross-dimension fulfilment guard", () => {
         onGenerateDocument={() => undefined}
       />,
     );
-    expect(screen.queryByRole("link", { name: "Tạo phiếu giao" })).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("không tạo phiếu giao mới");
+    expect(screen.queryByRole("link", { name: "Giao đơn" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("không tạo đơn giao mới");
     expect(screen.getByRole("status")).toHaveTextContent("ghi nhận hàng đi lần hai");
   });
 });

@@ -4,6 +4,7 @@ import type { CustomerOrderChannel, ProductId } from "@vuarau/domain-contracts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { CustomerOrderDraftLine } from "@/ui/domain/customer-order-form.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -148,19 +149,27 @@ export function CustomerOrderCreateView(props: {
         value={props.note}
         onChange={(event) => props.onNoteChange(event.target.value)}
       />
-      <div className="flex flex-wrap gap-2">
-        <Button disabled={!props.valid || props.submitting} onClick={props.onSave}>
-          {props.submitting ? "Đang lưu" : "Lưu đơn đặt hàng"}
-        </Button>
-        <Button tone="secondary" disabled={props.submitting} onClick={props.onCancel}>
-          Huỷ
-        </Button>
-      </div>
-      <CommandOutcome
-        command={props.command}
-        attemptedAction="Lưu đơn đặt hàng"
-        onReload={() => undefined}
-        onCancel={props.onCancel}
+      <ActionDock
+        label="Hành động đơn đặt hàng"
+        summary={<p className="text-body-sm font-semibold text-ink">Kiểm tra trước khi lưu</p>}
+        secondary={
+          <Button tone="secondary" disabled={props.submitting} onClick={props.onCancel}>
+            Huỷ
+          </Button>
+        }
+        primary={
+          <Button disabled={!props.valid || props.submitting} onClick={props.onSave}>
+            {props.submitting ? "Đang lưu" : "Lưu đơn đặt hàng"}
+          </Button>
+        }
+        feedback={
+          <CommandOutcome
+            command={props.command}
+            attemptedAction="Lưu đơn đặt hàng"
+            onReload={() => undefined}
+            onCancel={props.onCancel}
+          />
+        }
       />
     </div>
   );

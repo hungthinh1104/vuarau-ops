@@ -16,6 +16,7 @@ import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
@@ -142,7 +143,7 @@ function IntakeForm({
     <div className="grid gap-6">
       <PageHeader
         title="Nhận hàng"
-        description={`Nhà cung cấp ${detail.supplierId} · ${weighing ? "ghi tổng cân, bì và khối lượng hàng" : "nhập số lượng thực nhận"}`}
+        description={`Nhà cung cấp ${detail.supplierId} · ${weighing ? "ghi Tổng cân, Trọng lượng bì và Khối lượng hàng" : "nhập số lượng thực nhận"}`}
       />
       <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
         <TextInput
@@ -231,13 +232,28 @@ function IntakeForm({
           value={note}
           onChange={(event) => onNote(event.target.value)}
         />
-        <Button disabled={locked || commandLines.length === 0} onClick={onSubmit}>
-          {locked ? "Đang ghi phiếu nhập kho" : "Xác nhận đã nhận hàng"}
-        </Button>
-        <CommandOutcome
-          command={command}
-          attemptedAction="Ghi nhận phiếu nhập kho"
-          onReload={onRetry}
+        <ActionDock
+          label="Hành động nhận hàng"
+          summary={
+            <div>
+              <p className="text-caption font-semibold text-ink-muted">Số lượng nhận</p>
+              <p className="text-body-sm font-semibold text-ink">
+                Kiểm tra số lượng trước khi ghi phiếu nhập kho
+              </p>
+            </div>
+          }
+          primary={
+            <Button disabled={locked || commandLines.length === 0} onClick={onSubmit}>
+              {locked ? "Đang ghi phiếu nhập kho" : "Xác nhận đã nhận hàng"}
+            </Button>
+          }
+          feedback={
+            <CommandOutcome
+              command={command}
+              attemptedAction="Ghi nhận phiếu nhập kho"
+              onReload={onRetry}
+            />
+          }
         />
       </section>
     </div>

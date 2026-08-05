@@ -55,7 +55,7 @@ export const Attention: Story = {
   render: () =>
     fulfilment(
       "Cần kiểm tra",
-      "Dữ liệu lịch sử không có đủ định danh để tạo phiếu giao mới.",
+      "Dữ liệu lịch sử không có đủ định danh để tạo đơn giao mới.",
       "warning",
     ),
 };

@@ -72,7 +72,7 @@ export const UI_COPY_REGISTRY = {
     integrity_failure: "Dữ liệu cần được kiểm tra",
   },
   permission: {
-    "delivery.create": "Tạo phiếu giao",
+    "delivery.create": "Giao đơn",
     "delivery.dispatch": "Xuất kho và bắt đầu giao",
     "delivery.complete": "Xác nhận giao xong",
     "intake.record": "Ghi nhận hàng nhập",
@@ -323,10 +323,10 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   CUSTOMER_ALREADY_ACTIVE: "Khách hàng này đang hoạt động.",
   PRODUCT_NOT_FOUND: "Không tìm thấy mặt hàng trong vựa này.",
   PRODUCT_VERSION_CONFLICT: "Mặt hàng đã được người khác cập nhật.",
-  QUALITY_GRADE_NOT_FOUND: "Không tìm thấy phân hạng chất lượng trong vựa này.",
-  QUALITY_GRADE_INACTIVE: "Phân hạng chất lượng này đang ngưng sử dụng.",
-  QUALITY_GRADE_VERSION_CONFLICT: "Phân hạng chất lượng đã được người khác cập nhật.",
-  QUALITY_GRADE_NOT_USED: "Vựa này không sử dụng phân hạng thương mại cho giao dịch mới.",
+  QUALITY_GRADE_NOT_FOUND: "Không tìm thấy hạng hàng trong vựa này.",
+  QUALITY_GRADE_INACTIVE: "Hạng hàng này đang ngưng sử dụng.",
+  QUALITY_GRADE_VERSION_CONFLICT: "Hạng hàng đã được người khác cập nhật.",
+  QUALITY_GRADE_NOT_USED: "Vựa này không dùng hạng hàng cho giao dịch mới.",
   PRICING_RULE_INVALID:
     "Quy tắc giá chưa hợp lệ. Kiểm tra phạm vi, thời hạn và các khoản điều chỉnh.",
   BACKUP_DIGEST_INVALID: "Checksum bản sao lưu không hợp lệ.",
@@ -359,7 +359,7 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   PURCHASE_HAS_ACTIVE_RECEIPTS:
     "Đơn mua đã có hàng thực nhận nên chưa thể hoàn tác thương mại. Chỉ hoàn tác phiếu nhận nếu chính phiếu nhận đã ghi sai; không đảo hàng thật chỉ để sửa đơn mua.",
   PURCHASE_CORRECTION_POLICY_UNAVAILABLE:
-    "Chưa có quy định sửa phần tiền sau khi nhập hàng được vựa duyệt và đang áp dụng.",
+    "Chưa có cách sửa phần tiền sau khi nhập hàng được vựa duyệt và đang áp dụng.",
   PURCHASE_VOID_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tác đơn mua.",
   RECEIPT_NOT_FOUND: "Không tìm thấy phiếu nhập kho.",
   RECEIPT_ALREADY_REVERSED: "Phiếu nhập kho đã được hoàn tác.",
@@ -379,9 +379,9 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   SALE_PRODUCT_INACTIVE: "Mặt hàng đã chọn đang ngưng hoạt động. Hãy chọn mặt hàng khác.",
   SALE_PRODUCT_SNAPSHOT_MISMATCH:
     "Tên hoặc đơn vị dòng hàng không còn khớp mặt hàng đã chọn. Hãy chọn lại mặt hàng.",
-  SALE_QUALITY_GRADE_REQUIRED: "Mỗi dòng phải chọn phân hạng chất lượng trước khi chốt.",
-  SALE_QUALITY_GRADE_NOT_FOUND: "Phân hạng đã chọn không còn tồn tại trong vựa này.",
-  SALE_QUALITY_GRADE_INACTIVE: "Phân hạng đã chọn đang ngưng sử dụng.",
+  SALE_QUALITY_GRADE_REQUIRED: "Mỗi dòng phải chọn hạng hàng trước khi chốt.",
+  SALE_QUALITY_GRADE_NOT_FOUND: "Hạng hàng đã chọn không còn tồn tại trong vựa này.",
+  SALE_QUALITY_GRADE_INACTIVE: "Hạng hàng đã chọn đang ngưng sử dụng.",
   SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH:
     "Tên phân hạng trên dòng hàng đã thay đổi. Hãy chọn lại phân hạng.",
   SALE_ALREADY_POSTED:
@@ -406,7 +406,7 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
     "Với lý do sai khách hàng, hãy chọn một khách hàng khác cho đơn thay thế.",
   SALE_REPLACEMENT_CURRENCY_MISMATCH: "Đơn thay thế phải dùng cùng loại tiền với đơn gốc.",
   CREDIT_POLICY_UNAVAILABLE:
-    "Chính sách hạn mức chưa có đủ quy trình an toàn để chốt đơn. Hãy nhờ chủ vựa kiểm tra cấu hình.",
+    "Hạn mức công nợ chưa có đủ quy trình an toàn để chốt đơn. Hãy nhờ chủ vựa kiểm tra cấu hình.",
   CREDIT_LIMIT_EXCEEDED:
     "Đơn này vượt hạn mức công nợ đã cấu hình. Kiểm tra số dư hoặc nhờ chủ vựa duyệt lại hạn mức.",
 
@@ -435,12 +435,12 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   INVALID_COMMAND_PAYLOAD: "Có ô nhập chưa hợp lệ. Kiểm tra lại các ô được đánh dấu.",
   TRANSACTION_TIME_IN_FUTURE: "Thời điểm giao dịch nằm ở tương lai. Kiểm tra giờ trên máy.",
 
-  DELIVERY_NOT_FOUND: "Không tìm thấy phiếu giao hàng này.",
+  DELIVERY_NOT_FOUND: "Không tìm thấy đơn giao này.",
   DELIVERY_LINE_INVALID: "Dòng giao hàng không khớp với đơn bán.",
-  DELIVERY_VERSION_CONFLICT: "Phiếu giao hàng vừa được thay đổi. Hãy tải lại.",
-  DELIVERY_ALREADY_DISPATCHED: "Phiếu giao hàng đã xuất kho.",
-  DELIVERY_ALREADY_CANCELLED: "Phiếu giao hàng đã huỷ.",
-  DELIVERY_ALREADY_DELIVERED: "Phiếu giao hàng đã hoàn tất.",
+  DELIVERY_VERSION_CONFLICT: "Đơn giao vừa được thay đổi. Hãy tải lại.",
+  DELIVERY_ALREADY_DISPATCHED: "Đơn giao đã xuất kho.",
+  DELIVERY_ALREADY_CANCELLED: "Đơn giao đã bị loại bỏ.",
+  DELIVERY_ALREADY_DELIVERED: "Đơn giao đã hoàn tất.",
   DELIVERY_QUANTITY_EXCEEDS_SALE: "Số lượng giao vượt quá phần còn lại của đơn bán.",
   DELIVERY_RETURN_EXCEEDS_DISPATCH: "Số lượng trả vượt quá số đã giao.",
   DELIVERY_PRODUCT_REQUIRED: "Dòng bán cần liên kết sản phẩm trước khi giao.",

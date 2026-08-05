@@ -273,7 +273,7 @@ export function SaleLineEditor({
           {qualityGradeRequired ? (
             <div className="col-span-2 md:col-span-1">
               <Select
-                label="Phân hạng chất lượng"
+                label="Hạng hàng"
                 required
                 disabled={disabled}
                 value={line.qualityGradeId ?? ""}

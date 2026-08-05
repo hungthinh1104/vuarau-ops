@@ -46,7 +46,7 @@ export const Reclassification: Story = {
   parameters: coversState("inventory_reclassification"),
   render: () => (
     <div className="max-w-md rounded-card border border-border bg-surface p-4">
-      <strong>Chuyển phẩm cấp</strong>
+      <strong>Chuyển hạng hàng</strong>
       <p className="mt-2">−10 kg Loại 1 → +10 kg Loại 2</p>
       <p className="text-caption text-ink-muted">Tổng số lượng không đổi.</p>
     </div>

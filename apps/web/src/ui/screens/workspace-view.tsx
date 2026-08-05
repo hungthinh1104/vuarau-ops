@@ -125,7 +125,7 @@ export function OperationalProfileView(props: {
     ],
     weighingMode: [
       ["quantity_only", "Chỉ nhập số lượng"],
-      ["gross_tare_net", "Tổng cân / trọng lượng bì / khối lượng hàng"],
+      ["gross_tare_net", "Tổng cân / Trọng lượng bì / Khối lượng hàng"],
     ],
     qualityGradeMode: [
       ["disabled", "Không bắt buộc"],

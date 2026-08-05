@@ -3,6 +3,7 @@
 import type { Money } from "@vuarau/domain-contracts";
 import { formatMoney } from "@/ui/format.ts";
 import { Button } from "@/ui/primitives/button.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 
 export function QuickSaleFooter(props: {
   readonly total: Money;
@@ -37,29 +38,35 @@ export function QuickSaleFooter(props: {
       : null;
 
   return (
-    <div className="fixed inset-x-0 bottom-16 z-20 border-t border-border bg-surface px-4 py-3 lg:bottom-0">
-      <div className="mx-auto flex max-w-[1440px] items-center gap-2 lg:justify-end lg:px-8">
-        <div className="mr-auto min-w-0">
+    <ActionDock
+      label="Hành động ghi đơn"
+      summary={
+        <div className="min-w-0">
           <p className="text-caption font-medium text-ink-muted">Tổng đơn</p>
-          <p className="tabular truncate text-subheading font-semibold tracking-[-0.02em] text-ink">
+          <p className="tabular truncate text-subheading font-semibold text-ink">
             {formatMoney(props.total)}
           </p>
         </div>
-        <Button
-          tone="secondary"
-          className="hidden sm:inline-flex"
-          onClick={props.onDiscard}
-          {...(props.locallyQueued ? { disabledReason: "Đơn đang chờ máy chủ xác nhận." } : {})}
-        >
-          {props.draftExists ? "Bỏ đơn" : "Huỷ"}
-        </Button>
-        <Button
-          tone="secondary"
-          onClick={props.onSaveDraft}
-          {...(draftDisabledReason === null ? {} : { disabledReason: draftDisabledReason })}
-        >
-          Lưu nháp
-        </Button>
+      }
+      secondary={
+        <>
+          <Button
+            tone="secondary"
+            onClick={props.onDiscard}
+            {...(props.locallyQueued ? { disabledReason: "Đơn đang chờ máy chủ xác nhận." } : {})}
+          >
+            {props.draftExists ? "Bỏ đơn" : "Huỷ"}
+          </Button>
+          <Button
+            tone="secondary"
+            onClick={props.onSaveDraft}
+            {...(draftDisabledReason === null ? {} : { disabledReason: draftDisabledReason })}
+          >
+            Lưu nháp
+          </Button>
+        </>
+      }
+      primary={
         <Button
           className="min-w-32 sm:min-w-40"
           onClick={props.onConfirm}
@@ -67,7 +74,7 @@ export function QuickSaleFooter(props: {
         >
           Chốt đơn
         </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }

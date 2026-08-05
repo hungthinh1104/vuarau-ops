@@ -50,7 +50,7 @@ describe("TC-WEB-024 — keyboard/focus sequence", () => {
     await user.click(screen.getByLabelText(/Mặt hàng/));
     await user.keyboard("[Enter]");
 
-    expect(screen.getByLabelText(/Phân hạng chất lượng/)).toHaveFocus();
+    expect(screen.getByLabelText(/Hạng hàng/)).toHaveFocus();
   });
 
   it("moves to quantity only after a quality grade is actually selected", async () => {
@@ -64,7 +64,7 @@ describe("TC-WEB-024 — keyboard/focus sequence", () => {
       />,
     );
 
-    await user.click(screen.getByRole("combobox", { name: /Phân hạng chất lượng/ }));
+    await user.click(screen.getByRole("combobox", { name: /Hạng hàng/ }));
     await user.click(await screen.findByRole("option", { name: "Loại 1" }));
 
     expect(onChange).toHaveBeenCalledWith(
@@ -90,7 +90,7 @@ describe("TC-WEB-024 — keyboard/focus sequence", () => {
       />,
     );
 
-    expect(screen.queryByLabelText(/Phân hạng chất lượng/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Hạng hàng/)).not.toBeInTheDocument();
     await user.click(screen.getByLabelText(/Mặt hàng/));
     await user.keyboard("[Enter]");
     expect(screen.getByLabelText(/Số lượng/)).toHaveFocus();
@@ -277,8 +277,8 @@ describe("TC-WEB-022 — the line editor", () => {
         onRemove={() => undefined}
       />,
     );
-    expect(screen.getByLabelText(/Phân hạng chất lượng/)).toHaveValue("");
-    await userEvent.click(screen.getByRole("combobox", { name: /Phân hạng chất lượng/ }));
+    expect(screen.getByLabelText(/Hạng hàng/)).toHaveValue("");
+    await userEvent.click(screen.getByRole("combobox", { name: /Hạng hàng/ }));
     await userEvent.click(await screen.findByRole("option", { name: "Loại 1" }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({

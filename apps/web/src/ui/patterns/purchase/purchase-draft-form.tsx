@@ -11,6 +11,7 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export function PurchaseDraftForm(props: {
@@ -38,6 +39,8 @@ export function PurchaseDraftForm(props: {
   readonly submitting: boolean;
   readonly addLineDisabled?: boolean;
   readonly actionButtons?: ReactNode;
+  readonly primaryAction?: ReactNode | undefined;
+  readonly secondaryActions?: ReactNode | undefined;
   readonly feedback?: ReactNode;
   readonly onSupplierChange?: (supplierId: string) => void;
   readonly onLineChange: (
@@ -156,13 +159,37 @@ export function PurchaseDraftForm(props: {
         value={props.evidence}
         onChange={(event) => props.onEvidenceChange(event.target.value)}
       />
-      <Button disabled={!props.valid || props.submitting} onClick={props.onSubmit}>
-        {props.submitLabel}
-      </Button>
-      {props.actionButtons === undefined ? null : (
-        <div className="flex flex-wrap gap-3">{props.actionButtons}</div>
-      )}
-      {props.feedback}
+      <ActionDock
+        label="Hành động đơn mua"
+        summary={
+          <div>
+            <p className="text-caption font-semibold text-ink-muted">Dữ liệu đơn mua</p>
+            <p className="text-body-sm font-semibold text-ink">Kiểm tra trước khi lưu</p>
+          </div>
+        }
+        secondary={
+          <>
+            {props.primaryAction === undefined ? null : (
+              <Button
+                tone="secondary"
+                disabled={!props.valid || props.submitting}
+                onClick={props.onSubmit}
+              >
+                {props.submitLabel}
+              </Button>
+            )}
+            {props.secondaryActions ?? props.actionButtons}
+          </>
+        }
+        primary={
+          props.primaryAction ?? (
+            <Button disabled={!props.valid || props.submitting} onClick={props.onSubmit}>
+              {props.submitLabel}
+            </Button>
+          )
+        }
+        feedback={props.feedback}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -62,16 +63,24 @@ export function ProductCreateView(props: ProductCreateViewProps) {
         placeholder="Không chọn"
         options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
       />
-      <Button
-        disabled={props.name.trim().length === 0 || props.command.phase.kind === "sending"}
-        onClick={props.onCreate}
-      >
-        Tạo mặt hàng
-      </Button>
-      <CommandOutcome
-        command={props.command}
-        attemptedAction="Tạo mặt hàng"
-        onReload={() => undefined}
+      <ActionDock
+        label="Hành động mặt hàng"
+        summary={<p className="text-body-sm font-semibold text-ink">Kiểm tra tên trước khi tạo</p>}
+        primary={
+          <Button
+            disabled={props.name.trim().length === 0 || props.command.phase.kind === "sending"}
+            onClick={props.onCreate}
+          >
+            {props.command.phase.kind === "sending" ? "Đang tạo…" : "Tạo mặt hàng"}
+          </Button>
+        }
+        feedback={
+          <CommandOutcome
+            command={props.command}
+            attemptedAction="Tạo mặt hàng"
+            onReload={() => undefined}
+          />
+        }
       />
     </div>
   );

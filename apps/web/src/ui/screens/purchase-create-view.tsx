@@ -71,27 +71,29 @@ export function PurchaseCreateView(props: {
       onNoteChange={props.onNoteChange}
       onEvidenceChange={props.onEvidenceChange}
       onSubmit={() => props.onSave("draft")}
-      actionButtons={
+      primaryAction={
         props.canConfirm ? (
-          <>
-            <Button
-              disabled={!props.valid || props.submitting}
-              onClick={() => props.onSave("receive")}
-            >
-              {props.submitting
-                ? "Đang lưu và nhận…"
-                : props.qualityGradeRequired
-                  ? "Lưu và mở nhận hàng"
-                  : "Lưu và nhận hàng"}
-            </Button>
-            <Button
-              tone="secondary"
-              disabled={!props.valid || props.submitting}
-              onClick={() => props.onSave("another")}
-            >
-              {props.submitting ? "Đang lưu…" : "Lưu và tạo tiếp"}
-            </Button>
-          </>
+          <Button
+            disabled={!props.valid || props.submitting}
+            onClick={() => props.onSave("receive")}
+          >
+            {props.submitting
+              ? "Đang lưu và nhận…"
+              : props.qualityGradeRequired
+                ? "Lưu và mở nhận hàng"
+                : "Lưu và nhận hàng"}
+          </Button>
+        ) : undefined
+      }
+      secondaryActions={
+        props.canConfirm ? (
+          <Button
+            tone="secondary"
+            disabled={!props.valid || props.submitting}
+            onClick={() => props.onSave("another")}
+          >
+            {props.submitting ? "Đang lưu…" : "Lưu và tạo tiếp"}
+          </Button>
         ) : null
       }
       feedback={

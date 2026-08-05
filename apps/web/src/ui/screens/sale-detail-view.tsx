@@ -19,7 +19,13 @@ import {
 } from "@/ui/patterns/sale/sale-correction-panel.tsx";
 import { CorrectionTimeline } from "@/ui/patterns/sale/correction-timeline.tsx";
 import { SaleStatus } from "@/ui/patterns/sale/sale-status.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
+import {
+  DetailLayout,
+  PageFrame,
+  PageHeader,
+  SummaryRail,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
@@ -162,53 +168,82 @@ export function SaleDetailView({
     ) === true;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title={`Đơn của ${detail.customer.displayName}`}
-        description={`${detail.displayReference} · ${formatInstant(sale.transactionTime)}`}
-        back={{ href: "/sales", label: "Đơn hàng" }}
-        status={
-          <SaleStatus
-            status={sale.status}
-            financialState={sale.financialState}
-            dueState={sale.dueState}
-            replacesSaleId={sale.replacesSaleId}
-          />
+    <PageFrame size="standard">
+      <DetailLayout
+        aside={
+          <SummaryRail title="Tóm tắt đơn bán">
+            <dl className="grid gap-2 text-body-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-ink-muted">Tổng đơn</dt>
+                <dd className="tabular font-semibold">{formatMoney(sale.totalAmount)}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-ink-muted">Khách hàng</dt>
+                <dd className="max-w-[10rem] text-right font-semibold">
+                  {detail.customer.displayName}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-ink-muted">Phiếu giao</dt>
+                <dd className="tabular font-semibold">{deliveries.length}</dd>
+              </div>
+            </dl>
+          </SummaryRail>
         }
-      />
+      >
+        <div className="flex flex-col gap-6">
+          <PageHeader
+            title={`Đơn của ${detail.customer.displayName}`}
+            description={`${detail.displayReference} · ${formatInstant(sale.transactionTime)}`}
+            back={{ href: "/sales", label: "Đơn hàng" }}
+            status={
+              <SaleStatus
+                status={sale.status}
+                financialState={sale.financialState}
+                dueState={sale.dueState}
+                replacesSaleId={sale.replacesSaleId}
+              />
+            }
+          />
 
-      <SaleMoneyTruth detail={detail} />
+          <SaleMoneyTruth detail={detail} />
 
-      {fulfilment === undefined ? null : (
-        <SaleFulfilmentSection
-          sale={sale}
-          fulfilment={fulfilment}
-          deliveries={deliveries}
-          mayCreateDelivery={mayCreateDelivery}
-        />
-      )}
+          {fulfilment === undefined ? null : (
+            <SaleFulfilmentSection
+              sale={sale}
+              fulfilment={fulfilment}
+              deliveries={deliveries}
+              mayCreateDelivery={mayCreateDelivery}
+            />
+          )}
 
-      {sale.status === "posted" && canGenerateDocument ? (
-        <div>
-          <Button tone="secondary" disabled={documentLocked} onClick={onGenerateDocument}>
-            {documentLocked ? "Đang tạo phiếu bán hàng" : "Tạo phiếu bán hàng"}
-          </Button>
+          {sale.status === "posted" && canGenerateDocument ? (
+            <ActionDock
+              label="Hành động đơn bán"
+              summary={<p className="text-body-sm font-semibold text-ink">Đơn đã chốt</p>}
+              primary={
+                <Button tone="secondary" disabled={documentLocked} onClick={onGenerateDocument}>
+                  {documentLocked ? "Đang chuẩn bị đơn bán" : "Mở đơn bán"}
+                </Button>
+              }
+            />
+          ) : null}
+
+          {sale.replacesSaleId !== null ||
+          detail.correction.voidRecord !== null ||
+          detail.correction.replacedBySaleId !== null ? (
+            <CorrectionLinks
+              detail={detail}
+              {...(replacedSale === undefined ? {} : { replacedSale })}
+            />
+          ) : null}
+
+          {correctionSection}
+          {recoverySection}
+          {feedback}
         </div>
-      ) : null}
-
-      {sale.replacesSaleId !== null ||
-      detail.correction.voidRecord !== null ||
-      detail.correction.replacedBySaleId !== null ? (
-        <CorrectionLinks
-          detail={detail}
-          {...(replacedSale === undefined ? {} : { replacedSale })}
-        />
-      ) : null}
-
-      {correctionSection}
-      {recoverySection}
-      {feedback}
-    </div>
+      </DetailLayout>
+    </PageFrame>
   );
 }
 
@@ -328,9 +363,9 @@ function SaleFulfilmentSection(props: {
           role="status"
           className="mt-3 rounded-card border border-warning/30 bg-warning-soft p-3 text-body-sm"
         >
-          Đơn này thay thế một đơn đã có hàng thực giao. Hệ thống không tạo phiếu giao mới vì như
-          vậy sẽ ghi nhận hàng đi lần hai. Giữ nguyên lịch sử giao hàng cũ và xử lý theo quy trình
-          điều chỉnh sau giao theo quy trình đã được phê duyệt.
+          Đơn này thay thế một đơn đã có hàng thực giao. Hệ thống không tạo đơn giao mới vì như vậy
+          sẽ ghi nhận hàng đi lần hai. Giữ nguyên lịch sử giao hàng cũ và xử lý theo quy trình điều
+          chỉnh sau giao theo quy trình đã được phê duyệt.
         </p>
       ) : null}
 

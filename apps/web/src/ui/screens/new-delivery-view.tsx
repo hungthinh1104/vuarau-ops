@@ -10,10 +10,11 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { Checkbox } from "@/ui/primitives/checkbox.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export function NewDeliveryPermissionView() {
-  return <p role="alert">Bạn không có quyền tạo phiếu giao hàng.</p>;
+  return <p role="alert">Bạn không có quyền tạo đơn giao.</p>;
 }
 
 export function NewDeliveryView(props: {
@@ -122,23 +123,37 @@ export function NewDeliveryView(props: {
           </span>
         </span>
       </label>
-      {props.feedback}
-      <div className="flex flex-wrap gap-3">
-        <Button disabled={!canSave} onClick={() => props.onSubmit("draft", false)}>
-          {sending ? "Đang lưu…" : "Lưu để giao sau"}
-        </Button>
-        <Button
-          tone="secondary"
-          disabled={sending || !canDeliverAll}
-          onClick={() => props.onSubmit("dispatch", props.onsiteCompletion)}
-        >
-          {sending
-            ? "Đang xuất kho…"
-            : props.onsiteCompletion
-              ? "Xuất kho & giao tại chỗ"
-              : "Xuất kho & bắt đầu giao"}
-        </Button>
-      </div>
+      <ActionDock
+        label="Hành động giao đơn"
+        summary={
+          <div>
+            <p className="text-caption font-semibold text-ink-muted">Số lượng đã chọn</p>
+            <p className="text-body-sm font-semibold text-ink">Kiểm tra trước khi xuất kho</p>
+          </div>
+        }
+        secondary={
+          <Button
+            tone="secondary"
+            disabled={!canSave}
+            onClick={() => props.onSubmit("draft", false)}
+          >
+            {sending ? "Đang lưu…" : "Lưu để giao sau"}
+          </Button>
+        }
+        primary={
+          <Button
+            disabled={sending || !canDeliverAll}
+            onClick={() => props.onSubmit("dispatch", props.onsiteCompletion)}
+          >
+            {sending
+              ? "Đang xuất kho…"
+              : props.onsiteCompletion
+                ? "Xuất kho & giao tại chỗ"
+                : "Xuất kho & bắt đầu giao"}
+          </Button>
+        }
+        feedback={props.feedback}
+      />
     </div>
   );
 }

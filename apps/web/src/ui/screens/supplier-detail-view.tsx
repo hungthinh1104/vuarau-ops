@@ -104,7 +104,7 @@ export function SupplierDetailView(props: SupplierDetailViewProps) {
                 props.priceHistoryItems.length === 0 ? (
                   <p>Chưa có dòng mua đã chốt.</p>
                 ) : (
-                  <div className="overflow-x-auto rounded-card border border-border bg-surface shadow-sm">
+                  <div className="overflow-x-auto rounded-card border border-border bg-surface">
                     <table className="data-table w-full min-w-full text-body-sm">
                       <caption className="sr-only">Lịch sử giá mua đã chốt</caption>
                       <colgroup>
@@ -319,7 +319,7 @@ function SupplierPerformanceSection({
           {performance.quantityMetrics.length === 0 ? (
             <p className="text-body-sm text-ink-muted">Chưa có dữ kiện số lượng đủ cùng đơn vị.</p>
           ) : (
-            <div className="overflow-x-auto rounded-card border border-border bg-surface shadow-sm">
+            <div className="overflow-x-auto rounded-card border border-border bg-surface">
               <table className="data-table w-full min-w-full text-body-sm">
                 <caption className="sr-only">Dữ kiện số lượng nhà cung cấp</caption>
                 <colgroup>
@@ -379,7 +379,7 @@ function SupplierPerformanceSection({
         </>
       )}
       <p className="text-caption text-ink-muted">
-        Quy định phiên bản {performance.policyVersion ?? "chưa có"} ·{" "}
+        Bộ tính hiện hành v{performance.policyVersion ?? "chưa có"} ·{" "}
         {performance.sourceObservationIds.length} mục liên quan
       </p>
     </section>
@@ -388,7 +388,7 @@ function SupplierPerformanceSection({
 
 function PerformanceValue({ label, value }: { readonly label: string; readonly value: string }) {
   return (
-    <div className="rounded-input border border-border bg-surface-muted/50 p-3">
+    <div className="rounded-input border border-border bg-surface-muted p-3">
       <span className="block text-caption text-ink-muted">{label}</span>
       <strong className="tabular mt-1 block text-subheading text-ink">{value}</strong>
     </div>

@@ -14,7 +14,13 @@ import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { PurchaseLinesSummary } from "@/ui/patterns/purchase/purchase-lines-summary.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
+import {
+  DetailLayout,
+  PageFrame,
+  PageHeader,
+  SummaryRail,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
@@ -48,23 +54,31 @@ export function PurchaseDraftActionsView(props: {
   readonly onDiscard: () => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-3">
-      {props.canUpdate ? (
-        <LinkButton tone="secondary" href={`/purchases/${props.purchase.id}/edit`}>
-          Sửa đơn nháp
-        </LinkButton>
-      ) : null}
-      {props.canConfirm ? (
-        <Button disabled={props.confirmLocked} onClick={props.onConfirm}>
-          {props.confirmLocked ? "Đang xác nhận" : "Xác nhận đơn mua"}
-        </Button>
-      ) : null}
-      {props.canDiscard ? (
-        <Button tone="secondary" disabled={props.discardLocked} onClick={props.onDiscard}>
-          Bỏ đơn nháp
-        </Button>
-      ) : null}
-    </div>
+    <ActionDock
+      label="Hành động đơn mua"
+      summary={<p className="text-body-sm font-semibold text-ink">Đơn mua đang là bản nháp</p>}
+      secondary={
+        <>
+          {props.canUpdate ? (
+            <LinkButton tone="secondary" href={`/purchases/${props.purchase.id}/edit`}>
+              Sửa đơn nháp
+            </LinkButton>
+          ) : null}
+          {props.canDiscard ? (
+            <Button tone="secondary" disabled={props.discardLocked} onClick={props.onDiscard}>
+              Bỏ đơn nháp
+            </Button>
+          ) : null}
+        </>
+      }
+      primary={
+        props.canConfirm ? (
+          <Button disabled={props.confirmLocked} onClick={props.onConfirm}>
+            {props.confirmLocked ? "Đang xác nhận" : "Xác nhận đơn mua"}
+          </Button>
+        ) : null
+      }
+    />
   );
 }
 
@@ -274,100 +288,125 @@ export function PurchaseDetailView({
   onReverseReceipt,
 }: PurchaseDetailViewProps) {
   return (
-    <div className="flex max-w-4xl flex-col gap-6">
-      <PageHeader
-        title="Đơn mua"
-        description={`Mã ${purchase.id.slice(0, 8).toUpperCase()} · ${formatInstant(purchase.transactionTime)}${
-          purchase.recordedAt === purchase.transactionTime
-            ? ""
-            : ` · ghi ${formatInstant(purchase.recordedAt)}`
-        }`}
-        back={{ href: "/purchases", label: "Đơn mua" }}
-        status={
-          <Badge
-            tone={
-              purchase.voidRecord !== null
-                ? "warning"
-                : purchase.status === "confirmed"
-                  ? "positive"
-                  : "neutral"
-            }
-          >
-            {purchase.voidRecord !== null ? "Đã hoàn tác" : PURCHASE_STATUS_COPY[purchase.status]}
-          </Badge>
+    <PageFrame size="standard">
+      <DetailLayout
+        aside={
+          <SummaryRail title="Tóm tắt đơn mua">
+            <dl className="grid gap-2 text-body-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-ink-muted">Tổng mua</dt>
+                <dd className="tabular font-semibold">{formatMoney(purchase.totalAmount)}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-ink-muted">Phiếu nhập kho</dt>
+                <dd className="tabular font-semibold">{receipts.length}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-ink-muted">Mặt hàng</dt>
+                <dd className="tabular font-semibold">{purchase.lines.length}</dd>
+              </div>
+            </dl>
+          </SummaryRail>
         }
-      />
-
-      <Link
-        href={`/suppliers/${purchase.supplierId}`}
-        className="font-semibold text-info underline-offset-4 hover:underline"
       >
-        Mở nhà cung cấp
-      </Link>
+        <div className="flex flex-col gap-6">
+          <PageHeader
+            title="Đơn mua"
+            description={`Mã ${purchase.id.slice(0, 8).toUpperCase()} · ${formatInstant(purchase.transactionTime)}${
+              purchase.recordedAt === purchase.transactionTime
+                ? ""
+                : ` · ghi ${formatInstant(purchase.recordedAt)}`
+            }`}
+            back={{ href: "/purchases", label: "Đơn mua" }}
+            status={
+              <Badge
+                tone={
+                  purchase.voidRecord !== null
+                    ? "warning"
+                    : purchase.status === "confirmed"
+                      ? "positive"
+                      : "neutral"
+                }
+              >
+                {purchase.voidRecord !== null
+                  ? "Đã hoàn tác"
+                  : PURCHASE_STATUS_COPY[purchase.status]}
+              </Badge>
+            }
+          />
 
-      <PurchaseLinesSummary purchase={purchase} />
-      <SourceEvidenceList references={purchase.evidenceReferences} />
-
-      <section className="border-y border-border py-3 text-body-sm">
-        <p className="font-semibold">Ý nghĩa hiện tại</p>
-        <p className="mt-1 text-ink-muted">
-          Xác nhận đơn mua ghi nhận phần tiền phải trả; hàng chỉ vào tồn kho sau khi có phiếu nhập.
-          Hai việc này được ghi riêng để số liệu luôn rõ ràng.
-        </p>
-      </section>
-
-      {purchase.replacesPurchaseId === null ? null : (
-        <p>
-          Thay thế{" "}
           <Link
-            href={`/purchases/${purchase.replacesPurchaseId}`}
+            href={`/suppliers/${purchase.supplierId}`}
             className="font-semibold text-info underline-offset-4 hover:underline"
           >
-            đơn mua trước
+            Mở nhà cung cấp
           </Link>
-          .
-        </p>
-      )}
 
-      {purchase.voidRecord === null ? null : (
-        <section className="rounded-card border border-warning/40 bg-warning-soft p-4">
-          <h2 className="font-semibold">Đơn mua đã được hoàn tác</h2>
-          <p className="mt-1 text-body-sm">
-            {copyForReasonCode(purchase.voidRecord.reasonCode)}: {purchase.voidRecord.reason}
-          </p>
-          <p className="mt-1 font-semibold tabular-nums">
-            {formatMoney(purchase.voidRecord.amount)}
-          </p>
-          <SourceEvidenceList
-            references={purchase.voidRecord.evidenceReferences}
-            className="mt-3"
+          <PurchaseLinesSummary purchase={purchase} />
+          <SourceEvidenceList references={purchase.evidenceReferences} />
+
+          <section className="border-y border-border py-3 text-body-sm">
+            <p className="font-semibold">Ý nghĩa hiện tại</p>
+            <p className="mt-1 text-ink-muted">
+              Xác nhận đơn mua ghi nhận phần tiền phải trả; hàng chỉ vào tồn kho sau khi có phiếu
+              nhập. Hai việc này được ghi riêng để số liệu luôn rõ ràng.
+            </p>
+          </section>
+
+          {purchase.replacesPurchaseId === null ? null : (
+            <p>
+              Thay thế{" "}
+              <Link
+                href={`/purchases/${purchase.replacesPurchaseId}`}
+                className="font-semibold text-info underline-offset-4 hover:underline"
+              >
+                đơn mua trước
+              </Link>
+              .
+            </p>
+          )}
+
+          {purchase.voidRecord === null ? null : (
+            <section className="rounded-card border border-warning/40 bg-warning-soft p-4">
+              <h2 className="font-semibold">Đơn mua đã được hoàn tác</h2>
+              <p className="mt-1 text-body-sm">
+                {copyForReasonCode(purchase.voidRecord.reasonCode)}: {purchase.voidRecord.reason}
+              </p>
+              <p className="mt-1 font-semibold tabular-nums">
+                {formatMoney(purchase.voidRecord.amount)}
+              </p>
+              <SourceEvidenceList
+                references={purchase.voidRecord.evidenceReferences}
+                className="mt-3"
+              />
+              {canCreateReplacement ? (
+                <Link
+                  href={`/purchases/new?replacesPurchaseId=${purchase.id}`}
+                  className="mt-2 inline-block font-semibold text-info underline-offset-4 hover:underline"
+                >
+                  Tạo đơn mua thay thế
+                </Link>
+              ) : null}
+            </section>
+          )}
+
+          {draftActions}
+          {receivingPanel}
+
+          <ReceivingHistory
+            summary={receivingSummary}
+            receipts={receipts}
+            loading={receiptsLoading}
+            canReverse={canReverseReceipt}
+            onReverse={onReverseReceipt}
           />
-          {canCreateReplacement ? (
-            <Link
-              href={`/purchases/new?replacesPurchaseId=${purchase.id}`}
-              className="mt-2 inline-block font-semibold text-info underline-offset-4 hover:underline"
-            >
-              Tạo đơn mua thay thế
-            </Link>
-          ) : null}
-        </section>
-      )}
 
-      {draftActions}
-      {receivingPanel}
-
-      <ReceivingHistory
-        summary={receivingSummary}
-        receipts={receipts}
-        loading={receiptsLoading}
-        canReverse={canReverseReceipt}
-        onReverse={onReverseReceipt}
-      />
-
-      {reversalPanel}
-      {voidPanel}
-      {feedback}
-    </div>
+          {reversalPanel}
+          {voidPanel}
+          {feedback}
+        </div>
+      </DetailLayout>
+    </PageFrame>
   );
 }
 

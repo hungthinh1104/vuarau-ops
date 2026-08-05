@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { CustomerFields } from "@/ui/patterns/customer/customer-fields.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 
@@ -58,17 +59,34 @@ export function CustomerCreateView(props: CustomerCreateViewProps) {
           </ul>
         </aside>
       ) : null}
-      <Button
-        disabled={props.displayName.trim().length === 0 || props.command.phase.kind === "sending"}
-        onClick={props.onCreate}
-      >
-        {props.command.phase.kind === "sending" ? "Đang tạo" : "Tạo khách hàng"}
-      </Button>
-      <CommandOutcome
-        command={props.command}
-        attemptedAction="Tạo khách hàng"
-        onReload={props.onReload}
-        onCancel={props.onCancel}
+      <ActionDock
+        label="Hành động khách hàng"
+        summary={
+          <p className="text-body-sm font-semibold text-ink">Kiểm tra thông tin trước khi tạo</p>
+        }
+        secondary={
+          <Button tone="secondary" onClick={props.onCancel}>
+            Hủy
+          </Button>
+        }
+        primary={
+          <Button
+            disabled={
+              props.displayName.trim().length === 0 || props.command.phase.kind === "sending"
+            }
+            onClick={props.onCreate}
+          >
+            {props.command.phase.kind === "sending" ? "Đang tạo…" : "Tạo khách hàng"}
+          </Button>
+        }
+        feedback={
+          <CommandOutcome
+            command={props.command}
+            attemptedAction="Tạo khách hàng"
+            onReload={props.onReload}
+            onCancel={props.onCancel}
+          />
+        }
       />
     </div>
   );

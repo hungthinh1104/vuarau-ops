@@ -7,6 +7,7 @@ import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { MoneyInput } from "@/ui/primitives/money-input.tsx";
@@ -131,21 +132,33 @@ export function PaymentCreateView(props: PaymentCreateViewProps) {
               onReload={props.onRetry}
               onCancel={props.onCancel}
             />
-            <div className="sticky bottom-16 -mx-4 border-t border-border bg-surface px-4 py-3 lg:bottom-0">
-              <Button
-                fullWidth
-                onClick={props.onSubmit}
-                {...(!props.canRecord
-                  ? { disabledReason: "Bạn không có quyền ghi nhận thanh toán." }
-                  : props.command.phase.kind === "sending"
-                    ? { disabledReason: "Đang gửi…" }
-                    : props.command.phase.kind === "succeeded"
-                      ? { disabledReason: "Đã ghi nhận." }
-                      : {})}
-              >
-                Ghi nhận thanh toán
-              </Button>
-            </div>
+            <ActionDock
+              label="Hành động ghi nhận thanh toán"
+              summary={
+                <div>
+                  <p className="text-caption font-semibold text-ink-muted">
+                    Công nợ sau khi ghi nhận
+                  </p>
+                  <p className="text-body-sm font-semibold text-ink">
+                    Kiểm tra số tiền trước khi lưu
+                  </p>
+                </div>
+              }
+              primary={
+                <Button
+                  onClick={props.onSubmit}
+                  {...(!props.canRecord
+                    ? { disabledReason: "Bạn không có quyền ghi nhận thanh toán." }
+                    : props.command.phase.kind === "sending"
+                      ? { disabledReason: "Đang gửi…" }
+                      : props.command.phase.kind === "succeeded"
+                        ? { disabledReason: "Đã ghi nhận." }
+                        : {})}
+                >
+                  Ghi nhận thanh toán
+                </Button>
+              }
+            />
           </>
         )}
       </QueryStates>

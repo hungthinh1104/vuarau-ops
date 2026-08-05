@@ -144,8 +144,8 @@ function LineStateHeader({
       </div>
       {line.weighing ? (
         <p className="text-caption text-ink-muted">
-          Tổng cân {formatQuantity(line.weighing.grossWeight)} · trọng lượng bì{" "}
-          {formatQuantity(line.weighing.tareWeight)} · khối lượng hàng{" "}
+          Tổng cân {formatQuantity(line.weighing.grossWeight)} · Trọng lượng bì{" "}
+          {formatQuantity(line.weighing.tareWeight)} · Khối lượng hàng{" "}
           {formatQuantity(line.weighing.netWeight)}
         </p>
       ) : null}
