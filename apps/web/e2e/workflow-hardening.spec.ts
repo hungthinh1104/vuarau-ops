@@ -84,9 +84,13 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
 
       await page.goto("/operations-board");
       await expect(page.getByRole("heading", { name: "Bảng điều hành" })).toBeVisible();
-      await expect(page.getByRole("columnheader", { name: "Đơn hàng" })).toBeVisible();
-      await expect(page.getByRole("columnheader", { name: "Hàng hóa" })).toBeVisible();
-      await expect(page.getByRole("columnheader", { name: "Thanh toán" })).toBeVisible();
+      if ((page.viewportSize()?.width ?? 0) < 1024) {
+        await expect(page.getByRole("list", { name: "Việc cần xử lý" })).toBeVisible();
+      } else {
+        await expect(page.getByRole("columnheader", { name: "Đơn hàng" })).toBeVisible();
+        await expect(page.getByRole("columnheader", { name: "Hàng hóa" })).toBeVisible();
+        await expect(page.getByRole("columnheader", { name: "Thanh toán" })).toBeVisible();
+      }
 
       const customerId = await api.createCustomer(`Khách workflow ${suffix}`);
       await page.goto(`/customers/${customerId}/sales/new`);

@@ -170,9 +170,7 @@ test.describe("TC-E2E-014 — an invalid line is flagged on its own row", () => 
     // The invalid line is kept in place and the valid row remains untouched.
     const secondRow = page.getByTestId("sale-line-1");
     await expect(secondRow.getByText(/Số lượng phải lớn hơn 0/)).toBeVisible();
-    await expect(
-      page.getByTestId("sale-line-0").getByRole("textbox", { name: "Mặt hàng" }),
-    ).toHaveValue("Cà chua");
+    await expect(page.getByTestId("sale-line-0").getByText("Cà chua")).toBeVisible();
 
     const sales = await api.sales(customerId);
     expect(sales.items).toHaveLength(0);

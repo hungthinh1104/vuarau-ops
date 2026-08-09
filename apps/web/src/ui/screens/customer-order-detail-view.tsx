@@ -2,6 +2,7 @@
 
 import type { CustomerOrderDto } from "@vuarau/domain-contracts";
 import { formatDate, formatMoney, formatQuantity } from "@/ui/format.ts";
+import { CUSTOMER_ORDER_CHANNEL_COPY, CUSTOMER_ORDER_STATUS_COPY } from "@/ui/copy.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -11,8 +12,6 @@ import { PageFrame, PageHeader, Section } from "@/ui/patterns/layout/page-layout
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
-
-const STATUS_COPY = { draft: "Nháp", confirmed: "Đã xác nhận", cancelled: "Đã huỷ" } as const;
 
 export function CustomerOrderDetailView(props: {
   readonly query: QueryLike<CustomerOrderDto | null>;
@@ -48,10 +47,10 @@ export function CustomerOrderDetailView(props: {
                           : "neutral"
                     }
                   >
-                    {STATUS_COPY[props.order.status]}
+                    {CUSTOMER_ORDER_STATUS_COPY[props.order.status]}
                   </Badge>
                 }
-                description={`${formatDate(props.order.transactionTime)} · phiên bản ${props.order.version}`}
+                description={`${formatDate(props.order.transactionTime)} · cập nhật lần ${props.order.version}`}
               />
               <ReferenceDisclosure
                 items={[
@@ -104,7 +103,9 @@ export function CustomerOrderDetailView(props: {
                 <dl className="grid gap-3 text-body-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-ink-muted">Kênh</dt>
-                    <dd className="font-medium">{props.order.channel}</dd>
+                    <dd className="font-medium">
+                      {CUSTOMER_ORDER_CHANNEL_COPY[props.order.channel]}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-ink-muted">Điều khoản</dt>

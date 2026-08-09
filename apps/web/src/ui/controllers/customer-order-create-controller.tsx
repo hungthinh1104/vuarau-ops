@@ -20,6 +20,7 @@ import { CustomerOrderCreateView } from "@/ui/screens/customer-order-create-view
 const newLine = (): CustomerOrderDraftLine => ({
   lineId: crypto.randomUUID() as CustomerOrderLineId,
   productId: "",
+  source: "catalog",
   productName: "",
   quantity: "1",
   unit: "kg",
@@ -63,7 +64,7 @@ export function CustomerOrderCreateController() {
     const price = parseMoneyText(line.price, "VND");
     return {
       lineId: line.lineId,
-      productId: line.productId === "" ? null : line.productId,
+      productId: line.source === "unresolved" || line.productId === "" ? null : line.productId,
       productName: line.productName.trim(),
       quantity:
         quantity.ok && quantity.value !== null

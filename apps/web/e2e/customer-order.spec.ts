@@ -11,7 +11,8 @@ test("TC-E2E-CUSTOMER-ORDER-001 creates and cancels a commercial-only draft", as
   await page.goto("/customer-orders/new");
 
   await chooseOption(page, "Kênh đơn", "Khách lẻ");
-  await page.getByLabel("Tên mặt hàng ghi nhận").fill(`Cải đặt trước ${Date.now()}`);
+  await chooseOption(page, "Nguồn mặt hàng", "Chưa có trong danh mục");
+  await page.getByLabel("Tên mặt hàng chưa có trong danh mục").fill(`Cải đặt trước ${Date.now()}`);
   await page.getByLabel("Số lượng").fill("12");
   await page.getByRole("button", { name: "Lưu đơn đặt hàng" }).click();
   await page.waitForURL(/\/customer-orders\/[0-9a-f-]+$/);
@@ -29,7 +30,9 @@ test("TC-E2E-CUSTOMER-ORDER-001 creates and cancels a commercial-only draft", as
   });
 
   await page.getByLabel("Lý do huỷ").fill("Khách đổi nhu cầu");
-  await page.getByRole("button", { name: "Huỷ đơn đặt hàng" }).click();
+  const cancelButton = page.getByRole("button", { name: "Huỷ đơn đặt hàng" });
+  await cancelButton.focus();
+  await cancelButton.press("Enter");
   await expect(page.getByText("Đã huỷ", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Huỷ đơn đặt hàng" })).toHaveCount(0);
   expect(await api.customerOrder(orderId)).toMatchObject({ id: orderId, status: "cancelled" });

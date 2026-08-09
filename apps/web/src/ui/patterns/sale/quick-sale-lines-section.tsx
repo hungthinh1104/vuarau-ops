@@ -1,9 +1,12 @@
 "use client";
 
 import type { PriceResolutionDto } from "@vuarau/domain-contracts";
+import { UNIT_LABEL_VI } from "@vuarau/domain-contracts";
+import { formatMoney } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import type { ResolvedLine, SaleLineDraft } from "./sale-line-editor.tsx";
 import { SaleLineEditor } from "./sale-line-editor.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
 
 export type SaleLineField = "product" | "qualityGrade" | "quantity" | "unit" | "unitPrice";
 
@@ -38,34 +41,74 @@ export function QuickSaleLinesSection(props: {
         </span>
       </div>
       <ul className="flex flex-col gap-4">
-        {props.lines.map((line, index) => (
-          <SaleLineEditor
-            key={line.lineId}
-            line={line}
-            index={index}
-            issues={props.submitted ? (props.resolved[index]?.issues ?? {}) : {}}
-            {...(props.serverLineIndex === index
-              ? { serverIssue: "Máy chủ chưa nhận được dòng này. Kiểm tra số lượng và đơn giá." }
-              : {})}
-            canRemove={props.lines.length > 1}
-            disabled={props.disabled}
-            qualityGradeOptions={props.qualityGradeOptions}
-            qualityGradeRequired={props.qualityGradeRequired ?? true}
-            {...(line.lineId === props.activeLineId
-              ? {
-                  priceResolution: props.priceResolution,
-                  onApplyPriceRule: props.onApplyPriceRule,
-                }
-              : {})}
-            onFocus={() => props.onFocusLine(line.lineId)}
-            {...(!props.disabled
-              ? { onOpenProductPicker: () => props.onOpenProductPicker(line.lineId) }
-              : {})}
-            onChange={(incoming, field) => props.onChangeLine(index, incoming, field)}
-            onRemove={() => props.onRemoveLine(index)}
-            onAdvance={() => props.onAdvance(index)}
-          />
-        ))}
+        {props.lines.map((line, index) =>
+          line.lineId === props.activeLineId ? (
+            <SaleLineEditor
+              key={line.lineId}
+              line={line}
+              index={index}
+              issues={props.submitted ? (props.resolved[index]?.issues ?? {}) : {}}
+              {...(props.serverLineIndex === index
+                ? { serverIssue: "Máy chủ chưa nhận được dòng này. Kiểm tra số lượng và đơn giá." }
+                : {})}
+              canRemove={props.lines.length > 1}
+              disabled={props.disabled}
+              qualityGradeOptions={props.qualityGradeOptions}
+              qualityGradeRequired={props.qualityGradeRequired ?? true}
+              {...(props.priceResolution === undefined
+                ? {}
+                : { priceResolution: props.priceResolution })}
+              onApplyPriceRule={props.onApplyPriceRule}
+              onFocus={() => props.onFocusLine(line.lineId)}
+              {...(!props.disabled
+                ? { onOpenProductPicker: () => props.onOpenProductPicker(line.lineId) }
+                : {})}
+              onChange={(incoming, field) => props.onChangeLine(index, incoming, field)}
+              onRemove={() => props.onRemoveLine(index)}
+              onAdvance={() => props.onAdvance(index)}
+            />
+          ) : (
+            <li
+              key={line.lineId}
+              data-testid={`sale-line-${index}`}
+              className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-3"
+            >
+              <Button
+                tone="link"
+                type="button"
+                className="min-w-0 flex-1 justify-start text-left"
+                onClick={() => props.onFocusLine(line.lineId)}
+                disabled={props.disabled}
+                aria-label={`Sửa dòng ${index + 1}`}
+              >
+                <span className="block truncate font-semibold">
+                  {line.productName || "Chưa chọn mặt hàng"}
+                </span>
+                <span className="mt-1 block text-caption text-ink-muted">
+                  {line.quantityText || "Chưa nhập số lượng"} {UNIT_LABEL_VI[line.unit]}
+                  {line.qualityGradeName ? ` · ${line.qualityGradeName}` : ""}
+                </span>
+              </Button>
+              <span className="shrink-0 text-right">
+                <span className="block tabular text-body-sm font-semibold">
+                  {props.resolved[index]?.total === null ||
+                  props.resolved[index]?.total === undefined
+                    ? "Chưa đủ dữ liệu"
+                    : formatMoney(props.resolved[index]!.total!)}
+                </span>
+                <Button
+                  tone="link"
+                  type="button"
+                  onClick={() => props.onFocusLine(line.lineId)}
+                  disabled={props.disabled}
+                  className="mt-1 px-0 text-caption"
+                >
+                  Sửa dòng
+                </Button>
+              </span>
+            </li>
+          ),
+        )}
       </ul>
     </section>
   );

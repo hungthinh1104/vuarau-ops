@@ -82,30 +82,57 @@ export function CustomerOrderCreateView(props: {
           >
             <legend className="px-2 font-semibold">Dòng {index + 1}</legend>
             <Select
-              label="Mặt hàng trong danh mục"
-              value={line.productId}
-              placeholder="Có thể để trống ở bản nháp"
-              options={props.products.map((product) => ({
-                value: product.id,
-                label: product.displayName,
-              }))}
-              onChange={(event) => {
-                const product = props.products.find((item) => item.id === event.target.value);
-                if (product === undefined) return;
-                props.onLineChange(line.lineId, {
-                  productId: product.id,
-                  productName: product.displayName,
-                  unit: product.preferredUnit ?? line.unit,
-                });
-              }}
-            />
-            <TextInput
-              label="Tên mặt hàng ghi nhận"
-              value={line.productName}
+              label="Nguồn mặt hàng"
+              value={line.source ?? (line.productId === "" ? "unresolved" : "catalog")}
+              options={[
+                { value: "catalog", label: "Chọn từ danh mục" },
+                { value: "unresolved", label: "Chưa có trong danh mục" },
+              ]}
               onChange={(event) =>
-                props.onLineChange(line.lineId, { productName: event.target.value })
+                props.onLineChange(line.lineId, {
+                  source: event.target.value as "catalog" | "unresolved",
+                  ...(event.target.value === "unresolved"
+                    ? { productId: "" }
+                    : { productName: "" }),
+                })
               }
             />
+            {(line.source ?? (line.productId === "" ? "unresolved" : "catalog")) === "catalog" ? (
+              <>
+                <Select
+                  label="Mặt hàng trong danh mục"
+                  value={line.productId}
+                  placeholder="Chọn mặt hàng"
+                  options={props.products.map((product) => ({
+                    value: product.id,
+                    label: product.displayName,
+                  }))}
+                  onChange={(event) => {
+                    const product = props.products.find((item) => item.id === event.target.value);
+                    if (product === undefined) return;
+                    props.onLineChange(line.lineId, {
+                      source: "catalog",
+                      productId: product.id,
+                      productName: product.displayName,
+                      unit: product.preferredUnit ?? line.unit,
+                    });
+                  }}
+                />
+                <TextInput label="Tên mặt hàng" value={line.productName} readOnly />
+              </>
+            ) : (
+              <TextInput
+                label="Tên mặt hàng chưa có trong danh mục"
+                value={line.productName}
+                hint="Lưu được bản nháp; cần liên kết danh mục trước khi xác nhận."
+                onChange={(event) =>
+                  props.onLineChange(line.lineId, {
+                    source: "unresolved",
+                    productName: event.target.value,
+                  })
+                }
+              />
+            )}
             <QuantityInput
               label="Số lượng"
               unit={line.unit}
