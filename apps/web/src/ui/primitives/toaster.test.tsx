@@ -19,12 +19,12 @@ vi.mock("sonner", () => ({
 import { Toaster } from "./toaster.tsx";
 
 describe("Toaster", () => {
-  it("keeps toast and action controls pointer-interactive", () => {
+  it("does not block the page while keeping toast actions interactive", () => {
     render(<Toaster />);
     const config = screen.getByTestId("sonner-config");
 
-    expect(config.dataset["toastClass"]).toContain("pointer-events-auto");
-    expect(config.dataset["toastClass"]).not.toContain("pointer-events-none");
+    expect(config.dataset["toastClass"]).toContain("pointer-events-none");
+    expect(config.dataset["toastClass"]).not.toContain("pointer-events-auto");
     expect(config.dataset["actionClass"]).toContain("pointer-events-auto");
   });
 });
