@@ -7,7 +7,7 @@ import type { QualityIssueEditorState } from "@/ui/domain/quality-issue-form.ts"
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import { QueryStates, type QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
@@ -43,58 +43,60 @@ export function QualityIssuesView(props: {
   readonly lifecycle: (issue: QualityIssueCodeDto) => ReactNode;
 }) {
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        title="Mã lỗi chất lượng"
-        description="Chuẩn hóa cách ghi nhận tình trạng và lỗi; inspection giữ snapshot kể cả khi mã đổi tên."
-      />
-      {props.editor}
-      <QueryStates
-        query={props.issues}
-        loadingLabel="Đang tải mã lỗi chất lượng"
-        onRetry={props.onRetry}
-      >
-        {(page) =>
-          page.items.length === 0 ? (
-            <section className="rounded-card border border-border bg-surface p-4 text-body-sm text-ink-muted">
-              Chưa có mã lỗi. Tạo mã đầu tiên ở form phía trên.
-            </section>
-          ) : (
-            <ul className="grid gap-3">
-              {page.items.map((issue) => (
-                <li
-                  key={issue.id}
-                  className="grid gap-3 rounded-card border border-border bg-surface p-4 sm:grid-cols-[1fr_auto]"
-                >
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-label font-semibold">
-                        {issue.code} · {issue.displayName}
-                      </h2>
-                      <Badge tone={issue.isActive ? "positive" : "neutral"}>
-                        {issue.isActive ? "Đang dùng" : "Ngừng dùng"}
-                      </Badge>
-                      <Badge tone="neutral">
-                        {issue.category === "condition" ? "Tình trạng" : "Lỗi"}
-                      </Badge>
+    <PageFrame size="wide">
+      <div className="grid gap-6">
+        <PageHeader
+          title="Mã lỗi chất lượng"
+          description="Chuẩn hóa cách ghi nhận tình trạng và lỗi; inspection giữ snapshot kể cả khi mã đổi tên."
+        />
+        {props.editor}
+        <QueryStates
+          query={props.issues}
+          loadingLabel="Đang tải mã lỗi chất lượng"
+          onRetry={props.onRetry}
+        >
+          {(page) =>
+            page.items.length === 0 ? (
+              <section className="rounded-card border border-border bg-surface p-4 text-body-sm text-ink-muted">
+                Chưa có mã lỗi. Tạo mã đầu tiên ở form phía trên.
+              </section>
+            ) : (
+              <ul className="grid gap-3">
+                {page.items.map((issue) => (
+                  <li
+                    key={issue.id}
+                    className="grid gap-3 rounded-card border border-border bg-surface p-4 sm:grid-cols-[1fr_auto]"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-label font-semibold">
+                          {issue.code} · {issue.displayName}
+                        </h2>
+                        <Badge tone={issue.isActive ? "positive" : "neutral"}>
+                          {issue.isActive ? "Đang dùng" : "Ngừng dùng"}
+                        </Badge>
+                        <Badge tone="neutral">
+                          {issue.category === "condition" ? "Tình trạng" : "Lỗi"}
+                        </Badge>
+                      </div>
+                      {issue.description ? (
+                        <p className="mt-1 text-body-sm text-ink-muted">{issue.description}</p>
+                      ) : null}
                     </div>
-                    {issue.description ? (
-                      <p className="mt-1 text-body-sm text-ink-muted">{issue.description}</p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button tone="secondary" onClick={() => props.onSelect(issue)}>
-                      Sửa
-                    </Button>
-                    {props.lifecycle(issue)}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )
-        }
-      </QueryStates>
-    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button tone="secondary" onClick={() => props.onSelect(issue)}>
+                        Sửa
+                      </Button>
+                      {props.lifecycle(issue)}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        </QueryStates>
+      </div>
+    </PageFrame>
   );
 }
 

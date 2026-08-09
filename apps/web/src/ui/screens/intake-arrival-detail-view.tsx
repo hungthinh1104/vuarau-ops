@@ -8,7 +8,7 @@ import type {
 import type { ReactNode } from "react";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { ArrivalSummary } from "@/ui/patterns/intake/arrival-detail-flow.tsx";
 
 export type IntakeArrivalDetailViewProps = {
@@ -39,25 +39,32 @@ export function IntakeArrivalDetailView({
           onRetry={onRetryProfile}
         >
           {(_operationalProfile) => (
-            <div className="grid gap-6">
-              <PageHeader
-                title="Nhận hàng và kiểm hàng"
-                description={`${detail.vehicleReference ?? "Không ghi xe"} · ${new Date(
-                  detail.transactionTime,
-                ).toLocaleString("vi-VN")}`}
-                {...(detail.purchaseId !== null
-                  ? { back: { href: `/purchases/${detail.purchaseId}`, label: "Mở đơn mua nguồn" } }
-                  : {})}
-              />
-              <ArrivalSummary
-                arrival={detail}
-                canReverse={canReverse}
-                reverseControl={reverseControl}
-              />
-              <div className="grid gap-4">
-                {detail.lines.map((line) => renderLine(line, detail.reversal === null))}
+            <PageFrame size="standard">
+              <div className="grid gap-6">
+                <PageHeader
+                  title="Nhận hàng và kiểm hàng"
+                  description={`${detail.vehicleReference ?? "Không ghi xe"} · ${new Date(
+                    detail.transactionTime,
+                  ).toLocaleString("vi-VN")}`}
+                  {...(detail.purchaseId !== null
+                    ? {
+                        back: {
+                          href: `/purchases/${detail.purchaseId}`,
+                          label: "Mở đơn mua nguồn",
+                        },
+                      }
+                    : {})}
+                />
+                <ArrivalSummary
+                  arrival={detail}
+                  canReverse={canReverse}
+                  reverseControl={reverseControl}
+                />
+                <div className="grid gap-4">
+                  {detail.lines.map((line) => renderLine(line, detail.reversal === null))}
+                </div>
               </div>
-            </div>
+            </PageFrame>
           )}
         </QueryStates>
       )}

@@ -11,7 +11,7 @@ import { formatInstant, formatMoney, formatSignedMoney } from "@/ui/format.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
@@ -45,32 +45,34 @@ export type AccountReconciliationViewProps = {
 
 export function AccountReconciliationView(props: AccountReconciliationViewProps) {
   return (
-    <div className="flex flex-col gap-6">
-      <QueryStates
-        query={props.query}
-        loadingLabel="Đang đối soát công nợ"
-        attemptedAction="Đối soát công nợ"
-        onRetry={props.onRetry}
-      >
-        {(result) => <ReconciliationResult result={result} {...props} />}
-      </QueryStates>
+    <PageFrame size="standard">
+      <div className="flex flex-col gap-6">
+        <QueryStates
+          query={props.query}
+          loadingLabel="Đang đối soát công nợ"
+          attemptedAction="Đối soát công nợ"
+          onRetry={props.onRetry}
+        >
+          {(result) => <ReconciliationResult result={result} {...props} />}
+        </QueryStates>
 
-      <section className="flex flex-col gap-3">
-        <Button tone="secondary" disabled={props.evidenceFetching} onClick={props.onEvidence}>
-          {props.evidenceFetching ? "Đang tạo bản đối soát" : "Xuất bản đối soát"}
-        </Button>
-        {props.evidence ? (
-          <details open className="rounded-card border border-border p-4">
-            <summary className="cursor-pointer font-semibold">Chi tiết đối soát</summary>
-            <section aria-label="Chi tiết đối soát" className="mt-3">
-              <pre className="max-h-96 overflow-auto whitespace-pre-wrap text-caption">
-                {JSON.stringify(props.evidence, null, 2)}
-              </pre>
-            </section>
-          </details>
-        ) : null}
-      </section>
-    </div>
+        <section className="flex flex-col gap-3">
+          <Button tone="secondary" disabled={props.evidenceFetching} onClick={props.onEvidence}>
+            {props.evidenceFetching ? "Đang tạo bản đối soát" : "Xuất bản đối soát"}
+          </Button>
+          {props.evidence ? (
+            <details open className="rounded-card border border-border p-4">
+              <summary className="cursor-pointer font-semibold">Chi tiết đối soát</summary>
+              <section aria-label="Chi tiết đối soát" className="mt-3">
+                <pre className="max-h-96 overflow-auto whitespace-pre-wrap text-caption">
+                  {JSON.stringify(props.evidence, null, 2)}
+                </pre>
+              </section>
+            </details>
+          ) : null}
+        </section>
+      </div>
+    </PageFrame>
   );
 }
 

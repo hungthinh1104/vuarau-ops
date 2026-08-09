@@ -4,19 +4,38 @@ function isMobile(page: Parameters<typeof signIn>[0]): boolean {
   return (page.viewportSize()?.width ?? 0) < 1024;
 }
 
+async function expectNoHorizontalOverflow(page: Parameters<typeof signIn>[0]): Promise<void> {
+  const dimensions = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    content: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.content, JSON.stringify(dimensions)).toBeLessThanOrEqual(
+    dimensions.viewport + 1,
+  );
+}
+
 test.describe("operational shell and action dock", () => {
   test("keeps mobile navigation on directories and replaces it with the form dock", async ({
     page,
   }) => {
     await signIn(page, "owner");
     await page.goto("/products");
+    await expectNoHorizontalOverflow(page);
 
     const mobileNav = page.getByRole("navigation", { name: "Điều hướng di động" });
     if (isMobile(page)) await expect(mobileNav).toBeVisible();
 
     await page.goto("/products/new");
     await expect(page.getByRole("heading", { name: "Thêm mặt hàng" })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Hành động mặt hàng" })).toBeVisible();
+    const actionDock = page.getByRole("region", { name: "Hành động mặt hàng" });
+    await expect(actionDock).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    const primaryButton = actionDock.getByRole("button", { name: /Tạo mặt hàng|Đang tạo/ });
+    const primaryBox = await primaryButton.boundingBox();
+    expect(primaryBox).not.toBeNull();
+    if (primaryBox !== null) {
+      expect(primaryBox.y + primaryBox.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    }
     if (isMobile(page)) await expect(mobileNav).toBeHidden();
   });
 

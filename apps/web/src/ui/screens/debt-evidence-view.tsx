@@ -15,6 +15,7 @@ import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.
 import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
@@ -173,9 +174,9 @@ function DebtObservationForm(props: Parameters<typeof DebtEvidenceView>[0]) {
         onChange={(event) => props.onParticipantWording(event.target.value)}
       />
       <div className="grid gap-4 sm:grid-cols-3">
-        <TextInput
+        <MoneyInput
           label="Số tiền liên quan (₫)"
-          inputMode="numeric"
+          currency="VND"
           value={props.amount}
           onChange={(event) => props.onAmount(event.target.value)}
         />

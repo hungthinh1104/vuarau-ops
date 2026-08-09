@@ -5,6 +5,7 @@ import type {
   RecordGoodsArrivalCommand,
   WorkspaceOperationalProfileDto,
 } from "@vuarau/domain-contracts";
+import { UNIT_LABEL_VI } from "@vuarau/domain-contracts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import {
   EMPTY_INTAKE_LINE,
@@ -18,9 +19,10 @@ import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type IntakeCreateViewProps = {
@@ -141,124 +143,129 @@ function IntakeForm({
   const weighing = operationalProfile.weighingMode === "gross_tare_net";
   const locked = command.phase.kind === "sending" || command.phase.kind === "unknown";
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        title="Nhận hàng"
-        description={`Theo đơn mua đã chọn · ${weighing ? "ghi Tổng cân, Trọng lượng bì và Khối lượng hàng" : "nhập số lượng thực nhận"}`}
-      />
-      <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
-        <TextInput
-          label="Xe hoặc chuyến hàng"
-          value={vehicleReference}
-          disabled={locked}
-          onChange={(event) => onVehicleReference(event.target.value)}
-          placeholder="Ví dụ: 51C-123.45"
+    <PageFrame size="standard">
+      <div className="grid gap-6">
+        <PageHeader
+          title="Nhận hàng"
+          description={`Theo đơn mua đã chọn · ${weighing ? "ghi Tổng cân, Trọng lượng bì và Khối lượng hàng" : "nhập số lượng thực nhận"}`}
         />
-        <EvidenceReferenceInput
-          value={evidence}
-          disabled={locked}
-          onChange={onEvidence}
-          hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản."
-        />
-        {detail.lines.map((line) => {
-          const state = lines[line.lineId] ?? EMPTY_INTAKE_LINE;
-          const gross = scaledQuantity(state.gross);
-          const tare = scaledQuantity(state.tare);
-          const net = gross !== null && tare !== null ? gross - tare : null;
-          return (
-            <fieldset
-              key={line.lineId}
-              className="grid gap-3 border-t border-border pt-4 first:border-0 first:pt-0"
-            >
-              <legend className="text-label font-semibold">
-                {line.productName} · đặt {formatQuantity(line.quantity)}
-              </legend>
-              {weighing ? (
-                <div className="grid gap-3 sm:grid-cols-4">
+        <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
+          <TextInput
+            label="Xe hoặc chuyến hàng"
+            value={vehicleReference}
+            disabled={locked}
+            onChange={(event) => onVehicleReference(event.target.value)}
+            placeholder="Ví dụ: 51C-123.45"
+          />
+          <EvidenceReferenceInput
+            value={evidence}
+            disabled={locked}
+            onChange={onEvidence}
+            hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản."
+          />
+          {detail.lines.map((line) => {
+            const state = lines[line.lineId] ?? EMPTY_INTAKE_LINE;
+            const gross = scaledQuantity(state.gross);
+            const tare = scaledQuantity(state.tare);
+            const net = gross !== null && tare !== null ? gross - tare : null;
+            return (
+              <fieldset
+                key={line.lineId}
+                className="grid gap-3 border-t border-border pt-4 first:border-0 first:pt-0"
+              >
+                <legend className="text-label font-semibold">
+                  {line.productName} · đặt {formatQuantity(line.quantity)}
+                </legend>
+                {weighing ? (
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <NumberField
+                      label="Tổng cân"
+                      unit={line.quantity.unit}
+                      value={state.gross}
+                      onChange={(value) => onLineChange(line.lineId, { gross: value })}
+                    />
+                    <NumberField
+                      label="Trọng lượng bì"
+                      unit={line.quantity.unit}
+                      value={state.tare}
+                      onChange={(value) => onLineChange(line.lineId, { tare: value })}
+                    />
+                    <label className="grid gap-2 text-label">
+                      Khối lượng hàng
+                      <output className="rounded-input border border-border bg-canvas px-3 py-2">
+                        {net !== null && net > 0
+                          ? formatQuantity({ valueScaled: net, unit: line.quantity.unit })
+                          : "—"}
+                      </output>
+                    </label>
+                    <NumberField
+                      label="Số bao/thùng"
+                      unit="cai"
+                      value={state.containerCount}
+                      onChange={(value) => onLineChange(line.lineId, { containerCount: value })}
+                    />
+                  </div>
+                ) : (
                   <NumberField
-                    label="Tổng cân"
-                    value={state.gross}
-                    onChange={(value) => onLineChange(line.lineId, { gross: value })}
+                    label={`Số lượng (${line.quantity.unit})`}
+                    unit={line.quantity.unit}
+                    value={state.quantity}
+                    onChange={(value) => onLineChange(line.lineId, { quantity: value })}
                   />
-                  <NumberField
-                    label="Trọng lượng bì"
-                    value={state.tare}
-                    onChange={(value) => onLineChange(line.lineId, { tare: value })}
+                )}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <TextInput
+                    label="Mã lô từ nhà cung cấp"
+                    value={state.supplierLotCode}
+                    onChange={(event) =>
+                      onLineChange(line.lineId, { supplierLotCode: event.target.value })
+                    }
                   />
-                  <label className="grid gap-2 text-label">
-                    Khối lượng hàng
-                    <output className="rounded-input border border-border bg-canvas px-3 py-2">
-                      {net !== null && net > 0
-                        ? formatQuantity({ valueScaled: net, unit: line.quantity.unit })
-                        : "—"}
-                    </output>
-                  </label>
-                  <NumberField
-                    label="Số bao/thùng"
-                    value={state.containerCount}
-                    integer
-                    onChange={(value) => onLineChange(line.lineId, { containerCount: value })}
+                  <TextInput
+                    label="Ghi chú dòng"
+                    value={state.note}
+                    onChange={(event) => onLineChange(line.lineId, { note: event.target.value })}
                   />
                 </div>
-              ) : (
-                <NumberField
-                  label={`Số lượng (${line.quantity.unit})`}
-                  value={state.quantity}
-                  onChange={(value) => onLineChange(line.lineId, { quantity: value })}
-                />
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <TextInput
-                  label="Mã lô từ nhà cung cấp"
-                  value={state.supplierLotCode}
-                  onChange={(event) =>
-                    onLineChange(line.lineId, { supplierLotCode: event.target.value })
-                  }
-                />
-                <TextInput
-                  label="Ghi chú dòng"
-                  value={state.note}
-                  onChange={(event) => onLineChange(line.lineId, { note: event.target.value })}
-                />
-              </div>
-            </fieldset>
-          );
-        })}
-        {!weighing ? (
-          <Button tone="secondary" disabled={locked} onClick={onFillRemaining}>
-            Nhận đủ số còn lại
-          </Button>
-        ) : null}
-        <Textarea
-          label="Ghi chú chuyến hàng"
-          value={note}
-          onChange={(event) => onNote(event.target.value)}
-        />
-        <ActionDock
-          label="Hành động nhận hàng"
-          summary={
-            <div>
-              <p className="text-caption font-semibold text-ink-muted">Số lượng nhận</p>
-              <p className="text-body-sm font-semibold text-ink">
-                Kiểm tra số lượng trước khi ghi phiếu nhập kho
-              </p>
-            </div>
-          }
-          primary={
-            <Button disabled={locked || commandLines.length === 0} onClick={onSubmit}>
-              {locked ? "Đang ghi phiếu nhập kho" : "Xác nhận đã nhận hàng"}
+              </fieldset>
+            );
+          })}
+          {!weighing ? (
+            <Button tone="secondary" disabled={locked} onClick={onFillRemaining}>
+              Nhận đủ số còn lại
             </Button>
-          }
-          feedback={
-            <CommandOutcome
-              command={command}
-              attemptedAction="Ghi nhận phiếu nhập kho"
-              onReload={onRetry}
-            />
-          }
-        />
-      </section>
-    </div>
+          ) : null}
+          <Textarea
+            label="Ghi chú chuyến hàng"
+            value={note}
+            onChange={(event) => onNote(event.target.value)}
+          />
+          <ActionDock
+            label="Hành động nhận hàng"
+            summary={
+              <div>
+                <p className="text-caption font-semibold text-ink-muted">Số lượng nhận</p>
+                <p className="text-body-sm font-semibold text-ink">
+                  Kiểm tra số lượng trước khi ghi phiếu nhập kho
+                </p>
+              </div>
+            }
+            primary={
+              <Button disabled={locked || commandLines.length === 0} onClick={onSubmit}>
+                {locked ? "Đang ghi phiếu nhập kho" : "Xác nhận đã nhận hàng"}
+              </Button>
+            }
+            feedback={
+              <CommandOutcome
+                command={command}
+                attemptedAction="Ghi nhận phiếu nhập kho"
+                onReload={onRetry}
+              />
+            }
+          />
+        </section>
+      </div>
+    </PageFrame>
   );
 }
 
@@ -266,17 +273,18 @@ function NumberField({
   label,
   value,
   onChange,
-  integer = false,
+  unit,
 }: {
   readonly label: string;
   readonly value: string;
   readonly onChange: (value: string) => void;
-  readonly integer?: boolean;
+  readonly unit: keyof typeof UNIT_LABEL_VI;
 }) {
   return (
-    <TextInput
+    <QuantityInput
       label={label}
-      inputMode={integer ? "numeric" : "decimal"}
+      unit={unit}
+      unitLabel={UNIT_LABEL_VI[unit]}
       value={value}
       onChange={(event) => onChange(event.target.value)}
     />

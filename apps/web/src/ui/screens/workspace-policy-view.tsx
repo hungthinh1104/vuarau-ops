@@ -5,6 +5,7 @@ import type {
   CreateWorkspacePolicyDraftCommand,
   RetireWorkspacePolicyCommand,
   SupportedWorkspacePolicyKind,
+  SupportedWorkspacePolicyVersionFields,
   WorkspacePolicyAvailability,
   WorkspacePolicyDto,
   WorkspacePolicyKind,
@@ -217,15 +218,15 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
 function PolicyDraftForm(
   props: Extract<WorkspacePolicyViewProps, { readonly permissionDenied?: false }>,
 ) {
+  const formKinds = props.policyKinds.filter((value) => policyDefinitionFor(value) !== null);
   const [kind, setKind] = useState<SupportedWorkspacePolicyKind>(
-    props.policyKinds[0] ?? "payment_terms_aging",
+    formKinds[0] ?? "payment_terms_aging",
   );
   const [version, setVersion] = useState("1");
   const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().slice(0, 16));
   const [effectiveTo, setEffectiveTo] = useState("");
   const [evidence, setEvidence] = useState("");
   const [reason, setReason] = useState("");
-  const [parameters, setParameters] = useState("{}");
   const [formError, setFormError] = useState<string | null>(null);
 
   function submit() {
@@ -235,13 +236,9 @@ function PolicyDraftForm(
       setFormError("Cần nhập version hợp lệ và lý do.");
       return;
     }
-    let parsedParameters: Record<string, unknown>;
-    try {
-      const parsed: unknown = JSON.parse(parameters);
-      if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") throw new Error();
-      parsedParameters = parsed as Record<string, unknown>;
-    } catch {
-      setFormError("Thông số phải là nội dung hợp lệ.");
+    const definition = policyDefinitionFor(kind);
+    if (definition === null) {
+      setFormError("Loại quy định này chưa có biểu mẫu để ghi an toàn.");
       return;
     }
     const candidate = {
@@ -251,7 +248,7 @@ function PolicyDraftForm(
       version: versionNumber,
       effectiveFrom: new Date(effectiveFrom).toISOString(),
       effectiveTo: effectiveTo === "" ? null : new Date(effectiveTo).toISOString(),
-      definition: { contractVersion: 1, parameters: parsedParameters },
+      definition,
       evidenceReferences: evidence
         .split("\n")
         .map((value) => value.trim())
@@ -278,7 +275,7 @@ function PolicyDraftForm(
         <Select
           label="Loại quy định"
           value={kind}
-          options={props.policyKinds.map((value) => ({ value, label: KIND_COPY[value] }))}
+          options={formKinds.map((value) => ({ value, label: KIND_COPY[value] }))}
           onChange={(event) => setKind(event.target.value as SupportedWorkspacePolicyKind)}
         />
         <TextInput
@@ -307,12 +304,13 @@ function PolicyDraftForm(
         onChange={(event) => setEvidence(event.target.value)}
         hint="Bản nháp có thể để trống; khi duyệt cần có thông tin liên quan."
       />
-      <Textarea
-        label="Thông số áp dụng"
-        value={parameters}
-        onChange={(event) => setParameters(event.target.value)}
-        hint="Các thông số dùng để tính toán theo loại quy định đã chọn."
-      />
+      <div className="rounded-card border border-info/30 bg-info-soft p-3 text-body-sm">
+        <p className="font-semibold">Cách áp dụng đã chọn</p>
+        <p className="mt-1 text-ink-muted">
+          Biểu mẫu này chỉ cho phép các thông tin phù hợp với loại quy định. Các loại chưa có biểu
+          mẫu sẽ không xuất hiện để tránh ghi sai cách tính.
+        </p>
+      </div>
       <TextInput
         label="Lý do"
         value={reason}
@@ -325,6 +323,77 @@ function PolicyDraftForm(
       </Button>
     </section>
   );
+}
+
+function policyDefinitionFor(
+  kind: SupportedWorkspacePolicyKind,
+): SupportedWorkspacePolicyVersionFields["definition"] | null {
+  switch (kind) {
+    case "inventory_valuation":
+      return { contractVersion: 1, parameters: { strategy: "moving_weighted_average" } };
+    case "cost_allocation":
+      return { contractVersion: 1, parameters: { strategy: "quantity" } };
+    case "purchase_correction":
+      return {
+        contractVersion: 1,
+        parameters: { afterReceiving: "commercial_replacement_only" },
+      };
+    case "payment_terms_aging":
+      return {
+        contractVersion: 1,
+        parameters: {
+          defaultTermDays: 7,
+          defaultTermLabel: "7 ngày",
+          customerTerms: [],
+          graceDays: 0,
+          agingBuckets: [{ code: "1+", label: "Quá hạn", minDaysOverdue: 1, maxDaysOverdue: null }],
+          creditControl: "information_only",
+        },
+      };
+    case "payment_allocation":
+      return { contractVersion: 1, parameters: { strategy: "oldest_due_first" } };
+    case "credit_limit":
+      return { contractVersion: 1, parameters: { mode: "warning", limit: null } };
+    case "stock_planning_reorder":
+      return null;
+    case "stocktake_variance":
+      return { contractVersion: 1, parameters: { strategy: "absolute_count", allowReopen: false } };
+    case "supplier_evaluation":
+      return {
+        contractVersion: 1,
+        parameters: {
+          strategy: "observed_outcomes_summary",
+          windowDays: 365,
+          minimumObservationCount: 1,
+        },
+      };
+    case "operating_cycle_reconciliation":
+      return {
+        contractVersion: 1,
+        parameters: {
+          strategy: "observation_signoff",
+          requiredObservationKinds: ["cash_count"],
+          allowReopen: false,
+        },
+      };
+    case "cash_custody_deposit":
+      return {
+        contractVersion: 1,
+        parameters: {
+          strategy: "exact_cash_movement",
+          allowedSourceTypes: ["customer_payment"],
+          allowReverse: true,
+        },
+      };
+    case "management_intelligence":
+      return {
+        contractVersion: 1,
+        parameters: {
+          strategy: "operational_report_snapshot",
+          reportTypes: ["customer_account_activity"],
+        },
+      };
+  }
 }
 
 function PolicyStateActions(props: {

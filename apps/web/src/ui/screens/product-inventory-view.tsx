@@ -17,7 +17,7 @@ import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { copyForReportDiagnostic } from "@/ui/copy.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -72,126 +72,132 @@ export function ProductInventoryView({
   onRetryTimeline,
 }: ProductInventoryViewProps) {
   return (
-    <div className="flex max-w-4xl flex-col gap-5">
-      <QueryStates query={productQuery} loadingLabel="Đang tải mặt hàng" onRetry={onRetryProduct}>
-        {(detail) => (
-          <PageHeader
-            title="Tồn kho"
-            description={detail.displayName}
-            back={{ href: `/products/${productId}`, label: "Mặt hàng" }}
-          />
-        )}
-      </QueryStates>
-
-      <QueryStates query={balancesQuery} loadingLabel="Đang tải số lượng" onRetry={onRetryBalances}>
-        {() =>
-          balances.length === 0 ? (
-            <p className="text-body-sm text-ink-muted">Chưa có biến động vật lý.</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {balances.map((balance) => (
-                <InventoryBalanceCard
-                  key={`${balance.qualityGradeId ?? "legacy"}:${balance.unit}`}
-                  balance={balance}
-                />
-              ))}
-            </div>
-          )
-        }
-      </QueryStates>
-
-      <section aria-labelledby="valuation-title" className="grid gap-3">
-        <div>
-          <h2 id="valuation-title" className="text-subheading font-semibold">
-            Định giá tồn kho
-          </h2>
-          <p className="text-body-sm text-ink-muted">
-            Kết quả chỉ hiện khi vựa đã có cách tính giá trị tồn kho đang dùng.
-          </p>
-        </div>
-        <QueryStates query={valuationQuery} loadingLabel="Đang tính giá trị tồn kho">
-          {(valuation) => <InventoryValuationResultView result={valuation} />}
+    <PageFrame size="wide">
+      <div className="flex flex-col gap-5">
+        <QueryStates query={productQuery} loadingLabel="Đang tải mặt hàng" onRetry={onRetryProduct}>
+          {(detail) => (
+            <PageHeader
+              title="Tồn kho"
+              description={detail.displayName}
+              back={{ href: `/products/${productId}`, label: "Mặt hàng" }}
+            />
+          )}
         </QueryStates>
-      </section>
 
-      <section aria-labelledby="planning-title" className="grid gap-3">
-        <div>
-          <h2 id="planning-title" className="text-subheading font-semibold">
-            Kế hoạch tồn kho
-          </h2>
-          <p className="text-body-sm text-ink-muted">
-            Chỉ hiển thị khuyến nghị khi vựa đã duyệt cách lập kế hoạch tồn kho.
-          </p>
-        </div>
-        <QueryStates query={planningQuery} loadingLabel="Đang tính kế hoạch tồn kho">
-          {(result) => <StockPlanningResultView productId={productId} result={result} />}
-        </QueryStates>
-      </section>
-
-      <section className="grid gap-3 border-y border-border py-4 md:grid-cols-2">
-        <Select
-          label="Lọc theo hạng hàng"
-          value={gradeFilter === undefined ? "" : (gradeFilter ?? "legacy")}
-          onChange={(event) =>
-            onGradeFilterChange(
-              event.target.value === ""
-                ? undefined
-                : event.target.value === "legacy"
-                  ? null
-                  : (event.target.value as QualityGradeId),
-            )
-          }
-          placeholder="Tất cả hạng hàng, không cộng gộp"
-          options={[
-            ...(balances.some((row) => row.qualityGradeId === null)
-              ? [{ value: "legacy", label: "Chưa phân loại (lịch sử)" }]
-              : []),
-            ...grades.map((grade) => ({ value: grade.id, label: grade.name })),
-          ]}
-        />
-        <Select
-          label="Lọc theo đơn vị"
-          value={unitFilter ?? ""}
-          onChange={(event) =>
-            onUnitFilterChange(event.target.value === "" ? null : (event.target.value as Unit))
-          }
-          placeholder="Tất cả đơn vị, không cộng gộp"
-          options={UNITS.map((unit) => ({ value: unit, label: UNIT_LABEL_VI[unit] }))}
-        />
-      </section>
-
-      <section aria-labelledby="movement-title" className="grid gap-3">
-        <h2 id="movement-title" className="text-subheading font-semibold">
-          Biến động kho
-        </h2>
         <QueryStates
-          query={timelineQuery}
-          loadingLabel="Đang tải biến động kho"
-          onRetry={onRetryTimeline}
+          query={balancesQuery}
+          loadingLabel="Đang tải số lượng"
+          onRetry={onRetryBalances}
         >
           {() =>
-            movements.length === 0 ? (
-              <p className="text-body-sm text-ink-muted">Không có biến động phù hợp.</p>
+            balances.length === 0 ? (
+              <p className="text-body-sm text-ink-muted">Chưa có biến động vật lý.</p>
             ) : (
-              <ol className="flex flex-col gap-2">
-                {movements.map((movement) => (
-                  <InventoryMovementRow key={movement.id} movement={movement} />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {balances.map((balance) => (
+                  <InventoryBalanceCard
+                    key={`${balance.qualityGradeId ?? "legacy"}:${balance.unit}`}
+                    balance={balance}
+                  />
                 ))}
-              </ol>
+              </div>
             )
           }
         </QueryStates>
-        {hasMore ? (
-          <Button tone="secondary" disabled={timelineQuery.isFetching} onClick={onLoadMore}>
-            {timelineQuery.isFetching ? "Đang tải" : "Tải thêm"}
-          </Button>
-        ) : null}
-      </section>
 
-      {adjustment}
-      {reclassification}
-      {stocktake}
-    </div>
+        <section aria-labelledby="valuation-title" className="grid gap-3">
+          <div>
+            <h2 id="valuation-title" className="text-subheading font-semibold">
+              Định giá tồn kho
+            </h2>
+            <p className="text-body-sm text-ink-muted">
+              Kết quả chỉ hiện khi vựa đã có cách tính giá trị tồn kho đang dùng.
+            </p>
+          </div>
+          <QueryStates query={valuationQuery} loadingLabel="Đang tính giá trị tồn kho">
+            {(valuation) => <InventoryValuationResultView result={valuation} />}
+          </QueryStates>
+        </section>
+
+        <section aria-labelledby="planning-title" className="grid gap-3">
+          <div>
+            <h2 id="planning-title" className="text-subheading font-semibold">
+              Kế hoạch tồn kho
+            </h2>
+            <p className="text-body-sm text-ink-muted">
+              Chỉ hiển thị khuyến nghị khi vựa đã duyệt cách lập kế hoạch tồn kho.
+            </p>
+          </div>
+          <QueryStates query={planningQuery} loadingLabel="Đang tính kế hoạch tồn kho">
+            {(result) => <StockPlanningResultView productId={productId} result={result} />}
+          </QueryStates>
+        </section>
+
+        <section className="grid gap-3 border-y border-border py-4 md:grid-cols-2">
+          <Select
+            label="Lọc theo hạng hàng"
+            value={gradeFilter === undefined ? "" : (gradeFilter ?? "legacy")}
+            onChange={(event) =>
+              onGradeFilterChange(
+                event.target.value === ""
+                  ? undefined
+                  : event.target.value === "legacy"
+                    ? null
+                    : (event.target.value as QualityGradeId),
+              )
+            }
+            placeholder="Tất cả hạng hàng, không cộng gộp"
+            options={[
+              ...(balances.some((row) => row.qualityGradeId === null)
+                ? [{ value: "legacy", label: "Chưa phân loại (lịch sử)" }]
+                : []),
+              ...grades.map((grade) => ({ value: grade.id, label: grade.name })),
+            ]}
+          />
+          <Select
+            label="Lọc theo đơn vị"
+            value={unitFilter ?? ""}
+            onChange={(event) =>
+              onUnitFilterChange(event.target.value === "" ? null : (event.target.value as Unit))
+            }
+            placeholder="Tất cả đơn vị, không cộng gộp"
+            options={UNITS.map((unit) => ({ value: unit, label: UNIT_LABEL_VI[unit] }))}
+          />
+        </section>
+
+        <section aria-labelledby="movement-title" className="grid gap-3">
+          <h2 id="movement-title" className="text-subheading font-semibold">
+            Biến động kho
+          </h2>
+          <QueryStates
+            query={timelineQuery}
+            loadingLabel="Đang tải biến động kho"
+            onRetry={onRetryTimeline}
+          >
+            {() =>
+              movements.length === 0 ? (
+                <p className="text-body-sm text-ink-muted">Không có biến động phù hợp.</p>
+              ) : (
+                <ol className="flex flex-col gap-2">
+                  {movements.map((movement) => (
+                    <InventoryMovementRow key={movement.id} movement={movement} />
+                  ))}
+                </ol>
+              )
+            }
+          </QueryStates>
+          {hasMore ? (
+            <Button tone="secondary" disabled={timelineQuery.isFetching} onClick={onLoadMore}>
+              {timelineQuery.isFetching ? "Đang tải" : "Tải thêm"}
+            </Button>
+          ) : null}
+        </section>
+
+        {adjustment}
+        {reclassification}
+        {stocktake}
+      </div>
+    </PageFrame>
   );
 }
 
