@@ -6,7 +6,7 @@ import { formatInstant } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { DocumentSnapshotView } from "@/ui/patterns/document/document-snapshot-view.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 
 const DOCUMENT_TYPE_LABEL: Readonly<Record<DocumentType, string>> = {
@@ -40,43 +40,45 @@ export function DocumentDetailView({
   return (
     <QueryStates query={query} loadingLabel="Đang tải chứng từ" onRetry={onRetry}>
       {(detail) => (
-        <div className="flex flex-col gap-6">
-          <PageHeader
-            title={DOCUMENT_TYPE_LABEL[detail.documentType]}
-            description={`Tạo ${formatInstant(detail.generatedAt)}`}
-            back={{
-              href: sourceHref(detail.sourceType, detail.sourceId),
-              label: "Mở dữ liệu nguồn",
-            }}
-          />
-          <DocumentSnapshotView document={detail} />
-          <div className="flex flex-wrap gap-3 print:hidden">
-            <Button tone="secondary" onClick={onPrint}>
-              In chứng từ
-            </Button>
-            {canShare && shareResult === null ? (
-              <Button onClick={() => onShare(detail)}>Tạo liên kết đọc trong 24 giờ</Button>
-            ) : null}
-          </div>
-          {shareResult !== null ? (
-            <section className="rounded-card border border-border bg-surface p-4">
-              <p>Liên kết chỉ hiện một lần và hết hạn {formatInstant(shareResult.expiresAt)}:</p>
-              <a
-                className="break-all font-semibold text-info underline-offset-4 hover:underline"
-                href={`/shared/documents/${shareResult.token}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {`/shared/documents/${shareResult.token}`}
-              </a>
-              <Button tone="danger" onClick={onRevoke}>
-                Thu hồi liên kết
+        <PageFrame size="standard">
+          <div className="flex flex-col gap-6">
+            <PageHeader
+              title={DOCUMENT_TYPE_LABEL[detail.documentType]}
+              description={`Tạo ${formatInstant(detail.generatedAt)}`}
+              back={{
+                href: sourceHref(detail.sourceType, detail.sourceId),
+                label: "Mở dữ liệu nguồn",
+              }}
+            />
+            <DocumentSnapshotView document={detail} />
+            <div className="flex flex-wrap gap-3 print:hidden">
+              <Button tone="secondary" onClick={onPrint}>
+                In chứng từ
               </Button>
-            </section>
-          ) : null}
-          {shareFeedback}
-          {revokeFeedback}
-        </div>
+              {canShare && shareResult === null ? (
+                <Button onClick={() => onShare(detail)}>Tạo liên kết đọc trong 24 giờ</Button>
+              ) : null}
+            </div>
+            {shareResult !== null ? (
+              <section className="rounded-card border border-border bg-surface p-4">
+                <p>Liên kết chỉ hiện một lần và hết hạn {formatInstant(shareResult.expiresAt)}:</p>
+                <a
+                  className="break-all font-semibold text-info underline-offset-4 hover:underline"
+                  href={`/shared/documents/${shareResult.token}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {`/shared/documents/${shareResult.token}`}
+                </a>
+                <Button tone="danger" onClick={onRevoke}>
+                  Thu hồi liên kết
+                </Button>
+              </section>
+            ) : null}
+            {shareFeedback}
+            {revokeFeedback}
+          </div>
+        </PageFrame>
       )}
     </QueryStates>
   );

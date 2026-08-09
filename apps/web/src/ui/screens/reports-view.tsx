@@ -16,7 +16,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { copyForReportDiagnostic, copyForReportMetric, copyForReportStatus } from "@/ui/copy.ts";
-import { DisclosureSection, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { DisclosureSection, PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -84,60 +84,62 @@ export function ReportsView(props: {
   const onAdvancedOpenChange = props.onAdvancedOpenChange ?? (() => undefined);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Tổng quan vận hành"
-        description="Các số liệu làm việc hôm nay, lấy từ nguồn chuẩn và có thể mở ngược về chứng từ."
-      />
-      {props.overview === undefined ? null : <OperationalOverview {...props.overview} />}
-      <div className="grid gap-3 border-y border-border py-4 md:grid-cols-3 md:items-end">
-        <Select
-          label="Loại báo cáo"
-          options={REPORT_TYPE_OPTIONS}
-          value={props.reportType}
-          onChange={(event) => props.onReportTypeChange(event.target.value as ReportType)}
+    <PageFrame size="wide">
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Tổng quan vận hành"
+          description="Các số liệu làm việc hôm nay, lấy từ nguồn chuẩn và có thể mở ngược về chứng từ."
         />
-        {["customer_account_activity", "cash_movement_report", "expense_report"].includes(
-          props.reportType,
-        ) ? (
-          <label className="grid gap-2">
-            <span>Ngày giao dịch</span>
-            <Input
-              type="date"
-              value={props.businessDate}
-              onChange={(event) => props.onBusinessDateChange(event.target.value)}
-            />
-          </label>
-        ) : null}
-        <Button tone="secondary" disabled={props.exporting} onClick={props.onExport}>
-          {props.exporting ? "Đang xuất…" : "Xuất CSV"}
-        </Button>
-      </div>
-
-      {props.state === "loading" ? (
-        <p className="text-body-sm text-ink-muted">Đang dựng báo cáo từ nguồn chuẩn…</p>
-      ) : props.state === "error" || props.result === null ? (
-        <div role="alert" className="rounded-card border border-danger/30 p-4 text-body-sm">
-          <p>Không dựng được báo cáo. Không hiển thị tổng cũ như thể là dữ liệu hiện tại.</p>
-          <Button className="mt-3" tone="secondary" onClick={props.onRetry}>
-            Thử lại
+        {props.overview === undefined ? null : <OperationalOverview {...props.overview} />}
+        <div className="grid gap-3 border-y border-border py-4 md:grid-cols-3 md:items-end">
+          <Select
+            label="Loại báo cáo"
+            options={REPORT_TYPE_OPTIONS}
+            value={props.reportType}
+            onChange={(event) => props.onReportTypeChange(event.target.value as ReportType)}
+          />
+          {["customer_account_activity", "cash_movement_report", "expense_report"].includes(
+            props.reportType,
+          ) ? (
+            <label className="grid gap-2">
+              <span>Ngày giao dịch</span>
+              <Input
+                type="date"
+                value={props.businessDate}
+                onChange={(event) => props.onBusinessDateChange(event.target.value)}
+              />
+            </label>
+          ) : null}
+          <Button tone="secondary" disabled={props.exporting} onClick={props.onExport}>
+            {props.exporting ? "Đang xuất…" : "Xuất CSV"}
           </Button>
         </div>
-      ) : (
-        <ReportResult result={props.result} onNextPage={props.onNextPage} />
-      )}
-      <DisclosureSection
-        title="Chỉ số nâng cao"
-        description="Mở khi cần xem biểu đồ, đối chiếu và chỉ số quản lý chi tiết."
-        open={advancedOpen}
-        onOpenChange={onAdvancedOpenChange}
-      >
-        <div className="grid gap-6">
-          <ManagementSnapshot query={props.intelligence} onRetry={props.onIntelligenceRetry} />
-          <MetricCatalog query={props.metrics} onRetry={props.onMetricsRetry} />
-        </div>
-      </DisclosureSection>
-    </div>
+
+        {props.state === "loading" ? (
+          <p className="text-body-sm text-ink-muted">Đang dựng báo cáo từ nguồn chuẩn…</p>
+        ) : props.state === "error" || props.result === null ? (
+          <div role="alert" className="rounded-card border border-danger/30 p-4 text-body-sm">
+            <p>Không dựng được báo cáo. Không hiển thị tổng cũ như thể là dữ liệu hiện tại.</p>
+            <Button className="mt-3" tone="secondary" onClick={props.onRetry}>
+              Thử lại
+            </Button>
+          </div>
+        ) : (
+          <ReportResult result={props.result} onNextPage={props.onNextPage} />
+        )}
+        <DisclosureSection
+          title="Chỉ số nâng cao"
+          description="Mở khi cần xem biểu đồ, đối chiếu và chỉ số quản lý chi tiết."
+          open={advancedOpen}
+          onOpenChange={onAdvancedOpenChange}
+        >
+          <div className="grid gap-6">
+            <ManagementSnapshot query={props.intelligence} onRetry={props.onIntelligenceRetry} />
+            <MetricCatalog query={props.metrics} onRetry={props.onMetricsRetry} />
+          </div>
+        </DisclosureSection>
+      </div>
+    </PageFrame>
   );
 }
 

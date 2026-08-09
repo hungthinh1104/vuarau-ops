@@ -10,6 +10,7 @@ import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import {
   DirectoryToolbar,
   MobileRecordCard,
+  PageFrame,
   PageActions,
   PageHeader,
 } from "@/ui/patterns/layout/page-layout.tsx";
@@ -39,81 +40,83 @@ export type CustomersDirectoryViewProps = {
 
 export function CustomersDirectoryView(props: CustomersDirectoryViewProps) {
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
-      <PageHeader
-        title="Khách hàng"
-        actions={
-          <PageActions>
-            {props.canManageWorkspace ? (
-              <LinkButton href="/workspace" tone="secondary">
-                Quản lý vựa
-              </LinkButton>
-            ) : null}
-            {props.canCreateCustomer ? (
-              <LinkButton href="/customers/new">Thêm khách hàng</LinkButton>
-            ) : null}
-          </PageActions>
-        }
-      />
-
-      <DirectoryToolbar
-        search={
-          <SearchInput
-            label="Tìm khách hàng"
-            placeholder="Tên hoặc số điện thoại"
-            value={props.query}
-            onChange={(event) => props.onQueryChange(event.target.value)}
-            onClear={props.onClearQuery}
-            autoFocus
-          />
-        }
-        filters={
-          <FilterChipGroup
-            label="Lọc trạng thái khách hàng"
-            value={props.activeFilter}
-            options={[
-              { value: "all", label: "Tất cả" },
-              { value: "active", label: "Đang hoạt động" },
-              { value: "inactive", label: "Đã ngưng" },
-            ]}
-            onChange={props.onFilterChange}
-          />
-        }
-      />
-
-      <QueryStates
-        query={props.queryState}
-        loadingLabel="Đang tìm khách hàng"
-        onRetry={props.onRetry}
-      >
-        {() =>
-          props.items.length === 0 ? (
-            <EmptyState
-              title={
-                props.query.length === 0 ? "Chưa có khách hàng nào" : "Không tìm thấy khách nào"
-              }
-              description={
-                props.query.length === 0
-                  ? "Thêm khách hàng đầu tiên để bắt đầu ghi đơn và công nợ."
-                  : "Thử gõ ít chữ hơn, hoặc gõ số điện thoại."
-              }
-            />
-          ) : (
-            <CustomerRows items={props.items} />
-          )
-        }
-      </QueryStates>
-
-      {props.hasMore ? (
-        <LoadMoreFooter
-          visibleCount={props.items.length}
-          noun="khách hàng"
-          loading={props.isFetching}
-          onLoadMore={props.onLoadMore}
-          {...(props.isError ? { onRetry: props.onRetry } : {})}
+    <PageFrame size="wide">
+      <div className="flex w-full flex-col gap-6">
+        <PageHeader
+          title="Khách hàng"
+          actions={
+            <PageActions>
+              {props.canManageWorkspace ? (
+                <LinkButton href="/workspace" tone="secondary">
+                  Quản lý vựa
+                </LinkButton>
+              ) : null}
+              {props.canCreateCustomer ? (
+                <LinkButton href="/customers/new">Thêm khách hàng</LinkButton>
+              ) : null}
+            </PageActions>
+          }
         />
-      ) : null}
-    </div>
+
+        <DirectoryToolbar
+          search={
+            <SearchInput
+              label="Tìm khách hàng"
+              placeholder="Tên hoặc số điện thoại"
+              value={props.query}
+              onChange={(event) => props.onQueryChange(event.target.value)}
+              onClear={props.onClearQuery}
+              autoFocus
+            />
+          }
+          filters={
+            <FilterChipGroup
+              label="Lọc trạng thái khách hàng"
+              value={props.activeFilter}
+              options={[
+                { value: "all", label: "Tất cả" },
+                { value: "active", label: "Đang hoạt động" },
+                { value: "inactive", label: "Đã ngưng" },
+              ]}
+              onChange={props.onFilterChange}
+            />
+          }
+        />
+
+        <QueryStates
+          query={props.queryState}
+          loadingLabel="Đang tìm khách hàng"
+          onRetry={props.onRetry}
+        >
+          {() =>
+            props.items.length === 0 ? (
+              <EmptyState
+                title={
+                  props.query.length === 0 ? "Chưa có khách hàng nào" : "Không tìm thấy khách nào"
+                }
+                description={
+                  props.query.length === 0
+                    ? "Thêm khách hàng đầu tiên để bắt đầu ghi đơn và công nợ."
+                    : "Thử gõ ít chữ hơn, hoặc gõ số điện thoại."
+                }
+              />
+            ) : (
+              <CustomerRows items={props.items} />
+            )
+          }
+        </QueryStates>
+
+        {props.hasMore ? (
+          <LoadMoreFooter
+            visibleCount={props.items.length}
+            noun="khách hàng"
+            loading={props.isFetching}
+            onLoadMore={props.onLoadMore}
+            {...(props.isError ? { onRetry: props.onRetry } : {})}
+          />
+        ) : null}
+      </div>
+    </PageFrame>
   );
 }
 

@@ -2,7 +2,6 @@
 
 import type { SaleSummaryDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
-import { useMemo, useState } from "react";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { formatInstant, formatMoney } from "@/ui/format.ts";
@@ -11,13 +10,13 @@ import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import {
   DirectoryToolbar,
   MobileRecordCard,
+  PageFrame,
   PageActions,
   PageHeader,
 } from "@/ui/patterns/layout/page-layout.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
-import { SearchInput } from "@/ui/primitives/search-input.tsx";
 
 export type SalesListFilter = "all" | "draft" | "posted" | "voided";
 
@@ -42,79 +41,60 @@ export function SalesListView({
   onLoadMore,
   onRetry,
 }: SalesListViewProps) {
-  const [queryText, setQueryText] = useState("");
-  const visibleRows = useMemo(() => {
-    const normalized = queryText.trim().toLocaleLowerCase("vi-VN");
-    if (normalized.length === 0) return rows;
-    return rows.filter((sale) =>
-      [sale.id, sale.customerDisplayName, formatInstant(sale.transactionTime)]
-        .join(" ")
-        .toLocaleLowerCase("vi-VN")
-        .includes(normalized),
-    );
-  }, [queryText, rows]);
-
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        title="Đơn hàng"
-        description="Các đơn đã ghi trong vựa, gồm đơn nháp, đã chốt và đã hoàn tác."
-        actions={
-          canCreate ? (
-            <PageActions>
-              <LinkButton href="/sales/new">Ghi đơn nhanh</LinkButton>
-            </PageActions>
-          ) : undefined
-        }
-      />
-
-      <DirectoryToolbar
-        search={
-          <SearchInput
-            label="Tìm đơn hàng"
-            placeholder="Mã đơn hoặc tên khách"
-            value={queryText}
-            onChange={(event) => setQueryText(event.target.value)}
-            onClear={() => setQueryText("")}
-          />
-        }
-        filters={
-          <FilterChipGroup
-            label="Lọc trạng thái đơn hàng"
-            value={filter}
-            options={[
-              { value: "all", label: "Tất cả" },
-              { value: "draft", label: "Nháp" },
-              { value: "posted", label: "Đã chốt" },
-              { value: "voided", label: "Đã hoàn tác" },
-            ]}
-            onChange={onFilterChange}
-          />
-        }
-      />
-
-      <QueryStates query={query} loadingLabel="Đang tải đơn hàng" onRetry={onRetry}>
-        {() =>
-          visibleRows.length === 0 ? (
-            <EmptyState
-              title="Chưa có đơn hàng"
-              description="Ghi đơn đầu tiên để bắt đầu theo dõi bán hàng và công nợ."
-            />
-          ) : (
-            <SalesRows rows={visibleRows} />
-          )
-        }
-      </QueryStates>
-
-      {hasMore ? (
-        <LoadMoreFooter
-          visibleCount={visibleRows.length}
-          noun="đơn hàng"
-          loading={query.isFetching}
-          onLoadMore={onLoadMore}
+    <PageFrame size="wide">
+      <div className="grid gap-6">
+        <PageHeader
+          title="Đơn hàng"
+          description="Các đơn đã ghi trong vựa, gồm đơn nháp, đã chốt và đã hoàn tác."
+          actions={
+            canCreate ? (
+              <PageActions>
+                <LinkButton href="/sales/new">Ghi đơn nhanh</LinkButton>
+              </PageActions>
+            ) : undefined
+          }
         />
-      ) : null}
-    </div>
+
+        <DirectoryToolbar
+          filters={
+            <FilterChipGroup
+              label="Lọc trạng thái đơn hàng"
+              value={filter}
+              options={[
+                { value: "all", label: "Tất cả" },
+                { value: "draft", label: "Nháp" },
+                { value: "posted", label: "Đã chốt" },
+                { value: "voided", label: "Đã hoàn tác" },
+              ]}
+              onChange={onFilterChange}
+            />
+          }
+        />
+
+        <QueryStates query={query} loadingLabel="Đang tải đơn hàng" onRetry={onRetry}>
+          {() =>
+            rows.length === 0 ? (
+              <EmptyState
+                title="Chưa có đơn hàng"
+                description="Ghi đơn đầu tiên để bắt đầu theo dõi bán hàng và công nợ."
+              />
+            ) : (
+              <SalesRows rows={rows} />
+            )
+          }
+        </QueryStates>
+
+        {hasMore ? (
+          <LoadMoreFooter
+            visibleCount={rows.length}
+            noun="đơn hàng"
+            loading={query.isFetching}
+            onLoadMore={onLoadMore}
+          />
+        ) : null}
+      </div>
+    </PageFrame>
   );
 }
 

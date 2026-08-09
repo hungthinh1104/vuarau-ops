@@ -14,7 +14,7 @@ import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import { QueryStates, type QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { WORKSPACE_ROLE_COPY, RoleSetPicker } from "@/ui/patterns/workspace/role-set-picker.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -54,43 +54,45 @@ export function WorkspaceView(props: {
   readonly onRetryProfile: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-6">
-      <QueryStates
-        query={props.workspace}
-        loadingLabel="Đang tải thành viên"
-        attemptedAction="Quản lý thành viên"
-        onRetry={props.onRetryWorkspace}
-      >
-        {(detail) => (
-          <>
-            <PageHeader
-              title={detail.name}
-              description="Một tài khoản có thể giữ nhiều vai trò; quyền là hợp của các vai trò được giao."
-            />
-            <QueryStates
-              query={props.operationalProfile}
-              loadingLabel="Đang tải cấu hình vận hành"
-              attemptedAction="Xem cấu hình vận hành"
-              onRetry={props.onRetryProfile}
-            >
-              {(profile) => props.profileForm(profile)}
-            </QueryStates>
-            {props.addMemberForm}
-            <ul className="flex flex-col gap-3">
-              {detail.members.map((member) => (
-                <li key={member.actorId}>{props.memberRow(member)}</li>
-              ))}
-            </ul>
-          </>
-        )}
-      </QueryStates>
-      <Link href="/workspace/operations" className="text-info underline">
-        Vận hành, kiểm tra và sao lưu
-      </Link>
-      <Link href="/workspace/policies" className="text-info underline">
-        Quy định vận hành
-      </Link>
-    </div>
+    <PageFrame size="standard">
+      <div className="flex flex-col gap-6">
+        <QueryStates
+          query={props.workspace}
+          loadingLabel="Đang tải thành viên"
+          attemptedAction="Quản lý thành viên"
+          onRetry={props.onRetryWorkspace}
+        >
+          {(detail) => (
+            <>
+              <PageHeader
+                title={detail.name}
+                description="Một tài khoản có thể giữ nhiều vai trò; quyền là hợp của các vai trò được giao."
+              />
+              <QueryStates
+                query={props.operationalProfile}
+                loadingLabel="Đang tải cấu hình vận hành"
+                attemptedAction="Xem cấu hình vận hành"
+                onRetry={props.onRetryProfile}
+              >
+                {(profile) => props.profileForm(profile)}
+              </QueryStates>
+              {props.addMemberForm}
+              <ul className="flex flex-col gap-3">
+                {detail.members.map((member) => (
+                  <li key={member.actorId}>{props.memberRow(member)}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </QueryStates>
+        <Link href="/workspace/operations" className="text-info underline">
+          Vận hành, kiểm tra và sao lưu
+        </Link>
+        <Link href="/workspace/policies" className="text-info underline">
+          Quy định vận hành
+        </Link>
+      </div>
+    </PageFrame>
   );
 }
 

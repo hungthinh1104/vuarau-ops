@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import type { TodayAction } from "@/ui/domain/today-actions.ts";
 
 const ACTION_ICONS: Readonly<Record<string, LucideIcon>> = {
@@ -62,88 +62,94 @@ export function TodayView({
   const more = actions.filter((action) => action.area === "more");
 
   return (
-    <div className="grid gap-8">
-      <PageHeader
-        title="Hôm nay"
-        description="Việc cần làm, lối vào nhanh và trạng thái vận hành của ca hiện tại."
-      />
+    <PageFrame size="wide">
+      <div className="grid gap-8">
+        <PageHeader
+          title="Hôm nay"
+          description="Việc cần làm, lối vào nhanh và trạng thái vận hành của ca hiện tại."
+        />
 
-      {primary.length > 0 ? (
-        <section aria-labelledby="quick-actions-title">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h2 id="quick-actions-title" className="text-label font-semibold text-ink-muted">
-              Làm nhanh
-            </h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {primary.map((action) => (
-              <QuickAction key={action.label} action={action} primary />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {deliveryQueuesVisible || purchaseQueueVisible ? (
-        <section aria-labelledby="attention-title" className="grid gap-3">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-caption font-semibold uppercase tracking-wide text-warning">
-                Cần xử lý
-              </p>
-              <h2 id="attention-title" className="text-heading font-bold text-ink">
-                Công việc đang mở
+        {primary.length > 0 ? (
+          <section aria-labelledby="quick-actions-title">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h2 id="quick-actions-title" className="text-label font-semibold text-ink-muted">
+                Làm nhanh
               </h2>
             </div>
-            <p className="hidden text-body-sm text-ink-muted md:block">
-              Mở thẳng vào nghiệp vụ thay vì tìm lại trong menu.
-            </p>
-          </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {primary.map((action) => (
+                <QuickAction key={action.label} action={action} primary />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
-          <div className="grid gap-6 xl:grid-cols-3">
-            {deliveryQueuesVisible ? (
-              <>
-                <WorkQueue title="Phiếu cần xuất hàng" href="/deliveries" state={draftDeliveries} />
-                <WorkQueue
-                  title="Phiếu đang giao"
-                  href="/deliveries"
-                  state={dispatchedDeliveries}
-                />
-              </>
-            ) : null}
-            {purchaseQueueVisible ? (
-              <WorkQueue title="Đơn mua đã xác nhận" href="/purchases" state={openPurchases} />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+        {deliveryQueuesVisible || purchaseQueueVisible ? (
+          <section aria-labelledby="attention-title" className="grid gap-3">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-caption font-semibold uppercase tracking-wide text-warning">
+                  Cần xử lý
+                </p>
+                <h2 id="attention-title" className="text-heading font-bold text-ink">
+                  Công việc đang mở
+                </h2>
+              </div>
+              <p className="hidden text-body-sm text-ink-muted md:block">
+                Mở thẳng vào nghiệp vụ thay vì tìm lại trong menu.
+              </p>
+            </div>
 
-      {work.length > 0 ? (
-        <section id="work" aria-labelledby="work-title" className="grid gap-3">
-          <div>
-            <p className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
-              Theo vai trò
-            </p>
-            <h2 id="work-title" className="text-subheading font-semibold">
-              Công việc
+            <div className="grid gap-6 xl:grid-cols-3">
+              {deliveryQueuesVisible ? (
+                <>
+                  <WorkQueue
+                    title="Phiếu cần xuất hàng"
+                    href="/deliveries"
+                    state={draftDeliveries}
+                  />
+                  <WorkQueue
+                    title="Phiếu đang giao"
+                    href="/deliveries"
+                    state={dispatchedDeliveries}
+                  />
+                </>
+              ) : null}
+              {purchaseQueueVisible ? (
+                <WorkQueue title="Đơn mua đã xác nhận" href="/purchases" state={openPurchases} />
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
+        {work.length > 0 ? (
+          <section id="work" aria-labelledby="work-title" className="grid gap-3">
+            <div>
+              <p className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
+                Theo vai trò
+              </p>
+              <h2 id="work-title" className="text-subheading font-semibold">
+                Công việc
+              </h2>
+            </div>
+            <ActionGrid actions={work} />
+          </section>
+        ) : null}
+
+        {more.length > 0 ? (
+          <section
+            id="more"
+            aria-labelledby="more-title"
+            className="grid gap-3 border-t border-border pt-5"
+          >
+            <h2 id="more-title" className="text-subheading font-semibold">
+              Thêm
             </h2>
-          </div>
-          <ActionGrid actions={work} />
-        </section>
-      ) : null}
-
-      {more.length > 0 ? (
-        <section
-          id="more"
-          aria-labelledby="more-title"
-          className="grid gap-3 border-t border-border pt-5"
-        >
-          <h2 id="more-title" className="text-subheading font-semibold">
-            Thêm
-          </h2>
-          <ActionGrid actions={more} />
-        </section>
-      ) : null}
-    </div>
+            <ActionGrid actions={more} />
+          </section>
+        ) : null}
+      </div>
+    </PageFrame>
   );
 }
 

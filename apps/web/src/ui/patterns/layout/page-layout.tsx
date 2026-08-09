@@ -63,13 +63,13 @@ export function DirectoryToolbar({
   filters,
   actions,
 }: {
-  readonly search: ReactNode;
+  readonly search?: ReactNode;
   readonly filters?: ReactNode;
   readonly actions?: ReactNode;
 }) {
   return (
     <div className="grid gap-3 border-y border-border py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-      <div className="min-w-0">{search}</div>
+      {search === undefined ? null : <div className="min-w-0">{search}</div>}
       {filters === undefined && actions === undefined ? null : (
         <div className="flex flex-wrap items-end gap-2">
           {filters}

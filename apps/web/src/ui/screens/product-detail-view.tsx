@@ -7,7 +7,12 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DetailLayout,
+  PageFrame,
+  PageHeader,
+  SummaryRail,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -34,71 +39,83 @@ export function ProductDetailView(props: ProductDetailViewProps) {
   return (
     <QueryStates query={props.query} loadingLabel="Đang tải mặt hàng" onRetry={props.onRetry}>
       {(product) => (
-        <div className="flex max-w-xl flex-col gap-6">
-          <PageHeader
-            title={product.displayName}
-            description={
-              product.preferredUnit === null
-                ? "Chưa chọn đơn vị ưu tiên"
-                : `Đơn vị ưu tiên: ${UNIT_LABEL_VI[product.preferredUnit]}`
+        <PageFrame size="standard">
+          <DetailLayout
+            aside={
+              <SummaryRail title="Mặt hàng">
+                <Badge tone={product.isActive ? "positive" : "neutral"}>
+                  {product.isActive ? "Đang dùng" : "Đã ngưng"}
+                </Badge>
+                <Link
+                  href={`/products/${product.id}/inventory`}
+                  className="font-semibold text-info underline-offset-4 hover:underline"
+                >
+                  Xem tồn kho và biến động vật lý
+                </Link>
+              </SummaryRail>
             }
-            back={{ href: "/products", label: "Danh mục mặt hàng" }}
-            status={
-              <Badge tone={product.isActive ? "positive" : "neutral"}>
-                {product.isActive ? "Đang dùng" : "Đã ngưng"}
-              </Badge>
-            }
-          />
-          <Link
-            href={`/products/${product.id}/inventory`}
-            className="font-semibold text-info underline-offset-4 hover:underline"
           >
-            Xem tồn kho và biến động vật lý
-          </Link>
-          <TextInput
-            label="Tên mặt hàng"
-            value={props.name}
-            onChange={(event) => props.onName(event.target.value)}
-          />
-          <TextInput
-            label="Tên gọi khác"
-            value={props.aliases}
-            onChange={(event) => props.onAliases(event.target.value)}
-          />
-          <Select
-            label="Đơn vị gợi ý"
-            value={props.unit}
-            onChange={(event) => props.onUnit(event.target.value as Unit | "")}
-            placeholder="Không chọn"
-            options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
-          />
-          {props.mayUpdate ? (
-            <Button onClick={props.onUpdate} disabled={props.update.phase.kind === "sending"}>
-              Cập nhật mặt hàng
-            </Button>
-          ) : null}
-          {props.mayDeactivate ? (
-            <div className="border-t border-border pt-4">
-              <Button
-                tone={product.isActive ? "danger" : "secondary"}
-                onClick={props.onLifecycle}
-                disabled={props.lifecycle.phase.kind === "sending"}
-              >
-                {product.isActive ? "Ngưng mặt hàng" : "Dùng lại mặt hàng"}
-              </Button>
+            <div className="flex max-w-xl flex-col gap-6">
+              <PageHeader
+                title={product.displayName}
+                description={
+                  product.preferredUnit === null
+                    ? "Chưa chọn đơn vị ưu tiên"
+                    : `Đơn vị ưu tiên: ${UNIT_LABEL_VI[product.preferredUnit]}`
+                }
+                back={{ href: "/products", label: "Danh mục mặt hàng" }}
+                status={
+                  <Badge tone={product.isActive ? "positive" : "neutral"}>
+                    {product.isActive ? "Đang dùng" : "Đã ngưng"}
+                  </Badge>
+                }
+              />
+              <TextInput
+                label="Tên mặt hàng"
+                value={props.name}
+                onChange={(event) => props.onName(event.target.value)}
+              />
+              <TextInput
+                label="Tên gọi khác"
+                value={props.aliases}
+                onChange={(event) => props.onAliases(event.target.value)}
+              />
+              <Select
+                label="Đơn vị gợi ý"
+                value={props.unit}
+                onChange={(event) => props.onUnit(event.target.value as Unit | "")}
+                placeholder="Không chọn"
+                options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
+              />
+              {props.mayUpdate ? (
+                <Button onClick={props.onUpdate} disabled={props.update.phase.kind === "sending"}>
+                  Cập nhật mặt hàng
+                </Button>
+              ) : null}
+              {props.mayDeactivate ? (
+                <div className="border-t border-border pt-4">
+                  <Button
+                    tone={product.isActive ? "danger" : "secondary"}
+                    onClick={props.onLifecycle}
+                    disabled={props.lifecycle.phase.kind === "sending"}
+                  >
+                    {product.isActive ? "Ngưng mặt hàng" : "Dùng lại mặt hàng"}
+                  </Button>
+                </div>
+              ) : null}
+              <CommandOutcome
+                command={props.update}
+                attemptedAction="Cập nhật mặt hàng"
+                onReload={props.onRetry}
+              />
+              <CommandOutcome
+                command={props.lifecycle}
+                attemptedAction="Đổi trạng thái mặt hàng"
+                onReload={props.onRetry}
+              />
             </div>
-          ) : null}
-          <CommandOutcome
-            command={props.update}
-            attemptedAction="Cập nhật mặt hàng"
-            onReload={props.onRetry}
-          />
-          <CommandOutcome
-            command={props.lifecycle}
-            attemptedAction="Đổi trạng thái mặt hàng"
-            onReload={props.onRetry}
-          />
-        </div>
+          </DetailLayout>
+        </PageFrame>
       )}
     </QueryStates>
   );

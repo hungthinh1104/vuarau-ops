@@ -4,7 +4,7 @@ import { formatQuantity } from "@/ui/format.ts";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 
 export type IntakeListViewProps = {
@@ -31,56 +31,59 @@ export function IntakeListView(props: IntakeListViewProps) {
   }
 
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        title="Nhận hàng"
-        description="Theo dõi hàng đã nhận, số cân và phần đã nhập kho."
-      />
-      <QueryStates
-        query={props.query}
-        loadingLabel="Đang tải danh sách nhận hàng"
-        onRetry={props.onRetry}
-      >
-        {(page) =>
-          page.items.length === 0 ? (
-            <section className="rounded-card border border-border bg-surface p-5 text-body-sm text-ink-muted">
-              Chưa có lần nhận hàng nào. Bắt đầu từ một đơn mua đã xác nhận.
-            </section>
-          ) : (
-            <ul className="grid gap-3">
-              {page.items.map((arrival) => (
-                <li key={arrival.id}>
-                  <Link
-                    href={`/intake/${arrival.id}`}
-                    className="grid gap-3 rounded-card border border-border bg-surface p-4 hover:bg-canvas sm:grid-cols-[1fr_auto]"
-                  >
-                    <div>
-                      <h2 className="text-label font-semibold">
-                        {arrival.vehicleReference ?? "Không ghi xe"}
-                      </h2>
-                      <p className="mt-1 text-body-sm text-ink-muted">
-                        {arrival.lines
-                          .map(
-                            (line) => `${line.productName} ${formatQuantity(line.arrivedQuantity)}`,
-                          )
-                          .join(" · ")}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge tone={arrival.reversal === null ? "positive" : "neutral"}>
-                        {arrival.reversal === null ? "Đang hiệu lực" : "Đã hoàn tác"}
-                      </Badge>
-                      <span className="text-caption text-ink-muted">
-                        {new Date(arrival.transactionTime).toLocaleDateString("vi-VN")}
-                      </span>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )
-        }
-      </QueryStates>
-    </div>
+    <PageFrame size="wide">
+      <div className="grid gap-6">
+        <PageHeader
+          title="Nhận hàng"
+          description="Theo dõi hàng đã nhận, số cân và phần đã nhập kho."
+        />
+        <QueryStates
+          query={props.query}
+          loadingLabel="Đang tải danh sách nhận hàng"
+          onRetry={props.onRetry}
+        >
+          {(page) =>
+            page.items.length === 0 ? (
+              <section className="rounded-card border border-border bg-surface p-5 text-body-sm text-ink-muted">
+                Chưa có lần nhận hàng nào. Bắt đầu từ một đơn mua đã xác nhận.
+              </section>
+            ) : (
+              <ul className="grid gap-3">
+                {page.items.map((arrival) => (
+                  <li key={arrival.id}>
+                    <Link
+                      href={`/intake/${arrival.id}`}
+                      className="grid gap-3 rounded-card border border-border bg-surface p-4 hover:bg-canvas sm:grid-cols-[1fr_auto]"
+                    >
+                      <div>
+                        <h2 className="text-label font-semibold">
+                          {arrival.vehicleReference ?? "Không ghi xe"}
+                        </h2>
+                        <p className="mt-1 text-body-sm text-ink-muted">
+                          {arrival.lines
+                            .map(
+                              (line) =>
+                                `${line.productName} ${formatQuantity(line.arrivedQuantity)}`,
+                            )
+                            .join(" · ")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge tone={arrival.reversal === null ? "positive" : "neutral"}>
+                          {arrival.reversal === null ? "Đang hiệu lực" : "Đã hoàn tác"}
+                        </Badge>
+                        <span className="text-caption text-ink-muted">
+                          {new Date(arrival.transactionTime).toLocaleDateString("vi-VN")}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        </QueryStates>
+      </div>
+    </PageFrame>
   );
 }

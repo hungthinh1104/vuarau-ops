@@ -6,7 +6,7 @@ import type {
   WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
@@ -48,113 +48,115 @@ export function OperationsView(props: {
   const reconciliationState = props.reconciliationState ?? "ready";
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <PageHeader title="Vận hành hệ thống" back={{ href: "/workspace", label: "Quản lý vựa" }} />
+    <PageFrame size="standard">
+      <div className="flex max-w-3xl flex-col gap-6">
+        <PageHeader title="Vận hành hệ thống" back={{ href: "/workspace", label: "Quản lý vựa" }} />
 
-      <section className="rounded-card border border-border bg-surface p-4">
-        <h2 className="text-subheading font-semibold">Đồng bộ thiết bị</h2>
-        <p>
-          {props.queuedCount} thay đổi đang chờ · {props.blockedCount} thay đổi cần xử lý
-        </p>
-        <p className="text-caption text-ink-muted">
-          Lần đồng bộ thành công: {props.lastSuccessfulSync ?? "chưa có"}
-        </p>
-        {props.blockedCount > 0 ? (
-          <p role="alert" className="mt-2 text-body-sm text-warning">
-            Có thay đổi chưa đồng bộ. Không tạo giao dịch thay thế trước khi xác định kết quả.
+        <section className="rounded-card border border-border bg-surface p-4">
+          <h2 className="text-subheading font-semibold">Đồng bộ thiết bị</h2>
+          <p>
+            {props.queuedCount} thay đổi đang chờ · {props.blockedCount} thay đổi cần xử lý
           </p>
-        ) : null}
-        <Button className="mt-3" tone="secondary" onClick={props.onRetrySync}>
-          Thử đồng bộ
-        </Button>
-      </section>
-
-      <IntegrityPanel
-        state={props.integrityState}
-        integrity={props.integrity}
-        onRetry={props.onRetryIntegrity}
-      />
-
-      <ReconciliationPanel
-        state={reconciliationState}
-        operationalCloses={operationalCloses}
-        statementMatches={statementMatches}
-        onRetry={props.onRetryReconciliation ?? (() => undefined)}
-      />
-
-      <section className="rounded-card border border-border bg-surface p-4">
-        <h2 className="text-subheading font-semibold">Sao lưu và phục hồi vựa</h2>
-        <p className="text-body-sm">
-          File này là bản xuất logic của dữ liệu ứng dụng để kiểm tra hoặc phục hồi vào một vựa
-          trống. Đây là bản sao dữ liệu để kiểm tra và phục hồi có chủ đích.
-        </p>
-        {props.exportCompleted ? (
-          <Button className="mt-3" tone="secondary" onClick={props.onResetExport}>
-            Tạo bản sao lưu mới
-          </Button>
-        ) : (
-          <Button className="mt-3" disabled={props.exportLocked} onClick={props.onExport}>
-            {props.exportLocked ? "Đang xác định kết quả…" : "Xuất bản sao lưu"}
-          </Button>
-        )}
-        {props.exportOutcome}
-
-        <div className="mt-4">
-          <TextInput
-            label="Chọn file sao lưu để kiểm tra"
-            type="file"
-            accept="application/json"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file !== undefined) props.onBackupFileSelected(file);
-            }}
-          />
-        </div>
-        {props.fileError === null ? null : <p role="alert">{props.fileError}</p>}
-        {props.validationPending && props.backupSelected ? (
-          <p role="status">Đang kiểm tra file sao lưu…</p>
-        ) : null}
-        {props.validation !== null ? (
-          <p role={props.validation.valid ? "status" : "alert"}>
-            {props.validation.valid
-              ? "File sao lưu hợp lệ và đúng vựa."
-              : `Không hợp lệ: ${props.validation.diagnostics.join(", ")}`}
+          <p className="text-caption text-ink-muted">
+            Lần đồng bộ thành công: {props.lastSuccessfulSync ?? "chưa có"}
           </p>
-        ) : null}
-
-        {props.validation?.valid === true && props.backupSelected ? (
-          <div className="mt-3 flex flex-col gap-2 rounded-card border border-warning/40 bg-warning-soft p-3">
-            <p className="text-body-sm font-semibold">
-              Chỉ tiếp tục nếu vựa đích trống và đây là lần phục hồi có chủ đích.
+          {props.blockedCount > 0 ? (
+            <p role="alert" className="mt-2 text-body-sm text-warning">
+              Có thay đổi chưa đồng bộ. Không tạo giao dịch thay thế trước khi xác định kết quả.
             </p>
-            <TextInput
-              label="Lý do phục hồi"
-              value={props.restoreReason}
-              onChange={(event) => props.onRestoreReasonChange(event.target.value)}
-            />
-            <Button
-              tone="secondary"
-              disabled={
-                props.restoreReason.trim().length === 0 ||
-                props.restoreLocked ||
-                props.restoreCompleted
-              }
-              onClick={props.onRestore}
-            >
-              {props.restoreCompleted
-                ? "Đã phục hồi"
-                : props.restoreLocked
-                  ? "Đang xác định kết quả…"
-                  : "Phục hồi vào vựa trống"}
+          ) : null}
+          <Button className="mt-3" tone="secondary" onClick={props.onRetrySync}>
+            Thử đồng bộ
+          </Button>
+        </section>
+
+        <IntegrityPanel
+          state={props.integrityState}
+          integrity={props.integrity}
+          onRetry={props.onRetryIntegrity}
+        />
+
+        <ReconciliationPanel
+          state={reconciliationState}
+          operationalCloses={operationalCloses}
+          statementMatches={statementMatches}
+          onRetry={props.onRetryReconciliation ?? (() => undefined)}
+        />
+
+        <section className="rounded-card border border-border bg-surface p-4">
+          <h2 className="text-subheading font-semibold">Sao lưu và phục hồi vựa</h2>
+          <p className="text-body-sm">
+            File này là bản xuất logic của dữ liệu ứng dụng để kiểm tra hoặc phục hồi vào một vựa
+            trống. Đây là bản sao dữ liệu để kiểm tra và phục hồi có chủ đích.
+          </p>
+          {props.exportCompleted ? (
+            <Button className="mt-3" tone="secondary" onClick={props.onResetExport}>
+              Tạo bản sao lưu mới
             </Button>
-            {props.restoreOutcome}
+          ) : (
+            <Button className="mt-3" disabled={props.exportLocked} onClick={props.onExport}>
+              {props.exportLocked ? "Đang xác định kết quả…" : "Xuất bản sao lưu"}
+            </Button>
+          )}
+          {props.exportOutcome}
+
+          <div className="mt-4">
+            <TextInput
+              label="Chọn file sao lưu để kiểm tra"
+              type="file"
+              accept="application/json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file !== undefined) props.onBackupFileSelected(file);
+              }}
+            />
           </div>
-        ) : null}
-        <p className="mt-3 text-caption text-ink-muted">
-          Không gộp bản sao lưu vào sổ đang hoạt động.
-        </p>
-      </section>
-    </div>
+          {props.fileError === null ? null : <p role="alert">{props.fileError}</p>}
+          {props.validationPending && props.backupSelected ? (
+            <p role="status">Đang kiểm tra file sao lưu…</p>
+          ) : null}
+          {props.validation !== null ? (
+            <p role={props.validation.valid ? "status" : "alert"}>
+              {props.validation.valid
+                ? "File sao lưu hợp lệ và đúng vựa."
+                : `Không hợp lệ: ${props.validation.diagnostics.join(", ")}`}
+            </p>
+          ) : null}
+
+          {props.validation?.valid === true && props.backupSelected ? (
+            <div className="mt-3 flex flex-col gap-2 rounded-card border border-warning/40 bg-warning-soft p-3">
+              <p className="text-body-sm font-semibold">
+                Chỉ tiếp tục nếu vựa đích trống và đây là lần phục hồi có chủ đích.
+              </p>
+              <TextInput
+                label="Lý do phục hồi"
+                value={props.restoreReason}
+                onChange={(event) => props.onRestoreReasonChange(event.target.value)}
+              />
+              <Button
+                tone="secondary"
+                disabled={
+                  props.restoreReason.trim().length === 0 ||
+                  props.restoreLocked ||
+                  props.restoreCompleted
+                }
+                onClick={props.onRestore}
+              >
+                {props.restoreCompleted
+                  ? "Đã phục hồi"
+                  : props.restoreLocked
+                    ? "Đang xác định kết quả…"
+                    : "Phục hồi vào vựa trống"}
+              </Button>
+              {props.restoreOutcome}
+            </div>
+          ) : null}
+          <p className="mt-3 text-caption text-ink-muted">
+            Không gộp bản sao lưu vào sổ đang hoạt động.
+          </p>
+        </section>
+      </div>
+    </PageFrame>
   );
 }
 

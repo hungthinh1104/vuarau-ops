@@ -16,7 +16,7 @@ import Link from "next/link";
 import { formatInstant, formatMoney } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -207,82 +207,84 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
   });
   const counts = props.query.data?.counts;
   return (
-    <div className="grid gap-5">
-      <PageHeader
-        title="Bảng điều hành"
-        description="Theo dõi đơn, hàng hóa và thanh toán của các đơn mua và đơn bán."
-      />
-      {counts === undefined ? null : (
-        <CountStrip counts={counts} active={props.filter} onChange={props.onFilterChange} />
-      )}
-      <div className="grid gap-3 rounded-card border border-border bg-surface p-4 md:grid-cols-[1fr_auto]">
-        <TextInput
-          label="Tìm mã hoặc đối tác"
-          aria-label="Tìm mã hoặc đối tác"
-          value={props.search}
-          onChange={(event) => props.onSearchChange(event.target.value)}
-          placeholder="SALE-… hoặc tên đối tác"
+    <PageFrame size="wide">
+      <div className="grid gap-5">
+        <PageHeader
+          title="Bảng điều hành"
+          description="Theo dõi đơn, hàng hóa và thanh toán của các đơn mua và đơn bán."
         />
-        <Select
-          label="Sắp xếp"
-          aria-label="Sắp xếp bảng điều hành"
-          value={props.sort}
-          onChange={(event) => props.onSortChange(event.target.value as OperationsBoardSort)}
-          options={SORTS}
-        />
-      </div>
-      <QueryStates
-        query={props.query}
-        loadingLabel="Đang tải bảng điều hành"
-        onRetry={props.onRetry}
-      >
-        {() =>
-          props.rows.length === 0 ? (
-            <EmptyState
-              title="Không có đơn trong bộ lọc"
-              description="Các đơn mới sẽ xuất hiện sau khi được xác nhận hoặc post."
-            />
-          ) : (
-            <div className="overflow-x-auto rounded-card border border-border bg-surface">
-              <table className="data-table w-full min-w-[1320px] text-left text-body-sm">
-                <thead>
-                  <tr>
-                    {table.getHeaderGroups()[0]?.headers.map((header) => (
-                      <th key={header.id} className="px-3 py-3">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id} className="hover:bg-surface-muted">
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="px-3 py-3 align-top">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
+        {counts === undefined ? null : (
+          <CountStrip counts={counts} active={props.filter} onChange={props.onFilterChange} />
+        )}
+        <div className="grid gap-3 rounded-card border border-border bg-surface p-4 md:grid-cols-[1fr_auto]">
+          <TextInput
+            label="Tìm mã hoặc đối tác"
+            aria-label="Tìm mã hoặc đối tác"
+            value={props.search}
+            onChange={(event) => props.onSearchChange(event.target.value)}
+            placeholder="SALE-… hoặc tên đối tác"
+          />
+          <Select
+            label="Sắp xếp"
+            aria-label="Sắp xếp bảng điều hành"
+            value={props.sort}
+            onChange={(event) => props.onSortChange(event.target.value as OperationsBoardSort)}
+            options={SORTS}
+          />
+        </div>
+        <QueryStates
+          query={props.query}
+          loadingLabel="Đang tải bảng điều hành"
+          onRetry={props.onRetry}
+        >
+          {() =>
+            props.rows.length === 0 ? (
+              <EmptyState
+                title="Không có đơn trong bộ lọc"
+                description="Các đơn mới sẽ xuất hiện sau khi được xác nhận hoặc post."
+              />
+            ) : (
+              <div className="overflow-x-auto rounded-card border border-border bg-surface">
+                <table className="data-table w-full min-w-[1320px] text-left text-body-sm">
+                  <thead>
+                    <tr>
+                      {table.getHeaderGroups()[0]?.headers.map((header) => (
+                        <th key={header.id} className="px-3 py-3">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        }
-      </QueryStates>
-      {props.query.hasNextPage ? (
-        <LoadMoreFooter
-          visibleCount={props.rows.length}
-          noun="đơn"
-          loading={props.query.isFetchingNextPage === true}
-          onLoadMore={props.onLoadMore}
-        />
-      ) : null}
-      {props.query.isError ? (
-        <Button tone="secondary" onClick={props.onRetry}>
-          Thử lại bảng
-        </Button>
-      ) : null}
-    </div>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {table.getRowModel().rows.map((row) => (
+                      <tr key={row.id} className="hover:bg-surface-muted">
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className="px-3 py-3 align-top">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+        </QueryStates>
+        {props.query.hasNextPage ? (
+          <LoadMoreFooter
+            visibleCount={props.rows.length}
+            noun="đơn"
+            loading={props.query.isFetchingNextPage === true}
+            onLoadMore={props.onLoadMore}
+          />
+        ) : null}
+        {props.query.isError ? (
+          <Button tone="secondary" onClick={props.onRetry}>
+            Thử lại bảng
+          </Button>
+        ) : null}
+      </div>
+    </PageFrame>
   );
 }

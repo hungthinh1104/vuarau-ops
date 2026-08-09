@@ -10,7 +10,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatDate, formatMoney } from "@/ui/format.ts";
 import { BalanceCard } from "@/ui/patterns/finance/balance-card.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { TimelineItem } from "@/ui/patterns/timeline-item.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -39,108 +39,114 @@ export function CustomerDetailView(props: {
   const { detail } = props;
   const customerId = detail.customer.id;
   return (
-    <div className="flex flex-col gap-6">
+    <PageFrame size="standard">
       <div className="flex flex-col gap-6">
-        <PageHeader
-          title={detail.customer.displayName}
-          back={{ href: "/customers", label: "Khách hàng" }}
-          status={detail.customer.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
-        />
+        <div className="flex flex-col gap-6">
+          <PageHeader
+            title={detail.customer.displayName}
+            back={{ href: "/customers", label: "Khách hàng" }}
+            status={detail.customer.isActive ? null : <Badge tone="neutral">Đã ngưng</Badge>}
+          />
 
-        {detail.customer.phone !== null ? (
-          <a
-            href={`tel:${detail.customer.phone}`}
-            className="text-body text-info underline underline-offset-2"
-          >
-            {detail.customer.phone}
-          </a>
-        ) : null}
-
-        <BalanceCard
-          customerName={detail.customer.displayName}
-          balance={detail.balance}
-          classification={detail.classification}
-        />
-
-        {detail.customer.note !== null ? (
-          <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
-            {detail.customer.note}
-          </p>
-        ) : null}
-
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-          {props.canCreateSale && detail.customer.isActive ? (
-            <LinkButton href={`/customers/${customerId}/sales/new`} className="flex-1">
-              Tạo đơn mới
-            </LinkButton>
+          {detail.customer.phone !== null ? (
+            <a
+              href={`tel:${detail.customer.phone}`}
+              className="text-body text-info underline underline-offset-2"
+            >
+              {detail.customer.phone}
+            </a>
           ) : null}
-          {props.canRecordPayment ? (
+
+          <BalanceCard
+            customerName={detail.customer.displayName}
+            balance={detail.balance}
+            classification={detail.classification}
+          />
+
+          {detail.customer.note !== null ? (
+            <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
+              {detail.customer.note}
+            </p>
+          ) : null}
+
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            {props.canCreateSale && detail.customer.isActive ? (
+              <LinkButton href={`/customers/${customerId}/sales/new`} className="flex-1">
+                Tạo đơn mới
+              </LinkButton>
+            ) : null}
+            {props.canRecordPayment ? (
+              <LinkButton
+                tone="secondary"
+                href={`/customers/${customerId}/payments/new`}
+                className="flex-1"
+              >
+                Ghi nhận thanh toán
+              </LinkButton>
+            ) : null}
+            {detail.capabilities.update.allowed ? (
+              <LinkButton
+                tone="secondary"
+                href={`/customers/${customerId}/edit`}
+                className="flex-1"
+              >
+                Sửa hồ sơ
+              </LinkButton>
+            ) : null}
+            {props.canAdjustDebt ? (
+              <LinkButton
+                tone="secondary"
+                href={`/customers/${customerId}/account/adjust`}
+                className="flex-1"
+              >
+                Điều chỉnh công nợ
+              </LinkButton>
+            ) : null}
             <LinkButton
               tone="secondary"
-              href={`/customers/${customerId}/payments/new`}
+              href={`/customers/${customerId}/account/reconciliation`}
               className="flex-1"
             >
-              Ghi nhận thanh toán
+              Giải thích số dư
             </LinkButton>
-          ) : null}
-          {detail.capabilities.update.allowed ? (
-            <LinkButton tone="secondary" href={`/customers/${customerId}/edit`} className="flex-1">
-              Sửa hồ sơ
-            </LinkButton>
-          ) : null}
-          {props.canAdjustDebt ? (
-            <LinkButton
-              tone="secondary"
-              href={`/customers/${customerId}/account/adjust`}
-              className="flex-1"
-            >
-              Điều chỉnh công nợ
-            </LinkButton>
-          ) : null}
-          <LinkButton
-            tone="secondary"
-            href={`/customers/${customerId}/account/reconciliation`}
-            className="flex-1"
-          >
-            Giải thích số dư
-          </LinkButton>
+          </div>
+
+          <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+            {detail.capabilities.deactivate.allowed ? (
+              <Button
+                tone="danger"
+                disabled={props.customerCommandLocked}
+                onClick={props.onDeactivate}
+              >
+                Ngưng khách hàng
+              </Button>
+            ) : null}
+            {detail.capabilities.reactivate.allowed ? (
+              <Button
+                tone="secondary"
+                disabled={props.customerCommandLocked}
+                onClick={props.onReactivate}
+              >
+                Kích hoạt lại
+              </Button>
+            ) : null}
+          </div>
+          {props.outcomes}
+          {props.documentSection}
         </div>
 
-        <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-          {detail.capabilities.deactivate.allowed ? (
-            <Button
-              tone="danger"
-              disabled={props.customerCommandLocked}
-              onClick={props.onDeactivate}
-            >
-              Ngưng khách hàng
-            </Button>
-          ) : null}
-          {detail.capabilities.reactivate.allowed ? (
-            <Button
-              tone="secondary"
-              disabled={props.customerCommandLocked}
-              onClick={props.onReactivate}
-            >
-              Kích hoạt lại
-            </Button>
-          ) : null}
-        </div>
-        {props.outcomes}
-        {props.documentSection}
+        <CustomerTimelineSection
+          entries={props.timelineEntries}
+          state={props.timelineState}
+          hasMore={props.timelineHasMore}
+          fetching={props.timelineFetching}
+          onLoadMore={props.onLoadMore}
+          onRetry={props.onRetryTimeline}
+        />
+
+        <RecentCustomerActivity sales={props.recentSales} payments={props.recentPayments} />
       </div>
-
-      <CustomerTimelineSection
-        entries={props.timelineEntries}
-        state={props.timelineState}
-        hasMore={props.timelineHasMore}
-        fetching={props.timelineFetching}
-        onLoadMore={props.onLoadMore}
-        onRetry={props.onRetryTimeline}
-      />
-
-      <RecentCustomerActivity sales={props.recentSales} payments={props.recentPayments} />
-    </div>
+    </PageFrame>
   );
 }
 
