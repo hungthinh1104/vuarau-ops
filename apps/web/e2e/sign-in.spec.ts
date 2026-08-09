@@ -63,12 +63,9 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
     await page.getByRole("button", { name: E2E_WORKSPACE_NAME }).click();
 
     // Desktop exposes the full workspace navigation; mobile collapses the same
-    // owner work area to its role-specific bottom-nav label.
+    // owner work area to the stable Hôm nay destination.
     const ownerWorkLink = page.getByRole("link", {
-      name:
-        page.viewportSize()?.width && page.viewportSize()!.width < 1024
-          ? "Việc hôm nay"
-          : "Hôm nay",
+      name: "Hôm nay",
     });
     await expect(ownerWorkLink).toBeVisible();
     await expect(page.getByRole("heading", { name: "Khách hàng" })).toBeVisible();
