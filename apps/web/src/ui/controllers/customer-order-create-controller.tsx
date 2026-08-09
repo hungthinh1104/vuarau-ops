@@ -14,6 +14,7 @@ import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import type { CustomerOrderDraftLine } from "@/ui/domain/customer-order-form.ts";
+import { parseMoneyText, parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { CustomerOrderCreateView } from "@/ui/screens/customer-order-create-view.tsx";
 
 const newLine = (): CustomerOrderDraftLine => ({
@@ -57,16 +58,25 @@ export function CustomerOrderCreateController() {
   const mutation = useMutation(trpc.customerOrder.createDraft.mutationOptions());
   const command = useContractCommand(createCustomerOrderDraftCommandSchema, mutation.mutateAsync);
   const needsCustomer = channel === "account_customer" || channel === "contract_customer";
-  const payloadLines = lines.map((line) => ({
-    lineId: line.lineId,
-    productId: line.productId === "" ? null : line.productId,
-    productName: line.productName.trim(),
-    quantity: { valueScaled: Math.round(Number(line.quantity) * 1000), unit: line.unit },
-    agreedUnitPrice:
-      line.price.trim() === ""
-        ? null
-        : { amountMinor: Math.round(Number(line.price) * 1000), currency: "VND" as const },
-  }));
+  const payloadLines = lines.map((line) => {
+    const quantity = parseQuantityText(line.quantity, line.unit);
+    const price = parseMoneyText(line.price, "VND");
+    return {
+      lineId: line.lineId,
+      productId: line.productId === "" ? null : line.productId,
+      productName: line.productName.trim(),
+      quantity:
+        quantity.ok && quantity.value !== null
+          ? quantity.value
+          : { valueScaled: 0, unit: line.unit },
+      agreedUnitPrice:
+        line.price.trim() === ""
+          ? null
+          : price.ok && price.value !== null
+            ? price.value
+            : { amountMinor: 0, currency: "VND" as const },
+    };
+  });
   const valid =
     (!needsCustomer || customerId !== "") &&
     payloadLines.length > 0 &&

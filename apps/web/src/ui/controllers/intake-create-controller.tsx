@@ -15,6 +15,7 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useCommand } from "@/api/use-command.ts";
 import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
+import { formatQuantityInput } from "@/ui/domain/numeric-text.ts";
 import {
   buildArrivalLines,
   EMPTY_INTAKE_LINE,
@@ -89,7 +90,7 @@ export function IntakeCreateController() {
               {
                 ...EMPTY_INTAKE_LINE,
                 ...(lines[line.lineId] ?? {}),
-                quantity: String(line.quantity.valueScaled / 1000),
+                quantity: formatQuantityInput(line.quantity),
               },
             ]),
           ),

@@ -8,9 +8,11 @@ import type { QuickSaleFormModel } from "@/ui/controllers/quick-sale-form-model.
 
 export function useQuickSaleFormInteractions(model: QuickSaleFormModel) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerLineId, setPickerLineId] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [posting, setPosting] = useState(false);
   function openProductPicker(lineId: string): void {
+    setPickerLineId(lineId);
     model.setActiveLineId(lineId);
     model.setPickerProductQuery("");
     setPickerOpen(true);
@@ -18,6 +20,7 @@ export function useQuickSaleFormInteractions(model: QuickSaleFormModel) {
 
   function closeProductPicker(): void {
     setPickerOpen(false);
+    setPickerLineId(null);
     model.setPickerProductQuery(null);
   }
 
@@ -160,6 +163,7 @@ export function useQuickSaleFormInteractions(model: QuickSaleFormModel) {
     effectiveCustomer,
     handleConfirmedPost,
     openProductPicker,
+    pickerLineId,
     pickerOpen,
     postLocked,
     posting,

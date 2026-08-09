@@ -20,6 +20,7 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { useWorkflowCacheEffects } from "@/api/workflow-cache.ts";
 import type { PurchaseDraftLine } from "@/ui/domain/purchase-form.ts";
+import { parseMoneyText, parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import {
   PurchaseCreatePermissionView,
@@ -86,13 +87,23 @@ export function PurchaseCreateController() {
 
   if (!session.permissions.includes("purchase.create")) return <PurchaseCreatePermissionView />;
 
-  const payloadLines = lines.map((line) => ({
-    lineId: line.lineId,
-    productId: line.productId as ProductId,
-    productName: line.productName.trim(),
-    quantity: { valueScaled: Math.round(Number(line.quantity) * 1000), unit: line.unit },
-    unitPrice: { amountMinor: Math.round(Number(line.price) * 1000), currency: "VND" as const },
-  }));
+  const payloadLines = lines.map((line) => {
+    const quantity = parseQuantityText(line.quantity, line.unit);
+    const price = parseMoneyText(line.price, "VND");
+    return {
+      lineId: line.lineId,
+      productId: line.productId as ProductId,
+      productName: line.productName.trim(),
+      quantity:
+        quantity.ok && quantity.value !== null
+          ? quantity.value
+          : { valueScaled: 0, unit: line.unit },
+      unitPrice:
+        price.ok && price.value !== null
+          ? price.value
+          : { amountMinor: 0, currency: "VND" as const },
+    };
+  });
   const valid =
     supplierId !== "" &&
     payloadLines.length > 0 &&

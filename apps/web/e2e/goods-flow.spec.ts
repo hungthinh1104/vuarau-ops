@@ -29,6 +29,7 @@ async function createQualityGrade(page: Parameters<typeof signIn>[0], name: stri
   await expect(page.getByText(name, { exact: true })).toBeVisible();
 }
 
+// TC-E2E-029
 test.describe("Goods Truth", () => {
   test("keeps Purchase payable and physical receipts separate and attributable", async ({
     page,
@@ -62,7 +63,7 @@ test.describe("Goods Truth", () => {
     await chooseSupplier(page, supplierName);
     await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("100");
-    await page.getByLabel("Đơn giá (kđ)").fill("10");
+    await page.getByLabel("Đơn giá").fill("10.000");
     await page.getByRole("button", { name: /^Lưu và (mở )?nhận hàng$/ }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     const purchaseId = new URL(page.url()).pathname.split("/").at(-1)!;
@@ -75,7 +76,7 @@ test.describe("Goods Truth", () => {
 
     await page.goto(`/suppliers/${supplierId}`);
     const paymentPanel = page.getByRole("region", { name: "Ghi tiền trả nhà cung cấp" });
-    await paymentPanel.getByLabel("Số tiền (nghìn đồng)").fill("400");
+    await paymentPanel.getByLabel("Số tiền").fill("400.000");
     await paymentPanel.getByRole("button", { name: "Ghi thanh toán" }).click();
     await expect(page.getByText("600.000 ₫")).toBeVisible();
 
@@ -179,7 +180,7 @@ test.describe("Goods Truth", () => {
     await chooseSupplier(page, supplierName);
     await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("100");
-    await page.getByLabel("Đơn giá (kđ)").fill("10");
+    await page.getByLabel("Đơn giá").fill("10.000");
     await page.getByRole("button", { name: /^Lưu và (mở )?nhận hàng$/ }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     const purchaseId = new URL(page.url()).pathname.split("/").at(-1)!;
@@ -201,7 +202,7 @@ test.describe("Goods Truth", () => {
     await chooseSupplier(page, supplierName);
     await chooseProduct(page, productName);
     await page.getByLabel("Số lượng").fill("20");
-    await page.getByLabel("Đơn giá (kđ)").fill("11");
+    await page.getByLabel("Đơn giá").fill("11.000");
     await page.getByRole("button", { name: /^Lưu và (mở )?nhận hàng$/ }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     await expect(page.getByText(/đã nhận 0 kg · còn lại 20 kg/)).toBeVisible();

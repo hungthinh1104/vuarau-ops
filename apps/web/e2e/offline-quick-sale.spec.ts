@@ -3,6 +3,34 @@ import type { Page } from "@playwright/test";
 import { api } from "./harness/api.ts";
 import { uniqueCustomerName } from "./harness/environment.ts";
 
+async function localDraftCount(page: Parameters<typeof signIn>[0]): Promise<number> {
+  return page.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open("vuarau-offline");
+        request.onerror = () => reject(request.error ?? new Error("Cannot inspect offline draft"));
+        request.onsuccess = () => {
+          const database = request.result;
+          if (!database.objectStoreNames.contains("drafts")) {
+            database.close();
+            resolve(0);
+            return;
+          }
+          const read = database.transaction("drafts", "readonly").objectStore("drafts").getAll();
+          read.onerror = () => reject(read.error ?? new Error("Cannot read offline drafts"));
+          read.onsuccess = () => {
+            database.close();
+            resolve(
+              (read.result as Array<{ readonly lines?: readonly unknown[] }>).filter((draft) =>
+                Array.isArray(draft.lines),
+              ).length,
+            );
+          };
+        };
+      }),
+  );
+}
+
 async function chooseProduct(page: Page, productName: string): Promise<void> {
   await page.getByRole("button", { name: "Mở bảng chọn mặt hàng và giá gần đây" }).click();
   const picker = page.getByRole("dialog");
@@ -20,6 +48,7 @@ async function chooseOption(page: Page, label: string, option: string): Promise<
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
+// TC-E2E-026
 test.describe("Durable offline Quick Sale", () => {
   test("survives offline reload and synchronizes exactly one posting", async ({
     page,
@@ -45,7 +74,7 @@ test.describe("Durable offline Quick Sale", () => {
     await page.getByLabel("Số lượng").fill("10");
     await page.getByLabel("Đơn giá").fill("12.000");
     await page.getByLabel("Ghi chú").fill("Ảnh chụp bất biến trên thiết bị");
-    await page.waitForTimeout(250);
+    await expect.poll(() => localDraftCount(page)).toBeGreaterThan(0);
 
     // A local draft has no frozen command yet, so reload must preserve it
     // without taking away the worker's ability to continue editing.

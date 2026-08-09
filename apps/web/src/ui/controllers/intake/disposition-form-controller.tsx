@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useCommand } from "@/api/use-command.ts";
+import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import {
@@ -20,11 +21,9 @@ import {
   type DispositionValues,
 } from "@/ui/patterns/intake/disposition-form.tsx";
 
-const toScaled = (value: string) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return null;
-  const result = Math.round(parsed * 1000);
-  return Number.isSafeInteger(result) ? result : null;
+const toScaled = (value: string, unit: DispositionFormProps["unit"]) => {
+  const parsed = parseQuantityText(value, unit);
+  return parsed.ok && parsed.value !== null ? parsed.value.valueScaled : null;
 };
 
 type ControllerProps = Pick<
@@ -82,7 +81,7 @@ export function DispositionFormController({
 
   const selectedGrade = grades.data?.items.find((grade) => grade.id === gradeId) ?? null;
   const allocations = Object.entries(values).flatMap(([outcome, raw]) => {
-    const valueScaled = toScaled(raw);
+    const valueScaled = toScaled(raw, unit);
     if (valueScaled === null || valueScaled <= 0) return [];
     let allocationId = allocationIds.current.get(outcome);
     if (allocationId === undefined) {
@@ -102,7 +101,7 @@ export function DispositionFormController({
     ];
   });
   const total = allocations.reduce((sum, allocation) => sum + allocation.quantity.valueScaled, 0);
-  const acceptedValue = toScaled(values.accepted) ?? 0;
+  const acceptedValue = toScaled(values.accepted, unit) ?? 0;
   const gradeMissing = gradeRequired && acceptedValue > 0 && selectedGrade === null;
   const locked = command.phase.kind === "sending" || command.phase.kind === "unknown";
   const onValueChange = (key: DispositionValueKey, value: string) =>

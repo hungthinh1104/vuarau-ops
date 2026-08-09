@@ -53,6 +53,7 @@ class MemoryOfflineStore {
   }
 }
 
+// TC-OFFLINE-001
 describe("offline Quick Sale outbox", () => {
   it("rebuilds one deterministic chain while keeping queued envelopes immutable", () => {
     const first = chain("sale-a");

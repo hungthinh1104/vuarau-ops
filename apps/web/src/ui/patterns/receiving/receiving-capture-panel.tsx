@@ -4,6 +4,7 @@ import type { PurchaseDto, QualityGradeDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { formatQuantity } from "@/ui/format.ts";
+import { formatQuantityInput, parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
@@ -53,11 +54,12 @@ export function ReceivingCapturePanel({
   const lines = purchase.lines.flatMap<ReceivingCaptureIntentLine>((line) => {
     if (!splitByGrade) {
       const key = `${line.lineId}:ungraded`;
-      const valueScaled = Math.round(
-        Number(
-          quantities[key] ?? (remainingByLine[line.lineId] ?? line.quantity.valueScaled) / 1000,
-        ) * 1000,
-      );
+      const defaultQuantity = formatQuantityInput({
+        valueScaled: remainingByLine[line.lineId] ?? line.quantity.valueScaled,
+        unit: line.quantity.unit,
+      });
+      const parsed = parseQuantityText(quantities[key] ?? defaultQuantity, line.quantity.unit);
+      const valueScaled = parsed.ok && parsed.value !== null ? parsed.value.valueScaled : 0;
       if (valueScaled <= 0 || !Number.isSafeInteger(valueScaled)) return [];
       return [
         {
@@ -71,7 +73,8 @@ export function ReceivingCapturePanel({
     }
     return grades.flatMap((grade) => {
       const key = `${line.lineId}:${grade.id}`;
-      const valueScaled = Math.round(Number(quantities[key] ?? "0") * 1000);
+      const parsed = parseQuantityText(quantities[key] ?? "0", line.quantity.unit);
+      const valueScaled = parsed.ok && parsed.value !== null ? parsed.value.valueScaled : 0;
       if (valueScaled <= 0 || !Number.isSafeInteger(valueScaled)) return [];
       return [
         {
@@ -101,14 +104,17 @@ export function ReceivingCapturePanel({
           disabled={locked}
           onClick={() => {
             for (const line of purchase.lines) {
-              const remaining = (remainingByLine[line.lineId] ?? line.quantity.valueScaled) / 1000;
+              const remaining = formatQuantityInput({
+                valueScaled: remainingByLine[line.lineId] ?? line.quantity.valueScaled,
+                unit: line.quantity.unit,
+              });
               if (splitByGrade && grades[0] !== undefined) {
-                onQuantityChange(`${line.lineId}:${grades[0].id}`, String(remaining));
+                onQuantityChange(`${line.lineId}:${grades[0].id}`, remaining);
                 for (const grade of grades.slice(1)) {
                   onQuantityChange(`${line.lineId}:${grade.id}`, "0");
                 }
               } else {
-                onQuantityChange(`${line.lineId}:ungraded`, String(remaining));
+                onQuantityChange(`${line.lineId}:ungraded`, remaining);
               }
             }
           }}
@@ -162,12 +168,13 @@ export function ReceivingCapturePanel({
                         disabled={locked}
                         aria-label={`${line.productName} · ${grade.name}`}
                         value={
-                          quantities[key] ??
-                          String(
-                            index === 0
-                              ? (remainingByLine[line.lineId] ?? line.quantity.valueScaled) / 1000
-                              : 0,
-                          )
+                          (quantities[key] ?? index === 0)
+                            ? formatQuantityInput({
+                                valueScaled:
+                                  remainingByLine[line.lineId] ?? line.quantity.valueScaled,
+                                unit: line.quantity.unit,
+                              })
+                            : "0"
                         }
                         onChange={(event) => onQuantityChange(key, event.target.value)}
                       />
@@ -185,7 +192,10 @@ export function ReceivingCapturePanel({
                         aria-label={`${line.productName} · Không phân loại`}
                         value={
                           quantities[key] ??
-                          String((remainingByLine[line.lineId] ?? line.quantity.valueScaled) / 1000)
+                          formatQuantityInput({
+                            valueScaled: remainingByLine[line.lineId] ?? line.quantity.valueScaled,
+                            unit: line.quantity.unit,
+                          })
                         }
                         onChange={(event) => onQuantityChange(key, event.target.value)}
                       />

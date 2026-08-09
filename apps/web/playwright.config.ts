@@ -7,6 +7,9 @@ import {
   E2E_WEB_PORT,
   endToEndDisabled,
 } from "./e2e/harness/environment.ts";
+import { DESKTOP_GOLDEN_SPECS } from "./e2e/harness/projects.ts";
+
+export { DESKTOP_GOLDEN_SPECS } from "./e2e/harness/projects.ts";
 
 /**
  * End-to-end against the **real** stack: a real API process, a real PostgreSQL
@@ -75,6 +78,12 @@ const webEnvironment = {
   NEXT_PUBLIC_E2E_AUTH_BRIDGE: "1",
 };
 
+/**
+ * Desktop keeps the golden cross-device workflows. The full acceptance matrix
+ * remains mobile-first; running every read-only/admin spec twice made CI cost
+ * grow without adding a second browser assertion. Any workflow that changes
+ * money, goods, delivery or shell navigation stays in this list.
+ */
 export default defineConfig({
   testDir: "./e2e",
   /*
@@ -111,7 +120,11 @@ export default defineConfig({
    */
   projects: [
     { name: "mobile", use: { ...devices["Pixel 7"] } },
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "desktop",
+      testMatch: [...DESKTOP_GOLDEN_SPECS],
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
 
   webServer: hasDatabase

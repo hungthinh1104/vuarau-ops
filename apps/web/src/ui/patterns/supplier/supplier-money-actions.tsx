@@ -2,10 +2,11 @@
 
 import type { SupplierDto } from "@vuarau/domain-contracts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
+import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
+import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
-import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type SupplierPaymentDirection = "increase_payable" | "decrease_payable";
@@ -36,8 +37,11 @@ export type SupplierMoneyActionsProps = {
 };
 
 export function SupplierMoneyActions(props: SupplierMoneyActionsProps) {
-  const paymentMinor = Math.round(Number(props.paymentAmount) * 1000);
-  const adjustmentMinor = Math.round(Number(props.adjustmentAmount) * 1000);
+  const payment = parseMoneyText(props.paymentAmount, "VND");
+  const adjustment = parseMoneyText(props.adjustmentAmount, "VND");
+  const paymentMinor = payment.ok && payment.value !== null ? payment.value.amountMinor : 0;
+  const adjustmentMinor =
+    adjustment.ok && adjustment.value !== null ? adjustment.value.amountMinor : 0;
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {props.canRecordPayment ? (
@@ -48,10 +52,11 @@ export function SupplierMoneyActions(props: SupplierMoneyActionsProps) {
           <h2 id="supplier-payment-title" className="text-subheading font-semibold">
             Ghi tiền trả nhà cung cấp
           </h2>
-          <TextInput
-            label="Số tiền (nghìn đồng)"
-            inputMode="numeric"
+          <MoneyInput
+            label="Số tiền"
+            currency="VND"
             value={props.paymentAmount}
+            {...(!payment.ok ? { error: payment.reason } : {})}
             onChange={(event) => props.onPaymentAmount(event.target.value)}
           />
           <Textarea
@@ -109,10 +114,11 @@ export function SupplierMoneyActions(props: SupplierMoneyActionsProps) {
               { value: "manual_adjustment", label: "Điều chỉnh khác" },
             ]}
           />
-          <TextInput
-            label="Số tiền (nghìn đồng)"
-            inputMode="numeric"
+          <MoneyInput
+            label="Số tiền"
+            currency="VND"
             value={props.adjustmentAmount}
+            {...(!adjustment.ok ? { error: adjustment.reason } : {})}
             onChange={(event) => props.onAdjustmentAmount(event.target.value)}
           />
           <Textarea

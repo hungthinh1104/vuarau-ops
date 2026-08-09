@@ -4,6 +4,7 @@ import type { DeliveryDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
+import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { formatQuantity } from "@/ui/format.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
@@ -40,7 +41,8 @@ export function DeliveryReturnPanel({
   const [evidence, setEvidence] = useState("");
 
   const parsedLines = lines.flatMap((line) => {
-    const valueScaled = Math.round(Number(quantities[line.deliveryLineId] ?? "0") * 1000);
+    const parsed = parseQuantityText(quantities[line.deliveryLineId] ?? "0", line.quantity.unit);
+    const valueScaled = parsed.ok && parsed.value !== null ? parsed.value.valueScaled : 0;
     return valueScaled > 0 && Number.isSafeInteger(valueScaled)
       ? [
           {

@@ -15,7 +15,7 @@ describe("replacementDraftFrom", () => {
       productName: salePosted.lines[0]!.productName,
       qualityGradeId: salePosted.lines[0]!.qualityGradeId,
       qualityGradeName: salePosted.lines[0]!.qualityGradeName,
-      quantityText: "12.5",
+      quantityText: "12,5",
       unit: "kg",
       unitPriceText: "18000",
       priceOrigin: { kind: "manual" },

@@ -152,6 +152,26 @@ ActionDock is the only shared decision surface for a consequential transaction. 
 
 Directories keep search visible. A single filter axis uses chips; several filters use a sheet on small screens and an inline toolbar on desktop. Desktop tables and MobileRecordCard rows expose the same record order and semantic actions; they must not create duplicate hidden locators.
 
+### Page grammar
+
+Every authenticated screen chooses one grammar before composing its JSX. The
+grammar determines the content frame, the primary reading order and the place
+where actions live; a screen must not invent a sixth layout for a local case.
+
+| Grammar       | Use for                                     | Composition                                                                                 |
+| ------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Today         | shift entry and exceptions                  | title → quick actions → open work queues → secondary destinations                           |
+| Directory     | products, people and documents              | title/actions → visible search → one filter axis → table/card rows                          |
+| Record detail | purchase, sale, delivery and account facts  | source/history main column → sticky SummaryRail → ActionDock when a command is available    |
+| Transaction   | create, receive, sell, pay and adjust       | context → typed fields → review summary → one ActionDock primary action                     |
+| Investigation | reports, reconciliation and source evidence | scope/filter → canonical result → source links → DisclosureSection for secondary analysis   |
+| Settings      | workspace and configuration                 | title/context → grouped settings → explicit save or command outcome                         |
+| Evidence      | operational observations and attachments    | source context → one capture form → provenance list; never a primary day-to-day destination |
+
+If a screen needs a different order, document the reason in the screen
+composition and keep the exception at the pattern layer. Do not duplicate a
+foundation control to solve a page-specific spacing or loading state.
+
 ## States, motion and accessibility
 
 - Keep order, payment, fulfillment and sync as separate state dimensions.

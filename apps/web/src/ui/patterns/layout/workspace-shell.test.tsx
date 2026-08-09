@@ -93,9 +93,10 @@ describe("Goods Truth workspace navigation", () => {
     );
     expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
     const mobile = within(screen.getByRole("navigation", { name: "Điều hướng di động" }));
-    for (const label of ["Hôm nay", "Bán", "Kho", "Thêm"]) {
+    for (const label of ["Hôm nay", "Bán", "Kho"]) {
       expect(mobile.getByRole("link", { name: label })).toBeInTheDocument();
     }
+    expect(mobile.getByRole("button", { name: "Thêm" })).toBeInTheDocument();
     expect(mobile.queryByRole("link", { name: "Việc hôm nay" })).not.toBeInTheDocument();
   });
 

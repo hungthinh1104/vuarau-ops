@@ -11,14 +11,13 @@ import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useCommand } from "@/api/use-command.ts";
+import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { InspectionForm } from "@/ui/patterns/intake/inspection-form.tsx";
 
-const toScaled = (value: string) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return null;
-  const result = Math.round(parsed * 1000);
-  return Number.isSafeInteger(result) ? result : null;
+const toScaled = (value: string, unit: GoodsArrivalLineInput["arrivedQuantity"]["unit"]) => {
+  const parsed = parseQuantityText(value, unit);
+  return parsed.ok && parsed.value !== null ? parsed.value.valueScaled : null;
 };
 
 export function InspectionFormController({
@@ -65,7 +64,7 @@ export function InspectionFormController({
     command.reset();
   }, [command.reset, command.result, onChanged]);
 
-  const valueScaled = toScaled(quantity);
+  const valueScaled = toScaled(quantity, line.arrivedQuantity.unit);
   const selectedIssue = issueCodes.data?.items.find((item) => item.id === issueId) ?? null;
   const locked = command.phase.kind === "sending" || command.phase.kind === "unknown";
   return (

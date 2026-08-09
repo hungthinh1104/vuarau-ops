@@ -1,4 +1,5 @@
 import type { SaleDto } from "@vuarau/domain-contracts";
+import { formatQuantityInput } from "@/ui/domain/numeric-text.ts";
 import type { SaleLineDraft } from "./sale-line-editor.tsx";
 
 /**
@@ -19,7 +20,7 @@ export function replacementDraftFrom(
       productName: line.productName,
       qualityGradeId: line.qualityGradeId,
       qualityGradeName: line.qualityGradeName,
-      quantityText: String(line.quantity.valueScaled / 1_000),
+      quantityText: formatQuantityInput(line.quantity),
       unit: line.quantity.unit,
       unitPriceText: String(line.unitPrice.amountMinor),
       priceOrigin: { kind: "manual" },

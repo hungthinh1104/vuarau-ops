@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
+import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
@@ -44,7 +45,9 @@ export function InventoryAdjustmentPanel({
   const [qualityGradeId, setQualityGradeId] = useState<QualityGradeId | null>(null);
   const [reasonCode, setReasonCode] = useState<InventoryAdjustmentReasonCode>("count_correction");
   const [reason, setReason] = useState("");
-  const quantityScaled = Math.round(Number(quantity) * 1000);
+  const parsedQuantity = parseQuantityText(quantity, unit);
+  const quantityScaled =
+    parsedQuantity.ok && parsedQuantity.value !== null ? parsedQuantity.value.valueScaled : 0;
   const grade = grades.find((candidate) => candidate.id === qualityGradeId);
   const valid =
     grade !== undefined &&

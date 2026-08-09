@@ -26,7 +26,7 @@ export function QuickSaleView(props: {
 }) {
   const status = draftStateCopy(props.draftState);
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 pb-32 lg:gap-6 lg:px-8">
+    <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 pb-32 lg:gap-6 lg:px-8">
       <header className="border-b border-border pb-5">
         <PageHeader
           title="Đơn hàng mới"

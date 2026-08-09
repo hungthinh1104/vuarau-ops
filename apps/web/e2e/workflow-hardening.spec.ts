@@ -60,7 +60,7 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
       await chooseSupplier(page, supplierName);
       await choosePurchaseProduct(page, productName);
       await page.getByLabel("Số lượng").fill("10");
-      await page.getByLabel("Đơn giá (kđ)").fill("10");
+      await page.getByLabel("Đơn giá").fill("10.000");
       await page.getByRole("button", { name: "Lưu và nhận hàng" }).click();
       await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
       await expect(page.getByText(/đã nhận 10 kg · còn lại 0 kg/)).toBeVisible();

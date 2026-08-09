@@ -3,7 +3,12 @@ import { render, screen } from "@testing-library/react";
 import { BalanceCard } from "../patterns/finance/balance-card.tsx";
 import { PaymentStatus } from "../patterns/payment/payment-status.tsx";
 import { describeBalance, formatMoney, formatQuantity, formatSignedMoney } from "../format.ts";
-import { parseMoneyText, parseQuantityText } from "./numeric-text.ts";
+import {
+  formatMoneyInput,
+  formatQuantityInput,
+  parseMoneyText,
+  parseQuantityText,
+} from "./numeric-text.ts";
 import {
   balanceCustomerCredit,
   balanceReceivable,
@@ -147,6 +152,23 @@ describe("TC-WEB-005 — money and quantity are integers or refusals", () => {
   it("treats an empty field as absent, not as zero", () => {
     expect(parseMoneyText("", "VND")).toEqual({ ok: true, value: null });
     expect(parseQuantityText("   ", "kg")).toEqual({ ok: true, value: null });
+  });
+
+  it("round-trips edit values without using floating-point arithmetic", () => {
+    expect(formatMoneyInput({ amountMinor: 875_000, currency: "VND" })).toBe("875000");
+    expect(formatQuantityInput({ valueScaled: 12_500, unit: "kg" })).toBe("12,5");
+    expect(
+      parseMoneyText(formatMoneyInput({ amountMinor: 875_000, currency: "VND" }), "VND"),
+    ).toEqual({
+      ok: true,
+      value: { amountMinor: 875_000, currency: "VND" },
+    });
+    expect(
+      parseQuantityText(formatQuantityInput({ valueScaled: 12_500, unit: "kg" }), "kg"),
+    ).toEqual({
+      ok: true,
+      value: { valueScaled: 12_500, unit: "kg" },
+    });
   });
 });
 

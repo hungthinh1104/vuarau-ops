@@ -23,6 +23,7 @@ function parse(overrides: Partial<PriceRuleFormInput> = {}) {
   return parsePriceRuleForm({ ...base, ...overrides });
 }
 
+// TC-PRICING-006
 describe("price rule form validation", () => {
   it("returns exact scaled quantity and money adjustments for a valid rule", () => {
     const result = parse();

@@ -2,6 +2,7 @@
 
 import type { GoodsArrivalLineInput, QualityIssueCodeDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
+import { formatQuantity } from "@/ui/format.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -55,7 +56,7 @@ export function InspectionForm({
       <summary className="cursor-pointer text-label font-semibold">1. Kiểm hàng</summary>
       <div className="mt-3 grid gap-3">
         <NumberInput
-          label={`Số lượng đã kiểm (${line.arrivedQuantity.unit}) · còn tối đa ${maxValueScaled / 1000}`}
+          label={`Số lượng đã kiểm · còn tối đa ${formatQuantity({ valueScaled: maxValueScaled, unit: line.arrivedQuantity.unit })}`}
           value={quantity}
           onChange={onQuantityChange}
         />

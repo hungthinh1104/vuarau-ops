@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
+import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import {
   SupplierPaymentDetailView,
@@ -72,7 +73,8 @@ function SupplierPaymentReversalController({
       onReasonChange={setReason}
       onEvidenceChange={setEvidence}
       onSubmit={() => {
-        const amountMinor = Math.round(Number(amount) * 1000);
+        const parsed = parseMoneyText(amount, payment.amount.currency);
+        const amountMinor = parsed.ok && parsed.value !== null ? parsed.value.amountMinor : 0;
         void command.submit(
           {
             reversalId,

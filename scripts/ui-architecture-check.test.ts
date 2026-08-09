@@ -162,6 +162,16 @@ test("rejects engineering vocabulary in controller feedback copy", async () => {
   ]);
 });
 
+test("rejects floating-point quantity scaling outside the canonical parser", async () => {
+  const result = await checkFixture({
+    "apps/web/src/ui/controllers/intake-controller.tsx":
+      "const parsed = Number(value); const scaled = Math.round(parsed * 1000);",
+  });
+  assert.deepEqual(result.failures, [
+    "apps/web/src/ui/controllers/intake-controller.tsx: parses quantity by floating-point multiplication; use parseQuantityText",
+  ]);
+});
+
 test("rejects implementation timezone identifiers in rendered UI", async () => {
   const result = await checkFixture({
     "apps/web/src/ui/screens/reports-view.tsx":

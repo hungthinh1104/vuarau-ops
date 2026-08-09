@@ -3,9 +3,12 @@
 import { Ellipsis, House, ReceiptText, ShoppingBasket, Boxes } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import type { Permission } from "@vuarau/domain-contracts";
 import { activeNavigationHref, hasPermissionFor } from "./pilot-navigation.ts";
 import { useWorkspaceChrome } from "./workspace-chrome.tsx";
+import { Button } from "@/ui/primitives/button.tsx";
+import { Sheet } from "@/ui/primitives/sheet.tsx";
 
 const ITEMS = [
   { label: "Hôm nay", href: "/today", activeHrefs: ["/today"], icon: House },
@@ -37,12 +40,16 @@ export function MobileNavView({
 }) {
   const activeHref = activeNavigationHref(pathname);
   const baseItems = ITEMS.filter((item) => hasPermissionFor(item.href, permissions));
-  const moreItem = {
-    label: "Thêm",
-    href: "/today#more",
-    icon: Ellipsis,
-  } as const;
-  const visibleItems = [...baseItems, moreItem].slice(0, 5);
+  const visibleItems = baseItems.slice(0, 4);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreItems = [
+    { label: "Đơn đặt hàng", href: "/customer-orders" },
+    { label: "Khách hàng", href: "/customers" },
+    { label: "Nhà cung cấp", href: "/suppliers" },
+    { label: "Báo cáo", href: "/reports" },
+    { label: "Cấu hình", href: "/quality-grades" },
+    { label: "Quản trị", href: "/workspace" },
+  ].filter((item) => hasPermissionFor(item.href, permissions));
   const chrome = useWorkspaceChrome();
 
   if (chrome?.actionDockCount !== undefined && chrome.actionDockCount > 0) return null;
@@ -95,8 +102,39 @@ export function MobileNavView({
               </li>
             );
           })}
+          <li className="flex-1">
+            <Button
+              tone="link"
+              type="button"
+              aria-label="Thêm"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen(true)}
+              className="touch-target relative flex min-h-[60px] w-full flex-col items-center justify-center gap-1 rounded-input px-0 text-caption font-semibold text-ink-muted/80 hover:bg-surface-muted"
+            >
+              <Ellipsis aria-hidden="true" className="h-[20px] w-[20px]" strokeWidth={1.8} />
+              <span>Thêm</span>
+            </Button>
+          </li>
         </ul>
       </div>
+      <Sheet open={moreOpen} title="Mở thêm" onClose={() => setMoreOpen(false)}>
+        <nav aria-label="Điều hướng thêm" className="grid gap-1">
+          {moreItems.map((item) => {
+            const active = activeNavigationHref(pathname) === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setMoreOpen(false)}
+                className="touch-target flex min-h-11 items-center rounded-input px-3 font-semibold hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </Sheet>
     </nav>
   );
 }

@@ -34,6 +34,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     effectiveCustomer,
     handleConfirmedPost,
     openProductPicker,
+    pickerLineId,
     pickerOpen,
     postLocked,
     posting,
@@ -91,6 +92,8 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
     unitNotice,
     visibleProducts,
   } = model;
+
+  const pickerTargetLineId = pickerLineId ?? activeLineId;
 
   return (
     <QueryStates
@@ -322,7 +325,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   onSelectProduct={(productId, productName, unit) => {
                     editLines((current) =>
                       current.map((line) =>
-                        line.lineId === activeLine.lineId
+                        line.lineId === pickerTargetLineId
                           ? {
                               ...line,
                               productId: productId ?? null,
@@ -346,7 +349,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   ) => {
                     editLines((current) =>
                       current.map((line) =>
-                        line.lineId === activeLine.lineId
+                        line.lineId === pickerTargetLineId
                           ? {
                               ...line,
                               productId: productId ?? null,

@@ -1,4 +1,5 @@
 import type { DeliveryLineId, SaleDetailDto, SaleFulfilmentDto } from "@vuarau/domain-contracts";
+import { formatQuantityInput, parseQuantityText } from "./numeric-text.ts";
 
 export type DeliveryLineIdFactory = (saleLineId: string) => DeliveryLineId;
 
@@ -26,9 +27,11 @@ export function buildDeliveryDraftLines(
       return [];
     }
 
-    const valueScaled = Math.round(
-      Number(quantities[line.lineId] ?? String(summary.remaining.valueScaled / 1_000)) * 1_000,
+    const parsed = parseQuantityText(
+      quantities[line.lineId] ?? formatQuantityInput(summary.remaining),
+      line.quantity.unit,
     );
+    const valueScaled = parsed.ok && parsed.value !== null ? parsed.value.valueScaled : 0;
     if (
       !Number.isSafeInteger(valueScaled) ||
       valueScaled <= 0 ||

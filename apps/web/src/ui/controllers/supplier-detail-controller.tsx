@@ -16,12 +16,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
+import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 import {
   SupplierMoneyActions,
   type SupplierAdjustmentReason,
   type SupplierPaymentDirection,
 } from "@/ui/patterns/supplier/supplier-money-actions.tsx";
 import { SupplierDetailView } from "@/ui/screens/supplier-detail-view.tsx";
+
+function amountFromText(raw: string): number {
+  const parsed = parseMoneyText(raw, "VND");
+  return parsed.ok && parsed.value !== null ? parsed.value.amountMinor : 0;
+}
 
 export function SupplierDetailController() {
   const supplierId = useParams<{ supplierId: string }>().supplierId as SupplierId;
@@ -157,7 +163,7 @@ export function SupplierDetailController() {
             void payment.submit({
               supplierPaymentId: paymentId,
               supplierId,
-              amount: { amountMinor: Math.round(Number(paymentAmount) * 1000), currency: "VND" },
+              amount: { amountMinor: amountFromText(paymentAmount), currency: "VND" },
               method: "cash",
               note: null,
               evidenceReferences: paymentEvidence
@@ -170,7 +176,7 @@ export function SupplierDetailController() {
             void adjustment.submit({
               adjustmentId,
               supplierId,
-              amount: { amountMinor: Math.round(Number(adjustmentAmount) * 1000), currency: "VND" },
+              amount: { amountMinor: amountFromText(adjustmentAmount), currency: "VND" },
               direction,
               reasonCode,
               reason: reason.trim(),

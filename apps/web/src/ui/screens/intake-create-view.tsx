@@ -188,7 +188,9 @@ function IntakeForm({
                   <label className="grid gap-2 text-label">
                     Khối lượng hàng
                     <output className="rounded-input border border-border bg-canvas px-3 py-2">
-                      {net !== null && net > 0 ? `${net / 1000} ${line.quantity.unit}` : "—"}
+                      {net !== null && net > 0
+                        ? formatQuantity({ valueScaled: net, unit: line.quantity.unit })
+                        : "—"}
                     </output>
                   </label>
                   <NumberField

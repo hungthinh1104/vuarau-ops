@@ -163,14 +163,12 @@ function Metric({
 }: {
   readonly label: string;
   readonly value: number;
-  readonly unit: string;
+  readonly unit: GoodsArrivalLineInput["arrivedQuantity"]["unit"];
 }) {
   return (
     <div className="rounded-card bg-canvas p-3">
       <p className="text-caption text-ink-muted">{label}</p>
-      <p className="text-label font-semibold">
-        {value / 1000} {unit}
-      </p>
+      <p className="text-label font-semibold">{formatQuantity({ valueScaled: value, unit })}</p>
     </div>
   );
 }

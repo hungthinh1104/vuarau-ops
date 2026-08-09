@@ -8,7 +8,13 @@ export { TextInput, type TextInputProps } from "./text-input.tsx";
 export { SearchInput, type SearchInputProps } from "./search-input.tsx";
 export { MoneyInput, type MoneyInputProps } from "./money-input.tsx";
 export { QuantityInput, type QuantityInputProps } from "./quantity-input.tsx";
-export { parseMoneyText, parseQuantityText, type ParseResult } from "@/ui/domain/numeric-text.ts";
+export {
+  formatMoneyInput,
+  formatQuantityInput,
+  parseMoneyText,
+  parseQuantityText,
+  type ParseResult,
+} from "@/ui/domain/numeric-text.ts";
 export { Select, type SelectOption, type SelectProps } from "./select.tsx";
 export { Textarea, type TextareaProps } from "./textarea.tsx";
 export { TextareaControl, type TextareaControlProps } from "./textarea-control.tsx";

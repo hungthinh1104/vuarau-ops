@@ -125,6 +125,7 @@ function props(overrides: Partial<PricingViewProps> = {}): PricingViewProps {
   };
 }
 
+// TC-PRICING-005
 describe("PricingView", () => {
   it("renders named scope, exact final price and explicit policy boundary", () => {
     render(<PricingView {...props()} />);

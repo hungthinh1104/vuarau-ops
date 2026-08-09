@@ -25,6 +25,8 @@ const GLASS_OR_DECORATIVE_EFFECT =
   /(?:backdrop-blur|bg-(?:surface|surface-muted)\/\d|\bshadow(?:-[^\s"]+)?)/;
 const RAW_RADIUS = /\brounded-(?:\[[^\]]+\]|none|sm|md|lg|xl|2xl|3xl|full)\b/;
 const FLOATING_ACTION = /(?:fixed|sticky)[^"\n]*(?:bottom|inset-x)/;
+const FLOAT_QUANTITY_CONVERSION =
+  /(?:Math\.round\s*\(\s*)?(?:Number|parseFloat)\([^\n]*\)\s*\*\s*1_?000|Math\.round\s*\(\s*[A-Za-z_$][\w$]*\s*\*\s*1_?000\s*\)/;
 const VISIBLE_ENGINEERING_TERMS = [
   "policy",
   "workspace",
@@ -214,6 +216,12 @@ export async function checkUiArchitecture(root: string): Promise<UiArchitectureR
     if (path.includes("/ui/") && VISUAL_TOKEN_ESCAPE.test(source)) {
       failures.push(
         `${path}: visual styling bypasses the shared design tokens; use the Be Vietnam Pro type and semantic color/radius tokens`,
+      );
+    }
+
+    if (path.includes("/ui/") && FLOAT_QUANTITY_CONVERSION.test(source)) {
+      failures.push(
+        `${path}: parses quantity by floating-point multiplication; use parseQuantityText`,
       );
     }
 

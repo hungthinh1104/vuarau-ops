@@ -1,5 +1,6 @@
 import { api } from "./harness/api.ts";
 import { expect, signIn, test } from "./harness/signed-in.ts";
+import { createPostedSaleScenario } from "./harness/scenarios.ts";
 
 async function chooseOption(page: Parameters<typeof signIn>[0], label: string, option: string) {
   await page.getByRole("combobox", { name: label }).click();
@@ -20,13 +21,13 @@ test.describe("Depot operations (TC-E2E-030)", () => {
     await page.waitForURL(/\/products\/[0-9a-f-]+$/);
     const productId = new URL(page.url()).pathname.split("/").at(-1)!;
 
-    const customerId = await api.createCustomer(`Khách depot ${Date.now()}`);
-    const { saleId } = await api.createPostedSale({
-      customerId,
+    const scenario = await createPostedSaleScenario({
+      label: "depot",
       productId,
       productName,
       quantityScaled: 100_000,
     });
+    const { customerId, saleId } = scenario;
     const debtBefore = await api.balance(customerId);
     const deliveryIds: string[] = [];
 

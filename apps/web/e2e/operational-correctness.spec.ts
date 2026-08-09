@@ -74,7 +74,7 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await chooseSupplierOption(page, supplierName);
     await chooseProductOption(page, productName);
     await page.getByLabel("Số lượng").fill("100");
-    await page.getByLabel("Đơn giá (kđ)").fill("10");
+    await page.getByLabel("Đơn giá").fill("10.000");
     await page.getByRole("button", { name: /^Lưu và (mở )?nhận hàng$/ }).click();
     await page.waitForURL(/\/purchases\/[0-9a-f-]+$/);
     await page.getByRole("button", { name: "Chia theo hạng" }).click();

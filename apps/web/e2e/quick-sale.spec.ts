@@ -33,15 +33,15 @@ async function fillLine(page: Page, index: number, line: Line): Promise<void> {
   const productInput = row.getByRole("textbox", { name: "Mặt hàng" });
   await productInput.fill(line.product);
   await productInput.focus();
-  await page.waitForTimeout(250);
+  await expect(productInput).toBeFocused();
   await row.getByRole("button", { name: "Mở bảng chọn mặt hàng và giá gần đây" }).click();
   const picker = page.getByRole("dialog");
   await expect(picker).toBeVisible();
-  await page.waitForTimeout(750);
   await picker.getByLabel("Tìm mặt hàng").fill(line.product);
   const product = picker.getByRole("button", {
     name: new RegExp(`^${line.product.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}( ·|$)`),
   });
+  await expect(product).toBeVisible();
   await product.focus();
   await product.press("Enter");
   await expect(picker).toBeHidden();

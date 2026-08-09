@@ -51,6 +51,7 @@ function renderView(overrides: Partial<React.ComponentProps<typeof OperationsVie
   );
 }
 
+// TC-CLOSE-004
 describe("OperationsView", () => {
   it("does not equate a failed integrity read with healthy", () => {
     renderView({ integrityState: "error", integrity: null });

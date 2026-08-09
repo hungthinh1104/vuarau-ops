@@ -17,6 +17,7 @@ const actorId = "00000000-0000-4000-8000-000000000002";
 const SUBJECT_A = "supabase-user-a";
 const SUBJECT_B = "supabase-user-b";
 
+// TC-OFFLINE-002
 describe("offline session partition bootstrap", () => {
   it("restores validated server authority for the same workspace and clears it on sign-out", () => {
     const workspaces = actorWorkspacesDtoSchema.parse({

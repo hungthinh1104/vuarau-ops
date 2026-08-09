@@ -121,7 +121,7 @@ test.describe("TC-WEB-PERF — production UI Web Vitals", () => {
       }
 
       await page.getByLabel("Tìm khách hàng").fill(`hiệu năng ${index}`);
-      await page.waitForTimeout(150);
+      await expect(page.getByText("Không tìm thấy khách nào", { exact: true })).toBeVisible();
       samples.push(await readVitals(page));
     }
 

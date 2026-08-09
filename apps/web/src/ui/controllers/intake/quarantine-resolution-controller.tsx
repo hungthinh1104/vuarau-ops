@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { QualityDispositionDto } from "@vuarau/domain-contracts";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
+import { formatQuantity } from "@/ui/format.ts";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { DispositionFormController } from "@/ui/controllers/intake/disposition-form-controller.tsx";
 import { QuarantineResolution } from "@/ui/patterns/intake/quarantine-resolution.tsx";
@@ -52,7 +53,7 @@ export function QuarantineResolutionController({
               eligibleValueScaled={state.eligibleQuantity.valueScaled}
               gradeRequired={gradeRequired}
               allowQuarantine={false}
-              title={`Xử lý lại lượng tạm giữ ${allocation.quantity.valueScaled / 1000} ${allocation.quantity.unit}`}
+              title={`Xử lý lại lượng tạm giữ ${formatQuantity(allocation.quantity)}`}
               onChanged={() => {
                 void summary.refetch();
                 onChanged();

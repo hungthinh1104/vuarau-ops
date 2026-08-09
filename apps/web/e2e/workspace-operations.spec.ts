@@ -1,6 +1,7 @@
 import { expect, test, signIn } from "./harness/signed-in.ts";
 import { workspaceBackupV19Schema } from "@vuarau/domain-contracts";
 
+// TC-E2E-027
 test.describe("Owner workspace operations", () => {
   test("shows integrity and exports a checksummed secret-free backup", async ({ page }) => {
     await signIn(page, "owner");

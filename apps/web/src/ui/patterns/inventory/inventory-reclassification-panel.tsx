@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
+import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
@@ -40,7 +41,9 @@ export function InventoryReclassificationPanel({
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState<Unit>("kg");
   const [reason, setReason] = useState("");
-  const quantityScaled = Math.round(Number(quantity) * 1000);
+  const parsedQuantity = parseQuantityText(quantity, unit);
+  const quantityScaled =
+    parsedQuantity.ok && parsedQuantity.value !== null ? parsedQuantity.value.valueScaled : 0;
   const fromGrade = grades.find((grade) => grade.id === fromGradeId);
   const toGrade = grades.find((grade) => grade.id === toGradeId);
   const valid =

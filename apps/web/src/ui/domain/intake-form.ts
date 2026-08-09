@@ -3,6 +3,7 @@ import type {
   PurchaseDto,
   RecordGoodsArrivalCommand,
 } from "@vuarau/domain-contracts";
+import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 
 export type IntakeLineState = {
   readonly quantity: string;
@@ -23,10 +24,8 @@ export const EMPTY_INTAKE_LINE: IntakeLineState = {
 };
 
 export function scaledQuantity(value: string): number | null {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return null;
-  const result = Math.round(parsed * 1000);
-  return Number.isSafeInteger(result) ? result : null;
+  const parsed = parseQuantityText(value, "kg");
+  return parsed.ok && parsed.value !== null ? parsed.value.valueScaled : null;
 }
 
 export function buildArrivalLines(

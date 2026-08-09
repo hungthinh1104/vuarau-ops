@@ -21,6 +21,7 @@ async function chooseCatalogProduct(
   await product.press("Enter");
 }
 
+// TC-E2E-028
 test.describe("Product catalog", () => {
   test("catalog changes never rewrite a posted Sale snapshot and unresolved text must be resolved", async ({
     page,

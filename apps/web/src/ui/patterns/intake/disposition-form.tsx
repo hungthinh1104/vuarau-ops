@@ -7,6 +7,8 @@ import type {
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
+import { formatQuantity } from "@/ui/format.ts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -68,15 +70,16 @@ export function DispositionForm({
 }: DispositionFormProps) {
   const [showIssueFields, setShowIssueFields] = useState(false);
   const [showGrade, setShowGrade] = useState(false);
-  const acceptedValue = Number(values.accepted) * 1000;
+  const accepted = parseQuantityText(values.accepted, unit);
+  const acceptedValue = accepted.ok && accepted.value !== null ? accepted.value.valueScaled : 0;
   const canSubmit = !locked && total > 0 && total <= eligibleValueScaled && !gradeMissing;
 
   return (
     <details open className="rounded-card border border-leaf/40 p-3">
       <summary className="cursor-pointer text-label font-semibold">{title}</summary>
       <p className="mt-2 text-caption text-ink-muted">
-        Có thể phân bổ tối đa {eligibleValueScaled / 1000} {unit}. Chỉ lượng chấp nhận mới tạo tồn
-        kho.
+        Có thể phân bổ tối đa {formatQuantity({ valueScaled: eligibleValueScaled, unit })}. Chỉ
+        lượng chấp nhận mới tạo tồn kho.
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <NumberInput
