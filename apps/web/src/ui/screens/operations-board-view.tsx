@@ -16,7 +16,7 @@ import Link from "next/link";
 import { formatInstant, formatMoney } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { MobileRecordCard, PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -244,30 +244,60 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                 description="Các đơn mới sẽ xuất hiện sau khi được xác nhận hoặc post."
               />
             ) : (
-              <div className="overflow-x-auto rounded-card border border-border bg-surface">
-                <table className="data-table w-full min-w-[1320px] text-left text-body-sm">
-                  <thead>
-                    <tr>
-                      {table.getHeaderGroups()[0]?.headers.map((header) => (
-                        <th key={header.id} className="px-3 py-3">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {table.getRowModel().rows.map((row) => (
-                      <tr key={row.id} className="hover:bg-surface-muted">
-                        {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className="px-3 py-3 align-top">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
+              <>
+                <ul className="grid gap-2 lg:hidden" aria-label="Việc cần xử lý">
+                  {props.rows.map((row) => (
+                    <li key={row.id} className="rounded-card border border-border bg-surface">
+                      <MobileRecordCard href={row.href}>
+                        <span className="min-w-0">
+                          <strong className="block truncate">{row.reference}</strong>
+                          <span className="block truncate text-caption text-ink-muted">
+                            {row.counterparty} · {formatMoney(row.amount)}
+                          </span>
+                          <span className="mt-1 block text-body-sm font-medium">
+                            {row.nextAction}
+                          </span>
+                          <span className="mt-1 block text-caption text-ink-muted">
+                            {ageLabel(row.ageSeconds)} · {formatInstant(row.updatedAt)}
+                          </span>
+                        </span>
+                        <span className="grid shrink-0 gap-1 text-right">
+                          <Badge tone={stateTone(row.commercialState)}>
+                            {stateLabel(row.commercialState)}
+                          </Badge>
+                          <Badge tone={stateTone(row.physicalState)}>
+                            {stateLabel(row.physicalState)}
+                          </Badge>
+                        </span>
+                      </MobileRecordCard>
+                    </li>
+                  ))}
+                </ul>
+                <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
+                  <table className="data-table w-full min-w-[1320px] text-left text-body-sm">
+                    <thead>
+                      <tr>
+                        {table.getHeaderGroups()[0]?.headers.map((header) => (
+                          <th key={header.id} className="px-3 py-3">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {table.getRowModel().rows.map((row) => (
+                        <tr key={row.id} className="hover:bg-surface-muted">
+                          {row.getVisibleCells().map((cell) => (
+                            <td key={cell.id} className="px-3 py-3 align-top">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )
           }
         </QueryStates>
