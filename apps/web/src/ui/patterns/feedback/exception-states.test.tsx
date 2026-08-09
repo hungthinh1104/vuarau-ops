@@ -113,7 +113,8 @@ describe("TC-WEB-008 — permission denied after load", () => {
     );
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
-    expect(screen.getByText("sale.void")).toBeInTheDocument();
+    expect(screen.getByText("Hoàn tác đơn hàng")).toBeInTheDocument();
+    expect(screen.queryByText("sale.void")).toBeNull();
     expect(screen.getByText("Bán hàng")).toBeInTheDocument();
     expect(screen.getByText(/Hãy nhờ chủ vựa hoặc kế toán/)).toBeInTheDocument();
   });
@@ -185,7 +186,8 @@ describe("TC-WEB-010 — unknown outcome keeps commandId and idempotencyKey", ()
     expect(onResend.mock.calls[0]![0].commandId).toBe(identity.commandId);
   });
 
-  it("calls it unconfirmed, not failed", () => {
+  it("calls it unconfirmed, not failed, and hides technical support data by default", async () => {
+    const user = userEvent.setup();
     render(
       <UnknownNetworkOutcome
         identity={identity}
@@ -196,7 +198,11 @@ describe("TC-WEB-010 — unknown outcome keeps commandId and idempotencyKey", ()
     );
 
     expect(screen.getByText("Chưa rõ kết quả")).toBeInTheDocument();
-    expect(screen.getByTestId("idempotency-key")).toHaveTextContent(identity.idempotencyKey);
+    const supportDisclosure = screen.getByRole("button", { name: "Thông tin hỗ trợ" });
+    expect(supportDisclosure).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("idempotency-key")).not.toBeVisible();
+    await user.click(supportDisclosure);
+    expect(screen.getByTestId("idempotency-key")).toBeVisible();
     expect(screen.queryByText(/thất bại/i)).toBeNull();
   });
 
@@ -248,9 +254,7 @@ describe("TC-WEB-011 — rejection copy comes from the code", () => {
     render(<BusinessRejection error={rejectionReversalExceeds} requestId="req-1234.alpha" />);
 
     expect(screen.getByTestId("request-id")).toHaveTextContent("req-1234.alpha");
-    expect(
-      screen.getByText("Mã hỗ trợ: PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT"),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Mã hỗ trợ: PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT")).toBeNull();
   });
 
   it("surfaces a request id on an unexpected query failure", () => {

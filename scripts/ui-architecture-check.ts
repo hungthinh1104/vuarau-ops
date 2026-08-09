@@ -58,6 +58,7 @@ const VISIBLE_ENGINEERING_TERMS = [
   "gross",
   "tare",
   "net",
+  "asia/ho_chi_minh",
 ];
 
 function visibleCopyOf(source: string): string[] {

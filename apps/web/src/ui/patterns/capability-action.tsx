@@ -71,6 +71,7 @@ export function CapabilityAction({
         tone={tone}
         fullWidth={fullWidth}
         onClick={onAction}
+        showDisabledReason={false}
         {...(reason !== null ? { disabledReason: reason } : {})}
       >
         {label}

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useId, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { buttonClassName, type ButtonTone } from "./button-class-name.ts";
 export { buttonClassName, type ButtonTone } from "./button-class-name.ts";
 
@@ -20,6 +20,8 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
    * system, usually a paper one.
    */
   readonly disabledReason?: string;
+  /** Keep the reason visible at the action when the caller already owns a hint. */
+  readonly showDisabledReason?: boolean;
   readonly children: ReactNode;
 };
 
@@ -27,14 +29,23 @@ export function Button({
   tone = "primary",
   fullWidth = false,
   disabledReason,
+  showDisabledReason = true,
   disabled,
   className = "",
   children,
   ...rest
 }: ButtonProps) {
   const isDisabled = disabled === true || disabledReason !== undefined;
+  const disabledReasonId = useId();
+  const describedBy =
+    [
+      rest["aria-describedby"],
+      disabledReason !== undefined && showDisabledReason ? disabledReasonId : undefined,
+    ]
+      .filter((value): value is string => value !== undefined)
+      .join(" ") || undefined;
 
-  return (
+  const button = (
     <button
       type="button"
       {...rest}
@@ -43,9 +54,21 @@ export function Button({
       // by CapabilityAction, which is what product code uses.
       {...(disabledReason !== undefined ? { title: disabledReason } : {})}
       aria-disabled={isDisabled}
+      {...(describedBy !== undefined ? { "aria-describedby": describedBy } : {})}
       className={buttonClassName(tone, fullWidth, className)}
     >
       {children}
     </button>
+  );
+
+  if (disabledReason === undefined || !showDisabledReason) return button;
+
+  return (
+    <div className={fullWidth ? "flex w-full flex-col gap-1" : "flex flex-col gap-1"}>
+      {button}
+      <p id={disabledReasonId} className="text-caption text-ink-muted">
+        {disabledReason}
+      </p>
+    </div>
   );
 }

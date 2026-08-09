@@ -45,6 +45,7 @@ export function QuantityInput({
           <input
             {...rest}
             id={inputId}
+            required={required}
             inputMode="decimal"
             autoComplete="off"
             aria-invalid={invalid}

@@ -31,25 +31,35 @@ test.describe("operational shell and action dock", () => {
   });
 
   test("does not request advanced report data before its disclosure opens", async ({ page }) => {
-    const advancedRequests: string[] = [];
+    const dashboardRequests: string[] = [];
+    const managementRequests: string[] = [];
     page.on("request", (request) => {
       if (
-        request.url().includes("report.metrics") ||
-        request.url().includes("report.intelligence") ||
         request.url().includes("dashboard.salesSeries") ||
         request.url().includes("dashboard.orderStatusCounts") ||
         request.url().includes("dashboard.topProducts")
       ) {
-        advancedRequests.push(request.url());
+        dashboardRequests.push(request.url());
+      }
+      if (
+        request.url().includes("report.metrics") ||
+        request.url().includes("report.intelligence")
+      ) {
+        managementRequests.push(request.url());
       }
     });
 
     await signIn(page, "owner");
     await page.goto("/reports");
     await expect(page.getByRole("heading", { name: "Tổng quan vận hành" })).toBeVisible();
-    expect(advancedRequests).toHaveLength(0);
+    expect(dashboardRequests).toHaveLength(0);
+    expect(managementRequests).toHaveLength(0);
 
     await page.getByRole("button", { name: "Chỉ số nâng cao" }).click();
-    await expect.poll(() => advancedRequests.length).toBeGreaterThan(0);
+    await expect.poll(() => managementRequests.length).toBeGreaterThan(0);
+    expect(dashboardRequests).toHaveLength(0);
+
+    await page.getByRole("button", { name: "Biểu đồ và mặt hàng nổi bật" }).click();
+    await expect.poll(() => dashboardRequests.length).toBeGreaterThan(0);
   });
 });

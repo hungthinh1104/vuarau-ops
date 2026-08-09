@@ -28,6 +28,7 @@ export function Textarea({ label, hint, error, required, className, ...rest }: T
         <TextareaControl
           {...rest}
           id={inputId}
+          required={required}
           aria-invalid={invalid}
           {...(describedBy !== undefined ? { "aria-describedby": describedBy } : {})}
           className={className}

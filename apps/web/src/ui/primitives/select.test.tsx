@@ -143,6 +143,26 @@ describe("Select", () => {
     expect(onChange.mock.calls[0]?.[0]?.target.value).toBe("opt-2");
   });
 
+  it("closes from the search field with Escape", async () => {
+    const user = userEvent.setup();
+    render(
+      <Select
+        label="Mặt hàng"
+        options={options}
+        placeholder="Chọn mặt hàng"
+        searchValue=""
+        onSearchChange={() => undefined}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Mặt hàng" }));
+    const searchbox = screen.getByRole("searchbox", { name: "Tìm mặt hàng" });
+    await user.click(searchbox);
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
   it("integrates with native form submission via the hidden input", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn((e) => {

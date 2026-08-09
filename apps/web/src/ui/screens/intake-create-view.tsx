@@ -143,7 +143,7 @@ function IntakeForm({
     <div className="grid gap-6">
       <PageHeader
         title="Nhận hàng"
-        description={`Nhà cung cấp ${detail.supplierId} · ${weighing ? "ghi Tổng cân, Trọng lượng bì và Khối lượng hàng" : "nhập số lượng thực nhận"}`}
+        description={`Theo đơn mua đã chọn · ${weighing ? "ghi Tổng cân, Trọng lượng bì và Khối lượng hàng" : "nhập số lượng thực nhận"}`}
       />
       <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
         <TextInput

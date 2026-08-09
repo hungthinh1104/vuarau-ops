@@ -33,7 +33,11 @@ export function NewDeliveryView(props: {
   readonly onNoteChange: (value: string) => void;
   readonly onEvidenceChange: (value: string) => void;
   readonly onOnsiteCompletionChange: (value: boolean) => void;
-  readonly onSubmit: (action: "draft" | "dispatch", completeOnsite: boolean) => void;
+  readonly onSubmit: (
+    action: "draft" | "dispatch",
+    completeOnsite: boolean,
+    quantities: Readonly<Record<string, string>>,
+  ) => void;
   readonly onReload: () => void;
   readonly feedback?: ReactNode;
 }) {
@@ -42,7 +46,7 @@ export function NewDeliveryView(props: {
     props.dispatchCommand.phase.kind === "sending" ||
     props.deliveredCommand.phase.kind === "sending";
   const canSave = !sending && hasDeliverableLines(props.detail, props.fulfilment, props.quantities);
-  const canDeliverAll = hasDeliverableLines(props.detail, props.fulfilment, {});
+  const canDispatch = hasDeliverableLines(props.detail, props.fulfilment, props.quantities);
 
   return (
     <div className="flex max-w-3xl flex-col gap-5">
@@ -84,7 +88,7 @@ export function NewDeliveryView(props: {
                 inputMode="decimal"
                 value={proposed}
                 onChange={(event) => props.onQuantityChange(summary.saleLineId, event.target.value)}
-                aria-label={`Số lượng giao ${summary.productName}`}
+                aria-label={`Số lượng giao ${summary.productName}${summary.qualityGradeName === null ? "" : ` · ${summary.qualityGradeName}`}`}
               />
             </label>
           );
@@ -135,15 +139,15 @@ export function NewDeliveryView(props: {
           <Button
             tone="secondary"
             disabled={!canSave}
-            onClick={() => props.onSubmit("draft", false)}
+            onClick={() => props.onSubmit("draft", false, props.quantities)}
           >
             {sending ? "Đang lưu…" : "Lưu để giao sau"}
           </Button>
         }
         primary={
           <Button
-            disabled={sending || !canDeliverAll}
-            onClick={() => props.onSubmit("dispatch", props.onsiteCompletion)}
+            disabled={sending || !canDispatch}
+            onClick={() => props.onSubmit("dispatch", props.onsiteCompletion, props.quantities)}
           >
             {sending
               ? "Đang xuất kho…"

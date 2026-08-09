@@ -5,6 +5,7 @@ import { Button } from "./primitives/button.tsx";
 import { IconButton } from "./primitives/icon-button.tsx";
 import { TextInput } from "./primitives/text-input.tsx";
 import { MoneyInput } from "./primitives/money-input.tsx";
+import { QuantityInput } from "./primitives/quantity-input.tsx";
 import { Select } from "./primitives/select.tsx";
 import { Textarea } from "./primitives/textarea.tsx";
 import { ErrorSummary } from "./primitives/error-summary.tsx";
@@ -75,6 +76,49 @@ describe("TC-WEB-013 — accessibility of interactive primitives", () => {
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-disabled", "true");
     expect(button).toHaveAttribute("title", "Đơn đã chốt nên không sửa được nữa.");
+    expect(screen.getByText("Đơn đã chốt nên không sửa được nữa.")).toBeVisible();
+    expect(button).toHaveAccessibleDescription("Đơn đã chốt nên không sửa được nữa.");
+  });
+
+  it("keeps required semantics on every labelled field primitive", () => {
+    render(
+      <form>
+        <TextInput label="Tên" required />
+        <MoneyInput label="Số tiền" currency="VND" value="" required onChange={() => undefined} />
+        <QuantityInput label="Số lượng" unit="kg" value="" required onChange={() => undefined} />
+        <Textarea label="Ghi chú" required />
+      </form>,
+    );
+
+    expect(screen.getByLabelText(/Tên/)).toBeRequired();
+    expect(screen.getByLabelText(/Số tiền/)).toBeRequired();
+    expect(screen.getByLabelText(/Số lượng/)).toBeRequired();
+    expect(screen.getByLabelText(/Ghi chú/)).toBeRequired();
+  });
+
+  it("keeps a visible focus contract on shared controls", () => {
+    render(
+      <>
+        <Button>Ghi nhận</Button>
+        <IconButton label="Đóng">
+          <X size={16} />
+        </IconButton>
+        <TextInput label="Tên" />
+      </>,
+    );
+
+    expect(screen.getByRole("button", { name: "Ghi nhận" })).toHaveClass(
+      "focus-visible:outline-2",
+      "focus-visible:outline-brand",
+    );
+    expect(screen.getByRole("button", { name: "Đóng" })).toHaveClass(
+      "focus-visible:outline-2",
+      "focus-visible:outline-brand",
+    );
+    expect(screen.getByLabelText("Tên")).toHaveClass(
+      "focus-visible:ring-2",
+      "focus-visible:ring-primary",
+    );
   });
 
   it("the error summary is an alert and links to each field", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { Dialog as BaseDialog } from "@base-ui/react";
 import { IconButton } from "./icon-button.tsx";
@@ -22,6 +22,8 @@ export type DialogProps = {
  * Vựa Rau visual semantics.
  */
 export function Dialog({ open, title, onClose, children, actions }: DialogProps) {
+  const titleId = useId();
+
   return (
     <BaseDialog.Root open={open} onOpenChange={(isOpen: boolean) => !isOpen && onClose()}>
       <BaseDialog.Portal>
@@ -29,12 +31,12 @@ export function Dialog({ open, title, onClose, children, actions }: DialogProps)
         <BaseDialog.Popup
           className={[
             "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
-            "w-[min(32rem,calc(100vw-2rem))] rounded-panel border border-border bg-surface p-0 text-ink",
+            "flex max-h-[calc(100svh-2rem)] w-[min(32rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-panel border border-border bg-surface p-0 text-ink",
             "outline-none",
           ].join(" ")}
         >
           <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
-            <BaseDialog.Title id="dialog-title" className="text-subheading font-semibold">
+            <BaseDialog.Title id={titleId} className="text-subheading font-semibold">
               {title}
             </BaseDialog.Title>
             <BaseDialog.Close
@@ -46,10 +48,12 @@ export function Dialog({ open, title, onClose, children, actions }: DialogProps)
             />
           </div>
 
-          <div className="px-4 py-4">{children}</div>
+          <div data-dialog-content className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            {children}
+          </div>
 
           {actions !== undefined ? (
-            <div className="flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3">
+            <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border px-4 py-3">
               {actions}
             </div>
           ) : null}

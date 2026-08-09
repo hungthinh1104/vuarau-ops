@@ -11,7 +11,7 @@ const TONE_CLASS: Readonly<Record<ButtonTone, string>> = {
 export function buttonClassName(tone: ButtonTone, fullWidth: boolean, className: string): string {
   return [
     "touch-target inline-flex min-h-[52px] items-center justify-center gap-2 rounded-button px-4 sm:min-h-11",
-    "text-label font-semibold transition-colors",
+    "text-label font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
     "disabled:cursor-not-allowed disabled:opacity-50",
     TONE_CLASS[tone],
     fullWidth ? "w-full" : "",

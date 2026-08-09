@@ -80,12 +80,12 @@ export function NewDeliveryController() {
               onNoteChange={setNote}
               onEvidenceChange={setEvidence}
               onOnsiteCompletionChange={setOnsiteCompletion}
-              onSubmit={(action, completeOnsite) => {
+              onSubmit={(action, completeOnsite, selectedQuantities) => {
                 setPartialCompletion(null);
                 const lines = buildDeliveryDraftLines(
                   detail,
                   fulfilmentDetail,
-                  action === "dispatch" ? {} : quantities,
+                  selectedQuantities,
                   (lineId) => {
                     const existing = lineIds.current.get(lineId);
                     if (existing !== undefined) return existing;

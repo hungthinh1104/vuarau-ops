@@ -40,7 +40,6 @@ export function BusinessRejection({ error, action, requestId }: BusinessRejectio
       {action !== undefined ? <div className="mt-1 flex justify-end">{action}</div> : null}
 
       <RequestCorrelation requestId={requestId} />
-      <p className="text-caption text-ink-muted">Mã hỗ trợ: {error.code}</p>
     </div>
   );
 }

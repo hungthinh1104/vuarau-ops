@@ -76,7 +76,7 @@ describe("NewDeliveryView", () => {
     expect(screen.getByText(/Không phân loại/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Xuất kho & bắt đầu giao" })).toBeEnabled();
     await screen.getByRole("button", { name: "Xuất kho & bắt đầu giao" }).click();
-    expect(onSubmit).toHaveBeenCalledWith("dispatch", false);
+    expect(onSubmit).toHaveBeenCalledWith("dispatch", false, {});
   });
 
   it("does not submit when every line has no remaining quantity", () => {
@@ -145,6 +145,35 @@ describe("NewDeliveryView", () => {
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("checkbox", { name: "Khách nhận tại chỗ" }));
     await user.click(screen.getByRole("button", { name: "Xuất kho & giao tại chỗ" }));
-    expect(onSubmit).toHaveBeenCalledWith("dispatch", true);
+    expect(onSubmit).toHaveBeenCalledWith("dispatch", true, {});
+  });
+
+  it("passes an edited quantity to dispatch instead of silently restoring the remainder", async () => {
+    const onSubmit = vi.fn();
+    const quantities = { [ungradedLine.lineId]: "3" };
+    render(
+      <NewDeliveryView
+        saleId={saleReplacement.id}
+        detail={detail}
+        fulfilment={fulfilment}
+        quantities={quantities}
+        note=""
+        evidence=""
+        onsiteCompletion={false}
+        command={command}
+        dispatchCommand={command}
+        deliveredCommand={command}
+        partialCompletion={null}
+        onQuantityChange={() => undefined}
+        onNoteChange={() => undefined}
+        onEvidenceChange={() => undefined}
+        onOnsiteCompletionChange={() => undefined}
+        onSubmit={onSubmit}
+        onReload={() => undefined}
+      />,
+    );
+
+    await screen.getByRole("button", { name: "Xuất kho & bắt đầu giao" }).click();
+    expect(onSubmit).toHaveBeenCalledWith("dispatch", false, quantities);
   });
 });

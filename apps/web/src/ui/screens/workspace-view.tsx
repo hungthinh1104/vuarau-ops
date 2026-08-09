@@ -340,7 +340,7 @@ export function MemberRowView(props: {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-body font-semibold">{props.member.displayName}</h2>
-          <p className="text-caption text-ink-muted">{props.member.actorId}</p>
+          <p className="text-caption text-ink-muted">Tài khoản thành viên</p>
           <div className="mt-2 flex flex-wrap gap-1">
             {props.member.roles.map((role) => (
               <Badge key={role} tone="info">

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CommandIdentity } from "@/ui/domain/command-state.ts";
+import { DisclosureSection } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { RequestCorrelation } from "./request-correlation.tsx";
 
@@ -64,14 +65,19 @@ export function UnknownNetworkOutcome({
         chủ đã ghi rồi thì sẽ không ghi thêm lần nữa.
       </p>
 
-      <p className="text-caption text-ink-muted">
-        Lần gửi thứ {attempts}
-        {/* The key is shown because it is the thing a support conversation needs,
-            and because a visible key is one somebody would notice changing. */}
-        <span className="ml-2 tabular" data-testid="idempotency-key">
-          {identity.idempotencyKey}
-        </span>
-      </p>
+      <p className="text-caption text-ink-muted">Lần gửi thứ {attempts}</p>
+
+      <DisclosureSection
+        title="Thông tin hỗ trợ"
+        description="Chỉ mở phần này khi cần gửi thông tin cho người hỗ trợ."
+      >
+        <p className="text-caption text-ink-muted">
+          Mã lần gửi:{" "}
+          <span className="tabular break-all" data-testid="idempotency-key">
+            {identity.idempotencyKey}
+          </span>
+        </p>
+      </DisclosureSection>
 
       <RequestCorrelation requestId={requestId} />
 

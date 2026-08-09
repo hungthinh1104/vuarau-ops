@@ -36,7 +36,7 @@ export function ArrivalSummary({
       </div>
       <div>
         <p className="text-caption text-ink-muted">Nhà cung cấp</p>
-        <p className="text-body-sm font-semibold">{arrival.supplierId}</p>
+        <p className="text-body-sm font-semibold">Theo đơn mua</p>
       </div>
       <div>
         <p className="text-caption text-ink-muted">Số mặt hàng</p>

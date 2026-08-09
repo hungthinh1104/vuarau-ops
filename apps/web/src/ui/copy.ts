@@ -72,14 +72,36 @@ export const UI_COPY_REGISTRY = {
     integrity_failure: "Dữ liệu cần được kiểm tra",
   },
   permission: {
+    "sale.create": "Ghi đơn",
+    "sale.post": "Chốt đơn",
+    "sale.void": "Hoàn tác đơn hàng",
+    "payment.record": "Ghi nhận thanh toán",
+    "payment.reverse": "Hoàn tác thanh toán",
     "delivery.create": "Giao đơn",
     "delivery.dispatch": "Xuất kho và bắt đầu giao",
     "delivery.complete": "Xác nhận giao xong",
     "intake.record": "Ghi nhận hàng nhập",
     "quality.inspect": "Kiểm hàng",
     "quality.disposition": "Xử lý hàng lỗi",
+    "workspace.manage": "Quản lý thành viên",
   },
   report: {
+    status: {
+      canonical: "Nguồn chuẩn",
+      receivable: "Phải thu",
+      payable: "Phải trả",
+      negative: "Âm · cần kiểm tra",
+      zero: "Bằng 0",
+      positive: "Dương",
+      outstanding: "Chưa hoàn tất",
+      active: "Đang hoạt động",
+      inactive: "Ngừng sử dụng",
+      cash_in: "Tiền vào",
+      cash_out: "Tiền ra",
+      expense: "Chi phí",
+      healthy: "Đã đối chiếu",
+      unavailable: "Chưa sẵn sàng",
+    },
     metric: {
       revenue: {
         label: "Doanh thu",
@@ -254,6 +276,23 @@ export function copyForReportDiagnostic(diagnostic: string): string {
     UI_COPY_REGISTRY.report.diagnostic[
       diagnostic as keyof typeof UI_COPY_REGISTRY.report.diagnostic
     ] ?? "Số liệu cần được kiểm tra trước khi sử dụng."
+  );
+}
+
+export function copyForReportStatus(status: string): string {
+  return (
+    UI_COPY_REGISTRY.report.status[status as keyof typeof UI_COPY_REGISTRY.report.status] ??
+    "Cần kiểm tra"
+  );
+}
+
+export function copyForPermission(permission: string | null | undefined): string {
+  if (permission === null || permission === undefined || permission.trim() === "") {
+    return "Quyền cần thiết";
+  }
+  return (
+    UI_COPY_REGISTRY.permission[permission as keyof typeof UI_COPY_REGISTRY.permission] ??
+    "Quyền cần thiết"
   );
 }
 

@@ -1,5 +1,5 @@
 import type { DomainError, Permission, WorkspaceRole } from "@vuarau/domain-contracts";
-import { messageForCode } from "@/ui/copy.ts";
+import { copyForPermission, messageForCode } from "@/ui/copy.ts";
 import { RequestCorrelation } from "./request-correlation.tsx";
 
 export type PermissionDeniedProps = {
@@ -47,7 +47,7 @@ export function PermissionDenied({ error, attemptedAction, requestId }: Permissi
           {permission !== null ? (
             <>
               <dt>Quyền cần có</dt>
-              <dd className="break-all text-body-sm">{permission}</dd>
+              <dd className="text-body-sm">{copyForPermission(permission)}</dd>
             </>
           ) : null}
         </dl>

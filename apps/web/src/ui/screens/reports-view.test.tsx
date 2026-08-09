@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import {
   REPORT_METRIC_DEFINITIONS_DTO,
   type DashboardOrderStatusCountsDto,
@@ -8,7 +8,7 @@ import {
   type ManagementIntelligenceDto,
   type OperationalReportDto,
 } from "@vuarau/domain-contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   PRODUCT_CA_CHUA_ID,
   QUALITY_GRADE_1_ID,
@@ -223,6 +223,32 @@ describe("ReportsView", () => {
     );
     expect(screen.queryByRole("heading", { name: "Ảnh chụp vận hành" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Chỉ số quản lý" })).not.toBeInTheDocument();
+  });
+
+  it("keeps dashboard charts and management metrics on separate disclosure state", () => {
+    const dashboardOpenChange = vi.fn();
+    const managementOpenChange = vi.fn();
+    renderView({
+      advancedOpen: false,
+      onAdvancedOpenChange: managementOpenChange,
+      overview: {
+        summary: ready(dashboardSummary),
+        series: ready(dashboardSeries),
+        statusCounts: ready(dashboardStatusCounts),
+        topProducts: ready(dashboardTopProducts),
+        advancedOpen: false,
+        onAdvancedOpenChange: dashboardOpenChange,
+        onRetry: () => undefined,
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Biểu đồ và mặt hàng nổi bật" }));
+    expect(dashboardOpenChange).toHaveBeenCalledWith(true);
+    expect(managementOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Chỉ số nâng cao" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 
   it("fails visibly instead of rendering stale totals when the report read fails", () => {

@@ -162,6 +162,16 @@ test("rejects engineering vocabulary in controller feedback copy", async () => {
   ]);
 });
 
+test("rejects implementation timezone identifiers in rendered UI", async () => {
+  const result = await checkFixture({
+    "apps/web/src/ui/screens/reports-view.tsx":
+      "export function ReportsView() { return <section><span>Ngày · Asia/Ho_Chi_Minh</span></section>; }",
+  });
+  assert.deepEqual(result.failures, [
+    'apps/web/src/ui/screens/reports-view.tsx: visible copy contains forbidden engineering term "asia/ho_chi_minh"',
+  ]);
+});
+
 test("accepts translated status and reason copy", async () => {
   const result = await checkFixture({
     "apps/web/src/app/(app)/customers/page.tsx":

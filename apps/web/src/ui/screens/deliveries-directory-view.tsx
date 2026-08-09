@@ -77,7 +77,7 @@ export function DeliveriesDirectoryView({
           />
         }
         filters={
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Trạng thái giao hàng">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Trạng thái giao hàng">
             {(
               [
                 ["waiting", "Chờ giao"],
@@ -88,8 +88,7 @@ export function DeliveriesDirectoryView({
               <Button
                 key={value}
                 tone={tab === value ? "primary" : "secondary"}
-                role="tab"
-                aria-selected={tab === value}
+                aria-pressed={tab === value}
                 onClick={() => setTab(value)}
               >
                 {label}

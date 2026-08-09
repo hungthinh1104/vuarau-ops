@@ -13,7 +13,7 @@ function Harness() {
       <button type="button" onClick={() => setShowDock((value) => !value)}>
         {showDock ? "Ẩn dock" : "Hiện dock"}
       </button>
-      <MobileNavView permissions={permissionsForRole("owner")} role="owner" pathname="/products" />
+      <MobileNavView permissions={permissionsForRole("owner")} pathname="/products" />
       {showDock ? (
         <ActionDock
           label="Hành động"

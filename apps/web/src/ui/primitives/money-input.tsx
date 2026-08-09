@@ -44,6 +44,7 @@ export function MoneyInput({
           <input
             {...rest}
             id={inputId}
+            required={required}
             /*
              * `inputMode` rather than `type="number"`: a numeric keypad on a
              * phone, without the spinner, the scroll-wheel accidents, or the

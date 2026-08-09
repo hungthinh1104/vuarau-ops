@@ -73,7 +73,7 @@ export function TimelineItem({ entry, actorName, sourceHref }: TimelineItemProps
         {/* Only when the two differ: a back-dated or offline-captured entry.
             When they agree, showing both is noise. */}
         {recordedGap !== null ? <span>{recordedGap}</span> : null}
-        <span>{actorName ?? entry.actorId}</span>
+        <span>{actorName ?? "Người thực hiện"}</span>
         <span className="ml-auto tabular">
           {balance.label} {balance.amount ?? ""}
         </span>

@@ -96,7 +96,12 @@ export function Select({
                 {onSearchChange !== undefined ? (
                   <div
                     className="sticky top-0 z-10 bg-surface p-1"
-                    onKeyDown={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => {
+                      // Escape belongs to the Select so the user can close it
+                      // while focus remains in the search field. Other keys stay
+                      // local so typing does not move the highlighted option.
+                      if (event.key !== "Escape") event.stopPropagation();
+                    }}
                   >
                     <SearchInput
                       label={`Tìm ${label.toLocaleLowerCase("vi")}`}

@@ -31,6 +31,7 @@ export function TextInput({ label, hint, error, required, className, ...rest }: 
           {...rest}
           id={inputId}
           type={rest.type ?? "text"}
+          required={required}
           aria-invalid={invalid}
           {...(describedBy !== undefined ? { "aria-describedby": describedBy } : {})}
           className={className}

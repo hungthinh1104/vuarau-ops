@@ -131,7 +131,7 @@ export function WorkspaceShellView({
         </main>
       </div>
 
-      <MobileNavView permissions={session.permissions} role={session.role} pathname={pathname} />
+      <MobileNavView permissions={session.permissions} pathname={pathname} />
     </div>
   );
 }

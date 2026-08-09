@@ -39,6 +39,8 @@ describe("Dialog", () => {
     // We expect the dialog content to be visible
     const dialog = screen.getByRole("dialog");
     expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveClass("max-h-[calc(100svh-2rem)]", "overflow-hidden");
+    expect(dialog.querySelector("[data-dialog-content]")).toHaveClass("min-h-0", "overflow-y-auto");
 
     // Close it using the close button
     const closeButton = screen.getByRole("button", { name: "Đóng" });

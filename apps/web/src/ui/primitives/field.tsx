@@ -65,7 +65,7 @@ export function Field({ label, hint, error, required = false, children }: FieldP
 
 export const INPUT_CLASS = [
   "touch-target min-h-[52px] w-full rounded-input border bg-surface px-3 text-body text-ink sm:min-h-11",
-  "border-border focus:border-brand",
+  "border-border focus:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
   "aria-[invalid=true]:border-danger",
   "disabled:bg-surface-muted disabled:text-ink-muted",
 ].join(" ");
