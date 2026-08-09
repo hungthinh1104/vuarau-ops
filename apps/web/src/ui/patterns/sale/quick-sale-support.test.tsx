@@ -29,6 +29,11 @@ describe("Quick Sale support UI", () => {
     expect(screen.getByRole("button", { name: "Chốt đơn" })).toBeDisabled();
   });
 
+  it("does not repeat the queued notice inside the action dock", () => {
+    render(<QuickSaleFooter {...base} locallyQueued />);
+    expect(screen.queryByText("Đơn đã được lưu an toàn trên thiết bị.")).not.toBeInTheDocument();
+  });
+
   it("surfaces missing grade configuration instead of inventing a default", () => {
     render(<QuickSaleGradeState loading={false} error={false} gradeCount={0} />);
     expect(screen.getByRole("alert")).toHaveTextContent("bổ sung hạng hàng thật");

@@ -60,6 +60,7 @@ export function QuickSaleFooter(props: {
           <Button
             tone="secondary"
             onClick={props.onSaveDraft}
+            showDisabledReason={!props.locallyQueued}
             {...(draftDisabledReason === null ? {} : { disabledReason: draftDisabledReason })}
           >
             Lưu nháp
@@ -70,6 +71,7 @@ export function QuickSaleFooter(props: {
         <Button
           className="min-w-32 sm:min-w-40"
           onClick={props.onConfirm}
+          showDisabledReason={!props.locallyQueued}
           {...(postDisabledReason === null ? {} : { disabledReason: postDisabledReason })}
         >
           Chốt đơn

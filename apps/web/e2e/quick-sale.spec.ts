@@ -300,7 +300,7 @@ test.describe("TC-E2E-018 — permission and staleness", () => {
     await page.goto(`/customers/${customerId}/sales/new`);
 
     await expect(page.getByText("Không đủ quyền", { exact: true })).toBeVisible();
-    await expect(page.getByText("sale.create")).toBeVisible();
+    await expect(page.getByText("Ghi đơn", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Chốt đơn" })).toBeDisabled();
   });
 
