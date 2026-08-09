@@ -6,6 +6,7 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { PageFrame, PageHeader, Section } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -50,7 +51,15 @@ export function CustomerOrderDetailView(props: {
                     {STATUS_COPY[props.order.status]}
                   </Badge>
                 }
-                description={`${formatDate(props.order.transactionTime)} · phiên bản ${props.order.version}${props.order.customerId ? ` · khách ${props.order.customerId}` : ""}`}
+                description={`${formatDate(props.order.transactionTime)} · phiên bản ${props.order.version}`}
+              />
+              <ReferenceDisclosure
+                items={[
+                  { label: "Mã đơn đặt hàng", value: props.order.id },
+                  ...(props.order.customerId
+                    ? [{ label: "Mã khách hàng", value: props.order.customerId }]
+                    : []),
+                ]}
               />
               <Section title="Dòng hàng" contained>
                 <div className="overflow-x-auto">

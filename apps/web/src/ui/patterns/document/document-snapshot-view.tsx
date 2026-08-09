@@ -355,9 +355,10 @@ export function DocumentSnapshotView(props: { readonly document: DocumentDto }) 
         <p className="mt-2 text-body-sm text-ink-muted">
           Snapshot vẫn được kiểm tra digest nhưng chưa có schema trình bày mới.
         </p>
-        <pre className="mt-4 overflow-x-auto whitespace-pre-wrap text-caption">
-          {JSON.stringify(props.document.snapshot, null, 2)}
-        </pre>
+        <p className="mt-4 rounded-card border border-warning/30 bg-warning-soft p-3 text-body-sm">
+          Không thể hiển thị bản chụp này trong giao diện hiện tại. Hãy dùng mã kiểm tra bên dưới
+          khi cần hỗ trợ.
+        </p>
         <DocumentFooter document={props.document} />
       </section>
     );

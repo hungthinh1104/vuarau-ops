@@ -19,6 +19,7 @@ import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
@@ -410,9 +411,7 @@ function scopeCopy(
     <span className="flex flex-wrap items-center gap-1">
       <Badge tone="neutral">{KIND_COPY[rule.kind]}</Badge>
       <span>{gradeName ?? "Mọi hạng hàng"}</span>
-      {rule.customerId === null ? null : (
-        <span>· {customerName ?? `Mã ${shortId(rule.customerId)}`}</span>
-      )}
+      {rule.customerId === null ? null : <span>· {customerName ?? "Khách hàng chưa có tên"}</span>}
     </span>
   );
 }
@@ -427,10 +426,8 @@ function PriceRuleRow(props: {
   return (
     <tr>
       <th scope="row" className="px-3 py-3 align-top font-semibold">
-        <span className="block truncate" title={props.productName ?? rule.productId}>
-          {props.productName ?? `Mã ${shortId(rule.productId)}`}
-        </span>
-        <span className="block text-caption font-normal text-ink-muted">{shortId(rule.id)}</span>
+        <span className="block truncate">{props.productName ?? "Mặt hàng chưa có tên"}</span>
+        <ReferenceDisclosure items={[{ label: "Mã quy tắc giá", value: rule.id }]} />
       </th>
       <td className="px-3 py-3 align-top">
         {scopeCopy(rule, props.customerName, props.gradeName)}
@@ -468,7 +465,7 @@ function PriceRuleCard(props: {
     <li className="grid gap-2 rounded-card border border-border bg-surface p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <strong>{props.productName ?? `Mã ${shortId(rule.productId)}`}</strong>
+          <strong>{props.productName ?? "Mặt hàng chưa có tên"}</strong>
           <p className="text-caption text-ink-muted">
             {scopeCopy(rule, props.customerName, props.gradeName)}
           </p>
@@ -483,10 +480,7 @@ function PriceRuleCard(props: {
       <p className="text-caption text-ink-muted">
         {rule.reason ?? "Không có lý do"} · ưu tiên {rule.priority}
       </p>
+      <ReferenceDisclosure items={[{ label: "Mã quy tắc giá", value: rule.id }]} />
     </li>
   );
-}
-
-function shortId(id: string): string {
-  return id.slice(0, 8);
 }

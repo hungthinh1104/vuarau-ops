@@ -113,11 +113,8 @@ export function CustomerOrdersDirectoryView(props: {
                             {order.lines.length > 1 ? ` · +${order.lines.length - 1}` : ""}
                           </td>
                           <td className="px-3 py-2">{CHANNEL_COPY[order.channel]}</td>
-                          <td
-                            className="data-table-primary px-3 py-2"
-                            title={order.customerId ?? undefined}
-                          >
-                            {order.customerId ?? "Không gắn khách"}
+                          <td className="data-table-primary px-3 py-2">
+                            {order.customerId === null ? "Không gắn khách" : "Đã gắn khách"}
                           </td>
                           <td className="px-3 py-2">
                             {formatQuantity(

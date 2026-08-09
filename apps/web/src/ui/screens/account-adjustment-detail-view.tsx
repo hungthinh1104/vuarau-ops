@@ -3,6 +3,7 @@ import { copyForReasonCode } from "@/ui/copy.ts";
 import { formatInstant, formatSignedMoney } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export type AccountAdjustmentDetailViewProps = {
@@ -66,14 +67,16 @@ export function AccountAdjustmentDetailView({ query, onRetry }: AccountAdjustmen
                 <dd>{item.actor.displayName}</dd>
               </div>
               <div>
-                <dt>Mã tham chiếu</dt>
-                <dd>{item.commandId}</dd>
-              </div>
-              <div>
                 <dt>Vựa</dt>
                 <dd>{item.workspace.name}</dd>
               </div>
             </dl>
+            <ReferenceDisclosure
+              items={[
+                { label: "Mã điều chỉnh", value: item.adjustmentId },
+                { label: "Mã thao tác", value: item.commandId },
+              ]}
+            />
           </section>
         </PageFrame>
       )}

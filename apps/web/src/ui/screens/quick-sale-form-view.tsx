@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { formatDate } from "@/ui/format.ts";
 import { BalancePreview } from "@/ui/patterns/finance/balance-preview.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 const ProductPicker = dynamic(
@@ -129,10 +130,13 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   onRetry={() => void replacementSource.refetch()}
                 >
                   {(source) => (
-                    <p className="border-l-2 border-warning pl-3 text-body-sm text-ink">
-                      Đang tạo đơn thay thế cho đơn {source.id.slice(0, 8).toUpperCase()}. Đây là
-                      giao dịch mới; kiểm tra lại toàn bộ dữ liệu trước khi chốt.
-                    </p>
+                    <div className="border-l-2 border-warning pl-3 text-body-sm text-ink">
+                      <p>
+                        Đang tạo đơn thay thế cho đơn trước. Đây là giao dịch mới; kiểm tra lại toàn
+                        bộ dữ liệu trước khi chốt.
+                      </p>
+                      <ReferenceDisclosure items={[{ label: "Mã đơn cũ", value: source.id }]} />
+                    </div>
                   )}
                 </QueryStates>
               ) : null}

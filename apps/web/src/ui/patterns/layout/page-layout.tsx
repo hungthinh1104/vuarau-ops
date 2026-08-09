@@ -34,7 +34,7 @@ export function DetailLayout({
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,20rem)] xl:items-start">
       <div className="min-w-0">{children}</div>
       {aside === undefined ? null : (
-        <aside className="min-w-0 xl:sticky xl:top-[5rem]">{aside}</aside>
+        <aside className="order-first min-w-0 xl:sticky xl:top-[5rem] xl:order-none">{aside}</aside>
       )}
     </div>
   );

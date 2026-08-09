@@ -11,7 +11,7 @@ import { formatInstant, formatMoney, formatSignedMoney } from "@/ui/format.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { DisclosureSection, PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
@@ -61,14 +61,23 @@ export function AccountReconciliationView(props: AccountReconciliationViewProps)
             {props.evidenceFetching ? "Đang tạo bản đối soát" : "Xuất bản đối soát"}
           </Button>
           {props.evidence ? (
-            <details open className="rounded-card border border-border p-4">
-              <summary className="cursor-pointer font-semibold">Chi tiết đối soát</summary>
-              <section aria-label="Chi tiết đối soát" className="mt-3">
-                <pre className="max-h-96 overflow-auto whitespace-pre-wrap text-caption">
-                  {JSON.stringify(props.evidence, null, 2)}
-                </pre>
-              </section>
-            </details>
+            <DisclosureSection
+              title="Chi tiết đối soát"
+              description="Bản đối soát giữ nguyên số liệu từ sổ cái và bảng tổng hợp tại thời điểm xuất."
+            >
+              <dl className="grid gap-3 text-body-sm sm:grid-cols-2">
+                <Summary label="Phiên bản dữ liệu">{props.evidence.schemaVersion}</Summary>
+                <Summary label="Tính đến">
+                  {props.evidence.asOf === null
+                    ? "Chưa có giao dịch"
+                    : formatInstant(props.evidence.asOf)}
+                </Summary>
+                <Summary label="Số dòng trong sổ">{props.evidence.entries.length}</Summary>
+                <Summary label="Kết quả">
+                  {reconciliationKindCopy(props.evidence.reconciliation.kind)}
+                </Summary>
+              </dl>
+            </DisclosureSection>
           ) : null}
         </section>
       </div>
@@ -177,6 +186,13 @@ function Summary({
       <dd className="tabular text-body font-semibold">{children}</dd>
     </div>
   );
+}
+
+function reconciliationKindCopy(value: AccountReconciliationResultDto["kind"]): string {
+  if (value === "consistent") return "Số liệu khớp";
+  if (value === "inconsistent") return "Có sai lệch cần xử lý";
+  if (value === "not_found") return "Chưa có dữ liệu";
+  return "Dữ liệu cần kiểm tra";
 }
 
 function DiagnosticList({

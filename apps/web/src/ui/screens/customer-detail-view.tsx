@@ -10,7 +10,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatDate, formatMoney } from "@/ui/format.ts";
 import { BalanceCard } from "@/ui/patterns/finance/balance-card.tsx";
-import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DetailLayout,
+  PageFrame,
+  PageHeader,
+  SummaryRail,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { TimelineItem } from "@/ui/patterns/timeline-item.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -40,7 +45,20 @@ export function CustomerDetailView(props: {
   const customerId = detail.customer.id;
   return (
     <PageFrame size="standard">
-      <div className="flex flex-col gap-6">
+      <DetailLayout
+        aside={
+          <SummaryRail title="Tóm tắt khách hàng">
+            <BalanceCard
+              customerName={detail.customer.displayName}
+              balance={detail.balance}
+              classification={detail.classification}
+            />
+            <p className="text-body-sm text-ink-muted">
+              {detail.customer.isActive ? "Đang giao dịch" : "Đã ngưng giao dịch"}
+            </p>
+          </SummaryRail>
+        }
+      >
         <div className="flex flex-col gap-6">
           <PageHeader
             title={detail.customer.displayName}
@@ -56,12 +74,6 @@ export function CustomerDetailView(props: {
               {detail.customer.phone}
             </a>
           ) : null}
-
-          <BalanceCard
-            customerName={detail.customer.displayName}
-            balance={detail.balance}
-            classification={detail.classification}
-          />
 
           {detail.customer.note !== null ? (
             <p className="border-l-2 border-border-strong pl-3 text-body-sm text-ink-muted">
@@ -133,19 +145,18 @@ export function CustomerDetailView(props: {
           </div>
           {props.outcomes}
           {props.documentSection}
+          <CustomerTimelineSection
+            entries={props.timelineEntries}
+            state={props.timelineState}
+            hasMore={props.timelineHasMore}
+            fetching={props.timelineFetching}
+            onLoadMore={props.onLoadMore}
+            onRetry={props.onRetryTimeline}
+          />
+
+          <RecentCustomerActivity sales={props.recentSales} payments={props.recentPayments} />
         </div>
-
-        <CustomerTimelineSection
-          entries={props.timelineEntries}
-          state={props.timelineState}
-          hasMore={props.timelineHasMore}
-          fetching={props.timelineFetching}
-          onLoadMore={props.onLoadMore}
-          onRetry={props.onRetryTimeline}
-        />
-
-        <RecentCustomerActivity sales={props.recentSales} payments={props.recentPayments} />
-      </div>
+      </DetailLayout>
     </PageFrame>
   );
 }

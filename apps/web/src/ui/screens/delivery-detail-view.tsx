@@ -7,6 +7,7 @@ import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import {
@@ -78,7 +79,7 @@ export function DeliveryDetailView({
             <div className="flex flex-col gap-6">
               <PageHeader
                 title="Phiếu giao"
-                description={`${formatInstant(delivery.transactionTime)} · Mã ${delivery.id.slice(0, 8).toUpperCase()}`}
+                description={formatInstant(delivery.transactionTime)}
                 back={{ href: `/sales/${delivery.saleId}`, label: "Mở đơn bán nguồn" }}
                 status={
                   <Badge
@@ -93,6 +94,12 @@ export function DeliveryDetailView({
                     {DELIVERY_STATUS_COPY[delivery.status]}
                   </Badge>
                 }
+              />
+              <ReferenceDisclosure
+                items={[
+                  { label: "Mã phiếu giao", value: delivery.id },
+                  { label: "Mã đơn bán nguồn", value: delivery.saleId },
+                ]}
               />
 
               <section className="rounded-card border border-border bg-surface p-4">

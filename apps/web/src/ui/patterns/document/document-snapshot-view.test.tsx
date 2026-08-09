@@ -83,12 +83,13 @@ describe("DocumentSnapshotView", () => {
     expect(screen.queryByText(/"schemaVersion"/)).not.toBeInTheDocument();
   });
 
-  it("keeps legacy snapshots readable without pretending they match the new print schema", () => {
+  it("fails closed for legacy snapshots without rendering raw payload data", () => {
     render(
       <DocumentSnapshotView document={{ ...statement, snapshot: { legacy: true, total: 123 } }} />,
     );
 
     expect(screen.getByRole("heading", { name: "Chứng từ phiên bản cũ" })).toBeInTheDocument();
-    expect(screen.getByText(/"legacy": true/)).toBeInTheDocument();
+    expect(screen.getByText(/Không thể hiển thị bản chụp này/)).toBeInTheDocument();
+    expect(screen.queryByText(/"legacy": true/)).not.toBeInTheDocument();
   });
 });

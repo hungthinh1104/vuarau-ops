@@ -3,6 +3,7 @@ import { copyForReasonCode } from "@/ui/copy.ts";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export type InventoryAdjustmentDetailViewProps = {
@@ -37,9 +38,8 @@ export function InventoryAdjustmentDetailView({
               <dd className="text-right">{formatInstant(movement.transactionTime)}</dd>
               <dt>Ghi nhận</dt>
               <dd className="text-right">{formatInstant(movement.recordedAt)}</dd>
-              <dt>Mã tham chiếu</dt>
-              <dd className="break-all text-right">{movement.commandId}</dd>
             </dl>
+            <ReferenceDisclosure items={[{ label: "Mã thao tác", value: movement.commandId }]} />
           </div>
         </PageFrame>
       )}

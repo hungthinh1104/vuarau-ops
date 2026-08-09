@@ -12,6 +12,7 @@ import { DELIVERY_STATUS_COPY, copyForBlockedReason, messageForCode } from "@/ui
 import { formatInstant, formatMoney, formatQuantity, formatRecordedGap } from "@/ui/format.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import {
   SaleCorrectionPanel,
@@ -396,11 +397,18 @@ function SaleFulfilmentSection(props: {
               href={`/deliveries/${delivery.id}`}
               className="font-semibold text-info underline-offset-4 hover:underline"
             >
-              Phiếu {delivery.id.slice(0, 8).toUpperCase()} ·{" "}
-              {DELIVERY_STATUS_COPY[delivery.status]}
+              Phiếu giao hàng · {DELIVERY_STATUS_COPY[delivery.status]}
             </Link>
           ))}
         </div>
+      )}
+      {props.deliveries.length === 0 ? null : (
+        <ReferenceDisclosure
+          items={props.deliveries.map((delivery, index) => ({
+            label: `Mã phiếu giao ${index + 1}`,
+            value: delivery.id,
+          }))}
+        />
       )}
     </section>
   );

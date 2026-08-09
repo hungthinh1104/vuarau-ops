@@ -12,6 +12,7 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { copyForBlockedReason, copyForReasonCode, PURCHASE_STATUS_COPY } from "@/ui/copy.ts";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { PurchaseLinesSummary } from "@/ui/patterns/purchase/purchase-lines-summary.tsx";
 import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
@@ -312,7 +313,7 @@ export function PurchaseDetailView({
         <div className="flex flex-col gap-6">
           <PageHeader
             title="Đơn mua"
-            description={`Mã ${purchase.id.slice(0, 8).toUpperCase()} · ${formatInstant(purchase.transactionTime)}${
+            description={`${formatInstant(purchase.transactionTime)}${
               purchase.recordedAt === purchase.transactionTime
                 ? ""
                 : ` · ghi ${formatInstant(purchase.recordedAt)}`
@@ -334,6 +335,8 @@ export function PurchaseDetailView({
               </Badge>
             }
           />
+
+          <ReferenceDisclosure items={[{ label: "Mã đơn mua", value: purchase.id }]} />
 
           <Link
             href={`/suppliers/${purchase.supplierId}`}

@@ -6,6 +6,7 @@ import { copyForReasonCode } from "@/ui/copy.ts";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -23,7 +24,7 @@ export function ReceiptDetailView({
         <PageFrame size="standard">
           <div className="flex max-w-3xl flex-col gap-4">
             <PageHeader
-              title={`Phiếu nhập kho ${detail.id.slice(0, 8).toUpperCase()}`}
+              title="Phiếu nhập kho"
               description={`${formatInstant(detail.transactionTime)}${
                 detail.recordedAt === detail.transactionTime
                   ? ""
@@ -41,14 +42,21 @@ export function ReceiptDetailView({
                     href={`/products/${line.productId}/inventory`}
                     className="font-semibold text-info underline"
                   >
-                    Mặt hàng {line.productId.slice(0, 8).toUpperCase()}
+                    Mặt hàng trong phiếu
                   </Link>
                   <p>
                     {line.qualityGradeName} · {formatQuantity(line.quantity)}
                   </p>
+                  <ReferenceDisclosure items={[{ label: "Mã mặt hàng", value: line.productId }]} />
                 </li>
               ))}
             </ul>
+            <ReferenceDisclosure
+              items={[
+                { label: "Mã phiếu nhập", value: detail.id },
+                { label: "Mã đơn mua nguồn", value: detail.purchaseId },
+              ]}
+            />
             <SourceEvidenceList references={detail.evidenceReferences} />
             {detail.reversal === null ? (
               <Badge tone="positive">Đang có hiệu lực</Badge>

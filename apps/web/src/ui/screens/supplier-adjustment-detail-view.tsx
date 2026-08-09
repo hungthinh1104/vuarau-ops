@@ -3,6 +3,7 @@ import { copyForReasonCode } from "@/ui/copy.ts";
 import { formatInstant, formatSignedMoney } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { ReferenceDisclosure } from "@/ui/patterns/feedback/reference-disclosure.tsx";
 import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 
 export type SupplierAdjustmentDetailViewProps = {
@@ -34,9 +35,8 @@ export function SupplierAdjustmentDetailView({
               <dd className="text-right">{formatInstant(entry.transactionTime)}</dd>
               <dt>Ghi nhận</dt>
               <dd className="text-right">{formatInstant(entry.recordedAt)}</dd>
-              <dt>Mã tham chiếu</dt>
-              <dd className="break-all text-right">{entry.commandId}</dd>
             </dl>
+            <ReferenceDisclosure items={[{ label: "Mã thao tác", value: entry.commandId }]} />
           </div>
         </PageFrame>
       )}

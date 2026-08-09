@@ -16,13 +16,13 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import { QueryStates, type QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge, type BadgeTone } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
-import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 const KIND_COPY: Readonly<Record<WorkspacePolicyKind, string>> = {
   receivable_payable_recognition: "Ghi nhận phải thu / phải trả",
@@ -298,10 +298,10 @@ function PolicyDraftForm(
           onChange={(event) => setEffectiveTo(event.target.value)}
         />
       </div>
-      <Textarea
-        label="Ảnh hoặc phiếu liên quan (mỗi dòng một mục)"
+      <EvidenceReferenceInput
+        label="Ảnh hoặc phiếu liên quan"
         value={evidence}
-        onChange={(event) => setEvidence(event.target.value)}
+        onChange={setEvidence}
         hint="Bản nháp có thể để trống; khi duyệt cần có thông tin liên quan."
       />
       <div className="rounded-card border border-info/30 bg-info-soft p-3 text-body-sm">
@@ -411,10 +411,10 @@ function PolicyStateActions(props: {
     <div className="mt-4 grid gap-3 border-t border-border pt-3">
       {canApprove ? (
         <>
-          <Textarea
+          <EvidenceReferenceInput
             label="Ảnh hoặc phiếu liên quan để duyệt"
             value={evidence}
-            onChange={(event) => setEvidence(event.target.value)}
+            onChange={setEvidence}
             hint="Mỗi dòng một mục; cần ít nhất một mục để duyệt."
           />
           <TextInput
