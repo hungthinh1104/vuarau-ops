@@ -231,6 +231,7 @@ function summaryOf(sale: SaleDto, replacedBySaleId: SaleSummaryDto["replacedBySa
     replacesSaleId: sale.replacesSaleId,
     replacedBySaleId,
     capabilities: sale.capabilities,
+    displayReference: `BH-${sale.id.slice(0, 8).toUpperCase()}`,
   } satisfies SaleSummaryDto;
 }
 

@@ -151,6 +151,7 @@ describe("BR-CUSTOMER-ORDER-003 / TC-CUSTOMER-ORDER-005", () => {
       workspaceId: WORKSPACE_ID,
       customerId: null,
       status: "cancelled",
+      query: "",
       cursor: null,
       limit: 20,
     });

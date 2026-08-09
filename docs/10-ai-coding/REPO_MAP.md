@@ -99,6 +99,11 @@ performance rehearsal; it refuses to run the performance workload against the
 functional database.
 Policy queries resolve the versioned registry implementation and its disabled
 availability tests; they do not imply that policy-sensitive metrics are active.
+Operational directory search is implemented in the read-side contracts and
+PostgreSQL/in-memory adapters for Sale, Purchase, Delivery and Customer Order;
+the UI only debounces and forwards the query. Policy draft versions are assigned
+inside the command transaction by the workspace-policy repository, so no client
+or command payload is authoritative for version numbering.
 
 ## Packages and dependency boundaries
 

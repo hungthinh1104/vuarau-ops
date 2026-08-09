@@ -28,6 +28,7 @@ export const listPurchases = (ctx: CommandContext, input: PurchaseListInput) =>
           workspaceId: input.workspaceId,
           supplierId: input.supplierId,
           status: input.status,
+          query: input.query,
           page: toPageQuery(input),
         }),
         (row) => row,

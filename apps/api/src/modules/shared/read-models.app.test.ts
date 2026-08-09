@@ -373,6 +373,7 @@ describe("UC-SALE-003 / TC-READ-004 — sale.get and sale.list", () => {
       financialState: null,
       from: null,
       to: null,
+      query: "",
     });
 
     expect(listed.ok).toBe(true);
@@ -427,6 +428,7 @@ describe("UC-SALE-003 / TC-READ-004 — sale.get and sale.list", () => {
       financialState: null,
       from: null,
       to: null,
+      query: "",
     });
     expect(listed.ok).toBe(true);
     if (!listed.ok) return;
@@ -453,6 +455,7 @@ describe("UC-SALE-003 / TC-READ-004 — sale.get and sale.list", () => {
       financialState: "active",
       from: null,
       to: null,
+      query: "",
     });
     expect(active.ok).toBe(true);
     if (!active.ok) return;
@@ -466,6 +469,7 @@ describe("UC-SALE-003 / TC-READ-004 — sale.get and sale.list", () => {
       financialState: "voided",
       from: null,
       to: null,
+      query: "",
     });
     expect(voided.ok).toBe(true);
     if (!voided.ok) return;

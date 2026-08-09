@@ -74,6 +74,7 @@ export function listSales(
         voided: input.financialState === null ? null : input.financialState === "voided",
         from: input.from,
         to: input.to,
+        query: input.query,
         page: toPageQuery(input),
       });
 
@@ -97,6 +98,7 @@ export function listSales(
         dueAt: row.dueAt,
         replacesSaleId: row.replacesSaleId,
         replacedBySaleId: row.replacedBySaleId,
+        displayReference: row.displayReference,
         // Computed from the summary's own facts through the same functions the
         // command guards use, so a greyed-out button in a list and a refusal
         // cannot disagree (ADR-0003).

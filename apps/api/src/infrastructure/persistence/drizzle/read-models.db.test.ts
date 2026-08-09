@@ -219,6 +219,7 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
         financialState: null,
         from: null,
         to: null,
+        query: "",
       });
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -237,6 +238,7 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
       financialState: null,
       from: null,
       to: null,
+      query: "",
     });
     expect(unpaged.ok).toBe(true);
     if (!unpaged.ok) return;
@@ -255,6 +257,7 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
       financialState: null,
       from: null,
       to: null,
+      query: "",
     });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
@@ -295,6 +298,7 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
       financialState: null,
       from: null,
       to: null,
+      query: "",
     });
     expect(second.ok).toBe(true);
     if (!second.ok) return;

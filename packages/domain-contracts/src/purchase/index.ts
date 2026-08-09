@@ -109,6 +109,15 @@ export const purchaseDtoSchema = z.object({
 });
 export type PurchaseDto = z.infer<typeof purchaseDtoSchema>;
 
+/** Directory projection. Command and detail DTOs intentionally stay separate. */
+export const purchaseSummaryDtoSchema = purchaseDtoSchema.extend({
+  displayReference: z.string(),
+  supplierDisplayName: z.string(),
+  primaryProductName: z.string().nullable(),
+  lineCount: z.int().nonnegative(),
+});
+export type PurchaseSummaryDto = z.infer<typeof purchaseSummaryDtoSchema>;
+
 export const purchaseGetInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   purchaseId: purchaseIdSchema,
@@ -117,6 +126,7 @@ export const purchaseListInputSchema = pageRequestSchema.extend({
   workspaceId: workspaceIdSchema,
   supplierId: supplierIdSchema.nullable().default(null),
   status: purchaseStatusSchema.nullable().default(null),
+  query: z.string().trim().max(200).default(""),
 });
 export type PurchaseListInput = z.infer<typeof purchaseListInputSchema>;
-export const purchaseListPageSchema = pageOf(purchaseDtoSchema);
+export const purchaseListPageSchema = pageOf(purchaseSummaryDtoSchema);

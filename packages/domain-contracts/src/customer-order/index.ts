@@ -114,6 +114,14 @@ export const customerOrderDtoSchema = z.object({
   capabilities: customerOrderCapabilitiesSchema,
 });
 export type CustomerOrderDto = z.infer<typeof customerOrderDtoSchema>;
+export const customerOrderSummaryDtoSchema = customerOrderDtoSchema.extend({
+  displayReference: z.string(),
+  customerDisplayName: z.string().nullable(),
+  primaryProductName: z.string().nullable(),
+  primaryQuantity: quantitySchema.nullable(),
+  lineCount: z.int().nonnegative(),
+});
+export type CustomerOrderSummaryDto = z.infer<typeof customerOrderSummaryDtoSchema>;
 
 export const customerOrderGetInputSchema = z.object({
   workspaceId: workspaceIdSchema,
@@ -124,6 +132,7 @@ export const customerOrderListInputSchema = pageRequestSchema.extend({
   workspaceId: workspaceIdSchema,
   customerId: customerIdSchema.nullable().default(null),
   status: customerOrderStatusSchema.nullable().default(null),
+  query: z.string().trim().max(200).default(""),
 });
 export type CustomerOrderListInput = z.infer<typeof customerOrderListInputSchema>;
-export const customerOrderListPageSchema = pageOf(customerOrderDtoSchema);
+export const customerOrderListPageSchema = pageOf(customerOrderSummaryDtoSchema);

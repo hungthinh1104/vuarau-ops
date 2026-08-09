@@ -97,6 +97,7 @@ describe.skipIf(skipWithoutDatabase())("Customer Order against PostgreSQL", () =
       workspaceId: ctx.workspaceId,
       customerId: ctx.customerId,
       status: "confirmed",
+      query: "",
       cursor: null,
       limit: 10,
     });

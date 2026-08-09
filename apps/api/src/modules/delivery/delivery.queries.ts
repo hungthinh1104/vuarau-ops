@@ -31,6 +31,7 @@ export const listDeliveries = (ctx: CommandContext, input: DeliveryListInput) =>
           workspaceId: input.workspaceId,
           saleId: input.saleId,
           status: input.status,
+          query: input.query,
           page: toPageQuery(input),
         }),
         (row) => row,

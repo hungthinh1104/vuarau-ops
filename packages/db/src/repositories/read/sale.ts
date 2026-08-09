@@ -2,6 +2,7 @@ import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { customers, saleLines, saleVoids, sales } from "../../schema/index.ts";
+import { recordDisplayReference } from "@vuarau/domain-contracts";
 import { fromIso, money, toIso, toIsoOrNull, toSaleState } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import { fetchLimit, paged } from "../shared/read-helpers.ts";
@@ -52,6 +53,7 @@ export const createSaleReadRepositories = (tx: Tx) => ({
       voided: boolean | null;
       from: string | null;
       to: string | null;
+      query: string;
       page: Page;
     }) {
       const { workspaceId, customerId, status, voided, from, to, page } = args;
@@ -62,6 +64,20 @@ export const createSaleReadRepositories = (tx: Tx) => ({
       if (status !== null) filters.push(eq(sales.status, status));
       if (from !== null) filters.push(gte(sales.transactionTime, fromIso(from as never)));
       if (to !== null) filters.push(lte(sales.transactionTime, fromIso(to as never)));
+      if (args.query.length > 0) {
+        const pattern = `%${args.query}%`;
+        const referencePattern = `%${args.query.replace(/^[A-Z]{2,4}-/i, "")}%`;
+        filters.push(sql`(
+          ${sales.id}::text ILIKE ${referencePattern}
+          OR vuarau_fold(${customers.displayName}) ILIKE vuarau_fold(${pattern})
+          OR EXISTS (
+            SELECT 1 FROM ${saleLines} search_lines
+            WHERE search_lines.workspace_id = ${sales.workspaceId}
+              AND search_lines.sale_id = ${sales.id}
+              AND vuarau_fold(search_lines.product_name) ILIKE vuarau_fold(${pattern})
+          )
+        )`);
+      }
       // The financial state is derived from the void table (BR-SALE-013), so
       // filtering on it is a filter on the join, not on a column.
       if (voided === true) filters.push(sql`${saleVoids.id} IS NOT NULL`);
@@ -133,6 +149,7 @@ export const createSaleReadRepositories = (tx: Tx) => ({
           dueAt: toIsoOrNull(row.dueAt),
           replacesSaleId: row.replacesSaleId,
           replacedBySaleId: row.replacedBySaleId,
+          displayReference: recordDisplayReference("sale", row.id),
         })),
         page,
         (row) => ({ sortValue: row.transactionTime, id: row.id }),

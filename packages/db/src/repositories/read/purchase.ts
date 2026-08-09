@@ -1,6 +1,7 @@
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { purchases, purchaseLines, purchaseVoids } from "../../schema/index.ts";
+import { recordDisplayReference } from "@vuarau/domain-contracts";
+import { purchases, purchaseLines, purchaseVoids, suppliers } from "../../schema/index.ts";
 import { money, toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import { fetchLimit, paged, readPurchaseDto } from "../shared/read-helpers.ts";
@@ -15,12 +16,32 @@ export const createPurchaseReadRepositories = (tx: Tx) => ({
       workspaceId: string;
       supplierId: string | null;
       status: string | null;
+      query: string;
       page: Page;
     }) {
       const filters: SQL[] = [eq(purchases.workspaceId, args.workspaceId)];
       if (args.supplierId !== null) filters.push(eq(purchases.supplierId, args.supplierId));
       if (args.status !== null)
         filters.push(eq(purchases.status, args.status as typeof purchases.$inferSelect.status));
+      if (args.query.length > 0) {
+        const pattern = `%${args.query}%`;
+        const referencePattern = `%${args.query.replace(/^[A-Z]{2,4}-/i, "")}%`;
+        filters.push(sql`(
+          ${purchases.id}::text ILIKE ${referencePattern}
+          OR EXISTS (
+            SELECT 1 FROM ${suppliers} search_suppliers
+            WHERE search_suppliers.workspace_id = ${purchases.workspaceId}
+              AND search_suppliers.id = ${purchases.supplierId}
+              AND vuarau_fold(search_suppliers.display_name) ILIKE vuarau_fold(${pattern})
+          )
+          OR EXISTS (
+            SELECT 1 FROM ${purchaseLines} search_lines
+            WHERE search_lines.workspace_id = ${purchases.workspaceId}
+              AND search_lines.purchase_id = ${purchases.id}
+              AND vuarau_fold(search_lines.product_name) ILIKE vuarau_fold(${pattern})
+          )
+        )`);
+      }
       if (args.page.after !== null) {
         const [transactionTime, recordedAt] = args.page.after.sortValue.split("|");
         filters.push(sql`(${purchases.transactionTime}, ${purchases.recordedAt}, ${purchases.id})
@@ -33,9 +54,9 @@ export const createPurchaseReadRepositories = (tx: Tx) => ({
         .orderBy(desc(purchases.transactionTime), desc(purchases.recordedAt), desc(purchases.id))
         .limit(fetchLimit(args.page));
       const purchaseIds = purchaseRows.map((row) => row.id);
-      const [lineRows, voidRows] =
+      const [lineRows, voidRows, supplierRows] =
         purchaseIds.length === 0
-          ? ([[], []] as const)
+          ? ([[], [], []] as const)
           : await Promise.all([
               tx
                 .select()
@@ -56,7 +77,20 @@ export const createPurchaseReadRepositories = (tx: Tx) => ({
                     inArray(purchaseVoids.purchaseId, purchaseIds),
                   ),
                 ),
+              tx
+                .select({ id: suppliers.id, displayName: suppliers.displayName })
+                .from(suppliers)
+                .where(
+                  and(
+                    eq(suppliers.workspaceId, args.workspaceId),
+                    inArray(
+                      suppliers.id,
+                      purchaseRows.map((row) => row.supplierId),
+                    ),
+                  ),
+                ),
             ]);
+      const supplierNames = new Map(supplierRows.map((row) => [row.id, row.displayName]));
       const mapped = purchaseRows.map((row) => {
         const voidRow = voidRows.find((candidate) => candidate.purchaseId === row.id);
         return {
@@ -98,6 +132,11 @@ export const createPurchaseReadRepositories = (tx: Tx) => ({
                   transactionTime: toIso(voidRow.transactionTime),
                   recordedAt: toIso(voidRow.recordedAt),
                 },
+          displayReference: recordDisplayReference("purchase", row.id),
+          supplierDisplayName: supplierNames.get(row.supplierId) ?? "Không rõ nhà cung cấp",
+          primaryProductName:
+            lineRows.find((line) => line.purchaseId === row.id)?.productName ?? null,
+          lineCount: lineRows.filter((line) => line.purchaseId === row.id).length,
         };
       });
       return paged(mapped, args.page, (row) => ({

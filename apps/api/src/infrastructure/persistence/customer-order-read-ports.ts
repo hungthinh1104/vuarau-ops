@@ -3,6 +3,7 @@ import type {
   CustomerOrderChannel,
   CustomerOrderId,
   CustomerOrderStatus,
+  CustomerOrderSummaryDto,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
 import type { CustomerOrderState } from "@vuarau/domain-kernel";
@@ -17,7 +18,8 @@ export type CustomerOrderReadRepository = {
     workspaceId: WorkspaceId;
     customerId: CustomerId | null;
     status: CustomerOrderStatus | null;
+    query: string;
     channel?: CustomerOrderChannel | null;
     page: PageQuery;
-  }): Promise<PageResult<CustomerOrderState>>;
+  }): Promise<PageResult<CustomerOrderSummaryDto>>;
 };

@@ -402,6 +402,7 @@ export const saleSummaryDtoSchema = z.object({
   replacesSaleId: saleIdSchema.nullable(),
   replacedBySaleId: saleIdSchema.nullable(),
   capabilities: saleCapabilitiesSchema,
+  displayReference: z.string(),
 });
 export type SaleSummaryDto = z.infer<typeof saleSummaryDtoSchema>;
 
@@ -424,5 +425,6 @@ export const listSalesInputSchema = pageRequestSchema.extend({
    *  sales that happened today (docs/07-data/time-semantics.md). */
   from: isoInstantSchema.nullable().default(null),
   to: isoInstantSchema.nullable().default(null),
+  query: z.string().trim().max(200).default(""),
 });
 export type ListSalesInput = z.infer<typeof listSalesInputSchema>;

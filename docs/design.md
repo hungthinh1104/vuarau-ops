@@ -152,6 +152,13 @@ ActionDock is the only shared decision surface for a consequential transaction. 
 
 Directories keep search visible. A single filter axis uses chips; several filters use a sheet on small screens and an inline toolbar on desktop. Desktop tables and MobileRecordCard rows expose the same record order and semantic actions; they must not create duplicate hidden locators.
 
+Directory search is a read-side contract, not a filter over rows already loaded in
+the browser. Sale, Purchase, Delivery and Customer Order lists accept a bounded
+server query (up to 200 characters), match display reference, party and product
+without requiring Vietnamese diacritics, and reset the cursor when the query or
+filter changes. Small fully-loaded collections may still filter locally; a partial
+directory must never present local filtering as global search.
+
 ### Page grammar
 
 Every authenticated screen chooses one grammar before composing its JSX. The
@@ -171,6 +178,11 @@ where actions live; a screen must not invent a sixth layout for a local case.
 If a screen needs a different order, document the reason in the screen
 composition and keep the exception at the pattern layer. Do not duplicate a
 foundation control to solve a page-specific spacing or loading state.
+
+Policy settings are read-only until a supported typed editor has an explicit
+business acceptance contract. The browser does not enter policy versions or
+generic definitions; the server allocates the next version atomically and the UI
+shows lifecycle meaning and history instead of technical policy JSON.
 
 ## States, motion and accessibility
 

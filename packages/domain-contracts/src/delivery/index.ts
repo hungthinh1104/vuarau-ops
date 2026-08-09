@@ -124,6 +124,14 @@ export const deliveryDtoSchema = z.object({
   returns: z.array(deliveryReturnDtoSchema),
 });
 export type DeliveryDto = z.infer<typeof deliveryDtoSchema>;
+export const deliverySummaryDtoSchema = deliveryDtoSchema.extend({
+  displayReference: z.string(),
+  saleDisplayReference: z.string(),
+  customerDisplayName: z.string().nullable(),
+  primaryProductName: z.string().nullable(),
+  lineCount: z.int().nonnegative(),
+});
+export type DeliverySummaryDto = z.infer<typeof deliverySummaryDtoSchema>;
 export const deliveryGetInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   deliveryId: deliveryIdSchema,
@@ -133,6 +141,7 @@ export const deliveryListInputSchema = pageRequestSchema.extend({
   workspaceId: workspaceIdSchema,
   saleId: saleIdSchema.nullable().default(null),
   status: deliveryStatusSchema.nullable().default(null),
+  query: z.string().trim().max(200).default(""),
 });
 export type DeliveryListInput = z.infer<typeof deliveryListInputSchema>;
 export const saleFulfilmentInputSchema = z.object({

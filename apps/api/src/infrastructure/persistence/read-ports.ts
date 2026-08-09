@@ -30,6 +30,7 @@ import type {
   SupplierId,
   SupplierPaymentDto,
   PurchaseDto,
+  PurchaseSummaryDto,
   PurchaseId,
   PurchaseStatus,
   PurchaseReceiptDto,
@@ -44,6 +45,7 @@ import type {
   QualityGradeId,
   Unit,
   DeliveryDto,
+  DeliverySummaryDto,
   DeliveryId,
   DeliveryStatus,
   DocumentDto,
@@ -88,8 +90,7 @@ import type {
   DemandObservationId,
   DemandObservationKind,
 } from "@vuarau/domain-contracts";
-import type { PriceRuleState, SaleState } from "@vuarau/domain-kernel";
-import type { DebtAgingSources, InventoryValuationMovement } from "@vuarau/domain-kernel";
+import type * as DomainKernel from "@vuarau/domain-kernel";
 import type { CustomerOrderReadRepository } from "./customer-order-read-ports.ts";
 import type { SupplyCommitmentReadRepository } from "./supply-commitment-read-ports.ts";
 import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
@@ -119,13 +120,11 @@ export type PageQuery = {
   /** Already clamped to the maximum by the schema. */
   readonly limit: number;
 };
-
 /** One page plus the position to resume from; `next` is null at the end. */
 export type PageResult<TRow> = {
   readonly rows: readonly TRow[];
   readonly next: CursorPosition | null;
 };
-
 export type CustomerSummaryRow = {
   readonly id: CustomerId;
   readonly workspaceId: WorkspaceId;
@@ -201,6 +200,7 @@ export type SaleSummaryRow = {
   readonly dueAt: IsoInstant | null;
   readonly replacesSaleId: SaleId | null;
   readonly replacedBySaleId: SaleId | null;
+  readonly displayReference: string;
 };
 
 export type PaymentSummaryRow = {
@@ -328,8 +328,8 @@ export type ProductReadRepository = {
 export type PriceRuleReadRepository = {
   list(
     input: PriceRuleListInput & { readonly after: CursorPosition | null },
-  ): Promise<PageResult<PriceRuleState>>;
-  forResolution(input: ResolvePriceInput): Promise<readonly PriceRuleState[]>;
+  ): Promise<PageResult<DomainKernel.PriceRuleState>>;
+  forResolution(input: ResolvePriceInput): Promise<readonly DomainKernel.PriceRuleState[]>;
 };
 
 export type QualityGradeReadRepository = {
@@ -348,7 +348,7 @@ export type SaleReadRepository = {
    * write path's `findByIdForUpdate` locks; a read that locked would let a screen
    * refresh block a posting.
    */
-  get(workspaceId: WorkspaceId, saleId: SaleId): Promise<SaleState | null>;
+  get(workspaceId: WorkspaceId, saleId: SaleId): Promise<DomainKernel.SaleState | null>;
   /** Which sale, if any, replaces this one — the forward half of BR-SALE-016. */
   replacedBy(workspaceId: WorkspaceId, saleId: SaleId): Promise<SaleId | null>;
   /** Newest business time first: a depot reads today before last week. */
@@ -359,6 +359,7 @@ export type SaleReadRepository = {
     voided: boolean | null;
     from: IsoInstant | null;
     to: IsoInstant | null;
+    query: string;
     page: PageQuery;
   }): Promise<PageResult<SaleSummaryRow>>;
   captureContext(args: {
@@ -420,8 +421,9 @@ export type PurchaseReadRepository = {
     workspaceId: WorkspaceId;
     supplierId: SupplierId | null;
     status: PurchaseStatus | null;
+    query: string;
     page: PageQuery;
-  }): Promise<PageResult<PurchaseDto>>;
+  }): Promise<PageResult<PurchaseSummaryDto>>;
 };
 export type InventoryReadRepository = {
   receipt(workspaceId: WorkspaceId, receiptId: string): Promise<PurchaseReceiptDto | null>;
@@ -437,7 +439,7 @@ export type InventoryReadRepository = {
     qualityGradeId: QualityGradeId | null;
     unit: Unit | null;
     asOf: IsoInstant;
-  }): Promise<readonly InventoryValuationMovement[]>;
+  }): Promise<readonly DomainKernel.InventoryValuationMovement[]>;
   timeline(args: {
     workspaceId: WorkspaceId;
     productId: ProductId;
@@ -463,8 +465,9 @@ export type DeliveryReadRepository = {
     workspaceId: WorkspaceId;
     saleId: SaleId | null;
     status: DeliveryStatus | null;
+    query: string;
     page: PageQuery;
-  }): Promise<PageResult<DeliveryDto>>;
+  }): Promise<PageResult<DeliverySummaryDto>>;
 };
 
 export type DocumentReadRepository = {
@@ -513,7 +516,7 @@ export type AccountReadRepository = {
     workspaceId: WorkspaceId;
     customerId: CustomerId;
     asOf: IsoInstant;
-  }): Promise<DebtAgingSources>;
+  }): Promise<DomainKernel.DebtAgingSources>;
 };
 export type AuditReadRepository = {
   timeline(args: {

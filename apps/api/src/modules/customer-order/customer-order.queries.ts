@@ -31,9 +31,10 @@ export function listCustomerOrders(ctx: CommandContext, input: CustomerOrderList
           workspaceId: input.workspaceId,
           customerId: input.customerId,
           status: input.status,
+          query: input.query,
           page: toPageQuery(input),
         }),
-        toCustomerOrderDto,
+        (row) => row,
       ),
   });
 }

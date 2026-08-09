@@ -1,5 +1,10 @@
 import type { Repositories } from "../../ports.ts";
-import type { SaleId, Money, ProductId } from "@vuarau/domain-contracts";
+import {
+  recordDisplayReference,
+  type SaleId,
+  type Money,
+  type ProductId,
+} from "@vuarau/domain-contracts";
 import { key, descendingBy, before, takePage, fold } from "../store.ts";
 import type { Store } from "../store.ts";
 
@@ -12,7 +17,9 @@ export const createSaleReads = (store: Store): Pick<Repositories, "saleReads"> =
         (sale) => sale.workspaceId === workspaceId && sale.replacesSaleId === saleId,
       )?.id ?? null,
 
-    list: async ({ workspaceId, customerId, status, voided, from, to, page }) => {
+    list: async ({ workspaceId, customerId, status, voided, from, to, query, page }) => {
+      const needle = fold(query);
+      const referenceNeedle = needle.replace(/^[a-z]{2,4}-/, "");
       const matched = [...store.sales.values()]
         .filter((sale) => sale.workspaceId === workspaceId)
         .filter((sale) => customerId === null || sale.customerId === customerId)
@@ -20,6 +27,15 @@ export const createSaleReads = (store: Store): Pick<Repositories, "saleReads"> =
         .filter((sale) => voided === null || (sale.voidRecord !== null) === voided)
         .filter((sale) => from === null || sale.transactionTime >= from)
         .filter((sale) => to === null || sale.transactionTime <= to)
+        .filter(
+          (sale) =>
+            needle.length === 0 ||
+            fold(sale.id).includes(referenceNeedle) ||
+            fold(
+              store.customers.get(key(workspaceId, sale.customerId))?.displayName ?? "",
+            ).includes(needle) ||
+            sale.lines.some((line) => fold(line.productName).includes(needle)),
+        )
         .sort(
           descendingBy(
             (sale) => sale.transactionTime,
@@ -52,6 +68,7 @@ export const createSaleReads = (store: Store): Pick<Repositories, "saleReads"> =
             [...store.sales.values()].find(
               (other) => other.workspaceId === workspaceId && other.replacesSaleId === sale.id,
             )?.id ?? null,
+          displayReference: recordDisplayReference("sale", sale.id),
         }));
 
       return takePage(matched, page, (row) => ({
