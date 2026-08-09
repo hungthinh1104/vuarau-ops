@@ -20,6 +20,9 @@ export function ProductDetailController() {
   const productId = useParams<{ productId: string }>().productId as ProductId;
   const trpc = useTRPC();
   const product = useQuery(trpc.product.get.queryOptions({ workspaceId, productId }));
+  const coverage = useQuery(
+    trpc.inventory.coverage.queryOptions({ workspaceId, productIds: [productId] }),
+  );
   const [name, setName] = useState("");
   const [aliases, setAliases] = useState("");
   const [unit, setUnit] = useState<Unit | "">("");
@@ -53,6 +56,8 @@ export function ProductDetailController() {
   return (
     <ProductDetailView
       query={product}
+      coverageQuery={coverage}
+      coverage={coverage.data?.[0]}
       mayUpdate={session.permissions.includes("product.update")}
       mayDeactivate={session.permissions.includes("product.deactivate")}
       name={name}
@@ -89,6 +94,7 @@ export function ProductDetailController() {
         );
       }}
       onRetry={refresh}
+      onRetryCoverage={() => void coverage.refetch()}
     />
   );
 }

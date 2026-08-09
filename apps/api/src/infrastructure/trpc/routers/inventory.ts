@@ -5,6 +5,7 @@ import {
   receiptGetInputSchema,
   purchaseReceiptsInputSchema,
   inventoryBalanceInputSchema,
+  productCoverageInputSchema,
   inventoryTimelineInputSchema,
   inventoryValuationInputSchema,
   inventoryAdjustmentGetInputSchema,
@@ -33,6 +34,7 @@ import {
 } from "../../../modules/inventory/stocktake.handlers.ts";
 import {
   getInventoryBalances,
+  getProductCoverage,
   getInventoryTimeline,
   getInventoryValuation,
   getInventoryAdjustment,
@@ -73,6 +75,9 @@ export const inventoryRouter = router({
   balances: authenticatedProcedure
     .input(inventoryBalanceInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getInventoryBalances(ctx, input))),
+  coverage: authenticatedProcedure
+    .input(productCoverageInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getProductCoverage(ctx, input))),
   getAdjustment: authenticatedProcedure
     .input(inventoryAdjustmentGetInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getInventoryAdjustment(ctx, input))),

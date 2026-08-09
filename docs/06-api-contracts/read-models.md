@@ -24,7 +24,7 @@ current procedure catalog without duplicating every DTO field.
 | `supplier`         | `search`, `get`, `priceHistory`, `performance`, `getPayment`, `getAdjustment`, `balance`, `timeline`, `reconciliation`, `evidence`                                                                                                                                                                                                         |
 | `purchase`         | `get`, `list`                                                                                                                                                                                                                                                                                                                              |
 | `receiving`        | `get`, `listForPurchase`, `summaryForPurchase`                                                                                                                                                                                                                                                                                             |
-| `inventory`        | `balances`, `getAdjustment`, `timeline`, `valuation`, `planning`, `stocktakeGet`, `reconciliation`, `evidence`                                                                                                                                                                                                                             |
+| `inventory`        | `balances`, `coverage`, `getAdjustment`, `timeline`, `valuation`, `planning`, `stocktakeGet`, `reconciliation`, `evidence`                                                                                                                                                                                                                 |
 | `delivery`         | `get`, `list`, `fulfilment`                                                                                                                                                                                                                                                                                                                |
 | `document`         | `get`, `listForSource`                                                                                                                                                                                                                                                                                                                     |
 | `report`           | `definitions`, `metrics`, `intelligence`, `operational`, `csv`                                                                                                                                                                                                                                                                             |
@@ -80,6 +80,17 @@ rather than being assigned an invented grade.
 `inventory.timeline` can scope by Product, grade and unit and preserves movement
 source attribution. Reclassification remains two canonical movements, not a
 rewritten balance.
+
+`inventory.coverage` is a bounded Product batch read used by the operational
+goods directory and Product detail. For every requested Product and unit it
+returns physical on-hand quantity, remaining quantity on confirmed non-voided
+Purchases, remaining fulfilment on posted non-voided Sales, and
+`onHand + inboundRemaining - outboundRemaining`. Active Receipt and accepted
+inspection-disposition facts reduce Purchase remaining; Dispatch and Return facts
+reduce or restore Sale remaining. Units are never converted or combined. Customer
+Orders and supply commitments are intentionally excluded until explicit conversion
+lineage can prevent double counting. This projection does not replace canonical
+inventory balances, Purchase receiving progress or Sale fulfilment reads.
 
 `inventory.valuation` is a read-only, workspace-policy-backed result at an
 explicit `asOf` time. It derives inventory value from canonical movement facts

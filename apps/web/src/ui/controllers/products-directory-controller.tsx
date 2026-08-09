@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
 import { useMemo, useState, useEffect } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
@@ -54,6 +54,28 @@ export function ProductsDirectoryController() {
         return true;
       });
   }, [search.data?.pages]);
+  const coverageQueries = useQueries({
+    queries: (search.data?.pages ?? []).map((page) =>
+      trpc.inventory.coverage.queryOptions({
+        workspaceId,
+        productIds: page.items.map((product) => product.id),
+      }),
+    ),
+  });
+  const coverage = coverageQueries.flatMap((result) => result.data ?? []);
+  const coverageError = coverageQueries.find((result) => result.isError)?.error;
+  const blockingCoverageError = coverageQueries.find(
+    (result) => result.isError && result.data === undefined,
+  )?.error;
+  const coverageQuery = {
+    isPending: coverageQueries.some((result) => result.isPending),
+    isError: coverageQueries.some((result) => result.isError),
+    error: coverageError,
+    data: blockingCoverageError === undefined ? coverage : undefined,
+    isFetching: coverageQueries.some((result) => result.isFetching),
+    isRefetchError: coverageQueries.some((result) => result.isRefetchError),
+    dataUpdatedAt: oldestCoverageUpdate(coverageQueries.map((result) => result.dataUpdatedAt)),
+  };
   return (
     <ProductsDirectoryView
       queryText={query}
@@ -68,13 +90,22 @@ export function ProductsDirectoryController() {
         setActiveFilter(value);
       }}
       search={{ ...search, data: search.data?.pages[0] }}
+      coverageQuery={coverageQuery}
       products={products}
+      coverage={coverage}
       nextCursor={search.hasNextPage ? (search.data?.pages.at(-1)?.nextCursor ?? null) : null}
       isFetching={search.isFetching}
       onRetry={() => void search.refetch()}
+      onRetryCoverage={() => {
+        void Promise.all(coverageQueries.map((result) => result.refetch()));
+      }}
       onLoadMore={() => void search.fetchNextPage()}
-      canReadQuality={session.permissions.includes("quality.read")}
       canCreate={session.permissions.includes("product.create")}
     />
   );
+}
+
+function oldestCoverageUpdate(timestamps: readonly number[]): number {
+  const completed = timestamps.filter((timestamp) => timestamp > 0);
+  return completed.length === 0 ? 0 : Math.min(...completed);
 }

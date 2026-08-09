@@ -13,10 +13,12 @@ import {
 } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
 import type { InventoryValuationMovement } from "@vuarau/domain-kernel";
+import type { ProductId, WorkspaceId } from "@vuarau/domain-contracts";
 import { toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import { fetchLimit, paged, readReceiptDto } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
+import { readProductCoverage } from "./product-coverage.ts";
 
 export const createInventoryReadRepositories = (tx: Tx) => ({
   inventoryReads: {
@@ -170,6 +172,8 @@ export const createInventoryReadRepositories = (tx: Tx) => ({
         updatedAt: toIso(row.updatedAt),
       }));
     },
+    coverage: (workspaceId: WorkspaceId, productIds: readonly ProductId[]) =>
+      readProductCoverage(tx, workspaceId, productIds),
     async valuationSources(args: {
       workspaceId: string;
       productId: string;

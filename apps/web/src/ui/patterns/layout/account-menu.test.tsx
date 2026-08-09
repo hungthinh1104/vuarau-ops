@@ -20,7 +20,7 @@ describe("AccountMenu", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("sales@example.com")).toBeInTheDocument();
+    expect(screen.getAllByText("sales@example.com")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Đổi vựa" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Đăng xuất" })).toBeInTheDocument();
   });

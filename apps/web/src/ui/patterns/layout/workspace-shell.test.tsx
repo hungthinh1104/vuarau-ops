@@ -69,10 +69,25 @@ describe("Goods Truth workspace navigation", () => {
     const accountButton = screen.getByRole("button", { name: "Mở tài khoản" });
     expect(accountButton).toBeVisible();
     fireEvent.click(accountButton);
-    expect(screen.getByText("sales@example.com")).toBeVisible();
+    expect(screen.getAllByText("sales@example.com")).toHaveLength(2);
     expect(screen.getByText("Bán hàng")).toBeVisible();
     expect(screen.getByRole("button", { name: "Đổi vựa" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Đăng xuất" })).toBeVisible();
+  });
+
+  it("gives the wide shell enough room for the sidebar and identifies the current destination", () => {
+    render(
+      <WorkspaceShell
+        workspaceName={WORKSPACE_NAME}
+        session={salesSession}
+        userLabel="sales@example.com"
+      >
+        <p>Nội dung</p>
+      </WorkspaceShell>,
+    );
+    expect(screen.getByRole("banner").firstElementChild).toHaveClass("max-w-[1680px]");
+    expect(screen.getByText("Đang xem").parentElement).toHaveTextContent("Đang xemHôm nay");
+    expect(screen.getByText("sales@example.com")).toBeInTheDocument();
   });
 
   it("marks the current desktop destination and exposes the stable mobile capability map", () => {

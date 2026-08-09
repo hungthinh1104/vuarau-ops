@@ -928,7 +928,7 @@ use_cases:
       - packages/db/src/repositories/read/inventory.ts
 
   UC-INVENTORY-001:
-    title: Inspect inventory balance and movement history
+    title: Inspect inventory balance, committed orders and movement history
     risk: P0
     doc: docs/02-use-cases/goods-flow-use-cases.md
     rules: [BR-INVENTORY-005, BR-INVENTORY-006, BR-INVENTORY-008, BR-INVENTORY-009]
@@ -936,7 +936,12 @@ use_cases:
     tests: [TC-GOODS-001, TC-GOODS-005, TC-E2E-029, TC-E2E-032]
     implementation:
       - apps/api/src/modules/inventory/inventory.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/inventory.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/inventory.ts
       - packages/db/src/repositories/read/inventory.ts
+      - packages/db/src/repositories/read/product-coverage.ts
+      - apps/web/src/ui/controllers/products-directory-controller.tsx
+      - apps/web/src/ui/screens/products-directory-view.tsx
       - apps/web/src/app/(app)/products/[productId]/inventory/page.tsx
 
   UC-INVENTORY-002:

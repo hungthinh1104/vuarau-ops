@@ -223,14 +223,19 @@ has actually been accepted and what remains.
 - **Integrity:** over-received/invalid source history is not silently clamped.
 - **Rules/tests:** BR-INVENTORY-002/004/005 · TC-GOODS-001/004 · TC-E2E-029/032.
 
-## UC-INVENTORY-001 — Inspect inventory balance and movement history
+## UC-INVENTORY-001 — Inspect inventory balance, committed orders and movement history
 
-**Actor:** authorized inventory readers. **Trigger:** answer “how much is here and why?”.
+**Actor:** authorized inventory readers. **Trigger:** answer “how much is here, what is
+still coming, what must be delivered and why?”.
 
 - **Read:** independent balance per workspace + Product + QualityGrade + unit and an
   attributable movement timeline ordered by transactionTime/recordedAt/id.
 - **State:** positive/zero/negative are retained classifications; incompatible units or
   grades are never merged in canonical rows.
+- **Coverage:** per Product/unit, `on hand + confirmed Purchase remaining − posted Sale
+remaining fulfilment` answers the committed-order shortage without changing any source.
+  Customer Orders and supply commitments are excluded until conversion lineage prevents
+  double counting.
 - **Recovery:** source navigation and reconciliation explain anomalies; a failed read is
   not interpreted as healthy or zero.
 - **Rules/tests:** BR-INVENTORY-005/006/008/009 · TC-GOODS-001/005 · TC-E2E-029/032.

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { Page, ProductDto } from "@vuarau/domain-contracts";
+import type { Page, ProductCoverageDto, ProductDto } from "@vuarau/domain-contracts";
 import { PRODUCT_CA_CHUA_ID, PRODUCT_RAU_MUONG_ID, WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
 import { RECORDED_AT } from "@vuarau/test-fixtures/time";
 import { ProductsDirectoryView } from "./products-directory-view.tsx";
@@ -31,6 +31,37 @@ const products: readonly ProductDto[] = [
 
 const page: Page<ProductDto> = { items: products, nextCursor: null };
 const ready = { isPending: false, isError: false, error: null, data: page } as const;
+const coverage: readonly ProductCoverageDto[] = [
+  {
+    workspaceId: WORKSPACE_ID,
+    productId: PRODUCT_CA_CHUA_ID,
+    quantities: [
+      {
+        unit: "kg",
+        onHand: { valueScaled: 20_000, unit: "kg" },
+        inboundRemaining: { valueScaled: 10_000, unit: "kg" },
+        outboundRemaining: { valueScaled: 45_000, unit: "kg" },
+        availableAfterCommitments: { valueScaled: -15_000, unit: "kg" },
+        classification: "shortage",
+      },
+    ],
+  },
+  {
+    workspaceId: WORKSPACE_ID,
+    productId: PRODUCT_RAU_MUONG_ID,
+    quantities: [
+      {
+        unit: "bo",
+        onHand: { valueScaled: 80_000, unit: "bo" },
+        inboundRemaining: { valueScaled: 0, unit: "bo" },
+        outboundRemaining: { valueScaled: 25_000, unit: "bo" },
+        availableAfterCommitments: { valueScaled: 55_000, unit: "bo" },
+        classification: "covered",
+      },
+    ],
+  },
+];
+const readyCoverage = { isPending: false, isError: false, error: null, data: coverage } as const;
 
 const meta = {
   title: "Screens/Products/Directory",
@@ -39,15 +70,17 @@ const meta = {
     queryText: "",
     activeFilter: null,
     search: ready,
+    coverageQuery: readyCoverage,
     products,
+    coverage,
     nextCursor: null,
     isFetching: false,
-    canReadQuality: true,
     canCreate: true,
     onQueryChange: () => undefined,
     onClearQuery: () => undefined,
     onFilterChange: () => undefined,
     onRetry: () => undefined,
+    onRetryCoverage: () => undefined,
     onLoadMore: () => undefined,
   },
 } satisfies Meta<typeof ProductsDirectoryView>;
@@ -56,7 +89,7 @@ type Story = StoryObj<typeof meta>;
 
 export const DesktopDirectory: Story = { globals: { viewport: { value: "desktop" } } };
 export const MobileDirectory: Story = { globals: { viewport: { value: "mobile" } } };
-export const ReadOnly: Story = { args: { canReadQuality: false, canCreate: false } };
+export const ReadOnly: Story = { args: { canCreate: false } };
 export const EmptySearch: Story = {
   args: {
     queryText: "rau thơm",

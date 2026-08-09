@@ -37,46 +37,65 @@ import {
   type InventoryReclassificationIntent,
 } from "@/ui/patterns/inventory/inventory-reclassification-panel.tsx";
 import { InventoryStocktakePanel } from "@/ui/patterns/inventory/inventory-stocktake-panel.tsx";
-import { ProductInventoryView } from "@/ui/screens/product-inventory-view.tsx";
+import {
+  ProductInventoryView,
+  type ProductInventorySection,
+} from "@/ui/screens/product-inventory-view.tsx";
 
 export function ProductInventoryController() {
   const productId = useParams<{ productId: string }>().productId as ProductId;
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const [activeSection, setActiveSection] = useState<ProductInventorySection>("overview");
   const product = useQuery(trpc.product.get.queryOptions({ workspaceId, productId }));
   const balances = useQuery(trpc.inventory.balances.queryOptions({ workspaceId, productId }));
+  const coverage = useQuery(
+    trpc.inventory.coverage.queryOptions({ workspaceId, productIds: [productId] }),
+  );
   const valuationAsOf = useRef(new Date().toISOString() as IsoInstant).current;
   const valuation = useQuery(
-    trpc.inventory.valuation.queryOptions({
-      workspaceId,
-      productId,
-      qualityGradeId: null,
-      unit: null,
-      asOf: valuationAsOf,
-    }),
+    trpc.inventory.valuation.queryOptions(
+      {
+        workspaceId,
+        productId,
+        qualityGradeId: null,
+        unit: null,
+        asOf: valuationAsOf,
+      },
+      { enabled: activeSection === "planning" },
+    ),
   );
   const planning = useQuery(
-    trpc.inventory.planning.queryOptions({
-      workspaceId,
-      asOf: valuationAsOf,
-    }),
+    trpc.inventory.planning.queryOptions(
+      {
+        workspaceId,
+        asOf: valuationAsOf,
+      },
+      { enabled: activeSection === "planning" },
+    ),
   );
   const grades = useQuery(
-    trpc.quality.list.queryOptions({ workspaceId, isActive: true, cursor: null, limit: 100 }),
+    trpc.quality.list.queryOptions(
+      { workspaceId, isActive: true, cursor: null, limit: 100 },
+      { enabled: activeSection === "movements" || activeSection === "adjustments" },
+    ),
   );
   const [unitFilter, setUnitFilter] = useState<Unit | null>(null);
   const [gradeFilter, setGradeFilter] = useState<QualityGradeId | null | undefined>(undefined);
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const [pages, setPages] = useState<readonly Page<InventoryMovementDto>[]>([]);
   const timeline = useQuery(
-    trpc.inventory.timeline.queryOptions({
-      workspaceId,
-      productId,
-      qualityGradeId: gradeFilter,
-      unit: unitFilter,
-      cursor,
-      limit: 25,
-    }),
+    trpc.inventory.timeline.queryOptions(
+      {
+        workspaceId,
+        productId,
+        qualityGradeId: gradeFilter,
+        unit: unitFilter,
+        cursor,
+        limit: 25,
+      },
+      { enabled: activeSection === "movements" },
+    ),
   );
 
   useEffect(() => {
@@ -87,8 +106,10 @@ export function ProductInventoryController() {
   const refreshInventory = useCallback(() => {
     setCursor(null);
     setPages([]);
-    void Promise.all([balances.refetch(), timeline.refetch()]);
-  }, [balances.refetch, timeline.refetch]);
+    const refreshes: Promise<unknown>[] = [balances.refetch(), coverage.refetch()];
+    if (activeSection === "movements") refreshes.push(timeline.refetch());
+    void Promise.all(refreshes);
+  }, [activeSection, balances.refetch, coverage.refetch, timeline.refetch]);
   const activeGrades = grades.data?.items ?? [];
   const rows = pages.flatMap((page) => page.items);
   const next = pages.at(-1)?.nextCursor ?? null;
@@ -96,8 +117,12 @@ export function ProductInventoryController() {
   return (
     <ProductInventoryView
       productId={productId}
+      activeSection={activeSection}
+      onSectionChange={setActiveSection}
       productQuery={product}
       balancesQuery={balances}
+      coverageQuery={coverage}
+      coverage={coverage.data?.[0]}
       valuationQuery={valuation}
       planningQuery={planning}
       timelineQuery={timeline}
@@ -122,6 +147,7 @@ export function ProductInventoryController() {
       }}
       onRetryProduct={() => void product.refetch()}
       onRetryBalances={() => void balances.refetch()}
+      onRetryCoverage={() => void coverage.refetch()}
       onRetryTimeline={() => void timeline.refetch()}
       adjustment={
         session.permissions.includes("inventory.adjust") ? (

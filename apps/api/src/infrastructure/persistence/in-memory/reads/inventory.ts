@@ -1,4 +1,10 @@
 import type { Repositories } from "../../ports.ts";
+import {
+  UNITS,
+  type ProductCoverageDto,
+  type ProductId,
+  type Unit,
+} from "@vuarau/domain-contracts";
 import type { InventoryValuationMovement } from "@vuarau/domain-kernel";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
@@ -76,6 +82,151 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
                 ? ("negative" as const)
                 : ("zero" as const),
         })),
+    coverage: async (workspaceId, productIds) => {
+      type Totals = {
+        onHand: number;
+        inboundRemaining: number;
+        outboundRemaining: number;
+      };
+      const requested = new Set<string>(productIds);
+      const byProduct = new Map<string, Map<Unit, Totals>>();
+      const ensure = (productId: ProductId, unit: Unit): Totals => {
+        let byUnit = byProduct.get(productId);
+        if (byUnit === undefined) {
+          byUnit = new Map();
+          byProduct.set(productId, byUnit);
+        }
+        let totals = byUnit.get(unit);
+        if (totals === undefined) {
+          totals = { onHand: 0, inboundRemaining: 0, outboundRemaining: 0 };
+          byUnit.set(unit, totals);
+        }
+        return totals;
+      };
+
+      for (const productId of productIds) {
+        const product = store.products.get(key(workspaceId, productId));
+        if (product?.preferredUnit !== null && product?.preferredUnit !== undefined) {
+          ensure(productId, product.preferredUnit);
+        }
+      }
+
+      for (const balance of store.inventoryBalances.values()) {
+        if (balance.workspaceId !== workspaceId || !requested.has(balance.productId)) continue;
+        ensure(balance.productId, balance.unit).onHand += balance.quantityScaled;
+      }
+
+      const acceptedByPurchaseLine = new Map<string, number>();
+      for (const disposition of store.qualityDispositions.values()) {
+        if (disposition.workspaceId !== workspaceId || disposition.reversal !== null) continue;
+        const root = intakeSourceRoot(store, workspaceId, disposition.source);
+        if (root?.line.purchaseLineId === null || root?.line.purchaseLineId === undefined) continue;
+        for (const allocation of disposition.allocations) {
+          if (allocation.outcome !== "accepted") continue;
+          acceptedByPurchaseLine.set(
+            root.line.purchaseLineId,
+            (acceptedByPurchaseLine.get(root.line.purchaseLineId) ?? 0) +
+              allocation.quantity.valueScaled,
+          );
+        }
+      }
+      const receivedByPurchaseLine = new Map<string, number>();
+      for (const receipt of store.purchaseReceipts.values()) {
+        if (receipt.workspaceId !== workspaceId || receipt.reversal !== null) continue;
+        for (const line of receipt.lines) {
+          receivedByPurchaseLine.set(
+            line.purchaseLineId,
+            (receivedByPurchaseLine.get(line.purchaseLineId) ?? 0) + line.quantity.valueScaled,
+          );
+        }
+      }
+      for (const purchase of store.purchases.values()) {
+        if (
+          purchase.workspaceId !== workspaceId ||
+          purchase.status !== "confirmed" ||
+          purchase.voidRecord !== null
+        )
+          continue;
+        for (const line of purchase.lines) {
+          if (!requested.has(line.productId)) continue;
+          const received =
+            (receivedByPurchaseLine.get(line.lineId) ?? 0) +
+            (acceptedByPurchaseLine.get(line.lineId) ?? 0);
+          ensure(line.productId, line.quantity.unit).inboundRemaining += Math.max(
+            0,
+            line.quantity.valueScaled - received,
+          );
+        }
+      }
+
+      const fulfilmentBySaleLine = new Map<string, number>();
+      const deliveryLineToSaleLine = new Map<string, string>();
+      for (const delivery of store.deliveries.values()) {
+        if (
+          delivery.workspaceId !== workspaceId ||
+          !["dispatched", "delivered"].includes(delivery.status)
+        )
+          continue;
+        for (const line of delivery.lines) {
+          deliveryLineToSaleLine.set(line.deliveryLineId, line.saleLineId);
+          fulfilmentBySaleLine.set(
+            line.saleLineId,
+            (fulfilmentBySaleLine.get(line.saleLineId) ?? 0) + line.quantity.valueScaled,
+          );
+        }
+      }
+      for (const returned of store.deliveryReturns) {
+        if (returned.workspaceId !== workspaceId) continue;
+        for (const line of returned.lines) {
+          const saleLineId = deliveryLineToSaleLine.get(line.deliveryLineId);
+          if (saleLineId === undefined) continue;
+          fulfilmentBySaleLine.set(
+            saleLineId,
+            (fulfilmentBySaleLine.get(saleLineId) ?? 0) - line.quantity.valueScaled,
+          );
+        }
+      }
+      for (const sale of store.sales.values()) {
+        if (
+          sale.workspaceId !== workspaceId ||
+          sale.status !== "posted" ||
+          sale.voidRecord !== null
+        )
+          continue;
+        for (const line of sale.lines) {
+          if (line.productId === null || !requested.has(line.productId)) continue;
+          ensure(line.productId, line.quantity.unit).outboundRemaining += Math.max(
+            0,
+            line.quantity.valueScaled - (fulfilmentBySaleLine.get(line.lineId) ?? 0),
+          );
+        }
+      }
+
+      return productIds.map((productId): ProductCoverageDto => ({
+        workspaceId,
+        productId,
+        quantities: [...(byProduct.get(productId)?.entries() ?? [])]
+          .sort(([left], [right]) => UNITS.indexOf(left) - UNITS.indexOf(right))
+          .map(([unit, totals]) => {
+            const available = totals.onHand + totals.inboundRemaining - totals.outboundRemaining;
+            return {
+              unit,
+              onHand: { valueScaled: totals.onHand, unit },
+              inboundRemaining: { valueScaled: totals.inboundRemaining, unit },
+              outboundRemaining: { valueScaled: totals.outboundRemaining, unit },
+              availableAfterCommitments: { valueScaled: available, unit },
+              classification:
+                available < 0
+                  ? "shortage"
+                  : totals.onHand === 0 &&
+                      totals.inboundRemaining === 0 &&
+                      totals.outboundRemaining === 0
+                    ? "idle"
+                    : "covered",
+            };
+          }),
+      }));
+    },
     valuationSources: async ({ workspaceId, productId, qualityGradeId, unit, asOf }) => {
       const unitCost = (movement: (typeof store.inventoryMovements)[number]) => {
         if (

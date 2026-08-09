@@ -51,6 +51,7 @@ export function useWorkflowCacheEffects() {
     () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: trpc.inventory.balances.queryKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.inventory.coverage.queryKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.inventory.timeline.queryKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.inventory.valuation.queryKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.inventory.planning.queryKey() }),
@@ -73,10 +74,11 @@ export function useWorkflowCacheEffects() {
           queryKey: trpc.receiving.summaryForPurchase.queryKey({ workspaceId, purchaseId }),
         }),
         queryClient.invalidateQueries({ queryKey: trpc.supplier.search.queryKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.inventory.coverage.queryKey() }),
         reportsChanged(),
       ]);
     },
-    [queryClient, reportsChanged, trpc.purchase, trpc.receiving, trpc.supplier],
+    [queryClient, reportsChanged, trpc.inventory, trpc.purchase, trpc.receiving, trpc.supplier],
   );
 
   const purchaseCreated = useCallback(
@@ -114,10 +116,11 @@ export function useWorkflowCacheEffects() {
           queryKey: trpc.delivery.fulfilment.queryKey({ workspaceId, saleId: sale.id }),
         }),
         queryClient.invalidateQueries({ queryKey: trpc.customer.search.queryKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.inventory.coverage.queryKey() }),
         reportsChanged(),
       ]);
     },
-    [queryClient, reportsChanged, trpc.customer, trpc.delivery, trpc.sale],
+    [queryClient, reportsChanged, trpc.customer, trpc.delivery, trpc.inventory, trpc.sale],
   );
 
   const deliveryChanged = useCallback(

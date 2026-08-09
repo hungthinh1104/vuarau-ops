@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CircleUserRound, LogOut, SwitchCamera } from "lucide-react";
+import { ChevronDown, LogOut, SwitchCamera } from "lucide-react";
 import type { SessionDto } from "@vuarau/domain-contracts";
 import { ThemeToggle } from "@/ui/components/theme-toggle.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { IconButton } from "@/ui/primitives/icon-button.tsx";
 import { Sheet } from "@/ui/primitives/sheet.tsx";
 import { WORKSPACE_ROLE_COPY } from "@/ui/patterns/workspace/role-set-picker.tsx";
 
@@ -23,9 +22,23 @@ export function AccountMenu({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <IconButton label="Mở tài khoản" onClick={() => setOpen(true)} aria-expanded={open}>
-        <CircleUserRound className="h-5 w-5" />
-      </IconButton>
+      <Button
+        tone="secondary"
+        onClick={() => setOpen(true)}
+        aria-label="Mở tài khoản"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className="min-h-11 max-w-[15rem] rounded-input px-2 sm:px-3"
+      >
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-input bg-brand-soft text-caption font-bold text-primary">
+          {userLabel.charAt(0).toUpperCase() || "?"}
+        </span>
+        <span className="hidden max-w-[10rem] truncate text-left sm:inline">{userLabel}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className="hidden h-4 w-4 shrink-0 text-ink-muted sm:inline"
+        />
+      </Button>
       <Sheet open={open} title="Tài khoản" onClose={() => setOpen(false)}>
         <div className="grid gap-5">
           <div className="flex items-start gap-3 border-b border-border pb-4">

@@ -22,7 +22,7 @@ test.describe("operational shell and action dock", () => {
     for (const width of [360, 390, 768, 1024, 1280, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/products");
-      await expect(page.getByRole("heading", { name: "Mặt hàng" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Hàng hóa & kho" })).toBeVisible();
       await expectNoHorizontalOverflow(page);
       if (width < 1024) await expect(mobileNav).toBeVisible();
 

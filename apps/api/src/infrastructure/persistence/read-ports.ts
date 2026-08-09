@@ -33,9 +33,6 @@ import type {
   PurchaseSummaryDto,
   PurchaseId,
   PurchaseStatus,
-  PurchaseReceiptDto,
-  InventoryBalanceDto,
-  InventoryMovementDto,
   StocktakeDto,
   StocktakeSessionId,
   ProductId,
@@ -97,6 +94,7 @@ import type { WorkspacePolicyReadRepository } from "./policy-ports.ts";
 import type { CloseReadRepositories } from "./close-read-ports.ts";
 import type { OperationsReadRepository } from "./operations-read-ports.ts";
 import type { DashboardReadRepository } from "./dashboard-read-ports.ts";
+import type { InventoryReadRepository } from "./inventory-read-ports.ts";
 /**
  * Read ports, separate from the write ports on purpose.
  *
@@ -425,36 +423,6 @@ export type PurchaseReadRepository = {
     page: PageQuery;
   }): Promise<PageResult<PurchaseSummaryDto>>;
 };
-export type InventoryReadRepository = {
-  receipt(workspaceId: WorkspaceId, receiptId: string): Promise<PurchaseReceiptDto | null>;
-  receipts(
-    workspaceId: WorkspaceId,
-    purchaseId: PurchaseId,
-  ): Promise<readonly PurchaseReceiptDto[]>;
-  adjustment(workspaceId: WorkspaceId, adjustmentId: string): Promise<InventoryMovementDto | null>;
-  balances(workspaceId: WorkspaceId, productId: ProductId): Promise<readonly InventoryBalanceDto[]>;
-  valuationSources(args: {
-    workspaceId: WorkspaceId;
-    productId: ProductId;
-    qualityGradeId: QualityGradeId | null;
-    unit: Unit | null;
-    asOf: IsoInstant;
-  }): Promise<readonly DomainKernel.InventoryValuationMovement[]>;
-  timeline(args: {
-    workspaceId: WorkspaceId;
-    productId: ProductId;
-    qualityGradeId: QualityGradeId | null | undefined;
-    unit: Unit | null;
-    page: PageQuery;
-  }): Promise<PageResult<InventoryMovementDto>>;
-  integrity(
-    workspaceId: WorkspaceId,
-    productId: ProductId,
-    qualityGradeId: QualityGradeId | null,
-    unit: Unit,
-  ): Promise<readonly string[]>;
-};
-
 export type StocktakeReadRepository = {
   get(workspaceId: WorkspaceId, sessionId: StocktakeSessionId): Promise<StocktakeDto | null>;
 };

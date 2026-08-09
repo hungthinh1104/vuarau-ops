@@ -16,6 +16,7 @@ import {
   sessionDtoSchema,
   actorWorkspacesDtoSchema,
   workspaceDetailDtoSchema,
+  productCoverageDtoSchema,
 } from "@vuarau/domain-contracts";
 import {
   ACCOUNTANT_ACTOR_ID,
@@ -29,6 +30,7 @@ import {
   TRANSACTION_TIME,
   WAREHOUSE_ACTOR_ID,
   WORKSPACE_ID,
+  PRODUCT_CA_CHUA_ID,
   saleLineInputs,
 } from "@vuarau/test-fixtures";
 import { createHarness, principalFor, type Harness } from "../../testing/command-test-harness.ts";
@@ -214,6 +216,29 @@ describe("UC-PAYMENT-001 / TC-PAYMENT-012 — payment procedures", () => {
       // The UI can say "only 500.000 ₫ can be reversed" without parsing prose.
       expect(domainError.details).toMatchObject({ requested: 600_000, remaining: 500_000 });
     }
+  });
+});
+
+describe("UC-INVENTORY-001 — Product coverage procedure", () => {
+  it("returns the typed per-unit coverage projection", async () => {
+    const coverage = await caller.inventory.coverage({
+      workspaceId: WORKSPACE_ID,
+      productIds: [PRODUCT_CA_CHUA_ID],
+    });
+
+    const parsed = productCoverageDtoSchema.array().safeParse(coverage);
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    expect(coverage[0]).toMatchObject({
+      productId: PRODUCT_CA_CHUA_ID,
+      quantities: [
+        {
+          unit: "kg",
+          onHand: { valueScaled: 0, unit: "kg" },
+          availableAfterCommitments: { valueScaled: 0, unit: "kg" },
+          classification: "idle",
+        },
+      ],
+    });
   });
 });
 

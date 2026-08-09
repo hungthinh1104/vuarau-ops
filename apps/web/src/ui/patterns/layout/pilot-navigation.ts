@@ -24,7 +24,12 @@ export const NAVIGATION_REGISTRY: readonly NavigationItem[] = [
   },
   { label: "Đơn mua", href: "/purchases", activeMode: "section", permission: "receiving.read" },
   { label: "Nhận hàng", href: "/intake", activeMode: "section", permission: "intake.read" },
-  { label: "Tồn kho", href: "/products", activeMode: "section", permission: "inventory.read" },
+  {
+    label: "Hàng hóa & kho",
+    href: "/products",
+    activeMode: "section",
+    permission: "inventory.read",
+  },
   { label: "Bảng giá", href: "/pricing", activeMode: "section", permission: "pricing.read" },
   {
     label: "Hạng hàng",
@@ -77,9 +82,9 @@ const DESKTOP_STRUCTURE = [
   },
   { label: "Bán & giao hàng", refs: ["/sales/new", "/sales", "/customer-orders", "/deliveries"] },
   { label: "Kho & giá", refs: ["/products", "/pricing"] },
-  { label: "Cấu hình", refs: ["/quality-grades", "/quality-issues"] },
   { label: "Quan hệ", refs: ["/customers", "/suppliers"] },
   { label: "Báo cáo", refs: ["/reports", "/operations-board"] },
+  { label: "Cấu hình", refs: ["/quality-grades", "/quality-issues"] },
   { label: "Quản trị", refs: ["/workspace/operations", "/workspace"] },
 ];
 

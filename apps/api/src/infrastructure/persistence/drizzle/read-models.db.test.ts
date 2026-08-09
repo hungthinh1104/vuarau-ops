@@ -28,6 +28,7 @@ import {
 } from "../../../modules/account/account.queries.ts";
 import { adjustCustomerDebt } from "../../../modules/account/adjust-debt.handler.ts";
 import { getAuditTimeline } from "../../../modules/audit/audit.queries.ts";
+import { getProductCoverage } from "../../../modules/inventory/inventory.queries.ts";
 
 /**
  * The read models against real Postgres: real keyset predicates, the real window
@@ -140,6 +141,26 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
     expect(found.ok).toBe(true);
     if (!found.ok) return;
     expect(found.value.items.map((item) => item.id)).toContain(ctx.customerId);
+  });
+
+  it("UC-INVENTORY-001 — derives outstanding Product coverage in real SQL", async () => {
+    const result = await getProductCoverage(owner, {
+      workspaceId: ctx.workspaceId,
+      productIds: [ctx.productIds[0]!],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value[0]?.quantities).toEqual([
+      {
+        unit: "kg",
+        onHand: { valueScaled: 0, unit: "kg" },
+        inboundRemaining: { valueScaled: 0, unit: "kg" },
+        outboundRemaining: { valueScaled: 4_000, unit: "kg" },
+        availableAfterCommitments: { valueScaled: -4_000, unit: "kg" },
+        classification: "shortage",
+      },
+    ]);
   });
 
   it("UC-CUSTOMER-002 / TC-READ-012 — customer cursor pagination survives equal names", async () => {

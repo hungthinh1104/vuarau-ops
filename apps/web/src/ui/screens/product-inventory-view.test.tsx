@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import type {
   InventoryValuationResult,
   ProductDto,
+  ProductCoverageDto,
   StockPlanningDto,
   WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
@@ -29,10 +30,29 @@ const ready = <T,>(data: T) => ({
   data,
 });
 
+const coverage: ProductCoverageDto = {
+  workspaceId: WORKSPACE_ID,
+  productId: PRODUCT_CA_CHUA_ID,
+  quantities: [
+    {
+      unit: "kg",
+      onHand: { valueScaled: 4_000, unit: "kg" },
+      inboundRemaining: { valueScaled: 6_000, unit: "kg" },
+      outboundRemaining: { valueScaled: 12_000, unit: "kg" },
+      availableAfterCommitments: { valueScaled: -2_000, unit: "kg" },
+      classification: "shortage",
+    },
+  ],
+};
+
 const baseProps = (valuation: InventoryValuationResult): ProductInventoryViewProps => ({
   productId: PRODUCT_CA_CHUA_ID,
+  activeSection: "planning",
+  onSectionChange: () => undefined,
   productQuery: ready(product),
   balancesQuery: ready([]),
+  coverageQuery: ready([coverage]),
+  coverage,
   valuationQuery: ready(valuation),
   planningQuery: ready({
     status: "unavailable",
@@ -57,6 +77,7 @@ const baseProps = (valuation: InventoryValuationResult): ProductInventoryViewPro
   onLoadMore: () => undefined,
   onRetryProduct: () => undefined,
   onRetryBalances: () => undefined,
+  onRetryCoverage: () => undefined,
   onRetryTimeline: () => undefined,
 });
 
@@ -114,5 +135,31 @@ describe("BR-VALUATION-003 / TC-VALUATION-004", () => {
 
     expect(screen.getByText(/Tồn:\s*100 ₫/)).toBeInTheDocument();
     expect(screen.getByText(/Giá vốn:\s*50 ₫/)).toBeInTheDocument();
+  });
+});
+
+describe("UC-INVENTORY-001 — operational coverage", () => {
+  it("shows the shortage from server-authored stock and order facts", () => {
+    const unavailable: InventoryValuationResult = {
+      status: "unavailable",
+      workspaceId: WORKSPACE_ID,
+      productId: PRODUCT_CA_CHUA_ID,
+      asOf: TRANSACTION_TIME,
+      policyVersionId: null,
+      calculationVersion: "inventory-valuation-v1",
+      calculatedAt: RECORDED_AT,
+      integrity: "attention",
+      diagnostics: ["no_effective_inventory_valuation_policy"],
+      inputReferences: [],
+      currency: null,
+    };
+
+    render(<ProductInventoryView {...baseProps(unavailable)} activeSection="overview" />);
+
+    expect(
+      screen.getByRole("heading", { name: "Khả dụng sau các đơn đã chốt" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Thiếu hàng")).toBeInTheDocument();
+    expect(screen.getByText("Thiếu 2 kg")).toBeInTheDocument();
   });
 });

@@ -203,6 +203,26 @@ export const inventoryBalanceDtoSchema = z.object({
   updatedAt: isoInstantSchema,
 });
 export type InventoryBalanceDto = z.infer<typeof inventoryBalanceDtoSchema>;
+export const productCoverageInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  productIds: z.array(productIdSchema).max(200),
+});
+export type ProductCoverageInput = z.infer<typeof productCoverageInputSchema>;
+export const productCoverageQuantityDtoSchema = z.object({
+  unit: unitSchema,
+  onHand: quantitySchema,
+  inboundRemaining: quantitySchema,
+  outboundRemaining: quantitySchema,
+  availableAfterCommitments: quantitySchema,
+  classification: z.enum(["shortage", "covered", "idle"]),
+});
+export type ProductCoverageQuantityDto = z.infer<typeof productCoverageQuantityDtoSchema>;
+export const productCoverageDtoSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  productId: productIdSchema,
+  quantities: z.array(productCoverageQuantityDtoSchema),
+});
+export type ProductCoverageDto = z.infer<typeof productCoverageDtoSchema>;
 export const inventoryTimelineInputSchema = pageRequestSchema.extend({
   workspaceId: workspaceIdSchema,
   productId: productIdSchema,

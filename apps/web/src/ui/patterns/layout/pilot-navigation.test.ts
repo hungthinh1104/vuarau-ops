@@ -20,7 +20,7 @@ describe("TC-WEB-029 — role-aware pilot navigation", () => {
       .map((item) => item.label);
     expect(warehouse).toContain("Đơn mua");
     expect(warehouse).toContain("Nhận hàng");
-    expect(warehouse).toContain("Tồn kho");
+    expect(warehouse).toContain("Hàng hóa & kho");
     expect(warehouse).not.toContain("Thành viên");
 
     const owner = navigationFor(permissionsForRole("owner"))

@@ -38,7 +38,10 @@ import {
   getArrivalLineHistory,
   getDispositionSourceSummary,
 } from "../../../modules/intake/intake.queries.ts";
-import { getInventoryReconciliation } from "../../../modules/inventory/inventory.queries.ts";
+import {
+  getInventoryReconciliation,
+  getProductCoverage,
+} from "../../../modules/inventory/inventory.queries.ts";
 
 // TC-EVIDENCE-005
 describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", () => {
@@ -286,6 +289,21 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
       canonical: { quantityScaled: 80_000, unit: "kg" },
       diagnostics: [],
     });
+
+    const coverage = await getProductCoverage(context(), {
+      workspaceId: ctx.workspaceId,
+      productIds: [ctx.productIds[0]!],
+    });
+    expect(coverage.ok && coverage.value[0]?.quantities).toEqual([
+      {
+        unit: "kg",
+        onHand: { valueScaled: 80_000, unit: "kg" },
+        inboundRemaining: { valueScaled: 20_000, unit: "kg" },
+        outboundRemaining: { valueScaled: 0, unit: "kg" },
+        availableAfterCommitments: { valueScaled: 100_000, unit: "kg" },
+        classification: "covered",
+      },
+    ]);
   });
 
   it("TC-INTAKE-010 — database guards arrival and disposition facts from mutation", async () => {

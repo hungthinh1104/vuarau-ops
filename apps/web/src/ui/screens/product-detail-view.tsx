@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProductDto, Unit } from "@vuarau/domain-contracts";
+import type { ProductCoverageDto, ProductDto, Unit } from "@vuarau/domain-contracts";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
@@ -17,9 +17,13 @@ import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { formatQuantity } from "@/ui/format.ts";
+import { formatCoverageAvailability } from "@/ui/domain/product-coverage.ts";
 
 export type ProductDetailViewProps = {
   readonly query: QueryLike<ProductDto>;
+  readonly coverageQuery: QueryLike<readonly ProductCoverageDto[]>;
+  readonly coverage: ProductCoverageDto | undefined;
   readonly mayUpdate: boolean;
   readonly mayDeactivate: boolean;
   readonly name: string;
@@ -33,6 +37,7 @@ export type ProductDetailViewProps = {
   readonly onUpdate: () => void;
   readonly onLifecycle: () => void;
   readonly onRetry: () => void;
+  readonly onRetryCoverage: () => void;
 };
 
 export function ProductDetailView(props: ProductDetailViewProps) {
@@ -46,11 +51,18 @@ export function ProductDetailView(props: ProductDetailViewProps) {
                 <Badge tone={product.isActive ? "positive" : "neutral"}>
                   {product.isActive ? "Đang dùng" : "Đã ngưng"}
                 </Badge>
+                <QueryStates
+                  query={props.coverageQuery}
+                  loadingLabel="Đang đối chiếu số lượng"
+                  onRetry={props.onRetryCoverage}
+                >
+                  {() => <ProductCoverageSummary coverage={props.coverage} />}
+                </QueryStates>
                 <Link
                   href={`/products/${product.id}/inventory`}
                   className="font-semibold text-info underline-offset-4 hover:underline"
                 >
-                  Xem tồn kho và biến động vật lý
+                  Mở hàng hóa & kho
                 </Link>
               </SummaryRail>
             }
@@ -63,12 +75,7 @@ export function ProductDetailView(props: ProductDetailViewProps) {
                     ? "Chưa chọn đơn vị ưu tiên"
                     : `Đơn vị ưu tiên: ${UNIT_LABEL_VI[product.preferredUnit]}`
                 }
-                back={{ href: "/products", label: "Danh mục mặt hàng" }}
-                status={
-                  <Badge tone={product.isActive ? "positive" : "neutral"}>
-                    {product.isActive ? "Đang dùng" : "Đã ngưng"}
-                  </Badge>
-                }
+                back={{ href: "/products", label: "Hàng hóa & kho" }}
               />
               <TextInput
                 label="Tên mặt hàng"
@@ -118,5 +125,29 @@ export function ProductDetailView(props: ProductDetailViewProps) {
         </PageFrame>
       )}
     </QueryStates>
+  );
+}
+
+function ProductCoverageSummary({
+  coverage,
+}: {
+  readonly coverage: ProductCoverageDto | undefined;
+}) {
+  if (coverage === undefined || coverage.quantities.length === 0) {
+    return <p className="text-body-sm text-ink-muted">Chưa có số liệu kho hoặc đơn đã chốt.</p>;
+  }
+  return (
+    <div className="grid gap-2 border-y border-border py-3">
+      {coverage.quantities.map((quantity) => (
+        <div key={quantity.unit} className="grid gap-0.5 text-body-sm">
+          <span>Tồn thực tế: {formatQuantity(quantity.onHand)}</span>
+          <span>Đang mua: {formatQuantity(quantity.inboundRemaining)}</span>
+          <span>Cần giao: {formatQuantity(quantity.outboundRemaining)}</span>
+          <strong className={quantity.classification === "shortage" ? "text-danger" : undefined}>
+            Sau đơn đã chốt: {formatCoverageAvailability(quantity)}
+          </strong>
+        </div>
+      ))}
+    </div>
   );
 }

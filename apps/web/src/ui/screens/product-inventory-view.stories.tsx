@@ -4,6 +4,7 @@ import type {
   InventoryMovementDto,
   InventoryValuationResult,
   ProductDto,
+  ProductCoverageDto,
   QualityGradeDto,
   StockPlanningDto,
   WorkspacePolicyVersionId,
@@ -145,6 +146,21 @@ const movements: readonly InventoryMovementDto[] = [
 
 const readyProduct = { isPending: false, isError: false, error: null, data: product } as const;
 const readyBalances = { isPending: false, isError: false, error: null, data: balances } as const;
+const coverage: ProductCoverageDto = {
+  workspaceId: WORKSPACE_ID,
+  productId: PRODUCT_CA_CHUA_ID,
+  quantities: [
+    {
+      unit: "kg",
+      onHand: { valueScaled: 83_000, unit: "kg" },
+      inboundRemaining: { valueScaled: 20_000, unit: "kg" },
+      outboundRemaining: { valueScaled: 115_000, unit: "kg" },
+      availableAfterCommitments: { valueScaled: -12_000, unit: "kg" },
+      classification: "shortage",
+    },
+  ],
+};
+const readyCoverage = { isPending: false, isError: false, error: null, data: [coverage] } as const;
 const readyTimeline = {
   isPending: false,
   isError: false,
@@ -234,8 +250,12 @@ const meta = {
   component: ProductInventoryView,
   args: {
     productId: PRODUCT_CA_CHUA_ID,
+    activeSection: "overview",
+    onSectionChange: () => undefined,
     productQuery: readyProduct,
     balancesQuery: readyBalances,
+    coverageQuery: readyCoverage,
+    coverage,
     valuationQuery: readyValuation,
     planningQuery: readyPlanning,
     timelineQuery: readyTimeline,
@@ -252,6 +272,7 @@ const meta = {
     onLoadMore: () => undefined,
     onRetryProduct: () => undefined,
     onRetryBalances: () => undefined,
+    onRetryCoverage: () => undefined,
     onRetryTimeline: () => undefined,
   },
 } satisfies Meta<typeof ProductInventoryView>;
@@ -260,6 +281,9 @@ type Story = StoryObj<typeof meta>;
 
 export const OwnerDesktop: Story = { globals: { viewport: { value: "desktop" } } };
 export const WarehouseMobile: Story = { globals: { viewport: { value: "mobile" } } };
+export const Movements: Story = { args: { activeSection: "movements" } };
+export const Planning: Story = { args: { activeSection: "planning" } };
+export const Adjustments: Story = { args: { activeSection: "adjustments" } };
 export const ReadOnly: Story = { args: { adjustment: undefined, reclassification: undefined } };
 export const EmptyInventory: Story = {
   args: {
@@ -293,6 +317,7 @@ export const Loading: Story = {
 };
 export const TimelineFailure: Story = {
   args: {
+    activeSection: "movements",
     timelineQuery: {
       isPending: false,
       isError: true,

@@ -4,6 +4,7 @@ import type {
   InventoryBalanceDto,
   InventoryMovementDto,
   InventoryValuationResult,
+  ProductCoverageDto,
   ProductDto,
   QualityGradeDto,
   QualityGradeId,
@@ -15,17 +16,24 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import { copyForReportDiagnostic } from "@/ui/copy.ts";
+import { formatCoverageAvailability } from "@/ui/domain/product-coverage.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader, Section } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 
+export type ProductInventorySection = "overview" | "movements" | "planning" | "adjustments";
+
 export type ProductInventoryViewProps = {
   readonly productId: ProductDto["id"];
+  readonly activeSection: ProductInventorySection;
+  readonly onSectionChange: (section: ProductInventorySection) => void;
   readonly productQuery: QueryLike<ProductDto>;
   readonly balancesQuery: QueryLike<readonly InventoryBalanceDto[]>;
+  readonly coverageQuery: QueryLike<readonly ProductCoverageDto[]>;
+  readonly coverage: ProductCoverageDto | undefined;
   readonly valuationQuery: QueryLike<InventoryValuationResult>;
   readonly planningQuery: QueryLike<StockPlanningDto>;
   readonly timelineQuery: QueryLike<unknown> & { readonly isFetching: boolean };
@@ -43,58 +51,194 @@ export type ProductInventoryViewProps = {
   readonly onLoadMore: () => void;
   readonly onRetryProduct: () => void;
   readonly onRetryBalances: () => void;
+  readonly onRetryCoverage: () => void;
   readonly onRetryTimeline: () => void;
 };
 
+const SECTION_LABELS: ReadonlyArray<{
+  readonly id: ProductInventorySection;
+  readonly label: string;
+}> = [
+  { id: "overview", label: "Tổng quan" },
+  { id: "movements", label: "Biến động" },
+  { id: "planning", label: "Kế hoạch" },
+  { id: "adjustments", label: "Điều chỉnh" },
+];
+
 const gradeLabel = (gradeName: string | null) => gradeName ?? "Chưa phân loại (lịch sử)";
 
-export function ProductInventoryView({
-  productId,
-  productQuery,
-  balancesQuery,
-  valuationQuery,
-  planningQuery,
-  timelineQuery,
-  balances,
-  grades,
-  movements,
-  gradeFilter,
-  unitFilter,
-  hasMore,
-  adjustment,
-  reclassification,
-  stocktake,
-  onGradeFilterChange,
-  onUnitFilterChange,
-  onLoadMore,
-  onRetryProduct,
-  onRetryBalances,
-  onRetryTimeline,
-}: ProductInventoryViewProps) {
+export function ProductInventoryView(props: ProductInventoryViewProps) {
+  const hasAdjustmentTools =
+    props.adjustment !== undefined ||
+    props.reclassification !== undefined ||
+    props.stocktake !== undefined;
+  const sections = hasAdjustmentTools
+    ? SECTION_LABELS
+    : SECTION_LABELS.filter((section) => section.id !== "adjustments");
+
   return (
     <PageFrame size="wide">
       <div className="flex flex-col gap-5">
-        <QueryStates query={productQuery} loadingLabel="Đang tải mặt hàng" onRetry={onRetryProduct}>
+        <QueryStates
+          query={props.productQuery}
+          loadingLabel="Đang tải mặt hàng"
+          onRetry={props.onRetryProduct}
+        >
           {(detail) => (
             <PageHeader
-              title="Tồn kho"
-              description={detail.displayName}
-              back={{ href: `/products/${productId}`, label: "Mặt hàng" }}
+              title={detail.displayName}
+              description="Tồn thực tế và lượng hàng cần để đáp ứng các đơn đã chốt."
+              back={{ href: "/products", label: "Hàng hóa & kho" }}
+              actions={
+                <Link
+                  href={`/products/${props.productId}`}
+                  className="font-semibold text-info underline-offset-4 hover:underline"
+                >
+                  Sửa thông tin mặt hàng
+                </Link>
+              }
             />
           )}
         </QueryStates>
 
         <QueryStates
-          query={balancesQuery}
+          query={props.coverageQuery}
+          loadingLabel="Đang đối chiếu tồn kho và các đơn đã chốt"
+          onRetry={props.onRetryCoverage}
+        >
+          {() => <CoverageSummary coverage={props.coverage} />}
+        </QueryStates>
+
+        <div
+          role="tablist"
+          aria-label="Nội dung hàng hóa và kho"
+          className="flex gap-1 overflow-x-auto border-b border-border"
+        >
+          {sections.map((section) => {
+            const selected = props.activeSection === section.id;
+            return (
+              <Button
+                key={section.id}
+                tone="link"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`inventory-panel-${section.id}`}
+                id={`inventory-tab-${section.id}`}
+                onClick={() => props.onSectionChange(section.id)}
+                className={[
+                  "min-h-11 shrink-0 border-b-2 px-3 no-underline hover:no-underline",
+                  selected
+                    ? "border-primary text-primary"
+                    : "border-transparent text-ink-muted hover:text-ink",
+                ].join(" ")}
+              >
+                {section.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        {props.activeSection === "overview" ? (
+          <InventoryOverview {...props} />
+        ) : props.activeSection === "movements" ? (
+          <InventoryMovements {...props} />
+        ) : props.activeSection === "planning" ? (
+          <InventoryPlanning {...props} />
+        ) : (
+          <InventoryAdjustments {...props} />
+        )}
+      </div>
+    </PageFrame>
+  );
+}
+
+function CoverageSummary({ coverage }: { readonly coverage: ProductCoverageDto | undefined }) {
+  const quantities = coverage?.quantities ?? [];
+  if (quantities.length === 0) {
+    return (
+      <section className="rounded-card border border-border bg-surface p-4">
+        <h2 className="text-subheading font-semibold">Khả dụng sau các đơn đã chốt</h2>
+        <p className="mt-1 text-body-sm text-ink-muted">
+          Chưa có tồn kho, đơn mua đã xác nhận hoặc đơn bán cần giao cho mặt hàng này.
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section className="grid gap-3 rounded-card border border-border bg-surface p-4">
+      <div>
+        <h2 className="text-subheading font-semibold">Khả dụng sau các đơn đã chốt</h2>
+        <p className="mt-1 text-body-sm text-ink-muted">
+          Tồn thực tế + đang mua − cần giao. Đơn khách đặt trước chưa được cộng để tránh tính hai
+          lần.
+        </p>
+      </div>
+      <div className="grid gap-3 xl:grid-cols-2">
+        {quantities.map((quantity) => (
+          <div
+            key={quantity.unit}
+            className="grid gap-3 border-t border-border pt-3 sm:grid-cols-4"
+          >
+            <CoverageFact label="Tồn thực tế" value={formatQuantity(quantity.onHand)} />
+            <CoverageFact label="Đang mua" value={formatQuantity(quantity.inboundRemaining)} />
+            <CoverageFact label="Cần giao" value={formatQuantity(quantity.outboundRemaining)} />
+            <div>
+              <p className="text-caption text-ink-muted">Sau đơn đã chốt</p>
+              <p
+                className={[
+                  "mt-1 font-semibold tabular-nums",
+                  quantity.classification === "shortage" ? "text-danger" : "text-ink",
+                ].join(" ")}
+              >
+                {formatCoverageAvailability(quantity)}
+              </p>
+              <Badge tone={quantity.classification === "shortage" ? "warning" : "positive"}>
+                {quantity.classification === "shortage"
+                  ? "Thiếu hàng"
+                  : quantity.classification === "idle"
+                    ? "Chưa phát sinh"
+                    : "Đủ theo đơn"}
+              </Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CoverageFact({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div>
+      <p className="text-caption text-ink-muted">{label}</p>
+      <p className="mt-1 font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function InventoryOverview(props: ProductInventoryViewProps) {
+  return (
+    <div
+      role="tabpanel"
+      id="inventory-panel-overview"
+      aria-labelledby="inventory-tab-overview"
+      className="grid gap-4"
+    >
+      <Section
+        title="Tồn thực tế theo hạng hàng"
+        description="Số lượng lấy từ các biến động nhập, xuất, trả hàng, kiểm kê và điều chỉnh."
+      >
+        <QueryStates
+          query={props.balancesQuery}
           loadingLabel="Đang tải số lượng"
-          onRetry={onRetryBalances}
+          onRetry={props.onRetryBalances}
         >
           {() =>
-            balances.length === 0 ? (
+            props.balances.length === 0 ? (
               <p className="text-body-sm text-ink-muted">Chưa có biến động vật lý.</p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {balances.map((balance) => (
+                {props.balances.map((balance) => (
                   <InventoryBalanceCard
                     key={`${balance.qualityGradeId ?? "legacy"}:${balance.unit}`}
                     balance={balance}
@@ -104,100 +248,124 @@ export function ProductInventoryView({
             )
           }
         </QueryStates>
+      </Section>
+    </div>
+  );
+}
 
-        <section aria-labelledby="valuation-title" className="grid gap-3">
-          <div>
-            <h2 id="valuation-title" className="text-subheading font-semibold">
-              Định giá tồn kho
-            </h2>
-            <p className="text-body-sm text-ink-muted">
-              Kết quả chỉ hiện khi vựa đã có cách tính giá trị tồn kho đang dùng.
-            </p>
-          </div>
-          <QueryStates query={valuationQuery} loadingLabel="Đang tính giá trị tồn kho">
-            {(valuation) => <InventoryValuationResultView result={valuation} />}
-          </QueryStates>
-        </section>
-
-        <section aria-labelledby="planning-title" className="grid gap-3">
-          <div>
-            <h2 id="planning-title" className="text-subheading font-semibold">
-              Kế hoạch tồn kho
-            </h2>
-            <p className="text-body-sm text-ink-muted">
-              Chỉ hiển thị khuyến nghị khi vựa đã duyệt cách lập kế hoạch tồn kho.
-            </p>
-          </div>
-          <QueryStates query={planningQuery} loadingLabel="Đang tính kế hoạch tồn kho">
-            {(result) => <StockPlanningResultView productId={productId} result={result} />}
-          </QueryStates>
-        </section>
-
-        <section className="grid gap-3 border-y border-border py-4 md:grid-cols-2">
-          <Select
-            label="Lọc theo hạng hàng"
-            value={gradeFilter === undefined ? "" : (gradeFilter ?? "legacy")}
-            onChange={(event) =>
-              onGradeFilterChange(
-                event.target.value === ""
-                  ? undefined
-                  : event.target.value === "legacy"
-                    ? null
-                    : (event.target.value as QualityGradeId),
-              )
-            }
-            placeholder="Tất cả hạng hàng, không cộng gộp"
-            options={[
-              ...(balances.some((row) => row.qualityGradeId === null)
-                ? [{ value: "legacy", label: "Chưa phân loại (lịch sử)" }]
-                : []),
-              ...grades.map((grade) => ({ value: grade.id, label: grade.name })),
-            ]}
-          />
-          <Select
-            label="Lọc theo đơn vị"
-            value={unitFilter ?? ""}
-            onChange={(event) =>
-              onUnitFilterChange(event.target.value === "" ? null : (event.target.value as Unit))
-            }
-            placeholder="Tất cả đơn vị, không cộng gộp"
-            options={UNITS.map((unit) => ({ value: unit, label: UNIT_LABEL_VI[unit] }))}
-          />
-        </section>
-
-        <section aria-labelledby="movement-title" className="grid gap-3">
-          <h2 id="movement-title" className="text-subheading font-semibold">
-            Biến động kho
-          </h2>
-          <QueryStates
-            query={timelineQuery}
-            loadingLabel="Đang tải biến động kho"
-            onRetry={onRetryTimeline}
+function InventoryMovements(props: ProductInventoryViewProps) {
+  return (
+    <div
+      role="tabpanel"
+      id="inventory-panel-movements"
+      aria-labelledby="inventory-tab-movements"
+      className="grid gap-4"
+    >
+      <section className="grid gap-3 border-y border-border py-4 md:grid-cols-2">
+        <Select
+          label="Lọc theo hạng hàng"
+          value={props.gradeFilter === undefined ? "" : (props.gradeFilter ?? "legacy")}
+          onChange={(event) =>
+            props.onGradeFilterChange(
+              event.target.value === ""
+                ? undefined
+                : event.target.value === "legacy"
+                  ? null
+                  : (event.target.value as QualityGradeId),
+            )
+          }
+          placeholder="Tất cả hạng hàng, không cộng gộp"
+          options={[
+            ...(props.balances.some((row) => row.qualityGradeId === null)
+              ? [{ value: "legacy", label: "Chưa phân loại (lịch sử)" }]
+              : []),
+            ...props.grades.map((grade) => ({ value: grade.id, label: grade.name })),
+          ]}
+        />
+        <Select
+          label="Lọc theo đơn vị"
+          value={props.unitFilter ?? ""}
+          onChange={(event) =>
+            props.onUnitFilterChange(
+              event.target.value === "" ? null : (event.target.value as Unit),
+            )
+          }
+          placeholder="Tất cả đơn vị, không cộng gộp"
+          options={UNITS.map((unit) => ({ value: unit, label: UNIT_LABEL_VI[unit] }))}
+        />
+      </section>
+      <Section title="Biến động kho">
+        <QueryStates
+          query={props.timelineQuery}
+          loadingLabel="Đang tải biến động kho"
+          onRetry={props.onRetryTimeline}
+        >
+          {() =>
+            props.movements.length === 0 ? (
+              <p className="text-body-sm text-ink-muted">Không có biến động phù hợp.</p>
+            ) : (
+              <ol className="flex flex-col gap-2">
+                {props.movements.map((movement) => (
+                  <InventoryMovementRow key={movement.id} movement={movement} />
+                ))}
+              </ol>
+            )
+          }
+        </QueryStates>
+        {props.hasMore ? (
+          <Button
+            tone="secondary"
+            disabled={props.timelineQuery.isFetching}
+            onClick={props.onLoadMore}
           >
-            {() =>
-              movements.length === 0 ? (
-                <p className="text-body-sm text-ink-muted">Không có biến động phù hợp.</p>
-              ) : (
-                <ol className="flex flex-col gap-2">
-                  {movements.map((movement) => (
-                    <InventoryMovementRow key={movement.id} movement={movement} />
-                  ))}
-                </ol>
-              )
-            }
-          </QueryStates>
-          {hasMore ? (
-            <Button tone="secondary" disabled={timelineQuery.isFetching} onClick={onLoadMore}>
-              {timelineQuery.isFetching ? "Đang tải" : "Tải thêm"}
-            </Button>
-          ) : null}
-        </section>
+            {props.timelineQuery.isFetching ? "Đang tải" : "Tải thêm"}
+          </Button>
+        ) : null}
+      </Section>
+    </div>
+  );
+}
 
-        {adjustment}
-        {reclassification}
-        {stocktake}
-      </div>
-    </PageFrame>
+function InventoryPlanning(props: ProductInventoryViewProps) {
+  return (
+    <div
+      role="tabpanel"
+      id="inventory-panel-planning"
+      aria-labelledby="inventory-tab-planning"
+      className="grid gap-6"
+    >
+      <Section
+        title="Kế hoạch tồn kho"
+        description="Khuyến nghị theo mức tồn đã được vựa duyệt; không thay thế phần đối chiếu đơn ở trên."
+      >
+        <QueryStates query={props.planningQuery} loadingLabel="Đang tính kế hoạch tồn kho">
+          {(result) => <StockPlanningResultView productId={props.productId} result={result} />}
+        </QueryStates>
+      </Section>
+      <Section
+        title="Định giá tồn kho"
+        description="Chỉ hiện khi vựa đã có cách tính giá trị tồn kho đang dùng."
+      >
+        <QueryStates query={props.valuationQuery} loadingLabel="Đang tính giá trị tồn kho">
+          {(valuation) => <InventoryValuationResultView result={valuation} />}
+        </QueryStates>
+      </Section>
+    </div>
+  );
+}
+
+function InventoryAdjustments(props: ProductInventoryViewProps) {
+  return (
+    <div
+      role="tabpanel"
+      id="inventory-panel-adjustments"
+      aria-labelledby="inventory-tab-adjustments"
+      className="grid gap-5"
+    >
+      {props.adjustment}
+      {props.reclassification}
+      {props.stocktake}
+    </div>
   );
 }
 

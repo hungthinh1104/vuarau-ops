@@ -137,15 +137,13 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await expect(page.getByText("Còn 10 kg")).toBeVisible();
 
     await page.goto(`/products/${productId}/inventory`);
+    await page.getByRole("tab", { name: "Điều chỉnh" }).click();
     const reclass = page.getByRole("region", { name: "Chuyển hạng hàng" });
     await chooseOption(page, "Từ hạng hàng", secondGrade);
     await chooseOption(page, "Sang hạng hàng", primaryGrade);
     await reclass.getByLabel("Số lượng").fill("10");
     await reclass.getByLabel("Lý do").fill("Phân loại lại cuối ngày");
     await reclass.getByRole("button", { name: "Ghi chuyển hạng hàng" }).click();
-    await expect(page.getByRole("paragraph").filter({ hasText: /^10 kg$/ })).toBeVisible();
-    await expect(page.getByRole("paragraph").filter({ hasText: /^20 kg$/ })).toBeVisible();
-
     const adjustment = page.getByRole("region", { name: "Điều chỉnh tồn kho" });
     await chooseOption(page, "Hướng", "Giảm");
     await adjustment.getByLabel("Số lượng").fill("4");
@@ -154,6 +152,7 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await adjustment.getByLabel("Giải thích").fill("Dập sau một ngày");
     await adjustment.getByRole("button", { name: "Ghi điều chỉnh" }).click();
 
+    await page.getByRole("tab", { name: "Tổng quan" }).click();
     await expect(page.getByRole("paragraph").filter({ hasText: /^6 kg$/ })).toBeVisible();
     await expect(page.getByRole("paragraph").filter({ hasText: /^20 kg$/ })).toBeVisible();
     expect(await api.balance(customerId)).toEqual(debtAfterPost);

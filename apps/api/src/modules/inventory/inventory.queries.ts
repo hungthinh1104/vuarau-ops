@@ -1,6 +1,7 @@
 import type {
   InventoryValuationInput,
   InventoryValuationResult,
+  ProductCoverageInput,
   StockPlanningInput,
   StockPlanningDto,
   StocktakeGetInput,
@@ -192,6 +193,14 @@ export const getInventoryBalances = (
         ? rows
         : rows.filter((row) => row.qualityGradeId === input.qualityGradeId);
     },
+  });
+
+export const getProductCoverage = (ctx: CommandContext, input: ProductCoverageInput) =>
+  runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "inventory.read",
+    execute: ({ repos }) => repos.inventoryReads.coverage(input.workspaceId, input.productIds),
   });
 
 export async function getStockPlanning(ctx: CommandContext, input: StockPlanningInput) {
