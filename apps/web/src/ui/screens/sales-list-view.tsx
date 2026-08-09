@@ -3,6 +3,7 @@
 import type { SaleSummaryDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
+import { SALE_STATUS_COPY } from "@/ui/copy.ts";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { formatInstant, formatMoney } from "@/ui/format.ts";
 import { FilterChipGroup } from "@/ui/patterns/list/filter-chip-group.tsx";
@@ -17,16 +18,20 @@ import {
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
 
 export type SalesListFilter = "all" | "draft" | "posted" | "voided";
 
 export type SalesListViewProps = {
   readonly rows: readonly SaleSummaryDto[];
   readonly filter: SalesListFilter;
+  readonly queryText: string;
   readonly query: QueryLike<unknown> & { readonly isFetching: boolean };
   readonly canCreate: boolean;
   readonly hasMore: boolean;
   readonly onFilterChange: (filter: SalesListFilter) => void;
+  readonly onQueryChange: (value: string) => void;
+  readonly onClearQuery: () => void;
   readonly onLoadMore: () => void;
   readonly onRetry: () => void;
 };
@@ -34,10 +39,13 @@ export type SalesListViewProps = {
 export function SalesListView({
   rows,
   filter,
+  queryText,
   query,
   canCreate,
   hasMore,
   onFilterChange,
+  onQueryChange,
+  onClearQuery,
   onLoadMore,
   onRetry,
 }: SalesListViewProps) {
@@ -57,6 +65,15 @@ export function SalesListView({
         />
 
         <DirectoryToolbar
+          search={
+            <SearchInput
+              label="Tìm đơn bán"
+              placeholder="Mã đơn, khách hoặc mặt hàng"
+              value={queryText}
+              onChange={(event) => onQueryChange(event.target.value)}
+              onClear={onClearQuery}
+            />
+          }
           filters={
             <FilterChipGroup
               label="Lọc trạng thái đơn hàng"
@@ -106,7 +123,9 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
           <li key={sale.id}>
             <MobileRecordCard href={`/sales/${sale.id}`}>
               <span>
-                <strong>{sale.customerDisplayName}</strong>
+                <strong>
+                  {sale.displayReference} · {sale.customerDisplayName}
+                </strong>
                 <span className="block text-caption text-ink-muted">
                   {formatInstant(sale.transactionTime)} · {sale.lineCount} dòng
                 </span>
@@ -122,13 +141,7 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
                         : "neutral"
                   }
                 >
-                  {sale.financialState === "voided"
-                    ? "Đã hoàn tác"
-                    : sale.status === "posted"
-                      ? "Đã chốt"
-                      : sale.status === "draft"
-                        ? "Nháp"
-                        : "Đã bỏ"}
+                  {sale.financialState === "voided" ? "Đã hoàn tác" : SALE_STATUS_COPY[sale.status]}
                 </Badge>
               </span>
             </MobileRecordCard>
@@ -164,7 +177,10 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
                 <td className="whitespace-nowrap px-3 py-2">
                   {formatInstant(sale.transactionTime)}
                 </td>
-                <td className="px-3 py-2 font-medium">{sale.customerDisplayName}</td>
+                <td className="px-3 py-2 font-medium">
+                  <span className="block">{sale.customerDisplayName}</span>
+                  <span className="text-caption text-ink-muted">{sale.displayReference}</span>
+                </td>
                 <td className="px-3 py-2">{sale.lineCount}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-semibold">
                   {formatMoney(sale.totalAmount)}
@@ -186,11 +202,7 @@ function SalesRows({ rows }: { readonly rows: readonly SaleSummaryDto[] }) {
                           : "neutral"
                     }
                   >
-                    {sale.status === "posted"
-                      ? "Đã chốt"
-                      : sale.status === "draft"
-                        ? "Nháp"
-                        : "Đã bỏ"}
+                    {SALE_STATUS_COPY[sale.status]}
                   </Badge>
                 </td>
                 <td className="px-3 py-2 text-right">

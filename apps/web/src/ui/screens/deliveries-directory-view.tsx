@@ -1,6 +1,6 @@
 "use client";
 
-import type { Cursor, DeliveryDto, Page } from "@vuarau/domain-contracts";
+import type { Cursor, DeliverySummaryDto, Page } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { DELIVERY_STATUS_COPY } from "@/ui/copy.ts";
@@ -20,15 +20,20 @@ import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { SearchInput } from "@/ui/primitives/search-input.tsx";
 
 export type DeliveriesDirectoryViewProps = {
-  readonly query: QueryLike<Page<DeliveryDto>>;
-  readonly rows: readonly DeliveryDto[];
+  readonly query: QueryLike<Page<DeliverySummaryDto>>;
+  readonly rows: readonly DeliverySummaryDto[];
   readonly nextCursor: Cursor | null;
   readonly isFetching: boolean;
   readonly onRetry: () => void;
   readonly onLoadMore: () => void;
+  readonly queryText: string;
+  readonly onQueryChange: (value: string) => void;
+  readonly onClearQuery: () => void;
 };
 
-function deliveryTone(status: DeliveryDto["status"]): "info" | "warning" | "positive" | "neutral" {
+function deliveryTone(
+  status: DeliverySummaryDto["status"],
+): "info" | "warning" | "positive" | "neutral" {
   if (status === "dispatched") return "info";
   if (status === "cancelled") return "warning";
   if (status === "delivered") return "positive";
@@ -42,24 +47,21 @@ export function DeliveriesDirectoryView({
   isFetching,
   onRetry,
   onLoadMore,
+  queryText,
+  onQueryChange,
+  onClearQuery,
 }: DeliveriesDirectoryViewProps) {
   const [tab, setTab] = useState<"waiting" | "in_progress" | "delivered">("waiting");
-  const [queryText, setQueryText] = useState("");
   const visibleRows = useMemo(
     () =>
-      rows.filter(
-        (delivery) =>
-          (tab === "waiting"
-            ? delivery.status === "draft"
-            : tab === "in_progress"
-              ? delivery.status === "dispatched"
-              : delivery.status === "delivered") &&
-          [delivery.id, delivery.lines.map((line) => line.productName).join(" ")]
-            .join(" ")
-            .toLocaleLowerCase("vi-VN")
-            .includes(queryText.trim().toLocaleLowerCase("vi-VN")),
+      rows.filter((delivery) =>
+        tab === "waiting"
+          ? delivery.status === "draft"
+          : tab === "in_progress"
+            ? delivery.status === "dispatched"
+            : delivery.status === "delivered",
       ),
-    [queryText, rows, tab],
+    [rows, tab],
   );
   return (
     <PageFrame size="wide">
@@ -74,8 +76,8 @@ export function DeliveriesDirectoryView({
               label="Tìm phiếu giao"
               placeholder="Mã phiếu hoặc mặt hàng"
               value={queryText}
-              onChange={(event) => setQueryText(event.target.value)}
-              onClear={() => setQueryText("")}
+              onChange={(event) => onQueryChange(event.target.value)}
+              onClear={onClearQuery}
             />
           }
           filters={
@@ -113,11 +115,10 @@ export function DeliveriesDirectoryView({
                     <li key={delivery.id}>
                       <MobileRecordCard href={`/deliveries/${delivery.id}`}>
                         <span>
-                          <strong>
-                            {delivery.lines[0]?.productName ?? "Phiếu chưa có dòng hàng"}
-                          </strong>
+                          <strong>{delivery.displayReference}</strong>
                           <span className="block text-caption text-ink-muted">
-                            {formatInstant(delivery.transactionTime)} · {delivery.lines.length} dòng
+                            {delivery.primaryProductName ?? "Phiếu chưa có dòng hàng"} ·{" "}
+                            {formatInstant(delivery.transactionTime)}
                           </span>
                         </span>
                         <Badge tone={deliveryTone(delivery.status)}>
@@ -151,21 +152,21 @@ export function DeliveriesDirectoryView({
                       {visibleRows.map((delivery) => (
                         <tr key={delivery.id} className="hover:bg-surface-muted">
                           <td className="px-3 py-2 font-medium">
-                            {delivery.lines[0]?.productName ?? "Chưa có dòng hàng"}
-                            {delivery.lines.length > 1 ? ` · +${delivery.lines.length - 1}` : ""}
+                            {delivery.primaryProductName ?? "Chưa có dòng hàng"}
+                            {delivery.lineCount > 1 ? ` · +${delivery.lineCount - 1}` : ""}
                           </td>
                           <td className="px-3 py-2">
                             <Link
                               href={`/sales/${delivery.saleId}`}
                               className="font-semibold text-info underline-offset-4 hover:underline"
                             >
-                              Mở đơn nguồn
+                              {delivery.saleDisplayReference}
                             </Link>
                           </td>
                           <td className="whitespace-nowrap px-3 py-2">
                             {formatInstant(delivery.transactionTime)}
                           </td>
-                          <td className="px-3 py-2">{delivery.lines.length}</td>
+                          <td className="px-3 py-2">{delivery.lineCount}</td>
                           <td className="px-3 py-2">{DELIVERY_STATUS_COPY[delivery.status]}</td>
                           <td className="px-3 py-2 text-right">
                             <Link

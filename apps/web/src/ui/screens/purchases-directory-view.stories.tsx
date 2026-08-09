@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { Page, PurchaseDto } from "@vuarau/domain-contracts";
+import type { Page, PurchaseDto, PurchaseSummaryDto } from "@vuarau/domain-contracts";
 import { PRODUCT_CA_CHUA_ID, WORKSPACE_ID, testUuid } from "@vuarau/test-fixtures/ids";
 import { RECORDED_AT, TRANSACTION_TIME } from "@vuarau/test-fixtures/time";
 import { PurchasesDirectoryView } from "./purchases-directory-view.tsx";
@@ -33,7 +33,14 @@ const purchase: PurchaseDto = {
   voidRecord: null,
 };
 
-const page: Page<PurchaseDto> = { items: [purchase], nextCursor: null };
+const purchaseSummary: PurchaseSummaryDto = {
+  ...purchase,
+  displayReference: `MH-${purchase.id.slice(0, 8).toUpperCase()}`,
+  supplierDisplayName: "Nhà vườn Bình Phước",
+  primaryProductName: "Cà chua",
+  lineCount: 1,
+};
+const page: Page<PurchaseSummaryDto> = { items: [purchaseSummary], nextCursor: null };
 const ready = { isPending: false, isError: false, error: null, data: page } as const;
 
 const meta = {
@@ -41,12 +48,15 @@ const meta = {
   component: PurchasesDirectoryView,
   args: {
     query: ready,
-    rows: [purchase],
+    rows: [purchaseSummary],
     nextCursor: null,
     isFetching: false,
     canCreate: true,
     onRetry: () => undefined,
     onLoadMore: () => undefined,
+    queryText: "",
+    onQueryChange: () => undefined,
+    onClearQuery: () => undefined,
   },
 } satisfies Meta<typeof PurchasesDirectoryView>;
 export default meta;

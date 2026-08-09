@@ -7,7 +7,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { UI_COPY_REGISTRY } from "@/ui/copy.ts";
-import { formatQuantity } from "@/ui/format.ts";
+import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -50,7 +50,7 @@ export function FactHistory({
                   Kiểm hàng {formatQuantity(inspection.inspectedQuantity)}
                 </p>
                 <p className="text-caption text-ink-muted">
-                  {new Date(inspection.transactionTime).toLocaleString("vi-VN")}
+                  {formatInstant(inspection.transactionTime)}
                 </p>
               </div>
               <Badge tone={inspection.reversal === null ? "positive" : "neutral"}>
@@ -91,7 +91,7 @@ export function FactHistory({
                   {disposition.source.type === "arrival_line" ? "hàng đã nhận" : "lượng tạm giữ"}
                 </p>
                 <p className="text-caption text-ink-muted">
-                  {new Date(disposition.transactionTime).toLocaleString("vi-VN")}
+                  {formatInstant(disposition.transactionTime)}
                 </p>
               </div>
               <Badge tone={disposition.reversal === null ? "positive" : "neutral"}>

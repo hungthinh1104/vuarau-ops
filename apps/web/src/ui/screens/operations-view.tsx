@@ -6,6 +6,7 @@ import type {
   WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
+import { formatMoney } from "@/ui/format.ts";
 import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -226,8 +227,7 @@ function ReconciliationPanel(props: {
                       </Badge>
                     </div>
                     <p className="mt-1 text-caption text-ink-muted">
-                      {match.amount.amountMinor.toLocaleString("vi-VN")} {match.amount.currency} ·{" "}
-                      {match.statementAt}
+                      {formatMoney(match.amount)} · {match.statementAt}
                     </p>
                   </li>
                 ))}

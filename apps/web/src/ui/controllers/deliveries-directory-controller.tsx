@@ -1,20 +1,24 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
+import { useDebounced } from "@/api/use-debounced.ts";
 import { DeliveriesDirectoryView } from "@/ui/screens/deliveries-directory-view.tsx";
 
 export function DeliveriesDirectoryController() {
   const { workspaceId } = useSession();
   const trpc = useTRPC();
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounced(query, 250);
   const deliveries = useInfiniteQuery(
     trpc.delivery.list.infiniteQueryOptions(
       {
         workspaceId,
         saleId: null,
         status: null,
+        query: debouncedQuery,
         limit: 25,
       },
       {
@@ -43,6 +47,9 @@ export function DeliveriesDirectoryController() {
       isFetching={deliveries.isFetching}
       onRetry={() => void deliveries.refetch()}
       onLoadMore={() => void deliveries.fetchNextPage()}
+      queryText={query}
+      onQueryChange={setQuery}
+      onClearQuery={() => setQuery("")}
     />
   );
 }

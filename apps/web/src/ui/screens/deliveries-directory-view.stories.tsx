@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { DeliveryDto, Page } from "@vuarau/domain-contracts";
+import type { DeliveryDto, DeliverySummaryDto, Page } from "@vuarau/domain-contracts";
 import {
   PRODUCT_CA_CHUA_ID,
   QUALITY_GRADE_1_ID,
@@ -38,7 +38,15 @@ const delivery: DeliveryDto = {
   evidenceReferences: [],
 };
 
-const page: Page<DeliveryDto> = { items: [delivery], nextCursor: null };
+const deliverySummary: DeliverySummaryDto = {
+  ...delivery,
+  displayReference: `GH-${delivery.id.slice(0, 8).toUpperCase()}`,
+  saleDisplayReference: `BH-${delivery.saleId.slice(0, 8).toUpperCase()}`,
+  customerDisplayName: "Khách thử nghiệm",
+  primaryProductName: "Cà chua",
+  lineCount: 1,
+};
+const page: Page<DeliverySummaryDto> = { items: [deliverySummary], nextCursor: null };
 const ready = { isPending: false, isError: false, error: null, data: page } as const;
 
 const meta = {
@@ -46,11 +54,14 @@ const meta = {
   component: DeliveriesDirectoryView,
   args: {
     query: ready,
-    rows: [delivery],
+    rows: [deliverySummary],
     nextCursor: null,
     isFetching: false,
     onRetry: () => undefined,
     onLoadMore: () => undefined,
+    queryText: "",
+    onQueryChange: () => undefined,
+    onClearQuery: () => undefined,
   },
 } satisfies Meta<typeof DeliveriesDirectoryView>;
 export default meta;

@@ -1,41 +1,38 @@
 "use client";
 
-import type { Cursor, CustomerOrderDto, Page } from "@vuarau/domain-contracts";
+import type { Cursor, CustomerOrderSummaryDto, Page } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { formatDate, formatMoney, formatQuantity } from "@/ui/format.ts";
+import { CUSTOMER_ORDER_CHANNEL_COPY, CUSTOMER_ORDER_STATUS_COPY } from "@/ui/copy.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { MobileRecordCard, PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageFrame,
+  PageHeader,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
 
-const STATUS_COPY = {
-  draft: "Nháp",
-  confirmed: "Đã xác nhận",
-  cancelled: "Đã huỷ",
-} as const;
-
-const CHANNEL_COPY = {
-  account_customer: "Khách công nợ",
-  contract_customer: "Khách hợp đồng",
-  walk_in: "Khách lẻ",
-  internal_transfer: "Điều chuyển nội bộ",
-} as const;
-
-function badgeTone(status: CustomerOrderDto["status"]) {
+function badgeTone(status: CustomerOrderSummaryDto["status"]) {
   return status === "confirmed" ? "positive" : status === "cancelled" ? "warning" : "neutral";
 }
 
 export function CustomerOrdersDirectoryView(props: {
-  readonly query: QueryLike<Page<CustomerOrderDto>>;
-  readonly rows: readonly CustomerOrderDto[];
+  readonly query: QueryLike<Page<CustomerOrderSummaryDto>>;
+  readonly rows: readonly CustomerOrderSummaryDto[];
   readonly nextCursor: Cursor | null;
   readonly isFetching: boolean;
   readonly canCreate: boolean;
   readonly onRetry: () => void;
   readonly onLoadMore: () => void;
+  readonly queryText: string;
+  readonly onQueryChange: (value: string) => void;
+  readonly onClearQuery: () => void;
 }) {
   return (
     <PageFrame size="wide">
@@ -47,6 +44,17 @@ export function CustomerOrdersDirectoryView(props: {
             props.canCreate ? (
               <LinkButton href="/customer-orders/new">Tạo đơn đặt hàng</LinkButton>
             ) : null
+          }
+        />
+        <DirectoryToolbar
+          search={
+            <SearchInput
+              label="Tìm đơn đặt hàng"
+              placeholder="Mã đơn, khách hoặc mặt hàng"
+              value={props.queryText}
+              onChange={(event) => props.onQueryChange(event.target.value)}
+              onClear={props.onClearQuery}
+            />
           }
         />
         <QueryStates
@@ -67,15 +75,15 @@ export function CustomerOrdersDirectoryView(props: {
                     <li key={order.id}>
                       <MobileRecordCard href={`/customer-orders/${order.id}`}>
                         <span className="min-w-0">
-                          <strong className="block truncate">
-                            {order.lines[0]?.productName ?? "Chưa có mặt hàng"}
-                          </strong>
+                          <strong className="block truncate">{order.displayReference}</strong>
                           <span className="block text-caption text-ink-muted">
-                            {CHANNEL_COPY[order.channel]} · {formatDate(order.transactionTime)} ·{" "}
-                            {order.lines.length} dòng
+                            {order.customerDisplayName ?? "Chưa gắn khách"} ·{" "}
+                            {formatDate(order.transactionTime)} · {order.lineCount} dòng
                           </span>
                         </span>
-                        <Badge tone={badgeTone(order.status)}>{STATUS_COPY[order.status]}</Badge>
+                        <Badge tone={badgeTone(order.status)}>
+                          {CUSTOMER_ORDER_STATUS_COPY[order.status]}
+                        </Badge>
                       </MobileRecordCard>
                     </li>
                   ))}
@@ -108,17 +116,19 @@ export function CustomerOrdersDirectoryView(props: {
                               href={`/customer-orders/${order.id}`}
                               className="font-semibold text-info hover:underline"
                             >
-                              {order.lines[0]?.productName ?? "Chưa có mặt hàng"}
+                              {order.primaryProductName ?? "Chưa có mặt hàng"}
                             </Link>
-                            {order.lines.length > 1 ? ` · +${order.lines.length - 1}` : ""}
+                            {order.lineCount > 1 ? ` · +${order.lineCount - 1}` : ""}
                           </td>
-                          <td className="px-3 py-2">{CHANNEL_COPY[order.channel]}</td>
+                          <td className="px-3 py-2">
+                            {CUSTOMER_ORDER_CHANNEL_COPY[order.channel]}
+                          </td>
                           <td className="data-table-primary px-3 py-2">
-                            {order.customerId === null ? "Không gắn khách" : "Đã gắn khách"}
+                            {order.customerDisplayName ?? "Chưa gắn khách"}
                           </td>
                           <td className="px-3 py-2">
                             {formatQuantity(
-                              order.lines[0]?.quantity ?? { valueScaled: 0, unit: "kg" },
+                              order.primaryQuantity ?? { valueScaled: 0, unit: "kg" },
                             )}
                           </td>
                           <td className="px-3 py-2 text-right font-semibold">
@@ -128,7 +138,7 @@ export function CustomerOrdersDirectoryView(props: {
                           </td>
                           <td className="px-3 py-2">
                             <Badge tone={badgeTone(order.status)}>
-                              {STATUS_COPY[order.status]}
+                              {CUSTOMER_ORDER_STATUS_COPY[order.status]}
                             </Badge>
                           </td>
                         </tr>

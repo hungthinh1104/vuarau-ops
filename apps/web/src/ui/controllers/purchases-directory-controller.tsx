@@ -1,20 +1,24 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
+import { useDebounced } from "@/api/use-debounced.ts";
 import { PurchasesDirectoryView } from "@/ui/screens/purchases-directory-view.tsx";
 
 export function PurchasesDirectoryController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounced(query, 250);
   const purchases = useInfiniteQuery(
     trpc.purchase.list.infiniteQueryOptions(
       {
         workspaceId,
         supplierId: null,
         status: null,
+        query: debouncedQuery,
         limit: 25,
       },
       {
@@ -44,6 +48,9 @@ export function PurchasesDirectoryController() {
       onRetry={() => void purchases.refetch()}
       onLoadMore={() => void purchases.fetchNextPage()}
       canCreate={session.permissions.includes("purchase.create")}
+      queryText={query}
+      onQueryChange={setQuery}
+      onClearQuery={() => setQuery("")}
     />
   );
 }

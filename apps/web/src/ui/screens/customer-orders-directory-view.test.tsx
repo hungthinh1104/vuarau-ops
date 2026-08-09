@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import type { CustomerOrderDto, Page } from "@vuarau/domain-contracts";
+import type { CustomerOrderDto, CustomerOrderSummaryDto, Page } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
 import { CustomerOrdersDirectoryView } from "./customer-orders-directory-view.tsx";
 
@@ -39,19 +39,30 @@ const order: CustomerOrderDto = {
 };
 
 const ready = <T,>(data: T) => ({ isPending: false, isError: false, error: null, data });
+const summary: CustomerOrderSummaryDto = {
+  ...order,
+  displayReference: `DH-${order.id.slice(0, 8).toUpperCase()}`,
+  customerDisplayName: null,
+  primaryProductName: "Cải ngọt",
+  primaryQuantity: order.lines[0]!.quantity,
+  lineCount: 1,
+};
 
 describe("CustomerOrdersDirectoryView", () => {
   it("TC-WEB-CUSTOMER-ORDER-001 shows unpriced commercial facts and a semantic detail link", () => {
-    const page: Page<CustomerOrderDto> = { items: [order], nextCursor: null };
+    const page: Page<CustomerOrderSummaryDto> = { items: [summary], nextCursor: null };
     render(
       <CustomerOrdersDirectoryView
         query={ready(page)}
-        rows={[order]}
+        rows={[summary]}
         nextCursor={null}
         isFetching={false}
         canCreate
         onRetry={() => undefined}
         onLoadMore={() => undefined}
+        queryText=""
+        onQueryChange={() => undefined}
+        onClearQuery={() => undefined}
       />,
     );
 

@@ -9,7 +9,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import Link from "next/link";
-import { formatInstant, formatQuantity } from "@/ui/format.ts";
+import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -385,7 +385,7 @@ function SupplierObservationCard({ item }: { readonly item: SupplierObservationD
           <span>Trả nhà cung cấp: {formatQuantity(item.facts.rejectedQuantity)}</span>
         )}
         {item.facts.price === null ? null : (
-          <span>Giá quan sát: {item.facts.price.amountMinor.toLocaleString("vi-VN")} VND</span>
+          <span>Giá quan sát: {formatMoney(item.facts.price)}</span>
         )}
         {item.facts.claimReference === null ? null : (
           <span>Khiếu nại: {item.facts.claimReference}</span>

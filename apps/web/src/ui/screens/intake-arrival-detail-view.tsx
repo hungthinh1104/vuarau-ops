@@ -7,6 +7,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
+import { formatInstant } from "@/ui/format.ts";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { ArrivalSummary } from "@/ui/patterns/intake/arrival-detail-flow.tsx";
@@ -43,9 +44,7 @@ export function IntakeArrivalDetailView({
               <div className="grid gap-6">
                 <PageHeader
                   title="Nhận hàng và kiểm hàng"
-                  description={`${detail.vehicleReference ?? "Không ghi xe"} · ${new Date(
-                    detail.transactionTime,
-                  ).toLocaleString("vi-VN")}`}
+                  description={`${detail.vehicleReference ?? "Không ghi xe"} · ${formatInstant(detail.transactionTime)}`}
                   {...(detail.purchaseId !== null
                     ? {
                         back: {

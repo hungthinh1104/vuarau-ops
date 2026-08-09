@@ -1,4 +1,5 @@
 import type {
+  CustomerOrderChannel,
   DeliveryStatus,
   DomainRejectionCode,
   PaymentStatus,
@@ -12,6 +13,13 @@ export const CUSTOMER_ORDER_STATUS_COPY: Readonly<Record<CustomerOrderStatus, st
   draft: "Nháp",
   confirmed: "Đã xác nhận",
   cancelled: "Đã huỷ",
+};
+
+export const CUSTOMER_ORDER_CHANNEL_COPY: Readonly<Record<CustomerOrderChannel, string>> = {
+  account_customer: "Khách công nợ",
+  contract_customer: "Khách hợp đồng",
+  walk_in: "Khách lẻ",
+  internal_transfer: "Điều chuyển nội bộ",
 };
 
 /**

@@ -4,12 +4,15 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useSession } from "@/api/session-gate.tsx";
 import { useTRPC } from "@/api/providers.tsx";
+import { useDebounced } from "@/api/use-debounced.ts";
 import { SalesListView, type SalesListFilter } from "@/ui/screens/sales-list-view.tsx";
 
 export function SalesDirectoryController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
   const [filter, setFilter] = useState<SalesListFilter>("all");
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounced(query, 250);
   const sales = useInfiniteQuery(
     trpc.sale.list.infiniteQueryOptions(
       {
@@ -24,6 +27,7 @@ export function SalesDirectoryController() {
         financialState: filter === "voided" ? "voided" : filter === "posted" ? "active" : null,
         from: null,
         to: null,
+        query: debouncedQuery,
         limit: 25,
       },
       {
@@ -47,12 +51,15 @@ export function SalesDirectoryController() {
     <SalesListView
       rows={rows}
       filter={filter}
+      queryText={query}
       query={{ ...sales, data: firstPage }}
       canCreate={session.permissions.includes("sale.create")}
       hasMore={sales.hasNextPage === true}
       onFilterChange={(value) => {
         setFilter(value);
       }}
+      onQueryChange={setQuery}
+      onClearQuery={() => setQuery("")}
       onLoadMore={() => void sales.fetchNextPage()}
       onRetry={() => void sales.refetch()}
     />

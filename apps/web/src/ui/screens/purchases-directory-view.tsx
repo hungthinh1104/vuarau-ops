@@ -1,25 +1,34 @@
 "use client";
 
-import type { Cursor, Page, PurchaseDto } from "@vuarau/domain-contracts";
+import type { Cursor, Page, PurchaseSummaryDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { PURCHASE_STATUS_COPY } from "@/ui/copy.ts";
 import { formatDate, formatMoney } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
-import { MobileRecordCard, PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import {
+  DirectoryToolbar,
+  MobileRecordCard,
+  PageFrame,
+  PageHeader,
+} from "@/ui/patterns/layout/page-layout.tsx";
 import { LinkButton } from "@/ui/primitives/link-button.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
+import { SearchInput } from "@/ui/primitives/search-input.tsx";
 
 export type PurchasesDirectoryViewProps = {
-  readonly query: QueryLike<Page<PurchaseDto>>;
-  readonly rows: readonly PurchaseDto[];
+  readonly query: QueryLike<Page<PurchaseSummaryDto>>;
+  readonly rows: readonly PurchaseSummaryDto[];
   readonly nextCursor: Cursor | null;
   readonly isFetching: boolean;
   readonly onRetry: () => void;
   readonly onLoadMore: () => void;
   readonly canCreate: boolean;
+  readonly queryText: string;
+  readonly onQueryChange: (value: string) => void;
+  readonly onClearQuery: () => void;
 };
 
 export function PurchasesDirectoryView({
@@ -30,6 +39,9 @@ export function PurchasesDirectoryView({
   onRetry,
   onLoadMore,
   canCreate,
+  queryText,
+  onQueryChange,
+  onClearQuery,
 }: PurchasesDirectoryViewProps) {
   return (
     <PageFrame size="wide">
@@ -37,6 +49,17 @@ export function PurchasesDirectoryView({
         <PageHeader
           title="Đơn mua"
           actions={canCreate ? <LinkButton href="/purchases/new">Tạo đơn mua</LinkButton> : null}
+        />
+        <DirectoryToolbar
+          search={
+            <SearchInput
+              label="Tìm đơn mua"
+              placeholder="Mã đơn, nhà cung cấp hoặc mặt hàng"
+              value={queryText}
+              onChange={(event) => onQueryChange(event.target.value)}
+              onClear={onClearQuery}
+            />
+          }
         />
         <QueryStates query={query} loadingLabel="Đang tải đơn mua" onRetry={onRetry}>
           {() =>
@@ -52,9 +75,9 @@ export function PurchasesDirectoryView({
                     <li key={purchase.id}>
                       <MobileRecordCard href={`/purchases/${purchase.id}`}>
                         <span>
-                          <strong>{formatMoney(purchase.totalAmount)}</strong>
+                          <strong>{purchase.displayReference}</strong>
                           <span className="block text-caption text-ink-muted">
-                            {formatDate(purchase.transactionTime)} · {purchase.lines.length} dòng
+                            {purchase.supplierDisplayName} · {formatDate(purchase.transactionTime)}
                           </span>
                         </span>
                         <Badge
@@ -99,10 +122,10 @@ export function PurchasesDirectoryView({
                         <tr key={purchase.id} className="hover:bg-surface-muted">
                           <td className="px-3 py-2">{formatDate(purchase.transactionTime)}</td>
                           <td className="px-3 py-2">
-                            {purchase.lines[0]?.productName ?? "Chưa có hàng"}
-                            {purchase.lines.length > 1 ? ` · +${purchase.lines.length - 1}` : ""}
+                            {purchase.primaryProductName ?? "Chưa có hàng"}
+                            {purchase.lineCount > 1 ? ` · +${purchase.lineCount - 1}` : ""}
                           </td>
-                          <td className="px-3 py-2">{purchase.lines.length}</td>
+                          <td className="px-3 py-2">{purchase.lineCount}</td>
                           <td className="px-3 py-2 text-right font-semibold">
                             {formatMoney(purchase.totalAmount)}
                           </td>
