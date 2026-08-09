@@ -42,6 +42,10 @@ async function createQualityGrade(page: Page, name: string): Promise<void> {
   await expect(page.getByText(name, { exact: true })).toBeVisible();
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 test.describe("Operational correctness (TC-E2E-032)", () => {
   test("preserves Product, grade, fulfilment, inventory and money truth end to end", async ({
     page,
@@ -108,8 +112,14 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     const deliveryIds: string[] = [];
     for (const quantity of ["50", "30"]) {
       await page.goto(`/sales/${saleId}`);
-      await page.getByRole("link", { name: "Giao đơn" }).click();
-      await page.getByLabel(`Số lượng giao ${productName}`).fill(quantity);
+      await Promise.all([
+        page.waitForURL(/\/sales\/[0-9a-f-]+\/deliveries\/new$/),
+        page.getByRole("link", { name: "Giao đơn" }).click(),
+      ]);
+      await expect(page.getByRole("heading", { name: /Giao đơn/ })).toBeVisible();
+      await page
+        .getByLabel(new RegExp(`^Số lượng giao ${escapeRegExp(productName)}(?: ·|$)`))
+        .fill(quantity);
       await page.getByRole("button", { name: "Lưu để giao sau" }).click();
       await page.waitForURL(/\/deliveries\/[0-9a-f-]+$/);
       deliveryIds.push(new URL(page.url()).pathname.split("/").at(-1)!);

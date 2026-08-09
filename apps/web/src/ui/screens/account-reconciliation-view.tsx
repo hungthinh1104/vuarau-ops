@@ -61,23 +61,35 @@ export function AccountReconciliationView(props: AccountReconciliationViewProps)
             {props.evidenceFetching ? "Đang tạo bản đối soát" : "Xuất bản đối soát"}
           </Button>
           {props.evidence ? (
-            <DisclosureSection
-              title="Chi tiết đối soát"
-              description="Bản đối soát giữ nguyên số liệu từ sổ cái và bảng tổng hợp tại thời điểm xuất."
+            <div
+              role="region"
+              aria-label="Chi tiết đối soát"
+              className="rounded-card border border-border"
             >
-              <dl className="grid gap-3 text-body-sm sm:grid-cols-2">
-                <Summary label="Phiên bản dữ liệu">{props.evidence.schemaVersion}</Summary>
-                <Summary label="Tính đến">
-                  {props.evidence.asOf === null
-                    ? "Chưa có giao dịch"
-                    : formatInstant(props.evidence.asOf)}
-                </Summary>
-                <Summary label="Số dòng trong sổ">{props.evidence.entries.length}</Summary>
-                <Summary label="Kết quả">
-                  {reconciliationKindCopy(props.evidence.reconciliation.kind)}
-                </Summary>
-              </dl>
-            </DisclosureSection>
+              <DisclosureSection
+                title="Chi tiết đối soát"
+                description="Bản đối soát giữ nguyên số liệu từ sổ cái và bảng tổng hợp tại thời điểm xuất."
+              >
+                <dl className="grid gap-3 text-body-sm sm:grid-cols-2">
+                  <Summary label="Phiên bản dữ liệu">{props.evidence.schemaVersion}</Summary>
+                  <Summary label="Tính đến">
+                    {props.evidence.asOf === null
+                      ? "Chưa có giao dịch"
+                      : formatInstant(props.evidence.asOf)}
+                  </Summary>
+                  <Summary label="Số dòng trong sổ">{props.evidence.entries.length}</Summary>
+                  <Summary label="Kết quả">
+                    {reconciliationKindCopy(props.evidence.reconciliation.kind)}
+                  </Summary>
+                </dl>
+                {evidenceDiagnostics(props.evidence).length > 0 ? (
+                  <div className="mt-4 border-t border-border pt-4">
+                    <h2 className="text-subheading font-semibold">Điểm cần kiểm tra</h2>
+                    <DiagnosticList diagnostics={evidenceDiagnostics(props.evidence)} />
+                  </div>
+                ) : null}
+              </DisclosureSection>
+            </div>
           ) : null}
         </section>
       </div>
@@ -207,6 +219,14 @@ function DiagnosticList({
       ))}
     </ul>
   );
+}
+
+function evidenceDiagnostics(
+  evidence: AccountReconciliationEvidenceDto,
+): readonly AccountReconciliationDiagnosticCode[] {
+  return "diagnostics" in evidence.reconciliation
+    ? evidence.reconciliation.diagnostics.map((item) => item.code)
+    : [];
 }
 
 function ledgerClassificationCopy(value: string): string {

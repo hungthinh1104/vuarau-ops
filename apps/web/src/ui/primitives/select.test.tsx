@@ -156,7 +156,7 @@ describe("Select", () => {
     );
 
     await user.click(screen.getByRole("combobox", { name: "Mặt hàng" }));
-    const searchbox = screen.getByRole("searchbox", { name: "Tìm mặt hàng" });
+    const searchbox = await screen.findByRole("searchbox", { name: "Tìm mặt hàng" });
     await user.click(searchbox);
     await user.keyboard("{Escape}");
 

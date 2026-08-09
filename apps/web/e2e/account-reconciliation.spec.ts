@@ -22,7 +22,7 @@ test.describe("TC-E2E-023 — account reconciliation", () => {
     await page.getByRole("button", { name: "Xuất bản đối soát" }).click();
     await expect(page.getByText("Chi tiết đối soát", { exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: "Chi tiết đối soát" })).toContainText(
-      "projection_balance_mismatch",
+      "Số dư tổng hợp không khớp sổ cái.",
     );
 
     await page.getByRole("button", { name: "Dựng lại số dư" }).click();
