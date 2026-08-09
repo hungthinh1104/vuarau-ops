@@ -1,12 +1,18 @@
 "use client";
 
-import type { SaleDetailDto, SaleFulfilmentDto, SaleId } from "@vuarau/domain-contracts";
+import {
+  UNIT_LABEL_VI,
+  type SaleDetailDto,
+  type SaleFulfilmentDto,
+  type SaleId,
+} from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { hasDeliverableLines } from "@/ui/domain/delivery-form.ts";
 import { formatQuantityInput } from "@/ui/domain/numeric-text.ts";
 import { copyForBlockedReason } from "@/ui/copy.ts";
 import { formatQuantity } from "@/ui/format.ts";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Checkbox } from "@/ui/primitives/checkbox.tsx";
 import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
@@ -90,6 +96,7 @@ export function NewDeliveryView(props: {
                 <QuantityInput
                   label={`Số lượng giao ${summary.productName}${summary.qualityGradeName === null ? "" : ` · ${summary.qualityGradeName}`}`}
                   unit={summary.remaining.unit}
+                  unitLabel={UNIT_LABEL_VI[summary.remaining.unit]}
                   value={proposed}
                   onChange={(event) =>
                     props.onQuantityChange(summary.saleLineId, event.target.value)
@@ -105,17 +112,13 @@ export function NewDeliveryView(props: {
               onChange={(event) => props.onNoteChange(event.target.value)}
             />
           </label>
-          <label className="mt-3 grid gap-2">
-            <span>Ảnh hoặc phiếu liên quan</span>
-            <span className="text-caption text-ink-muted">
-              Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo chuyển
-              động kho.
-            </span>
-            <TextareaControl
+          <div className="mt-3">
+            <EvidenceReferenceInput
               value={props.evidence}
-              onChange={(event) => props.onEvidenceChange(event.target.value)}
+              onChange={props.onEvidenceChange}
+              hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo chuyển động kho."
             />
-          </label>
+          </div>
         </section>
         <label className="flex items-start gap-3 rounded-card border border-border bg-surface p-4">
           <Checkbox

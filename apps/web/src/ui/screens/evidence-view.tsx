@@ -1,5 +1,6 @@
 "use client";
 
+import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import type {
   CostObservationCaseKind,
   CostObservationDto,
@@ -13,12 +14,15 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
+import { MoneyInput } from "@/ui/primitives/money-input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
@@ -179,31 +183,23 @@ function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
         onChange={(event) => props.onParticipantWording(event.target.value)}
       />
       <div className="grid gap-4 sm:grid-cols-3">
-        <TextInput
+        <MoneyInput
           label="Số tiền quan sát (₫)"
-          inputMode="numeric"
+          currency="VND"
           value={props.amount}
           onChange={(event) => props.onAmount(event.target.value)}
         />
-        <TextInput
+        <QuantityInput
           label="Số lượng quan sát"
-          inputMode="decimal"
+          unit={props.unit}
+          unitLabel={UNIT_LABEL_VI[props.unit]}
           value={props.quantity}
           onChange={(event) => props.onQuantity(event.target.value)}
         />
         <Select
           label="Đơn vị"
           value={props.unit}
-          options={[
-            { value: "kg", label: "kg" },
-            { value: "gram", label: "gram" },
-            { value: "lang", label: "lạng" },
-            { value: "bo", label: "bó" },
-            { value: "thung", label: "thùng" },
-            { value: "ro", label: "rổ" },
-            { value: "kien", label: "kiện" },
-            { value: "cai", label: "cái" },
-          ]}
+          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
           onChange={(event) => props.onUnit(event.target.value as Unit)}
         />
       </div>
@@ -213,11 +209,10 @@ function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
         onChange={(event) => props.onSourceReference(event.target.value)}
         hint="Mã phiếu hoặc liên kết liên quan nếu có; không tự tạo tác động vào sổ."
       />
-      <Textarea
-        label="Ảnh hoặc phiếu liên quan"
+      <EvidenceReferenceInput
         required
         value={props.evidenceReferences}
-        onChange={(event) => props.onEvidenceReferences(event.target.value)}
+        onChange={props.onEvidenceReferences}
         hint="Mỗi dòng một ảnh, phiếu giấy, biên nhận hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (

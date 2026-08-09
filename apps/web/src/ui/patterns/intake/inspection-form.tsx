@@ -1,10 +1,16 @@
 "use client";
 
-import type { GoodsArrivalLineInput, QualityIssueCodeDto } from "@vuarau/domain-contracts";
+import {
+  UNIT_LABEL_VI,
+  type GoodsArrivalLineInput,
+  type QualityIssueCodeDto,
+} from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { formatQuantity } from "@/ui/format.ts";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Input } from "@/ui/primitives/input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 
@@ -55,10 +61,12 @@ export function InspectionForm({
     <details className="rounded-card border border-border p-3">
       <summary className="cursor-pointer text-label font-semibold">1. Kiểm hàng</summary>
       <div className="mt-3 grid gap-3">
-        <NumberInput
+        <QuantityInput
           label={`Số lượng đã kiểm · còn tối đa ${formatQuantity({ valueScaled: maxValueScaled, unit: line.arrivedQuantity.unit })}`}
+          unit={line.arrivedQuantity.unit}
+          unitLabel={UNIT_LABEL_VI[line.arrivedQuantity.unit]}
           value={quantity}
-          onChange={onQuantityChange}
+          onChange={(event) => onQuantityChange(event.target.value)}
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <Select
@@ -69,7 +77,7 @@ export function InspectionForm({
               { value: "", label: "Không ghi vấn đề" },
               ...issueCodes.map((issue) => ({
                 value: issue.id,
-                label: `${issue.code} · ${issue.displayName}`,
+                label: issue.displayName,
               })),
             ]}
           />
@@ -95,10 +103,7 @@ export function InspectionForm({
             onChange={(event) => onIssueNoteChange(event.target.value)}
           />
         </label>
-        <label className="grid gap-2 text-label">
-          Ảnh hoặc phiếu liên quan (mỗi đường dẫn cách nhau bằng dấu phẩy)
-          <Input value={evidence} onChange={(event) => onEvidenceChange(event.target.value)} />
-        </label>
+        <EvidenceReferenceInput value={evidence} onChange={onEvidenceChange} />
         <label className="grid gap-2 text-label">
           Ghi chú kiểm hàng
           <TextareaControl value={note} onChange={(event) => onNoteChange(event.target.value)} />
@@ -114,22 +119,5 @@ export function InspectionForm({
         {feedback}
       </div>
     </details>
-  );
-}
-
-function NumberInput({
-  label,
-  value,
-  onChange,
-}: {
-  readonly label: string;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-}) {
-  return (
-    <label className="grid gap-2 text-label">
-      {label}
-      <Input inputMode="decimal" value={value} onChange={(event) => onChange(event.target.value)} />
-    </label>
   );
 }

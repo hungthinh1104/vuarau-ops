@@ -7,6 +7,7 @@ import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { MoneyInput } from "@/ui/primitives/money-input.tsx";
@@ -115,11 +116,7 @@ export function SupplierPaymentReversalView({
         value={reason}
         onChange={(event) => onReasonChange(event.target.value)}
       />
-      <Textarea
-        label="Ảnh hoặc phiếu liên quan"
-        value={evidence}
-        onChange={(event) => onEvidenceChange(event.target.value)}
-      />
+      <EvidenceReferenceInput value={evidence} onChange={onEvidenceChange} />
       <Button
         tone="danger"
         disabled={

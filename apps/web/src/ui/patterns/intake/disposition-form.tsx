@@ -5,15 +5,16 @@ import type {
   QualityDispositionSource,
   QualityGradeDto,
 } from "@vuarau/domain-contracts";
+import { UNIT_LABEL_VI } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { formatQuantity } from "@/ui/format.ts";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
-import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type DispositionValues = {
   readonly accepted: string;
@@ -82,10 +83,12 @@ export function DispositionForm({
         lượng chấp nhận mới tạo tồn kho.
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <NumberInput
+        <QuantityInput
           label={`Đạt (${unit})`}
+          unit={unit}
+          unitLabel={UNIT_LABEL_VI[unit]}
           value={values.accepted}
-          onChange={(value) => onValueChange("accepted", value)}
+          onChange={(event) => onValueChange("accepted", event.target.value)}
         />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -103,21 +106,27 @@ export function DispositionForm({
       {showIssueFields ? (
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {allowQuarantine ? (
-            <NumberInput
+            <QuantityInput
               label={`Tạm giữ (${unit})`}
+              unit={unit}
+              unitLabel={UNIT_LABEL_VI[unit]}
               value={values.quarantined}
-              onChange={(value) => onValueChange("quarantined", value)}
+              onChange={(event) => onValueChange("quarantined", event.target.value)}
             />
           ) : null}
-          <NumberInput
+          <QuantityInput
             label={`Trả nhà cung cấp (${unit})`}
+            unit={unit}
+            unitLabel={UNIT_LABEL_VI[unit]}
             value={values.rejected}
-            onChange={(value) => onValueChange("rejected", value)}
+            onChange={(event) => onValueChange("rejected", event.target.value)}
           />
-          <NumberInput
+          <QuantityInput
             label={`Loại bỏ (${unit})`}
+            unit={unit}
+            unitLabel={UNIT_LABEL_VI[unit]}
             value={values.disposed}
-            onChange={(value) => onValueChange("disposed", value)}
+            onChange={(event) => onValueChange("disposed", event.target.value)}
           />
         </div>
       ) : null}
@@ -136,14 +145,9 @@ export function DispositionForm({
         Ghi chú quyết định
         <TextareaControl value={note} onChange={(event) => onNoteChange(event.target.value)} />
       </label>
-      <Textarea
-        className="mt-3"
-        label="Ảnh hoặc phiếu liên quan"
-        value={evidence}
-        disabled={locked}
-        onChange={(event) => onEvidenceChange(event.target.value)}
-        hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản."
-      />
+      <div className="mt-3">
+        <EvidenceReferenceInput value={evidence} disabled={locked} onChange={onEvidenceChange} />
+      </div>
       {total > eligibleValueScaled ? (
         <p role="alert" className="mt-2 text-caption text-danger">
           Tổng phân bổ vượt lượng có thể quyết định.
@@ -158,22 +162,5 @@ export function DispositionForm({
       </Button>
       {feedback}
     </details>
-  );
-}
-
-function NumberInput({
-  label,
-  value,
-  onChange,
-}: {
-  readonly label: string;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-}) {
-  return (
-    <label className="grid gap-2 text-label">
-      {label}
-      <Input inputMode="decimal" value={value} onChange={(event) => onChange(event.target.value)} />
-    </label>
   );
 }

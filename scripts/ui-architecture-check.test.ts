@@ -172,6 +172,17 @@ test("rejects floating-point quantity scaling outside the canonical parser", asy
   ]);
 });
 
+test("requires localized quantity controls", async () => {
+  const result = await checkFixture({
+    "apps/web/src/ui/patterns/intake/intake-form.tsx":
+      'export function IntakeForm() { return <><QuantityInput label="Số lượng" unit="kg" /><TextInput label="Số lượng" inputMode="decimal" /></>; }',
+  });
+  assert.deepEqual(result.failures, [
+    "apps/web/src/ui/patterns/intake/intake-form.tsx: QuantityInput must receive a localized unitLabel",
+    "apps/web/src/ui/patterns/intake/intake-form.tsx: quantity input bypasses QuantityInput; use the shared quantity contract",
+  ]);
+});
+
 test("rejects implementation timezone identifiers in rendered UI", async () => {
   const result = await checkFixture({
     "apps/web/src/ui/screens/reports-view.tsx":

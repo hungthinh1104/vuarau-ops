@@ -1,5 +1,6 @@
 "use client";
 
+import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import type {
   CostObservationCaseKind,
   Page,
@@ -13,6 +14,7 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -20,6 +22,7 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 const KIND_COPY: Readonly<Record<SupplyCommitmentObservationKind, string>> = {
@@ -169,25 +172,24 @@ function SupplyCommitmentForm(props: Parameters<typeof SupplyCommitmentEvidenceV
           value={props.expectedArrivalAt}
           onChange={(event) => props.onExpectedArrivalAt(event.target.value)}
         />
-        <TextInput
+        <QuantityInput
           label="Số lượng được hứa"
-          inputMode="decimal"
+          unit={props.unit}
+          unitLabel={UNIT_LABEL_VI[props.unit]}
           value={props.promisedQuantity}
           onChange={(event) => props.onPromisedQuantity(event.target.value)}
         />
-        <TextInput
+        <QuantityInput
           label="Số lượng tối thiểu"
-          inputMode="decimal"
+          unit={props.unit}
+          unitLabel={UNIT_LABEL_VI[props.unit]}
           value={props.minimumOrder}
           onChange={(event) => props.onMinimumOrder(event.target.value)}
         />
         <Select
           label="Đơn vị"
           value={props.unit}
-          options={["kg", "gram", "lang", "bo", "thung", "ro", "kien", "cai"].map((value) => ({
-            value,
-            label: value,
-          }))}
+          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
           onChange={(event) => props.onUnit(event.target.value as Unit)}
         />
         <TextInput
@@ -196,11 +198,10 @@ function SupplyCommitmentForm(props: Parameters<typeof SupplyCommitmentEvidenceV
           onChange={(event) => props.onCommitmentReference(event.target.value)}
         />
       </div>
-      <Textarea
-        label="Ảnh hoặc phiếu liên quan"
+      <EvidenceReferenceInput
         required
         value={props.evidenceReferences}
-        onChange={(event) => props.onEvidenceReferences(event.target.value)}
+        onChange={props.onEvidenceReferences}
         hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (

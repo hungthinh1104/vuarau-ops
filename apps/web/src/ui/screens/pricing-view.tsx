@@ -17,13 +17,15 @@ import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { LoadMoreFooter } from "@/ui/patterns/list/load-more-footer.tsx";
-import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { SearchInput } from "@/ui/primitives/search-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
+import { MoneyInput } from "@/ui/primitives/money-input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 
 const KIND_COPY: Readonly<Record<PriceRuleKind, string>> = {
@@ -96,132 +98,134 @@ export function PricingView(props: PricingViewProps) {
   const gradeOptions = props.grades.map((grade) => ({ value: grade.id, label: grade.name }));
 
   return (
-    <div className="flex max-w-6xl flex-col gap-6">
-      <PageHeader
-        title="Bảng giá"
-        description="Các quy tắc giá chính xác đã ghi. Mỗi quy tắc được giữ nguyên; giá trên đơn đã chốt không bị thay đổi theo bảng này."
-      />
-      <p className="rounded-card border border-info/30 bg-info-soft px-4 py-3 text-body-sm">
-        Thứ tự ưu tiên, chiết khấu, phí vận hành và ngưỡng số lượng đang chờ xác nhận thực địa. Màn
-        hình không tự tính biên lợi nhuận, không đổi đơn vị và không tự sửa giá đơn đã chốt.
-      </p>
-
-      {props.mayManage ? (
-        <PriceRuleForm
-          {...props}
-          productOptions={productOptions}
-          customerOptions={customerOptions}
-          gradeOptions={gradeOptions}
+    <PageFrame size="wide">
+      <div className="flex w-full flex-col gap-6">
+        <PageHeader
+          title="Bảng giá"
+          description="Các quy tắc giá chính xác đã ghi. Mỗi quy tắc được giữ nguyên; giá trên đơn đã chốt không bị thay đổi theo bảng này."
         />
-      ) : null}
+        <p className="rounded-card border border-info/30 bg-info-soft px-4 py-3 text-body-sm">
+          Thứ tự ưu tiên, chiết khấu, phí vận hành và ngưỡng số lượng đang chờ xác nhận thực địa.
+          Màn hình không tự tính biên lợi nhuận, không đổi đơn vị và không tự sửa giá đơn đã chốt.
+        </p>
 
-      <section aria-labelledby="pricing-history-title" className="grid gap-3">
-        <div>
-          <h2 id="pricing-history-title" className="text-subheading font-semibold">
-            Lịch sử quy tắc giá
-          </h2>
-          <p className="text-caption text-ink-muted">
-            Hiển thị theo thời điểm hiệu lực; không có thao tác sửa hoặc xoá.
-          </p>
-        </div>
-        <QueryStates query={props.rules} loadingLabel="Đang tải bảng giá" onRetry={props.onRetry}>
-          {() =>
-            props.items.length === 0 ? (
-              <EmptyState
-                title="Chưa có quy tắc giá"
-                description="Ghi quy tắc đầu tiên khi vựa đã thống nhất cách áp dụng giá."
-              />
-            ) : (
-              <>
-                <ul className="grid gap-3 lg:hidden">
-                  {props.items.map((rule) => (
-                    <PriceRuleCard
-                      key={rule.id}
-                      rule={rule}
-                      productName={productNames.get(rule.productId)}
-                      customerName={
-                        rule.customerId === null ? undefined : customerNames.get(rule.customerId)
-                      }
-                      gradeName={
-                        rule.qualityGradeId === null
-                          ? undefined
-                          : gradeNames.get(rule.qualityGradeId)
-                      }
-                    />
-                  ))}
-                </ul>
-                <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
-                  <table className="data-table w-full min-w-[1050px] table-fixed text-left text-body-sm">
-                    <caption className="sr-only">Lịch sử quy tắc giá</caption>
-                    <colgroup>
-                      <col className="w-[18%]" />
-                      <col className="w-[17%]" />
-                      <col className="w-[12%]" />
-                      <col className="w-[15%]" />
-                      <col className="w-[12%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[10%]" />
-                    </colgroup>
-                    <thead className="sticky top-0 z-10">
-                      <tr>
-                        <th scope="col" className="px-3 py-3">
-                          Mặt hàng
-                        </th>
-                        <th scope="col" className="px-3 py-3">
-                          Phạm vi
-                        </th>
-                        <th scope="col" className="px-3 py-3">
-                          Đơn vị / ngưỡng
-                        </th>
-                        <th scope="col" className="px-3 py-3 text-right">
-                          Giá cuối
-                        </th>
-                        <th scope="col" className="px-3 py-3">
-                          Hiệu lực
-                        </th>
-                        <th scope="col" className="px-3 py-3">
-                          Lý do
-                        </th>
-                        <th scope="col" className="px-3 py-3">
-                          Ghi nhận
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {props.items.map((rule) => (
-                        <PriceRuleRow
-                          key={rule.id}
-                          rule={rule}
-                          productName={productNames.get(rule.productId)}
-                          customerName={
-                            rule.customerId === null
-                              ? undefined
-                              : customerNames.get(rule.customerId)
-                          }
-                          gradeName={
-                            rule.qualityGradeId === null
-                              ? undefined
-                              : gradeNames.get(rule.qualityGradeId)
-                          }
-                        />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )
-          }
-        </QueryStates>
-        {props.nextCursor === null ? null : (
-          <LoadMoreFooter
-            visibleCount={props.items.length}
-            noun="quy tắc giá"
-            loading={props.isFetching}
-            onLoadMore={props.onLoadMore}
+        {props.mayManage ? (
+          <PriceRuleForm
+            {...props}
+            productOptions={productOptions}
+            customerOptions={customerOptions}
+            gradeOptions={gradeOptions}
           />
-        )}
-      </section>
-    </div>
+        ) : null}
+
+        <section aria-labelledby="pricing-history-title" className="grid gap-3">
+          <div>
+            <h2 id="pricing-history-title" className="text-subheading font-semibold">
+              Lịch sử quy tắc giá
+            </h2>
+            <p className="text-caption text-ink-muted">
+              Hiển thị theo thời điểm hiệu lực; không có thao tác sửa hoặc xoá.
+            </p>
+          </div>
+          <QueryStates query={props.rules} loadingLabel="Đang tải bảng giá" onRetry={props.onRetry}>
+            {() =>
+              props.items.length === 0 ? (
+                <EmptyState
+                  title="Chưa có quy tắc giá"
+                  description="Ghi quy tắc đầu tiên khi vựa đã thống nhất cách áp dụng giá."
+                />
+              ) : (
+                <>
+                  <ul className="grid gap-3 lg:hidden">
+                    {props.items.map((rule) => (
+                      <PriceRuleCard
+                        key={rule.id}
+                        rule={rule}
+                        productName={productNames.get(rule.productId)}
+                        customerName={
+                          rule.customerId === null ? undefined : customerNames.get(rule.customerId)
+                        }
+                        gradeName={
+                          rule.qualityGradeId === null
+                            ? undefined
+                            : gradeNames.get(rule.qualityGradeId)
+                        }
+                      />
+                    ))}
+                  </ul>
+                  <div className="hidden overflow-x-auto rounded-card border border-border bg-surface lg:block">
+                    <table className="data-table w-full min-w-[1050px] table-fixed text-left text-body-sm">
+                      <caption className="sr-only">Lịch sử quy tắc giá</caption>
+                      <colgroup>
+                        <col className="w-[18%]" />
+                        <col className="w-[17%]" />
+                        <col className="w-[12%]" />
+                        <col className="w-[15%]" />
+                        <col className="w-[12%]" />
+                        <col className="w-[16%]" />
+                        <col className="w-[10%]" />
+                      </colgroup>
+                      <thead className="sticky top-0 z-10">
+                        <tr>
+                          <th scope="col" className="px-3 py-3">
+                            Mặt hàng
+                          </th>
+                          <th scope="col" className="px-3 py-3">
+                            Phạm vi
+                          </th>
+                          <th scope="col" className="px-3 py-3">
+                            Đơn vị / ngưỡng
+                          </th>
+                          <th scope="col" className="px-3 py-3 text-right">
+                            Giá cuối
+                          </th>
+                          <th scope="col" className="px-3 py-3">
+                            Hiệu lực
+                          </th>
+                          <th scope="col" className="px-3 py-3">
+                            Lý do
+                          </th>
+                          <th scope="col" className="px-3 py-3">
+                            Ghi nhận
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {props.items.map((rule) => (
+                          <PriceRuleRow
+                            key={rule.id}
+                            rule={rule}
+                            productName={productNames.get(rule.productId)}
+                            customerName={
+                              rule.customerId === null
+                                ? undefined
+                                : customerNames.get(rule.customerId)
+                            }
+                            gradeName={
+                              rule.qualityGradeId === null
+                                ? undefined
+                                : gradeNames.get(rule.qualityGradeId)
+                            }
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )
+            }
+          </QueryStates>
+          {props.nextCursor === null ? null : (
+            <LoadMoreFooter
+              visibleCount={props.items.length}
+              noun="quy tắc giá"
+              loading={props.isFetching}
+              onLoadMore={props.onLoadMore}
+            />
+          )}
+        </section>
+      </div>
+    </PageFrame>
   );
 }
 
@@ -318,10 +322,11 @@ function PriceRuleForm(
           onChange={(event) => props.onUnit(event.target.value as Unit)}
           options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
         />
-        <TextInput
+        <QuantityInput
           label="Ngưỡng số lượng"
           hint={`Đơn vị ${UNIT_LABEL_VI[props.unit]}, tối đa 3 chữ số sau dấu phẩy`}
-          inputMode="decimal"
+          unit={props.unit}
+          unitLabel={UNIT_LABEL_VI[props.unit]}
           value={props.minimumQuantity}
           onChange={(event) => props.onMinimumQuantity(event.target.value)}
         />
@@ -345,23 +350,23 @@ function PriceRuleForm(
           value={props.effectiveTo}
           onChange={(event) => props.onEffectiveTo(event.target.value)}
         />
-        <TextInput
+        <MoneyInput
           label="Giá cơ sở (VND)"
           hint="Nhập số nguyên, có thể dùng dấu chấm phân tách."
-          inputMode="numeric"
+          currency="VND"
           value={props.basePrice}
           onChange={(event) => props.onBasePrice(event.target.value)}
           required
         />
-        <TextInput
+        <MoneyInput
           label="Giảm trên đơn vị (VND)"
-          inputMode="numeric"
+          currency="VND"
           value={props.discount}
           onChange={(event) => props.onDiscount(event.target.value)}
         />
-        <TextInput
+        <MoneyInput
           label="Phí trên đơn vị (VND)"
-          inputMode="numeric"
+          currency="VND"
           value={props.fee}
           onChange={(event) => props.onFee(event.target.value)}
         />

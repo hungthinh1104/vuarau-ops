@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
@@ -77,12 +78,11 @@ export function PaymentReversalPanel({
           disabled={disabled}
           {...(error !== undefined ? { error } : {})}
         />
-        <Textarea
-          label="Ảnh hoặc phiếu liên quan"
-          hint="Phiếu, ảnh hoặc tham chiếu giải thích lần hoàn tác này."
+        <EvidenceReferenceInput
           value={evidence}
-          onChange={(event) => setEvidence(event.target.value)}
+          onChange={setEvidence}
           disabled={disabled}
+          hint="Phiếu, ảnh hoặc tham chiếu giải thích lần hoàn tác này."
         />
         <Button tone="danger-solid" onClick={submit} disabled={disabled}>
           Xác nhận hoàn tác

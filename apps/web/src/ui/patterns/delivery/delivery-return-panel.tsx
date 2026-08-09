@@ -1,13 +1,14 @@
 "use client";
 
-import type { DeliveryDto } from "@vuarau/domain-contracts";
+import { UNIT_LABEL_VI, type DeliveryDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
 import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { formatQuantity } from "@/ui/format.ts";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { TextareaControl } from "@/ui/primitives/textarea-control.tsx";
 
 export type DeliveryReturnIntent = {
@@ -69,7 +70,7 @@ export function DeliveryReturnPanel({
       </p>
       <div className="mt-3 divide-y divide-border">
         {lines.map((line) => (
-          <label
+          <div
             key={line.deliveryLineId}
             className="grid gap-2 py-3 md:grid-cols-[1fr_12rem] md:items-center"
           >
@@ -80,10 +81,11 @@ export function DeliveryReturnPanel({
                 {formatQuantity(line.quantity)}
               </span>
             </span>
-            <Input
-              inputMode="decimal"
+            <QuantityInput
+              label={`Số lượng trả ${line.productName}`}
+              unit={line.quantity.unit}
+              unitLabel={UNIT_LABEL_VI[line.quantity.unit]}
               disabled={completed || locked}
-              aria-label={`Số lượng trả ${line.productName}`}
               value={quantities[line.deliveryLineId] ?? ""}
               onChange={(event) =>
                 setQuantities((current) => ({
@@ -92,7 +94,7 @@ export function DeliveryReturnPanel({
                 }))
               }
             />
-          </label>
+          </div>
         ))}
       </div>
       <label className="grid gap-2 py-2">
@@ -103,18 +105,12 @@ export function DeliveryReturnPanel({
           onChange={(event) => setReason(event.target.value)}
         />
       </label>
-      <label className="grid gap-2 py-2">
-        <span className="text-label">Ảnh hoặc phiếu liên quan</span>
-        <span className="text-caption text-ink-muted">
-          Mỗi dòng một tham chiếu; chỉ lưu nguồn đối chiếu, không tự suy ra hoàn tiền hay giảm nợ.
-        </span>
-        <TextareaControl
-          disabled={completed || locked}
-          aria-label="Ảnh hoặc phiếu liên quan"
-          value={evidence}
-          onChange={(event) => setEvidence(event.target.value)}
-        />
-      </label>
+      <EvidenceReferenceInput
+        value={evidence}
+        disabled={completed || locked}
+        onChange={setEvidence}
+        hint="Mỗi dòng một tham chiếu; chỉ lưu nguồn đối chiếu, không tự suy ra hoàn tiền hay giảm nợ."
+      />
       {completed ? (
         <Button tone="secondary" onClick={reset}>
           Ghi lần trả khác

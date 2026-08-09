@@ -1,13 +1,13 @@
 "use client";
 
-import type { PurchaseDto, QualityGradeDto } from "@vuarau/domain-contracts";
+import { UNIT_LABEL_VI, type PurchaseDto, type QualityGradeDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { formatQuantity } from "@/ui/format.ts";
 import { formatQuantityInput, parseQuantityText } from "@/ui/domain/numeric-text.ts";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
-import { Input } from "@/ui/primitives/input.tsx";
-import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 
 export type ReceivingCaptureIntentLine = {
   readonly purchaseLineId: PurchaseDto["lines"][number]["lineId"];
@@ -158,62 +158,58 @@ export function ReceivingCapturePanel({
               ? grades.map((grade, index) => {
                   const key = `${line.lineId}:${grade.id}`;
                   return (
-                    <label
+                    <QuantityInput
                       key={key}
-                      className="grid gap-1 text-label sm:grid-cols-[1fr_10rem] sm:items-center"
-                    >
-                      <span>{grade.name}</span>
-                      <Input
-                        inputMode="decimal"
-                        disabled={locked}
-                        aria-label={`${line.productName} · ${grade.name}`}
-                        value={
-                          (quantities[key] ?? index === 0)
-                            ? formatQuantityInput({
-                                valueScaled:
-                                  remainingByLine[line.lineId] ?? line.quantity.valueScaled,
-                                unit: line.quantity.unit,
-                              })
-                            : "0"
-                        }
-                        onChange={(event) => onQuantityChange(key, event.target.value)}
-                      />
-                    </label>
+                      label={grade.name}
+                      aria-label={`${line.productName} · ${grade.name}`}
+                      unit={line.quantity.unit}
+                      unitLabel={UNIT_LABEL_VI[line.quantity.unit]}
+                      disabled={locked}
+                      value={
+                        (quantities[key] ?? index === 0)
+                          ? formatQuantityInput({
+                              valueScaled:
+                                remainingByLine[line.lineId] ?? line.quantity.valueScaled,
+                              unit: line.quantity.unit,
+                            })
+                          : "0"
+                      }
+                      onChange={(event) => onQuantityChange(key, event.target.value)}
+                    />
                   );
                 })
               : (() => {
                   const key = `${line.lineId}:ungraded`;
                   return (
-                    <label className="grid gap-1 text-label sm:grid-cols-[1fr_10rem] sm:items-center">
-                      <span>{splitByGrade ? "Chưa chọn hạng" : "Số lượng thực nhận"}</span>
-                      <Input
-                        inputMode="decimal"
-                        disabled={locked}
-                        aria-label={`${line.productName} · Không phân loại`}
-                        value={
-                          quantities[key] ??
-                          formatQuantityInput({
-                            valueScaled: remainingByLine[line.lineId] ?? line.quantity.valueScaled,
-                            unit: line.quantity.unit,
-                          })
-                        }
-                        onChange={(event) => onQuantityChange(key, event.target.value)}
-                      />
-                    </label>
+                    <QuantityInput
+                      label={splitByGrade ? "Chưa chọn hạng" : "Số lượng thực nhận"}
+                      aria-label={`${line.productName} · ${splitByGrade ? "Chưa chọn hạng" : "Không phân loại"}`}
+                      unit={line.quantity.unit}
+                      unitLabel={UNIT_LABEL_VI[line.quantity.unit]}
+                      disabled={locked}
+                      value={
+                        quantities[key] ??
+                        formatQuantityInput({
+                          valueScaled: remainingByLine[line.lineId] ?? line.quantity.valueScaled,
+                          unit: line.quantity.unit,
+                        })
+                      }
+                      onChange={(event) => onQuantityChange(key, event.target.value)}
+                    />
                   );
                 })()}
           </fieldset>
         ))}
       </div>
 
-      <Textarea
-        className="mt-4"
-        label="Ảnh hoặc phiếu liên quan"
-        value={evidence}
-        disabled={locked}
-        onChange={(event) => onEvidenceChange(event.target.value)}
-        hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."
-      />
+      <div className="mt-4">
+        <EvidenceReferenceInput
+          value={evidence}
+          disabled={locked}
+          onChange={onEvidenceChange}
+          hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."
+        />
+      </div>
 
       {qualityGradeRequired && gradesLoading ? (
         <p className="mt-3 text-body-sm text-ink-muted">Đang tải hạng hàng…</p>

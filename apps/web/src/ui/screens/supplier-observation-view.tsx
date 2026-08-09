@@ -14,6 +14,7 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -21,6 +22,8 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Select, type SelectOption } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { MoneyInput } from "@/ui/primitives/money-input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 const KIND_COPY: Readonly<Record<SupplierObservationKind, string>> = {
@@ -255,27 +258,31 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           value={props.traceabilityLevel}
           onChange={(event) => props.onTraceabilityLevel(event.target.value)}
         />
-        <TextInput
+        <QuantityInput
           label="Số lượng đã hứa"
-          inputMode="decimal"
+          unit={props.unit}
+          unitLabel={UNIT_LABEL_VI[props.unit]}
           value={props.promisedQuantity}
           onChange={(event) => props.onPromisedQuantity(event.target.value)}
         />
-        <TextInput
+        <QuantityInput
           label="Số lượng thực tế"
-          inputMode="decimal"
+          unit={props.unit}
+          unitLabel={UNIT_LABEL_VI[props.unit]}
           value={props.actualQuantity}
           onChange={(event) => props.onActualQuantity(event.target.value)}
         />
-        <TextInput
+        <QuantityInput
           label="Số lượng được nhận"
-          inputMode="decimal"
+          unit={props.unit}
+          unitLabel={UNIT_LABEL_VI[props.unit]}
           value={props.acceptedQuantity}
           onChange={(event) => props.onAcceptedQuantity(event.target.value)}
         />
-        <TextInput
+        <QuantityInput
           label="Số lượng trả nhà cung cấp"
-          inputMode="decimal"
+          unit={props.unit}
+          unitLabel={UNIT_LABEL_VI[props.unit]}
           value={props.rejectedQuantity}
           onChange={(event) => props.onRejectedQuantity(event.target.value)}
         />
@@ -297,9 +304,9 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           value={props.actualAt}
           onChange={(event) => props.onActualAt(event.target.value)}
         />
-        <TextInput
+        <MoneyInput
           label="Giá được quan sát (VND)"
-          inputMode="numeric"
+          currency="VND"
           value={props.price}
           onChange={(event) => props.onPrice(event.target.value)}
         />
@@ -309,11 +316,10 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
           onChange={(event) => props.onClaimReference(event.target.value)}
         />
       </div>
-      <Textarea
-        label="Ảnh hoặc phiếu liên quan"
+      <EvidenceReferenceInput
         required
         value={props.evidenceReferences}
-        onChange={(event) => props.onEvidenceReferences(event.target.value)}
+        onChange={props.onEvidenceReferences}
         hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (

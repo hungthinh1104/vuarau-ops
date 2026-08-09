@@ -17,6 +17,7 @@ import {
 import { QuickSaleFooter } from "@/ui/patterns/sale/quick-sale-footer.tsx";
 import { QuickSaleLinesSection } from "@/ui/patterns/sale/quick-sale-lines-section.tsx";
 import { TransactionPreview } from "@/ui/patterns/sale/transaction-preview.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { Dialog } from "@/ui/primitives/dialog.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
@@ -256,14 +257,13 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
                   setDirty(true);
                 }}
               />
-              <Textarea
-                label="Ảnh hoặc phiếu liên quan (mỗi dòng một tham chiếu)"
+              <EvidenceReferenceInput
+                label="Ảnh hoặc phiếu liên quan"
                 hint="Ví dụ: order://..., photo://..., note://... — chỉ lưu liên kết nguồn, không tự tạo hiệu ứng tiền/hàng."
-                rows={3}
                 disabled={locallyQueued}
                 value={evidence}
-                onChange={(event) => {
-                  setEvidence(event.target.value);
+                onChange={(value) => {
+                  setEvidence(value);
                   setDirty(true);
                 }}
               />

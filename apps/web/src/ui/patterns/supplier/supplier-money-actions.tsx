@@ -4,6 +4,7 @@ import type { SupplierDto } from "@vuarau/domain-contracts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -59,10 +60,9 @@ export function SupplierMoneyActions(props: SupplierMoneyActionsProps) {
             {...(!payment.ok ? { error: payment.reason } : {})}
             onChange={(event) => props.onPaymentAmount(event.target.value)}
           />
-          <Textarea
-            label="Ảnh hoặc phiếu liên quan"
+          <EvidenceReferenceInput
             value={props.paymentEvidence}
-            onChange={(event) => props.onPaymentEvidence(event.target.value)}
+            onChange={props.onPaymentEvidence}
           />
           <Button
             disabled={

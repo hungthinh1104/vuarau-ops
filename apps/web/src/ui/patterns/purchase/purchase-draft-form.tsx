@@ -8,6 +8,7 @@ import type {
   PurchaseSupplierOption,
 } from "@/ui/domain/purchase-form.ts";
 import { Button } from "@/ui/primitives/button.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
@@ -158,12 +159,11 @@ export function PurchaseDraftForm(props: {
           value={props.note}
           onChange={(event) => props.onNoteChange(event.target.value)}
         />
-        <Textarea
-          label="Ảnh hoặc phiếu liên quan (mỗi dòng một tham chiếu)"
+        <EvidenceReferenceInput
+          label="Ảnh hoặc phiếu liên quan"
           hint="Chỉ lưu liên kết nguồn; không tự tạo hiệu ứng tiền, công nợ hoặc tồn kho."
-          rows={3}
           value={props.evidence}
-          onChange={(event) => props.onEvidenceChange(event.target.value)}
+          onChange={props.onEvidenceChange}
         />
         <ActionDock
           label="Hành động đơn mua"

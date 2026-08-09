@@ -7,6 +7,7 @@ import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -119,12 +120,10 @@ export function PaymentCreateView(props: PaymentCreateViewProps) {
               onChange={(event) => props.onNote(event.target.value)}
               rows={2}
             />
-            <Textarea
-              label="Ảnh hoặc phiếu liên quan"
-              hint="Mỗi dòng một tham chiếu: phiếu, ảnh hoặc biên lai đã được duyệt."
+            <EvidenceReferenceInput
               value={props.evidence}
-              onChange={(event) => props.onEvidence(event.target.value)}
-              rows={2}
+              onChange={props.onEvidence}
+              hint="Mỗi dòng một tham chiếu: phiếu, ảnh hoặc biên lai đã được duyệt."
             />
             <CommandOutcome
               command={props.command}

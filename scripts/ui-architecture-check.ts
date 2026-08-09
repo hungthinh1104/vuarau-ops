@@ -21,6 +21,8 @@ const VISIBLE_COPY_PROP =
 const JSX_TEXT = /<([A-Za-z][\w-]*)\b[^>]*>\s*([A-Za-zÀ-ỹ][^<{]*?)\s*<\/\1>/g;
 const RAW_ENUM_RENDER =
   /<(?:p|span|dd|dt|li|strong|small|h[1-6]|Badge|output)\b[^>]*>\s*\{[^}]*\.(?:reasonCode|blockedReason|severity|outcome|classification|status|state)\s*\}/;
+const QUANTITY_INPUT_TAG = /<QuantityInput\b[^>]*>/g;
+const DIRECT_DECIMAL_INPUT = /<(?:Input|TextInput)\b[^>]*inputMode\s*=\s*["']decimal["']/;
 const GLASS_OR_DECORATIVE_EFFECT =
   /(?:backdrop-blur|bg-(?:surface|surface-muted)\/\d|\bshadow(?:-[^\s"]+)?)/;
 const RAW_RADIUS = /\brounded-(?:\[[^\]]+\]|none|sm|md|lg|xl|2xl|3xl|full)\b/;
@@ -131,6 +133,18 @@ export async function checkUiArchitecture(root: string): Promise<UiArchitectureR
       }
       if (RAW_ENUM_RENDER.test(renderSource)) {
         failures.push(`${path}: renders a raw domain enum; use the authoritative UI copy registry`);
+      }
+      if (
+        [...renderSource.matchAll(QUANTITY_INPUT_TAG)].some(
+          (match) => !match[0].includes("unitLabel="),
+        )
+      ) {
+        failures.push(`${path}: QuantityInput must receive a localized unitLabel`);
+      }
+      if (DIRECT_DECIMAL_INPUT.test(renderSource)) {
+        failures.push(
+          `${path}: quantity input bypasses QuantityInput; use the shared quantity contract`,
+        );
       }
       if (!path.includes("/ui/landing/")) {
         if (GLASS_OR_DECORATIVE_EFFECT.test(renderSource)) {

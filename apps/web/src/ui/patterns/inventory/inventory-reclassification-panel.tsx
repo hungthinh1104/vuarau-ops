@@ -7,7 +7,7 @@ import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { Select } from "@/ui/primitives/select.tsx";
-import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type InventoryReclassificationIntent = {
@@ -91,9 +91,10 @@ export function InventoryReclassificationPanel({
           placeholder="Chọn hạng hàng đích"
           options={grades.map((grade) => ({ value: grade.id, label: grade.name }))}
         />
-        <TextInput
+        <QuantityInput
           label="Số lượng"
-          inputMode="decimal"
+          unit={unit}
+          unitLabel={UNIT_LABEL_VI[unit]}
           disabled={completed || locked}
           value={quantity}
           onChange={(event) => setQuantity(event.target.value)}

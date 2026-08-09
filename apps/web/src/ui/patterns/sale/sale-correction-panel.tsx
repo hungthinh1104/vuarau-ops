@@ -8,6 +8,7 @@ import { Input } from "@/ui/primitives/input.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 
 export type SaleCorrectionSubmission = {
   readonly reasonCode: SaleVoidReasonCode;
@@ -162,10 +163,9 @@ export function SaleCorrectionPanel({
           required
           disabled={disabled}
         />
-        <Textarea
-          label="Ảnh hoặc phiếu liên quan"
+        <EvidenceReferenceInput
           value={evidence}
-          onChange={(event) => setEvidence(event.target.value)}
+          onChange={setEvidence}
           hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản; không tự tạo hậu quả tiền hay hàng."
           disabled={disabled}
         />

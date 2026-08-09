@@ -12,6 +12,7 @@ import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -214,11 +215,10 @@ function DebtObservationForm(props: Parameters<typeof DebtEvidenceView>[0]) {
           hint="Chỉ lưu đề xuất, không tự phân bổ vào ledger."
         />
       </div>
-      <Textarea
-        label="Ảnh hoặc phiếu liên quan"
+      <EvidenceReferenceInput
         required
         value={props.evidenceReferences}
-        onChange={(event) => props.onEvidenceReferences(event.target.value)}
+        onChange={props.onEvidenceReferences}
         hint="Mỗi dòng một phiếu, ảnh, tin nhắn hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (

@@ -16,6 +16,7 @@ import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
+import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -153,11 +154,10 @@ function IntakeForm({
           onChange={(event) => onVehicleReference(event.target.value)}
           placeholder="Ví dụ: 51C-123.45"
         />
-        <Textarea
-          label="Ảnh hoặc phiếu liên quan"
+        <EvidenceReferenceInput
           value={evidence}
           disabled={locked}
-          onChange={(event) => onEvidence(event.target.value)}
+          onChange={onEvidence}
           hint="Mỗi dòng một tham chiếu tới phiếu, ảnh, tin nhắn hoặc biên bản."
         />
         {detail.lines.map((line) => {

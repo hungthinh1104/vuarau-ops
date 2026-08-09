@@ -7,7 +7,7 @@ import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { Select } from "@/ui/primitives/select.tsx";
-import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 
 export type InventoryStocktakePanelProps = {
@@ -78,9 +78,10 @@ export function InventoryStocktakePanel({
             {session.version}
           </p>
           <div className="grid gap-3 md:grid-cols-3">
-            <TextInput
+            <QuantityInput
               label="Số đếm thực tế"
-              inputMode="decimal"
+              unit={unit}
+              unitLabel={UNIT_LABEL_VI[unit]}
               disabled={locked || session.status === "approved"}
               value={quantity}
               onChange={(event) => setQuantity(event.target.value)}
