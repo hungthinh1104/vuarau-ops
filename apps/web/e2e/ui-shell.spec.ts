@@ -15,6 +15,30 @@ async function expectNoHorizontalOverflow(page: Parameters<typeof signIn>[0]): P
 }
 
 test.describe("operational shell and action dock", () => {
+  test("keeps specimen screens readable across the supported viewport widths", async ({ page }) => {
+    await signIn(page, "owner");
+    const mobileNav = page.getByRole("navigation", { name: "Điều hướng di động" });
+
+    for (const width of [360, 390, 768, 1024, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/products");
+      await expect(page.getByRole("heading", { name: "Mặt hàng" })).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      if (width < 1024) await expect(mobileNav).toBeVisible();
+
+      await page.goto("/products/new");
+      await expect(page.getByRole("heading", { name: "Thêm mặt hàng" })).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      const actionDock = page.getByRole("region", { name: "Hành động mặt hàng" });
+      await expect(actionDock).toBeVisible();
+      const primary = actionDock.getByRole("button", { name: /Tạo mặt hàng|Đang tạo/ });
+      const box = await primary.boundingBox();
+      expect(box).not.toBeNull();
+      if (box !== null) expect(box.y + box.height).toBeLessThanOrEqual(900);
+      if (width < 1024) await expect(mobileNav).toBeHidden();
+    }
+  });
+
   test("keeps mobile navigation on directories and replaces it with the form dock", async ({
     page,
   }) => {
