@@ -27,7 +27,11 @@ export function createWorkspacePolicyDraft(ctx: CommandContext, input: unknown) 
     ctx,
     requiredPermission: "policy.manage",
     execute: async ({ command, repos, recordedAt }) => {
-      const decision = decideCreateWorkspacePolicyDraft(command, recordedAt);
+      const version = await repos.workspacePolicies.allocateNextVersion(
+        command.workspaceId,
+        command.payload.policyKind,
+      );
+      const decision = decideCreateWorkspacePolicyDraft(command, recordedAt, version);
       if (!decision.ok) return decision;
       if (!(await repos.workspacePolicies.insert(decision.value.policy))) {
         return err(

@@ -262,6 +262,7 @@ describe("workspace policy registry", () => {
         },
       }),
       RECORDED_AT,
+      2,
     );
     expect(draft.ok).toBe(true);
     if (!draft.ok) return;

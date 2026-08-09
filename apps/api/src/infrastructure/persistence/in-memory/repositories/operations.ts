@@ -20,9 +20,9 @@ import type {
   SupplyCommitmentObservationDto,
   SupplierObservationDto,
   DemandObservationDto,
-  WorkspacePolicyDto,
 } from "@vuarau/domain-contracts";
-import { money } from "@vuarau/domain-kernel";
+import { hasOverlappingWorkspacePolicyEffectiveWindow, money } from "@vuarau/domain-kernel";
+import { parseWorkspacePolicyDto } from "@vuarau/domain-contracts";
 import type {
   CustomerState,
   PriceRuleState,
@@ -93,6 +93,17 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...row,
           workspaceId,
         });
+        const policies = payload.workspacePolicies.map((raw) =>
+          parseWorkspacePolicyDto(remap(raw)),
+        );
+        for (const [index, policy] of policies.entries()) {
+          if (hasOverlappingWorkspacePolicyEffectiveWindow(policy, policies.slice(0, index))) {
+            return {
+              kind: "integrity_error" as const,
+              reason: "overlapping policy effective windows",
+            };
+          }
+        }
         store.operationalProfiles.set(
           workspaceId,
           remap(payload.operationalProfile) as unknown as WorkspaceOperationalProfileDto,
@@ -121,8 +132,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           const row = remap(raw) as unknown as DemandObservationDto;
           store.demandObservations.set(key(workspaceId, row.id), row);
         }
-        for (const raw of payload.workspacePolicies) {
-          const row = remap(raw) as unknown as WorkspacePolicyDto;
+        for (const row of policies) {
           store.workspacePolicies.set(key(workspaceId, row.id), row);
         }
         restoreStocktakes(store, workspaceId, payload);

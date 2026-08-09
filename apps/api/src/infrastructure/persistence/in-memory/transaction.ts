@@ -38,6 +38,8 @@ import { createInMemoryRepositories } from "./composition.ts";
 
 export class InMemoryDatabase {
   private store: Store = emptyStore();
+  /** Serializes transactions so in-memory policy allocation matches the DB contract. */
+  private transactionTail: Promise<void> = Promise.resolve();
 
   /** An explicit field: Node strips types, and a parameter property emits code. */
   private readonly ids: IdGenerator;
@@ -203,6 +205,12 @@ export class InMemoryDatabase {
   unitOfWork(): UnitOfWork {
     return {
       transaction: async <T>(work: (repos: Repositories) => Promise<T>): Promise<T> => {
+        const previous = this.transactionTail;
+        let release!: () => void;
+        this.transactionTail = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        await previous;
         // Snapshot-and-restore stands in for a database transaction. A command
         // that throws must leave nothing behind (BR-COMMAND-005), and a test that
         // cannot observe a rollback cannot prove that.
@@ -217,6 +225,8 @@ export class InMemoryDatabase {
         } catch (error) {
           this.store = snapshot;
           throw error;
+        } finally {
+          release();
         }
       },
     };

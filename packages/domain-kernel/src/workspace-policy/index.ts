@@ -50,7 +50,14 @@ function audit(
 export function decideCreateWorkspacePolicyDraft(
   command: CreateWorkspacePolicyDraftCommand,
   recordedAt: IsoInstant,
+  assignedVersion = 1,
 ): DomainResult<{ policy: WorkspacePolicyDto; audit: AuditDraft }> {
+  if (!Number.isSafeInteger(assignedVersion) || assignedVersion < 1) {
+    return err(
+      "WORKSPACE_POLICY_VERSION_CONFLICT",
+      "A policy version must be a positive integer assigned by the repository.",
+    );
+  }
   if (!validEffectiveRange(command.payload.effectiveFrom, command.payload.effectiveTo)) {
     return err(
       "WORKSPACE_POLICY_EFFECTIVE_RANGE_INVALID",
@@ -72,7 +79,7 @@ export function decideCreateWorkspacePolicyDraft(
     id: command.payload.policyVersionId,
     workspaceId: command.workspaceId,
     policyKind: command.payload.policyKind,
-    version: command.payload.version,
+    version: assignedVersion,
     state: "draft",
     effectiveFrom: command.payload.effectiveFrom,
     effectiveTo: command.payload.effectiveTo,

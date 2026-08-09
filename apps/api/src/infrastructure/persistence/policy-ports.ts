@@ -24,6 +24,8 @@ export type WorkspacePolicyRepository = {
     workspaceId: WorkspaceId,
     policyKind: WorkspacePolicyKind,
   ): Promise<readonly WorkspacePolicyDto[]>;
+  /** Allocates the next version while the surrounding command transaction is open. */
+  allocateNextVersion(workspaceId: WorkspaceId, policyKind: WorkspacePolicyKind): Promise<number>;
   insert(policy: WorkspacePolicyDto): Promise<boolean>;
   update(policy: WorkspacePolicyDto, expectedState: WorkspacePolicyState): Promise<boolean>;
 };

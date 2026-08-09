@@ -257,7 +257,9 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
       await restoreSupplyCommitmentObservations(tx, workspaceId, payload, date);
       await restoreSupplierObservations(tx, workspaceId, payload, date);
       await restoreDemandObservations(tx, workspaceId, payload, date);
-      await restoreWorkspacePolicies(tx, workspaceId, payload, date);
+      const restoredPolicies = await restoreWorkspacePolicies(tx, workspaceId, payload, date);
+      if (!restoredPolicies.ok)
+        return { kind: "integrity_error" as const, reason: restoredPolicies.reason };
       await restoreStocktakes(tx, payload, scoped, date);
       await restoreQualityIssueCodes(tx, payload, scoped, date);
       if (payload.suppliers.length > 0) {

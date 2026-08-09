@@ -445,32 +445,31 @@ export function parseWorkspacePolicyDto(input: unknown): WorkspacePolicyDto {
   return policy;
 }
 
-const policyVersionFieldsBaseSchema = z.object({
+const workspacePolicyDraftFieldsBaseSchema = z.object({
   policyVersionId: workspacePolicyVersionIdSchema,
-  version: z.int().positive(),
   effectiveFrom: isoInstantSchema,
   effectiveTo: isoInstantSchema.nullable().default(null),
   evidenceReferences: evidenceReferencesInputSchema,
   reason: z.string().trim().max(500).nullable().default(null),
 });
 
-type WorkspacePolicyVersionFieldsVariant<K extends SupportedWorkspacePolicyKind> = z.infer<
-  typeof policyVersionFieldsBaseSchema
+type WorkspacePolicyDraftFieldsVariant<K extends SupportedWorkspacePolicyKind> = z.infer<
+  typeof workspacePolicyDraftFieldsBaseSchema
 > & {
   policyKind: K;
   definition: z.infer<SupportedPolicyDefinitionSchema<K>>;
 };
-export type SupportedWorkspacePolicyVersionFields = {
-  [K in SupportedWorkspacePolicyKind]: WorkspacePolicyVersionFieldsVariant<K>;
+export type SupportedWorkspacePolicyDraftFields = {
+  [K in SupportedWorkspacePolicyKind]: WorkspacePolicyDraftFieldsVariant<K>;
 }[SupportedWorkspacePolicyKind];
 
-export const supportedWorkspacePolicyVersionFieldsSchema = z.discriminatedUnion(
+export const supportedWorkspacePolicyDraftFieldsSchema = z.discriminatedUnion(
   "policyKind",
-  createPolicyVariantSchemas(policyVersionFieldsBaseSchema),
-) as unknown as z.ZodType<SupportedWorkspacePolicyVersionFields>;
+  createPolicyVariantSchemas(workspacePolicyDraftFieldsBaseSchema),
+) as unknown as z.ZodType<SupportedWorkspacePolicyDraftFields>;
 
 export const createWorkspacePolicyDraftCommandSchema = defineCommand(
-  supportedWorkspacePolicyVersionFieldsSchema,
+  supportedWorkspacePolicyDraftFieldsSchema,
 );
 export type CreateWorkspacePolicyDraftCommand = z.infer<
   typeof createWorkspacePolicyDraftCommandSchema

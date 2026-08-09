@@ -17,6 +17,15 @@ export const createWorkspacePolicyRepositories = (
       [...store.workspacePolicies.values()].filter(
         (policy) => policy.workspaceId === workspaceId && policy.policyKind === policyKind,
       ),
+    allocateNextVersion: async (workspaceId, policyKind) =>
+      Math.max(
+        0,
+        ...[...store.workspacePolicies.values()]
+          .filter(
+            (policy) => policy.workspaceId === workspaceId && policy.policyKind === policyKind,
+          )
+          .map((policy) => policy.version),
+      ) + 1,
     insert: async (policy) => {
       const validated = validatePolicyDefinition(policy.policyKind, policy.definition);
       if (!validated.success) return false;

@@ -4,7 +4,7 @@ import type {
   WorkspacePolicyState,
 } from "@vuarau/domain-contracts";
 import { parseWorkspacePolicyDto } from "@vuarau/domain-contracts";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { workspacePolicies } from "../../schema/index.ts";
 import { toCorruptWorkspacePolicyDto, tryToWorkspacePolicyDto } from "../shared/policy-mappers.ts";
 import type { Tx } from "../shared/types.ts";
@@ -38,6 +38,24 @@ export const createWorkspacePolicyWriteRepositories = (tx: Tx) => ({
         )
         .for("update");
       return rows.map((row) => tryToWorkspacePolicyDto(row) ?? toCorruptWorkspacePolicyDto(row));
+    },
+    async allocateNextVersion(workspaceId: string, policyKind: WorkspacePolicyKind) {
+      // The lock is transaction-scoped, so two drafts for the same workspace
+      // and kind cannot both observe the same max(version). Other kinds remain
+      // independent and the unique constraint is still the final guard.
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`${workspaceId}:${policyKind}`}, 0))`,
+      );
+      const rows = await tx
+        .select({ maxVersion: sql<number>`coalesce(max(${workspacePolicies.version}), 0)` })
+        .from(workspacePolicies)
+        .where(
+          and(
+            eq(workspacePolicies.workspaceId, workspaceId),
+            eq(workspacePolicies.policyKind, policyKind),
+          ),
+        );
+      return Number(rows[0]?.maxVersion ?? 0) + 1;
     },
     async insert(policy: WorkspacePolicyDto) {
       const validated = parseWorkspacePolicyDto(policy);

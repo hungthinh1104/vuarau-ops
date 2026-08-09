@@ -36,7 +36,6 @@ const envelope = (key: string, actorId = ACTOR_ID, workspaceId = WORKSPACE_ID) =
 const draftInput = (
   key: string,
   overrides: Partial<{
-    version: number;
     effectiveFrom: string;
     effectiveTo: string | null;
   }> = {},
@@ -47,7 +46,6 @@ const draftInput = (
     payload: {
       policyVersionId,
       policyKind: "payment_terms_aging" as const,
-      version: overrides.version ?? 1,
       effectiveFrom: overrides.effectiveFrom ?? "2026-08-01T00:00:00.000Z",
       effectiveTo: overrides.effectiveTo ?? null,
       definition: {
@@ -68,6 +66,16 @@ const draftInput = (
 };
 
 describe("workspace policy registry", () => {
+  it("assigns the next policy version on the server and never trusts caller input", async () => {
+    const first = await createWorkspacePolicyDraft(harness.ctx, draftInput("policy-version-1"));
+    const second = await createWorkspacePolicyDraft(harness.ctx, draftInput("policy-version-2"));
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(first.value.version).toBe(1);
+    expect(second.value.version).toBe(2);
+  });
+
   it("TC-POLICY-003 records a draft, keeps all capabilities unavailable, and safely replays it", async () => {
     const command = draftInput("policy-draft-retry-001");
     const first = await createWorkspacePolicyDraft(harness.ctx, command);
@@ -194,7 +202,7 @@ describe("workspace policy registry", () => {
 
     const secondDraft = await createWorkspacePolicyDraft(
       harness.ctx,
-      draftInput("policy-overlap-2", { version: 2, effectiveFrom: "2026-08-02T00:00:00.000Z" }),
+      draftInput("policy-overlap-2", { effectiveFrom: "2026-08-02T00:00:00.000Z" }),
     );
     expect(secondDraft.ok).toBe(true);
     if (!secondDraft.ok) return;
