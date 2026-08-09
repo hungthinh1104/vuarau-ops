@@ -66,12 +66,9 @@ describe("WorkspacePolicyView", () => {
       <WorkspacePolicyView
         policies={ready({ items: [policy], nextCursor: null })}
         availability={ready(availability)}
-        policyKinds={["payment_terms_aging"]}
         canManage={false}
-        createCommand={command}
         approveCommand={command}
         retireCommand={command}
-        onCreate={() => undefined}
         onApprove={() => undefined}
         onRetire={() => undefined}
         onRetry={() => undefined}
@@ -82,6 +79,7 @@ describe("WorkspacePolicyView", () => {
     expect(screen.getByText("Chưa đủ điều kiện")).toBeInTheDocument();
     expect(screen.getByText(/Chưa có phiên bản đã duyệt/)).toBeInTheDocument();
     expect(screen.getByText(/chưa có/)).toBeInTheDocument();
-    expect(screen.getByText(/Việc lưu quy định chưa tự thay đổi số liệu/)).toBeInTheDocument();
+    expect(screen.getByText(/Phiên bản được hệ thống cấp số/)).toBeInTheDocument();
+    expect(screen.getByText(/Mỗi phiên bản đã lưu được giữ nguyên/)).toBeInTheDocument();
   });
 });

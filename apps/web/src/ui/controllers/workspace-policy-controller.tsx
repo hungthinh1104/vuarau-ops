@@ -3,9 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   approveWorkspacePolicyCommandSchema,
-  createWorkspacePolicyDraftCommandSchema,
   retireWorkspacePolicyCommandSchema,
-  SUPPORTED_WORKSPACE_POLICY_KINDS,
   type WorkspacePolicyKind,
   workspacePolicyKindSchema,
 } from "@vuarau/domain-contracts";
@@ -29,11 +27,6 @@ export function WorkspacePolicyController() {
     }),
   );
   const availability = useQuery(trpc.policy.availability.queryOptions({ workspaceId, asOf }));
-  const createMutation = useMutation(trpc.policy.createDraft.mutationOptions());
-  const createCommand = useContractCommand(
-    createWorkspacePolicyDraftCommandSchema,
-    createMutation.mutateAsync,
-  );
   const approveMutation = useMutation(trpc.policy.approve.mutationOptions());
   const approveCommand = useContractCommand(
     approveWorkspacePolicyCommandSchema,
@@ -48,13 +41,9 @@ export function WorkspacePolicyController() {
     await Promise.all([policies.refetch(), availability.refetch()]);
   }, [availability.refetch, policies.refetch]);
   useEffect(() => {
-    if (
-      createCommand.phase.kind === "succeeded" ||
-      approveCommand.phase.kind === "succeeded" ||
-      retireCommand.phase.kind === "succeeded"
-    )
+    if (approveCommand.phase.kind === "succeeded" || retireCommand.phase.kind === "succeeded")
       void refresh();
-  }, [approveCommand.phase.kind, createCommand.phase.kind, refresh, retireCommand.phase.kind]);
+  }, [approveCommand.phase.kind, refresh, retireCommand.phase.kind]);
 
   if (!session.permissions.includes("policy.read")) {
     return <WorkspacePolicyView permissionDenied />;
@@ -64,12 +53,9 @@ export function WorkspacePolicyController() {
     <WorkspacePolicyView
       policies={policies}
       availability={availability}
-      policyKinds={SUPPORTED_WORKSPACE_POLICY_KINDS}
       canManage={session.permissions.includes("policy.manage")}
-      createCommand={createCommand}
       approveCommand={approveCommand}
       retireCommand={retireCommand}
-      onCreate={(payload) => void createCommand.submit(payload)}
       onApprove={(payload) => void approveCommand.submit(payload)}
       onRetire={(payload) => void retireCommand.submit(payload)}
       onRetry={refresh}

@@ -2,15 +2,11 @@
 
 import type {
   ApproveWorkspacePolicyCommand,
-  CreateWorkspacePolicyDraftCommand,
   RetireWorkspacePolicyCommand,
-  SupportedWorkspacePolicyKind,
-  SupportedWorkspacePolicyVersionFields,
   WorkspacePolicyAvailability,
   WorkspacePolicyDto,
   WorkspacePolicyKind,
 } from "@vuarau/domain-contracts";
-import { supportedWorkspacePolicyVersionFieldsSchema } from "@vuarau/domain-contracts";
 import { useState } from "react";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
@@ -21,7 +17,6 @@ import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge, type BadgeTone } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
-import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 
 const KIND_COPY: Readonly<Record<WorkspacePolicyKind, string>> = {
@@ -59,12 +54,9 @@ export type WorkspacePolicyViewProps =
       readonly permissionDenied?: false;
       readonly policies: QueryLike<{ readonly items: readonly WorkspacePolicyDto[] }>;
       readonly availability: QueryLike<readonly WorkspacePolicyAvailability[]>;
-      readonly policyKinds: readonly SupportedWorkspacePolicyKind[];
       readonly canManage: boolean;
-      readonly createCommand: CommandOutcomeView;
       readonly approveCommand: CommandOutcomeView;
       readonly retireCommand: CommandOutcomeView;
-      readonly onCreate: (payload: CreateWorkspacePolicyDraftCommand["payload"]) => void;
       readonly onApprove: (payload: ApproveWorkspacePolicyCommand["payload"]) => void;
       readonly onRetire: (payload: RetireWorkspacePolicyCommand["payload"]) => void;
       readonly onRetry: () => void;
@@ -89,8 +81,17 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
     <div className="flex max-w-6xl flex-col gap-6">
       <PageHeader
         title="Quy định vận hành"
-        description="Ghi nhận cách vựa xử lý tiền, hàng và báo cáo. Việc lưu quy định chưa tự thay đổi số liệu."
+        description="Theo dõi cách vựa xử lý tiền, hàng và báo cáo. Phiên bản được hệ thống cấp số; thay đổi luôn giữ lại lịch sử."
       />
+      {props.canManage ? (
+        <section className="rounded-card border border-info/30 bg-info-soft px-4 py-4">
+          <h2 className="text-subheading font-semibold">Tạo quy định mới</h2>
+          <p className="mt-1 text-body-sm text-ink-muted">
+            Chưa có biểu mẫu được duyệt cho việc tạo quy định mới. Bạn vẫn có thể duyệt bản nháp đã
+            có và kết thúc một phiên bản theo quyền được cấp.
+          </p>
+        </section>
+      ) : null}
       <section className="rounded-card border border-info/30 bg-info-soft px-4 py-4">
         <h2 className="text-subheading font-semibold">Ranh giới an toàn</h2>
         <p className="mt-1 text-body-sm text-ink-muted">
@@ -98,15 +99,12 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
           sẽ báo rõ thay vì tự đoán.
         </p>
       </section>
-      {props.canManage ? <PolicyDraftForm {...props} /> : null}
       <section aria-labelledby="policy-availability-title" className="grid gap-3">
         <div>
           <h2 id="policy-availability-title" className="text-subheading font-semibold">
             Khả năng áp dụng hiện tại
           </h2>
-          <p className="text-caption text-ink-muted">
-            Chưa sẵn sàng là trạng thái có chủ ý, không phải số 0.
-          </p>
+          <p className="text-caption text-ink-muted">Chưa sẵn sàng là trạng thái có chủ ý.</p>
         </div>
         <QueryStates
           query={props.availability}
@@ -139,7 +137,7 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
             Lịch sử quy định
           </h2>
           <p className="text-caption text-ink-muted">
-            Mỗi phiên bản đã lưu được giữ nguyên; thay đổi sẽ tạo phiên bản mới.
+            Mỗi phiên bản đã lưu được giữ nguyên; số phiên bản do hệ thống quản lý.
           </p>
         </div>
         <QueryStates
@@ -151,7 +149,7 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
             page.items.length === 0 ? (
               <EmptyState
                 title="Chưa có quy định"
-                description="Tạo bản nháp sau khi đã có thông tin từ vận hành thực tế."
+                description="Khi có biểu mẫu được duyệt, bản nháp mới sẽ xuất hiện ở đây."
               />
             ) : (
               <ul className="grid gap-3">
@@ -160,12 +158,12 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <h3 className="text-label font-semibold">
-                          {KIND_COPY[policy.policyKind]} · v{policy.version}
+                          {KIND_COPY[policy.policyKind]} · bản {policy.version}
                         </h3>
                         <p className="mt-1 text-caption text-ink-muted">
                           Hiệu lực từ {policy.effectiveFrom.slice(0, 10)}
                           {policy.effectiveTo === null
-                            ? " · không ngày kết thúc"
+                            ? " · chưa đặt ngày kết thúc"
                             : ` đến ${policy.effectiveTo.slice(0, 10)}`}
                         </p>
                       </div>
@@ -195,11 +193,6 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
       {props.canManage ? (
         <div className="grid gap-2">
           <CommandOutcome
-            command={props.createCommand}
-            attemptedAction="Tạo bản nháp quy định"
-            onReload={props.onRetry}
-          />
-          <CommandOutcome
             command={props.approveCommand}
             attemptedAction="Duyệt quy định"
             onReload={props.onRetry}
@@ -213,187 +206,6 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
       ) : null}
     </div>
   );
-}
-
-function PolicyDraftForm(
-  props: Extract<WorkspacePolicyViewProps, { readonly permissionDenied?: false }>,
-) {
-  const formKinds = props.policyKinds.filter((value) => policyDefinitionFor(value) !== null);
-  const [kind, setKind] = useState<SupportedWorkspacePolicyKind>(
-    formKinds[0] ?? "payment_terms_aging",
-  );
-  const [version, setVersion] = useState("1");
-  const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().slice(0, 16));
-  const [effectiveTo, setEffectiveTo] = useState("");
-  const [evidence, setEvidence] = useState("");
-  const [reason, setReason] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
-
-  function submit() {
-    setFormError(null);
-    const versionNumber = Number(version);
-    if (!Number.isInteger(versionNumber) || versionNumber < 1 || reason.trim() === "") {
-      setFormError("Cần nhập version hợp lệ và lý do.");
-      return;
-    }
-    const definition = policyDefinitionFor(kind);
-    if (definition === null) {
-      setFormError("Loại quy định này chưa có biểu mẫu để ghi an toàn.");
-      return;
-    }
-    const candidate = {
-      policyVersionId:
-        crypto.randomUUID() as CreateWorkspacePolicyDraftCommand["payload"]["policyVersionId"],
-      policyKind: kind,
-      version: versionNumber,
-      effectiveFrom: new Date(effectiveFrom).toISOString(),
-      effectiveTo: effectiveTo === "" ? null : new Date(effectiveTo).toISOString(),
-      definition,
-      evidenceReferences: evidence
-        .split("\n")
-        .map((value) => value.trim())
-        .filter(Boolean),
-      reason: reason.trim(),
-    };
-    const parsedPayload = supportedWorkspacePolicyVersionFieldsSchema.safeParse(candidate);
-    if (!parsedPayload.success) {
-      setFormError("Thông số chưa đủ cho loại quy định đã chọn; kiểm tra các trường bắt buộc.");
-      return;
-    }
-    props.onCreate(parsedPayload.data);
-  }
-
-  return (
-    <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
-      <div>
-        <h2 className="text-subheading font-semibold">Tạo bản nháp quy định</h2>
-        <p className="mt-1 text-caption text-ink-muted">
-          Chỉ lưu để xem lại; chưa làm thay đổi số liệu.
-        </p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <Select
-          label="Loại quy định"
-          value={kind}
-          options={formKinds.map((value) => ({ value, label: KIND_COPY[value] }))}
-          onChange={(event) => setKind(event.target.value as SupportedWorkspacePolicyKind)}
-        />
-        <TextInput
-          label="Version"
-          type="number"
-          min={1}
-          value={version}
-          onChange={(event) => setVersion(event.target.value)}
-        />
-        <TextInput
-          label="Hiệu lực từ"
-          type="datetime-local"
-          value={effectiveFrom}
-          onChange={(event) => setEffectiveFrom(event.target.value)}
-        />
-        <TextInput
-          label="Hiệu lực đến (tuỳ chọn)"
-          type="datetime-local"
-          value={effectiveTo}
-          onChange={(event) => setEffectiveTo(event.target.value)}
-        />
-      </div>
-      <EvidenceReferenceInput
-        label="Ảnh hoặc phiếu liên quan"
-        value={evidence}
-        onChange={setEvidence}
-        hint="Bản nháp có thể để trống; khi duyệt cần có thông tin liên quan."
-      />
-      <div className="rounded-card border border-info/30 bg-info-soft p-3 text-body-sm">
-        <p className="font-semibold">Cách áp dụng đã chọn</p>
-        <p className="mt-1 text-ink-muted">
-          Biểu mẫu này chỉ cho phép các thông tin phù hợp với loại quy định. Các loại chưa có biểu
-          mẫu sẽ không xuất hiện để tránh ghi sai cách tính.
-        </p>
-      </div>
-      <TextInput
-        label="Lý do"
-        value={reason}
-        onChange={(event) => setReason(event.target.value)}
-        required
-      />
-      {formError ? <p className="text-caption text-danger">{formError}</p> : null}
-      <Button onClick={submit} disabled={props.createCommand.phase.kind === "sending"}>
-        Lưu bản nháp
-      </Button>
-    </section>
-  );
-}
-
-function policyDefinitionFor(
-  kind: SupportedWorkspacePolicyKind,
-): SupportedWorkspacePolicyVersionFields["definition"] | null {
-  switch (kind) {
-    case "inventory_valuation":
-      return { contractVersion: 1, parameters: { strategy: "moving_weighted_average" } };
-    case "cost_allocation":
-      return { contractVersion: 1, parameters: { strategy: "quantity" } };
-    case "purchase_correction":
-      return {
-        contractVersion: 1,
-        parameters: { afterReceiving: "commercial_replacement_only" },
-      };
-    case "payment_terms_aging":
-      return {
-        contractVersion: 1,
-        parameters: {
-          defaultTermDays: 7,
-          defaultTermLabel: "7 ngày",
-          customerTerms: [],
-          graceDays: 0,
-          agingBuckets: [{ code: "1+", label: "Quá hạn", minDaysOverdue: 1, maxDaysOverdue: null }],
-          creditControl: "information_only",
-        },
-      };
-    case "payment_allocation":
-      return { contractVersion: 1, parameters: { strategy: "oldest_due_first" } };
-    case "credit_limit":
-      return { contractVersion: 1, parameters: { mode: "warning", limit: null } };
-    case "stock_planning_reorder":
-      return null;
-    case "stocktake_variance":
-      return { contractVersion: 1, parameters: { strategy: "absolute_count", allowReopen: false } };
-    case "supplier_evaluation":
-      return {
-        contractVersion: 1,
-        parameters: {
-          strategy: "observed_outcomes_summary",
-          windowDays: 365,
-          minimumObservationCount: 1,
-        },
-      };
-    case "operating_cycle_reconciliation":
-      return {
-        contractVersion: 1,
-        parameters: {
-          strategy: "observation_signoff",
-          requiredObservationKinds: ["cash_count"],
-          allowReopen: false,
-        },
-      };
-    case "cash_custody_deposit":
-      return {
-        contractVersion: 1,
-        parameters: {
-          strategy: "exact_cash_movement",
-          allowedSourceTypes: ["customer_payment"],
-          allowReverse: true,
-        },
-      };
-    case "management_intelligence":
-      return {
-        contractVersion: 1,
-        parameters: {
-          strategy: "operational_report_snapshot",
-          reportTypes: ["customer_account_activity"],
-        },
-      };
-  }
 }
 
 function PolicyStateActions(props: {
@@ -477,7 +289,7 @@ function PolicyStateActions(props: {
 
 function availabilityCopy(item: WorkspacePolicyAvailability): string {
   if (item.availability === "available")
-    return `Version ${item.version ?? "?"} đang trong thời gian hiệu lực.`;
+    return `Bản ${item.version ?? "?"} đang trong thời gian hiệu lực.`;
   if (item.reason === "unsupported_definition_contract")
     return "Cách tính này chưa được hỗ trợ nên chưa thể áp dụng.";
   if (item.reason === "corrupt_definition")
