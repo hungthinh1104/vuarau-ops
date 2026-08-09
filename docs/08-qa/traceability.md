@@ -12,15 +12,15 @@ Every link is declared in [trace-map.yml](trace-map.yml) and verified by
 
 ## ID conventions
 
-| Prefix            | Meaning               | Defined in                                     |
-| ----------------- | --------------------- | ---------------------------------------------- |
-| `UC-<AREA>-NNN`   | Use case              | `docs/02-use-cases/`                           |
-| `BR-<AREA>-NNN`   | Business rule         | `docs/04-business-rules/`                      |
-| `CASE-<AREA>-NNN` | Casebook scenario     | `docs/05-casebook/`                            |
-| `TC-<AREA>-NNN`   | Automated test        | test file names in `describe(…)`               |
-| `ADR-NNNN`        | Architecture decision | `docs/09-decisions/`                           |
-| `T-<AGG>-NNN`     | State transition      | `docs/03-state-machines/transition-catalog.md` |
-| `ASM-NNN`         | Recorded assumption   | `docs/09-decisions/decision-backlog.md`        |
+| Prefix            | Meaning               | Defined in                                      |
+| ----------------- | --------------------- | ----------------------------------------------- |
+| `UC-<AREA>-NNN`   | Use case              | `docs/02-use-cases/`                            |
+| `BR-<AREA>-NNN`   | Business rule         | `docs/04-business-rules/`                       |
+| `CASE-<AREA>-NNN` | Casebook scenario     | `docs/05-casebook/`                             |
+| `TC-<AREA>-NNN`   | Automated test        | a collected test title or attached test comment |
+| `ADR-NNNN`        | Architecture decision | `docs/09-decisions/`                            |
+| `T-<AGG>-NNN`     | State transition      | `docs/03-state-machines/transition-catalog.md`  |
+| `ASM-NNN`         | Recorded assumption   | `docs/09-decisions/decision-backlog.md`         |
 
 Areas follow current bounded contexts, including `AUTH`, `CUSTOMER`, `SALE`,
 `PAYMENT`, `ACCOUNT`, `PRODUCT`, `QUALITY`, `SUPPLIER`, `PURCHASE`, `RECEIVING`,
@@ -40,12 +40,20 @@ describe("BR-PAYMENT-003 / TC-PAYMENT-007", () => {
 });
 ```
 
-`trace-check.ts` scans every `*.test.ts` for `TC-*` and `BR-*` tokens and
-cross-references them with the trace map. Both directions are checked: a test
-naming an unknown rule fails, a P0 rule named by no test fails, a normative UC/BR
-defined in docs but omitted from the map fails, and a current business rule that
-belongs to no use case fails. This prevents a green trace report from merely
-proving the subset somebody remembered to register.
+`trace-check.ts` parses executable test calls (`it`, `test`, `specify` and
+`describe`) with the TypeScript AST. A `TC-*` ID counts only when it appears in
+that call's title or in a directly attached comment; an arbitrary string in a
+fixture, helper or unrelated source file is not evidence. The file convention
+also records the execution layer (`domain`, `application`, `contract`, `db`,
+`web`, `e2e` or `check`). Both directions are checked: a test naming an unknown
+rule fails, a P0 rule named by no test fails, a normative UC/BR defined in docs
+but omitted from the map fails, and a current business rule that belongs to no
+use case fails. This prevents a green trace report from merely proving that
+somebody remembered to copy an ID into a file.
+
+Non-test executable checks use an explicit `kind: check`, `layer: check` and
+package script name in `trace-map.yml`; the checker verifies that the script is
+actually present in `package.json`.
 
 ## What `trace-check.ts` fails on
 
@@ -62,7 +70,7 @@ proving the subset somebody remembered to register.
 10. A current business rule is not claimed by any use case.
 
 It is intentionally not a requirements-management platform. It answers one
-question — _are these links real?_ — in about 250 lines.
+question — _are these links real?_ — without reading unrelated repository files.
 
 ## What it cannot check
 

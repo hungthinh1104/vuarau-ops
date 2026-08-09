@@ -4196,34 +4196,34 @@ contract_tests:
     file: apps/web/src/fixtures/fixtures.test.ts
   TC-WEB-003:
     title: A customer credit is never rendered as a negative debt (BR-ACCOUNT-009)
-    file: apps/web/src/ui/money-rendering.test.tsx
+    file: apps/web/src/ui/domain/money-rendering.test.tsx
   TC-WEB-004:
     title: Loading renders no amount, never a placeholder zero balance
-    file: apps/web/src/ui/money-rendering.test.tsx
+    file: apps/web/src/ui/domain/money-rendering.test.tsx
   TC-WEB-005:
     title: Money and quantity entry produce integers or refuse; no client-side rounding
-    file: apps/web/src/ui/money-rendering.test.tsx
+    file: apps/web/src/ui/domain/money-rendering.test.tsx
   TC-WEB-006:
     title: A partially reversed payment shows original, reversed and remaining
-    file: apps/web/src/ui/money-rendering.test.tsx
+    file: apps/web/src/ui/domain/money-rendering.test.tsx
   TC-WEB-007:
     title: A control is enabled only when the session permission and the capability agree
-    file: apps/web/src/ui/exception-states.test.tsx
+    file: apps/web/src/ui/patterns/feedback/exception-states.test.tsx
   TC-WEB-008:
     title: A permission denial stays renderable when authorization changes after load
-    file: apps/web/src/ui/exception-states.test.tsx
+    file: apps/web/src/ui/patterns/feedback/exception-states.test.tsx
   TC-WEB-009:
     title: A stale version offers reload and nothing that resends the command
-    file: apps/web/src/ui/exception-states.test.tsx
+    file: apps/web/src/ui/patterns/feedback/exception-states.test.tsx
   TC-WEB-010:
     title: An unknown network outcome preserves commandId and idempotencyKey across retries
-    file: apps/web/src/ui/exception-states.test.tsx
+    file: apps/web/src/ui/patterns/feedback/exception-states.test.tsx
   TC-WEB-011:
     title: Rejection copy comes from the stable code, never from error.message
-    file: apps/web/src/ui/exception-states.test.tsx
+    file: apps/web/src/ui/patterns/feedback/exception-states.test.tsx
   TC-WEB-012:
     title: Storybook covers every state the UI state catalog names, and no others
-    file: apps/web/src/ui/catalog-coverage.test.ts
+    file: apps/web/src/ui/patterns/sale/catalog-coverage.test.ts
   TC-WEB-013:
     title: Interactive primitives are labelled, keyboard-reachable and axe-clean
     file: apps/web/src/ui/accessibility.test.tsx
@@ -4244,7 +4244,7 @@ contract_tests:
     file: apps/web/src/api/workspace.test.ts
   TC-WEB-019:
     title: The payment preview words a credit as money the depot owes, never a negative debt
-    file: apps/web/src/ui/balance-preview.test.tsx
+    file: apps/web/src/ui/patterns/finance/balance-preview.test.tsx
   TC-WEB-020:
     title: No production route imports fixture data
     file: apps/web/src/app/production-routes.test.ts
@@ -4292,13 +4292,13 @@ contract_tests:
     file: apps/web/e2e/payment.spec.ts
   TC-WEB-021:
     title: A sale line resolves through the server's own line-total arithmetic, or names the wrong field
-    file: apps/web/src/ui/sale-line-editor.test.tsx
+    file: apps/web/src/ui/patterns/sale/sale-line-editor.test.tsx
   TC-WEB-022:
     title: The line editor keeps typed values, flags its own row, and cannot submit a form
-    file: apps/web/src/ui/sale-line-editor.test.tsx
+    file: apps/web/src/ui/patterns/sale/sale-line-editor.test.tsx
   TC-WEB-023:
     title: The workflow metric vocabulary is closed and carries no business data
-    file: apps/web/src/ui/sale-line-editor.test.tsx
+    file: apps/web/src/ui/patterns/sale/sale-line-editor.test.tsx
 
   # --- the quick-sale workflow, end to end -----------------------------------
   TC-E2E-011:
@@ -4338,7 +4338,7 @@ contract_tests:
     file: apps/web/src/api/workspace.test.ts
   TC-WEB-025:
     title: Password sign-in supports conventional fields, Enter, duplicate blocking and retained input
-    file: apps/web/src/ui/sign-in.test.tsx
+    file: apps/web/src/ui/patterns/auth/sign-in.test.tsx
   TC-WEB-026:
     title: The Supabase adapter uses password auth and classifies credential, network, rate and configuration failures
     file: apps/web/src/api/auth.test.ts
@@ -4350,7 +4350,7 @@ contract_tests:
     file: apps/web/src/api/auth-session.test.tsx
   TC-WEB-029:
     title: Pilot navigation and Today actions render only server-authored capabilities
-    file: apps/web/src/ui/patterns/pilot-navigation.test.ts
+    file: apps/web/src/ui/patterns/layout/pilot-navigation.test.ts
   TC-WEB-030:
     title: Paged list rows and cursors are cleared synchronously on workspace change
     file: apps/web/src/api/workspace-page-state.test.ts
@@ -4396,6 +4396,9 @@ contract_tests:
   TC-OPS-011:
     title: Production-shape query plans meet fixed budgets without unexplained full scans
     file: packages/db/src/performance/production-scale-rehearsal.ts
+    kind: check
+    layer: check
+    command: perf:production-scale
   TC-OPS-012:
     title: Pilot owner bootstrap is atomic, audited and duplicate-safe
     file: packages/db/src/provisioning.db.test.ts
@@ -4629,6 +4632,28 @@ contract_tests:
   TC-OPS-018:
     title: Backup V19 carries close, reopen, statement-match and reversal lineage
     file: apps/api/src/modules/operations/operations.app.test.ts
+
+  TC-PROPERTY-MONEY-001:
+    title: Generated money quantities preserve exact integer line totals and aggregate sums
+    file: packages/domain-kernel/src/invariants.property.test.ts
+  TC-PROPERTY-INVENTORY-001:
+    title: Generated receipt partitions never accept more than the purchased quantity
+    file: packages/domain-kernel/src/invariants.property.test.ts
+  TC-PROPERTY-IDEMPOTENCY-001:
+    title: Generated payment sequences replay exactly one ledger effect per command identity
+    file: apps/api/src/modules/shared/invariants.app.test.ts
+  TC-PROPERTY-WORKSPACE-001:
+    title: Generated workspace reads never resolve a customer across the tenant boundary
+    file: apps/api/src/modules/shared/invariants.app.test.ts
+  TC-ADAPTER-INMEMORY-001:
+    title: In-memory customer repository contract preserves paging and workspace isolation
+    file: apps/api/src/infrastructure/persistence/adapter-contracts.app.test.ts
+  TC-ADAPTER-POSTGRES-001:
+    title: PostgreSQL customer repository contract preserves paging and workspace isolation
+    file: apps/api/src/infrastructure/persistence/drizzle/adapter-contracts.db.test.ts
+  TC-CLOSE-DB-001:
+    title: PostgreSQL statement matching remains exact and non-financial
+    file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
 
 deprecated:
   - UC-ORDER-001

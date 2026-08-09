@@ -7,6 +7,7 @@ import {
   type DbTestContext,
 } from "../testing/db-test-context.ts";
 
+// TC-SUPPLIER-004
 describe.skipIf(skipWithoutDatabase())("supplier confirmed price history", () => {
   let ctx: DbTestContext;
   const supplierId = crypto.randomUUID();

@@ -23,6 +23,7 @@ const terms = paymentTermsAgingPolicyDefinitionSchema.parse({
   },
 });
 
+// TC-AGING-006
 describe("BR-AGING-001 / BR-AGING-002 / TC-AGING-001", () => {
   it("allocates payments deterministically and separates settled, overdue and not-due debt", () => {
     const result = calculateDebtAging(

@@ -66,6 +66,7 @@ const closePolicy = {
   },
 };
 
+// TC-CLOSE-001 TC-CLOSE-006
 describe("close domain invariants", () => {
   it("requires one measurable observation for every configured scope", () => {
     const cash = observation("cash_count");

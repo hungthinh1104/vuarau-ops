@@ -80,6 +80,7 @@ function calculate(observations: readonly SupplierObservationDto[]) {
   });
 }
 
+// TC-SUPPLIER-PERFORMANCE-002
 describe("supplier performance", () => {
   it("derives exact quantity rates, timing and source lineage from observations", () => {
     const result = calculate([

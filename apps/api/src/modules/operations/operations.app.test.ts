@@ -66,6 +66,7 @@ const exportInput = () => ({
   payload: {},
 });
 
+// TC-OPS-006
 describe("M14 logical operations evidence", () => {
   it("exports a deterministic canonical payload with no secret material", async () => {
     const first = await exportWorkspaceBackup(harness.ctx, exportInput());

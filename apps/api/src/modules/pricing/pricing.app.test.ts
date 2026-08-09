@@ -48,6 +48,7 @@ const input = (priceRuleId: PriceRuleId, overrides: Record<string, unknown> = {}
   },
 });
 
+// TC-PRICING-007
 describe("pricing catalog application slice", () => {
   // TC-PRICING-001 / TC-PRICING-002 / TC-PRICING-003
   it("records an append-only rule, resolves it, and preserves the final snapshot", async () => {

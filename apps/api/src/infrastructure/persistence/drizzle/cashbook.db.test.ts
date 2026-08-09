@@ -50,6 +50,7 @@ import {
   reverseCashStatementMatch,
 } from "../../../modules/close/close.handlers.ts";
 
+// TC-CLOSE-005 TC-CLOSE-007
 describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;

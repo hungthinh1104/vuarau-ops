@@ -11,6 +11,7 @@ import { createProduct } from "../../../modules/product/product.handlers.ts";
 import { readCustomerCsv, readProductCsv } from "../../../operations/pilot-csv.ts";
 import { randomIdGenerator } from "../../clock.ts";
 
+// TC-CUSTOMER-013
 describe.skipIf(skipWithoutDatabase())("Canonical pilot imports against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;

@@ -44,6 +44,7 @@ import {
 } from "../../../modules/inventory/inventory.queries.ts";
 import { createQualityGrade } from "../../../modules/quality/quality.handlers.ts";
 
+// TC-GOODS-001 TC-GOODS-005
 describe.skipIf(skipWithoutDatabase())("Goods Truth against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;

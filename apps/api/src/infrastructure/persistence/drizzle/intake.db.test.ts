@@ -40,6 +40,7 @@ import {
 } from "../../../modules/intake/intake.queries.ts";
 import { getInventoryReconciliation } from "../../../modules/inventory/inventory.queries.ts";
 
+// TC-EVIDENCE-005
 describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;

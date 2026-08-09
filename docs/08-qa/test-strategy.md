@@ -14,16 +14,17 @@ Configured in `vitest.config.ts`.
 
 ## Validation tiers
 
-Choose the smallest validation scope that can disprove the current change. The
-commands below are the canonical progression; `pnpm verify` remains the merge gate,
-not the default edit loop.
+Choose the smallest validation scope that can disprove the current change. Batch
+related implementation edits first, then run one validation batch; this keeps the
+feedback loop useful without repeatedly booting every project. `pnpm verify`
+remains the merge gate, not the default edit loop.
 
-| Stage         | Command                                                     | When                            |
-| ------------- | ----------------------------------------------------------- | ------------------------------- |
-| Edit loop     | exact file or `pnpm test:focus -t TC-*`                     | after each small change         |
-| Affected loop | `pnpm test:related <changed-file>` or a project command     | after the focused test is green |
-| Commit gate   | `pnpm validate:commit` plus focused DB evidence when needed | before commit                   |
-| Merge gate    | `pnpm verify`                                               | before PR or merge              |
+| Stage         | Command                                                     | When                           |
+| ------------- | ----------------------------------------------------------- | ------------------------------ |
+| Edit loop     | exact file or `pnpm test:focus -t TC-*`                     | after a related batch of edits |
+| Affected loop | `pnpm test:related <changed-file>` or a project command     | after the batch is complete    |
+| Commit gate   | `pnpm validate:commit` plus focused DB evidence when needed | before commit                  |
+| Merge gate    | `pnpm verify`                                               | before PR or merge             |
 
 `pnpm test:fast` runs the domain, application, contract and web projects in one
 Vitest invocation. It intentionally excludes the Postgres project; add
@@ -151,6 +152,17 @@ describe("BR-PAYMENT-003 / TC-PAYMENT-007", () => { … });
 
 This is what makes [traceability](traceability.md) mechanical.
 
+**Shared contracts run against each persistence adapter.** Repository contracts
+are written once in `apps/api/src/testing/adapter-contracts.ts`, then exercised
+against the in-memory and PostgreSQL adapters. This is the parity boundary: an
+application test proves command behavior quickly, while the database project
+proves SQL paging, scoping and constraints on the real driver.
+
+**Property/model tests probe invariants, not implementation details.** Generated
+sequences cover integer money arithmetic, receipt limits, idempotency and
+workspace isolation. They use deterministic generators rather than an unbounded
+random seed, so a failure remains reproducible.
+
 ## The ten required tests
 
 | #   | Behaviour                                                                    | Test                        | Project     |
@@ -193,11 +205,15 @@ at every layer: failing test, observed failing for the expected reason, then cod
 
 ## Coverage policy
 
-No global coverage percentage is enforced. A percentage rewards testing trivial
-getters and says nothing about whether BR-PAYMENT-003 holds.
+Global branch and function percentages are reported but deliberately do not gate
+the repository. A percentage rewards testing trivial getters and says nothing
+about whether BR-PAYMENT-003 holds.
 
-What is enforced instead: **every P0 rule has at least one automated test**,
-checked by `scripts/trace-check.ts`. See
+The changed-code gate is stricter and local: `pnpm coverage:changed` runs the
+coverage report, prints global branch/function metrics, then requires every
+changed executable production line to have a covered statement. `COVERAGE_BASE`
+selects the pull-request base; local runs fall back to `HEAD^`. P0 traceability
+is still independently enforced by `scripts/trace-check.ts`. See
 [risk-classification.md](risk-classification.md).
 
 ## Regression tests
@@ -207,12 +223,20 @@ new `TC-*` id and linked to the rule it protects. Weakening or deleting a test t
 make a suite pass is forbidden — see
 [../10-ai-coding/CHANGE_PROTOCOL.md](../10-ai-coding/CHANGE_PROTOCOL.md).
 
-## Deliberately not in the default suite
+## Deliberately bounded or separate from the default suite
 
-- **Property-based tests.** The obvious candidate is "balance always equals the sum
-  of entries, for any sequence of commands". Worth doing; would need `fast-check`.
-  Not added in this phase — the invariant is covered by example-based tests today.
-- **Playwright end-to-end.** Reserved for when a UI exists.
+- **Unbounded property generation.** Invariant tests use deterministic bounded
+  model sequences so CI time and failures stay predictable.
+- **Desktop Playwright duplication.** Mobile runs the complete browser matrix;
+  desktop runs the golden money/goods/delivery/shell specs from
+  `apps/web/e2e/harness/projects.ts`. Read-only and admin scenarios do not run a
+  second time unless they are explicitly promoted to that list.
+- **Fixed browser waits.** `waitForTimeout` is forbidden in `apps/web/e2e/`;
+  tests wait for a URL, role, text, network-visible result or persisted state.
+- **Oversized test files.** `scripts/test-architecture.ts` reports warnings and
+  fails hard limits by layer. It also reports files containing `toHaveClass`
+  assertions as `style-contract`; behavioral browser tests remain distinguishable
+  from class/configuration checks.
 - **Production-shape load evidence.** `pnpm perf:production-scale` is an explicit PostgreSQL
   rehearsal rather than part of every unit run: it creates 10k customers/products,
   100k Sales/Purchases and one million ledger/movement rows, checks p95 budgets

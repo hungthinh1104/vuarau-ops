@@ -68,8 +68,10 @@ readiness, seeded test data, signed-in sessions and the token bridge used by the
 test build. The suite includes sign-in, quick sale, payment, account-ledger,
 reconciliation, workspace administration, customer operations, offline quick
 sale, operations, products, goods truth, depot operations and operational
-correctness scenarios. Playwright runs mobile and desktop projects against a
-real API and PostgreSQL process, and uses `next start`, not `next dev`. Representative
+correctness scenarios. Playwright runs the complete acceptance matrix on mobile
+and a bounded golden set on desktop against a real API and PostgreSQL process,
+and uses `next start`, not `next dev`. The desktop list is authoritative in
+`apps/web/e2e/harness/projects.ts`. Representative
 spec files include `apps/web/e2e/offline-quick-sale.spec.ts` and
 `apps/web/e2e/operational-correctness.spec.ts`.
 
@@ -78,6 +80,9 @@ The repository checks are split by feedback speed:
 | Command                                                   | Scope                                                                                                                                      |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `pnpm test:fast`                                          | domain, application, contract and web Vitest projects                                                                                      |
+| `pnpm test:architecture`                                  | E2E synchronization checks, test-file budgets and style-contract/behavioral classification                                                 |
+| `pnpm coverage:report`                                    | global branch/function coverage report only; no repository-wide percentage gate                                                            |
+| `pnpm coverage:changed`                                   | coverage report plus strict coverage for changed executable production lines                                                               |
 | `pnpm check:static`                                       | format, lint, typecheck, boundaries, source, UI/docs/truth checks, context, trace and security-surface checks                              |
 | `pnpm verify`                                             | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                                                 |
 | `pnpm verify:release`                                     | canonical release gate: static checks, migration drift, isolated production-scale performance, recovery, builds and production-runtime E2E |

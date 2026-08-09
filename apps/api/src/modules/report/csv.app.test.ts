@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { csvCell } from "./csv.ts";
 
+// TC-OPS-008
 describe("CSV injection boundary", () => {
   it.each(["=1+1", "+cmd", "-2+3", "@SUM(A1:A2)", ' \t=HYPERLINK("x")'])(
     "forces formula-shaped text to remain literal: %s",

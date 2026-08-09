@@ -29,6 +29,7 @@ import { applyCorrection, planCorrection, type CorrectionRequest } from "./sale-
  * re-run a replay. An in-memory version of this test would prove the in-memory
  * repository.
  */
+// TC-OPS-005
 describe.skipIf(skipWithoutDatabase())("correcting a posted sale against Postgres", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;

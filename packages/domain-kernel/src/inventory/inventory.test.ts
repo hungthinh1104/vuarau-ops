@@ -67,6 +67,7 @@ const receipt = (quantity: number): RecordPurchaseReceiptCommand =>
     },
   }) as unknown as RecordPurchaseReceiptCommand;
 
+// TC-GOODS-004
 describe("Receiving and inventory decisions", () => {
   it("supports partial receipts and rejects net over-receiving", () => {
     const partial = decideRecordPurchaseReceipt({

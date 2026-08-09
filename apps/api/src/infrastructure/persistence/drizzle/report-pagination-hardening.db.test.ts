@@ -11,6 +11,7 @@ import type { Cursor } from "@vuarau/domain-contracts";
 import { randomIdGenerator } from "../../clock.ts";
 import { getOperationalReport } from "../../../modules/report/report.queries.ts";
 
+// TC-OPS-010
 describe.skipIf(skipWithoutDatabase())("PostgreSQL report pagination hardening", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;

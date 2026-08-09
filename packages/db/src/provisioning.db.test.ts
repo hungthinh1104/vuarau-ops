@@ -13,6 +13,7 @@ import {
 } from "./schema/index.ts";
 import { DATABASE_URL, skipWithoutDatabase } from "./testing/db-test-context.ts";
 
+// TC-OPS-012
 describe.skipIf(skipWithoutDatabase())("Audited pilot bootstrap", () => {
   let database: Database;
 

@@ -104,6 +104,7 @@ async function seedPurchase(input: {
   );
 }
 
+// TC-GOODS-002 TC-SUPPLIER-003
 describe("M16 Supplier Account", () => {
   it("returns only confirmed purchase-line price observations with stable scope and ordering", async () => {
     await seedSupplier();

@@ -8,6 +8,7 @@ import {
   safeRequestId,
 } from "./request-guard.ts";
 
+// TC-OPS-007
 describe("Request trust boundary", () => {
   it("accepts only bounded printable correlation identifiers", () => {
     expect(safeRequestId("req-1234.alpha", "fallback")).toBe("req-1234.alpha");

@@ -47,6 +47,7 @@ const create = (quantity = 2_000): CreatePurchaseDraftCommand =>
     },
   }) as unknown as CreatePurchaseDraftCommand;
 
+// TC-GOODS-003
 describe("Purchase lifecycle", () => {
   it("uses canonical Sale arithmetic and freezes a confirmed snapshot", () => {
     const draft = decideCreatePurchaseDraft(create(), "2026-07-29T01:00:01.000Z");

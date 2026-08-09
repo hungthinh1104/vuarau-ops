@@ -3,6 +3,7 @@ import { observeOperationalEvent, renderMetrics, resetMetricsForTests } from "./
 
 beforeEach(resetMetricsForTests);
 
+// TC-OPS-009
 describe("Safe operational metrics", () => {
   it("counts commands, replays, rejections, queries and integrity without business labels", () => {
     observeOperationalEvent({

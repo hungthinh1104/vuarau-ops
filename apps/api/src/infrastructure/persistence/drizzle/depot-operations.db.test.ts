@@ -51,6 +51,7 @@ import {
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
 
 // TC-DELIVERY-003, TC-DOCUMENT-002, TC-REPORT-001
+// TC-DELIVERY-003 TC-DOCUMENT-002 TC-REPORT-001
 describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;

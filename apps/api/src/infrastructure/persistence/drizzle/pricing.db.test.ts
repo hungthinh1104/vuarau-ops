@@ -14,6 +14,7 @@ import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler
 import { getSale } from "../../../modules/sale/sale.queries.ts";
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 
+// TC-PRICING-004
 describe.skipIf(skipWithoutDatabase())("pricing catalog against PostgreSQL", () => {
   // TC-PRICING-004
   let ctx: DbTestContext;

@@ -118,6 +118,7 @@ beforeEach(() => {
   });
 });
 
+// TC-CLOSE-002 TC-CLOSE-003
 describe("operational close", () => {
   it("fails closed without an approved policy and requires the configured observations", async () => {
     const noPolicy = await recordOperationalClose(harness.ctx, {

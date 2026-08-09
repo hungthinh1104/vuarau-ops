@@ -3,6 +3,12 @@ import { readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { parse } from "yaml";
+import {
+  collectTraceTests,
+  testLayerForPath,
+  type CollectedTraceTest,
+  type TestLayer,
+} from "./trace-collector.ts";
 
 /**
  * Verifies the traceability chain in docs/08-qa/trace-map.yml:
@@ -69,6 +75,10 @@ type Entry = {
    */
   status?: "implemented" | "planned";
   planned_tests?: string[];
+  /** Inferred from the executable file; explicit only for checks that are not tests. */
+  layer?: TestLayer;
+  kind?: "test" | "check";
+  command?: string;
 };
 
 type TraceMap = {
@@ -123,12 +133,15 @@ async function documentedDefinitionIds(
 }
 
 function idsIn(text: string, prefix: string): Set<string> {
-  const pattern = new RegExp(`${prefix}-[A-Z]+-\\d{3}`, "g");
+  const pattern = new RegExp(`${prefix}-[A-Z0-9_-]+-\\d{3}`, "g");
   return new Set(text.match(pattern) ?? []);
 }
 
 async function main(): Promise<void> {
   const map = parse(readFileSync(join(ROOT, TRACE_MAP), "utf8")) as TraceMap;
+  const packageJson = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+    scripts?: Record<string, string>;
+  };
 
   const useCases = map.use_cases ?? {};
   const rules = map.business_rules ?? {};
@@ -185,11 +198,15 @@ async function main(): Promise<void> {
   }
 
   // ---- collect the TC ids that actually exist in test files ----------------
+  // Map references may point to a contract entry declared below. The entry is
+  // still required to resolve to a collected declaration (or an explicit check)
+  // before the command succeeds.
   const declaredTests = new Set<string>(Object.keys(contractTests));
   const testFileIds = new Map<string, string[]>();
+  const collectedTests = new Map<string, CollectedTraceTest[]>();
   let sourceFileCount = 0;
 
-  for (const directory of ["apps", "packages"]) {
+  for (const directory of ["apps", "packages", "scripts"]) {
     for await (const file of walkSource(join(ROOT, directory))) {
       const source = readFileSync(file, "utf8");
       const relativePath = relative(ROOT, file);
@@ -205,21 +222,32 @@ async function main(): Promise<void> {
         }
       }
 
-      if (!relativePath.endsWith(".test.ts") && !relativePath.endsWith(".test.tsx")) continue;
-
-      for (const id of idsIn(source, "TC")) {
-        declaredTests.add(id);
-        testFileIds.set(id, [...(testFileIds.get(id) ?? []), relativePath]);
-      }
-      // ---- 4. a test may not name a rule or case that does not exist -------
-      for (const ruleId of idsIn(source, "BR")) {
-        if (rules[ruleId] === undefined) {
-          fail(`${relativePath} names unknown business rule ${ruleId}`);
+      const layer = testLayerForPath(relativePath);
+      // The collector's own unit tests intentionally contain synthetic IDs to
+      // prove that arbitrary strings are ignored. They are checker tests, not
+      // product evidence, so they must not become trace-map obligations.
+      const isCollectorTest = relativePath === "scripts/trace-collector.test.ts";
+      if (layer !== null && !isCollectorTest) {
+        for (const collected of collectTraceTests(relativePath)) {
+          declaredTests.add(collected.id);
+          testFileIds.set(collected.id, [...(testFileIds.get(collected.id) ?? []), relativePath]);
+          collectedTests.set(collected.id, [
+            ...(collectedTests.get(collected.id) ?? []),
+            collected,
+          ]);
         }
       }
-      for (const caseId of idsIn(source, "CASE")) {
-        if (cases[caseId] === undefined) {
-          fail(`${relativePath} names unknown case ${caseId}`);
+      if (layer !== null) {
+        // ---- 4. a test may not name a rule or case that does not exist -----
+        for (const ruleId of idsIn(source, "BR")) {
+          if (rules[ruleId] === undefined) {
+            fail(`${relativePath} names unknown business rule ${ruleId}`);
+          }
+        }
+        for (const caseId of idsIn(source, "CASE")) {
+          if (cases[caseId] === undefined) {
+            fail(`${relativePath} names unknown case ${caseId}`);
+          }
         }
       }
     }
@@ -300,6 +328,47 @@ async function main(): Promise<void> {
     checkRefs("Case", id, entry);
   }
 
+  // A trace-map test must point to a collected test declaration, not merely to a
+  // file that happens to contain the identifier in a comment or helper fixture.
+  // The layer is inferred from the file convention so a test cannot silently
+  // move from the domain project to an application or database project.
+  for (const [id, entry] of Object.entries(contractTests)) {
+    if (entry.file === undefined || !existsSync(join(ROOT, entry.file))) {
+      fail(`Contract test ${id} references a missing executable file`);
+      continue;
+    }
+    if (entry.kind === "check") {
+      if (entry.layer !== "check" || entry.command === undefined) {
+        fail(`Contract check ${id} must declare layer: check and command`);
+      } else if (packageJson.scripts?.[entry.command] === undefined) {
+        fail(`Contract check ${id} names missing package script ${entry.command}`);
+      }
+      declaredTests.add(id);
+      continue;
+    }
+
+    const expectedLayer = testLayerForPath(entry.file);
+    const collected = (collectedTests.get(id) ?? []).filter((test) => test.file === entry.file);
+    if (expectedLayer === null) {
+      fail(`Contract test ${id} has no executable test layer: ${entry.file}`);
+      continue;
+    }
+    if (collected.length === 0) {
+      fail(`${id} is mapped to ${entry.file} but no test declaration collected that id`);
+      continue;
+    }
+    const actualLayers = new Set(collected.map((test) => test.layer));
+    if (actualLayers.size !== 1 || !actualLayers.has(expectedLayer)) {
+      fail(
+        `${id} collected with layer ${[...actualLayers].join(", ")} but ${entry.file} is ${expectedLayer}`,
+      );
+    }
+    if (entry.layer !== undefined && entry.layer !== expectedLayer) {
+      fail(`${id} declares layer ${entry.layer} but its file is ${expectedLayer}`);
+    }
+    declaredTests.add(id);
+  }
+
   // ---- every TC found in a test file must be claimed by the map ------------
   for (const [testId, files] of testFileIds) {
     const referenced =
@@ -326,7 +395,8 @@ async function main(): Promise<void> {
   console.log(
     `✓ trace-check: ${Object.keys(useCases).length} use cases, ${Object.keys(rules).length} rules ` +
       `(${p0Count} P0, ${plannedCount} planned), ${Object.keys(cases).length} cases, ` +
-      `${declaredTests.size} tests — all links resolve. ` +
+      `${declaredTests.size} collected tests/checks — all links resolve. ` +
+      `layers: ${[...new Set([...collectedTests.values()].flat().map((test) => test.layer))].join(", ")}. ` +
       `${sourceFileCount} source files carry no retired identifier.`,
   );
 }

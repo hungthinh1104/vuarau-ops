@@ -43,6 +43,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -125,6 +127,15 @@ jobs:
 
       - name: Web component tests
         run: pnpm test:web
+
+      # Coverage is deliberately report-only for the repository total. The
+      # changed-code check is strict: every changed executable statement must be
+      # exercised, while low legacy branch/function coverage is visible without
+      # making unrelated refactors impossible.
+      - name: Changed-code coverage report
+        run: pnpm coverage:changed
+        env:
+          COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
 
       # --- the artefacts a browser actually loads -------------------------------
       - name: Next production build

@@ -5,6 +5,7 @@ import {
   readPilotConfig,
 } from "./pilot-config.ts";
 
+// TC-OPS-013
 describe("Pilot declaration is fail-closed", () => {
   const filled = {
     ...EXAMPLE_PILOT_CONFIG,
