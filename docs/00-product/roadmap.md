@@ -268,7 +268,7 @@ The repository-truth and critical-screen Storybook reconciliation is technically
 closed: every critical screen in `docs/08-qa/ui-screen-coverage.md` has a shared
 presentation View and executable Storybook states. The exact-SHA repository
 release, synthetic depot day and pilot dry-run now report `PASS` on
-`ce41c4b7887f06ab4dc018ef2db7faddc8d2d87c`; visual coverage is not product
+`1bd46beb5dea5af737b91a38d6200d7442a3b85f`; visual coverage is not product
 completeness, and field/provider gates remain separate.
 
 Pilot readiness is **BLOCKED/PENDING** until the real Supabase A→B smoke,
