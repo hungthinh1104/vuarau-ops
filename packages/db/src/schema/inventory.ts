@@ -65,6 +65,11 @@ export const purchaseReceiptLines = pgTable(
     unique("purchase_receipt_lines_receipt_line_grade_uq")
       .on(table.receiptId, table.purchaseLineId, table.qualityGradeId)
       .nullsNotDistinct(),
+    index("purchase_receipt_lines_workspace_purchase_line_idx").on(
+      table.workspaceId,
+      table.purchaseLineId,
+      table.receiptId,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.qualityGradeId],
       foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],

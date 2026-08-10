@@ -8,11 +8,31 @@ type EvidenceStep = {
 };
 
 /**
- * Runs the existing real-PostgreSQL depot-day and restore journeys as one
- * release evidence command. The tests own fixture creation and cleanup; this
- * wrapper owns the exact-SHA/clean-tree boundary and emits a small JSON packet.
+ * Runs the canonical one-workspace PostgreSQL rehearsal together with the
+ * focused recovery/read-model suites. The tests own fixture creation and
+ * cleanup; this wrapper owns the exact-SHA/clean-tree boundary and emits a
+ * small JSON packet.
  */
 export const SYNTHETIC_DEPOT_DAY_STEPS: readonly EvidenceStep[] = [
+  {
+    name: "one workspace: purchase → receiving → sale → dispatch/return → payments → restore",
+    testFile: "apps/api/src/infrastructure/persistence/drizzle/synthetic-depot-day.db.test.ts",
+    proves: [
+      "one PostgreSQL workspace keeps receiving and fulfilment partials tied to canonical lines",
+      "duplicate confirmation and dispatch replay the original result without a second effect",
+      "customer payment reversal, supplier payment, coverage, reports and reconciliation remain attributable",
+      "the exported day restores into an empty target arrangement and reconciles again",
+    ],
+    truthDimensions: [
+      "money",
+      "goods",
+      "commercial",
+      "correction",
+      "partial",
+      "retry",
+      "explanation",
+    ],
+  },
   {
     name: "sale → payment → reversal → account rebuild",
     testFile: "apps/api/src/infrastructure/persistence/drizzle/full-slice.db.test.ts",

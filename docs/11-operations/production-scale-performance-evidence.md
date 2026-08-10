@@ -15,6 +15,12 @@ rehearsal, excluding browser/network time:
 | Document read                  |      25 ms |
 | Idempotency receipt lookup     |      10 ms |
 | Reconciliation for one account |      75 ms |
+| Product Coverage read model    |     250 ms |
+| Operations Board page          |     100 ms |
+| Receiving progress page        |     100 ms |
+| Dashboard summary/series       |     250 ms |
+| Debt-aging source aggregate    |     250 ms |
+| Supplier reconciliation        |      75 ms |
 
 They leave most of a 500 ms interactive server budget for authorization,
 transaction setup, mapping and network latency. They are release gates, not
@@ -41,22 +47,34 @@ database:
 
 Each query is warmed, executed 20 measured times, and checked with
 `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`. A budget breach or sequential scan of
-the production-scale canonical tables fails the command.
+the production-scale canonical tables fails the command. Canonical aggregate
+families (coverage, dashboard, debt-aging sources and board counts) are allowed
+to scan their source population; page/timeline families are not. The output
+names the family, p95, plan time, buffer hits/reads and scan policy so a later
+optimization can be compared against the same evidence contract.
 
-## Evidence — 2026-07-29, PostgreSQL 17 local container
+## Evidence — 2026-08-10, PostgreSQL 17 local container
 
-| Query                   | Measured p95 | EXPLAIN execution | Sequential scan |
-| ----------------------- | -----------: | ----------------: | --------------- |
-| customer timeline       |      0.64 ms |          0.331 ms | no              |
-| supplier timeline       |      0.55 ms |          0.626 ms | no              |
-| inventory movements     |      0.49 ms |          0.390 ms | no              |
-| delivery fulfilment     |      0.62 ms |          0.079 ms | no              |
-| operational report page |      0.58 ms |          0.655 ms | no              |
-| customer report total   |     19.84 ms |        417.574 ms | explained       |
-| inventory report total  |     33.57 ms |        568.010 ms | explained       |
-| document read           |      0.31 ms |          0.047 ms | no              |
-| idempotency replay      |      0.36 ms |          0.037 ms | no              |
-| customer reconciliation |      0.35 ms |          0.215 ms | no              |
+| Query                   | Measured p95 | EXPLAIN execution | Sequential scan         |
+| ----------------------- | -----------: | ----------------: | ----------------------- |
+| customer timeline       |      0.57 ms |          0.322 ms | no                      |
+| supplier timeline       |      0.59 ms |          0.644 ms | no                      |
+| inventory movements     |      0.55 ms |          0.686 ms | no                      |
+| delivery fulfilment     |      0.55 ms |          0.092 ms | no                      |
+| operational report page |      0.56 ms |          0.666 ms | no                      |
+| customer report total   |     18.79 ms |        429.496 ms | explained               |
+| inventory report total  |     29.70 ms |        564.947 ms | explained               |
+| document read           |      0.36 ms |          0.055 ms | no                      |
+| idempotency replay      |      0.25 ms |          0.044 ms | no                      |
+| customer reconciliation |      0.26 ms |          0.208 ms | no                      |
+| product coverage        |     28.09 ms |        327.179 ms | explained               |
+| operations board page   |      0.56 ms |          0.668 ms | no                      |
+| operations board counts |     11.42 ms |        302.264 ms | explained               |
+| receiving progress      |      0.64 ms |          0.180 ms | allowed empty-side scan |
+| dashboard summary       |     15.29 ms |        646.684 ms | explained               |
+| dashboard series        |     42.89 ms |        625.256 ms | explained               |
+| debt-aging sources      |     50.61 ms |        674.235 ms | explained               |
+| supplier reconciliation |      8.20 ms |        297.091 ms | explained               |
 
 The first report plan exposed a 400,000-row parallel sequential scan and measured
 443.778 ms. Migration `0020_white_black_crow.sql` adds cursor-compatible

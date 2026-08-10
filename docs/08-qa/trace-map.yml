@@ -2346,10 +2346,11 @@ business_rules:
     risk: P1
     doc: docs/04-business-rules/operations-rules.md
     cases: []
-    tests: [TC-OPS-010, TC-OPS-011]
+    tests: [TC-OPS-010, TC-OPS-011, TC-OPS-021]
     implementation:
       - packages/db/src/repositories/read/report-scale.ts
       - packages/db/src/performance/production-scale-rehearsal.ts
+      - apps/api/src/infrastructure/persistence/drizzle/synthetic-depot-day.db.test.ts
       - packages/db/migrations/0020_white_black_crow.sql
 
   BR-OPS-008:
@@ -4108,6 +4109,9 @@ contract_tests:
   TC-OPS-020:
     title: PostgreSQL bigint boundaries remain exact and reject unsafe reads
     file: packages/db/src/safe-bigint.db.test.ts
+  TC-OPS-021:
+    title: One PostgreSQL workspace crosses the canonical depot-day money, goods and recovery loop
+    file: apps/api/src/infrastructure/persistence/drizzle/synthetic-depot-day.db.test.ts
   TC-DOCUMENT-002:
     title: PostgreSQL proves append-only documents, digest validation, secure sharing and backup
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts

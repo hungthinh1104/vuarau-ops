@@ -1,0 +1,1 @@
+CREATE INDEX "purchase_receipt_lines_workspace_purchase_line_idx" ON "purchase_receipt_lines" USING btree ("workspace_id","purchase_line_id","receipt_id");

@@ -238,6 +238,7 @@ type Evidence = {
   planMs: number;
   sharedHits: number;
   sharedReads: number;
+  sequentialScanRelations: readonly string[];
   sequentialScan: boolean;
 };
 
@@ -312,15 +313,137 @@ const checks = [
     query: `select count(*),sum(amount_minor) from customer_account_entries
       where workspace_id='${WORKSPACE_ID}' and customer_id='f2210000-0000-4000-8000-000000000001'`,
   },
+  {
+    name: "product_coverage",
+    budgetMs: 250,
+    sequentialScanPolicy: "canonical_aggregate",
+    query: `with on_hand as (
+        select product_id,unit,sum(quantity_scaled)::bigint as quantity
+        from inventory_balances
+        where workspace_id='${WORKSPACE_ID}' and product_id='f2220000-0000-4000-8000-000000000001'
+        group by product_id,unit
+      ), inbound as (
+        select pl.product_id,pl.unit,sum(pl.quantity_scaled)::bigint as quantity
+        from purchase_lines pl join purchases p
+          on p.workspace_id=pl.workspace_id and p.id=pl.purchase_id
+        where pl.workspace_id='${WORKSPACE_ID}' and pl.product_id='f2220000-0000-4000-8000-000000000001'
+          and p.status='confirmed'
+        group by pl.product_id,pl.unit
+      ), outbound as (
+        select sl.product_id,sl.unit,sum(greatest(sl.quantity_scaled-coalesce(d.dispatched,0)+coalesce(r.returned,0),0))::bigint as quantity
+        from sale_lines sl join sales s on s.workspace_id=sl.workspace_id and s.id=sl.sale_id
+        left join (select sale_line_id,sum(quantity_scaled)::bigint as dispatched from delivery_lines dl
+          join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
+          where dl.workspace_id='${WORKSPACE_ID}' and d.status in ('dispatched','delivered') group by sale_line_id) d
+          on d.sale_line_id=sl.id
+        left join (select dl.sale_line_id,sum(drl.quantity_scaled)::bigint as returned from delivery_return_lines drl
+          join delivery_lines dl on dl.id=drl.delivery_line_id
+          where dl.workspace_id='${WORKSPACE_ID}' group by dl.sale_line_id) r on r.sale_line_id=sl.id
+        where sl.workspace_id='${WORKSPACE_ID}' and sl.product_id='f2220000-0000-4000-8000-000000000001'
+          and s.status='posted'
+        group by sl.product_id,sl.unit
+      )
+      select coalesce(o.product_id,i.product_id,ob.product_id) as product_id,
+        coalesce(o.unit,i.unit,ob.unit) as unit,
+        coalesce(o.quantity,0)+coalesce(i.quantity,0)-coalesce(ob.quantity,0) as available_after_commitments
+      from on_hand o full join inbound i using (product_id,unit)
+      full join outbound ob using (product_id,unit)`,
+  },
+  {
+    name: "operations_board_page",
+    budgetMs: 100,
+    query: `select s.id,s.customer_id,s.status,s.total_amount_minor,s.transaction_time
+      from sales s where s.workspace_id='${WORKSPACE_ID}' and s.status='posted'
+      order by s.transaction_time desc,s.id desc limit 101`,
+  },
+  {
+    name: "operations_board_counts",
+    budgetMs: 250,
+    sequentialScanPolicy: "canonical_aggregate",
+    query: `select status,count(*)::int as count from sales
+      where workspace_id='${WORKSPACE_ID}' group by status`,
+  },
+  {
+    name: "receiving_progress",
+    budgetMs: 100,
+    allowedSequentialScanTables: ["purchase_receipt_lines"],
+    query: `select p.id,pl.id as purchase_line_id,pl.quantity_scaled,
+      coalesce(sum(prl.quantity_scaled),0)::bigint as received
+      from purchases p join purchase_lines pl
+        on pl.workspace_id=p.workspace_id and pl.purchase_id=p.id
+      left join purchase_receipt_lines prl
+        on prl.workspace_id=pl.workspace_id and prl.purchase_line_id=pl.id
+      where p.workspace_id='${WORKSPACE_ID}' and p.id='f2250000-0000-4000-8000-000000000001'
+        and p.status='confirmed'
+      group by p.id,pl.id,pl.quantity_scaled order by p.transaction_time desc,p.id desc limit 101`,
+  },
+  {
+    name: "dashboard_summary",
+    budgetMs: 250,
+    sequentialScanPolicy: "canonical_aggregate",
+    query: `select
+      (select count(*) from sales where workspace_id='${WORKSPACE_ID}' and status='posted') as sales,
+      (select count(*) from purchases where workspace_id='${WORKSPACE_ID}' and status='confirmed') as purchases,
+      (select coalesce(sum(quantity_scaled),0) from inventory_balances where workspace_id='${WORKSPACE_ID}') as stock,
+      (select coalesce(sum(balance_minor),0) from customer_account_balances where workspace_id='${WORKSPACE_ID}') as receivables,
+      (select coalesce(sum(balance_minor),0) from supplier_account_balances where workspace_id='${WORKSPACE_ID}') as payables`,
+  },
+  {
+    name: "dashboard_series",
+    budgetMs: 250,
+    sequentialScanPolicy: "canonical_aggregate",
+    query: `select date_trunc('day',transaction_time)::date as business_date,
+      count(*)::int as order_count,coalesce(sum(total_amount_minor),0)::bigint as amount
+      from sales where workspace_id='${WORKSPACE_ID}' and status='posted'
+        and transaction_time >= timestamp '2026-01-01'
+      group by business_date order by business_date`,
+  },
+  {
+    name: "debt_aging_sources",
+    budgetMs: 250,
+    sequentialScanPolicy: "canonical_aggregate",
+    query: `select customer_id,count(*)::int as entry_count,
+      coalesce(sum(amount_minor),0)::bigint as balance
+      from customer_account_entries where workspace_id='${WORKSPACE_ID}'
+      group by customer_id order by customer_id limit 10001`,
+  },
+  {
+    name: "supplier_reconciliation",
+    budgetMs: 250,
+    sequentialScanPolicy: "canonical_aggregate",
+    query: `select supplier_id,count(*)::int as entry_count,
+      coalesce(sum(amount_minor),0)::bigint as balance
+      from supplier_account_entries where workspace_id='${WORKSPACE_ID}'
+        and supplier_id='${SUPPLIER_ID}' group by supplier_id`,
+  },
 ] satisfies ReadonlyArray<{
   name: string;
   budgetMs: number;
   sequentialScanPolicy?: "canonical_aggregate";
+  allowedSequentialScanTables?: readonly string[];
   query: string;
 }>;
 
 const percentile95 = (values: number[]): number =>
   values.toSorted((a, b) => a - b)[Math.ceil(values.length * 0.95) - 1] ?? 0;
+
+function sequentialScanRelations(value: unknown): string[] {
+  const found = new Set<string>();
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      for (const child of node) visit(child);
+      return;
+    }
+    if (node === null || typeof node !== "object") return;
+    const record = node as Record<string, unknown>;
+    if (record["Node Type"] === "Seq Scan" && typeof record["Relation Name"] === "string") {
+      found.add(record["Relation Name"]);
+    }
+    for (const child of Object.values(record)) visit(child);
+  };
+  visit(value);
+  return [...found].sort();
+}
 
 async function evidenceFor(check: (typeof checks)[number]): Promise<Evidence> {
   const explained = await sql.unsafe<Record<string, unknown>[]>(
@@ -328,7 +451,8 @@ async function evidenceFor(check: (typeof checks)[number]): Promise<Evidence> {
   );
   const root = (explained[0]?.["QUERY PLAN"] as Array<Record<string, unknown>> | undefined)?.[0];
   if (root === undefined) throw new Error(`No EXPLAIN output for ${check.name}.`);
-  const planText = JSON.stringify(root);
+  const scanRelations = sequentialScanRelations(root);
+  const allowedScanRelations = new Set(check.allowedSequentialScanTables ?? []);
   const timings: number[] = [];
   for (let index = 0; index < 21; index += 1) {
     const started = performance.now();
@@ -343,7 +467,8 @@ async function evidenceFor(check: (typeof checks)[number]): Promise<Evidence> {
     planMs: Number(root["Execution Time"] ?? 0),
     sharedHits: Number(root["Shared Hit Blocks"] ?? 0),
     sharedReads: Number(root["Shared Read Blocks"] ?? 0),
-    sequentialScan: /"Node Type":"Seq Scan"/.test(planText),
+    sequentialScanRelations: scanRelations,
+    sequentialScan: scanRelations.some((relation) => !allowedScanRelations.has(relation)),
   };
 }
 
