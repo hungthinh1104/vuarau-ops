@@ -66,7 +66,7 @@ describe("DemandObservationView", () => {
         unit="kg"
         demandReference=""
         evidenceReferences=""
-        relatedObservationId=""
+        relatedObservationLabel=""
         formError={null}
         command={command}
         onCustomerId={() => undefined}
@@ -83,7 +83,8 @@ describe("DemandObservationView", () => {
         onUnit={() => undefined}
         onDemandReference={() => undefined}
         onEvidenceReferences={() => undefined}
-        onRelatedObservationId={() => undefined}
+        onStartCorrection={() => undefined}
+        onClearCorrection={() => undefined}
         onSubmit={() => undefined}
         onRetry={() => undefined}
       />,

@@ -44,7 +44,8 @@ export function DebtEvidenceController() {
   const [paymentReference, setPaymentReference] = useState("");
   const [allocationProposal, setAllocationProposal] = useState("");
   const [evidenceReferences, setEvidenceReferences] = useState("");
-  const [relatedObservationId, setRelatedObservationId] = useState("");
+  const [relatedObservationId, setRelatedObservationId] = useState<DebtObservationId | "">("");
+  const [relatedObservationLabel, setRelatedObservationLabel] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   async function submit(): Promise<void> {
@@ -62,11 +63,8 @@ export function DebtEvidenceController() {
       setFormError("Cần ít nhất một tham chiếu nguồn.");
       return;
     }
-    const relatedText = relatedObservationId.trim();
-    const parsedRelated =
-      relatedText.length === 0 ? null : debtObservationIdSchema.safeParse(relatedText);
-    if (parsedRelated !== null && !parsedRelated.success) {
-      setFormError("ID quan sát điều chỉnh không hợp lệ.");
+    if (caseKind === "correction" && relatedObservationId === "") {
+      setFormError("Chọn bản ghi cần điều chỉnh trong lịch sử bên dưới.");
       return;
     }
     const result = await command.submit({
@@ -87,7 +85,7 @@ export function DebtEvidenceController() {
         customerId: null,
       },
       evidenceReferences: references,
-      relatedObservationId: parsedRelated === null ? null : parsedRelated.data,
+      relatedObservationId: relatedObservationId === "" ? null : relatedObservationId,
     });
     if (result === null) return;
     observationId.current = crypto.randomUUID() as DebtObservationId;
@@ -102,6 +100,7 @@ export function DebtEvidenceController() {
     setAllocationProposal("");
     setEvidenceReferences("");
     setRelatedObservationId("");
+    setRelatedObservationLabel("");
     await observations.refetch();
   }
 
@@ -122,7 +121,7 @@ export function DebtEvidenceController() {
       paymentReference={paymentReference}
       allocationProposal={allocationProposal}
       evidenceReferences={evidenceReferences}
-      relatedObservationId={relatedObservationId}
+      relatedObservationLabel={relatedObservationLabel}
       formError={formError}
       command={command}
       onKind={(value) => setKind(debtObservationKindSchema.parse(value))}
@@ -137,7 +136,15 @@ export function DebtEvidenceController() {
       onPaymentReference={setPaymentReference}
       onAllocationProposal={setAllocationProposal}
       onEvidenceReferences={setEvidenceReferences}
-      onRelatedObservationId={setRelatedObservationId}
+      onStartCorrection={(id, label) => {
+        setCaseKind("correction");
+        setRelatedObservationId(debtObservationIdSchema.parse(id));
+        setRelatedObservationLabel(label);
+      }}
+      onClearCorrection={() => {
+        setRelatedObservationId("");
+        setRelatedObservationLabel("");
+      }}
       onSubmit={() => void submit()}
       onRetry={() => void observations.refetch()}
     />

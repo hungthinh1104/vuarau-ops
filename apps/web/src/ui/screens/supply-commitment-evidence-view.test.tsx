@@ -66,7 +66,7 @@ describe("SupplyCommitmentEvidenceView", () => {
         unit="kg"
         commitmentReference=""
         evidenceReferences=""
-        relatedObservationId=""
+        relatedObservationLabel=""
         formError={null}
         command={command}
         onKind={() => undefined}
@@ -80,7 +80,8 @@ describe("SupplyCommitmentEvidenceView", () => {
         onUnit={() => undefined}
         onCommitmentReference={() => undefined}
         onEvidenceReferences={() => undefined}
-        onRelatedObservationId={() => undefined}
+        onStartCorrection={() => undefined}
+        onClearCorrection={() => undefined}
         onSubmit={() => undefined}
         onRetry={() => undefined}
       />,

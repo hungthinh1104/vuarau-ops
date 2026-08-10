@@ -90,7 +90,7 @@ describe("SupplierObservationView", () => {
         price=""
         claimReference=""
         evidenceReferences=""
-        relatedObservationId=""
+        relatedObservationLabel=""
         formError={null}
         command={command}
         onKind={() => undefined}
@@ -118,7 +118,8 @@ describe("SupplierObservationView", () => {
         onPrice={() => undefined}
         onClaimReference={() => undefined}
         onEvidenceReferences={() => undefined}
-        onRelatedObservationId={() => undefined}
+        onStartCorrection={() => undefined}
+        onClearCorrection={() => undefined}
         onSubmit={() => undefined}
         onRetry={() => undefined}
       />,

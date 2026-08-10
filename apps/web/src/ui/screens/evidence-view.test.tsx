@@ -60,7 +60,7 @@ function renderView() {
       unit="kg"
       sourceReference=""
       evidenceReferences=""
-      relatedObservationId=""
+      relatedObservationLabel=""
       formError={null}
       command={command}
       onKind={() => undefined}
@@ -72,7 +72,8 @@ function renderView() {
       onUnit={() => undefined}
       onSourceReference={() => undefined}
       onEvidenceReferences={() => undefined}
-      onRelatedObservationId={() => undefined}
+      onStartCorrection={() => undefined}
+      onClearCorrection={() => undefined}
       onSubmit={() => undefined}
       onRetry={() => undefined}
     />,
@@ -91,5 +92,7 @@ describe("EvidenceView", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("photo://receiving/001")).toBeInTheDocument();
     expect(screen.getByText("125.000 ₫")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Điều chỉnh bản ghi này" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("ID quan sát cần điều chỉnh")).not.toBeInTheDocument();
   });
 });

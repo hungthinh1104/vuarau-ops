@@ -67,7 +67,7 @@ describe("DebtEvidenceView", () => {
         paymentReference=""
         allocationProposal=""
         evidenceReferences=""
-        relatedObservationId=""
+        relatedObservationLabel=""
         formError={null}
         command={command}
         onKind={() => undefined}
@@ -82,7 +82,8 @@ describe("DebtEvidenceView", () => {
         onPaymentReference={() => undefined}
         onAllocationProposal={() => undefined}
         onEvidenceReferences={() => undefined}
-        onRelatedObservationId={() => undefined}
+        onStartCorrection={() => undefined}
+        onClearCorrection={() => undefined}
         onSubmit={() => undefined}
         onRetry={() => undefined}
       />,
@@ -92,5 +93,7 @@ describe("DebtEvidenceView", () => {
     expect(screen.getByText(/Ngày hẹn: .*08\/08\/2026/)).toBeInTheDocument();
     expect(screen.getByText(/Chưa kết luận overdue hoặc thay đổi ledger/)).toBeInTheDocument();
     expect(screen.getByText("note://debt/ui-001")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Điều chỉnh bản ghi này" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("ID quan sát cần điều chỉnh")).not.toBeInTheDocument();
   });
 });

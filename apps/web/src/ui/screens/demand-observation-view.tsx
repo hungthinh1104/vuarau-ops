@@ -24,6 +24,7 @@ import { Select, type SelectOption } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { CorrectionTarget } from "@/ui/patterns/evidence/correction-target.tsx";
 
 const KIND_COPY: Readonly<Record<DemandObservationKind, string>> = {
   requested_order: "Nhu cầu / đơn đặt dự kiến",
@@ -59,7 +60,7 @@ export function DemandObservationView(props: {
   readonly unit: Unit;
   readonly demandReference: string;
   readonly evidenceReferences: string;
-  readonly relatedObservationId: string;
+  readonly relatedObservationLabel: string;
   readonly formError: string | null;
   readonly command: CommandOutcomeView;
   readonly onCustomerId: (value: string) => void;
@@ -76,7 +77,8 @@ export function DemandObservationView(props: {
   readonly onUnit: (value: Unit) => void;
   readonly onDemandReference: (value: string) => void;
   readonly onEvidenceReferences: (value: string) => void;
-  readonly onRelatedObservationId: (value: string) => void;
+  readonly onStartCorrection: (observationId: string, label: string) => void;
+  readonly onClearCorrection: () => void;
   readonly onSubmit: () => void;
   readonly onRetry: () => void;
 }) {
@@ -122,7 +124,11 @@ export function DemandObservationView(props: {
             ) : (
               <ul className="grid gap-3">
                 {props.items.map((item) => (
-                  <DemandObservationCard key={item.id} item={item} />
+                  <DemandObservationCard
+                    key={item.id}
+                    item={item}
+                    onStartCorrection={props.onStartCorrection}
+                  />
                 ))}
               </ul>
             )
@@ -230,12 +236,7 @@ function DemandObservationForm(props: Parameters<typeof DemandObservationView>[0
         hint="Mỗi dòng một ảnh, phiếu, tin nhắn hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (
-        <TextInput
-          label="ID quan sát cần điều chỉnh"
-          required
-          value={props.relatedObservationId}
-          onChange={(event) => props.onRelatedObservationId(event.target.value)}
-        />
+        <CorrectionTarget label={props.relatedObservationLabel} onClear={props.onClearCorrection} />
       ) : null}
       {props.formError === null ? null : <p role="alert">{props.formError}</p>}
       <Button disabled={locked} onClick={props.onSubmit}>
@@ -250,7 +251,13 @@ function DemandObservationForm(props: Parameters<typeof DemandObservationView>[0
   );
 }
 
-function DemandObservationCard({ item }: { readonly item: DemandObservationDto }) {
+function DemandObservationCard({
+  item,
+  onStartCorrection,
+}: {
+  readonly item: DemandObservationDto;
+  readonly onStartCorrection: (observationId: string, label: string) => void;
+}) {
   return (
     <li className="rounded-card border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -289,10 +296,20 @@ function DemandObservationCard({ item }: { readonly item: DemandObservationDto }
       </p>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (
-        <p className="mt-2 text-caption text-warning">
-          Điều chỉnh quan sát: <code>{item.relatedObservationId}</code>
-        </p>
+        <p className="mt-2 text-caption text-warning">Đã liên kết với bản ghi trước.</p>
       )}
+      <Button
+        tone="secondary"
+        className="mt-3"
+        onClick={() =>
+          onStartCorrection(
+            item.id,
+            `${KIND_COPY[item.kind]} · ${formatInstant(item.transactionTime)}`,
+          )
+        }
+      >
+        Điều chỉnh bản ghi này
+      </Button>
     </li>
   );
 }

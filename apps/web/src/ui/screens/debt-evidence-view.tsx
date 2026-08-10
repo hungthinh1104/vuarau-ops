@@ -22,6 +22,7 @@ import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { CorrectionTarget } from "@/ui/patterns/evidence/correction-target.tsx";
 
 const KIND_COPY: Readonly<Record<DebtObservationKind, string>> = {
   agreed_due_date: "Ngày hẹn thanh toán",
@@ -54,7 +55,7 @@ export function DebtEvidenceView(props: {
   readonly paymentReference: string;
   readonly allocationProposal: string;
   readonly evidenceReferences: string;
-  readonly relatedObservationId: string;
+  readonly relatedObservationLabel: string;
   readonly formError: string | null;
   readonly command: CommandOutcomeView;
   readonly onKind: (value: string) => void;
@@ -69,7 +70,8 @@ export function DebtEvidenceView(props: {
   readonly onPaymentReference: (value: string) => void;
   readonly onAllocationProposal: (value: string) => void;
   readonly onEvidenceReferences: (value: string) => void;
-  readonly onRelatedObservationId: (value: string) => void;
+  readonly onStartCorrection: (observationId: string, label: string) => void;
+  readonly onClearCorrection: () => void;
   readonly onSubmit: () => void;
   readonly onRetry: () => void;
 }) {
@@ -131,7 +133,11 @@ export function DebtEvidenceView(props: {
             ) : (
               <ul className="grid gap-3">
                 {props.items.map((item) => (
-                  <DebtObservationCard key={item.id} item={item} />
+                  <DebtObservationCard
+                    key={item.id}
+                    item={item}
+                    onStartCorrection={props.onStartCorrection}
+                  />
                 ))}
               </ul>
             )
@@ -223,12 +229,7 @@ function DebtObservationForm(props: Parameters<typeof DebtEvidenceView>[0]) {
         hint="Mỗi dòng một phiếu, ảnh, tin nhắn hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (
-        <TextInput
-          label="ID quan sát cần điều chỉnh"
-          required
-          value={props.relatedObservationId}
-          onChange={(event) => props.onRelatedObservationId(event.target.value)}
-        />
+        <CorrectionTarget label={props.relatedObservationLabel} onClear={props.onClearCorrection} />
       ) : null}
       {props.formError === null ? null : <p role="alert">{props.formError}</p>}
       <Button disabled={locked} onClick={props.onSubmit}>
@@ -243,7 +244,13 @@ function DebtObservationForm(props: Parameters<typeof DebtEvidenceView>[0]) {
   );
 }
 
-function DebtObservationCard({ item }: { readonly item: DebtObservationDto }) {
+function DebtObservationCard({
+  item,
+  onStartCorrection,
+}: {
+  readonly item: DebtObservationDto;
+  readonly onStartCorrection: (observationId: string, label: string) => void;
+}) {
   return (
     <li className="rounded-card border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -283,10 +290,20 @@ function DebtObservationCard({ item }: { readonly item: DebtObservationDto }) {
       </p>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (
-        <p className="mt-2 text-caption text-warning">
-          Điều chỉnh quan sát: <code>{item.relatedObservationId}</code>
-        </p>
+        <p className="mt-2 text-caption text-warning">Đã liên kết với bản ghi trước.</p>
       )}
+      <Button
+        tone="secondary"
+        className="mt-3"
+        onClick={() =>
+          onStartCorrection(
+            item.id,
+            `${KIND_COPY[item.kind]} · ${formatInstant(item.transactionTime)}`,
+          )
+        }
+      >
+        Điều chỉnh bản ghi này
+      </Button>
     </li>
   );
 }

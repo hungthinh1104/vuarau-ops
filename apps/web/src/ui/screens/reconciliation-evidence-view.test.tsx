@@ -67,7 +67,7 @@ describe("ReconciliationEvidenceView", () => {
         itemCount=""
         scopeReference=""
         evidenceReferences=""
-        relatedObservationId=""
+        relatedObservationLabel=""
         formError={null}
         command={command}
         onKind={() => undefined}
@@ -82,7 +82,8 @@ describe("ReconciliationEvidenceView", () => {
         onItemCount={() => undefined}
         onScopeReference={() => undefined}
         onEvidenceReferences={() => undefined}
-        onRelatedObservationId={() => undefined}
+        onStartCorrection={() => undefined}
+        onClearCorrection={() => undefined}
         onSubmit={() => undefined}
         onRetry={() => undefined}
       />,
@@ -96,5 +97,7 @@ describe("ReconciliationEvidenceView", () => {
     expect(screen.getByText("9,5 kg")).toBeInTheDocument();
     expect(screen.getByText(/Chưa tính chênh lệch/)).toBeInTheDocument();
     expect(screen.getByText("photo://stocktake/ui-001")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Điều chỉnh bản ghi này" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("ID quan sát cần điều chỉnh")).not.toBeInTheDocument();
   });
 });

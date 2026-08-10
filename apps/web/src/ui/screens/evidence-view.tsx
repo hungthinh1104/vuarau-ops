@@ -26,6 +26,7 @@ import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 import { costObservationForm } from "@/ui/patterns/evidence/observation-form-registry.ts";
+import { CorrectionTarget } from "@/ui/patterns/evidence/correction-target.tsx";
 
 const KIND_COPY: Readonly<Record<CostObservationKind, string>> = {
   purchase_price: "Giá mua được quan sát",
@@ -61,7 +62,7 @@ export function EvidenceView(props: {
   readonly unit: Unit;
   readonly sourceReference: string;
   readonly evidenceReferences: string;
-  readonly relatedObservationId: string;
+  readonly relatedObservationLabel: string;
   readonly formError: string | null;
   readonly command: CommandOutcomeView;
   readonly onKind: (value: string) => void;
@@ -73,7 +74,8 @@ export function EvidenceView(props: {
   readonly onUnit: (value: Unit) => void;
   readonly onSourceReference: (value: string) => void;
   readonly onEvidenceReferences: (value: string) => void;
-  readonly onRelatedObservationId: (value: string) => void;
+  readonly onStartCorrection: (observationId: string, label: string) => void;
+  readonly onClearCorrection: () => void;
   readonly onSubmit: () => void;
   readonly onRetry: () => void;
 }) {
@@ -141,7 +143,11 @@ export function EvidenceView(props: {
             ) : (
               <ul className="grid gap-3">
                 {props.items.map((item) => (
-                  <ObservationCard key={item.id} item={item} />
+                  <ObservationCard
+                    key={item.id}
+                    item={item}
+                    onStartCorrection={props.onStartCorrection}
+                  />
                 ))}
               </ul>
             )
@@ -225,12 +231,7 @@ function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
         hint="Mỗi dòng một ảnh, phiếu giấy, biên nhận hoặc liên kết đã được duyệt."
       />
       {props.caseKind === "correction" ? (
-        <TextInput
-          label="ID quan sát cần điều chỉnh"
-          required
-          value={props.relatedObservationId}
-          onChange={(event) => props.onRelatedObservationId(event.target.value)}
-        />
+        <CorrectionTarget label={props.relatedObservationLabel} onClear={props.onClearCorrection} />
       ) : null}
       {props.formError === null ? null : <p role="alert">{props.formError}</p>}
       <Button disabled={locked} onClick={props.onSubmit}>
@@ -245,7 +246,13 @@ function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
   );
 }
 
-function ObservationCard({ item }: { readonly item: CostObservationDto }) {
+function ObservationCard({
+  item,
+  onStartCorrection,
+}: {
+  readonly item: CostObservationDto;
+  readonly onStartCorrection: (observationId: string, label: string) => void;
+}) {
   return (
     <li className="rounded-card border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -269,10 +276,20 @@ function ObservationCard({ item }: { readonly item: CostObservationDto }) {
       </div>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (
-        <p className="mt-2 text-caption text-warning">
-          Điều chỉnh quan sát: <code>{item.relatedObservationId}</code>
-        </p>
+        <p className="mt-2 text-caption text-warning">Đã liên kết với bản ghi trước.</p>
       )}
+      <Button
+        tone="secondary"
+        className="mt-3"
+        onClick={() =>
+          onStartCorrection(
+            item.id,
+            `${KIND_COPY[item.kind]} · ${formatInstant(item.transactionTime)}`,
+          )
+        }
+      >
+        Điều chỉnh bản ghi này
+      </Button>
     </li>
   );
 }

@@ -79,7 +79,8 @@ export function DemandObservationController() {
   const [unit, setUnit] = useState<Unit>("kg");
   const [demandReference, setDemandReference] = useState("");
   const [evidenceReferences, setEvidenceReferences] = useState("");
-  const [relatedObservationId, setRelatedObservationId] = useState("");
+  const [relatedObservationId, setRelatedObservationId] = useState<DemandObservationId | "">("");
+  const [relatedObservationLabel, setRelatedObservationLabel] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   async function submit(): Promise<void> {
@@ -95,11 +96,8 @@ export function DemandObservationController() {
       .map((reference) => reference.trim())
       .filter(Boolean);
     if (references.length === 0) return setFormError("Cần ít nhất một tham chiếu nguồn.");
-    const relatedText = relatedObservationId.trim();
-    const parsedRelated =
-      relatedText.length === 0 ? null : demandObservationIdSchema.safeParse(relatedText);
-    if (parsedRelated !== null && !parsedRelated.success) {
-      return setFormError("ID quan sát điều chỉnh không hợp lệ.");
+    if (caseKind === "correction" && relatedObservationId === "") {
+      return setFormError("Chọn bản ghi cần điều chỉnh trong lịch sử bên dưới.");
     }
     const result = await command.submit({
       demandObservationId: observationId.current,
@@ -118,7 +116,7 @@ export function DemandObservationController() {
         demandReference: demandReference.trim() || null,
       },
       evidenceReferences: references,
-      relatedObservationId: parsedRelated === null ? null : parsedRelated.data,
+      relatedObservationId: relatedObservationId === "" ? null : relatedObservationId,
     });
     if (result === null) return;
     observationId.current = crypto.randomUUID() as DemandObservationId;
@@ -134,6 +132,7 @@ export function DemandObservationController() {
     setDemandReference("");
     setEvidenceReferences("");
     setRelatedObservationId("");
+    setRelatedObservationLabel("");
     await observations.refetch();
   }
 
@@ -168,7 +167,7 @@ export function DemandObservationController() {
       unit={unit}
       demandReference={demandReference}
       evidenceReferences={evidenceReferences}
-      relatedObservationId={relatedObservationId}
+      relatedObservationLabel={relatedObservationLabel}
       formError={formError}
       command={command}
       onCustomerId={(value) => setCustomerId(value as CustomerId | "")}
@@ -185,7 +184,15 @@ export function DemandObservationController() {
       onUnit={setUnit}
       onDemandReference={setDemandReference}
       onEvidenceReferences={setEvidenceReferences}
-      onRelatedObservationId={setRelatedObservationId}
+      onStartCorrection={(id, label) => {
+        setCaseKind("correction");
+        setRelatedObservationId(demandObservationIdSchema.parse(id));
+        setRelatedObservationLabel(label);
+      }}
+      onClearCorrection={() => {
+        setRelatedObservationId("");
+        setRelatedObservationLabel("");
+      }}
       onSubmit={() => void submit()}
       onRetry={() => void observations.refetch()}
     />

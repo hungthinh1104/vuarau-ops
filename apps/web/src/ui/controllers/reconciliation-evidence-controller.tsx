@@ -49,7 +49,10 @@ export function ReconciliationEvidenceController() {
   const [itemCount, setItemCount] = useState("");
   const [scopeReference, setScopeReference] = useState("");
   const [evidenceReferences, setEvidenceReferences] = useState("");
-  const [relatedObservationId, setRelatedObservationId] = useState("");
+  const [relatedObservationId, setRelatedObservationId] = useState<
+    ReconciliationObservationId | ""
+  >("");
+  const [relatedObservationLabel, setRelatedObservationLabel] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   async function submit(): Promise<void> {
@@ -87,11 +90,8 @@ export function ReconciliationEvidenceController() {
       setFormError("Cần ít nhất một tham chiếu nguồn.");
       return;
     }
-    const relatedText = relatedObservationId.trim();
-    const parsedRelated =
-      relatedText.length === 0 ? null : reconciliationObservationIdSchema.safeParse(relatedText);
-    if (parsedRelated !== null && !parsedRelated.success) {
-      setFormError("ID quan sát điều chỉnh không hợp lệ.");
+    if (caseKind === "correction" && relatedObservationId === "") {
+      setFormError("Chọn bản ghi cần điều chỉnh trong lịch sử bên dưới.");
       return;
     }
     const result = await command.submit({
@@ -111,7 +111,7 @@ export function ReconciliationEvidenceController() {
         scopeReference: scopeReference.trim() || null,
       },
       evidenceReferences: references,
-      relatedObservationId: parsedRelated === null ? null : parsedRelated.data,
+      relatedObservationId: relatedObservationId === "" ? null : relatedObservationId,
     });
     if (result === null) return;
     observationId.current = crypto.randomUUID() as ReconciliationObservationId;
@@ -125,6 +125,7 @@ export function ReconciliationEvidenceController() {
     setScopeReference("");
     setEvidenceReferences("");
     setRelatedObservationId("");
+    setRelatedObservationLabel("");
     await observations.refetch();
   }
 
@@ -145,7 +146,7 @@ export function ReconciliationEvidenceController() {
       itemCount={itemCount}
       scopeReference={scopeReference}
       evidenceReferences={evidenceReferences}
-      relatedObservationId={relatedObservationId}
+      relatedObservationLabel={relatedObservationLabel}
       formError={formError}
       command={command}
       onKind={(value) => setKind(reconciliationObservationKindSchema.parse(value))}
@@ -160,7 +161,15 @@ export function ReconciliationEvidenceController() {
       onItemCount={setItemCount}
       onScopeReference={setScopeReference}
       onEvidenceReferences={setEvidenceReferences}
-      onRelatedObservationId={setRelatedObservationId}
+      onStartCorrection={(id, label) => {
+        setCaseKind("correction");
+        setRelatedObservationId(reconciliationObservationIdSchema.parse(id));
+        setRelatedObservationLabel(label);
+      }}
+      onClearCorrection={() => {
+        setRelatedObservationId("");
+        setRelatedObservationLabel("");
+      }}
       onSubmit={() => void submit()}
       onRetry={() => void observations.refetch()}
     />

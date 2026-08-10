@@ -44,7 +44,8 @@ export function EvidenceController() {
   const [unit, setUnit] = useState<Unit>("kg");
   const [sourceReference, setSourceReference] = useState("");
   const [evidenceReferences, setEvidenceReferences] = useState("");
-  const [relatedObservationId, setRelatedObservationId] = useState("");
+  const [relatedObservationId, setRelatedObservationId] = useState<CostObservationId | "">("");
+  const [relatedObservationLabel, setRelatedObservationLabel] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   async function submit(): Promise<void> {
@@ -67,11 +68,8 @@ export function EvidenceController() {
       setFormError("Cần ít nhất một tham chiếu nguồn.");
       return;
     }
-    const relatedText = relatedObservationId.trim();
-    const parsedRelated =
-      relatedText.length === 0 ? null : costObservationIdSchema.safeParse(relatedText);
-    if (parsedRelated !== null && !parsedRelated.success) {
-      setFormError("ID quan sát điều chỉnh không hợp lệ.");
+    if (caseKind === "correction" && relatedObservationId === "") {
+      setFormError("Chọn bản ghi cần điều chỉnh trong lịch sử bên dưới.");
       return;
     }
     const result = await command.submit({
@@ -88,7 +86,7 @@ export function EvidenceController() {
         sourceReference: sourceReference.trim() || null,
       },
       evidenceReferences: references,
-      relatedObservationId: parsedRelated === null ? null : parsedRelated.data,
+      relatedObservationId: relatedObservationId === "" ? null : relatedObservationId,
     });
     if (result === null) return;
     observationId.current = crypto.randomUUID() as CostObservationId;
@@ -99,6 +97,7 @@ export function EvidenceController() {
     setSourceReference("");
     setEvidenceReferences("");
     setRelatedObservationId("");
+    setRelatedObservationLabel("");
     await observations.refetch();
   }
 
@@ -116,7 +115,7 @@ export function EvidenceController() {
       unit={unit}
       sourceReference={sourceReference}
       evidenceReferences={evidenceReferences}
-      relatedObservationId={relatedObservationId}
+      relatedObservationLabel={relatedObservationLabel}
       formError={formError}
       command={command}
       onKind={(value) => setKind(costObservationKindSchema.parse(value))}
@@ -128,7 +127,15 @@ export function EvidenceController() {
       onUnit={setUnit}
       onSourceReference={setSourceReference}
       onEvidenceReferences={setEvidenceReferences}
-      onRelatedObservationId={setRelatedObservationId}
+      onStartCorrection={(id, label) => {
+        setCaseKind("correction");
+        setRelatedObservationId(costObservationIdSchema.parse(id));
+        setRelatedObservationLabel(label);
+      }}
+      onClearCorrection={() => {
+        setRelatedObservationId("");
+        setRelatedObservationLabel("");
+      }}
       onSubmit={() => void submit()}
       onRetry={() => void observations.refetch()}
     />
