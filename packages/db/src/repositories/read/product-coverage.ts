@@ -12,7 +12,9 @@ import {
   deliveryLines,
   deliveryReturnLines,
   deliveryReturns,
+  goodsArrivals,
   goodsArrivalLines,
+  goodsArrivalReversals,
   inventoryBalances,
   products,
   purchases,
@@ -28,6 +30,7 @@ import {
   sales,
   saleVoids,
 } from "../../schema/index.ts";
+import { deriveProductCoverageQuantity } from "@vuarau/domain-kernel";
 import type { Tx } from "../shared/types.ts";
 
 export async function readProductCoverage(
@@ -45,11 +48,16 @@ export async function readProductCoverage(
       select qd.workspace_id, qd.id as disposition_id,
         qd.source_arrival_line_id as root_arrival_line_id
       from ${qualityDispositions} qd
+      left join ${qualityDispositionReversals} root_reversal
+        on root_reversal.workspace_id = qd.workspace_id and root_reversal.disposition_id = qd.id
       where qd.workspace_id = ${workspaceId}::uuid
         and qd.source_type = 'arrival_line'
+        and root_reversal.id is null
       union all
       select child.workspace_id, child.id, parent.root_arrival_line_id
       from ${qualityDispositions} child
+      left join ${qualityDispositionReversals} child_reversal
+        on child_reversal.workspace_id = child.workspace_id and child_reversal.disposition_id = child.id
       join ${qualityDispositionAllocations} source_allocation
         on source_allocation.workspace_id = child.workspace_id
         and source_allocation.id = child.source_quarantine_allocation_id
@@ -58,6 +66,7 @@ export async function readProductCoverage(
         and parent.disposition_id = source_allocation.disposition_id
       where child.workspace_id = ${workspaceId}::uuid
         and child.source_type = 'quarantine_allocation'
+        and child_reversal.id is null
     ), on_hand as (
       select ib.product_id, ib.unit, sum(ib.quantity_scaled)::bigint as quantity
       from ${inventoryBalances} ib
@@ -86,6 +95,12 @@ export async function readProductCoverage(
       join ${goodsArrivalLines} root_line
         on root_line.workspace_id = root.workspace_id
         and root_line.id = root.root_arrival_line_id
+      join ${goodsArrivals} root_arrival
+        on root_arrival.workspace_id = root_line.workspace_id
+        and root_arrival.id = root_line.arrival_id
+      left join ${goodsArrivalReversals} root_arrival_reversal
+        on root_arrival_reversal.workspace_id = root_arrival.workspace_id
+        and root_arrival_reversal.arrival_id = root_arrival.id
       left join ${qualityDispositionReversals} reversal
         on reversal.workspace_id = disposition.workspace_id
         and reversal.disposition_id = disposition.id
@@ -93,6 +108,7 @@ export async function readProductCoverage(
         and allocation.outcome = 'accepted'
         and root_line.product_id in (${ids})
         and root_line.purchase_line_id is not null
+        and root_arrival_reversal.id is null
         and reversal.id is null
       group by root_line.purchase_line_id
     ), inbound as (
@@ -187,20 +203,14 @@ export async function readProductCoverage(
     const onHand = Number(raw.onHand);
     const inboundRemaining = Number(raw.inboundRemaining);
     const outboundRemaining = Number(raw.outboundRemaining);
-    const available = onHand + inboundRemaining - outboundRemaining;
-    byProduct.get(raw.productId)?.push({
-      unit: raw.unit,
-      onHand: { valueScaled: onHand, unit: raw.unit },
-      inboundRemaining: { valueScaled: inboundRemaining, unit: raw.unit },
-      outboundRemaining: { valueScaled: outboundRemaining, unit: raw.unit },
-      availableAfterCommitments: { valueScaled: available, unit: raw.unit },
-      classification:
-        available < 0
-          ? "shortage"
-          : onHand === 0 && inboundRemaining === 0 && outboundRemaining === 0
-            ? "idle"
-            : "covered",
-    });
+    byProduct.get(raw.productId)?.push(
+      deriveProductCoverageQuantity({
+        unit: raw.unit,
+        onHand,
+        inboundRemaining,
+        outboundRemaining,
+      }),
+    );
   }
   return productIds.map((productId) => ({
     workspaceId,

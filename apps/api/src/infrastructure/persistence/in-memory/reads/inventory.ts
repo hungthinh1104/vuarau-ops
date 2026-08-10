@@ -5,7 +5,10 @@ import {
   type ProductId,
   type Unit,
 } from "@vuarau/domain-contracts";
-import type { InventoryValuationMovement } from "@vuarau/domain-kernel";
+import {
+  deriveProductCoverageQuantity,
+  type InventoryValuationMovement,
+} from "@vuarau/domain-kernel";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
@@ -120,7 +123,12 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
       for (const disposition of store.qualityDispositions.values()) {
         if (disposition.workspaceId !== workspaceId || disposition.reversal !== null) continue;
         const root = intakeSourceRoot(store, workspaceId, disposition.source);
-        if (root?.line.purchaseLineId === null || root?.line.purchaseLineId === undefined) continue;
+        if (
+          root?.active !== true ||
+          root.line.purchaseLineId === null ||
+          root.line.purchaseLineId === undefined
+        )
+          continue;
         for (const allocation of disposition.allocations) {
           if (allocation.outcome !== "accepted") continue;
           acceptedByPurchaseLine.set(
@@ -207,24 +215,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         productId,
         quantities: [...(byProduct.get(productId)?.entries() ?? [])]
           .sort(([left], [right]) => UNITS.indexOf(left) - UNITS.indexOf(right))
-          .map(([unit, totals]) => {
-            const available = totals.onHand + totals.inboundRemaining - totals.outboundRemaining;
-            return {
-              unit,
-              onHand: { valueScaled: totals.onHand, unit },
-              inboundRemaining: { valueScaled: totals.inboundRemaining, unit },
-              outboundRemaining: { valueScaled: totals.outboundRemaining, unit },
-              availableAfterCommitments: { valueScaled: available, unit },
-              classification:
-                available < 0
-                  ? "shortage"
-                  : totals.onHand === 0 &&
-                      totals.inboundRemaining === 0 &&
-                      totals.outboundRemaining === 0
-                    ? "idle"
-                    : "covered",
-            };
-          }),
+          .map(([unit, totals]) => deriveProductCoverageQuantity({ unit, ...totals })),
       }));
     },
     valuationSources: async ({ workspaceId, productId, qualityGradeId, unit, asOf }) => {

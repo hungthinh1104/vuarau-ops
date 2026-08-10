@@ -1,4 +1,6 @@
 import type {
+  ProductCoverageQuantityDto,
+  Unit,
   AdjustInventoryCommand,
   IsoInstant,
   RecordPurchaseReceiptCommand,
@@ -115,6 +117,34 @@ export const classifyInventory = (quantityScaled: number) =>
     : quantityScaled < 0
       ? ("negative" as const)
       : ("zero" as const);
+
+/**
+ * Product coverage has one arithmetic contract across adapters:
+ * on-hand goods plus confirmed inbound still to receive, less posted outbound
+ * still to fulfil. SQL and in-memory reads may collect different source rows,
+ * but they must not derive a different availability or classification.
+ */
+export function deriveProductCoverageQuantity(input: {
+  readonly unit: Unit;
+  readonly onHand: number;
+  readonly inboundRemaining: number;
+  readonly outboundRemaining: number;
+}): ProductCoverageQuantityDto {
+  const availableAfterCommitments = input.onHand + input.inboundRemaining - input.outboundRemaining;
+  return {
+    unit: input.unit,
+    onHand: { valueScaled: input.onHand, unit: input.unit },
+    inboundRemaining: { valueScaled: input.inboundRemaining, unit: input.unit },
+    outboundRemaining: { valueScaled: input.outboundRemaining, unit: input.unit },
+    availableAfterCommitments: { valueScaled: availableAfterCommitments, unit: input.unit },
+    classification:
+      availableAfterCommitments < 0
+        ? "shortage"
+        : input.onHand === 0 && input.inboundRemaining === 0 && input.outboundRemaining === 0
+          ? "idle"
+          : "covered",
+  };
+}
 
 export * from "./stock-planning.ts";
 export * from "./stocktake.ts";

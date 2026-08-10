@@ -59,6 +59,71 @@ beforeEach(() => {
 });
 
 describe("UC-INVENTORY-001 — Product coverage", () => {
+  it("ignores draft commercial records until they create canonical effects", async () => {
+    expect(
+      await createPurchaseDraft(harness.ctx, {
+        ...envelope("d101"),
+        payload: {
+          purchaseId: ids.purchase,
+          supplierId: SUPPLIER_ID,
+          currency: "VND",
+          lines: [
+            {
+              lineId: ids.purchaseLine,
+              productId: PRODUCT_CA_CHUA_ID,
+              productName: "Cà chua",
+              quantity: { valueScaled: 10_000, unit: "kg" },
+              unitPrice: { amountMinor: 10_000, currency: "VND" },
+            },
+          ],
+          note: null,
+          evidenceReferences: [],
+          dueAt: null,
+          replacesPurchaseId: null,
+        },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      await createSaleDraft(harness.ctx, {
+        ...envelope("d102"),
+        payload: {
+          saleId: ids.sale,
+          customerId: CUSTOMER_ID,
+          currency: "VND",
+          lines: [
+            {
+              lineId: ids.saleLine,
+              productId: PRODUCT_CA_CHUA_ID,
+              productName: "Cà chua",
+              qualityGradeId: QUALITY_GRADE_1_ID,
+              qualityGradeName: "Loại 1",
+              quantity: { valueScaled: 12_000, unit: "kg" },
+              unitPrice: { amountMinor: 12_000, currency: "VND" },
+            },
+          ],
+          note: null,
+          dueAt: null,
+          replacesSaleId: null,
+        },
+      }),
+    ).toMatchObject({ ok: true });
+
+    const result = await getProductCoverage(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      productIds: [PRODUCT_CA_CHUA_ID],
+    });
+    expect(result.ok && result.value[0]?.quantities).toEqual([
+      {
+        unit: "kg",
+        onHand: { valueScaled: 0, unit: "kg" },
+        inboundRemaining: { valueScaled: 0, unit: "kg" },
+        outboundRemaining: { valueScaled: 0, unit: "kg" },
+        availableAfterCommitments: { valueScaled: 0, unit: "kg" },
+        classification: "idle",
+      },
+    ]);
+  });
+
   it("derives shortage from on-hand, confirmed inbound and posted outbound without double counting", async () => {
     expect(
       await createPurchaseDraft(harness.ctx, {
