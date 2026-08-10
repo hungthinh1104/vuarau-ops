@@ -55,28 +55,28 @@ optimization can be compared against the same evidence contract.
 
 ## Evidence — 2026-08-11, PostgreSQL 17 local container
 
-Exact release SHA: `071b888b5fee200574001655cb87a479715cf4ef`.
+Exact release SHA: `f8e5db9c0d7cfb45da7ddee590b954a796abe520`.
 
 | Query                   | Measured p95 | EXPLAIN execution | Sequential scan         |
 | ----------------------- | -----------: | ----------------: | ----------------------- |
-| customer timeline       |      0.57 ms |          0.322 ms | no                      |
-| supplier timeline       |      0.59 ms |          0.644 ms | no                      |
-| inventory movements     |      0.55 ms |          0.686 ms | no                      |
-| delivery fulfilment     |      0.55 ms |          0.092 ms | no                      |
-| operational report page |      0.56 ms |          0.666 ms | no                      |
-| customer report total   |     18.79 ms |        429.496 ms | explained               |
-| inventory report total  |     29.70 ms |        564.947 ms | explained               |
-| document read           |      0.36 ms |          0.055 ms | no                      |
-| idempotency replay      |      0.25 ms |          0.044 ms | no                      |
-| customer reconciliation |      0.26 ms |          0.208 ms | no                      |
-| product coverage        |     28.09 ms |        327.179 ms | explained               |
-| operations board page   |      0.56 ms |          0.668 ms | no                      |
-| operations board counts |     11.42 ms |        302.264 ms | explained               |
-| receiving progress      |      0.64 ms |          0.180 ms | allowed empty-side scan |
-| dashboard summary       |     15.29 ms |        646.684 ms | explained               |
-| dashboard series        |     42.89 ms |        625.256 ms | explained               |
-| debt-aging sources      |     50.61 ms |        674.235 ms | explained               |
-| supplier reconciliation |      8.20 ms |        297.091 ms | explained               |
+| customer timeline       |      0.59 ms |          0.432 ms | no                      |
+| supplier timeline       |      0.64 ms |          0.669 ms | no                      |
+| inventory movements     |      0.50 ms |          0.610 ms | no                      |
+| delivery fulfilment     |      0.58 ms |          0.089 ms | no                      |
+| operational report page |      0.64 ms |          0.703 ms | no                      |
+| customer report total   |     19.13 ms |        450.021 ms | explained               |
+| inventory report total  |     34.62 ms |        575.131 ms | explained               |
+| document read           |      0.31 ms |          0.049 ms | no                      |
+| idempotency replay      |      0.25 ms |          0.049 ms | no                      |
+| customer reconciliation |      0.34 ms |          0.273 ms | no                      |
+| product coverage        |     29.15 ms |        325.736 ms | explained               |
+| operations board page   |      0.57 ms |          0.681 ms | no                      |
+| operations board counts |     12.91 ms |        305.334 ms | explained               |
+| receiving progress      |      0.76 ms |          0.176 ms | allowed empty-side scan |
+| dashboard summary       |     18.56 ms |        655.967 ms | explained               |
+| dashboard series        |     43.12 ms |        628.502 ms | explained               |
+| debt-aging sources      |     56.86 ms |        684.795 ms | explained               |
+| supplier reconciliation |      9.11 ms |        300.189 ms | explained               |
 
 The first report plan exposed a 400,000-row parallel sequential scan and measured
 443.778 ms. Migration `0020_white_black_crow.sql` adds cursor-compatible
