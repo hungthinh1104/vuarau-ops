@@ -49,6 +49,7 @@
     "rehearse:migrations": "node --env-file-if-exists=.env packages/db/src/performance/migration-rehearsal.ts",
     "verify:production-hardening": "pnpm security:surface && pnpm perf:production-scale && pnpm rehearse:migrations",
     "pilot:dry-run": "node --env-file-if-exists=.env scripts/pilot-dry-run.ts",
+    "synthetic:depot-day": "node --env-file-if-exists=.env scripts/synthetic-depot-day.ts",
     "policy:closure": "node scripts/policy-closure.ts",
     "policy:closure:test": "node --test scripts/policy-closure.test.ts",
     "field:observation": "node scripts/field-observation.ts",

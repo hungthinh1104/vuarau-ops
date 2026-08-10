@@ -29,10 +29,12 @@ Run all commands in the repository root with deployment values supplied outside
 the repository. Expected output is descriptive; identifiers and customer names
 must stay out of logs shared with the project.
 
-1. Configure the API environment with `APP_ENV=pilot`, `DATABASE_URL`,
-   `SUPABASE_JWT_ISSUER`, `SUPABASE_JWKS_URL`, and `PUBLIC_APP_ORIGIN`. Configure
-   the Next build separately with `NEXT_PUBLIC_SUPABASE_URL`, a publishable
-   Supabase key, and `NEXT_PUBLIC_API_ORIGIN`. Do not set `SUPABASE_JWT_SECRET` or
+1. Configure the API environment with `APP_ENV=pilot`, the exact
+   `APP_RELEASE_SHA`, `PILOT_CONFIG_PATH`, `DATABASE_URL`, `SUPABASE_JWT_ISSUER`,
+   `SUPABASE_JWKS_URL`, and `PUBLIC_APP_ORIGIN`. The declaration at
+   `PILOT_CONFIG_PATH` stays operator-owned and outside git. Configure the Next
+   build separately with `NEXT_PUBLIC_SUPABASE_URL`, a publishable Supabase key,
+   and `NEXT_PUBLIC_API_ORIGIN`. Do not set `SUPABASE_JWT_SECRET` or
    `NEXT_PUBLIC_E2E_AUTH_BRIDGE`.
 
    ```bash
@@ -40,6 +42,12 @@ must stay out of logs shared with the project.
    ```
 
    Expected: `environment is usable`. Stop on any listed variable.
+
+   The API then reads the declaration before listening. It refuses a release or
+   workspace mismatch, unaccepted ASM-024/025, and any ASM-035–038 gate that is
+   not `excluded_from_shadow_scope` with `stopIfEncountered: true`. An excluded
+   command returns `PILOT_SCOPE_EXCLUDED` with its request ID; keep the STOP and
+   do not create a replacement command.
 
 2. Apply the repository migrations to the **empty pilot database**.
 
@@ -128,6 +136,20 @@ must stay out of logs shared with the project.
    phone over mobile data. A failure at step 10 stops the pilot. Then use the
    separate [pilot-session-runbook.md](pilot-session-runbook.md) for the observed
    15–20 transaction session.
+
+## Synthetic depot day
+
+Before a shadow session, run the real-stack journey against a disposable
+PostgreSQL database on the exact clean SHA:
+
+```bash
+pnpm synthetic:depot-day
+```
+
+The command exercises purchase/receiving/inventory/sale/dispatch/return/report
+and backup/restore/rebuild tests, then prints a JSON evidence packet. It is
+repository evidence only; it does not replace owner decisions, phone smoke or
+field validation.
 
 ## Dry run and reset
 
