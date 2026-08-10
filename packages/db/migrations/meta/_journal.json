@@ -421,6 +421,13 @@
       "when": 1786368068774,
       "tag": "0059_robust_tiger_shark",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1786370534434,
+      "tag": "0060_slim_christian_walker",
+      "breakpoints": true
     }
   ]
 }
