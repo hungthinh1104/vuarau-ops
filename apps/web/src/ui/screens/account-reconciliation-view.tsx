@@ -156,7 +156,21 @@ function ReconciliationResult(
         </div>
       ) : null}
 
-      {result.capabilities.rebuild.allowed && result.kind === "inconsistent" ? (
+      {props.rebuild.phase.kind === "succeeded" ? (
+        <section className="flex flex-col gap-3 rounded-card border border-success/40 bg-success/5 p-4">
+          <p className="text-body-sm text-ink">
+            Đã dựng lại số dư từ sổ cái. Kết quả trên màn hình đã được cập nhật.
+          </p>
+          <CommandOutcome
+            command={props.rebuild}
+            attemptedAction="Dựng lại số dư từ sổ cái"
+            onReload={props.onRetry}
+          />
+          <Button tone="link" className="min-h-0 sm:min-h-0" onClick={props.onRetry}>
+            Tải kết quả đối soát mới
+          </Button>
+        </section>
+      ) : result.capabilities.rebuild.allowed && result.kind === "inconsistent" ? (
         <div className="flex flex-col gap-3 rounded-card border border-border p-4">
           <Textarea
             label="Lý do dựng lại bảng tổng hợp"
@@ -174,11 +188,6 @@ function ReconciliationResult(
             attemptedAction="Dựng lại số dư từ sổ cái"
             onReload={props.onRetry}
           />
-          {props.rebuild.phase.kind === "succeeded" ? (
-            <Button tone="link" className="min-h-0 sm:min-h-0" onClick={props.onRetry}>
-              Tải kết quả đối soát mới
-            </Button>
-          ) : null}
         </div>
       ) : null}
     </section>
