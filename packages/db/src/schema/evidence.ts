@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
   check,
   foreignKey,
   index,
@@ -26,6 +25,7 @@ import { qualityGrades } from "./quality.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { suppliers } from "./supplier.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 /**
  * Source-linked cost/loss observations. This table is append-only evidence and

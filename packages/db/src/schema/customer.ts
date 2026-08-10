@@ -1,5 +1,4 @@
 import {
-  bigint,
   boolean,
   index,
   integer,
@@ -11,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { currencyCodeEnum } from "./enums.ts";
 import { workspaces } from "./workspace.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 /**
  * Master data. Mutable, and carrying **no balance column** — what a customer owes

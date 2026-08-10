@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
   boolean,
   check,
   foreignKey,
@@ -22,6 +21,7 @@ import {
   expenseCategoryEnum,
 } from "./enums.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 export const cashAccounts = pgTable(
   "cash_accounts",

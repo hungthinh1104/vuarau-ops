@@ -1,5 +1,4 @@
 import {
-  bigint,
   foreignKey,
   index,
   integer,
@@ -17,6 +16,7 @@ import {
 } from "./enums.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { customers } from "./customer.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 /**

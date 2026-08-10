@@ -207,6 +207,17 @@ before mutation, surfaces duplicate candidates and uses deterministic command an
 aggregate identities. Pilot readiness separates repository checks from external
 owner/provider evidence and never turns a missing external gate into a pass.
 
+### BR-OPS-009 — Persisted integers fail closed at unsafe read boundaries
+
+**Risk:** P0 · **Code:** `PERSISTED_NUMBER_OUT_OF_RANGE`
+
+PostgreSQL `bigint` values are converted to JavaScript numbers only after an exact
+safe-range check. The check applies both to Drizzle column reads and to raw SQL
+integer aggregates. A value outside the range is never rounded, truncated or
+returned as a raw database value. The read or command returns a controlled,
+non-retryable diagnostic containing only the affected field and request id; a
+command transaction rolls back before the diagnostic crosses the API boundary.
+
 ## Related
 
 - [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — what an environment must satisfy

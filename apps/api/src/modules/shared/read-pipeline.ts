@@ -8,7 +8,8 @@ import type {
 } from "@vuarau/domain-contracts";
 import { decodeCursor, encodeCursor } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
-import { ok } from "@vuarau/domain-kernel";
+import { err, ok } from "@vuarau/domain-kernel";
+import { PersistedNumberOutOfRangeError } from "@vuarau/db";
 import type { Repositories, WorkspaceMembership } from "../../infrastructure/persistence/ports.ts";
 import type { PageQuery, PageResult } from "../../infrastructure/persistence/read-ports.ts";
 import type { CommandContext } from "./command-pipeline.ts";
@@ -46,19 +47,34 @@ export async function runQuery<TResult>(args: {
 
   // Inside the transaction, so the authorization check and the read it guards see
   // the same snapshot: a membership revoked mid-query cannot let the read finish.
-  const result = await ctx.deps.uow.transaction(async (repos) => {
-    const authorized = await authorizeWorkspaceAccess({
-      repos,
-      principal: ctx.principal,
-      workspaceId,
-      permission,
-    });
-    if (!authorized.ok) {
-      return authorized;
-    }
+  let result: DomainResult<TResult>;
+  try {
+    result = await ctx.deps.uow.transaction(async (repos) => {
+      const authorized = await authorizeWorkspaceAccess({
+        repos,
+        principal: ctx.principal,
+        workspaceId,
+        permission,
+      });
+      if (!authorized.ok) {
+        return authorized;
+      }
 
-    return ok(await execute({ repos, membership: authorized.value, asOf }));
-  });
+      return ok(await execute({ repos, membership: authorized.value, asOf }));
+    });
+  } catch (error) {
+    if (!(error instanceof PersistedNumberOutOfRangeError)) {
+      throw error;
+    }
+    result = err(
+      "PERSISTED_NUMBER_OUT_OF_RANGE",
+      "Persisted numeric data is outside the supported range.",
+      {
+        field: error.field,
+        requestId: currentRequestId(),
+      },
+    );
+  }
   log({
     event: "query",
     requestId: currentRequestId(),

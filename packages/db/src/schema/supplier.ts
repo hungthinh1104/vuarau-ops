@@ -1,5 +1,4 @@
 import {
-  bigint,
   boolean,
   foreignKey,
   index,
@@ -14,6 +13,7 @@ import {
 import { actors, workspaces } from "./workspace.ts";
 import { cashAccounts } from "./cash.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 import { currencyCodeEnum, paymentMethodEnum, supplierAccountSourceTypeEnum } from "./enums.ts";
 
 export const suppliers = pgTable(

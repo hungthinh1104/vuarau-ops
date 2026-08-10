@@ -13,6 +13,7 @@ import {
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
+import { PersistedNumberOutOfRangeError } from "@vuarau/db";
 import type { Clock } from "../../infrastructure/clock.ts";
 import type { AuthenticatedPrincipal } from "../../infrastructure/auth/principal.ts";
 import type {
@@ -279,6 +280,18 @@ export async function runCommand<
       // not. The code is from the closed rejection set; the message is not logged.
       record("rejected", rejection.ok ? null : rejection.error.code);
       return rejection;
+    }
+    if (error instanceof PersistedNumberOutOfRangeError) {
+      const rejection = err(
+        "PERSISTED_NUMBER_OUT_OF_RANGE",
+        "Persisted numeric data is outside the supported range.",
+        {
+          field: error.field,
+          requestId: currentRequestId(),
+        },
+      );
+      record("rejected", "PERSISTED_NUMBER_OUT_OF_RANGE");
+      return rejection as DomainResult<TResult>;
     }
     throw error;
   }

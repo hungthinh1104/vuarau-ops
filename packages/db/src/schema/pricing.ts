@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
   check,
   foreignKey,
   index,
@@ -16,6 +15,7 @@ import { actors, workspaces } from "./workspace.ts";
 import { currencyCodeEnum, priceRuleKindEnum, unitEnum } from "./enums.ts";
 import { qualityGrades } from "./quality.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 /**
  * Append-only price facts. A posted sale keeps its own agreed-price snapshot;

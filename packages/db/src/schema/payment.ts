@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
   check,
   foreignKey,
   index,
@@ -17,6 +16,7 @@ import { sales } from "./sale.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { cashAccounts } from "./cash.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 /**
  * `reversed_amount`, `status`, and `version` are the only mutable columns, and

@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
   foreignKey,
   index,
   integer,
@@ -15,6 +14,7 @@ import { workspaces, actors } from "./workspace.ts";
 import { suppliers } from "./supplier.ts";
 import { products } from "./customer.ts";
 import { workspacePolicies } from "./policy.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 export const purchases = pgTable(
   "purchases",

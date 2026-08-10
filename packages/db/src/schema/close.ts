@@ -1,5 +1,4 @@
 import {
-  bigint,
   check,
   date,
   foreignKey,
@@ -15,6 +14,7 @@ import {
 import { sql } from "drizzle-orm";
 import { cashAccounts, cashMovements } from "./cash.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 import { cashMovementSourceTypeEnum, currencyCodeEnum } from "./enums.ts";
 import { workspacePolicies } from "./policy.ts";
 import { actors, workspaces } from "./workspace.ts";

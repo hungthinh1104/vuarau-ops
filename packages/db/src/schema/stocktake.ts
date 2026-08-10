@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
   check,
   foreignKey,
   index,
@@ -14,6 +13,7 @@ import {
 import { stocktakeStateEnum, unitEnum } from "./enums.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 import { products } from "./customer.ts";
 import { qualityGrades } from "./quality.ts";
 import { workspacePolicies } from "./policy.ts";

@@ -1,4 +1,5 @@
 export * from "./client.ts";
+export * from "./errors.ts";
 export * from "./schema/index.ts";
 export * from "./repositories/index.ts";
 export * from "./repositories/row-mappers.ts";

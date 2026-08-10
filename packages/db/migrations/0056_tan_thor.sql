@@ -81,6 +81,52 @@ BEGIN
   END LOOP;
 END $$;
 --> statement-breakpoint
+DO $$
+DECLARE
+  relation record;
+  missing_count bigint;
+BEGIN
+  /*
+   * Some early tables stored command_id before a foreign key was added. The
+   * workspace-aware FK below must not be allowed to fail with an opaque
+   * ALTER TABLE error after the migration has already dropped the old scalar
+   * constraints. Preflight every public table carrying both columns and report
+   * the offending relation before any DDL runs.
+   */
+  FOR relation IN
+    SELECT child_table.relname AS child_name
+    FROM pg_class child_table
+    JOIN pg_namespace child_namespace ON child_namespace.oid = child_table.relnamespace
+    WHERE child_namespace.nspname = 'public'
+      AND child_table.relkind = 'r'
+      AND EXISTS (
+        SELECT 1
+        FROM pg_attribute a
+        WHERE a.attrelid = child_table.oid
+          AND a.attname = 'workspace_id'
+          AND NOT a.attisdropped
+      )
+      AND EXISTS (
+        SELECT 1
+        FROM pg_attribute a
+        WHERE a.attrelid = child_table.oid
+          AND a.attname = 'command_id'
+          AND NOT a.attisdropped
+      )
+      AND child_table.relname <> 'command_receipts'
+  LOOP
+    EXECUTE format(
+      'SELECT count(*) FROM public.%I AS child LEFT JOIN public.command_receipts AS receipt ON receipt.workspace_id = child.workspace_id AND receipt.command_id = child.command_id WHERE child.command_id IS NOT NULL AND receipt.command_id IS NULL',
+      relation.child_name
+    ) INTO missing_count;
+
+    IF missing_count > 0 THEN
+      RAISE EXCEPTION 'tenant integrity preflight failed for command receipt relation public.%, missing rows: %',
+        relation.child_name, missing_count;
+    END IF;
+  END LOOP;
+END $$;
+--> statement-breakpoint
 CREATE UNIQUE INDEX "sale_lines_workspace_id_id_uq" ON "sale_lines" USING btree ("workspace_id","id");
 --> statement-breakpoint
 CREATE UNIQUE INDEX "customer_order_lines_workspace_id_id_uq" ON "customer_order_lines" USING btree ("workspace_id","id");

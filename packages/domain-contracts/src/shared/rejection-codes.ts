@@ -45,6 +45,8 @@ export const DOMAIN_REJECTION_CODES = [
   "BACKUP_DIGEST_INVALID",
   "BACKUP_UNSAFE_TARGET",
   "BACKUP_INTEGRITY_ERROR",
+  /** Persisted integer data cannot be represented exactly by the read model. */
+  "PERSISTED_NUMBER_OUT_OF_RANGE",
 
   // --- customer -------------------------------------------------------------
   "CUSTOMER_NOT_FOUND",

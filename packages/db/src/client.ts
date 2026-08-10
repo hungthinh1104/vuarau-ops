@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema/index.ts";
+import { persistedBigintToSafeNumber } from "./schema/safe-bigint.ts";
 
 /**
  * Postgres connection and Drizzle instance.
@@ -12,14 +13,20 @@ import * as schema from "./schema/index.ts";
 export type Database = ReturnType<typeof createDatabase>;
 export type DatabaseSchema = typeof schema;
 
+const safePostgresBigint: postgres.PostgresType<number> = {
+  to: 20,
+  from: [20],
+  serialize: (value) => String(value),
+  parse: (raw) => persistedBigintToSafeNumber(raw, "postgres.bigint"),
+};
+
 export function createDatabase(connectionString: string, options?: { max?: number }) {
   const sql = postgres(connectionString, {
     max: options?.max ?? 10,
-    // Integer money is read back as a JS number; postgres.js would otherwise hand
-    // back bigint columns as strings and every amount would need re-parsing at
-    // the call site, which is exactly where a parse gets forgotten.
+    // Check every int8 value, including raw SQL aggregates that do not pass
+    // through a Drizzle column mapper. Never round a persisted value silently.
     types: {
-      bigint: postgres.BigInt,
+      bigint: safePostgresBigint,
     },
   });
   return { db: drizzle(sql, { schema }), sql };

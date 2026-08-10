@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
   foreignKey,
   index,
   integer,
@@ -13,8 +12,8 @@ import {
 import { currencyCodeEnum, supplyCommitmentStatusEnum, unitEnum } from "./enums.ts";
 import { products } from "./customer.ts";
 import { qualityGrades } from "./quality.ts";
-import { suppliers } from "./supplier.ts";
 import { workspaces } from "./workspace.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 export const supplyCommitments = pgTable(
   "supply_commitments",

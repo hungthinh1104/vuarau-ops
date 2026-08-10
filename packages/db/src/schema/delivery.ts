@@ -1,5 +1,4 @@
 import {
-  bigint,
   foreignKey,
   index,
   integer,
@@ -15,6 +14,7 @@ import { products } from "./customer.ts";
 import { sales, saleLines } from "./sale.ts";
 import { deliveryStatusEnum, unitEnum } from "./enums.ts";
 import { qualityGrades } from "./quality.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 export const deliveries = pgTable(
   "deliveries",

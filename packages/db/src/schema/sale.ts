@@ -1,5 +1,4 @@
 import {
-  bigint,
   foreignKey,
   index,
   integer,
@@ -23,6 +22,7 @@ import { actors, workspaces } from "./workspace.ts";
 import { qualityGrades } from "./quality.ts";
 import { workspacePolicies } from "./policy.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 /**
  * A completed sale. `status` and `version` are the only mutable columns, and only
