@@ -53,7 +53,9 @@ to scan their source population; page/timeline families are not. The output
 names the family, p95, plan time, buffer hits/reads and scan policy so a later
 optimization can be compared against the same evidence contract.
 
-## Evidence — 2026-08-10, PostgreSQL 17 local container
+## Evidence — 2026-08-11, PostgreSQL 17 local container
+
+Exact release SHA: `071b888b5fee200574001655cb87a479715cf4ef`.
 
 | Query                   | Measured p95 | EXPLAIN execution | Sequential scan         |
 | ----------------------- | -----------: | ----------------: | ----------------------- |

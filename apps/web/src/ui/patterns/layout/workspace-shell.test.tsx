@@ -1,17 +1,22 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ownerSession,
   salesSession,
   warehouseSession,
   WORKSPACE_NAME,
 } from "@/fixtures/session.fixtures.ts";
+import { setLiveConnectionState } from "@/lib/live-connection.ts";
 import { WorkspaceShell } from "./workspace-shell.tsx";
 
 const navigationState = vi.hoisted(() => ({ pathname: "/today" }));
 vi.mock("next/navigation", () => ({ usePathname: () => navigationState.pathname }));
 
 describe("Goods Truth workspace navigation", () => {
+  beforeEach(() => setLiveConnectionState("live"));
+
+  afterEach(() => setLiveConnectionState("live"));
+
   it("exposes supplier and Purchase reads to every role with server capabilities", () => {
     for (const session of [ownerSession, warehouseSession]) {
       const { unmount } = render(
@@ -73,6 +78,20 @@ describe("Goods Truth workspace navigation", () => {
     expect(screen.getByText("Bán hàng")).toBeVisible();
     expect(screen.getByRole("button", { name: "Đổi vựa" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Đăng xuất" })).toBeVisible();
+  });
+
+  it("surfaces reconnecting data state without presenting it as live", () => {
+    render(
+      <WorkspaceShell
+        workspaceName={WORKSPACE_NAME}
+        session={salesSession}
+        userLabel="sales@example.com"
+      >
+        <p>Nội dung</p>
+      </WorkspaceShell>,
+    );
+    act(() => setLiveConnectionState("reconnecting"));
+    expect(screen.getByRole("status")).toHaveTextContent("Đang kết nối lại");
   });
 
   it("gives the wide shell enough room for the sidebar and identifies the current destination", () => {

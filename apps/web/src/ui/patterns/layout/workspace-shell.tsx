@@ -10,6 +10,7 @@ import { AppNavView } from "./app-nav.tsx";
 import { MobileNavView } from "./mobile-nav.tsx";
 import { navigationFor, navigationItemIsActive } from "./pilot-navigation.ts";
 import { WorkspaceChromeProvider } from "./workspace-chrome.tsx";
+import { useLiveConnectionState } from "@/lib/live-connection.ts";
 
 export type WorkspaceShellProps = {
   readonly workspaceName: string;
@@ -26,6 +27,20 @@ export type WorkspaceShellProps = {
   };
   readonly children: ReactNode;
 };
+
+function LiveStatus() {
+  const status = useLiveConnectionState();
+  if (status === "live") return null;
+  const message = status === "reconnecting" ? "Đang kết nối lại" : "Dữ liệu có thể chưa mới";
+  return (
+    <span
+      className="hidden max-w-[13rem] truncate rounded-input border border-warning/30 bg-warning-soft px-2.5 py-2 text-caption font-semibold text-warning sm:inline"
+      role="status"
+    >
+      {message}
+    </span>
+  );
+}
 
 function SyncStatus({ sync }: { readonly sync: NonNullable<WorkspaceShellProps["sync"]> }) {
   if (sync.blockedCount > 0) {
@@ -121,6 +136,7 @@ export function WorkspaceShellView({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <LiveStatus />
             {sync === undefined ? null : <SyncStatus sync={sync} />}
             <AccountMenu
               session={session}

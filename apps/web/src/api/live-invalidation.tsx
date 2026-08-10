@@ -6,8 +6,58 @@ import { useEffect } from "react";
 import type { WorkspaceId } from "@vuarau/domain-contracts";
 import { browserAccessToken } from "./access-token.ts";
 import { useTRPC } from "./providers.tsx";
+import { setLiveConnectionState } from "@/lib/live-connection.ts";
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+type InvalidationSchedulerOptions = {
+  readonly windowMs?: number;
+};
+
+/**
+ * Coalesces a burst of server signals without changing the refetch source of
+ * truth. One slow invalidation cannot be overlapped by another, and events
+ * received while it is running schedule one follow-up window.
+ */
+export function createInvalidationScheduler(
+  invalidate: () => Promise<void>,
+  { windowMs = 100 }: InvalidationSchedulerOptions = {},
+): { request: () => void; dispose: () => void } {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let running = false;
+  let queued = false;
+  let disposed = false;
+
+  const schedule = () => {
+    if (disposed || timer !== null || running) return;
+    timer = setTimeout(() => {
+      timer = null;
+      if (disposed || !queued) return;
+      queued = false;
+      running = true;
+      void invalidate()
+        .catch(() => undefined)
+        .finally(() => {
+          running = false;
+          if (queued && !disposed) schedule();
+        });
+    }, windowMs);
+  };
+
+  return {
+    request: () => {
+      if (disposed) return;
+      queued = true;
+      schedule();
+    },
+    dispose: () => {
+      disposed = true;
+      queued = false;
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+    },
+  };
+}
 
 /** Refetches canonical queries after a server invalidation signal. */
 export function LiveInvalidation({ workspaceId }: { readonly workspaceId: WorkspaceId }) {
@@ -47,7 +97,14 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
         queryClient.invalidateQueries({ queryKey: trpc.session.pathKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.supplier.pathKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.supplyCommitment.pathKey() }),
-      ]);
+      ]).then(() => undefined);
+    const scheduler = createInvalidationScheduler(invalidate);
+    let hasConnected = false;
+    const disconnected = () => setLiveConnectionState("reconnecting");
+    const markStaleAfterReconnectWindow = () => {
+      if (hasConnected && !stopped) setLiveConnectionState("stale");
+    };
+    setLiveConnectionState("reconnecting");
 
     const read = async () => {
       while (!stopped) {
@@ -59,6 +116,8 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
             signal: abort.signal,
           });
           if (!response.ok || response.body === null) throw new Error("events_unavailable");
+          hasConnected = true;
+          setLiveConnectionState("live");
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = "";
@@ -72,11 +131,20 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
               const line = frame.split("\n").find((value) => value.startsWith("data: "));
               if (line === undefined) continue;
               const parsed = dashboardEventSchema.safeParse(JSON.parse(line.slice(6)));
-              if (parsed.success && parsed.data.workspaceId === workspaceId) void invalidate();
+              if (parsed.success && parsed.data.workspaceId === workspaceId) scheduler.request();
             }
           }
+          if (!stopped) {
+            disconnected();
+            await wait(3_000);
+            markStaleAfterReconnectWindow();
+          }
         } catch {
-          if (!stopped) await wait(3_000);
+          if (!stopped) {
+            disconnected();
+            await wait(3_000);
+            markStaleAfterReconnectWindow();
+          }
         }
       }
     };
@@ -84,6 +152,7 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
     return () => {
       stopped = true;
       abort.abort();
+      scheduler.dispose();
     };
   }, [queryClient, trpc, workspaceId]);
 
