@@ -458,11 +458,14 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
     "Hạn mức công nợ chưa có đủ quy trình an toàn để chốt đơn. Hãy nhờ chủ vựa kiểm tra cấu hình.",
   CREDIT_LIMIT_EXCEEDED:
     "Đơn này vượt hạn mức công nợ đã cấu hình. Kiểm tra số dư hoặc nhờ chủ vựa duyệt lại hạn mức.",
+  SALE_CUSTOMER_INACTIVE: "Khách hàng này đã ngưng giao dịch nên chưa thể chốt đơn mới.",
 
   PAYMENT_AMOUNT_INVALID: "Số tiền thanh toán phải lớn hơn 0.",
   PAYMENT_NOT_FOUND: "Không tìm thấy phiếu thu này.",
   PAYMENT_ALREADY_REVERSED: "Phiếu thu này đã hoàn tác hết.",
   PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT: "Số tiền hoàn vượt quá phần còn hoàn được.",
+  PAYMENT_REVERSAL_WOULD_EXCEED_ALLOCATIONS:
+    "Cần hoàn phân bổ công nợ trước khi hoàn khoản thanh toán này.",
   PAYMENT_REVERSAL_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tiền.",
   PAYMENT_VERSION_CONFLICT: "Người khác vừa sửa phiếu thu này. Hãy tải lại để xem thay đổi.",
   PAYMENT_CURRENCY_MISMATCH: "Đơn vị tiền tệ không khớp.",
@@ -478,6 +481,8 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
     "Không thể dựng lại số dư vì sai lệch không chỉ nằm ở bảng tổng hợp.",
 
   DUPLICATE_COMMAND: "Lệnh này đã được gửi với mã khác. Hãy tải lại rồi thử lại.",
+  IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_COMMAND:
+    "Mã gửi này đã dùng cho thao tác khác. Hãy tải lại rồi thử lại.",
   IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD:
     "Lệnh này đã được gửi với nội dung khác. Hãy tải lại rồi thử lại.",
   COMMAND_IN_PROGRESS: "Lệnh trước đang được xử lý. Chờ một chút rồi thử lại.",

@@ -75,7 +75,7 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
         select im.unit, coalesce(sum(im.quantity_scaled), 0)::bigint as value
         from inventory_movements im
         where im.workspace_id=${workspaceId}::uuid
-          and im.source_type in ('purchase_receipt','purchase_receipt_reversal')
+          and im.source_type in ('purchase_receipt','purchase_receipt_reversal','quality_disposition','quality_disposition_reversal')
         group by im.unit
       `),
       tx.execute(sql`
@@ -135,11 +135,17 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
   };
 }
 
-async function querySeries(tx: Tx, input: DashboardSeriesInput): Promise<DashboardSeriesDto> {
-  const timestamp = asOf();
+async function querySeries(
+  tx: Tx,
+  input: DashboardSeriesInput & {
+    readonly businessDayStartMinute: number;
+    readonly now: string;
+  },
+): Promise<DashboardSeriesDto> {
+  const timestamp = input.now;
   const [sales, purchases, received, cash] = await Promise.all([
     tx.execute(sql`
-      select (s.transaction_time at time zone 'Asia/Ho_Chi_Minh')::date::text as date,
+      select (s.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date,
         count(*)::int as orders,
         coalesce(sum(s.total_amount_minor-coalesce(sv.amount_minor,0)),0)::bigint as amount
       from sales s left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
@@ -148,7 +154,7 @@ async function querySeries(tx: Tx, input: DashboardSeriesInput): Promise<Dashboa
       group by date
     `),
     tx.execute(sql`
-      select (p.transaction_time at time zone 'Asia/Ho_Chi_Minh')::date::text as date,
+      select (p.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date,
         coalesce(sum(p.total_amount_minor-coalesce(pv.amount_minor,0)),0)::bigint as amount
       from purchases p left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
       where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
@@ -156,16 +162,16 @@ async function querySeries(tx: Tx, input: DashboardSeriesInput): Promise<Dashboa
       group by date
     `),
     tx.execute(sql`
-      select (im.transaction_time at time zone 'Asia/Ho_Chi_Minh')::date::text as date, im.unit,
+      select (im.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date, im.unit,
         coalesce(sum(im.quantity_scaled),0)::bigint as value
       from inventory_movements im
       where im.workspace_id=${input.workspaceId}::uuid
-        and im.source_type in ('purchase_receipt','purchase_receipt_reversal')
+        and im.source_type in ('purchase_receipt','purchase_receipt_reversal','quality_disposition','quality_disposition_reversal')
         and im.transaction_time >= (${timestamp}::timestamptz - (${input.days - 1} || ' days')::interval)
       group by date, im.unit
     `),
     tx.execute(sql`
-      select (cm.transaction_time at time zone 'Asia/Ho_Chi_Minh')::date::text as date,
+      select (cm.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date,
         coalesce(sum(cm.amount_minor),0)::bigint as amount
       from cash_movements cm
       where cm.workspace_id=${input.workspaceId}::uuid
@@ -174,7 +180,7 @@ async function querySeries(tx: Tx, input: DashboardSeriesInput): Promise<Dashboa
     `),
   ]);
   const points = new Map<string, DashboardSeriesDto["points"][number]>();
-  const today = vietnamBusinessDateForInstant(timestamp, 0);
+  const today = vietnamBusinessDateForInstant(timestamp, input.businessDayStartMinute);
   const endDate = new Date(`${today}T00:00:00.000Z`);
   for (let index = 0; index < input.days; index += 1) {
     const date = new Date(endDate.getTime() - (input.days - 1 - index) * 86_400_000)
@@ -228,7 +234,7 @@ async function queryRows(
   },
 ) {
   const rows = await tx.execute(sql`
-    with delivered as (
+    with recursive delivered as (
       select dl.sale_line_id, max(d.id::text) as delivery_id,
         sum(dl.quantity_scaled)::bigint as dispatched
       from delivery_lines dl join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
@@ -252,13 +258,53 @@ async function queryRows(
       select pa.sale_id, coalesce(sum(pa.amount_minor)-coalesce(sum(par.amount_minor),0),0)::bigint as amount
       from payment_allocations pa left join payment_allocation_reversals par on par.workspace_id=pa.workspace_id and par.allocation_id=pa.id
       where pa.workspace_id=${input.workspaceId}::uuid group by pa.sale_id
+    ), direct_received as (
+      select prl.workspace_id, prl.purchase_line_id,
+        coalesce(sum(case when prr.id is null then prl.quantity_scaled else -prl.quantity_scaled end),0)::bigint as received
+      from purchase_receipt_lines prl
+      join purchase_receipts pr on pr.workspace_id=prl.workspace_id and pr.id=prl.receipt_id
+      left join purchase_receipt_reversals prr on prr.workspace_id=pr.workspace_id and prr.receipt_id=pr.id
+      where prl.workspace_id=${input.workspaceId}::uuid
+      group by prl.workspace_id, prl.purchase_line_id
+    ), disposition_roots as (
+      select qd.workspace_id, qd.id as disposition_id, gal.purchase_line_id
+      from quality_dispositions qd
+      join goods_arrival_lines gal
+        on gal.workspace_id=qd.workspace_id and gal.id=qd.source_arrival_line_id
+      where qd.workspace_id=${input.workspaceId}::uuid and qd.source_type='arrival_line'
+      union all
+      select child.workspace_id, child.id, parent.purchase_line_id
+      from quality_dispositions child
+      join quality_disposition_allocations source_allocation
+        on source_allocation.workspace_id=child.workspace_id
+        and source_allocation.id=child.source_quarantine_allocation_id
+        and source_allocation.outcome='quarantined'
+      join disposition_roots parent
+        on parent.workspace_id=source_allocation.workspace_id
+        and parent.disposition_id=source_allocation.disposition_id
+      where child.workspace_id=${input.workspaceId}::uuid and child.source_type='quarantine_allocation'
+    ), inspected_accepted as (
+      select qda.workspace_id, roots.purchase_line_id,
+        coalesce(sum(qda.value_scaled),0)::bigint as accepted
+      from quality_disposition_allocations qda
+      join quality_dispositions qd
+        on qd.workspace_id=qda.workspace_id and qd.id=qda.disposition_id
+      join disposition_roots roots
+        on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
+      left join quality_disposition_reversals qdr
+        on qdr.workspace_id=qd.workspace_id and qdr.disposition_id=qd.id
+      where qda.workspace_id=${input.workspaceId}::uuid
+        and qda.outcome='accepted' and qdr.id is null
+      group by qda.workspace_id, roots.purchase_line_id
     ), purchase_received as (
       select pl.purchase_id, pl.id as line_id, pl.quantity_scaled,
-        coalesce(sum(case when prr.id is null then prl.quantity_scaled else -prl.quantity_scaled end),0)::bigint as received
-      from purchase_lines pl left join purchase_receipt_lines prl on prl.workspace_id=pl.workspace_id and prl.purchase_line_id=pl.id
-      left join purchase_receipts pr on pr.workspace_id=prl.workspace_id and pr.id=prl.receipt_id
-      left join purchase_receipt_reversals prr on prr.workspace_id=pr.workspace_id and prr.receipt_id=pr.id
-      where pl.workspace_id=${input.workspaceId}::uuid group by pl.purchase_id, pl.id, pl.quantity_scaled
+        (coalesce(direct.received,0) + coalesce(inspected.accepted,0))::bigint as received
+      from purchase_lines pl
+      left join direct_received direct
+        on direct.workspace_id=pl.workspace_id and direct.purchase_line_id=pl.id
+      left join inspected_accepted inspected
+        on inspected.workspace_id=pl.workspace_id and inspected.purchase_line_id=pl.id
+      where pl.workspace_id=${input.workspaceId}::uuid
     ), purchase_physical as (
       select p.id, case when bool_and(pr.received >= pr.quantity_scaled) then 'received' else 'needs_receiving' end as physical_state
       from purchases p join purchase_received pr on pr.purchase_id=p.id
@@ -269,7 +315,7 @@ async function queryRows(
       case when sv.id is null then 'posted' else 'voided' end as commercial_state,
       sale_physical.physical_state, case when sv.id is not null then 'voided' when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid' else 'awaiting_payment' end as financial_state,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, s.posted_at as updated_at,
-      case when sale_physical.physical_state='needs_delivery' then 'Giao hàng' when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền' else 'Theo dõi' end as next_action,
+      case when sv.id is not null then null when sale_physical.physical_state='needs_delivery' then 'Giao hàng' when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền' else null end as next_action,
       sale_physical.delivery_id, ('/sales/' || s.id::text) as href
     from sales s join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
       join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id
@@ -280,7 +326,7 @@ async function queryRows(
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
       purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, p.confirmed_at as updated_at,
-      case when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else 'Theo dõi' end as next_action,
+      case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
       null as delivery_id, ('/purchases/' || p.id::text) as href
     from purchases p join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id join purchase_physical on purchase_physical.id=p.id
       left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
@@ -296,7 +342,7 @@ async function queryRows(
     physicalState: stringOf(row, "physical_state"),
     financialState: stringOf(row, "financial_state"),
     ageSeconds: numberOf(row, "age_seconds"),
-    nextAction: stringOf(row, "next_action"),
+    nextAction: row["next_action"] === null ? null : stringOf(row, "next_action"),
     updatedAt: new Date(String(row["updated_at"])).toISOString(),
     href: stringOf(row, "href"),
     deliveryId: row["delivery_id"] === null ? null : (stringOf(row, "delivery_id") as DeliveryId),
@@ -342,7 +388,12 @@ function countsForRows(rows: readonly OperationsBoardDto["page"]["items"][number
 export const createDashboardReadRepositories = (tx: Tx) => ({
   dashboardReads: {
     summary: (workspaceId: string) => querySummary(tx, workspaceId),
-    salesSeries: (input: DashboardSeriesInput) => querySeries(tx, input),
+    salesSeries: (
+      input: DashboardSeriesInput & {
+        readonly businessDayStartMinute: number;
+        readonly now: string;
+      },
+    ) => querySeries(tx, input),
     async orderStatusCounts(
       workspaceId: DashboardOrderStatusCountsDto["workspaceId"],
     ): Promise<DashboardOrderStatusCountsDto> {

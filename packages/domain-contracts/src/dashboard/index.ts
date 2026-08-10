@@ -134,7 +134,8 @@ export const operationsBoardRowSchema = z.object({
   physicalState: z.string().min(1),
   financialState: z.string().min(1),
   ageSeconds: z.number().nonnegative(),
-  nextAction: z.string().min(1),
+  /** Null means the record remains visible for context but has no operational action. */
+  nextAction: z.string().min(1).nullable(),
   updatedAt: isoInstantSchema,
   href: z.string().min(1),
   deliveryId: deliveryIdSchema.nullable(),

@@ -15,7 +15,12 @@ import type { PageQuery } from "./read-ports.ts";
 
 export type DashboardReadRepository = {
   summary(workspaceId: WorkspaceId): Promise<DashboardSummaryDto>;
-  salesSeries(input: DashboardSeriesInput): Promise<DashboardSeriesDto>;
+  salesSeries(
+    input: DashboardSeriesInput & {
+      readonly businessDayStartMinute: number;
+      readonly now: string;
+    },
+  ): Promise<DashboardSeriesDto>;
   orderStatusCounts(workspaceId: WorkspaceId): Promise<DashboardOrderStatusCountsDto>;
   topProducts(input: DashboardTopProductsInput): Promise<DashboardTopProductsDto>;
   operationsBoard(

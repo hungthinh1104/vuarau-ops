@@ -23,6 +23,7 @@ Buttons also get tapped twice when the UI does not visibly respond.
    - **completed, same payload hash** → return the stored result, execute nothing
      (BR-COMMAND-001);
    - **completed, different hash** → `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`
+   - **completed, different command type** → `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_COMMAND`
      (BR-COMMAND-002);
    - **in_progress** → `COMMAND_IN_PROGRESS`, the one retryable code.
 4. The unique index — not the read — is the real mechanism. Two concurrent replays

@@ -91,6 +91,16 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
           customerId: sale.customerId,
         });
       }
+      if (!customer.isActive) {
+        return err(
+          "SALE_CUSTOMER_INACTIVE",
+          "An inactive customer cannot receive a new posted sale.",
+          {
+            customerId: customer.id,
+            saleId: sale.id,
+          },
+        );
+      }
 
       for (const line of sale.lines) {
         if (line.productId === null) {

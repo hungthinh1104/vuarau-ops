@@ -8,7 +8,7 @@ import type {
   DashboardOrderStatusCountsDto,
   OperationsBoardCountsInput,
 } from "@vuarau/domain-contracts";
-import { decodeCursor } from "@vuarau/domain-contracts";
+import { decodeCursor, defaultWorkspaceOperationalProfile } from "@vuarau/domain-contracts";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery } from "../shared/read-pipeline.ts";
 
@@ -63,7 +63,15 @@ export const getDashboardSeries = (ctx: CommandContext, input: DashboardSeriesIn
     ctx,
     workspaceId: input.workspaceId,
     permission: "report.read",
-    execute: ({ repos }) => repos.dashboardReads.salesSeries(input),
+    execute: async ({ repos }) =>
+      repos.dashboardReads.salesSeries({
+        ...input,
+        now: ctx.deps.clock.now(),
+        businessDayStartMinute:
+          (await repos.workspaces.findOperationalProfile(input.workspaceId))
+            ?.businessDayStartMinute ??
+          defaultWorkspaceOperationalProfile(input.workspaceId).businessDayStartMinute,
+      }),
   });
 
 export const getDashboardOrderStatusCounts = (

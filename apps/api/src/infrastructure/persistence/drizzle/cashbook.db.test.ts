@@ -28,6 +28,8 @@ import type {
   ExpenseReversalId,
   CashTransferReversalId,
   PaymentId,
+  OperationalCloseId,
+  ReconciliationObservationId,
 } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
@@ -47,8 +49,10 @@ import {
 } from "../../../modules/policy/policy.handlers.ts";
 import {
   recordCashStatementMatch,
+  recordOperationalClose,
   reverseCashStatementMatch,
 } from "../../../modules/close/close.handlers.ts";
+import { recordReconciliationObservation } from "../../../modules/evidence/evidence.handlers.ts";
 
 // TC-CLOSE-005 TC-CLOSE-007
 describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
@@ -481,5 +485,102 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
       },
     });
     expect(rematched).toMatchObject({ ok: true, value: { reversal: null, version: 1 } });
+  });
+
+  it("TC-CLOSE-DB-002 — closes one business date from persisted observations and replays exactly", async () => {
+    const policyVersionId = crypto.randomUUID();
+    const policyDraft = await createWorkspacePolicyDraft(context(), {
+      ...command("close-policy-draft"),
+      payload: {
+        policyVersionId,
+        policyKind: "operating_cycle_reconciliation",
+        version: 1,
+        effectiveFrom: "2026-01-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition: {
+          contractVersion: 1,
+          parameters: {
+            strategy: "observation_signoff",
+            requiredObservationKinds: ["cash_count", "inventory_count"],
+            allowReopen: true,
+          },
+        },
+        evidenceReferences: [],
+        reason: "Đóng ca kiểm thử PostgreSQL.",
+      },
+    });
+    expect(policyDraft.ok).toBe(true);
+    if (!policyDraft.ok) return;
+    expect(
+      (
+        await approveWorkspacePolicy(context(), {
+          ...command("close-policy-approve"),
+          payload: {
+            policyVersionId: policyDraft.value.id,
+            evidenceReferences: ["review://close/postgres"],
+            reason: "Đã duyệt quy tắc đóng ca.",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+
+    const observationIds = await Promise.all(
+      (["cash_count", "inventory_count"] as const).map(async (kind) => {
+        const id = crypto.randomUUID() as ReconciliationObservationId;
+        const result = await recordReconciliationObservation(context(), {
+          ...command(`close-observation-${kind}`),
+          occurredAt: "2026-07-29T12:00:00.000Z",
+          payload: {
+            reconciliationObservationId: id,
+            kind,
+            caseKind: "normal",
+            description: `Đối chiếu ${kind} cuối ngày.`,
+            participantWording: "Đã kiểm tra theo số thực tế.",
+            facts:
+              kind === "cash_count"
+                ? {
+                    expectedAmount: { amountMinor: 0, currency: "VND" },
+                    observedAmount: { amountMinor: 0, currency: "VND" },
+                    expectedQuantity: null,
+                    observedQuantity: null,
+                    itemCount: 1,
+                    productId: null,
+                    qualityGradeId: null,
+                    scopeReference: "cash://close/postgres",
+                  }
+                : {
+                    expectedAmount: null,
+                    observedAmount: null,
+                    expectedQuantity: { valueScaled: 0, unit: "kg" },
+                    observedQuantity: { valueScaled: 0, unit: "kg" },
+                    itemCount: 0,
+                    productId: null,
+                    qualityGradeId: null,
+                    scopeReference: "warehouse://close/postgres",
+                  },
+            evidenceReferences: [`photo://close/postgres/${kind}`],
+            relatedObservationId: null,
+          },
+        });
+        expect(result.ok).toBe(true);
+        return id;
+      }),
+    );
+
+    const closeCommand = {
+      ...command("close-business-date"),
+      occurredAt: "2026-07-29T12:00:00.000Z",
+      payload: {
+        operationalCloseId: crypto.randomUUID() as OperationalCloseId,
+        businessDate: "2026-07-29",
+        observationIds,
+        evidenceReferences: ["review://close/postgres-day"],
+        reason: "Đã đối chiếu cuối ngày trên PostgreSQL.",
+      },
+    };
+    const closed = await recordOperationalClose(context(), closeCommand);
+    expect(closed).toMatchObject({ ok: true, value: { state: "closed", version: 1 } });
+    const replay = await recordOperationalClose(context(), closeCommand);
+    expect(replay).toEqual(closed);
   });
 });

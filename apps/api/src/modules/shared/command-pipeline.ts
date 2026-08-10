@@ -352,6 +352,18 @@ async function checkIdempotency<TResult>(args: {
     );
   }
 
+  if (existing.commandType !== args.commandType) {
+    throw new RollbackForRejection(
+      asRejection(
+        err(
+          "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_COMMAND",
+          "This idempotency key was already used for a different command type.",
+          { idempotencyKey: command.idempotencyKey },
+        ),
+      ),
+    );
+  }
+
   if (existing.status === "in_progress") {
     throw new RollbackForRejection(
       asRejection(

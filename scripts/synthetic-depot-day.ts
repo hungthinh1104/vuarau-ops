@@ -14,6 +14,16 @@ type EvidenceStep = {
  */
 export const SYNTHETIC_DEPOT_DAY_STEPS: readonly EvidenceStep[] = [
   {
+    name: "sale → payment → reversal → account rebuild",
+    testFile: "apps/api/src/infrastructure/persistence/drizzle/full-slice.db.test.ts",
+    proves: [
+      "sale posting and exact customer ledger effect",
+      "customer payment and compensating reversal",
+      "workspace isolation, authorization and projection rebuild",
+    ],
+    truthDimensions: ["money", "commercial", "correction", "retry", "explanation"],
+  },
+  {
     name: "purchase → receiving → inventory → sale → dispatch → return → reports",
     testFile: "apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts",
     proves: [
@@ -33,6 +43,26 @@ export const SYNTHETIC_DEPOT_DAY_STEPS: readonly EvidenceStep[] = [
       "projection rebuild without changing canonical facts",
     ],
     truthDimensions: ["money", "goods", "correction", "retry", "explanation"],
+  },
+  {
+    name: "supplier → payable → supplier payment and cashbook",
+    testFile: "apps/api/src/infrastructure/persistence/drizzle/supplier-account.db.test.ts",
+    proves: [
+      "supplier payable ledger and exact payment effect",
+      "supplier payment reversal and projection parity",
+      "supplier workspace isolation and deterministic pagination",
+    ],
+    truthDimensions: ["money", "commercial", "correction", "retry", "explanation"],
+  },
+  {
+    name: "cash → statement matching → close-side cash evidence",
+    testFile: "apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts",
+    proves: [
+      "customer payment reaches the selected cash account once",
+      "cash reconciliation remains exact",
+      "statement matching is non-financial and idempotent",
+    ],
+    truthDimensions: ["money", "retry", "explanation"],
   },
 ];
 

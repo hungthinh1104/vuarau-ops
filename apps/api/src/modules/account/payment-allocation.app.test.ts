@@ -17,6 +17,7 @@ import { createWorkspacePolicyDraft, approveWorkspacePolicy } from "../policy/po
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
+import { reverseCustomerPayment } from "../payment/reverse-payment.handler.ts";
 import { getCustomerDebtAging } from "./account.queries.ts";
 import { exportWorkspaceBackup } from "../operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../operations/restore-workspace.handler.ts";
@@ -188,6 +189,42 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
     });
     expect(invalid.ok).toBe(false);
     if (!invalid.ok) expect(invalid.error.code).toBe("PAYMENT_ALLOCATION_EXCEEDS_PAYMENT");
+  });
+
+  it("refuses a payment reversal that would strand active allocations", async () => {
+    const harness = createHarness();
+    await setupManualAllocation(harness);
+    const allocation = await recordPaymentAllocation(harness.ctx, {
+      ...envelope("allocation-before-payment-reversal", LATER_TRANSACTION_TIME),
+      expectedVersion: 1,
+      payload: {
+        allocationId: crypto.randomUUID(),
+        paymentId: PAYMENT_ID,
+        saleId: SALE_ID,
+        amount: { amountMinor: 300_000, currency: "VND" },
+        evidenceReferences: [],
+      },
+    });
+    expect(allocation.ok).toBe(true);
+
+    const reversal = await reverseCustomerPayment(harness.ctx, {
+      ...envelope("payment-reversal-with-active-allocation", LATEST_TRANSACTION_TIME),
+      expectedVersion: 1,
+      payload: {
+        paymentId: PAYMENT_ID,
+        reversalId: crypto.randomUUID(),
+        amount: { amountMinor: 300_001, currency: "VND" },
+        reason: "Đối chiếu lại khoản thu.",
+        evidenceReferences: [],
+      },
+    });
+
+    expect(reversal).toMatchObject({
+      ok: false,
+      error: { code: "PAYMENT_REVERSAL_WOULD_EXCEED_ALLOCATIONS" },
+    });
+    expect(harness.db.reversals()).toHaveLength(0);
+    expect(harness.db.accountEntries()).toHaveLength(2);
   });
 
   it("exports and restores allocation facts with their compensation stream", async () => {

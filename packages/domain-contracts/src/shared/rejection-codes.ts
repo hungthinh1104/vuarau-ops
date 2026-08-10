@@ -170,6 +170,8 @@ export const DOMAIN_REJECTION_CODES = [
   "SALE_ALREADY_DISCARDED",
   /** A posted sale must have exactly one ledger entry from its posting command. */
   "SALE_POSTING_ENTRY_MISSING",
+  /** A new posted sale cannot start a commercial obligation for an inactive customer. */
+  "SALE_CUSTOMER_INACTIVE",
 
   // --- sale correction --------------------------------------------------------
   /** Voiding a draft. A draft is discarded; there is no effect to compensate. */
@@ -207,6 +209,7 @@ export const DOMAIN_REJECTION_CODES = [
   "PAYMENT_NOT_FOUND",
   "PAYMENT_ALREADY_REVERSED",
   "PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT",
+  "PAYMENT_REVERSAL_WOULD_EXCEED_ALLOCATIONS",
   "PAYMENT_REVERSAL_REASON_REQUIRED",
   "PAYMENT_VERSION_CONFLICT",
   "PAYMENT_CURRENCY_MISMATCH",
@@ -233,6 +236,7 @@ export const DOMAIN_REJECTION_CODES = [
 
   // --- command plumbing -----------------------------------------------------
   "DUPLICATE_COMMAND",
+  "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_COMMAND",
   "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD",
   "COMMAND_IN_PROGRESS",
   "INVALID_COMMAND_PAYLOAD",

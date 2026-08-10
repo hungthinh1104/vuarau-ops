@@ -126,6 +126,31 @@ export function reverseCustomerPayment(
       }
 
       const { payment: updatedPayment, reversal } = decision.value.aggregate;
+      const allocations = await repos.paymentAllocations.listByCustomer(
+        command.workspaceId,
+        payment.customerId,
+      );
+      const activeAllocatedAmount = allocations.allocations
+        .filter((allocation) => allocation.paymentId === payment.id)
+        .reduce((total, allocation) => {
+          const reversed = allocations.reversals
+            .filter((allocationReversal) => allocationReversal.allocationId === allocation.id)
+            .reduce((sum, allocationReversal) => sum + allocationReversal.amount.amountMinor, 0);
+          return total + Math.max(0, allocation.amount.amountMinor - reversed);
+        }, 0);
+      const effectivePaymentAfterReversal =
+        payment.amount.amountMinor - updatedPayment.reversedAmount.amountMinor;
+      if (activeAllocatedAmount > effectivePaymentAfterReversal) {
+        return err(
+          "PAYMENT_REVERSAL_WOULD_EXCEED_ALLOCATIONS",
+          "Reverse the active payment allocations before reversing this payment amount.",
+          {
+            activeAllocatedAmount,
+            effectivePaymentAfterReversal,
+            paymentId: payment.id,
+          },
+        );
+      }
 
       const updated = await repos.payments.update(updatedPayment, payment.version);
       if (!updated) {

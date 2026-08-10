@@ -48,6 +48,7 @@ import {
   getOperationalReport,
   getOperationalReportCsv,
 } from "../../../modules/report/report.queries.ts";
+import { getOperationsBoard } from "../../../modules/dashboard/dashboard.queries.ts";
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
 
 // TC-DELIVERY-003, TC-DOCUMENT-002, TC-REPORT-001
@@ -403,6 +404,18 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       limit: 20,
     });
     expect(outstanding.ok && outstanding.value.page.items[0]?.quantity?.valueScaled).toBe(10_000);
+    const board = await getOperationsBoard(context(), {
+      workspaceId: ctx.workspaceId,
+      filter: "all",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(board.ok).toBe(true);
+    if (board.ok) {
+      expect(board.value.page.items.find((row) => row.id === saleId)?.nextAction).toBe("Thu tiền");
+    }
     const backup = await exportWorkspaceBackup(context(), {
       ...envelope("backup", "2026-07-29T08:00:00.000Z"),
       payload: {},
@@ -671,6 +684,20 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     for (const result of [createAfterVoid, updateAfterVoid, dispatchAfterVoid]) {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.code).toBe("SALE_ALREADY_VOIDED");
+    }
+    const boardAfterVoid = await getOperationsBoard(context(), {
+      workspaceId: ctx.workspaceId,
+      filter: "all",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(boardAfterVoid.ok).toBe(true);
+    if (boardAfterVoid.ok) {
+      expect(
+        boardAfterVoid.value.page.items.find((row) => row.id === saleId)?.nextAction,
+      ).toBeNull();
     }
 
     const returned = await recordDeliveryReturn(context(), {

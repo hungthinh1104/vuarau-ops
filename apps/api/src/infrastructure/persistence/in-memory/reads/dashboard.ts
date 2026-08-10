@@ -15,6 +15,7 @@ import { encodeCursor, vietnamBusinessDateForInstant } from "@vuarau/domain-cont
 import type { Repositories } from "../../ports.ts";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
+import { intakeSourceRoot } from "../repositories/intake.ts";
 
 const now = () => new Date().toISOString();
 const money = (amountMinor: number) => ({ amountMinor, currency: "VND" as const });
@@ -40,7 +41,9 @@ function receivedFor(store: Store, workspaceId: string): Quantity[] {
         (movement) =>
           movement.workspaceId === workspaceId &&
           (movement.sourceType === "purchase_receipt" ||
-            movement.sourceType === "purchase_receipt_reversal"),
+            movement.sourceType === "purchase_receipt_reversal" ||
+            movement.sourceType === "quality_disposition" ||
+            movement.sourceType === "quality_disposition_reversal"),
       )
       .map((movement) => movement.quantity),
   );
@@ -81,6 +84,24 @@ function outstandingFor(store: Store, workspaceId: string): Quantity[] {
     }
   }
   return quantities(remaining);
+}
+
+function acceptedAfterInspectionFor(store: Store, workspaceId: string): Map<string, number> {
+  const accepted = new Map<string, number>();
+  for (const disposition of store.qualityDispositions.values()) {
+    if (disposition.workspaceId !== workspaceId || disposition.reversal !== null) continue;
+    const root = intakeSourceRoot(store, workspaceId, disposition.source);
+    const purchaseLineId = root?.line.purchaseLineId;
+    if (purchaseLineId === null || purchaseLineId === undefined) continue;
+    for (const allocation of disposition.allocations) {
+      if (allocation.outcome !== "accepted") continue;
+      accepted.set(
+        purchaseLineId,
+        (accepted.get(purchaseLineId) ?? 0) + allocation.quantity.valueScaled,
+      );
+    }
+  }
+  return accepted;
 }
 
 function saleFinancialState(store: Store, workspaceId: string, saleId: string): string {
@@ -222,9 +243,14 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       };
     },
 
-    salesSeries: async (input: DashboardSeriesInput): Promise<DashboardSeriesDto> => {
-      const asOf = now();
-      const today = vietnamBusinessDateForInstant(asOf, 0);
+    salesSeries: async (
+      input: DashboardSeriesInput & {
+        readonly businessDayStartMinute: number;
+        readonly now: string;
+      },
+    ): Promise<DashboardSeriesDto> => {
+      const asOf = input.now;
+      const today = vietnamBusinessDateForInstant(asOf, input.businessDayStartMinute);
       const endDate = new Date(`${today}T00:00:00.000Z`);
       const dates = new Map<string, DashboardSeriesDto["points"][number]>();
       for (let index = 0; index < input.days; index += 1) {
@@ -246,7 +272,10 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       };
       for (const sale of store.sales.values()) {
         if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
-        const date = vietnamBusinessDateForInstant(sale.transactionTime, 0);
+        const date = vietnamBusinessDateForInstant(
+          sale.transactionTime,
+          input.businessDayStartMinute,
+        );
         const point = dates.get(date);
         if (point === undefined) continue;
         add(date, {
@@ -260,7 +289,10 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       }
       for (const purchase of store.purchases.values()) {
         if (purchase.workspaceId !== input.workspaceId || purchase.status !== "confirmed") continue;
-        const date = vietnamBusinessDateForInstant(purchase.transactionTime, 0);
+        const date = vietnamBusinessDateForInstant(
+          purchase.transactionTime,
+          input.businessDayStartMinute,
+        );
         const point = dates.get(date);
         if (point !== undefined)
           add(date, {
@@ -271,17 +303,25 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         if (
           movement.workspaceId !== input.workspaceId ||
           (movement.sourceType !== "purchase_receipt" &&
-            movement.sourceType !== "purchase_receipt_reversal")
+            movement.sourceType !== "purchase_receipt_reversal" &&
+            movement.sourceType !== "quality_disposition" &&
+            movement.sourceType !== "quality_disposition_reversal")
         )
           continue;
-        const date = vietnamBusinessDateForInstant(movement.transactionTime, 0);
+        const date = vietnamBusinessDateForInstant(
+          movement.transactionTime,
+          input.businessDayStartMinute,
+        );
         const point = dates.get(date);
         if (point === undefined) continue;
         add(date, { received: quantities([...point.received, movement.quantity]) });
       }
       for (const movement of store.cashMovements) {
         if (movement.workspaceId !== input.workspaceId) continue;
-        const date = vietnamBusinessDateForInstant(movement.transactionTime, 0);
+        const date = vietnamBusinessDateForInstant(
+          movement.transactionTime,
+          input.businessDayStartMinute,
+        );
         const point = dates.get(date);
         if (point !== undefined)
           add(date, { cash: money(point.cash.amountMinor + movement.amount.amountMinor) });
@@ -364,6 +404,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
     operationsBoard: async (input): Promise<OperationsBoardDto> => {
       const rows: Array<OperationsBoardDto["page"]["items"][number]> = [];
       const asOf = input.now;
+      const inspectedAccepted = acceptedAfterInspectionFor(store, input.workspaceId);
       for (const sale of store.sales.values()) {
         if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
         const physical = salePhysicalState(store, input.workspaceId, sale.id);
@@ -381,11 +422,13 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           financialState: financial,
           ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(sale.recordedAt)) / 1000),
           nextAction:
-            physical.state === "needs_delivery"
-              ? "Giao hàng"
-              : financial === "awaiting_payment"
-                ? "Thu tiền"
-                : "Theo dõi",
+            sale.voidRecord !== null
+              ? null
+              : physical.state === "needs_delivery"
+                ? "Giao hàng"
+                : financial === "awaiting_payment"
+                  ? "Thu tiền"
+                  : null,
           updatedAt: sale.postedAt ?? sale.recordedAt,
           href: `/sales/${sale.id}`,
           deliveryId:
@@ -406,7 +449,8 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           const got = received
             .filter((item) => item.purchaseLineId === line.lineId)
             .reduce((sum, item) => sum + item.quantity.valueScaled, 0);
-          return got < line.quantity.valueScaled;
+          const accepted = inspectedAccepted.get(line.lineId) ?? 0;
+          return got + accepted < line.quantity.valueScaled;
         });
         rows.push({
           id: purchase.id,
@@ -420,7 +464,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           physicalState: remaining ? "needs_receiving" : "received",
           financialState: purchase.voidRecord === null ? "payable" : "voided",
           ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(purchase.recordedAt)) / 1000),
-          nextAction: remaining ? "Nhận hàng" : "Theo dõi",
+          nextAction: purchase.voidRecord !== null || !remaining ? null : "Nhận hàng",
           updatedAt: purchase.confirmedAt ?? purchase.recordedAt,
           href: `/purchases/${purchase.id}`,
           deliveryId: null,

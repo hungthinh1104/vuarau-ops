@@ -17,6 +17,7 @@ import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
 import { getCustomerDebtAging } from "../../../modules/account/account.queries.ts";
 import { adjustCustomerDebt } from "../../../modules/account/adjust-debt.handler.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
+import { reverseCustomerPayment } from "../../../modules/payment/reverse-payment.handler.ts";
 import { recordPaymentAllocation } from "../../../modules/account/payment-allocation.handlers.ts";
 
 describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
@@ -164,11 +165,27 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
         allocationId: crypto.randomUUID(),
         paymentId,
         saleId: draft.value.id,
-        amount: { amountMinor: 50_000, currency: "VND" },
+        amount: { amountMinor: 30_000, currency: "VND" },
         evidenceReferences: ["field://debt/db-allocation-record"],
       },
     });
     expect(allocation.ok).toBe(true);
+
+    const strandedAllocation = await reverseCustomerPayment(owner, {
+      ...envelope("db-aging-payment-reversal-with-allocation", "2026-07-31T06:00:00.000Z"),
+      expectedVersion: 1,
+      payload: {
+        paymentId,
+        reversalId: crypto.randomUUID(),
+        amount: { amountMinor: 20_001, currency: "VND" },
+        reason: "Không được để phân bổ lớn hơn khoản thu còn hiệu lực.",
+        evidenceReferences: [],
+      },
+    });
+    expect(strandedAllocation).toMatchObject({
+      ok: false,
+      error: { code: "PAYMENT_REVERSAL_WOULD_EXCEED_ALLOCATIONS" },
+    });
 
     const adjustment = await adjustCustomerDebt(owner, {
       ...envelope("db-aging-manual-adjustment", "2026-07-31T05:00:00.000Z"),

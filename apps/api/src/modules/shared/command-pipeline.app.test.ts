@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import {
   ACTOR_ID,
   COMMAND_ID,
@@ -16,6 +17,9 @@ import {
 } from "@vuarau/test-fixtures";
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
+import { runCommand } from "./command-pipeline.ts";
+import { defineCommand } from "@vuarau/domain-contracts";
+import { ok } from "@vuarau/domain-kernel";
 
 let harness: Harness;
 
@@ -119,6 +123,44 @@ describe("BR-COMMAND-002 / TC-COMMAND-002", () => {
     expect(first.ok && reordered.ok).toBe(true);
     if (!first.ok || !reordered.ok) return;
     expect(reordered.value).toEqual(first.value);
+  });
+});
+
+describe("BR-COMMAND-001 / command type binding", () => {
+  it("does not replay a receipt under a different command type", async () => {
+    const schema = defineCommand(z.object({ value: z.string() }));
+    const input = {
+      commandId: COMMAND_ID,
+      idempotencyKey: IDEMPOTENCY_KEY,
+      workspaceId: WORKSPACE_ID,
+      actorId: ACTOR_ID,
+      occurredAt: LATER_TRANSACTION_TIME,
+      payload: { value: "same canonical payload" },
+    };
+    const first = await runCommand({
+      commandType: "SyntheticCommandA",
+      schema,
+      input,
+      ctx: harness.ctx,
+      requiredPermission: "customer.read",
+      execute: async () => ok({ accepted: true }),
+    });
+    const secondExecution = vi.fn(async () => ok({ accepted: false }));
+    const second = await runCommand({
+      commandType: "SyntheticCommandB",
+      schema,
+      input,
+      ctx: harness.ctx,
+      requiredPermission: "customer.read",
+      execute: secondExecution,
+    });
+
+    expect(first.ok).toBe(true);
+    expect(second).toMatchObject({
+      ok: false,
+      error: { code: "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_COMMAND" },
+    });
+    expect(secondExecution).not.toHaveBeenCalled();
   });
 });
 

@@ -428,6 +428,20 @@
       "when": 1786370534434,
       "tag": "0060_slim_christian_walker",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1786373082611,
+      "tag": "0061_cool_mantis",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1786373165680,
+      "tag": "0062_tidy_impossible_man",
+      "breakpoints": true
     }
   ]
 }

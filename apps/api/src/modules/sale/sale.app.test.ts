@@ -21,6 +21,7 @@ import type { WorkspacePolicyDto } from "@vuarau/domain-contracts";
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { createSaleDraft } from "./create-sale-draft.handler.ts";
 import { postSale } from "./post-sale.handler.ts";
+import { deactivateCustomer } from "../customer/update-customer.handler.ts";
 
 let harness: Harness;
 
@@ -262,6 +263,25 @@ describe("BR-SALE-011 — canonical Product posting boundary", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("SALE_PRODUCT_INACTIVE");
+    expect(harness.db.accountEntries()).toHaveLength(0);
+  });
+
+  it("refuses a new posted sale for an inactive customer before creating debt", async () => {
+    const deactivated = await deactivateCustomer(harness.ctx, {
+      commandId: crypto.randomUUID(),
+      idempotencyKey: "sale-inactive-customer-deactivate",
+      workspaceId: WORKSPACE_ID,
+      actorId: ACTOR_ID,
+      occurredAt: TRANSACTION_TIME,
+      expectedVersion: 1,
+      payload: { customerId: CUSTOMER_ID },
+    });
+    expect(deactivated.ok).toBe(true);
+
+    await createSaleDraft(harness.ctx, createInput());
+    const result = await postSale(harness.ctx, postInput());
+
+    expect(result).toMatchObject({ ok: false, error: { code: "SALE_CUSTOMER_INACTIVE" } });
     expect(harness.db.accountEntries()).toHaveLength(0);
   });
 

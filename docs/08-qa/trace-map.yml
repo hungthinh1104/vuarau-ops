@@ -3447,7 +3447,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/close-and-bank-rules.md
     cases: []
-    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-003]
+    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-003, TC-CLOSE-DB-002]
     implementation:
       - packages/domain-kernel/src/close/index.ts
       - apps/api/src/modules/close/close.handlers.ts
@@ -3457,7 +3457,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/close-and-bank-rules.md
     cases: []
-    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-006]
+    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-006, TC-CLOSE-DB-002]
     implementation:
       - packages/domain-contracts/src/policy/index.ts
       - packages/domain-kernel/src/workspace-policy/index.ts
@@ -4687,6 +4687,9 @@ contract_tests:
     file: apps/api/src/infrastructure/persistence/drizzle/adapter-contracts.db.test.ts
   TC-CLOSE-DB-001:
     title: PostgreSQL statement matching remains exact and non-financial
+    file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
+  TC-CLOSE-DB-002:
+    title: PostgreSQL operational close persists observation signoff and exact retry replay
     file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
 
 deprecated:

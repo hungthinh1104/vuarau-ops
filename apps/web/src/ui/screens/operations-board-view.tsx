@@ -149,7 +149,7 @@ function columns() {
       header: "Việc tiếp theo",
       cell: (info) => (
         <div className="grid gap-1">
-          <span className="font-medium">{info.row.original.nextAction}</span>
+          <span className="font-medium">{info.row.original.nextAction ?? "Không cần xử lý"}</span>
           <span className="text-caption text-ink-muted">
             {ageLabel(info.row.original.ageSeconds)} · {formatInstant(info.getValue())}
           </span>
@@ -255,7 +255,7 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                             {row.counterparty} · {formatMoney(row.amount)}
                           </span>
                           <span className="mt-1 block text-body-sm font-medium">
-                            {row.nextAction}
+                            {row.nextAction ?? "Không cần xử lý"}
                           </span>
                           <span className="mt-1 block text-caption text-ink-muted">
                             {ageLabel(row.ageSeconds)} · {formatInstant(row.updatedAt)}
