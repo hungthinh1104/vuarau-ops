@@ -25,3 +25,11 @@ test("reports uncovered changed executable lines without imposing a global thres
   );
   assert.deepEqual(uncovered, [{ file: "packages/domain-kernel/src/example.ts", line: 3 }]);
 });
+
+test("does not treat release performance rehearsals as product runtime coverage", () => {
+  const uncovered = uncoveredChangedLines(
+    new Map([["packages/db/src/performance/production-scale-rehearsal.ts", new Set([316])]]),
+    {},
+  );
+  assert.deepEqual(uncovered, []);
+});

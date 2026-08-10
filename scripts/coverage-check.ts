@@ -51,7 +51,11 @@ function isChangedProductionSource(path: string): boolean {
     /^(?:apps\/[^/]+\/src|packages\/[^/]+\/src)\//.test(path) &&
     /\.(ts|tsx)$/.test(path) &&
     !/(?:\.test|\.spec)\.tsx?$/.test(path) &&
-    !path.endsWith(".d.ts")
+    !path.endsWith(".d.ts") &&
+    // Performance rehearsals are executable release evidence, not product
+    // runtime. They are exercised by perf:production-scale and the release
+    // gate, not by the Vitest coverage process.
+    !path.startsWith("packages/db/src/performance/")
   );
 }
 
