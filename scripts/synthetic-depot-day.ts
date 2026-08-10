@@ -37,8 +37,9 @@ export const SYNTHETIC_DEPOT_DAY_STEPS: readonly EvidenceStep[] = [
 ];
 
 function run(): void {
-  const databaseUrl = process.env["DATABASE_URL"]?.trim();
-  if (databaseUrl === undefined || databaseUrl.length === 0) {
+  const sourceUrl =
+    process.env["SYNTHETIC_DATABASE_URL"]?.trim() ?? process.env["DATABASE_URL"]?.trim();
+  if (sourceUrl === undefined || sourceUrl.length === 0) {
     console.error("synthetic:depot-day requires DATABASE_URL for disposable PostgreSQL.");
     process.exitCode = 2;
     return;
@@ -51,6 +52,9 @@ function run(): void {
     process.exitCode = 2;
     return;
   }
+
+  const databaseUrl = createSyntheticDatabaseUrl(sourceUrl, sha.stdout.trim());
+  if (databaseUrl === null) return;
 
   const startedAt = new Date().toISOString();
   const command = [
@@ -84,6 +88,62 @@ function run(): void {
   };
   console.log(JSON.stringify(report, null, 2));
   process.exitCode = result.status === 0 ? 0 : 1;
+}
+
+function createSyntheticDatabaseUrl(sourceUrl: string, releaseSha: string): string | null {
+  let source: URL;
+  try {
+    source = new URL(sourceUrl);
+  } catch {
+    console.error("synthetic:depot-day requires a valid PostgreSQL DATABASE_URL.");
+    process.exitCode = 2;
+    return null;
+  }
+
+  if (!["localhost", "127.0.0.1", "::1"].includes(source.hostname)) {
+    console.error("synthetic:depot-day requires a local PostgreSQL host.");
+    process.exitCode = 2;
+    return null;
+  }
+
+  const requestedName = source.pathname.replace(/^\//, "");
+  const databaseName =
+    process.env["SYNTHETIC_DATABASE_URL"] === undefined
+      ? `vuarau_synthetic_${releaseSha.slice(0, 12)}_test`
+      : requestedName;
+  if (!databaseName.endsWith("_test") || !/^[a-z0-9_]+$/.test(databaseName)) {
+    console.error("synthetic:depot-day requires a database name ending in _test.");
+    process.exitCode = 2;
+    return null;
+  }
+
+  const admin = new URL(source.toString());
+  admin.pathname = "/postgres";
+  const exists = spawnSync(
+    "psql",
+    [admin.toString(), "-Atqc", `select 1 from pg_database where datname = '${databaseName}'`],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+  );
+  if (exists.status !== 0) {
+    console.error("synthetic:depot-day could not connect to the local PostgreSQL admin database.");
+    process.exitCode = 2;
+    return null;
+  }
+  if (exists.stdout.trim() !== "1") {
+    const created = spawnSync("createdb", [admin.toString(), databaseName], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    if (created.status !== 0) {
+      console.error("synthetic:depot-day could not create its disposable database.");
+      process.exitCode = 2;
+      return null;
+    }
+  }
+
+  const target = new URL(source.toString());
+  target.pathname = `/${databaseName}`;
+  return target.toString();
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) run();
