@@ -41,18 +41,24 @@ export async function applyInventoryMovements(
         movement.qualityGradeId === target.qualityGradeId &&
         movement.quantity.unit === target.unit,
     );
-    let quantityScaled = 0;
+    let quantityScaled = 0n;
     let last = movements[0]!.transactionTime;
     for (const movement of movements) {
-      quantityScaled += movement.quantity.valueScaled;
+      quantityScaled += BigInt(movement.quantity.valueScaled);
       if (movement.transactionTime > last) last = movement.transactionTime;
+    }
+    if (
+      quantityScaled < BigInt(Number.MIN_SAFE_INTEGER) ||
+      quantityScaled > BigInt(Number.MAX_SAFE_INTEGER)
+    ) {
+      throw new RangeError("Inventory movement aggregate exceeds the exact integer range.");
     }
     await repos.inventoryBalances.applyDelta({
       workspaceId: target.workspaceId,
       productId: target.productId,
       qualityGradeId: target.qualityGradeId,
       unit: target.unit,
-      quantityScaled,
+      quantityScaled: Number(quantityScaled),
       movementCount: movements.length,
       lastMovementTransactionTime: last,
       updatedAt: movements[movements.length - 1]!.recordedAt,

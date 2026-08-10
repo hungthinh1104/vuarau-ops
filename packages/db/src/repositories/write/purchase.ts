@@ -15,6 +15,7 @@ import {
   purchaseReceiptReversals,
 } from "../../schema/index.ts";
 import { fromIso, fromIsoOrNull, toIso } from "../row-mappers.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import { loadPurchase } from "../shared/write-helpers.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -298,7 +299,7 @@ export const createPurchaseWriteRepositories = (tx: Tx) => ({
       return new Map(
         (rows as unknown as Array<{ purchaseLineId: string; net: string }>).map((row) => [
           row.purchaseLineId,
-          Number(row.net),
+          persistedBigintToSafeNumber(row.net, "purchase receipt net quantity"),
         ]),
       );
     },

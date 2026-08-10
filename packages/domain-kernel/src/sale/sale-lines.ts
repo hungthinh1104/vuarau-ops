@@ -74,7 +74,12 @@ export function validateSaleLines(
       );
     }
 
-    const lineTotal = calculateLineTotal(line.quantity, line.unitPrice);
+    let lineTotal: ReturnType<typeof calculateLineTotal>;
+    try {
+      lineTotal = calculateLineTotal(line.quantity, line.unitPrice);
+    } catch {
+      return invalid("quantity × unit price exceeds the exact-integer range");
+    }
     if (!isExactMoneyAmount(lineTotal.amountMinor)) {
       return invalid("quantity × unit price exceeds the exact-integer range");
     }

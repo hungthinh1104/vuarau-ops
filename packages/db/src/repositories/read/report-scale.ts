@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { encodeCursor, vietnamBusinessDayRange, type Unit } from "@vuarau/domain-contracts";
 import { money } from "../row-mappers.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -94,9 +95,18 @@ export async function customerActivityAtScale(tx: Tx, args: ScaleReportArgs) {
     diagnostics: [],
     totals: {
       amount:
-        Number(totals[0]?.["entry_count"] ?? 0) === 0
+        persistedBigintToSafeNumber(
+          totals[0]?.["entry_count"] ?? 0,
+          "customer activity entry count",
+        ) === 0
           ? null
-          : money(Number(totals[0]?.["amount_minor"] ?? 0), "VND"),
+          : money(
+              persistedBigintToSafeNumber(
+                totals[0]?.["amount_minor"] ?? 0,
+                "customer activity amount",
+              ),
+              "VND",
+            ),
       quantities: [],
     },
     page: {
@@ -107,7 +117,10 @@ export async function customerActivityAtScale(tx: Tx, args: ScaleReportArgs) {
         sourceId: String(row["source_id"]),
         documentHref: String(row["document_href"]),
         transactionTime: iso(row["transaction_time"]),
-        amount: money(Number(row["amount_minor"]), "VND"),
+        amount: money(
+          persistedBigintToSafeNumber(row["amount_minor"], "customer activity row amount"),
+          "VND",
+        ),
         quantity: null,
         status: "canonical",
       })),
@@ -168,7 +181,10 @@ export async function inventoryMovementReportAtScale(tx: Tx, args: ScaleReportAr
       amount: null,
       quantities: totals.map((row) => ({
         unit: row["unit"] as Unit,
-        valueScaled: Number(row["quantity_scaled"]),
+        valueScaled: persistedBigintToSafeNumber(
+          row["quantity_scaled"],
+          "inventory movement total quantity",
+        ),
       })),
     },
     page: {
@@ -185,7 +201,10 @@ export async function inventoryMovementReportAtScale(tx: Tx, args: ScaleReportAr
         transactionTime: iso(row["transaction_time"]),
         amount: null,
         quantity: {
-          valueScaled: Number(row["quantity_scaled"]),
+          valueScaled: persistedBigintToSafeNumber(
+            row["quantity_scaled"],
+            "inventory movement row quantity",
+          ),
           unit: row["unit"] as Unit,
         },
         status: "canonical",

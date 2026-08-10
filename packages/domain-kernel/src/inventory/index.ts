@@ -130,7 +130,20 @@ export function deriveProductCoverageQuantity(input: {
   readonly inboundRemaining: number;
   readonly outboundRemaining: number;
 }): ProductCoverageQuantityDto {
-  const availableAfterCommitments = input.onHand + input.inboundRemaining - input.outboundRemaining;
+  for (const value of [input.onHand, input.inboundRemaining, input.outboundRemaining]) {
+    if (!Number.isSafeInteger(value)) {
+      throw new RangeError("Product coverage inputs must be safe integers.");
+    }
+  }
+  const availableAfterCommitmentsBigInt =
+    BigInt(input.onHand) + BigInt(input.inboundRemaining) - BigInt(input.outboundRemaining);
+  if (
+    availableAfterCommitmentsBigInt < BigInt(Number.MIN_SAFE_INTEGER) ||
+    availableAfterCommitmentsBigInt > BigInt(Number.MAX_SAFE_INTEGER)
+  ) {
+    throw new RangeError("Product coverage exceeds the exact integer range.");
+  }
+  const availableAfterCommitments = Number(availableAfterCommitmentsBigInt);
   return {
     unit: input.unit,
     onHand: { valueScaled: input.onHand, unit: input.unit },

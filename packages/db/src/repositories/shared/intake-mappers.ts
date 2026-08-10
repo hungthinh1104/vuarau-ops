@@ -25,6 +25,7 @@ import {
 } from "../../schema/index.ts";
 import type { qualityIssueCodes as QualityIssueCodesTable } from "../../schema/index.ts";
 import { toIso } from "../row-mappers.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Tx } from "./types.ts";
 
 export const issueCodeDto = (
@@ -132,21 +133,18 @@ export async function findArrivalLine(
   tx: Tx,
   workspaceId: WorkspaceId,
   arrivalLineId: GoodsArrivalLineId,
+  lock = false,
 ): Promise<{ arrival: GoodsArrivalDto; line: GoodsArrivalDto["lines"][number] } | null> {
-  const line = (
-    await tx
-      .select({ arrivalId: goodsArrivalLines.arrivalId })
-      .from(goodsArrivalLines)
-      .where(
-        and(
-          eq(goodsArrivalLines.workspaceId, workspaceId),
-          eq(goodsArrivalLines.id, arrivalLineId),
-        ),
-      )
-      .limit(1)
-  )[0];
+  const query = tx
+    .select({ arrivalId: goodsArrivalLines.arrivalId })
+    .from(goodsArrivalLines)
+    .where(
+      and(eq(goodsArrivalLines.workspaceId, workspaceId), eq(goodsArrivalLines.id, arrivalLineId)),
+    )
+    .limit(1);
+  const line = (lock ? await query.for("update") : await query)[0];
   if (line === undefined) return null;
-  const arrival = await readArrival(tx, workspaceId, line.arrivalId as GoodsArrivalId);
+  const arrival = await readArrival(tx, workspaceId, line.arrivalId as GoodsArrivalId, lock);
   const found = arrival?.lines.find((candidate) => candidate.arrivalLineId === arrivalLineId);
   return arrival === null || found === undefined ? null : { arrival, line: found };
 }
@@ -330,6 +328,7 @@ export async function sourceRoot(
   workspaceId: WorkspaceId,
   source: QualityDispositionSource,
   seen = new Set<string>(),
+  lock = false,
 ): Promise<SourceRoot | null> {
   const sourceKey =
     source.type === "arrival_line"
@@ -338,7 +337,7 @@ export async function sourceRoot(
   if (seen.has(sourceKey) || seen.size > 100) return null;
   seen.add(sourceKey);
   if (source.type === "arrival_line") {
-    const found = await findArrivalLine(tx, workspaceId, source.arrivalLineId);
+    const found = await findArrivalLine(tx, workspaceId, source.arrivalLineId, lock);
     return found === null
       ? null
       : {
@@ -347,28 +346,33 @@ export async function sourceRoot(
           active: found.arrival.reversal === null,
         };
   }
-  const allocation = (
-    await tx
-      .select({ allocation: qualityDispositionAllocations, disposition: qualityDispositions })
-      .from(qualityDispositionAllocations)
-      .innerJoin(
-        qualityDispositions,
-        and(
-          eq(qualityDispositions.workspaceId, qualityDispositionAllocations.workspaceId),
-          eq(qualityDispositions.id, qualityDispositionAllocations.dispositionId),
-        ),
-      )
-      .where(
-        and(
-          eq(qualityDispositionAllocations.workspaceId, workspaceId),
-          eq(qualityDispositionAllocations.id, source.allocationId),
-          eq(qualityDispositionAllocations.outcome, "quarantined"),
-        ),
-      )
-      .limit(1)
-  )[0];
+  const allocationQuery = tx
+    .select({ allocation: qualityDispositionAllocations, disposition: qualityDispositions })
+    .from(qualityDispositionAllocations)
+    .innerJoin(
+      qualityDispositions,
+      and(
+        eq(qualityDispositions.workspaceId, qualityDispositionAllocations.workspaceId),
+        eq(qualityDispositions.id, qualityDispositionAllocations.dispositionId),
+      ),
+    )
+    .where(
+      and(
+        eq(qualityDispositionAllocations.workspaceId, workspaceId),
+        eq(qualityDispositionAllocations.id, source.allocationId),
+        eq(qualityDispositionAllocations.outcome, "quarantined"),
+      ),
+    )
+    .limit(1);
+  const allocation = (lock ? await allocationQuery.for("update") : await allocationQuery)[0];
   if (allocation === undefined) return null;
-  const parent = await sourceRoot(tx, workspaceId, sourceFromRow(allocation.disposition), seen);
+  const parent = await sourceRoot(
+    tx,
+    workspaceId,
+    sourceFromRow(allocation.disposition),
+    seen,
+    lock,
+  );
   if (parent === null) return null;
   const reversed = (
     await tx
@@ -396,8 +400,9 @@ export async function dispositionSourceSummary(
   tx: Tx,
   workspaceId: WorkspaceId,
   source: QualityDispositionSource,
+  lock = false,
 ): Promise<{ summary: QualityDispositionSourceSummaryDto; active: boolean } | null> {
-  const root = await sourceRoot(tx, workspaceId, source);
+  const root = await sourceRoot(tx, workspaceId, source, new Set<string>(), lock);
   if (root === null) return null;
   const sourceFilter =
     source.type === "arrival_line"
@@ -437,7 +442,10 @@ export async function dispositionSourceSummary(
         ),
       )
   )[0];
-  const allocated = Number(allocatedRow?.total ?? 0);
+  const allocated = persistedBigintToSafeNumber(
+    allocatedRow?.total ?? 0,
+    "quality disposition allocated quantity",
+  );
   let inspected: number | null = null;
   if (source.type === "arrival_line") {
     const inspectionRow = (
@@ -461,7 +469,10 @@ export async function dispositionSourceSummary(
           ),
         )
     )[0];
-    inspected = Number(inspectionRow?.total ?? 0);
+    inspected = persistedBigintToSafeNumber(
+      inspectionRow?.total ?? 0,
+      "quality inspection quantity",
+    );
   }
   const remaining = root.quantity.valueScaled - allocated;
   const eligible =

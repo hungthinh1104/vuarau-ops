@@ -29,18 +29,30 @@ function assertSameCurrency(a: Money, b: Money): void {
   }
 }
 
+function assertSafeAmount(amountMinor: number): void {
+  if (!Number.isSafeInteger(amountMinor)) {
+    throw new RangeError("Money arithmetic exceeds the exact integer range.");
+  }
+}
+
 export function addMoney(a: Money, b: Money): Money {
   assertSameCurrency(a, b);
-  return { amountMinor: a.amountMinor + b.amountMinor, currency: a.currency };
+  const amountMinor = a.amountMinor + b.amountMinor;
+  assertSafeAmount(amountMinor);
+  return { amountMinor, currency: a.currency };
 }
 
 export function subtractMoney(a: Money, b: Money): Money {
   assertSameCurrency(a, b);
-  return { amountMinor: a.amountMinor - b.amountMinor, currency: a.currency };
+  const amountMinor = a.amountMinor - b.amountMinor;
+  assertSafeAmount(amountMinor);
+  return { amountMinor, currency: a.currency };
 }
 
 export function negateMoney(a: Money): Money {
-  return { amountMinor: -a.amountMinor, currency: a.currency };
+  const amountMinor = -a.amountMinor;
+  assertSafeAmount(amountMinor);
+  return { amountMinor, currency: a.currency };
 }
 
 export function sumMoney(amounts: readonly Money[], currency: CurrencyCode): Money {
@@ -82,5 +94,5 @@ export function moneyEquals(a: Money, b: Money): boolean {
 /** Returns a negative number when `a < b`, zero when equal, positive when `a > b`. */
 export function compareMoney(a: Money, b: Money): number {
   assertSameCurrency(a, b);
-  return a.amountMinor - b.amountMinor;
+  return a.amountMinor < b.amountMinor ? -1 : a.amountMinor > b.amountMinor ? 1 : 0;
 }

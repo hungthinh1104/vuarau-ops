@@ -8,6 +8,7 @@ import {
   deliveryReturnLines,
 } from "../../schema/index.ts";
 import { fromIso, fromIsoOrNull } from "../row-mappers.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import { loadDelivery } from "../shared/write-helpers.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -171,7 +172,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
       return new Map(
         (rows as unknown as Array<{ saleLineId: string; net: number | string }>).map((row) => [
           String(row.saleLineId),
-          Number(row.net),
+          persistedBigintToSafeNumber(row.net, "delivery net fulfilled quantity"),
         ]),
       );
     },
@@ -213,7 +214,10 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
           }>
         ).map((row) => [
           String(row.saleLineId),
-          { dispatched: Number(row.dispatched), returned: Number(row.returned) },
+          {
+            dispatched: persistedBigintToSafeNumber(row.dispatched, "delivery dispatched quantity"),
+            returned: persistedBigintToSafeNumber(row.returned, "delivery returned quantity"),
+          },
         ]),
       );
     },

@@ -6,6 +6,7 @@ import type {
 import { parseWorkspacePolicyDto } from "@vuarau/domain-contracts";
 import { and, eq, sql } from "drizzle-orm";
 import { workspacePolicies } from "../../schema/index.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import { toCorruptWorkspacePolicyDto, tryToWorkspacePolicyDto } from "../shared/policy-mappers.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -55,7 +56,7 @@ export const createWorkspacePolicyWriteRepositories = (tx: Tx) => ({
             eq(workspacePolicies.policyKind, policyKind),
           ),
         );
-      return Number(rows[0]?.maxVersion ?? 0) + 1;
+      return persistedBigintToSafeNumber(rows[0]?.maxVersion ?? 0, "workspace policy version") + 1;
     },
     async insert(policy: WorkspacePolicyDto) {
       const validated = parseWorkspacePolicyDto(policy);

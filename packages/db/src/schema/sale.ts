@@ -65,6 +65,7 @@ export const sales = pgTable(
   },
   (table) => [
     uniqueIndex("sales_workspace_id_id_uq").on(table.workspaceId, table.id),
+    uniqueIndex("sales_workspace_id_customer_uq").on(table.workspaceId, table.id, table.customerId),
     index("sales_workspace_status_time_idx").on(
       table.workspaceId,
       table.status,

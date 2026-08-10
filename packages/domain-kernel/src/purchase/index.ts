@@ -39,7 +39,12 @@ export function validatePurchaseLines(
       return err("PURCHASE_LINE_INVALID", `Purchase line ${index} is invalid.`);
     if (line.unitPrice.currency !== currency)
       return err("PURCHASE_LINE_INVALID", `Purchase line ${index} currency does not match.`);
-    const lineTotal = calculateLineTotal(line.quantity, line.unitPrice);
+    let lineTotal: ReturnType<typeof calculateLineTotal>;
+    try {
+      lineTotal = calculateLineTotal(line.quantity, line.unitPrice);
+    } catch {
+      return err("PURCHASE_LINE_INVALID", `Purchase line ${index} exceeds exact range.`);
+    }
     if (!isExactMoneyAmount(lineTotal.amountMinor))
       return err("PURCHASE_LINE_INVALID", `Purchase line ${index} exceeds exact range.`);
     result.push({

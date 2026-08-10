@@ -218,7 +218,12 @@ export function decideRecordDeliveryReturn(
   const reason = command.payload.reason.trim();
   if (reason.length === 0) return err("DELIVERY_REASON_REQUIRED", "Return needs a reason.");
   const lines: DeliveryReturnState["lines"][number][] = [];
+  const seenDeliveryLineIds = new Set<string>();
   for (const inputLine of command.payload.lines) {
+    if (seenDeliveryLineIds.has(inputLine.deliveryLineId)) {
+      return err("DELIVERY_LINE_INVALID", "Return lines must contain each Delivery line once.");
+    }
+    seenDeliveryLineIds.add(inputLine.deliveryLineId);
     const line = current.lines.find(
       (candidate) => candidate.deliveryLineId === inputLine.deliveryLineId,
     );

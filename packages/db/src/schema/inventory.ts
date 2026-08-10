@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   foreignKey,
   index,
   integer,
@@ -202,5 +203,9 @@ export const inventoryBalances = pgTable(
       foreignColumns: [products.workspaceId, products.id],
       name: "inventory_balances_workspace_product_fk",
     }),
+    check(
+      "inventory_balances_quantity_safe_range_ck",
+      sql`${table.quantityScaled} >= -9007199254740991 and ${table.quantityScaled} <= 9007199254740991`,
+    ),
   ],
 );

@@ -172,6 +172,100 @@ describe("inspected intake application", () => {
     }
   });
 
+  it("TC-INTAKE-009 — direct receiving counts accepted inspected quantity after an intake-mode switch", async () => {
+    const purchase = await confirmedPurchase();
+    harness.db.setOperationalProfile({
+      ...defaultWorkspaceOperationalProfile(WORKSPACE_ID),
+      intakeMode: "inspected_arrival",
+      qualityGradeMode: "disabled",
+      weighingMode: "quantity_only",
+      version: 2,
+    });
+    const arrivalLineId = uuid<GoodsArrivalLineId>();
+    const arrival = await recordGoodsArrival(harness.ctx, {
+      ...envelope("switch-arrival"),
+      payload: {
+        arrivalId: uuid<GoodsArrivalId>(),
+        supplierId: purchase.supplierId,
+        purchaseId: purchase.purchaseId,
+        vehicleReference: null,
+        lines: [
+          {
+            arrivalLineId,
+            purchaseLineId: purchase.purchaseLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            productName: "Cà chua",
+            arrivedQuantity: { valueScaled: 40_000, unit: "kg" },
+            weighing: null,
+            supplierLotCode: null,
+            note: null,
+          },
+        ],
+        note: null,
+      },
+    });
+    expect(arrival.ok).toBe(true);
+    const inspection = await recordQualityInspection(harness.ctx, {
+      ...envelope("switch-inspection"),
+      payload: {
+        inspectionId: uuid<QualityInspectionId>(),
+        arrivalLineId,
+        inspectedQuantity: { valueScaled: 40_000, unit: "kg" },
+        issues: [],
+        note: null,
+        evidenceReferences: [],
+      },
+    });
+    expect(inspection.ok).toBe(true);
+    const disposition = await recordQualityDisposition(harness.ctx, {
+      ...envelope("switch-disposition"),
+      payload: {
+        dispositionId: uuid<QualityDispositionId>(),
+        source: { type: "arrival_line", arrivalLineId },
+        allocations: [
+          {
+            allocationId: uuid<QualityDispositionAllocationId>(),
+            outcome: "accepted",
+            quantity: { valueScaled: 40_000, unit: "kg" },
+            qualityGradeId: null,
+            qualityGradeName: null,
+            note: null,
+          },
+        ],
+        note: null,
+      },
+    });
+    expect(disposition.ok).toBe(true);
+
+    harness.db.setOperationalProfile({
+      ...defaultWorkspaceOperationalProfile(WORKSPACE_ID),
+      intakeMode: "direct_receipt",
+      qualityGradeMode: "disabled",
+      weighingMode: "quantity_only",
+      version: 3,
+    });
+    const direct = await recordPurchaseReceipt(harness.ctx, {
+      ...envelope("switch-direct-receipt"),
+      payload: {
+        receiptId: crypto.randomUUID(),
+        purchaseId: purchase.purchaseId,
+        lines: [
+          {
+            receiptLineId: crypto.randomUUID(),
+            purchaseLineId: purchase.purchaseLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: null,
+            qualityGradeName: null,
+            quantity: { valueScaled: 61_000, unit: "kg" },
+          },
+        ],
+        note: null,
+      },
+    });
+    expect(direct.ok).toBe(false);
+    if (!direct.ok) expect(direct.error.code).toBe("RECEIPT_QUANTITY_EXCEEDS_PURCHASE");
+  });
+
   it("TC-INTAKE-008 — arrival, weighing, inspection and disposition drive inventory then reverse in dependency order", async () => {
     const purchase = await confirmedPurchase();
     harness.db.setOperationalProfile({

@@ -22,6 +22,7 @@ import {
   expenseReversals,
 } from "../../schema/index.ts";
 import { toIso, toIsoOrNull } from "../row-mappers.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import { fetchLimit, paged } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
@@ -403,10 +404,10 @@ export const createCashReadRepositories = (tx: Tx) => ({
         workspaceId,
         cashAccountId,
         balance: {
-          amountMinor: Number(aggregate.amountMinor),
+          amountMinor: persistedBigintToSafeNumber(aggregate.amountMinor, "cash balance amount"),
           currency: account.account.currency,
         },
-        movementCount: Number(aggregate.movementCount),
+        movementCount: persistedBigintToSafeNumber(aggregate.movementCount, "cash movement count"),
         lastMovementTransactionTime: toIsoOrNull(aggregate.lastTransactionTime),
         updatedAt:
           aggregate.lastRecordedAt === null

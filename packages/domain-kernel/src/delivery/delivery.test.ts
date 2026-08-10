@@ -195,4 +195,35 @@ describe("Delivery physical truth (TC-DELIVERY-001)", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("DELIVERY_RETURN_EXCEEDS_DISPATCH");
   });
+
+  it("refuses duplicate return lines in one command", () => {
+    const draft = decideCreateDeliveryDraft({
+      command: command(60_000),
+      sale,
+      fulfilled: new Map(),
+      replacementAncestryHasFulfilment: false,
+      recordedAt: "2026-07-28T02:00:01.000Z",
+    });
+    if (!draft.ok) throw new Error("fixture failed");
+    const line = {
+      deliveryLineId: draft.value.lines[0]!.deliveryLineId,
+      quantity: { valueScaled: 6_000, unit: "kg" as const },
+    };
+    const result = decideRecordDeliveryReturn(
+      { ...draft.value, status: "dispatched" },
+      {
+        ...command(60_000),
+        payload: {
+          returnId: crypto.randomUUID(),
+          deliveryId: draft.value.id,
+          lines: [line, line],
+          reason: "Khách trả",
+          evidenceReferences: ["return://source/duplicate"],
+        },
+      } as never,
+      "2026-07-28T03:00:00.000Z",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("DELIVERY_LINE_INVALID");
+  });
 });

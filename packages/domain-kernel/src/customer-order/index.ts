@@ -77,10 +77,18 @@ function validateLines(
         "Every confirmed order line needs an agreed price.",
         { index, lineId: line.lineId },
       );
-    const lineTotal =
-      line.agreedUnitPrice === null
-        ? null
-        : calculateLineTotal(line.quantity, line.agreedUnitPrice);
+    let lineTotal = null;
+    if (line.agreedUnitPrice !== null) {
+      try {
+        lineTotal = calculateLineTotal(line.quantity, line.agreedUnitPrice);
+      } catch {
+        return err(
+          "CUSTOMER_ORDER_LINE_INVALID",
+          `Customer Order line ${index} exceeds exact range.`,
+          { index },
+        );
+      }
+    }
     if (lineTotal !== null && !isExactMoneyAmount(lineTotal.amountMinor))
       return err(
         "CUSTOMER_ORDER_LINE_INVALID",

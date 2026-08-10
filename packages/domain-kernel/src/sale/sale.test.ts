@@ -152,6 +152,11 @@ describe("BR-SALE-004 / TC-SALE-002", () => {
     // 0,5 kg at 1 ₫/kg = 0,5 ₫ → 1 ₫ (half-up), not 0 ₫ (half-to-even).
     expect(calculateLineTotal({ valueScaled: 500, unit: "kg" }, vnd(1)).amountMinor).toBe(1);
   });
+
+  it("keeps the fractional multiplication exact at the safe integer boundary", () => {
+    const total = calculateLineTotal({ valueScaled: 1, unit: "kg" }, vnd(9_007_199_254_740_499));
+    expect(total.amountMinor).toBe(9_007_199_254_740);
+  });
 });
 
 describe("BR-SALE-007 / TC-SALE-003", () => {

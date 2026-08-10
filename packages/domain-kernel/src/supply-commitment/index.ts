@@ -37,10 +37,18 @@ function validateLines(
       return err("SUPPLY_COMMITMENT_LINE_INVALID", "Supply Commitment price is invalid.", {
         index,
       });
-    const lineTotal =
-      line.agreedUnitPrice === null
-        ? null
-        : calculateLineTotal(line.quantity, line.agreedUnitPrice);
+    let lineTotal = null;
+    if (line.agreedUnitPrice !== null) {
+      try {
+        lineTotal = calculateLineTotal(line.quantity, line.agreedUnitPrice);
+      } catch {
+        return err(
+          "SUPPLY_COMMITMENT_LINE_INVALID",
+          "Supply Commitment line exceeds exact range.",
+          { index },
+        );
+      }
+    }
     if (lineTotal !== null && !isExactMoneyAmount(lineTotal.amountMinor))
       return err("SUPPLY_COMMITMENT_LINE_INVALID", "Supply Commitment line exceeds exact range.", {
         index,

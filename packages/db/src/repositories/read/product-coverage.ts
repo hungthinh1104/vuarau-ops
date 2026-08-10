@@ -31,6 +31,7 @@ import {
   saleVoids,
 } from "../../schema/index.ts";
 import { deriveProductCoverageQuantity } from "@vuarau/domain-kernel";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Tx } from "../shared/types.ts";
 
 export async function readProductCoverage(
@@ -200,9 +201,15 @@ export async function readProductCoverage(
     inboundRemaining: number | string;
     outboundRemaining: number | string;
   }>) {
-    const onHand = Number(raw.onHand);
-    const inboundRemaining = Number(raw.inboundRemaining);
-    const outboundRemaining = Number(raw.outboundRemaining);
+    const onHand = persistedBigintToSafeNumber(raw.onHand, "product coverage on-hand quantity");
+    const inboundRemaining = persistedBigintToSafeNumber(
+      raw.inboundRemaining,
+      "product coverage inbound quantity",
+    );
+    const outboundRemaining = persistedBigintToSafeNumber(
+      raw.outboundRemaining,
+      "product coverage outbound quantity",
+    );
     byProduct.get(raw.productId)?.push(
       deriveProductCoverageQuantity({
         unit: raw.unit,

@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -41,7 +43,9 @@ export const supplierPayments = pgTable(
   "supplier_payments",
   {
     id: uuid("id").primaryKey(),
-    workspaceId: uuid("workspace_id").notNull(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     supplierId: uuid("supplier_id").notNull(),
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
@@ -55,6 +59,11 @@ export const supplierPayments = pgTable(
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.workspaceId, table.supplierId],
+      foreignColumns: [suppliers.workspaceId, suppliers.id],
+      name: "supplier_payments_supplier_fk",
+    }),
     foreignKey({
       columns: [table.workspaceId, table.cashAccountId],
       foreignColumns: [cashAccounts.workspaceId, cashAccounts.id],
@@ -75,7 +84,9 @@ export const supplierPaymentReversals = pgTable(
   "supplier_payment_reversals",
   {
     id: uuid("id").primaryKey(),
-    workspaceId: uuid("workspace_id").notNull(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     supplierPaymentId: uuid("supplier_payment_id").notNull(),
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
@@ -85,6 +96,11 @@ export const supplierPaymentReversals = pgTable(
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.workspaceId, table.supplierPaymentId],
+      foreignColumns: [supplierPayments.workspaceId, supplierPayments.id],
+      name: "supplier_payment_reversals_payment_fk",
+    }),
     index("supplier_payment_reversals_payment_idx").on(table.workspaceId, table.supplierPaymentId),
   ],
 );
@@ -93,7 +109,9 @@ export const supplierAccountEntries = pgTable(
   "supplier_account_entries",
   {
     id: uuid("id").primaryKey(),
-    workspaceId: uuid("workspace_id").notNull(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
     supplierId: uuid("supplier_id").notNull(),
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
@@ -110,6 +128,11 @@ export const supplierAccountEntries = pgTable(
     commandId: uuid("command_id").notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.workspaceId, table.supplierId],
+      foreignColumns: [suppliers.workspaceId, suppliers.id],
+      name: "supplier_account_entries_supplier_fk",
+    }),
     uniqueIndex("supplier_account_entries_source_uq").on(
       table.workspaceId,
       table.sourceType,
@@ -143,5 +166,16 @@ export const supplierAccountBalances = pgTable(
     lastEntryTransactionTime: timestamp("last_entry_transaction_time", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [primaryKey({ columns: [table.workspaceId, table.supplierId] })],
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.supplierId] }),
+    foreignKey({
+      columns: [table.workspaceId, table.supplierId],
+      foreignColumns: [suppliers.workspaceId, suppliers.id],
+      name: "supplier_account_balances_supplier_fk",
+    }),
+    check(
+      "supplier_account_balances_balance_safe_range_ck",
+      sql`${table.balanceMinor} >= -9007199254740991 and ${table.balanceMinor} <= 9007199254740991`,
+    ),
+  ],
 );

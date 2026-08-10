@@ -62,6 +62,80 @@ describe.skipIf(skipWithoutDatabase())("tenant-local relational integrity", () =
     expect(Array.from(rows)).toEqual([]);
   });
 
+  it("pins critical payment, supplier and quarantine lineage at the database boundary", async () => {
+    const expected = [
+      "quality_dispositions_workspace_quarantine_allocation_fk",
+      "payment_reversals_workspace_payment_fk",
+      "payment_allocations_workspace_payment_customer_fk",
+      "payment_allocations_workspace_sale_customer_fk",
+      "payment_allocation_reversals_workspace_allocation_customer_fk",
+      "supplier_payments_supplier_fk",
+      "supplier_payment_reversals_payment_fk",
+      "supplier_account_entries_supplier_fk",
+      "supplier_account_balances_supplier_fk",
+    ];
+    const rows = await ctx.database.db.execute(sql`
+      SELECT conname
+      FROM pg_constraint
+    `);
+    const names = new Set(
+      Array.from(rows, (row) => String((row as unknown as { conname: string }).conname)),
+    );
+    expect(expected.every((name) => names.has(name))).toBe(true);
+  });
+
+  it("rejects orphan quarantine, payment-reversal and supplier-balance rows", async () => {
+    const now = new Date("2026-08-10T00:00:00.000Z");
+    const commandId = crypto.randomUUID();
+    await ctx.database.db.execute(sql`
+      INSERT INTO command_receipts (
+        command_id, workspace_id, idempotency_key, command_type,
+        payload_hash, status, recorded_at
+      ) VALUES (
+        ${commandId}::uuid, ${ctx.workspaceId}::uuid, ${commandId}, 'tenant-integrity-test',
+        ${commandId}, 'completed', ${now.toISOString()}
+      )
+    `);
+    const quarantineError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
+        INSERT INTO quality_dispositions (
+          id, workspace_id, source_type, source_quarantine_allocation_id,
+          note, evidence_references, transaction_time, recorded_at, actor_id, command_id
+        ) VALUES (
+          ${crypto.randomUUID()}::uuid, ${ctx.workspaceId}::uuid, 'quarantine_allocation',
+          ${crypto.randomUUID()}::uuid, NULL, ARRAY[]::text[], ${now.toISOString()},
+          ${now.toISOString()}, ${ctx.actorId}::uuid, ${commandId}::uuid
+        )
+      `),
+    );
+    expect(quarantineError).toContain("quality_dispositions_workspace_quarantine_allocation_fk");
+
+    const paymentReversalError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
+        INSERT INTO payment_reversals (
+          id, workspace_id, payment_id, amount_minor, currency, reason,
+          evidence_references, transaction_time, recorded_at
+        ) VALUES (
+          ${crypto.randomUUID()}::uuid, ${ctx.workspaceId}::uuid, ${crypto.randomUUID()}::uuid,
+          1, 'VND', 'orphan test', ARRAY[]::text[], ${now.toISOString()}, ${now.toISOString()}
+        )
+      `),
+    );
+    expect(paymentReversalError).toContain("payment_reversals_workspace_payment_fk");
+
+    const supplierBalanceError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
+        INSERT INTO supplier_account_balances (
+          workspace_id, supplier_id, balance_minor, currency, entry_count, updated_at
+        ) VALUES (
+          ${ctx.workspaceId}::uuid, ${crypto.randomUUID()}::uuid, 0, 'VND', 0,
+          ${now.toISOString()}
+        )
+      `),
+    );
+    expect(supplierBalanceError).toContain("supplier_account_balances_supplier_fk");
+  });
+
   it("rejects cross-workspace inserts and updates across money, goods, commercial, evidence and recovery", async () => {
     const now = new Date("2026-08-10T00:00:00.000Z");
     const foreignCustomerId = crypto.randomUUID();

@@ -284,5 +284,9 @@ export const cashBalances = pgTable(
       foreignColumns: [cashAccounts.workspaceId, cashAccounts.id],
       name: "cash_balances_workspace_cash_account_fk",
     }),
+    check(
+      "cash_balances_balance_safe_range_ck",
+      sql`${table.balanceMinor} >= -9007199254740991 and ${table.balanceMinor} <= 9007199254740991`,
+    ),
   ],
 );

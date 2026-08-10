@@ -76,13 +76,35 @@ export type Quantity = z.infer<typeof quantitySchema>;
  * magnitude as the answer itself.
  */
 export function calculateLineTotal(quantity: Quantity, unitPrice: Money): Money {
-  const wholeUnits = Math.floor(quantity.valueScaled / QUANTITY_SCALE);
-  const remainder = quantity.valueScaled % QUANTITY_SCALE;
+  if (!Number.isSafeInteger(quantity.valueScaled) || !Number.isSafeInteger(unitPrice.amountMinor)) {
+    throw new RangeError("Line total inputs must be safe integers.");
+  }
 
-  const wholePart = wholeUnits * unitPrice.amountMinor;
-  const fractionalPart = roundHalfUp(remainder * unitPrice.amountMinor, QUANTITY_SCALE);
+  const scaledQuantity = BigInt(quantity.valueScaled);
+  const unitPriceMinor = BigInt(unitPrice.amountMinor);
+  if (scaledQuantity < 0n || unitPriceMinor < 0n) {
+    throw new RangeError("Line total inputs must be non-negative.");
+  }
 
-  return { amountMinor: wholePart + fractionalPart, currency: unitPrice.currency };
+  const scale = BigInt(QUANTITY_SCALE);
+  const wholePart = (scaledQuantity / scale) * unitPriceMinor;
+  const remainder = scaledQuantity % scale;
+  const fractionalPart = roundHalfUpBigInt(remainder * unitPriceMinor, scale);
+  const exactTotal = wholePart + fractionalPart;
+  const minSafe = BigInt(Number.MIN_SAFE_INTEGER);
+  const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
+  if (exactTotal < minSafe || exactTotal > maxSafe) {
+    throw new RangeError("Line total exceeds the exact integer range.");
+  }
+
+  return { amountMinor: Number(exactTotal), currency: unitPrice.currency };
+}
+
+function roundHalfUpBigInt(numerator: bigint, denominator: bigint): bigint {
+  if (numerator < 0n || denominator <= 0n) {
+    throw new RangeError("Line total rounding inputs must be non-negative.");
+  }
+  return (numerator * 2n + denominator) / (denominator * 2n);
 }
 
 /**

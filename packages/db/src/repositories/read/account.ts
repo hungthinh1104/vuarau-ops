@@ -14,6 +14,7 @@ import {
   workspaces,
 } from "../../schema/index.ts";
 import { fromIso, money, toIso, toIsoOrNull } from "../row-mappers.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import { fetchLimit, paged, sourceLabel, sourceDocument } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
@@ -116,7 +117,10 @@ export const createAccountReadRepositories = (tx: Tx) => ({
           reason: row.reason,
           transactionTime: toIso(row.transactionTime),
           recordedAt: toIso(row.recordedAt),
-          runningBalance: money(Number(row.runningBalanceMinor), row.currency),
+          runningBalance: money(
+            persistedBigintToSafeNumber(row.runningBalanceMinor, "customer running balance"),
+            row.currency,
+          ),
         },
       };
     },
@@ -228,7 +232,10 @@ export const createAccountReadRepositories = (tx: Tx) => ({
           workspaceId: row.workspaceId,
           customerId: row.customerId,
           amount: money(row.amountMinor, row.currency),
-          runningBalance: money(Number(row.runningBalanceMinor), row.currency),
+          runningBalance: money(
+            persistedBigintToSafeNumber(row.runningBalanceMinor, "customer running balance"),
+            row.currency,
+          ),
           source: {
             type: row.sourceType,
             id: row.sourceId,
@@ -533,7 +540,10 @@ export const createAccountReadRepositories = (tx: Tx) => ({
         expectedAmount:
           row.expectedAmountMinor === null || row.expectedCurrency === null
             ? null
-            : money(Number(row.expectedAmountMinor), row.expectedCurrency),
+            : money(
+                persistedBigintToSafeNumber(row.expectedAmountMinor, "customer expected amount"),
+                row.expectedCurrency,
+              ),
         reversalTargetExists: row.reversalOfEntryId === null || row.reversalTargetId !== null,
       }));
     },

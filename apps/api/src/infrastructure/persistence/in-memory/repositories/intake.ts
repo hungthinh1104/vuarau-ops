@@ -149,6 +149,8 @@ export const createIntakeRepositories = (
       store.goodsArrivals.get(key(workspaceId, arrivalId)) ?? null,
     findLine: async (workspaceId, arrivalLineId) =>
       findArrivalLine(store, workspaceId, arrivalLineId),
+    findLineForUpdate: async (workspaceId, arrivalLineId) =>
+      findArrivalLine(store, workspaceId, arrivalLineId),
     insert: async (arrival) => {
       const arrivalKey = key(arrival.workspaceId, arrival.id);
       if (store.goodsArrivals.has(arrivalKey)) return false;
@@ -240,6 +242,8 @@ export const createIntakeRepositories = (
     findByIdForUpdate: async (workspaceId, dispositionId) =>
       store.qualityDispositions.get(key(workspaceId, dispositionId)) ?? null,
     sourceSummary: async (workspaceId, source) => intakeSourceSummary(store, workspaceId, source),
+    sourceSummaryForUpdate: async (workspaceId, source) =>
+      intakeSourceSummary(store, workspaceId, source),
     downstreamFactCount: async (workspaceId, dispositionId) => {
       const disposition = store.qualityDispositions.get(key(workspaceId, dispositionId));
       if (disposition === undefined) return 0;

@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import {
   suppliers,
   supplierPayments,
@@ -95,6 +95,7 @@ export const createSupplierReadRepositories = (tx: Tx) => ({
         eq(purchases.supplierId, args.supplierId),
         eq(purchases.status, "confirmed"),
         isNotNull(purchases.confirmedAt),
+        isNull(purchaseVoids.id),
       ];
       if (args.productId !== null) filters.push(eq(purchaseLines.productId, args.productId));
       if (args.page.after !== null) {
@@ -128,6 +129,13 @@ export const createSupplierReadRepositories = (tx: Tx) => ({
           and(
             eq(purchases.id, purchaseLines.purchaseId),
             eq(purchases.workspaceId, purchaseLines.workspaceId),
+          ),
+        )
+        .leftJoin(
+          purchaseVoids,
+          and(
+            eq(purchaseVoids.workspaceId, purchases.workspaceId),
+            eq(purchaseVoids.purchaseId, purchases.id),
           ),
         )
         .where(and(...filters))

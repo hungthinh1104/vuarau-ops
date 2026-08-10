@@ -13,6 +13,7 @@ import type {
 import type { PurchaseState } from "../shared/state.ts";
 import {
   decideRecordPurchaseReceipt,
+  deriveProductCoverageQuantity,
   validateInventoryAdjustment,
   validateInventoryReclassification,
 } from "./index.ts";
@@ -144,5 +145,16 @@ describe("Receiving and inventory decisions", () => {
         },
       }),
     ).toMatchObject({ ok: false, error: { code: "INVENTORY_RECLASSIFICATION_INVALID" } });
+  });
+
+  it("does not silently round an unsafe ProductCoverage aggregate", () => {
+    expect(() =>
+      deriveProductCoverageQuantity({
+        unit: "kg",
+        onHand: Number.MAX_SAFE_INTEGER,
+        inboundRemaining: 1,
+        outboundRemaining: 0,
+      }),
+    ).toThrow(RangeError);
   });
 });

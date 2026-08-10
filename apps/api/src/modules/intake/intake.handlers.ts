@@ -41,6 +41,7 @@ import {
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { acceptedQuantityByPurchaseLine } from "../shared/purchase-receiving.ts";
 import { applyInventoryMovements } from "../inventory/inventory-effects.ts";
 
 async function appendAudit(
@@ -155,7 +156,10 @@ export function recordGoodsArrival(ctx: CommandContext, input: unknown) {
       const purchase =
         command.payload.purchaseId === null
           ? null
-          : await repos.purchases.findById(command.workspaceId, command.payload.purchaseId);
+          : await repos.purchases.findByIdForUpdate(
+              command.workspaceId,
+              command.payload.purchaseId,
+            );
       if (command.payload.purchaseId !== null) {
         if (
           purchase === null ||
@@ -180,7 +184,7 @@ export function recordGoodsArrival(ctx: CommandContext, input: unknown) {
           product === null ||
           !product.isActive ||
           product.displayName !== line.productName ||
-          product.preferredUnit !== line.arrivedQuantity.unit
+          (product.preferredUnit !== null && product.preferredUnit !== line.arrivedQuantity.unit)
         ) {
           return err(
             "GOODS_ARRIVAL_LINE_INVALID",
@@ -267,7 +271,7 @@ export function recordQualityInspection(ctx: CommandContext, input: unknown) {
     requiredPermission: "quality.inspect",
     requiredWorkflows: ["inspected_intake"],
     execute: async ({ command, repos, recordedAt }) => {
-      const found = await repos.goodsArrivals.findLine(
+      const found = await repos.goodsArrivals.findLineForUpdate(
         command.workspaceId,
         command.payload.arrivalLineId,
       );
@@ -322,6 +326,16 @@ export function reverseQualityInspection(ctx: CommandContext, input: unknown) {
     ctx,
     requiredPermission: "quality.inspect.reverse",
     execute: async ({ command, repos, recordedAt }) => {
+      const snapshot = await repos.qualityInspections.findById(
+        command.workspaceId,
+        command.payload.inspectionId,
+      );
+      if (snapshot === null) return err("QUALITY_INSPECTION_NOT_FOUND", "No such inspection.");
+      const source = await repos.goodsArrivals.findLineForUpdate(
+        command.workspaceId,
+        snapshot.arrivalLineId,
+      );
+      if (source === null) return err("GOODS_ARRIVAL_NOT_FOUND", "No such arrival line.");
       const current = await repos.qualityInspections.findByIdForUpdate(
         command.workspaceId,
         command.payload.inspectionId,
@@ -357,7 +371,7 @@ export function recordQualityDisposition(ctx: CommandContext, input: unknown) {
     requiredPermission: "quality.disposition",
     requiredWorkflows: ["inventory", "inspected_intake"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
-      const source = await repos.qualityDispositions.sourceSummary(
+      const source = await repos.qualityDispositions.sourceSummaryForUpdate(
         command.workspaceId,
         command.payload.source,
       );
@@ -394,7 +408,7 @@ export function recordQualityDisposition(ctx: CommandContext, input: unknown) {
         source.summary.purchaseId !== null &&
         source.summary.purchaseLineId !== null
       ) {
-        const purchase = await repos.purchases.findById(
+        const purchase = await repos.purchases.findByIdForUpdate(
           command.workspaceId,
           source.summary.purchaseId,
         );
@@ -407,19 +421,10 @@ export function recordQualityDisposition(ctx: CommandContext, input: unknown) {
         if (purchaseLine === undefined) {
           return err("GOODS_ARRIVAL_PURCHASE_MISMATCH", "Purchase line no longer resolves.");
         }
-        const direct = await repos.purchaseReceipts.netReceivedByPurchaseLine(
-          command.workspaceId,
-          purchase.id,
-        );
-        const inspected = await repos.qualityDispositions.acceptedQuantityForPurchaseLine(
-          command.workspaceId,
-          purchaseLine.lineId,
-        );
+        const accepted = await acceptedQuantityByPurchaseLine(repos, command.workspaceId, purchase);
         if (
           purchaseLine.quantity.unit !== source.summary.sourceQuantity.unit ||
-          (inspected !== null && inspected.unit !== purchaseLine.quantity.unit) ||
-          (direct.get(purchaseLine.lineId) ?? 0) + (inspected?.valueScaled ?? 0) + acceptedNew >
-            purchaseLine.quantity.valueScaled
+          (accepted.get(purchaseLine.lineId) ?? 0) + acceptedNew > purchaseLine.quantity.valueScaled
         ) {
           return err(
             "RECEIPT_QUANTITY_EXCEEDS_PURCHASE",
@@ -474,6 +479,18 @@ export function reverseQualityDisposition(ctx: CommandContext, input: unknown) {
     ctx,
     requiredPermission: "quality.disposition.reverse",
     execute: async ({ command, repos, recordedAt }) => {
+      const snapshot = await repos.qualityDispositions.findById(
+        command.workspaceId,
+        command.payload.dispositionId,
+      );
+      if (snapshot === null) return err("QUALITY_DISPOSITION_NOT_FOUND", "No such disposition.");
+      const source = await repos.qualityDispositions.sourceSummaryForUpdate(
+        command.workspaceId,
+        snapshot.source,
+      );
+      if (source === null) {
+        throw new Error(`Disposition ${snapshot.id} has no canonical source.`);
+      }
       const current = await repos.qualityDispositions.findByIdForUpdate(
         command.workspaceId,
         command.payload.dispositionId,
@@ -485,13 +502,6 @@ export function reverseQualityDisposition(ctx: CommandContext, input: unknown) {
       );
       const decision = decideReverseQualityDisposition(command, current, downstream, recordedAt);
       if (!decision.ok) return decision;
-      const source = await repos.qualityDispositions.sourceSummary(
-        command.workspaceId,
-        current.source,
-      );
-      if (source === null) {
-        throw new Error(`Disposition ${current.id} has no canonical source.`);
-      }
       const accepted = current.allocations.filter(
         (allocation) => allocation.outcome === "accepted",
       );

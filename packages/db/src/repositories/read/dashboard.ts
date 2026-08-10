@@ -17,9 +17,18 @@ import {
 } from "@vuarau/domain-contracts";
 import type { CursorPosition } from "@vuarau/domain-contracts";
 import type { Tx } from "../shared/types.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 
 type Row = Record<string, unknown>;
-const numberOf = (row: Row, name: string): number => Number(row[name] ?? 0);
+const numberOf = (row: Row, name: string): number => {
+  const raw = row[name] ?? 0;
+  if (name === "age_seconds") {
+    const value = Number(raw);
+    if (!Number.isFinite(value)) throw new RangeError("Dashboard age is not finite.");
+    return value;
+  }
+  return persistedBigintToSafeNumber(raw, `dashboard ${name}`);
+};
 const stringOf = (row: Row, name: string): string => String(row[name] ?? "");
 const asMoney = (amountMinor: number) => ({ amountMinor, currency: "VND" as const });
 const asOf = () => new Date().toISOString();

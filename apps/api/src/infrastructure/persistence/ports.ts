@@ -477,7 +477,6 @@ export type QualityIssueCodeRepository = {
   insert(code: QualityIssueCodeDto): Promise<boolean>;
   update(code: QualityIssueCodeDto, expectedVersion: number): Promise<boolean>;
 };
-
 export type GoodsArrivalRepository = {
   findById(workspaceId: WorkspaceId, arrivalId: GoodsArrivalId): Promise<GoodsArrivalDto | null>;
   findByIdForUpdate(
@@ -491,6 +490,7 @@ export type GoodsArrivalRepository = {
     readonly arrival: GoodsArrivalDto;
     readonly line: GoodsArrivalDto["lines"][number];
   } | null>;
+  findLineForUpdate: GoodsArrivalRepository["findLine"];
   insert(arrival: GoodsArrivalDto): Promise<boolean>;
   insertReversal(arrival: GoodsArrivalDto): Promise<boolean>;
   downstreamFactCount(workspaceId: WorkspaceId, arrivalId: GoodsArrivalId): Promise<number>;
@@ -514,7 +514,6 @@ export type QualityInspectionRepository = {
   insert(inspection: QualityInspectionDto): Promise<boolean>;
   insertReversal(inspection: QualityInspectionDto): Promise<boolean>;
 };
-
 export type QualityDispositionRepository = {
   findById(
     workspaceId: WorkspaceId,
@@ -531,6 +530,7 @@ export type QualityDispositionRepository = {
     readonly summary: QualityDispositionSourceSummaryDto;
     readonly active: boolean;
   } | null>;
+  sourceSummaryForUpdate: QualityDispositionRepository["sourceSummary"]; // Locks root Arrival.
   downstreamFactCount(
     workspaceId: WorkspaceId,
     dispositionId: QualityDispositionId,

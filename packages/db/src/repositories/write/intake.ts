@@ -120,6 +120,8 @@ export const createIntakeWriteRepositories = (tx: Tx) => ({
       readArrival(tx, workspaceId, arrivalId, true),
     findLine: (workspaceId: WorkspaceId, arrivalLineId: GoodsArrivalLineId) =>
       findArrivalLine(tx, workspaceId, arrivalLineId),
+    findLineForUpdate: (workspaceId: WorkspaceId, arrivalLineId: GoodsArrivalLineId) =>
+      findArrivalLine(tx, workspaceId, arrivalLineId, true),
     async insert(arrival: GoodsArrivalDto) {
       const rows = await tx
         .insert(goodsArrivals)
@@ -374,6 +376,8 @@ export const createIntakeWriteRepositories = (tx: Tx) => ({
       readDisposition(tx, workspaceId, dispositionId, true),
     sourceSummary: (workspaceId: WorkspaceId, source: QualityDispositionDto["source"]) =>
       dispositionSourceSummary(tx, workspaceId, source),
+    sourceSummaryForUpdate: (workspaceId: WorkspaceId, source: QualityDispositionDto["source"]) =>
+      dispositionSourceSummary(tx, workspaceId, source, true),
     async downstreamFactCount(workspaceId: WorkspaceId, dispositionId: QualityDispositionId) {
       const allocations = await tx
         .select({ id: qualityDispositionAllocations.id })

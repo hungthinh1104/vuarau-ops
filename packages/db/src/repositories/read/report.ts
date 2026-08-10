@@ -17,6 +17,7 @@ import type { inventoryMovements } from "../../schema/index.ts";
 import { classifyInventory } from "@vuarau/domain-kernel";
 import { encodeCursor, vietnamBusinessDayRange, type ReportType } from "@vuarau/domain-contracts";
 import { money, toIsoOrNull } from "../row-mappers.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
 import { customerActivityAtScale, inventoryMovementReportAtScale } from "./report-scale.ts";
@@ -273,8 +274,14 @@ export const createReportReadRepositories = (tx: Tx) => ({
             where s.workspace_id=${args.workspaceId}::uuid and s.status='posted'
           `);
         rows = values.flatMap((value) => {
-          const ordered = Number(value["quantity_scaled"]);
-          const net = Number(value["net_fulfilled"]);
+          const ordered = persistedBigintToSafeNumber(
+            value["quantity_scaled"],
+            "outstanding delivery ordered quantity",
+          );
+          const net = persistedBigintToSafeNumber(
+            value["net_fulfilled"],
+            "outstanding delivery fulfilled quantity",
+          );
           return ordered - net <= 0
             ? []
             : [

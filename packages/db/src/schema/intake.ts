@@ -25,6 +25,7 @@ import { qualityGrades } from "./quality.ts";
 import { suppliers } from "./supplier.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
+import { safeBigint as bigint } from "./safe-bigint.ts";
 
 export const qualityIssueCodes = pgTable(
   "quality_issue_codes",
@@ -106,12 +107,12 @@ export const goodsArrivalLines = pgTable(
     purchaseLineId: uuid("purchase_line_id"),
     productId: uuid("product_id").notNull(),
     productName: text("product_name").notNull(),
-    arrivedValueScaled: integer("arrived_value_scaled").notNull(),
+    arrivedValueScaled: bigint("arrived_value_scaled", { mode: "number" }).notNull(),
     arrivedUnit: unitEnum("arrived_unit").notNull(),
     containerCount: integer("container_count"),
-    grossWeightValueScaled: integer("gross_weight_value_scaled"),
-    tareWeightValueScaled: integer("tare_weight_value_scaled"),
-    netWeightValueScaled: integer("net_weight_value_scaled"),
+    grossWeightValueScaled: bigint("gross_weight_value_scaled", { mode: "number" }),
+    tareWeightValueScaled: bigint("tare_weight_value_scaled", { mode: "number" }),
+    netWeightValueScaled: bigint("net_weight_value_scaled", { mode: "number" }),
     weightUnit: unitEnum("weight_unit"),
     supplierLotCode: text("supplier_lot_code"),
     note: text("note"),
@@ -194,7 +195,7 @@ export const qualityInspections = pgTable(
     id: uuid("id").notNull(),
     workspaceId: uuid("workspace_id").notNull(),
     arrivalLineId: uuid("arrival_line_id").notNull(),
-    inspectedValueScaled: integer("inspected_value_scaled").notNull(),
+    inspectedValueScaled: bigint("inspected_value_scaled", { mode: "number" }).notNull(),
     inspectedUnit: unitEnum("inspected_unit").notNull(),
     note: text("note"),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
@@ -328,7 +329,7 @@ export const qualityDispositionAllocations = pgTable(
     workspaceId: uuid("workspace_id").notNull(),
     dispositionId: uuid("disposition_id").notNull(),
     outcome: qualityDispositionOutcomeEnum("outcome").notNull(),
-    valueScaled: integer("value_scaled").notNull(),
+    valueScaled: bigint("value_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
     qualityGradeId: uuid("quality_grade_id"),
     qualityGradeName: text("quality_grade_name"),

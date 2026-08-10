@@ -4,12 +4,12 @@ import { PersistedNumberOutOfRangeError } from "../errors.ts";
 const MIN_SAFE_BIGINT = BigInt(Number.MIN_SAFE_INTEGER);
 const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
 
-export function persistedBigintToSafeNumber(
-  value: bigint | number | string,
-  field: string,
-): number {
+export function persistedBigintToSafeNumber(value: unknown, field: string): number {
   let parsed: bigint;
   try {
+    if (typeof value !== "bigint" && typeof value !== "number" && typeof value !== "string") {
+      throw new TypeError("Persisted integer is not numeric.");
+    }
     parsed = typeof value === "bigint" ? value : BigInt(value);
   } catch {
     throw new PersistedNumberOutOfRangeError(field);

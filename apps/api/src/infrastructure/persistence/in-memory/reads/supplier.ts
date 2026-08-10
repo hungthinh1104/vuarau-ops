@@ -42,7 +42,8 @@ export const createSupplierReads = (
             purchase.workspaceId === workspaceId &&
             purchase.supplierId === supplierId &&
             purchase.status === "confirmed" &&
-            purchase.confirmedAt !== null,
+            purchase.confirmedAt !== null &&
+            purchase.voidRecord === null,
         )
         .flatMap((purchase) => {
           const confirmedAt = purchase.confirmedAt;

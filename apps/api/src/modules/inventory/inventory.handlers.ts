@@ -22,6 +22,7 @@ import {
 import type { PurchaseReceiptState } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { acceptedQuantityByPurchaseLine } from "../shared/purchase-receiving.ts";
 import { applyInventoryMovements } from "./inventory-effects.ts";
 
 const dto = (receipt: PurchaseReceiptState): PurchaseReceiptDto => ({
@@ -82,10 +83,7 @@ export function recordPurchaseReceipt(ctx: CommandContext, input: unknown) {
           );
         }
       }
-      const net = await repos.purchaseReceipts.netReceivedByPurchaseLine(
-        command.workspaceId,
-        purchase.id,
-      );
+      const net = await acceptedQuantityByPurchaseLine(repos, command.workspaceId, purchase);
       const decision = decideRecordPurchaseReceipt({
         command,
         purchase,

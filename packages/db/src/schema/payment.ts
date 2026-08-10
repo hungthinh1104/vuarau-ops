@@ -50,6 +50,11 @@ export const payments = pgTable(
   },
   (table) => [
     uniqueIndex("payments_workspace_id_uq").on(table.workspaceId, table.id),
+    uniqueIndex("payments_workspace_id_customer_uq").on(
+      table.workspaceId,
+      table.id,
+      table.customerId,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.cashAccountId],
       foreignColumns: [cashAccounts.workspaceId, cashAccounts.id],
@@ -88,7 +93,14 @@ export const paymentReversals = pgTable(
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },
-  (table) => [index("payment_reversals_payment_idx").on(table.paymentId)],
+  (table) => [
+    foreignKey({
+      columns: [table.workspaceId, table.paymentId],
+      foreignColumns: [payments.workspaceId, payments.id],
+      name: "payment_reversals_workspace_payment_fk",
+    }),
+    index("payment_reversals_payment_idx").on(table.workspaceId, table.paymentId),
+  ],
 );
 
 /**
@@ -118,14 +130,14 @@ export const paymentAllocations = pgTable(
   },
   (table) => [
     foreignKey({
-      columns: [table.workspaceId, table.paymentId],
-      foreignColumns: [payments.workspaceId, payments.id],
-      name: "payment_allocations_workspace_payment_fk",
+      columns: [table.workspaceId, table.paymentId, table.customerId],
+      foreignColumns: [payments.workspaceId, payments.id, payments.customerId],
+      name: "payment_allocations_workspace_payment_customer_fk",
     }),
     foreignKey({
-      columns: [table.workspaceId, table.saleId],
-      foreignColumns: [sales.workspaceId, sales.id],
-      name: "payment_allocations_workspace_sale_fk",
+      columns: [table.workspaceId, table.saleId, table.customerId],
+      foreignColumns: [sales.workspaceId, sales.id, sales.customerId],
+      name: "payment_allocations_workspace_sale_customer_fk",
     }),
     foreignKey({
       columns: [table.workspaceId, table.customerId],
@@ -143,6 +155,11 @@ export const paymentAllocations = pgTable(
     index("payment_allocations_payment_idx").on(table.workspaceId, table.paymentId),
     index("payment_allocations_sale_idx").on(table.workspaceId, table.saleId),
     uniqueIndex("payment_allocations_workspace_id_uq").on(table.workspaceId, table.id),
+    uniqueIndex("payment_allocations_workspace_id_customer_uq").on(
+      table.workspaceId,
+      table.id,
+      table.customerId,
+    ),
   ],
 );
 
@@ -168,9 +185,13 @@ export const paymentAllocationReversals = pgTable(
   },
   (table) => [
     foreignKey({
-      columns: [table.workspaceId, table.allocationId],
-      foreignColumns: [paymentAllocations.workspaceId, paymentAllocations.id],
-      name: "payment_allocation_reversals_workspace_allocation_fk",
+      columns: [table.workspaceId, table.allocationId, table.customerId],
+      foreignColumns: [
+        paymentAllocations.workspaceId,
+        paymentAllocations.id,
+        paymentAllocations.customerId,
+      ],
+      name: "payment_allocation_reversals_workspace_allocation_customer_fk",
     }),
     foreignKey({
       columns: [table.workspaceId, table.customerId],

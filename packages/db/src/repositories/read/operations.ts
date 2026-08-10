@@ -1,6 +1,7 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { WorkspaceRole } from "@vuarau/domain-contracts";
 import { normalizeWorkspaceRoles } from "@vuarau/domain-contracts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import {
   auditLogs,
   cashAccounts,
@@ -73,6 +74,10 @@ import {
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 import { readOperationsCloseBackup } from "./operations-close-backup.ts";
+
+const safeCount = (row: Record<string, unknown> | undefined, name: string): number =>
+  persistedBigintToSafeNumber(row?.[name] ?? 0, `operations ${name}`);
+
 export const createOperationsReadRepositories = (tx: Tx) => ({
   operationsReads: {
     async integrity(workspaceId: string) {
@@ -168,20 +173,12 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
               AS duplicate_sources,
             (SELECT count(*)::int FROM anomalous_customers) AS anomalous_customers
         `);
-      const row = rows[0] as
-        | {
-            customer_count: number;
-            projection_drift: number;
-            missing_sources: number;
-            duplicate_sources: number;
-            anomalous_customers: number;
-          }
-        | undefined;
-      const customerCount = Number(row?.customer_count ?? 0);
-      const projectionDrift = Number(row?.projection_drift ?? 0);
-      const missingSources = Number(row?.missing_sources ?? 0);
-      const duplicateSources = Number(row?.duplicate_sources ?? 0);
-      const anomalousCustomers = Number(row?.anomalous_customers ?? 0);
+      const row = rows[0] as Record<string, unknown> | undefined;
+      const customerCount = safeCount(row, "customer_count");
+      const projectionDrift = safeCount(row, "projection_drift");
+      const missingSources = safeCount(row, "missing_sources");
+      const duplicateSources = safeCount(row, "duplicate_sources");
+      const anomalousCustomers = safeCount(row, "anomalous_customers");
       const goodsRows = await tx.execute(sql`
           WITH supplier_ledger AS (
             SELECT supplier_id, sum(amount_minor)::bigint balance_minor, count(*)::int entry_count
@@ -351,16 +348,10 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
             (SELECT count(*)::int FROM supplier_anomalies) anomalous_suppliers,
             (SELECT count(*)::int FROM inventory_anomalies) anomalous_inventory_keys
         `);
-      const goods = goodsRows[0] as
-        | {
-            supplier_count?: number;
-            anomalous_suppliers?: number;
-            anomalous_inventory_keys?: number;
-          }
-        | undefined;
-      const supplierCount = Number(goods?.supplier_count ?? 0);
-      const anomalousSuppliers = Number(goods?.anomalous_suppliers ?? 0);
-      const anomalousInventoryKeys = Number(goods?.anomalous_inventory_keys ?? 0);
+      const goods = goodsRows[0] as Record<string, unknown> | undefined;
+      const supplierCount = safeCount(goods, "supplier_count");
+      const anomalousSuppliers = safeCount(goods, "anomalous_suppliers");
+      const anomalousInventoryKeys = safeCount(goods, "anomalous_inventory_keys");
       return {
         workspaceId,
         healthyCustomers: customerCount - anomalousCustomers,
