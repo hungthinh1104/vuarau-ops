@@ -130,10 +130,14 @@ function createSyntheticDatabaseUrl(sourceUrl: string, releaseSha: string): stri
     return null;
   }
   if (exists.stdout.trim() !== "1") {
-    const created = spawnSync("createdb", [admin.toString(), databaseName], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const created = spawnSync(
+      "psql",
+      [admin.toString(), "-v", "ON_ERROR_STOP=1", "-c", `CREATE DATABASE \"${databaseName}\"`],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
     if (created.status !== 0) {
       console.error("synthetic:depot-day could not create its disposable database.");
       process.exitCode = 2;
