@@ -23,9 +23,7 @@ export const purchases = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    supplierId: uuid("supplier_id")
-      .notNull()
-      .references(() => suppliers.id),
+    supplierId: uuid("supplier_id").notNull(),
     status: purchaseStatusEnum("status").notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     totalAmountMinor: bigint("total_amount_minor", { mode: "number" }).notNull(),
@@ -58,6 +56,11 @@ export const purchases = pgTable(
       table.recordedAt,
       table.id,
     ),
+    foreignKey({
+      columns: [table.workspaceId, table.supplierId],
+      foreignColumns: [suppliers.workspaceId, suppliers.id],
+      name: "purchases_workspace_supplier_fk",
+    }),
   ],
 );
 
@@ -66,12 +69,8 @@ export const purchaseLines = pgTable(
   {
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
-    purchaseId: uuid("purchase_id")
-      .notNull()
-      .references(() => purchases.id),
-    productId: uuid("product_id")
-      .notNull()
-      .references(() => products.id),
+    purchaseId: uuid("purchase_id").notNull(),
+    productId: uuid("product_id").notNull(),
     productName: text("product_name").notNull(),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
@@ -81,7 +80,23 @@ export const purchaseLines = pgTable(
   },
   (table) => [
     uniqueIndex("purchase_lines_purchase_id_id_uq").on(table.purchaseId, table.id),
+    uniqueIndex("purchase_lines_workspace_id_id_uq").on(table.workspaceId, table.id),
+    uniqueIndex("purchase_lines_workspace_purchase_id_id_uq").on(
+      table.workspaceId,
+      table.purchaseId,
+      table.id,
+    ),
     index("purchase_lines_product_idx").on(table.workspaceId, table.productId),
+    foreignKey({
+      columns: [table.workspaceId, table.purchaseId],
+      foreignColumns: [purchases.workspaceId, purchases.id],
+      name: "purchase_lines_workspace_purchase_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "purchase_lines_workspace_product_fk",
+    }),
   ],
 );
 
@@ -90,9 +105,7 @@ export const purchaseVoids = pgTable(
   {
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
-    purchaseId: uuid("purchase_id")
-      .notNull()
-      .references(() => purchases.id),
+    purchaseId: uuid("purchase_id").notNull(),
     reasonCode: text("reason_code").notNull(),
     reason: text("reason").notNull(),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
@@ -111,6 +124,11 @@ export const purchaseVoids = pgTable(
       columns: [table.workspaceId, table.policyVersionId],
       foreignColumns: [workspacePolicies.workspaceId, workspacePolicies.id],
       name: "purchase_voids_workspace_policy_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.purchaseId],
+      foreignColumns: [purchases.workspaceId, purchases.id],
+      name: "purchase_voids_workspace_purchase_fk",
     }),
   ],
 );

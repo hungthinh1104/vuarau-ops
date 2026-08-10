@@ -13,8 +13,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { commandReceipts } from "./command.ts";
 import { cashAccounts, cashMovements } from "./cash.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 import { cashMovementSourceTypeEnum, currencyCodeEnum } from "./enums.ts";
 import { workspacePolicies } from "./policy.ts";
 import { actors, workspaces } from "./workspace.ts";
@@ -38,9 +38,7 @@ export const operationalCloses = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
     version: integer("version").notNull().default(1),
     reason: text("reason").notNull(),
   },
@@ -71,6 +69,7 @@ export const operationalCloses = pgTable(
     check("operational_closes_observations_ck", sql`cardinality(${table.observationIds}) > 0`),
     check("operational_closes_evidence_ck", sql`cardinality(${table.evidenceReferences}) > 0`),
     check("operational_closes_version_ck", sql`${table.version} > 0`),
+    workspaceCommandForeignKey(table, "operational_closes_workspace_command_fk"),
   ],
 );
 
@@ -87,9 +86,7 @@ export const operationalCloseReopens = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -106,6 +103,7 @@ export const operationalCloseReopens = pgTable(
       "operational_close_reopens_evidence_ck",
       sql`cardinality(${table.evidenceReferences}) > 0`,
     ),
+    workspaceCommandForeignKey(table, "operational_close_reopens_workspace_command_fk"),
   ],
 );
 
@@ -128,9 +126,7 @@ export const cashStatementMatches = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -158,6 +154,7 @@ export const cashStatementMatches = pgTable(
       name: "cash_statement_matches_workspace_policy_fk",
     }),
     check("cash_statement_matches_evidence_ck", sql`cardinality(${table.evidenceReferences}) > 0`),
+    workspaceCommandForeignKey(table, "cash_statement_matches_workspace_command_fk"),
   ],
 );
 
@@ -174,9 +171,7 @@ export const cashStatementMatchReversals = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -193,5 +188,6 @@ export const cashStatementMatchReversals = pgTable(
       "cash_statement_match_reversals_evidence_ck",
       sql`cardinality(${table.evidenceReferences}) > 0`,
     ),
+    workspaceCommandForeignKey(table, "cash_statement_match_reversals_workspace_command_fk"),
   ],
 );

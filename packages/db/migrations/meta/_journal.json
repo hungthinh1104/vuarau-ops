@@ -393,6 +393,27 @@
       "when": 1785809266015,
       "tag": "0055_loud_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1786366508122,
+      "tag": "0056_tan_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1786366858083,
+      "tag": "0057_shiny_dreaming_celestial",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1786367059075,
+      "tag": "0058_normal_outlaw_kid",
+      "breakpoints": true
     }
   ]
 }

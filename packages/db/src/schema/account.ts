@@ -1,5 +1,6 @@
 import {
   bigint,
+  foreignKey,
   index,
   integer,
   pgTable,
@@ -16,6 +17,7 @@ import {
 } from "./enums.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { customers } from "./customer.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 /**
  * The customer account ledger — the source of truth for what a customer owes.
@@ -30,9 +32,7 @@ export const customerAccountEntries = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    customerId: uuid("customer_id")
-      .notNull()
-      .references(() => customers.id),
+    customerId: uuid("customer_id").notNull(),
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     sourceType: accountEntrySourceTypeEnum("source_type").notNull(),
@@ -71,6 +71,12 @@ export const customerAccountEntries = pgTable(
       table.id,
     ),
     index("customer_account_entries_command_idx").on(table.commandId),
+    foreignKey({
+      columns: [table.workspaceId, table.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+      name: "customer_account_entries_workspace_customer_fk",
+    }),
+    workspaceCommandForeignKey(table, "customer_account_entries_workspace_command_fk"),
   ],
 );
 
@@ -85,9 +91,7 @@ export const customerAccountBalances = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    customerId: uuid("customer_id")
-      .notNull()
-      .references(() => customers.id),
+    customerId: uuid("customer_id").notNull(),
     /** May be negative — that means the customer is in credit (ASM-001). */
     balanceMinor: bigint("balance_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
@@ -95,5 +99,12 @@ export const customerAccountBalances = pgTable(
     lastEntryTransactionTime: timestamp("last_entry_transaction_time", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
-  (table) => [primaryKey({ columns: [table.workspaceId, table.customerId] })],
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.customerId] }),
+    foreignKey({
+      columns: [table.workspaceId, table.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+      name: "customer_account_balances_workspace_customer_fk",
+    }),
+  ],
 );

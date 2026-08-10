@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
+  foreignKey,
   index,
   integer,
   pgTable,
@@ -26,7 +27,7 @@ export const customerOrders = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    customerId: uuid("customer_id").references(() => customers.id),
+    customerId: uuid("customer_id"),
     channel: customerOrderChannelEnum("channel").notNull(),
     status: customerOrderStatusEnum("status").notNull(),
     currency: currencyCodeEnum("currency").notNull(),
@@ -78,10 +79,8 @@ export const customerOrderLines = pgTable(
   {
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
-    customerOrderId: uuid("customer_order_id")
-      .notNull()
-      .references(() => customerOrders.id),
-    productId: uuid("product_id").references(() => products.id),
+    customerOrderId: uuid("customer_order_id").notNull(),
+    productId: uuid("product_id"),
     productName: text("product_name").notNull(),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
@@ -91,6 +90,17 @@ export const customerOrderLines = pgTable(
   },
   (table) => [
     uniqueIndex("customer_order_lines_order_id_id_uq").on(table.customerOrderId, table.id),
+    uniqueIndex("customer_order_lines_workspace_id_id_uq").on(table.workspaceId, table.id),
     index("customer_order_lines_product_idx").on(table.workspaceId, table.productId),
+    foreignKey({
+      columns: [table.workspaceId, table.customerOrderId],
+      foreignColumns: [customerOrders.workspaceId, customerOrders.id],
+      name: "customer_order_lines_workspace_order_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "customer_order_lines_workspace_product_fk",
+    }),
   ],
 );

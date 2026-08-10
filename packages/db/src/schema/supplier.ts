@@ -12,8 +12,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { actors, workspaces } from "./workspace.ts";
-import { commandReceipts } from "./command.ts";
 import { cashAccounts } from "./cash.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 import { currencyCodeEnum, paymentMethodEnum, supplierAccountSourceTypeEnum } from "./enums.ts";
 
 export const suppliers = pgTable(
@@ -107,9 +107,7 @@ export const supplierAccountEntries = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     uniqueIndex("supplier_account_entries_source_uq").on(
@@ -130,6 +128,7 @@ export const supplierAccountEntries = pgTable(
       table.recordedAt,
       table.id,
     ),
+    workspaceCommandForeignKey(table, "supplier_account_entries_workspace_command_fk"),
   ],
 );
 

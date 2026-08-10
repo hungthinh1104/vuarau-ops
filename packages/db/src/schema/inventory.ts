@@ -14,9 +14,9 @@ import {
 import { actors, workspaces } from "./workspace.ts";
 import { products } from "./customer.ts";
 import { purchases, purchaseLines } from "./purchase.ts";
-import { commandReceipts } from "./command.ts";
 import { inventoryMovementSourceTypeEnum, unitEnum } from "./enums.ts";
 import { qualityGrades } from "./quality.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 export const purchaseReceipts = pgTable(
   "purchase_receipts",
@@ -25,9 +25,7 @@ export const purchaseReceipts = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    purchaseId: uuid("purchase_id")
-      .notNull()
-      .references(() => purchases.id),
+    purchaseId: uuid("purchase_id").notNull(),
     note: text("note"),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
     transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
@@ -43,6 +41,11 @@ export const purchaseReceipts = pgTable(
       table.purchaseId,
       table.transactionTime,
     ),
+    foreignKey({
+      columns: [table.workspaceId, table.purchaseId],
+      foreignColumns: [purchases.workspaceId, purchases.id],
+      name: "purchase_receipts_workspace_purchase_fk",
+    }),
   ],
 );
 export const purchaseReceiptLines = pgTable(
@@ -50,15 +53,9 @@ export const purchaseReceiptLines = pgTable(
   {
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
-    receiptId: uuid("receipt_id")
-      .notNull()
-      .references(() => purchaseReceipts.id),
-    purchaseLineId: uuid("purchase_line_id")
-      .notNull()
-      .references(() => purchaseLines.id),
-    productId: uuid("product_id")
-      .notNull()
-      .references(() => products.id),
+    receiptId: uuid("receipt_id").notNull(),
+    purchaseLineId: uuid("purchase_line_id").notNull(),
+    productId: uuid("product_id").notNull(),
     qualityGradeId: uuid("quality_grade_id"),
     qualityGradeName: text("quality_grade_name"),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
@@ -73,6 +70,21 @@ export const purchaseReceiptLines = pgTable(
       foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
       name: "purchase_receipt_lines_workspace_quality_grade_fk",
     }),
+    foreignKey({
+      columns: [table.workspaceId, table.receiptId],
+      foreignColumns: [purchaseReceipts.workspaceId, purchaseReceipts.id],
+      name: "purchase_receipt_lines_workspace_receipt_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.purchaseLineId],
+      foreignColumns: [purchaseLines.workspaceId, purchaseLines.id],
+      name: "purchase_receipt_lines_workspace_purchase_line_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "purchase_receipt_lines_workspace_product_fk",
+    }),
   ],
 );
 export const purchaseReceiptReversals = pgTable(
@@ -80,9 +92,7 @@ export const purchaseReceiptReversals = pgTable(
   {
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
-    receiptId: uuid("receipt_id")
-      .notNull()
-      .references(() => purchaseReceipts.id),
+    receiptId: uuid("receipt_id").notNull(),
     reasonCode: text("reason_code").notNull(),
     reason: text("reason").notNull(),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
@@ -94,6 +104,11 @@ export const purchaseReceiptReversals = pgTable(
   },
   (table) => [
     uniqueIndex("purchase_receipt_reversals_receipt_uq").on(table.workspaceId, table.receiptId),
+    foreignKey({
+      columns: [table.workspaceId, table.receiptId],
+      foreignColumns: [purchaseReceipts.workspaceId, purchaseReceipts.id],
+      name: "purchase_receipt_reversals_workspace_receipt_fk",
+    }),
   ],
 );
 export const inventoryMovements = pgTable(
@@ -101,9 +116,7 @@ export const inventoryMovements = pgTable(
   {
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
-    productId: uuid("product_id")
-      .notNull()
-      .references(() => products.id),
+    productId: uuid("product_id").notNull(),
     qualityGradeId: uuid("quality_grade_id"),
     qualityGradeName: text("quality_grade_name"),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
@@ -119,9 +132,7 @@ export const inventoryMovements = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     uniqueIndex("inventory_movements_adjustment_source_uq")
@@ -150,6 +161,12 @@ export const inventoryMovements = pgTable(
       foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
       name: "inventory_movements_workspace_quality_grade_fk",
     }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "inventory_movements_workspace_product_fk",
+    }),
+    workspaceCommandForeignKey(table, "inventory_movements_workspace_command_fk"),
   ],
 );
 export const inventoryBalances = pgTable(
@@ -174,6 +191,11 @@ export const inventoryBalances = pgTable(
       columns: [table.workspaceId, table.qualityGradeId],
       foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
       name: "inventory_balances_workspace_quality_grade_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "inventory_balances_workspace_product_fk",
     }),
   ],
 );

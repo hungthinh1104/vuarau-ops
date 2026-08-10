@@ -1,4 +1,13 @@
-import { index, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import {
+  foreignKey,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { commandReceiptStatusEnum } from "./enums.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { auditActionEnum, auditAggregateTypeEnum, rejectionCodeEnum } from "./audit-enums.ts";
@@ -26,6 +35,7 @@ export const commandReceipts = pgTable(
   },
   (table) => [
     unique("command_receipts_workspace_key_unique").on(table.workspaceId, table.idempotencyKey),
+    unique("command_receipts_workspace_command_unique").on(table.workspaceId, table.commandId),
     index("command_receipts_workspace_time_idx").on(table.workspaceId, table.recordedAt),
   ],
 );
@@ -62,5 +72,10 @@ export const auditLogs = pgTable(
     index("audit_logs_workspace_time_idx").on(table.workspaceId, table.recordedAt),
     index("audit_logs_aggregate_idx").on(table.workspaceId, table.aggregateType, table.aggregateId),
     index("audit_logs_command_idx").on(table.commandId),
+    foreignKey({
+      columns: [table.workspaceId, table.commandId],
+      foreignColumns: [commandReceipts.workspaceId, commandReceipts.commandId],
+      name: "audit_logs_workspace_command_fk",
+    }),
   ],
 );

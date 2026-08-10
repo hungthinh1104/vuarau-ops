@@ -21,11 +21,11 @@ import {
   currencyCodeEnum,
   unitEnum,
 } from "./enums.ts";
-import { commandReceipts } from "./command.ts";
 import { customers, products } from "./customer.ts";
 import { qualityGrades } from "./quality.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { suppliers } from "./supplier.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 /**
  * Source-linked cost/loss observations. This table is append-only evidence and
@@ -56,12 +56,11 @@ export const costObservations = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    workspaceCommandForeignKey(table, "cost_observations_workspace_command_fk"),
     index("cost_observations_workspace_time_idx").on(table.workspaceId, table.recordedAt, table.id),
     index("cost_observations_workspace_kind_idx").on(
       table.workspaceId,
@@ -133,12 +132,11 @@ export const reconciliationObservations = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    workspaceCommandForeignKey(table, "reconciliation_observations_workspace_command_fk"),
     index("reconciliation_observations_workspace_time_idx").on(
       table.workspaceId,
       table.recordedAt,
@@ -225,12 +223,11 @@ export const debtObservations = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    workspaceCommandForeignKey(table, "debt_observations_workspace_command_fk"),
     index("debt_observations_workspace_time_idx").on(table.workspaceId, table.recordedAt, table.id),
     index("debt_observations_workspace_kind_idx").on(
       table.workspaceId,
@@ -290,12 +287,11 @@ export const supplyCommitmentObservations = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    workspaceCommandForeignKey(table, "supply_commitment_observations_workspace_command_fk"),
     index("supply_commitment_observations_workspace_time_idx").on(
       table.workspaceId,
       table.recordedAt,
@@ -390,12 +386,11 @@ export const supplierObservations = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    workspaceCommandForeignKey(table, "supplier_observations_workspace_command_fk"),
     index("supplier_observations_workspace_time_idx").on(
       table.workspaceId,
       table.recordedAt,
@@ -489,12 +484,11 @@ export const demandObservations = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    workspaceCommandForeignKey(table, "demand_observations_workspace_command_fk"),
     index("demand_observations_workspace_time_idx").on(
       table.workspaceId,
       table.recordedAt,

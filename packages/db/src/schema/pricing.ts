@@ -15,6 +15,7 @@ import { customers, products } from "./customer.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { currencyCodeEnum, priceRuleKindEnum, unitEnum } from "./enums.ts";
 import { qualityGrades } from "./quality.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 /**
  * Append-only price facts. A posted sale keeps its own agreed-price snapshot;
@@ -91,5 +92,6 @@ export const priceRules = pgTable(
       foreignColumns: [customers.workspaceId, customers.id],
       name: "price_rules_workspace_customer_fk",
     }),
+    workspaceCommandForeignKey(table, "price_rules_workspace_command_fk"),
   ],
 );

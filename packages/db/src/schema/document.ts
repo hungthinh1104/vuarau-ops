@@ -1,4 +1,5 @@
 import {
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -52,9 +53,7 @@ export const documentShares = pgTable(
   {
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
-    documentId: uuid("document_id")
-      .notNull()
-      .references(() => documents.id),
+    documentId: uuid("document_id").notNull(),
     tokenHash: text("token_hash").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
@@ -69,5 +68,10 @@ export const documentShares = pgTable(
     uniqueIndex("document_shares_token_hash_uq").on(table.tokenHash),
     uniqueIndex("document_shares_workspace_id_id_uq").on(table.workspaceId, table.id),
     index("document_shares_document_idx").on(table.workspaceId, table.documentId),
+    foreignKey({
+      columns: [table.workspaceId, table.documentId],
+      foreignColumns: [documents.workspaceId, documents.id],
+      name: "document_shares_workspace_document_fk",
+    }),
   ],
 );

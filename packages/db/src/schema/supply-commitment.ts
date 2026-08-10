@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  foreignKey,
   index,
   integer,
   pgTable,
@@ -22,9 +23,7 @@ export const supplyCommitments = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    supplierId: uuid("supplier_id")
-      .notNull()
-      .references(() => suppliers.id),
+    supplierId: uuid("supplier_id").notNull(),
     status: supplyCommitmentStatusEnum("status").notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     totalAmountMinor: bigint("total_amount_minor", { mode: "number" }),
@@ -68,11 +67,9 @@ export const supplyCommitmentLines = pgTable(
   {
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
-    supplyCommitmentId: uuid("supply_commitment_id")
-      .notNull()
-      .references(() => supplyCommitments.id),
-    productId: uuid("product_id").references(() => products.id),
-    qualityGradeId: uuid("quality_grade_id").references(() => qualityGrades.id),
+    supplyCommitmentId: uuid("supply_commitment_id").notNull(),
+    productId: uuid("product_id"),
+    qualityGradeId: uuid("quality_grade_id"),
     productName: text("product_name").notNull(),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
@@ -85,6 +82,22 @@ export const supplyCommitmentLines = pgTable(
       table.supplyCommitmentId,
       table.id,
     ),
+    uniqueIndex("supply_commitment_lines_workspace_id_id_uq").on(table.workspaceId, table.id),
     index("supply_commitment_lines_product_idx").on(table.workspaceId, table.productId),
+    foreignKey({
+      columns: [table.workspaceId, table.supplyCommitmentId],
+      foreignColumns: [supplyCommitments.workspaceId, supplyCommitments.id],
+      name: "supply_commitment_lines_workspace_commitment_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "supply_commitment_lines_workspace_product_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.qualityGradeId],
+      foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
+      name: "supply_commitment_lines_workspace_quality_grade_fk",
+    }),
   ],
 );

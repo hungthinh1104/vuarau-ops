@@ -81,9 +81,9 @@ export const deliveryLines = pgTable(
       name: "delivery_lines_workspace_delivery_fk",
     }),
     foreignKey({
-      columns: [table.saleLineId],
-      foreignColumns: [saleLines.id],
-      name: "delivery_lines_sale_line_fk",
+      columns: [table.workspaceId, table.saleLineId],
+      foreignColumns: [saleLines.workspaceId, saleLines.id],
+      name: "delivery_lines_workspace_sale_line_fk",
     }),
     foreignKey({
       columns: [table.workspaceId, table.productId],

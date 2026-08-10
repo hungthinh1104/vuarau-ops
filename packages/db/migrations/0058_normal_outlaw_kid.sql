@@ -1,0 +1,1 @@
+ALTER TABLE "inventory_balances" ADD CONSTRAINT "inventory_balances_workspace_product_fk" FOREIGN KEY ("workspace_id","product_id") REFERENCES "public"."products"("workspace_id","id") ON DELETE no action ON UPDATE no action;

@@ -16,6 +16,7 @@ import { customers } from "./customer.ts";
 import { sales } from "./sale.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { cashAccounts } from "./cash.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 /**
  * `reversed_amount`, `status`, and `version` are the only mutable columns, and
@@ -32,9 +33,7 @@ export const payments = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    customerId: uuid("customer_id")
-      .notNull()
-      .references(() => customers.id),
+    customerId: uuid("customer_id").notNull(),
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     method: paymentMethodEnum("method").notNull(),
@@ -56,6 +55,11 @@ export const payments = pgTable(
       foreignColumns: [cashAccounts.workspaceId, cashAccounts.id],
       name: "payments_workspace_cash_account_fk",
     }),
+    foreignKey({
+      columns: [table.workspaceId, table.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+      name: "payments_workspace_customer_fk",
+    }),
     index("payments_workspace_customer_time_idx").on(
       table.workspaceId,
       table.customerId,
@@ -76,9 +80,7 @@ export const paymentReversals = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    paymentId: uuid("payment_id")
-      .notNull()
-      .references(() => payments.id),
+    paymentId: uuid("payment_id").notNull(),
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     reason: text("reason").notNull(),
@@ -101,9 +103,7 @@ export const paymentAllocations = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    customerId: uuid("customer_id")
-      .notNull()
-      .references(() => customers.id),
+    customerId: uuid("customer_id").notNull(),
     paymentId: uuid("payment_id").notNull(),
     saleId: uuid("sale_id").notNull(),
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
@@ -127,6 +127,12 @@ export const paymentAllocations = pgTable(
       foreignColumns: [sales.workspaceId, sales.id],
       name: "payment_allocations_workspace_sale_fk",
     }),
+    foreignKey({
+      columns: [table.workspaceId, table.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+      name: "payment_allocations_workspace_customer_fk",
+    }),
+    workspaceCommandForeignKey(table, "payment_allocations_workspace_command_fk"),
     check("payment_allocations_amount_positive_ck", sql`${table.amountMinor} > 0`),
     index("payment_allocations_workspace_customer_idx").on(
       table.workspaceId,
@@ -147,9 +153,7 @@ export const paymentAllocationReversals = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    customerId: uuid("customer_id")
-      .notNull()
-      .references(() => customers.id),
+    customerId: uuid("customer_id").notNull(),
     allocationId: uuid("allocation_id").notNull(),
     amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
     currency: currencyCodeEnum("currency").notNull(),
@@ -168,6 +172,12 @@ export const paymentAllocationReversals = pgTable(
       foreignColumns: [paymentAllocations.workspaceId, paymentAllocations.id],
       name: "payment_allocation_reversals_workspace_allocation_fk",
     }),
+    foreignKey({
+      columns: [table.workspaceId, table.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+      name: "payment_allocation_reversals_workspace_customer_fk",
+    }),
+    workspaceCommandForeignKey(table, "payment_allocation_reversals_workspace_command_fk"),
     check("payment_allocation_reversals_amount_positive_ck", sql`${table.amountMinor} > 0`),
     index("payment_allocation_reversals_workspace_customer_idx").on(
       table.workspaceId,

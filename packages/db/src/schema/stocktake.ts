@@ -11,9 +11,9 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { commandReceipts } from "./command.ts";
 import { stocktakeStateEnum, unitEnum } from "./enums.ts";
 import { actors, workspaces } from "./workspace.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 import { products } from "./customer.ts";
 import { qualityGrades } from "./quality.ts";
 import { workspacePolicies } from "./policy.ts";
@@ -38,9 +38,7 @@ export const stocktakeSessions = pgTable(
       .notNull()
       .references(() => actors.id),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -56,6 +54,7 @@ export const stocktakeSessions = pgTable(
       name: "stocktake_sessions_workspace_policy_fk",
     }),
     check("stocktake_sessions_version_ck", sql`${table.version} >= 1`),
+    workspaceCommandForeignKey(table, "stocktake_sessions_workspace_command_fk"),
   ],
 );
 
@@ -77,9 +76,7 @@ export const stocktakeCounts = pgTable(
       .notNull()
       .references(() => actors.id),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -109,6 +106,7 @@ export const stocktakeCounts = pgTable(
       foreignColumns: [table.workspaceId, table.id],
       name: "stocktake_counts_workspace_supersedes_fk",
     }),
+    workspaceCommandForeignKey(table, "stocktake_counts_workspace_command_fk"),
     check("stocktake_counts_quantity_ck", sql`${table.quantityScaled} >= 0`),
   ],
 );

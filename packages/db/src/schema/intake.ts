@@ -12,7 +12,6 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { commandReceipts } from "./command.ts";
 import {
   qualityDispositionOutcomeEnum,
   qualityDispositionSourceTypeEnum,
@@ -25,6 +24,7 @@ import { purchases, purchaseLines } from "./purchase.ts";
 import { qualityGrades } from "./quality.ts";
 import { suppliers } from "./supplier.ts";
 import { actors, workspaces } from "./workspace.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 export const qualityIssueCodes = pgTable(
   "quality_issue_codes",
@@ -71,9 +71,7 @@ export const goodsArrivals = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -94,6 +92,7 @@ export const goodsArrivals = pgTable(
       table.recordedAt,
       table.id,
     ),
+    workspaceCommandForeignKey(table, "goods_arrivals_workspace_command_fk"),
   ],
 );
 
@@ -130,9 +129,9 @@ export const goodsArrivalLines = pgTable(
       name: "goods_arrival_lines_workspace_product_fk",
     }),
     foreignKey({
-      columns: [table.purchaseId, table.purchaseLineId],
-      foreignColumns: [purchaseLines.purchaseId, purchaseLines.id],
-      name: "goods_arrival_lines_purchase_line_fk",
+      columns: [table.workspaceId, table.purchaseId, table.purchaseLineId],
+      foreignColumns: [purchaseLines.workspaceId, purchaseLines.purchaseId, purchaseLines.id],
+      name: "goods_arrival_lines_workspace_purchase_line_fk",
     }),
     check(
       "goods_arrival_lines_purchase_link_ck",
@@ -175,9 +174,7 @@ export const goodsArrivalReversals = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -187,6 +184,7 @@ export const goodsArrivalReversals = pgTable(
       name: "goods_arrival_reversals_workspace_arrival_fk",
     }),
     uniqueIndex("goods_arrival_reversals_arrival_uq").on(table.workspaceId, table.arrivalId),
+    workspaceCommandForeignKey(table, "goods_arrival_reversals_workspace_command_fk"),
   ],
 );
 
@@ -205,9 +203,7 @@ export const qualityInspections = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -224,6 +220,7 @@ export const qualityInspections = pgTable(
       table.recordedAt,
       table.id,
     ),
+    workspaceCommandForeignKey(table, "quality_inspections_workspace_command_fk"),
   ],
 );
 
@@ -265,9 +262,7 @@ export const qualityInspectionReversals = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -280,6 +275,7 @@ export const qualityInspectionReversals = pgTable(
       table.workspaceId,
       table.inspectionId,
     ),
+    workspaceCommandForeignKey(table, "quality_inspection_reversals_workspace_command_fk"),
   ],
 );
 
@@ -300,9 +296,7 @@ export const qualityDispositions = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -323,6 +317,7 @@ export const qualityDispositions = pgTable(
         ${table.sourceQuarantineAllocationId} is not null
       )`,
     ),
+    workspaceCommandForeignKey(table, "quality_dispositions_workspace_command_fk"),
   ],
 );
 
@@ -380,9 +375,7 @@ export const qualityDispositionReversals = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -395,5 +388,6 @@ export const qualityDispositionReversals = pgTable(
       table.workspaceId,
       table.dispositionId,
     ),
+    workspaceCommandForeignKey(table, "quality_disposition_reversals_workspace_command_fk"),
   ],
 );

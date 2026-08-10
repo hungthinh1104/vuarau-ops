@@ -21,7 +21,7 @@ import {
   cashMovementSourceTypeEnum,
   expenseCategoryEnum,
 } from "./enums.ts";
-import { commandReceipts } from "./command.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 export const cashAccounts = pgTable(
   "cash_accounts",
@@ -69,9 +69,7 @@ export const expenses = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
@@ -89,6 +87,7 @@ export const expenses = pgTable(
       table.recordedAt,
       table.id,
     ),
+    workspaceCommandForeignKey(table, "expenses_workspace_command_fk"),
   ],
 );
 
@@ -104,9 +103,7 @@ export const expenseReversals = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
@@ -117,6 +114,7 @@ export const expenseReversals = pgTable(
       name: "expense_reversals_workspace_expense_fk",
     }),
     uniqueIndex("expense_reversals_expense_uq").on(table.workspaceId, table.expenseId),
+    workspaceCommandForeignKey(table, "expense_reversals_workspace_command_fk"),
   ],
 );
 
@@ -135,9 +133,7 @@ export const cashTransfers = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
@@ -163,6 +159,7 @@ export const cashTransfers = pgTable(
       table.recordedAt,
       table.id,
     ),
+    workspaceCommandForeignKey(table, "cash_transfers_workspace_command_fk"),
   ],
 );
 
@@ -178,9 +175,7 @@ export const cashTransferReversals = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
@@ -191,6 +186,7 @@ export const cashTransferReversals = pgTable(
       name: "cash_transfer_reversals_workspace_transfer_fk",
     }),
     uniqueIndex("cash_transfer_reversals_transfer_uq").on(table.workspaceId, table.transferId),
+    workspaceCommandForeignKey(table, "cash_transfer_reversals_workspace_command_fk"),
   ],
 );
 
@@ -209,9 +205,7 @@ export const cashAdjustments = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
     evidenceReferences: text("evidence_references").array().notNull().default([]),
   },
   (table) => [
@@ -222,6 +216,7 @@ export const cashAdjustments = pgTable(
       name: "cash_adjustments_workspace_cash_account_fk",
     }),
     check("cash_adjustments_amount_ck", sql`${table.amountMinor} <> 0`),
+    workspaceCommandForeignKey(table, "cash_adjustments_workspace_command_fk"),
   ],
 );
 
@@ -242,9 +237,7 @@ export const cashMovements = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
@@ -267,6 +260,7 @@ export const cashMovements = pgTable(
       table.recordedAt,
       table.id,
     ),
+    workspaceCommandForeignKey(table, "cash_movements_workspace_command_fk"),
   ],
 );
 

@@ -22,6 +22,7 @@ import { products } from "./customer.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { qualityGrades } from "./quality.ts";
 import { workspacePolicies } from "./policy.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 /**
  * A completed sale. `status` and `version` are the only mutable columns, and only
@@ -39,9 +40,7 @@ export const sales = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    customerId: uuid("customer_id")
-      .notNull()
-      .references(() => customers.id),
+    customerId: uuid("customer_id").notNull(),
     status: saleStatusEnum("status").notNull(),
     currency: currencyCodeEnum("currency").notNull(),
     /** Always the sum of the line totals (BR-SALE-001); never client-supplied. */
@@ -89,6 +88,11 @@ export const sales = pgTable(
       foreignColumns: [workspacePolicies.workspaceId, workspacePolicies.id],
       name: "sales_workspace_credit_limit_policy_fk",
     }),
+    foreignKey({
+      columns: [table.workspaceId, table.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+      name: "sales_workspace_customer_fk",
+    }),
   ],
 );
 
@@ -99,15 +103,13 @@ export const saleLines = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    saleId: uuid("sale_id")
-      .notNull()
-      .references(() => sales.id),
+    saleId: uuid("sale_id").notNull(),
     /**
      * Nullable: a line typed at a market has no catalogue row, and the product
      * master has no creation command. The snapshot below is the identity of what
      * was sold (BR-SALE-011); this is only a link to a suggestion.
      */
-    productId: uuid("product_id").references(() => products.id),
+    productId: uuid("product_id"),
     /** Snapshot: later catalogue edits must not change a posted sale (BR-SALE-011). */
     productName: text("product_name").notNull(),
     qualityGradeId: uuid("quality_grade_id"),
@@ -123,10 +125,21 @@ export const saleLines = pgTable(
   },
   (table) => [
     index("sale_lines_sale_idx").on(table.saleId, table.position),
+    uniqueIndex("sale_lines_workspace_id_id_uq").on(table.workspaceId, table.id),
     foreignKey({
       columns: [table.workspaceId, table.qualityGradeId],
       foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
       name: "sale_lines_workspace_quality_grade_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.saleId],
+      foreignColumns: [sales.workspaceId, sales.id],
+      name: "sale_lines_workspace_sale_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.productId],
+      foreignColumns: [products.workspaceId, products.id],
+      name: "sale_lines_workspace_product_fk",
     }),
   ],
 );
@@ -146,9 +159,7 @@ export const saleVoids = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    saleId: uuid("sale_id")
-      .notNull()
-      .references(() => sales.id),
+    saleId: uuid("sale_id").notNull(),
     reasonCode: saleVoidReasonCodeEnum("reason_code").notNull(),
     /** Mandatory free text. What the person disputing a balance actually needs. */
     reason: text("reason").notNull(),
@@ -166,5 +177,11 @@ export const saleVoids = pgTable(
   (table) => [
     unique("sale_voids_sale_unique").on(table.saleId),
     index("sale_voids_workspace_time_idx").on(table.workspaceId, table.transactionTime),
+    foreignKey({
+      columns: [table.workspaceId, table.saleId],
+      foreignColumns: [sales.workspaceId, sales.id],
+      name: "sale_voids_workspace_sale_fk",
+    }),
+    workspaceCommandForeignKey(table, "sale_voids_workspace_command_fk"),
   ],
 );

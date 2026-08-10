@@ -11,9 +11,9 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
-import { commandReceipts } from "./command.ts";
 import { workspacePolicyKindEnum, workspacePolicyStateEnum } from "./enums.ts";
 import { actors, workspaces } from "./workspace.ts";
+import { workspaceCommandForeignKey } from "./tenant-foreign-keys.ts";
 
 /**
  * Versioned policy metadata and definitions. This table is deliberately not
@@ -42,9 +42,7 @@ export const workspacePolicies = pgTable(
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     retiredBy: uuid("retired_by").references(() => actors.id),
     retiredAt: timestamp("retired_at", { withTimezone: true }),
-    commandId: uuid("command_id")
-      .notNull()
-      .references(() => commandReceipts.commandId),
+    commandId: uuid("command_id").notNull(),
     reason: text("reason"),
   },
   (table) => [
@@ -80,5 +78,6 @@ export const workspacePolicies = pgTable(
       sql`${table.state} <> 'retired'
         or (${table.retiredBy} is not null and ${table.retiredAt} is not null)`,
     ),
+    workspaceCommandForeignKey(table, "workspace_policies_workspace_command_fk"),
   ],
 );
