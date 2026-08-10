@@ -116,7 +116,7 @@ Its JSON summary says `fieldValidation: NOT_RUN_BY_AUTOMATION`.
 ### Latest repository-owned run
 
 On 2026-08-11, the disposable run passed on exact release SHA
-`f8e5db9c0d7cfb45da7ddee590b954a796abe520`:
+`ce41c4b7887f06ab4dc018ef2db7faddc8d2d87c`:
 
 - 41 application tests and 5 PostgreSQL provisioning/import tests passed;
 - the security inventory found 103 authenticated commands and 105 authenticated

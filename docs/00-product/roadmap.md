@@ -237,7 +237,7 @@ source-backed reports.
   are recorded. Provider PITR and owner acceptance remain hard deployment gates,
   not claimed repository evidence.
 
-### M23 — Shadow-pilot readiness (repository evidence pending; pilot blocked/pending)
+### M23 — Shadow-pilot readiness (repository evidence complete; pilot blocked/pending)
 
 - `603e830` is the pre-M23 baseline; every evidence packet is bound to the exact
   deployed full SHA and the depot notebook remains operational truth;
@@ -264,12 +264,12 @@ source-backed reports.
 - H2–H6 criteria, P0–P3 stop rules, deployment/recovery evidence and support
   runbooks are frozen.
 
-The repository-truth and critical-screen Storybook reconciliation is now technically
+The repository-truth and critical-screen Storybook reconciliation is technically
 closed: every critical screen in `docs/08-qa/ui-screen-coverage.md` has a shared
-presentation View and executable Storybook states. Repository readiness remains
-**PENDING** because M23.14–M23.17 still have to close business-use-case completeness
-and cross-dimension correction semantics; visual coverage is not product
-completeness.
+presentation View and executable Storybook states. The exact-SHA repository
+release, synthetic depot day and pilot dry-run now report `PASS` on
+`ce41c4b7887f06ab4dc018ef2db7faddc8d2d87c`; visual coverage is not product
+completeness, and field/provider gates remain separate.
 
 Pilot readiness is **BLOCKED/PENDING** until the real Supabase A→B smoke,
 ASM-023/024/025, ASM-017/018, ASM-030, ASM-032/033/034, ASM-035/036/037/038,
@@ -285,7 +285,7 @@ they do not remove the remaining owner-policy, field-validation or deployment ga
 - commercial Grade is explicitly bounded from Condition/Defect/inspection policy;
 - repository truth checks fail on API/data/docs/navigation/decision/UI drift.
 
-#### M23.14 — Use-case completeness audit (current)
+#### M23.14 — Use-case completeness audit (technical closure)
 
 - evaluate actor × business event × money/goods/control effects rather than counting
   procedures as product completeness;
@@ -295,13 +295,18 @@ they do not remove the remaining owner-policy, field-validation or deployment ga
   or deliberately out-of-scope;
 - use `docs/02-use-cases/use-case-completeness-audit.md` as the working audit.
 
-#### M23.15 — Cross-dimension correction closure
+The current matrix is the authority for the remaining policy-blocked and
+deliberately excluded events; it does not turn those rows into missing product
+features.
+
+#### M23.15 — Cross-dimension correction closure (stop/exclusion closure)
 
 Resolve ASM-035–038 before feature implementation. Sale correction after Delivery,
 Purchase correction after Receiving, partial customer returns, and Supplier returns
 must preserve historical physical facts without manufacturing fake movements.
 A policy answer that changes canonical facts requires ADR/rule/case/test/restore
-review.
+review. Until then the affected commands fail closed or remain excluded from the
+pilot scope; the repository does not manufacture physical or financial effects.
 
 #### M23.16 — Field-policy closure
 
@@ -312,13 +317,15 @@ delivery cash handling and cross-dimension corrections. The pilot declaration no
 carries explicit ASM-020, ASM-029 and UC-PRICING-001 review/stop gates; no
 seeded/default category counts as owner evidence.
 
-#### M23.17 — Full depot-day rehearsal
+#### M23.17 — Full depot-day rehearsal (repository closure)
 
 Run a synthetic day through Supplier → Purchase → Receiving → Inventory → Sale →
 Delivery → Return → Payments/corrections → reports/reconciliation, including
 partial operations, unknown outcomes and mistakes. The rehearsal may only use
 business events the model can represent truthfully; a fake compensating movement
-to make a screen look complete is a failure.
+to make a screen look complete is a failure. The current exact-SHA disposable
+rehearsal passes and records its own JSON evidence; field observation is still
+not automated.
 
 **Operational-profile closure:** ADR-0024 implements an owner-selected, versioned and audited workspace profile for Purchasing, Inventory, commercial Grade, Delivery, Cashbook, direct versus inspected Intake, weighing mode and the business-day boundary. Disabled workflows reject new commands server-side while historical reads/reversals and Backup V17 remain intact. This is not a generic rule builder.
 
