@@ -7,10 +7,7 @@ type TenantCommandColumns = {
 };
 
 /** Every command effect must remain linked to a receipt in the same workspace. */
-export function workspaceCommandForeignKey(
-  table: TenantCommandColumns,
-  name: string,
-) {
+export function workspaceCommandForeignKey(table: TenantCommandColumns, name: string) {
   return foreignKey({
     columns: [table.workspaceId, table.commandId],
     foreignColumns: [commandReceipts.workspaceId, commandReceipts.commandId],

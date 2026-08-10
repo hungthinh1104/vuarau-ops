@@ -105,22 +105,27 @@ describe.skipIf(skipWithoutDatabase())("tenant-local relational integrity", () =
         workspace_id, customer_id, balance_minor, currency, entry_count, updated_at
       ) VALUES (${ctx.workspaceId}::uuid, ${ctx.customerId}::uuid, 0, 'VND', 0, ${now.toISOString()})
     `);
-    const moneyUpdateError = await captureDatabaseError(ctx.database.db.execute(sql`
+    const moneyUpdateError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
       UPDATE customer_account_balances
       SET customer_id = ${foreignCustomerId}::uuid
       WHERE workspace_id = ${ctx.workspaceId}::uuid AND customer_id = ${ctx.customerId}::uuid
-    `));
+    `),
+    );
     expect(moneyUpdateError).toContain("customer_account_balances_workspace_customer_fk");
 
-    const goodsInsertError = await captureDatabaseError(ctx.database.db.execute(sql`
+    const goodsInsertError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
       INSERT INTO inventory_balances (
         workspace_id, product_id, quality_grade_id, unit,
         quantity_scaled, movement_count, updated_at
       ) VALUES (${ctx.workspaceId}::uuid, ${foreignProductId}::uuid, NULL, 'kg', 1000, 1, ${now.toISOString()})
-    `));
+    `),
+    );
     expect(goodsInsertError).toContain("inventory_balances_workspace_product_fk");
 
-    const commercialInsertError = await captureDatabaseError(ctx.database.db.execute(sql`
+    const commercialInsertError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
       INSERT INTO sales (
         id, workspace_id, customer_id, status, currency, total_amount_minor,
         version, transaction_time, recorded_at
@@ -128,10 +133,12 @@ describe.skipIf(skipWithoutDatabase())("tenant-local relational integrity", () =
         ${crypto.randomUUID()}::uuid, ${ctx.workspaceId}::uuid, ${foreignCustomerId}::uuid,
         'draft', 'VND', 0, 1, ${now.toISOString()}, ${now.toISOString()}
       )
-    `));
+    `),
+    );
     expect(commercialInsertError).toContain("sales_workspace_customer_fk");
 
-    const evidenceInsertError = await captureDatabaseError(ctx.database.db.execute(sql`
+    const evidenceInsertError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
       INSERT INTO cost_observations (
         id, workspace_id, kind, case_kind, description, participant_wording,
         product_id, evidence_references, transaction_time, recorded_at, actor_id, command_id
@@ -140,10 +147,12 @@ describe.skipIf(skipWithoutDatabase())("tenant-local relational integrity", () =
         'test', 'test', ${foreignProductId}::uuid, ARRAY[]::text[], ${now.toISOString()}, ${now.toISOString()},
         ${ctx.actorId}::uuid, ${currentCommandId}::uuid
       )
-    `));
+    `),
+    );
     expect(evidenceInsertError).toContain("cost_observations_workspace_product_fk");
 
-    const recoveryInsertError = await captureDatabaseError(ctx.database.db.execute(sql`
+    const recoveryInsertError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
       INSERT INTO workspace_policies (
         id, workspace_id, policy_kind, version, state, effective_from,
         definition, created_by, created_at, command_id
@@ -151,7 +160,8 @@ describe.skipIf(skipWithoutDatabase())("tenant-local relational integrity", () =
         ${crypto.randomUUID()}::uuid, ${ctx.workspaceId}::uuid, 'inventory_valuation', 999,
         'draft', ${now.toISOString()}, '{}'::jsonb, ${ctx.actorId}::uuid, ${now.toISOString()}, ${foreignCommandId}::uuid
       )
-    `));
+    `),
+    );
     expect(recoveryInsertError).toContain("workspace_policies_workspace_command_fk");
   });
 });
