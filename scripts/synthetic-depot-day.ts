@@ -132,7 +132,7 @@ function createSyntheticDatabaseUrl(sourceUrl: string, releaseSha: string): stri
   if (exists.stdout.trim() !== "1") {
     const created = spawnSync(
       "psql",
-      [admin.toString(), "-v", "ON_ERROR_STOP=1", "-c", `CREATE DATABASE \"${databaseName}\"`],
+      [admin.toString(), "-v", "ON_ERROR_STOP=1", "-c", `CREATE DATABASE "${databaseName}"`],
       {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
