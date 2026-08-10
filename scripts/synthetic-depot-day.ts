@@ -55,12 +55,13 @@ export const SYNTHETIC_DEPOT_DAY_STEPS: readonly EvidenceStep[] = [
     truthDimensions: ["money", "commercial", "correction", "retry", "explanation"],
   },
   {
-    name: "cash → statement matching → close-side cash evidence",
+    name: "cash → statement matching → operational close",
     testFile: "apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts",
     proves: [
       "customer payment reaches the selected cash account once",
       "cash reconciliation remains exact",
       "statement matching is non-financial and idempotent",
+      "operational close signs off persisted cash and inventory observations and replays exactly",
     ],
     truthDimensions: ["money", "retry", "explanation"],
   },
