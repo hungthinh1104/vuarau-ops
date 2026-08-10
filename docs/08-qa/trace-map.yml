@@ -1162,9 +1162,20 @@ use_cases:
     title: Run and observe service under trusted configuration
     risk: P0
     doc: docs/02-use-cases/platform-use-cases.md
-    rules: [BR-OPS-001, BR-OPS-002, BR-OPS-006, BR-OPS-007]
+    rules: [BR-OPS-001, BR-OPS-002, BR-OPS-006, BR-OPS-007, BR-OPS-009]
     cases: []
-    tests: [TC-OPS-001, TC-OPS-002, TC-OPS-003, TC-OPS-004, TC-OPS-009, TC-OPS-010, TC-OPS-011]
+    tests:
+      [
+        TC-OPS-001,
+        TC-OPS-002,
+        TC-OPS-003,
+        TC-OPS-004,
+        TC-OPS-009,
+        TC-OPS-010,
+        TC-OPS-011,
+        TC-OPS-019,
+        TC-OPS-020,
+      ]
     implementation:
       - apps/api/src/infrastructure/config.ts
       - apps/api/src/infrastructure/logging.ts
@@ -2355,6 +2366,18 @@ business_rules:
       - apps/api/src/operations/pilot-config.ts
       - apps/api/src/operations/pilot-readiness.ts
       - scripts/pilot-dry-run.ts
+
+  BR-OPS-009:
+    title: Persisted integers fail closed at unsafe read boundaries
+    risk: P0
+    doc: docs/04-business-rules/operations-rules.md
+    cases: []
+    tests: [TC-OPS-019, TC-OPS-020]
+    implementation:
+      - packages/db/src/schema/safe-bigint.ts
+      - packages/db/src/client.ts
+      - apps/api/src/modules/shared/command-pipeline.ts
+      - apps/api/src/modules/shared/read-pipeline.ts
 
   # --- payment ------------------------------------------------------------------
   BR-PAYMENT-001:
@@ -4079,6 +4102,12 @@ contract_tests:
   TC-OPS-015:
     title: One synthetic depot day keeps four canonical truths independently reconciled
     file: apps/api/src/operations/full-depot-day.app.test.ts
+  TC-OPS-019:
+    title: Application command and read paths reject unsafe persisted integers without exposing values
+    file: apps/api/src/modules/shared/numeric-boundary.app.test.ts
+  TC-OPS-020:
+    title: PostgreSQL bigint boundaries remain exact and reject unsafe reads
+    file: packages/db/src/safe-bigint.db.test.ts
   TC-DOCUMENT-002:
     title: PostgreSQL proves append-only documents, digest validation, secure sharing and backup
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts

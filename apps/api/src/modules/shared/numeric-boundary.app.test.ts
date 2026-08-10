@@ -33,7 +33,7 @@ function throwsPersistedRangeAfterSuccess(harness: Harness): UnitOfWork {
   };
 }
 
-describe("PERSISTED_NUMBER_OUT_OF_RANGE pipeline boundary", () => {
+describe("BR-OPS-009 / TC-OPS-019 — PERSISTED_NUMBER_OUT_OF_RANGE pipeline boundary", () => {
   it("rolls back command effects and returns a non-retryable diagnostic", async () => {
     const harness = createHarness();
     const ctx = {
