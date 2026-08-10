@@ -362,6 +362,8 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   WORKSPACE_POLICY_EVIDENCE_REQUIRED: "Cần ít nhất một tham chiếu để duyệt quy định.",
   WORKSPACE_POLICY_VERSION_CONFLICT: "Quy định vừa được người khác thay đổi. Hãy tải lại.",
   WORKSPACE_POLICY_EFFECTIVE_RANGE_INVALID: "Khoảng hiệu lực của quy định không hợp lệ.",
+  PILOT_SCOPE_EXCLUDED:
+    "Tình huống này đang nằm ngoài phạm vi chạy thử. Dừng lại và báo chủ vựa; không gửi lại bằng phiếu mới.",
 
   CUSTOMER_NOT_FOUND: "Không tìm thấy khách hàng này.",
   CUSTOMER_NAME_REQUIRED: "Tên khách hàng không được để trống.",

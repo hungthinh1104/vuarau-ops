@@ -41,6 +41,10 @@ export type ServerConfig = {
   readonly databaseUrl: string;
   readonly port: number;
   readonly auth: AuthConfig;
+  readonly pilot: {
+    readonly releaseSha: string;
+    readonly configPath: string;
+  } | null;
   /** The HTTPS origin a phone actually opens. Required for a pilot. */
   readonly publicAppOrigin: string | null;
   readonly requestLimits: {
@@ -133,6 +137,21 @@ export function readServerConfig(env: Env): ConfigResult {
   }
   const appEnv = rawEnv as AppEnvironment;
   const isPilot = appEnv === "pilot";
+
+  const releaseSha = present(env, "APP_RELEASE_SHA");
+  const pilotConfigPath = present(env, "PILOT_CONFIG_PATH");
+  if (isPilot && (releaseSha === null || !/^[0-9a-f]{40}$/.test(releaseSha))) {
+    fail(
+      "APP_RELEASE_SHA",
+      "required in a pilot and must be the exact 40-character lowercase release SHA",
+    );
+  }
+  if (isPilot && pilotConfigPath === null) {
+    fail(
+      "PILOT_CONFIG_PATH",
+      "required in a pilot and must point to the operator-owned pilot declaration",
+    );
+  }
 
   // The Playwright bridge can manufacture an authenticated browser session. It is
   // useful only for the local end-to-end process and must never be present in a
@@ -259,7 +278,18 @@ export function readServerConfig(env: Env): ConfigResult {
 
   return {
     ok: true,
-    config: { appEnv, databaseUrl: databaseUrl!, port, auth, publicAppOrigin, requestLimits },
+    config: {
+      appEnv,
+      databaseUrl: databaseUrl!,
+      port,
+      auth,
+      pilot:
+        isPilot && releaseSha !== null && pilotConfigPath !== null
+          ? { releaseSha, configPath: pilotConfigPath }
+          : null,
+      publicAppOrigin,
+      requestLimits,
+    },
   };
 }
 
@@ -287,6 +317,7 @@ export function describeConfig(config: ServerConfig): readonly string[] {
     `token issuer:   ${config.auth.issuer}`,
     `token audience: ${config.auth.audience}`,
     `verification:   ${"jwksUrl" in config.auth ? "JWKS (asymmetric)" : "HS256 shared secret"}`,
+    ...(config.pilot === null ? [] : [`pilot release:  ${config.pilot.releaseSha}`]),
     `public origin:  ${config.publicAppOrigin ?? "(not set)"}`,
     `request bytes:  ${config.requestLimits.maxBodyBytes}`,
     `batch operations:${config.requestLimits.maxBatchOperations}`,

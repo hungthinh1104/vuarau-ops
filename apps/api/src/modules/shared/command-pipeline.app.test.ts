@@ -226,6 +226,33 @@ describe("BR-COMMAND-005 / TC-COMMAND-004", () => {
   });
 });
 
+describe("M23 pilot scope gate", () => {
+  it("stops an excluded command before claiming idempotency or writing an effect", async () => {
+    const pilotContext = {
+      ...harness.ctx,
+      deps: {
+        ...harness.deps,
+        pilotScope: {
+          isCommandExcluded: (commandType: string) => commandType === "RecordCustomerPayment",
+        },
+      },
+    };
+
+    const result = await recordCustomerPayment(pilotContext, paymentInput());
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: "PILOT_SCOPE_EXCLUDED",
+        details: { commandType: "RecordCustomerPayment" },
+      },
+    });
+    expect(harness.db.payments()).toHaveLength(0);
+    expect(harness.db.accountEntries()).toHaveLength(0);
+    expect(harness.db.auditRecords()).toHaveLength(0);
+  });
+});
+
 describe("BR-COMMAND-001 / TC-COMMAND-006", () => {
   it("rejects a command id reused under a different idempotency key", async () => {
     await recordCustomerPayment(harness.ctx, paymentInput());

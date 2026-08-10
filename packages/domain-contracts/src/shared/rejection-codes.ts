@@ -237,6 +237,8 @@ export const DOMAIN_REJECTION_CODES = [
   "COMMAND_IN_PROGRESS",
   "INVALID_COMMAND_PAYLOAD",
   "TRANSACTION_TIME_IN_FUTURE",
+  /** The command is deliberately outside the currently deployed pilot scope. */
+  "PILOT_SCOPE_EXCLUDED",
 
   /**
    * A capability that this phase does not implement (for example sale

@@ -40,6 +40,10 @@ export type CommandDeps = {
   readonly clock: Clock;
   /** Optional post-commit invalidation signal; canonical facts remain in PostgreSQL. */
   readonly publishInvalidation?: (event: DashboardEvent) => Promise<void>;
+  /** Present only for a shadow-pilot server; absent in development and production. */
+  readonly pilotScope?: {
+    readonly isCommandExcluded: (commandType: string) => boolean;
+  };
 };
 
 /**
@@ -189,6 +193,17 @@ export async function runCommand<
           asRejection(
             err("WORKSPACE_WORKFLOW_DISABLED", "This workflow is disabled for the current depot.", {
               workflow: disabledWorkflow,
+            }),
+          ),
+        );
+      }
+
+      if (deps.pilotScope?.isCommandExcluded(commandType) === true) {
+        throw new RollbackForRejection(
+          asRejection(
+            err("PILOT_SCOPE_EXCLUDED", "This command is outside the current shadow-pilot scope.", {
+              commandType,
+              requestId: currentRequestId(),
             }),
           ),
         );

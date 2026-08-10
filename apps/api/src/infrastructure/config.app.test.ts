@@ -25,6 +25,8 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
 
   const pilot: Env = {
     APP_ENV: "pilot",
+    APP_RELEASE_SHA: "6".repeat(40),
+    PILOT_CONFIG_PATH: "/run/secrets/pilot.json",
     DATABASE_URL: "postgresql://user:pw@db.internal:5432/vuarau?sslmode=require",
     SUPABASE_JWT_ISSUER: "https://project.supabase.co/auth/v1",
     SUPABASE_JWKS_URL: "https://project.supabase.co/auth/v1/.well-known/jwks.json",
@@ -68,6 +70,12 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
 
   it("accepts a pilot environment on JWKS", () => {
     expect(readServerConfig(pilot).ok).toBe(true);
+  });
+
+  it("requires the exact release and operator-owned declaration path in pilot", () => {
+    expect(problemsFor({ ...pilot, APP_RELEASE_SHA: undefined })).toContain("APP_RELEASE_SHA");
+    expect(problemsFor({ ...pilot, PILOT_CONFIG_PATH: undefined })).toContain("PILOT_CONFIG_PATH");
+    expect(problemsFor({ ...pilot, APP_RELEASE_SHA: "short" })).toContain("APP_RELEASE_SHA");
   });
 
   it("requires an explicit TLS mode for pilot database connections", () => {

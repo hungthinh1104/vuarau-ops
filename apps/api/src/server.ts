@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { findWorkspace, createDatabase, createUnitOfWork } from "@vuarau/db";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHTTPHandler } from "@trpc/server/adapters/standalone";
-import { createDatabase, createUnitOfWork } from "@vuarau/db";
 import { workspaceIdSchema } from "@vuarau/domain-contracts";
 import { appRouter } from "./infrastructure/trpc/router.ts";
 import { createContext } from "./infrastructure/trpc/context.ts";
@@ -20,6 +20,11 @@ import type { CommandDeps } from "./modules/shared/command-pipeline.ts";
 import { createPublicDocumentHandler } from "./modules/document/public-document.ts";
 import { authorizeWorkspaceAccess } from "./modules/shared/authorization.ts";
 import { createInvalidationBus, type InvalidationBus } from "./infrastructure/invalidation.ts";
+import {
+  readPilotRuntimeConfig,
+  validatePilotWorkspace,
+  type PilotRuntimeConfig,
+} from "./operations/pilot-runtime.ts";
 
 /**
  * The API process.
@@ -167,66 +172,102 @@ const verifier = createSupabaseJwtVerifier({
   ...("jwtSecret" in config.auth ? { jwtSecret: config.auth.jwtSecret } : {}),
 });
 
-const database = createDatabase(config.databaseUrl);
-const invalidationBus = createInvalidationBus(database.sql);
-const deps: CommandDeps = {
-  uow: createUnitOfWork(database.db, randomIdGenerator) as CommandDeps["uow"],
-  clock: systemClock,
-  publishInvalidation: invalidationBus.publish,
-};
+async function startServer(): Promise<void> {
+  const database = createDatabase(config.databaseUrl);
+  let pilot: PilotRuntimeConfig | null = null;
 
-const health = createHealthHandler(() => checkReadiness(database));
-const publicDocument = createPublicDocumentHandler(deps);
-const trpc = createApiHandler(deps, verifier, config.requestLimits.maxBatchOperations);
-const events = createEventsHandler(deps, verifier, invalidationBus);
-const guard = createRequestGuard(config.requestLimits);
-
-createServer((req, res) => {
-  /*
-   * A correlation id per request, taken from the caller when it offers one so a
-   * trace survives a proxy, and minted otherwise. Echoed in the response header,
-   * because the id a support conversation starts from is the one on the phone.
-   */
-  const requestId = safeRequestId(req.headers["x-request-id"], randomUUID());
-  res.setHeader("x-request-id", requestId);
-
-  const startedAt = Date.now();
-  const procedure = (req.url ?? "/").split("?")[0]?.replace(/^\//, "") ?? "";
-
-  res.on("finish", () => {
-    if (procedure.startsWith("health/")) return; // Already logged, with its probe.
-    log({
-      event: "request",
-      requestId,
-      // A router path — `sale.post` — and never a query string, which on a read
-      // carries the input.
-      procedure,
-      status: res.statusCode,
-      durationMs: Date.now() - startedAt,
-    });
-  });
-
-  void withRequestId(requestId, async () => {
-    if (guard(req, res)) return;
-    if (await health(req, res)) return;
-    if (await events(req, res)) return;
-    if ((req.url ?? "").split("?")[0] === "/metrics" && req.method === "GET") {
-      res.writeHead(200, {
-        "content-type": "text/plain; version=0.0.4; charset=utf-8",
-        "cache-control": "no-store",
-      });
-      res.end(renderMetrics());
+  if (config.pilot !== null) {
+    const runtime = readPilotRuntimeConfig(config.pilot.configPath, config.pilot.releaseSha);
+    if (!runtime.ok) {
+      console.error("The pilot API cannot start. Fix the operator-owned pilot declaration:\n");
+      for (const problem of runtime.problems) console.error(`  ${problem}`);
+      await database.sql.end();
+      process.exitCode = 1;
       return;
     }
-    if (await publicDocument(req, res)) return;
-    trpc(req, res);
+
+    const workspace = await findWorkspace(database, runtime.runtime.config.workspaceId);
+    const workspaceProblems = validatePilotWorkspace(
+      workspace,
+      runtime.runtime.config.workspaceName,
+    );
+    if (workspaceProblems.length > 0) {
+      console.error("The pilot API cannot start. Fix the declared pilot workspace:\n");
+      for (const problem of workspaceProblems) console.error(`  ${problem}`);
+      await database.sql.end();
+      process.exitCode = 1;
+      return;
+    }
+    pilot = runtime.runtime;
+  }
+
+  const invalidationBus = createInvalidationBus(database.sql);
+  const deps: CommandDeps = {
+    uow: createUnitOfWork(database.db, randomIdGenerator) as CommandDeps["uow"],
+    clock: systemClock,
+    publishInvalidation: invalidationBus.publish,
+    ...(pilot === null ? {} : { pilotScope: pilot.scope }),
+  };
+
+  const health = createHealthHandler(() => checkReadiness(database));
+  const publicDocument = createPublicDocumentHandler(deps);
+  const trpc = createApiHandler(deps, verifier, config.requestLimits.maxBatchOperations);
+  const events = createEventsHandler(deps, verifier, invalidationBus);
+  const guard = createRequestGuard(config.requestLimits);
+
+  createServer((req, res) => {
+    /*
+     * A correlation id per request, taken from the caller when it offers one so a
+     * trace survives a proxy, and minted otherwise. Echoed in the response header,
+     * because the id a support conversation starts from is the one on the phone.
+     */
+    const requestId = safeRequestId(req.headers["x-request-id"], randomUUID());
+    res.setHeader("x-request-id", requestId);
+
+    const startedAt = Date.now();
+    const procedure = (req.url ?? "/").split("?")[0]?.replace(/^\//, "") ?? "";
+
+    res.on("finish", () => {
+      if (procedure.startsWith("health/")) return; // Already logged, with its probe.
+      log({
+        event: "request",
+        requestId,
+        // A router path — `sale.post` — and never a query string, which on a read
+        // carries the input.
+        procedure,
+        status: res.statusCode,
+        durationMs: Date.now() - startedAt,
+      });
+    });
+
+    void withRequestId(requestId, async () => {
+      if (guard(req, res)) return;
+      if (await health(req, res)) return;
+      if (await events(req, res)) return;
+      if ((req.url ?? "").split("?")[0] === "/metrics" && req.method === "GET") {
+        res.writeHead(200, {
+          "content-type": "text/plain; version=0.0.4; charset=utf-8",
+          "cache-control": "no-store",
+        });
+        res.end(renderMetrics());
+        return;
+      }
+      if (await publicDocument(req, res)) return;
+      trpc(req, res);
+    });
+  }).listen(config.port, () => {
+    for (const line of describeConfig(config)) console.warn(line);
+    log({
+      event: "startup",
+      appEnv: config.appEnv,
+      port: config.port,
+      verification: "jwksUrl" in config.auth ? "jwks" : "hs256",
+    });
   });
-}).listen(config.port, () => {
-  for (const line of describeConfig(config)) console.warn(line);
-  log({
-    event: "startup",
-    appEnv: config.appEnv,
-    port: config.port,
-    verification: "jwksUrl" in config.auth ? "jwks" : "hs256",
-  });
+}
+
+void startServer().catch(async (error: unknown) => {
+  console.error("The API cannot start because startup validation failed.");
+  console.error(error instanceof Error ? error.message : "unknown startup error");
+  process.exitCode = 1;
 });
