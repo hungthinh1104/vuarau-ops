@@ -25,6 +25,7 @@ import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { costObservationForm } from "@/ui/patterns/evidence/observation-form-registry.ts";
 
 const KIND_COPY: Readonly<Record<CostObservationKind, string>> = {
   purchase_price: "Giá mua được quan sát",
@@ -153,6 +154,7 @@ export function EvidenceView(props: {
 
 function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
   const locked = props.command.phase.kind === "sending" || props.command.phase.kind === "unknown";
+  const contract = costObservationForm(props.kind);
   return (
     <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
       <h2 className="text-subheading font-semibold">Quan sát mới</h2>
@@ -182,26 +184,33 @@ function ObservationForm(props: Parameters<typeof EvidenceView>[0]) {
         value={props.participantWording}
         onChange={(event) => props.onParticipantWording(event.target.value)}
       />
+      <p className="text-body-sm text-ink-muted">{contract.hint}</p>
       <div className="grid gap-4 sm:grid-cols-3">
-        <MoneyInput
-          label="Số tiền quan sát (₫)"
-          currency="VND"
-          value={props.amount}
-          onChange={(event) => props.onAmount(event.target.value)}
-        />
-        <QuantityInput
-          label="Số lượng quan sát"
-          unit={props.unit}
-          unitLabel={UNIT_LABEL_VI[props.unit]}
-          value={props.quantity}
-          onChange={(event) => props.onQuantity(event.target.value)}
-        />
-        <Select
-          label="Đơn vị"
-          value={props.unit}
-          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
-          onChange={(event) => props.onUnit(event.target.value as Unit)}
-        />
+        {contract.fields.includes("amount") ? (
+          <MoneyInput
+            label="Số tiền quan sát (₫)"
+            currency="VND"
+            value={props.amount}
+            onChange={(event) => props.onAmount(event.target.value)}
+          />
+        ) : null}
+        {contract.fields.includes("quantity") ? (
+          <QuantityInput
+            label="Số lượng quan sát"
+            unit={props.unit}
+            unitLabel={UNIT_LABEL_VI[props.unit]}
+            value={props.quantity}
+            onChange={(event) => props.onQuantity(event.target.value)}
+          />
+        ) : null}
+        {contract.fields.includes("quantity") ? (
+          <Select
+            label="Đơn vị"
+            value={props.unit}
+            options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
+            onChange={(event) => props.onUnit(event.target.value as Unit)}
+          />
+        ) : null}
       </div>
       <TextInput
         label="Tham chiếu nguồn nội bộ (tuỳ chọn)"

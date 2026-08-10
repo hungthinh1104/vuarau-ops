@@ -23,6 +23,7 @@ import { MoneyInput } from "@/ui/primitives/money-input.tsx";
 import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { reconciliationObservationForm } from "@/ui/patterns/evidence/observation-form-registry.ts";
 
 const KIND_COPY: Readonly<Record<ReconciliationObservationKind, string>> = {
   cash_count: "Đếm tiền thực tế",
@@ -128,6 +129,7 @@ export function ReconciliationEvidenceView(props: {
 
 function ObservationForm(props: Parameters<typeof ReconciliationEvidenceView>[0]) {
   const locked = props.command.phase.kind === "sending" || props.command.phase.kind === "unknown";
+  const contract = reconciliationObservationForm(props.kind);
   return (
     <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
       <h2 className="text-subheading font-semibold">Quan sát mới</h2>
@@ -157,47 +159,61 @@ function ObservationForm(props: Parameters<typeof ReconciliationEvidenceView>[0]
         value={props.participantWording}
         onChange={(event) => props.onParticipantWording(event.target.value)}
       />
+      <p className="text-body-sm text-ink-muted">{contract.hint}</p>
       <div className="grid gap-4 sm:grid-cols-2">
-        <MoneyInput
-          label="Số kỳ vọng (₫)"
-          currency="VND"
-          value={props.expectedAmount}
-          onChange={(event) => props.onExpectedAmount(event.target.value)}
-        />
-        <MoneyInput
-          label="Số quan sát được (₫)"
-          currency="VND"
-          value={props.observedAmount}
-          onChange={(event) => props.onObservedAmount(event.target.value)}
-        />
-        <QuantityInput
-          label="Lượng kỳ vọng"
-          unit={props.unit}
-          unitLabel={UNIT_LABEL_VI[props.unit]}
-          value={props.expectedQuantity}
-          onChange={(event) => props.onExpectedQuantity(event.target.value)}
-        />
-        <QuantityInput
-          label="Lượng quan sát được"
-          unit={props.unit}
-          unitLabel={UNIT_LABEL_VI[props.unit]}
-          value={props.observedQuantity}
-          onChange={(event) => props.onObservedQuantity(event.target.value)}
-        />
+        {contract.fields.includes("expectedAmount") ? (
+          <MoneyInput
+            label="Số kỳ vọng (₫)"
+            currency="VND"
+            value={props.expectedAmount}
+            onChange={(event) => props.onExpectedAmount(event.target.value)}
+          />
+        ) : null}
+        {contract.fields.includes("observedAmount") ? (
+          <MoneyInput
+            label="Số quan sát được (₫)"
+            currency="VND"
+            value={props.observedAmount}
+            onChange={(event) => props.onObservedAmount(event.target.value)}
+          />
+        ) : null}
+        {contract.fields.includes("expectedQuantity") ? (
+          <QuantityInput
+            label="Lượng kỳ vọng"
+            unit={props.unit}
+            unitLabel={UNIT_LABEL_VI[props.unit]}
+            value={props.expectedQuantity}
+            onChange={(event) => props.onExpectedQuantity(event.target.value)}
+          />
+        ) : null}
+        {contract.fields.includes("observedQuantity") ? (
+          <QuantityInput
+            label="Lượng quan sát được"
+            unit={props.unit}
+            unitLabel={UNIT_LABEL_VI[props.unit]}
+            value={props.observedQuantity}
+            onChange={(event) => props.onObservedQuantity(event.target.value)}
+          />
+        ) : null}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select
-          label="Đơn vị số lượng"
-          value={props.unit}
-          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
-          onChange={(event) => props.onUnit(event.target.value as Unit)}
-        />
-        <TextInput
-          label="Số kiện / dòng đếm (tuỳ chọn)"
-          inputMode="numeric"
-          value={props.itemCount}
-          onChange={(event) => props.onItemCount(event.target.value)}
-        />
+        {contract.fields.includes("expectedQuantity") ||
+        contract.fields.includes("observedQuantity") ? (
+          <Select
+            label="Đơn vị số lượng"
+            value={props.unit}
+            options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
+            onChange={(event) => props.onUnit(event.target.value as Unit)}
+          />
+        ) : null}
+        {contract.fields.includes("itemCount") ? (
+          <TextInput
+            label="Số kiện / dòng đếm (tuỳ chọn)"
+            inputMode="numeric"
+            value={props.itemCount}
+            onChange={(event) => props.onItemCount(event.target.value)}
+          />
+        ) : null}
       </div>
       <TextInput
         label="Phạm vi / mã phiếu liên quan (tuỳ chọn)"
