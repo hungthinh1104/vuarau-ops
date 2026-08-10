@@ -21,7 +21,7 @@ import {
 import type { PurchaseLineState, PurchaseState, PurchaseVoidState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
-import { sumMoney, zeroMoney } from "../shared/money.ts";
+import { sumMoneyExact, zeroMoney } from "../shared/money.ts";
 
 export function validatePurchaseLines(
   lines: readonly PurchaseLineInput[],
@@ -52,7 +52,7 @@ export function validatePurchaseLines(
 }
 
 const total = (lines: readonly PurchaseLineState[], currency: PurchaseState["currency"]) =>
-  sumMoney(
+  sumMoneyExact(
     lines.map((line) => line.lineTotal),
     currency,
   );
@@ -63,6 +63,12 @@ export function decideCreatePurchaseDraft(
 ): DomainResult<PurchaseState> {
   const lines = validatePurchaseLines(command.payload.lines, command.payload.currency);
   if (!lines.ok) return lines;
+  const totalAmount = total(lines.value, command.payload.currency);
+  if (totalAmount === null) {
+    return err("PURCHASE_LINE_INVALID", "Purchase total exceeds the exact integer range.", {
+      reason: "money_aggregate_out_of_range",
+    });
+  }
   return ok({
     id: command.payload.purchaseId,
     workspaceId: command.workspaceId,
@@ -70,7 +76,7 @@ export function decideCreatePurchaseDraft(
     status: "draft",
     currency: command.payload.currency,
     lines: lines.value,
-    totalAmount: total(lines.value, command.payload.currency),
+    totalAmount,
     note: command.payload.note?.trim() || null,
     evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     dueAt: command.payload.dueAt,
@@ -97,12 +103,18 @@ export function decideUpdatePurchaseDraft(
     return err("PURCHASE_VERSION_CONFLICT", "Purchase changed on the server.");
   const lines = validatePurchaseLines(command.payload.lines, command.payload.currency);
   if (!lines.ok) return lines;
+  const totalAmount = total(lines.value, command.payload.currency);
+  if (totalAmount === null) {
+    return err("PURCHASE_LINE_INVALID", "Purchase total exceeds the exact integer range.", {
+      reason: "money_aggregate_out_of_range",
+    });
+  }
   return ok({
     ...current,
     supplierId: command.payload.supplierId,
     currency: command.payload.currency,
     lines: lines.value,
-    totalAmount: total(lines.value, command.payload.currency),
+    totalAmount,
     note: command.payload.note?.trim() || null,
     evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
     dueAt: command.payload.dueAt,
@@ -144,10 +156,16 @@ export function decideConfirmPurchase(
   if (current.lines.length === 0) return err("PURCHASE_EMPTY", "Purchase has no lines.");
   const lines = validatePurchaseLines(current.lines, current.currency);
   if (!lines.ok) return lines;
+  const totalAmount = total(lines.value, current.currency);
+  if (totalAmount === null) {
+    return err("PURCHASE_LINE_INVALID", "Purchase total exceeds the exact integer range.", {
+      reason: "money_aggregate_out_of_range",
+    });
+  }
   return ok({
     ...current,
     lines: lines.value,
-    totalAmount: total(lines.value, current.currency),
+    totalAmount,
     status: "confirmed",
     version: current.version + 1,
     confirmedAt: recordedAt,

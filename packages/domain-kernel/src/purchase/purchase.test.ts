@@ -76,6 +76,38 @@ describe("Purchase lifecycle", () => {
     if (!edit.ok) expect(edit.error.code).toBe("PURCHASE_ALREADY_CONFIRMED");
   });
 
+  it("refuses a multi-line total that would lose integer precision", () => {
+    const base = create();
+    const result = decideCreatePurchaseDraft(
+      {
+        ...base,
+        payload: {
+          ...base.payload,
+          lines: [
+            {
+              ...base.payload.lines[0]!,
+              quantity: { valueScaled: 1_000, unit: "kg" },
+              unitPrice: { amountMinor: Number.MAX_SAFE_INTEGER - 1, currency: "VND" },
+            },
+            {
+              ...base.payload.lines[0]!,
+              lineId: crypto.randomUUID() as PurchaseLineId,
+              quantity: { valueScaled: 1_000, unit: "kg" },
+              unitPrice: { amountMinor: 10, currency: "VND" },
+            },
+          ],
+        },
+      },
+      "2026-07-29T01:00:01.000Z",
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("PURCHASE_LINE_INVALID");
+      expect(result.error.details).toMatchObject({ reason: "money_aggregate_out_of_range" });
+    }
+  });
+
   it("requires a confirmed Purchase and a nonblank reason to void", () => {
     const draft = decideCreatePurchaseDraft(create(), "2026-07-29T01:00:01.000Z");
     if (!draft.ok) throw new Error("fixture failed");

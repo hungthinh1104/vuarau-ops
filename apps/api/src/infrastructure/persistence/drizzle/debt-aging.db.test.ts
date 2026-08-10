@@ -171,6 +171,24 @@ describe.skipIf(skipWithoutDatabase())("debt aging against PostgreSQL", () => {
     });
     expect(allocation.ok).toBe(true);
 
+    // A correction must not leave this attribution pointing at a Sale that the
+    // aging read no longer includes after voiding. The real PostgreSQL adapter
+    // must enforce the same sequencing as the in-memory application contract.
+    const blockedSaleVoid = await voidSale(owner, {
+      ...envelope("db-aging-sale-void-with-active-allocation", "2026-07-31T07:00:00.000Z"),
+      payload: {
+        saleVoidId: crypto.randomUUID(),
+        saleId: draft.value!.id,
+        reasonCode: "wrong_amount",
+        reason: "Không được bỏ sót phân bổ tiền khi sửa đơn.",
+        evidenceReferences: [],
+      },
+    });
+    expect(blockedSaleVoid).toMatchObject({
+      ok: false,
+      error: { code: "SALE_HAS_ACTIVE_PAYMENT_ALLOCATIONS" },
+    });
+
     const strandedAllocation = await reverseCustomerPayment(owner, {
       ...envelope("db-aging-payment-reversal-with-allocation", "2026-07-31T06:00:00.000Z"),
       expectedVersion: 1,

@@ -136,6 +136,26 @@ function sumMoney(values: readonly Money[], currency: CurrencyCode): Money {
   };
 }
 
+function sourceMoneyExceedsExactRange(sources: DebtAgingSources): boolean {
+  const amounts = [
+    ...sources.sales.map((source) => source.amount.amountMinor),
+    ...sources.payments.flatMap((source) => [
+      source.amount.amountMinor,
+      ...source.reversals.map((reversal) => reversal.amount.amountMinor),
+    ]),
+    ...sources.ledgerEntries.map((source) => source.amount.amountMinor),
+    ...sources.allocations.map((source) => source.amount.amountMinor),
+    ...sources.allocationReversals.map((source) => source.amount.amountMinor),
+  ];
+  let magnitude = 0n;
+  for (const amount of amounts) {
+    if (!Number.isSafeInteger(amount)) return true;
+    magnitude += BigInt(Math.abs(amount));
+    if (magnitude > BigInt(Number.MAX_SAFE_INTEGER)) return true;
+  }
+  return false;
+}
+
 function subtractMoney(left: Money, right: Money): Money {
   return { amountMinor: left.amountMinor - right.amountMinor, currency: left.currency };
 }
@@ -175,6 +195,28 @@ export function calculateDebtAging(
   asOf: IsoInstant,
 ): DebtAgingCalculation {
   const diagnostics = new Set<string>();
+  const currency =
+    sources.ledgerEntries[0]?.amount.currency ??
+    sources.sales[0]?.amount.currency ??
+    sources.payments[0]?.amount.currency ??
+    "VND";
+  if (sourceMoneyExceedsExactRange(sources)) {
+    return {
+      rows: [],
+      payments: [],
+      totals: {
+        ledgerBalance: { amountMinor: 0, currency },
+        saleOutstanding: { amountMinor: 0, currency },
+        overdue: { amountMinor: 0, currency },
+        due: { amountMinor: 0, currency },
+        notDue: { amountMinor: 0, currency },
+        disputed: { amountMinor: 0, currency },
+        customerCredit: { amountMinor: 0, currency },
+        unallocatedPayment: { amountMinor: 0, currency },
+      },
+      diagnostics: ["money_aggregate_out_of_range"],
+    };
+  }
   const sales = [...sources.sales].sort((left, right) =>
     left.transactionTime === right.transactionTime
       ? left.saleId.localeCompare(right.saleId)
@@ -196,12 +238,6 @@ export function calculateDebtAging(
         ? left.paymentId.localeCompare(right.paymentId)
         : left.transactionTime.localeCompare(right.transactionTime),
     );
-  const currency =
-    sources.ledgerEntries[0]?.amount.currency ??
-    sales[0]?.amount.currency ??
-    payments[0]?.amount.currency ??
-    "VND";
-
   if (
     [...sources.sales, ...sources.payments, ...sources.ledgerEntries].some(
       (source) => source.amount.currency !== currency,

@@ -48,6 +48,35 @@ export function voidSale(ctx: CommandContext, input: unknown): Promise<DomainRes
         });
       }
 
+      // A payment allocation is an attribution, not a ledger effect. Once the
+      // Sale is voided its source Sale disappears from debt-aging inputs, so an
+      // unreversed allocation would become an orphaned attribution. Require the
+      // operator to reverse that attribution first; the payment itself remains
+      // untouched and can still be reconciled normally.
+      const allocationFacts = await repos.paymentAllocations.listByCustomer(
+        command.workspaceId,
+        sale.customerId,
+      );
+      const reversedByAllocation = new Map<string, number>();
+      for (const reversal of allocationFacts.reversals) {
+        reversedByAllocation.set(
+          reversal.allocationId,
+          (reversedByAllocation.get(reversal.allocationId) ?? 0) + reversal.amount.amountMinor,
+        );
+      }
+      const hasActiveAllocation = allocationFacts.allocations.some(
+        (allocation) =>
+          allocation.saleId === sale.id &&
+          allocation.amount.amountMinor - (reversedByAllocation.get(allocation.id) ?? 0) > 0,
+      );
+      if (hasActiveAllocation) {
+        return err(
+          "SALE_HAS_ACTIVE_PAYMENT_ALLOCATIONS",
+          "Reverse payment allocations before voiding this sale.",
+          { saleId: sale.id },
+        );
+      }
+
       const fulfilled =
         command.payload.reasonCode === "goods_returned"
           ? await repos.deliveries.netFulfilledBySaleLine(command.workspaceId, sale.id, null)

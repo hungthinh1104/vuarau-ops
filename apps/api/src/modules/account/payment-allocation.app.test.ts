@@ -18,6 +18,7 @@ import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { reverseCustomerPayment } from "../payment/reverse-payment.handler.ts";
+import { voidSale } from "../sale/void-sale.handler.ts";
 import { getCustomerDebtAging } from "./account.queries.ts";
 import { exportWorkspaceBackup } from "../operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../operations/restore-workspace.handler.ts";
@@ -225,6 +226,64 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
     });
     expect(harness.db.reversals()).toHaveLength(0);
     expect(harness.db.accountEntries()).toHaveLength(2);
+  });
+
+  it("blocks sale correction until its payment allocation is reversed", async () => {
+    const harness = createHarness();
+    await setupManualAllocation(harness);
+    const allocation = await recordPaymentAllocation(harness.ctx, {
+      ...envelope("allocation-before-sale-void", LATER_TRANSACTION_TIME),
+      expectedVersion: 1,
+      payload: {
+        allocationId: crypto.randomUUID(),
+        paymentId: PAYMENT_ID,
+        saleId: SALE_ID,
+        amount: { amountMinor: 300_000, currency: "VND" },
+        evidenceReferences: [],
+      },
+    });
+    expect(allocation.ok).toBe(true);
+    if (!allocation.ok) return;
+
+    const blocked = await voidSale(harness.ctx, {
+      ...envelope("sale-void-blocked-by-allocation", LATEST_TRANSACTION_TIME),
+      payload: {
+        saleId: SALE_ID,
+        saleVoidId: crypto.randomUUID(),
+        reasonCode: "wrong_amount",
+        reason: "Cần sửa lại đơn.",
+        evidenceReferences: [],
+      },
+    });
+    expect(blocked).toMatchObject({
+      ok: false,
+      error: { code: "SALE_HAS_ACTIVE_PAYMENT_ALLOCATIONS" },
+    });
+
+    const reversed = await reversePaymentAllocation(harness.ctx, {
+      ...envelope("allocation-before-sale-void-reversal", LATEST_TRANSACTION_TIME),
+      expectedVersion: 1,
+      payload: {
+        allocationId: allocation.value.id,
+        reversalId: crypto.randomUUID(),
+        amount: { amountMinor: 300_000, currency: "VND" },
+        reason: "Gỡ phân bổ trước khi sửa đơn.",
+        evidenceReferences: [],
+      },
+    });
+    expect(reversed.ok).toBe(true);
+
+    const allowed = await voidSale(harness.ctx, {
+      ...envelope("sale-void-after-allocation-reversal", LATEST_TRANSACTION_TIME),
+      payload: {
+        saleId: SALE_ID,
+        saleVoidId: crypto.randomUUID(),
+        reasonCode: "wrong_amount",
+        reason: "Sửa lại đơn sau khi gỡ phân bổ.",
+        evidenceReferences: [],
+      },
+    });
+    expect(allowed.ok).toBe(true);
   });
 
   it("exports and restores allocation facts with their compensation stream", async () => {

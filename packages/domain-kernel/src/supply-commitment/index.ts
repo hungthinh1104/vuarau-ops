@@ -12,7 +12,7 @@ import type { Decision } from "../shared/effects.ts";
 import type { SupplyCommitmentLineState, SupplyCommitmentState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
-import { sumMoney } from "../shared/money.ts";
+import { sumMoneyExact } from "../shared/money.ts";
 
 function validateLines(
   lines: readonly SupplyCommitmentLineInput[],
@@ -56,7 +56,7 @@ function total(
 ) {
   return lines.length === 0 || lines.some((line) => line.lineTotal === null)
     ? null
-    : sumMoney(
+    : sumMoneyExact(
         lines.map((line) => line.lineTotal!),
         currency,
       );
@@ -78,6 +78,20 @@ export function decideCreateSupplyCommitmentDraft(
 ): DomainResult<Decision<SupplyCommitmentState>> {
   const lines = validateLines(command.payload.lines, command.payload.currency);
   if (!lines.ok) return lines;
+  const totalAmount = total(lines.value, command.payload.currency);
+  if (
+    totalAmount === null &&
+    lines.value.length > 0 &&
+    lines.value.every((line) => line.lineTotal !== null)
+  ) {
+    return err(
+      "SUPPLY_COMMITMENT_LINE_INVALID",
+      "Supply Commitment total exceeds the exact integer range.",
+      {
+        reason: "money_aggregate_out_of_range",
+      },
+    );
+  }
   const commitment: SupplyCommitmentState = {
     id: command.payload.supplyCommitmentId,
     workspaceId: command.workspaceId,
@@ -85,7 +99,7 @@ export function decideCreateSupplyCommitmentDraft(
     status: "draft",
     currency: command.payload.currency,
     lines: lines.value,
-    totalAmount: total(lines.value, command.payload.currency),
+    totalAmount,
     expectedArrivalAt: command.payload.expectedArrivalAt,
     paymentTermsSnapshot: command.payload.paymentTermsSnapshot,
     note: command.payload.note?.trim() || null,
@@ -133,12 +147,26 @@ export function decideUpdateSupplyCommitmentDraft(
     );
   const lines = validateLines(command.payload.lines, command.payload.currency);
   if (!lines.ok) return lines;
+  const totalAmount = total(lines.value, command.payload.currency);
+  if (
+    totalAmount === null &&
+    lines.value.length > 0 &&
+    lines.value.every((line) => line.lineTotal !== null)
+  ) {
+    return err(
+      "SUPPLY_COMMITMENT_LINE_INVALID",
+      "Supply Commitment total exceeds the exact integer range.",
+      {
+        reason: "money_aggregate_out_of_range",
+      },
+    );
+  }
   const edited: SupplyCommitmentState = {
     ...current,
     supplierId: command.payload.supplierId,
     currency: command.payload.currency,
     lines: lines.value,
-    totalAmount: total(lines.value, command.payload.currency),
+    totalAmount,
     expectedArrivalAt: command.payload.expectedArrivalAt,
     paymentTermsSnapshot: command.payload.paymentTermsSnapshot,
     note: command.payload.note?.trim() || null,

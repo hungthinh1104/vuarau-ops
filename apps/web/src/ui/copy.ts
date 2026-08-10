@@ -447,6 +447,8 @@ const REJECTION_COPY: Readonly<Partial<Record<DomainRejectionCode, string>>> = {
   SALE_VOID_REASON_REQUIRED: "Cần ghi rõ lý do hoàn tác đơn.",
   SALE_GOODS_RETURN_INCOMPLETE:
     "Đơn vẫn còn hàng thực giao chưa trả hết. Không thể hoàn tác toàn bộ công nợ như một lần trả toàn bộ.",
+  SALE_HAS_ACTIVE_PAYMENT_ALLOCATIONS:
+    "Cần hoàn tác các phân bổ tiền vào đơn trước khi hoàn tác đơn hàng.",
   SALE_REPLACEMENT_NOT_VOIDED: "Chỉ tạo đơn thay thế sau khi đơn gốc đã được hoàn tác.",
   SALE_REPLACEMENT_ALREADY_EXISTS: "Đơn này đã có một đơn thay thế trong chuỗi điều chỉnh.",
   SALE_REPLACEMENT_ACTOR_MISMATCH:

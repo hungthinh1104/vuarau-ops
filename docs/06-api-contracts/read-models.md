@@ -92,6 +92,12 @@ Orders and supply commitments are intentionally excluded until explicit conversi
 lineage can prevent double counting. This projection does not replace canonical
 inventory balances, Purchase receiving progress or Sale fulfilment reads.
 
+The coverage batch deliberately aggregates all QualityGrade buckets for the same
+Product and unit. That aggregation answers the operational question “how much of
+this Product is available after commitments?”; it does not claim that one grade
+can satisfy a requirement for another grade. Grade-specific truth remains in
+`inventory.balances`, the inventory timeline and the source fulfilment/read models.
+
 `inventory.valuation` is a read-only, workspace-policy-backed result at an
 explicit `asOf` time. It derives inventory value from canonical movement facts
 and Receipt → immutable Purchase-line cost lineage. Missing policy, incomplete

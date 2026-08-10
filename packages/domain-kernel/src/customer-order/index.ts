@@ -13,7 +13,7 @@ import type { CustomerOrderLineState, CustomerOrderState } from "../shared/state
 import type { Decision } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
-import { sumMoney } from "../shared/money.ts";
+import { sumMoneyExact } from "../shared/money.ts";
 
 function validateChannelCustomer(command: {
   readonly channel: CustomerOrderState["channel"];
@@ -98,7 +98,7 @@ function calculateTotal(
 ) {
   return lines.length === 0 || lines.some((line) => line.lineTotal === null)
     ? null
-    : sumMoney(
+    : sumMoneyExact(
         lines.map((line) => line.lineTotal!),
         currency,
       );
@@ -122,6 +122,20 @@ export function decideCreateCustomerOrderDraft(
   if (!channel.ok) return channel;
   const lines = validateLines(command.payload.lines, command.payload.currency, false);
   if (!lines.ok) return lines;
+  const totalAmount = calculateTotal(lines.value, command.payload.currency);
+  if (
+    totalAmount === null &&
+    lines.value.length > 0 &&
+    lines.value.every((line) => line.lineTotal !== null)
+  ) {
+    return err(
+      "CUSTOMER_ORDER_LINE_INVALID",
+      "Customer Order total exceeds the exact integer range.",
+      {
+        reason: "money_aggregate_out_of_range",
+      },
+    );
+  }
   const order: CustomerOrderState = {
     id: command.payload.customerOrderId,
     workspaceId: command.workspaceId,
@@ -130,7 +144,7 @@ export function decideCreateCustomerOrderDraft(
     status: "draft",
     currency: command.payload.currency,
     lines: lines.value,
-    totalAmount: calculateTotal(lines.value, command.payload.currency),
+    totalAmount,
     note: command.payload.note?.trim() || null,
     paymentTermsSnapshot: command.payload.paymentTermsSnapshot,
     evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
@@ -177,13 +191,27 @@ export function decideUpdateCustomerOrderDraft(
   if (!channel.ok) return channel;
   const lines = validateLines(command.payload.lines, command.payload.currency, false);
   if (!lines.ok) return lines;
+  const totalAmount = calculateTotal(lines.value, command.payload.currency);
+  if (
+    totalAmount === null &&
+    lines.value.length > 0 &&
+    lines.value.every((line) => line.lineTotal !== null)
+  ) {
+    return err(
+      "CUSTOMER_ORDER_LINE_INVALID",
+      "Customer Order total exceeds the exact integer range.",
+      {
+        reason: "money_aggregate_out_of_range",
+      },
+    );
+  }
   const edited: CustomerOrderState = {
     ...current,
     customerId: command.payload.customerId,
     channel: command.payload.channel,
     currency: command.payload.currency,
     lines: lines.value,
-    totalAmount: calculateTotal(lines.value, command.payload.currency),
+    totalAmount,
     note: command.payload.note?.trim() || null,
     paymentTermsSnapshot: command.payload.paymentTermsSnapshot,
     evidenceReferences: [...(command.payload.evidenceReferences ?? [])],
@@ -224,11 +252,21 @@ export function decideConfirmCustomerOrder(
     return err("CUSTOMER_ORDER_EMPTY", "A Customer Order needs at least one line.");
   const lines = validateLines(current.lines, current.currency, true);
   if (!lines.ok) return lines;
+  const totalAmount = calculateTotal(lines.value, current.currency);
+  if (totalAmount === null) {
+    return err(
+      "CUSTOMER_ORDER_LINE_INVALID",
+      "Customer Order total exceeds the exact integer range.",
+      {
+        reason: "money_aggregate_out_of_range",
+      },
+    );
+  }
   const confirmed: CustomerOrderState = {
     ...current,
     status: "confirmed",
     lines: lines.value,
-    totalAmount: calculateTotal(lines.value, current.currency),
+    totalAmount,
     version: current.version + 1,
     confirmedAt: command.occurredAt,
   };

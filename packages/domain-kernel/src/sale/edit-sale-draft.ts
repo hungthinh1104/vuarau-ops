@@ -73,6 +73,11 @@ export function decideUpdateSaleDraft({
     return lines;
   }
   const totalAmount = calculateSaleTotal(lines.value, sale.currency);
+  if (totalAmount === null) {
+    return err("SALE_LINE_INVALID", "Sale total exceeds the exact integer range.", {
+      reason: "money_aggregate_out_of_range",
+    });
+  }
 
   const edited: SaleState = {
     ...sale,

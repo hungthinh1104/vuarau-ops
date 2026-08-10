@@ -10,7 +10,7 @@ import type { SaleLineState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
 import { calculateLineTotal, isExactMoneyAmount } from "../shared/quantity.ts";
-import { sumMoney } from "../shared/money.ts";
+import { sumMoneyExact } from "../shared/money.ts";
 
 /**
  * The line fields every caller has, whether it came off the wire or out of the
@@ -95,8 +95,11 @@ export function validateSaleLines(
 }
 
 /** BR-SALE-001. The only way a sale total is ever produced. */
-export function calculateSaleTotal(lines: readonly SaleLineState[], currency: CurrencyCode): Money {
-  return sumMoney(
+export function calculateSaleTotal(
+  lines: readonly SaleLineState[],
+  currency: CurrencyCode,
+): Money | null {
+  return sumMoneyExact(
     lines.map((line) => line.lineTotal),
     currency,
   );

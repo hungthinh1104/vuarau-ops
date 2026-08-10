@@ -91,6 +91,32 @@ describe("BR-SALE-001 / TC-SALE-001", () => {
     });
     expect(result.ok && result.value.aggregate.totalAmount.amountMinor).toBe(875_000);
   });
+
+  it("refuses a multi-line total that would lose integer precision", () => {
+    const result = decideCreateSaleDraft({
+      command: createSaleDraftCommand({
+        lines: [
+          {
+            ...saleLineInputs[0]!,
+            quantity: { valueScaled: 1_000, unit: "kg" },
+            unitPrice: vnd(Number.MAX_SAFE_INTEGER - 1),
+          },
+          {
+            ...saleLineInputs[1]!,
+            quantity: { valueScaled: 1_000, unit: "kg" },
+            unitPrice: vnd(10),
+          },
+        ],
+      }),
+      recordedAt: RECORDED_AT,
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("SALE_LINE_INVALID");
+      expect(result.error.details).toMatchObject({ reason: "money_aggregate_out_of_range" });
+    }
+  });
 });
 
 describe("BR-SALE-004 / TC-SALE-002", () => {

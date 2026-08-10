@@ -2,7 +2,7 @@ import type { CreateSaleDraftCommand, IsoInstant } from "@vuarau/domain-contract
 import type { Decision } from "../shared/effects.ts";
 import type { SaleState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
-import { ok } from "../shared/result.ts";
+import { err, ok } from "../shared/result.ts";
 import { calculateSaleTotal, validateSaleLines } from "./sale-lines.ts";
 
 export type CreateSaleDraftInput = {
@@ -33,6 +33,11 @@ export function decideCreateSaleDraft({
   }
 
   const totalAmount = calculateSaleTotal(lines.value, payload.currency);
+  if (totalAmount === null) {
+    return err("SALE_LINE_INVALID", "Sale total exceeds the exact integer range.", {
+      reason: "money_aggregate_out_of_range",
+    });
+  }
 
   const sale: SaleState = {
     id: payload.saleId,

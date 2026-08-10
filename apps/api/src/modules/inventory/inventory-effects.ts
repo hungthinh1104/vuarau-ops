@@ -26,7 +26,14 @@ export async function applyInventoryMovements(
       },
     );
   }
-  for (const target of keys.values()) {
+  // A reclassification (or any multi-bucket movement) can touch more than one
+  // balance row. Stable acquisition order prevents opposite reclassifications
+  // from waiting on each other's upsert locks in PostgreSQL.
+  for (const target of [...keys.values()].sort((left, right) => {
+    const keyOf = (value: typeof left | typeof right) =>
+      `${value.workspaceId}:${value.productId}:${value.qualityGradeId ?? "legacy"}:${value.unit}`;
+    return keyOf(left).localeCompare(keyOf(right));
+  })) {
     const movements = appended.filter(
       (movement) =>
         movement.workspaceId === target.workspaceId &&

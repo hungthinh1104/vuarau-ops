@@ -19,12 +19,34 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
     const abort = new AbortController();
     const invalidate = () =>
       Promise.all([
+        // The event intentionally carries a generic command entity rather than
+        // a cache vocabulary. Invalidate every authenticated read-model root so
+        // a second tab cannot leave a customer, payment, cashbook, intake,
+        // evidence or settings screen stale after a committed command.
+        queryClient.invalidateQueries({ queryKey: trpc.account.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.audit.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.cash.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.customer.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.customerOrder.pathKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.dashboard.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.delivery.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.document.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.evidence.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.intake.pathKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.report.pathKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.inventory.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.operations.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.payment.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.policy.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.pricing.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.product.pathKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.sale.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.quality.pathKey() }),
         queryClient.invalidateQueries({ queryKey: trpc.purchase.pathKey() }),
-        queryClient.invalidateQueries({ queryKey: trpc.delivery.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.receiving.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.session.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.supplier.pathKey() }),
+        queryClient.invalidateQueries({ queryKey: trpc.supplyCommitment.pathKey() }),
       ]);
 
     const read = async () => {

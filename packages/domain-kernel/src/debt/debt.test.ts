@@ -141,6 +141,41 @@ describe("BR-AGING-001 / BR-AGING-002 / TC-AGING-001", () => {
     expect(result.diagnostics).toContain("manual_allocation_not_recorded");
   });
 
+  it("fails closed before debt arithmetic can exceed the exact integer range", () => {
+    const result = calculateDebtAging(
+      {
+        sales: [
+          {
+            saleId: saleId("8"),
+            customerId,
+            amount: vnd(Number.MAX_SAFE_INTEGER),
+            transactionTime: "2026-01-01T00:00:00.000Z",
+            dueAt: null,
+          },
+        ],
+        payments: [
+          {
+            paymentId,
+            customerId,
+            amount: vnd(1),
+            reversals: [],
+            transactionTime: "2026-01-02T00:00:00.000Z",
+          },
+        ],
+        ledgerEntries: [],
+        allocations: [],
+        allocationReversals: [],
+      },
+      terms,
+      "oldest_due_first",
+      "2026-01-10T00:00:00.000Z",
+    );
+
+    expect(result.rows).toEqual([]);
+    expect(result.payments).toEqual([]);
+    expect(result.diagnostics).toEqual(["money_aggregate_out_of_range"]);
+  });
+
   it("fails closed when a non-sale manual adjustment has no aging allocation", () => {
     const result = calculateDebtAging(
       {

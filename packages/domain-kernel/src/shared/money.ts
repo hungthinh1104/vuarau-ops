@@ -44,7 +44,27 @@ export function negateMoney(a: Money): Money {
 }
 
 export function sumMoney(amounts: readonly Money[], currency: CurrencyCode): Money {
-  return amounts.reduce<Money>((total, next) => addMoney(total, next), zeroMoney(currency));
+  const total = sumMoneyExact(amounts, currency);
+  if (total === null) {
+    throw new Error("Money aggregate exceeds the exact integer range.");
+  }
+  return total;
+}
+
+/**
+ * Returns null instead of approximating when an aggregate crosses the safe
+ * integer boundary. Command decisions use this form so the caller can return
+ * a controlled domain refusal; the throwing form above remains for internal
+ * arithmetic whose inputs have already passed an aggregate boundary.
+ */
+export function sumMoneyExact(amounts: readonly Money[], currency: CurrencyCode): Money | null {
+  let amountMinor = 0;
+  for (const next of amounts) {
+    assertSameCurrency({ amountMinor, currency }, next);
+    amountMinor += next.amountMinor;
+    if (!Number.isSafeInteger(amountMinor)) return null;
+  }
+  return { amountMinor, currency };
 }
 
 export function isPositiveMoney(a: Money): boolean {

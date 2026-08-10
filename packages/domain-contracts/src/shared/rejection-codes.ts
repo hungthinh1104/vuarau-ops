@@ -180,6 +180,8 @@ export const DOMAIN_REJECTION_CODES = [
   "SALE_VOID_REASON_REQUIRED",
   /** A goods-returned full void cannot stand while any delivered quantity remains with the customer. */
   "SALE_GOODS_RETURN_INCOMPLETE",
+  /** A sale cannot be voided while a payment attribution still points at it. */
+  "SALE_HAS_ACTIVE_PAYMENT_ALLOCATIONS",
   /** A correction replacement must follow a committed void, never an active sale. */
   "SALE_REPLACEMENT_NOT_VOIDED",
   /** One voided sale has one correction successor at most. */

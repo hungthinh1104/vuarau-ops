@@ -234,13 +234,24 @@ export function recordCashTransfer(ctx: CommandContext, input: unknown) {
     requiredPermission: "cash.transfer",
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
-      const [from, to] = await Promise.all([
-        repos.cashAccounts.findByIdForUpdate(
-          command.workspaceId,
-          command.payload.fromCashAccountId,
-        ),
-        repos.cashAccounts.findByIdForUpdate(command.workspaceId, command.payload.toCashAccountId),
-      ]);
+      // A transfer touches two account rows. Always acquire those row locks in
+      // the same order, even when two concurrent transfers run in opposite
+      // directions; otherwise PostgreSQL can deadlock A->B against B->A.
+      const accountIds = [command.payload.fromCashAccountId, command.payload.toCashAccountId].sort(
+        (left, right) => left.localeCompare(right),
+      );
+      const lockedAccounts = new Map<
+        string,
+        Awaited<ReturnType<typeof repos.cashAccounts.findByIdForUpdate>>
+      >();
+      for (const accountId of accountIds) {
+        lockedAccounts.set(
+          accountId,
+          await repos.cashAccounts.findByIdForUpdate(command.workspaceId, accountId),
+        );
+      }
+      const from = lockedAccounts.get(command.payload.fromCashAccountId) ?? null;
+      const to = lockedAccounts.get(command.payload.toCashAccountId) ?? null;
       if (from === null || to === null)
         return err("CASH_ACCOUNT_NOT_FOUND", "Transfer account is missing.");
       const decision = decideRecordCashTransfer(command, from, to, recordedAt);
