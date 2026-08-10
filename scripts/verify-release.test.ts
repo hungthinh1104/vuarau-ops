@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { RELEASE_STEPS, requireReleaseEnvironment } from "./verify-release.ts";
 
@@ -34,4 +35,18 @@ test("release gate requires a separate performance database", () => {
     () => requireReleaseEnvironment({ databaseUrl: "postgres://localhost/vuarau_test" }),
     /RELEASE_PERF_DATABASE_URL is required/,
   );
+});
+
+test("CI runs the repository-owned synthetic and pilot rehearsals", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+
+  assert.match(workflow, /- name: Static checks\s+run: pnpm check:static/);
+  assert.match(workflow, /- name: Synthetic depot day\s+run: pnpm synthetic:depot-day/);
+  assert.match(workflow, /- name: Pilot dry-run\s+run: pnpm pilot:dry-run/);
+
+  const browserGate = workflow.indexOf("- name: End-to-end tests");
+  const syntheticGate = workflow.indexOf("- name: Synthetic depot day");
+  const pilotGate = workflow.indexOf("- name: Pilot dry-run");
+  assert.ok(browserGate >= 0 && browserGate < syntheticGate);
+  assert.ok(syntheticGate < pilotGate);
 });

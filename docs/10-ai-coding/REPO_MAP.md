@@ -97,6 +97,10 @@ exclusions.
 different `RELEASE_PERF_DATABASE_URL` for the disposable production-scale
 performance rehearsal; it refuses to run the performance workload against the
 functional database.
+The GitHub CI workflow additionally runs `pnpm synthetic:depot-day` and
+`pnpm pilot:dry-run` after production E2E on the same clean checkout. Their
+reports are repository evidence only and keep field validation explicitly
+`NOT_RUN_BY_AUTOMATION`.
 Policy queries resolve the versioned registry implementation and its disabled
 availability tests; they do not imply that policy-sensitive metrics are active.
 Operational directory search is implemented in the read-side contracts and

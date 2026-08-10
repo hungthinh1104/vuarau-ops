@@ -164,6 +164,15 @@ jobs:
       - name: End-to-end tests
         run: pnpm web:e2e
 
+      # These are repository-owned release rehearsals, not field validation.
+      # Keep them after the browser gate so the exact checked-out tree and the
+      # same disposable PostgreSQL service are used for the emitted evidence.
+      - name: Synthetic depot day
+        run: pnpm synthetic:depot-day
+
+      - name: Pilot dry-run
+        run: pnpm pilot:dry-run
+
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
