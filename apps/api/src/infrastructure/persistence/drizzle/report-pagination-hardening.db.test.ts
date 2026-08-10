@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createDbTestContext,
   createUnitOfWork,
+  commandReceipts,
   customerAccountEntries,
   skipWithoutDatabase,
   type DbTestContext,
@@ -34,6 +35,18 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL report pagination hardening",
     const transactionTime = new Date("2026-07-28T01:00:00.000Z");
     const recordedAt = new Date("2026-07-29T01:00:00.000Z");
     const ids = Array.from({ length: 205 }, () => crypto.randomUUID());
+    await ctx.database.db.insert(commandReceipts).values(
+      ids.map((commandId) => ({
+        commandId,
+        workspaceId: ctx.workspaceId,
+        idempotencyKey: `m22-report-${commandId}`,
+        commandType: "M22ReportSeed",
+        payloadHash: commandId,
+        status: "completed" as const,
+        result: {},
+        recordedAt,
+      })),
+    );
     await ctx.database.db.insert(customerAccountEntries).values(
       ids.map((id) => ({
         id,
@@ -49,7 +62,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL report pagination hardening",
         transactionTime,
         recordedAt,
         actorId: ctx.actorId,
-        commandId: crypto.randomUUID(),
+        commandId: id,
       })),
     );
 

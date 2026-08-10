@@ -10,6 +10,7 @@ import type { Database } from "./client.ts";
 import {
   actors,
   auditLogs,
+  commandReceipts,
   workspaceMembershipRoles,
   workspaceOperationalProfiles,
   workspaces,
@@ -170,6 +171,16 @@ export async function bootstrapPilotWorkspace(
       role: "owner",
       assignedAt: input.occurredAt,
       assignedBy: input.actorId,
+    });
+    await tx.insert(commandReceipts).values({
+      commandId: input.commandId,
+      workspaceId: input.workspaceId,
+      idempotencyKey: `pilot-bootstrap:${input.workspaceId}:${input.actorId}`,
+      commandType: "PilotBootstrap",
+      payloadHash: input.commandId,
+      status: "completed",
+      result: { kind: "created", workspaceId: input.workspaceId, actorId: input.actorId },
+      recordedAt: input.occurredAt,
     });
     await tx.insert(auditLogs).values({
       id: input.auditRecordId,

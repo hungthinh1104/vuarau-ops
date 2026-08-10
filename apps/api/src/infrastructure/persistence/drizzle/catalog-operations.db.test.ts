@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  commandReceipts,
   createDbTestContext,
   createUnitOfWork,
   skipWithoutDatabase,
@@ -317,6 +318,16 @@ describe.skipIf(skipWithoutDatabase())("M14 and M15 against Postgres", () => {
     const entryId = crypto.randomUUID();
     const missingSaleId = crypto.randomUUID();
     const commandId = crypto.randomUUID();
+    await ctx.database.db.insert(commandReceipts).values({
+      commandId,
+      workspaceId: ctx.workspaceId,
+      idempotencyKey: `catalog-integrity-${commandId}`,
+      commandType: "CatalogIntegrityTest",
+      payloadHash: commandId,
+      status: "completed",
+      result: {},
+      recordedAt: new Date(),
+    });
     await ctx.database.sql`
       insert into customer_account_entries (
         id, workspace_id, customer_id, amount_minor, currency, source_type, source_id,

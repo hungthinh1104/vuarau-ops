@@ -1,6 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { customerAccountEntries, saleLines, saleVoids, sales, payments } from "../schema/index.ts";
+import {
+  commandReceipts,
+  customerAccountEntries,
+  saleLines,
+  saleVoids,
+  sales,
+  payments,
+} from "../schema/index.ts";
 import {
   createDbTestContext,
   skipWithoutDatabase,
@@ -24,8 +31,24 @@ describe.skipIf(skipWithoutDatabase())("database append-only guarantees", () => 
     await ctx?.close();
   });
 
+  async function insertCommandReceipt(): Promise<string> {
+    const commandId = crypto.randomUUID();
+    await ctx.database.db.insert(commandReceipts).values({
+      commandId,
+      workspaceId: ctx.workspaceId,
+      idempotencyKey: `append-only-${commandId}`,
+      commandType: "AppendOnlyTest",
+      payloadHash: commandId,
+      status: "completed",
+      result: {},
+      recordedAt: new Date(),
+    });
+    return commandId;
+  }
+
   async function insertAccountEntry(sourceId: string, amountMinor: number): Promise<string> {
     const id = crypto.randomUUID();
+    const commandId = await insertCommandReceipt();
     await ctx.database.db.insert(customerAccountEntries).values({
       id,
       workspaceId: ctx.workspaceId,
@@ -40,7 +63,7 @@ describe.skipIf(skipWithoutDatabase())("database append-only guarantees", () => 
       transactionTime: new Date(),
       recordedAt: new Date(),
       actorId: ctx.actorId,
-      commandId: crypto.randomUUID(),
+      commandId,
     });
     return id;
   }
@@ -321,7 +344,7 @@ describe.skipIf(skipWithoutDatabase())("database append-only guarantees", () => 
         replacesSaleId: null,
       });
 
-      const insertVoid = () =>
+      const insertVoid = async () =>
         ctx.database.db.insert(saleVoids).values({
           id: crypto.randomUUID(),
           workspaceId: ctx.workspaceId,
@@ -333,7 +356,7 @@ describe.skipIf(skipWithoutDatabase())("database append-only guarantees", () => 
           transactionTime: new Date(),
           recordedAt: new Date(),
           actorId: ctx.actorId,
-          commandId: crypto.randomUUID(),
+          commandId: await insertCommandReceipt(),
         });
 
       await insertVoid();
@@ -362,6 +385,7 @@ describe.skipIf(skipWithoutDatabase())("database append-only guarantees", () => 
         replacesSaleId: null,
       });
       const voidId = crypto.randomUUID();
+      const commandId = await insertCommandReceipt();
       await ctx.database.db.insert(saleVoids).values({
         id: voidId,
         workspaceId: ctx.workspaceId,
@@ -373,7 +397,7 @@ describe.skipIf(skipWithoutDatabase())("database append-only guarantees", () => 
         transactionTime: new Date(),
         recordedAt: new Date(),
         actorId: ctx.actorId,
-        commandId: crypto.randomUUID(),
+        commandId,
       });
 
       const updateMessage = await captureDatabaseError(
