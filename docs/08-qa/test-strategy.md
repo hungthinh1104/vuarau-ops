@@ -32,6 +32,11 @@ Vitest invocation. It intentionally excludes the Postgres project; add
 repositories, transactions, row mappers, SQL aggregates, backup/restore or a
 persistence adapter.
 
+`pnpm test:release` is the release-gate variant: it runs the four non-Postgres
+projects first, then invokes `pnpm test:db`. This prevents the release gate from
+running DB tests directly against the shared `DATABASE_URL`; the DB wrapper
+creates and removes its own local disposable target.
+
 ### Changed area decision table
 
 | Changed area             | Required local validation                          |

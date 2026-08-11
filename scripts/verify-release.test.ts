@@ -12,7 +12,7 @@ test("release gate includes schema drift, performance, recovery and production E
       "db:generate:check",
       "perf:production-scale",
       "rehearse:migrations",
-      "test",
+      "test:release",
       "web:build",
       "web:storybook",
       "web:e2e:build",
@@ -20,6 +20,18 @@ test("release gate includes schema drift, performance, recovery and production E
     ],
   );
   assert.equal(RELEASE_STEPS[3]?.env, "release-performance");
+});
+
+test("release Vitest entry point isolates the Postgres project", () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ) as { scripts?: Record<string, string> };
+  const releaseTest = packageJson.scripts?.["test:release"] ?? "";
+
+  assert.match(releaseTest, /--project domain/);
+  assert.match(releaseTest, /--project web/);
+  assert.match(releaseTest, /pnpm test:db/);
+  assert.doesNotMatch(releaseTest, /--project db/);
 });
 
 test("release gate requires a separate performance database", () => {

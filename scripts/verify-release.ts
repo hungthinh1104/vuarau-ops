@@ -20,7 +20,10 @@ export const RELEASE_STEPS: readonly ReleaseStep[] = [
     env: "release-performance",
   },
   { name: "migration rehearsal", args: ["rehearse:migrations"] },
-  { name: "all Vitest projects", args: ["test"] },
+  {
+    name: "all Vitest projects with disposable Postgres",
+    args: ["test:release"],
+  },
   { name: "Next production build", args: ["web:build"] },
   { name: "Storybook build", args: ["web:storybook"] },
   { name: "production E2E build", args: ["web:e2e:build"] },
