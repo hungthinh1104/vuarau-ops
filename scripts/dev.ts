@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import { developmentChildEnvironment } from "./dev-environment.ts";
 
 const root = process.cwd();
 const databaseUrl =
@@ -59,17 +60,18 @@ function ensurePostgres(): void {
 
 assertLocalDatabase(databaseUrl);
 ensurePostgres();
-run("pnpm", ["db:migrate"], { ...process.env, DATABASE_URL: databaseUrl });
+const childEnvironment = developmentChildEnvironment(process.env);
+run("pnpm", ["db:migrate"], { ...childEnvironment, DATABASE_URL: databaseUrl });
 
 const children = [
   spawn("pnpm", ["--filter", "@vuarau/api", "dev"], {
     cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl, PORT: "3102" },
+    env: { ...childEnvironment, DATABASE_URL: databaseUrl, PORT: "3102" },
     stdio: "inherit",
   }),
   spawn("pnpm", ["--filter", "@vuarau/web", "dev"], {
     cwd: root,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
+    env: { ...childEnvironment, DATABASE_URL: databaseUrl },
     stdio: "inherit",
   }),
 ];
