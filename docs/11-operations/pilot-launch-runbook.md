@@ -151,6 +151,12 @@ and backup/restore/rebuild tests, then prints a JSON evidence packet. It is
 repository evidence only; it does not replace owner decisions, phone smoke or
 field validation.
 
+`pnpm pilot:dry-run` has the same boundary: its `DATABASE_URL` must point to a
+local database whose name ends in `_test`. The command creates a fresh
+SHA-scoped disposable database for the application, PostgreSQL and browser
+steps, then drops it even when a step fails. It refuses development and remote
+database targets so a rehearsal cannot write into a real environment.
+
 ## Dry run and reset
 
 Use a separate workspace for a facilitator dry run: one-line sale, three-line
