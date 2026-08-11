@@ -4,6 +4,7 @@ import {
   describeConfig,
   publishedSecrets,
   readServerConfig,
+  unusedServerCredentials,
   type Env,
 } from "./config.ts";
 
@@ -212,6 +213,25 @@ describe("BR-OPS-002 / TC-OPS-002 — secrets that would be published", () => {
       NEXT_PUBLIC_JWT_SECRET: "definitely not",
     });
     expect(result.ok).toBe(false);
+  });
+
+  it("refuses elevated Supabase API keys that this process never needs", () => {
+    expect(
+      unusedServerCredentials({
+        SUPABASE_SECRET_KEY: "provider-secret",
+        SUPABASE_SERVICE_ROLE_KEY: "legacy-provider-secret",
+      }).map((problem) => problem.variable),
+    ).toEqual(["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]);
+    const result = readServerConfig({
+      DATABASE_URL: "postgres://user:pw@db.internal:5432/vuarau",
+      SUPABASE_JWT_ISSUER: "http://localhost:54321/auth/v1",
+      SUPABASE_JWT_SECRET: "local-development-only",
+      SUPABASE_SECRET_KEY: "provider-secret",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.problems.map((problem) => problem.variable)).toContain("SUPABASE_SECRET_KEY");
+    }
   });
 });
 

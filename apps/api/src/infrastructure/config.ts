@@ -96,6 +96,7 @@ const PUBLISHABLE = new Set([
 ]);
 const SECRET_SHAPED = /SECRET|PASSWORD|SERVICE_ROLE|PRIVATE|CREDENTIAL|JWT_SECRET/i;
 const SECURE_DATABASE_SSL_MODES = new Set(["require", "verify-ca", "verify-full"]);
+const UNUSED_SERVER_CREDENTIALS = ["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"] as const;
 
 /**
  * Pilot connections must state their TLS mode in the connection string. A
@@ -127,8 +128,22 @@ export function publishedSecrets(env: Env): readonly ConfigProblem[] {
     }));
 }
 
+/**
+ * This process talks to PostgreSQL and verifies Supabase tokens; it never calls
+ * Supabase with an elevated API key. Refuse those keys if somebody copies a
+ * provider template into the API environment, so a future code path cannot
+ * accidentally start depending on a credential that bypasses RLS.
+ */
+export function unusedServerCredentials(env: Env): readonly ConfigProblem[] {
+  return UNUSED_SERVER_CREDENTIALS.filter((name) => present(env, name) !== null).map((name) => ({
+    variable: name,
+    problem:
+      "this application never uses an elevated Supabase API key; remove it from the server environment",
+  }));
+}
+
 export function readServerConfig(env: Env): ConfigResult {
-  const problems: ConfigProblem[] = [...publishedSecrets(env)];
+  const problems: ConfigProblem[] = [...publishedSecrets(env), ...unusedServerCredentials(env)];
   const fail = (variable: string, problem: string) => problems.push({ variable, problem });
 
   const rawEnv = present(env, "APP_ENV") ?? "development";

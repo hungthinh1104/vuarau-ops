@@ -98,12 +98,12 @@ capability is not observable through public Auth settings, so it is not describe
 as disabled. The exact provider boundary and real-login smoke are in
 [pilot-authentication.md](pilot-authentication.md).
 
-**`SUPABASE_SECRET_KEY` is not part of this contract at all.** Supabase's secret
-key — formerly the service-role key — bypasses row-level security, and this
+**`SUPABASE_SECRET_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are refused.** Supabase's
+secret key — formerly the service-role key — bypasses row-level security, and this
 application never calls Supabase with privilege: it verifies tokens against JWKS
-and does nothing else. Do not put it in any environment this application reads. An
-unused copy is not harmless; it is a key somebody later reaches for because it was
-already there.
+and uses PostgreSQL through `DATABASE_URL`. Do not put either key in any
+environment this application reads. An unused copy is not harmless; it is a key
+somebody later reaches for because it was already there.
 
 ## Trusted proxy and rate-limit identity
 
