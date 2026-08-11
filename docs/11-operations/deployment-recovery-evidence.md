@@ -116,9 +116,9 @@ Its JSON summary says `fieldValidation: NOT_RUN_BY_AUTOMATION`.
 ### Latest repository-owned run
 
 On 2026-08-12, the disposable run passed on exact release SHA
-`d60175fd82634201384d0c1b45cfb62b549059df`:
+`0805e46fa601b7417c416fd86c59d85cc05e81e2`:
 
-- 42 application tests and 5 PostgreSQL provisioning/import tests passed;
+- 44 application tests and 5 PostgreSQL provisioning/import tests passed;
 - the security inventory found 103 authenticated commands and 105 authenticated
   queries with the public allowlist unchanged;
 - 87 Playwright tests passed on both mobile and desktop, including the real API,
