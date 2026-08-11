@@ -6,6 +6,7 @@ type EvidenceStep = {
   readonly name: string;
   readonly command: readonly string[];
   readonly proves: readonly string[];
+  readonly databaseMode?: "caller-owned";
 };
 
 export type PilotDatabaseSourceValidation =
@@ -71,6 +72,7 @@ export const PILOT_DRY_RUN_STEPS: readonly EvidenceStep[] = [
   {
     name: "disposable browser/API/PostgreSQL workflow",
     command: ["web:e2e"],
+    databaseMode: "caller-owned",
     proves: [
       "sign-in, Quick Sale, payment/reversal/correction",
       "supplier/purchase/receiving/inventory/delivery/return",
@@ -214,9 +216,16 @@ function run(): void {
   try {
     for (const step of PILOT_DRY_RUN_STEPS) {
       console.warn(`\nM23 dry-run: ${step.name}`);
+      const stepEnvironment = {
+        ...process.env,
+        NODE_ENV: "test",
+        DATABASE_URL: database.targetUrl,
+        E2E_DATABASE_OWNER: step.databaseMode === "caller-owned" ? "pilot-dry-run" : "",
+        E2E_DATABASE_URL: step.databaseMode === "caller-owned" ? database.targetUrl : "",
+      };
       const result = spawnSync("pnpm", step.command, {
         cwd: process.cwd(),
-        env: { ...process.env, NODE_ENV: "test", DATABASE_URL: database.targetUrl },
+        env: stepEnvironment,
         stdio: "inherit",
       });
       const passed = result.status === 0;

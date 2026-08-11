@@ -8,6 +8,7 @@ test("pilot dry-run builds the exact-SHA browser artifact before serving E2E", (
     ["production E2E build", "disposable browser/API/PostgreSQL workflow"],
   );
   assert.deepEqual(PILOT_DRY_RUN_STEPS.at(-2)?.command, ["web:e2e:build"]);
+  assert.equal(PILOT_DRY_RUN_STEPS.at(-1)?.databaseMode, "caller-owned");
 });
 
 test("pilot dry-run accepts only a local disposable source database", () => {

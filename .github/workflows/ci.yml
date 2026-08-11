@@ -153,8 +153,9 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter @vuarau/web exec playwright install --with-deps chromium
 
-      # Starts a real API process and a real Next server against the Postgres
-      # service, and drives them with a real browser. This is the only thing in
+      # The root wrapper creates a disposable target inside the Postgres service,
+      # then starts a real API process and a real Next server against that target.
+      # It drives them with a real browser. This is the only thing in
       # the repository that would have caught the three defects Milestone 5
       # found — a duplicate payment, a mis-rendered retry, and a foreign key that
       # made posting impossible — every one of which passed 400 unit tests.
@@ -166,7 +167,8 @@ jobs:
 
       # These are repository-owned release rehearsals, not field validation.
       # Keep them after the browser gate so the exact checked-out tree and the
-      # same disposable PostgreSQL service are used for the emitted evidence.
+      # same disposable PostgreSQL service are used for the emitted evidence;
+      # each rehearsal owns its own target database.
       - name: Synthetic depot day
         run: pnpm synthetic:depot-day
 

@@ -121,6 +121,13 @@ E2E_API_PORT=3202 E2E_WEB_PORT=3201 pnpm web:e2e:build
 E2E_API_PORT=3202 E2E_WEB_PORT=3201 pnpm web:e2e
 ```
 
+The root `pnpm web:e2e` wrapper also creates a fresh
+`vuarau_e2e_<sha>_<nonce>_test` database from the local `_test` source and drops
+it with `FORCE` after the browser run. This keeps browser E2E data separate from
+the functional DB test target. The pilot dry-run is the only caller allowed to
+set its own target, because it intentionally runs the browser against the same
+SHA-scoped database as the rest of that rehearsal.
+
 The override is validated as a TCP port and the two ports must differ.
 
 Each database test creates its **own workspace UUID** and asserts only within it.
