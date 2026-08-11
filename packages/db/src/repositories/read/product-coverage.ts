@@ -4,6 +4,7 @@ import {
   type ProductCoverageDto,
   type ProductCoverageQuantityDto,
   type ProductId,
+  type QualityGradeId,
   type Unit,
   type WorkspaceId,
 } from "@vuarau/domain-contracts";
@@ -26,6 +27,7 @@ import {
   qualityDispositionAllocations,
   qualityDispositionReversals,
   qualityDispositions,
+  qualityGrades,
   saleLines,
   sales,
   saleVoids,
@@ -70,10 +72,10 @@ export async function readProductCoverage(
         and child.source_type = 'quarantine_allocation'
         and child_reversal.id is null
     ), on_hand as (
-      select ib.product_id, ib.unit, sum(ib.quantity_scaled)::bigint as quantity
+      select ib.product_id, ib.quality_grade_id, ib.unit, sum(ib.quantity_scaled)::bigint as quantity
       from ${inventoryBalances} ib
       where ib.workspace_id = ${workspaceId}::uuid and ib.product_id in (${ids})
-      group by ib.product_id, ib.unit
+      group by ib.product_id, ib.quality_grade_id, ib.unit
     ), legacy_received as (
       select prl.purchase_line_id, sum(prl.quantity_scaled)::bigint as quantity
       from ${purchaseReceiptLines} prl
@@ -114,7 +116,7 @@ export async function readProductCoverage(
         and reversal.id is null
       group by root_line.purchase_line_id
     ), inbound as (
-      select pl.product_id, pl.unit,
+      select pl.product_id, null::uuid as quality_grade_id, pl.unit,
         sum(
           pl.quantity_scaled
             - coalesce(legacy_received.quantity, 0)
@@ -163,7 +165,7 @@ export async function readProductCoverage(
         and dl.product_id in (${ids})
       group by dl.sale_line_id
     ), outbound as (
-      select sl.product_id, sl.unit,
+      select sl.product_id, sl.quality_grade_id, sl.unit,
         sum(
           sl.quantity_scaled
             - coalesce(dispatched.quantity, 0)
@@ -184,32 +186,50 @@ export async function readProductCoverage(
       where sl.workspace_id = ${workspaceId}::uuid
         and sl.product_id in (${ids})
         and sale.status = 'posted' and sale_void.id is null
-      group by sl.product_id, sl.unit
+      group by sl.product_id, sl.quality_grade_id, sl.unit
     ), coverage_units as (
-      select product_id, unit from on_hand
-      union select product_id, unit from inbound
-      union select product_id, unit from outbound
-      union select product.id as product_id, product.preferred_unit::unit as unit
+      select product_id, quality_grade_id, unit from on_hand
+      union select product_id, quality_grade_id, unit from inbound
+      union select product_id, quality_grade_id, unit from outbound
+      union select product.id as product_id, null::uuid as quality_grade_id,
+        product.preferred_unit::unit as unit
         from ${products} product
         where product.workspace_id = ${workspaceId}::uuid
           and product.id in (${ids}) and product.preferred_unit is not null
     )
-    select coverage_units.product_id as "productId", coverage_units.unit as "unit",
+    select coverage_units.product_id as "productId",
+      coverage_units.quality_grade_id as "qualityGradeId",
+      grade.name as "qualityGradeName",
+      coverage_units.unit as "unit",
       coalesce(on_hand.quantity, 0)::bigint as "onHand",
       coalesce(inbound.quantity, 0)::bigint as "inboundRemaining",
       coalesce(outbound.quantity, 0)::bigint as "outboundRemaining",
       coalesce(inbound.invalid, false) or coalesce(outbound.invalid, false) as "invalid"
     from coverage_units
-    left join on_hand using (product_id, unit)
-    left join inbound using (product_id, unit)
-    left join outbound using (product_id, unit)
-    order by coverage_units.product_id, coverage_units.unit
+    left join ${qualityGrades} grade
+      on grade.workspace_id = ${workspaceId}::uuid
+      and grade.id = coverage_units.quality_grade_id
+    left join on_hand
+      on on_hand.product_id = coverage_units.product_id
+      and on_hand.quality_grade_id is not distinct from coverage_units.quality_grade_id
+      and on_hand.unit = coverage_units.unit
+    left join inbound
+      on inbound.product_id = coverage_units.product_id
+      and inbound.quality_grade_id is not distinct from coverage_units.quality_grade_id
+      and inbound.unit = coverage_units.unit
+    left join outbound
+      on outbound.product_id = coverage_units.product_id
+      and outbound.quality_grade_id is not distinct from coverage_units.quality_grade_id
+      and outbound.unit = coverage_units.unit
+    order by coverage_units.product_id, coverage_units.unit, coverage_units.quality_grade_id nulls first
   `);
   const byProduct = new Map<string, ProductCoverageQuantityDto[]>(
     productIds.map((productId) => [productId, []]),
   );
   for (const raw of rows as unknown as Array<{
     productId: string;
+    qualityGradeId: string | null;
+    qualityGradeName: string | null;
     unit: Unit;
     onHand: number | string;
     inboundRemaining: number | string;
@@ -233,6 +253,8 @@ export async function readProductCoverage(
     byProduct.get(raw.productId)?.push(
       deriveProductCoverageQuantity({
         unit: raw.unit,
+        qualityGradeId: raw.qualityGradeId as QualityGradeId | null,
+        qualityGradeName: raw.qualityGradeName,
         onHand,
         inboundRemaining,
         outboundRemaining,
@@ -242,8 +264,12 @@ export async function readProductCoverage(
   return productIds.map((productId) => ({
     workspaceId,
     productId,
-    quantities: [...(byProduct.get(productId) ?? [])].sort(
-      (left, right) => UNITS.indexOf(left.unit) - UNITS.indexOf(right.unit),
-    ),
+    quantities: [...(byProduct.get(productId) ?? [])].sort((left, right) => {
+      const unitOrder = UNITS.indexOf(left.unit) - UNITS.indexOf(right.unit);
+      if (unitOrder !== 0) return unitOrder;
+      if (left.qualityGradeId === null) return -1;
+      if (right.qualityGradeId === null) return 1;
+      return left.qualityGradeId.localeCompare(right.qualityGradeId);
+    }),
   }));
 }

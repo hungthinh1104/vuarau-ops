@@ -16,6 +16,17 @@ import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { runQuery } from "../shared/read-pipeline.ts";
 
+export function hasUnsafeBackupNumber(value: unknown): boolean {
+  if (typeof value === "number") {
+    return !Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value));
+  }
+  if (Array.isArray(value)) return value.some(hasUnsafeBackupNumber);
+  if (value !== null && typeof value === "object") {
+    return Object.values(value).some(hasUnsafeBackupNumber);
+  }
+  return false;
+}
+
 function canonical(value: unknown): string {
   if (Array.isArray(value)) {
     const items = value.map((item) => canonical(item)).sort();
@@ -123,6 +134,7 @@ export function validateWorkspaceBackup(
       const calculatedDigest = backupDigest(backup.payload);
       const diagnostics: string[] = [];
       if (backup.digest !== calculatedDigest) diagnostics.push("bad_digest");
+      if (hasUnsafeBackupNumber(backup.payload)) diagnostics.push("unsafe_number");
       const mixedWorkspace = Object.values(backup.payload)
         .flatMap((value) => (Array.isArray(value) ? value : [value]))
         .some(

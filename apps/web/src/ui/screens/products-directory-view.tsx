@@ -212,6 +212,14 @@ function CoverageDirectory({
 type CoverageField =
   "onHand" | "inboundRemaining" | "outboundRemaining" | "availableAfterCommitments";
 
+function coverageRowKey(quantity: ProductCoverageDto["quantities"][number]) {
+  return `${quantity.unit}:${quantity.qualityGradeId ?? "ungraded"}`;
+}
+
+function coverageRowLabel(quantity: ProductCoverageDto["quantities"][number]) {
+  return quantity.qualityGradeName ?? "Chưa phân hạng";
+}
+
 function CoverageColumn({
   quantities,
   field,
@@ -227,13 +235,14 @@ function CoverageColumn({
         <span className="grid gap-1">
           {quantities.map((quantity) => (
             <span
-              key={quantity.unit}
+              key={coverageRowKey(quantity)}
               className={
                 field === "availableAfterCommitments" && quantity.classification === "shortage"
                   ? "font-semibold text-danger"
                   : undefined
               }
             >
+              <span className="mr-2 text-caption text-ink-muted">{coverageRowLabel(quantity)}</span>
               {field === "availableAfterCommitments"
                 ? formatCoverageAvailability(quantity)
                 : formatQuantity(quantity[field])}
@@ -251,13 +260,18 @@ function CoverageLines({ quantities }: { readonly quantities: ProductCoverageDto
   return (
     <span className="mt-2 grid gap-1 text-caption">
       {quantities.map((quantity) => (
-        <span key={quantity.unit} className="flex flex-wrap gap-x-3 gap-y-1">
-          <span>Tồn {formatQuantity(quantity.onHand)}</span>
-          <span>Đang mua {formatQuantity(quantity.inboundRemaining)}</span>
-          <span>Cần giao {formatQuantity(quantity.outboundRemaining)}</span>
-          <strong className={quantity.classification === "shortage" ? "text-danger" : "text-ink"}>
-            {formatCoverageAvailability(quantity)}
-          </strong>
+        <span key={coverageRowKey(quantity)} className="grid gap-0.5">
+          <span className="font-medium text-ink-muted">
+            {coverageRowLabel(quantity)} · {quantity.unit}
+          </span>
+          <span className="flex flex-wrap gap-x-3 gap-y-1">
+            <span>Tồn {formatQuantity(quantity.onHand)}</span>
+            <span>Đang mua {formatQuantity(quantity.inboundRemaining)}</span>
+            <span>Cần giao {formatQuantity(quantity.outboundRemaining)}</span>
+            <strong className={quantity.classification === "shortage" ? "text-danger" : "text-ink"}>
+              {formatCoverageAvailability(quantity)}
+            </strong>
+          </span>
         </span>
       ))}
     </span>

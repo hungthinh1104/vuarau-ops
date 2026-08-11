@@ -140,24 +140,24 @@ export async function cashMovementAtScale(
     where m.workspace_id=${args.workspaceId}::uuid
       ${range === null ? sql`` : sql`and m.transaction_time >= ${range.start}::timestamptz and m.transaction_time < ${range.end}::timestamptz`}
   `)) as Record<string, unknown>[];
-  const items: ProjectionRow[] = values.slice(0, args.page.limit).map((row) => ({
-    id: String(row["id"]),
-    label: `${String(row["display_name"])} · ${String(row["source_type"])}`,
-    productId: null,
-    productName: null,
-    qualityGradeId: null,
-    qualityGradeName: null,
-    sourceType: String(row["source_type"]),
-    sourceId: String(row["source_id"]),
-    documentHref: `/cash/accounts/${String(row["id"])}`,
-    transactionTime: new Date(String(row["transaction_time"])).toISOString(),
-    amount: money(
-      persistedBigintToSafeNumber(row["amount_minor"], "cash movement row"),
-      String(row["currency"]) as "VND",
-    ),
-    quantity: null,
-    status: Number(row["amount_minor"]) >= 0 ? "cash_in" : "cash_out",
-  }));
+  const items: ProjectionRow[] = values.slice(0, args.page.limit).map((row) => {
+    const amountMinor = persistedBigintToSafeNumber(row["amount_minor"], "cash movement row");
+    return {
+      id: String(row["id"]),
+      label: `${String(row["display_name"])} · ${String(row["source_type"])}`,
+      productId: null,
+      productName: null,
+      qualityGradeId: null,
+      qualityGradeName: null,
+      sourceType: String(row["source_type"]),
+      sourceId: String(row["source_id"]),
+      documentHref: `/cash/accounts/${String(row["id"])}`,
+      transactionTime: new Date(String(row["transaction_time"])).toISOString(),
+      amount: money(amountMinor, String(row["currency"]) as "VND"),
+      quantity: null,
+      status: amountMinor >= 0 ? "cash_in" : "cash_out",
+    };
+  });
   return {
     reportType: "cash_movement_report",
     businessDate: args.businessDate,

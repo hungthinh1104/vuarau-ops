@@ -5,7 +5,9 @@ import {
   skipWithoutDatabase,
   type DbTestContext,
 } from "@vuarau/db";
+import { decodeCursor } from "@vuarau/domain-contracts";
 import type {
+  CustomerId,
   DeliveryId,
   DeliveryLineId,
   DeliveryReturnId,
@@ -22,6 +24,7 @@ import type {
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
 import { createSupplier } from "../../../modules/supplier/supplier.handlers.ts";
+import { createCustomer } from "../../../modules/customer/create-customer.handler.ts";
 import {
   confirmPurchase,
   createPurchaseDraft,
@@ -416,6 +419,27 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     if (board.ok) {
       expect(board.value.page.items.find((row) => row.id === saleId)?.nextAction).toBe("Giao hàng");
     }
+    const boardPageOne = await getOperationsBoard(context(), {
+      workspaceId: ctx.workspaceId,
+      filter: "all",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 1,
+    });
+    expect(boardPageOne.ok).toBe(true);
+    if (boardPageOne.ok && boardPageOne.value.page.nextCursor !== null) {
+      const boardPageTwo = await getOperationsBoard(context(), {
+        workspaceId: ctx.workspaceId,
+        filter: "all",
+        sort: "updated_desc",
+        search: "",
+        cursor: boardPageOne.value.page.nextCursor,
+        limit: 1,
+      });
+      expect(boardPageTwo.ok).toBe(true);
+      if (boardPageTwo.ok) expect(boardPageTwo.value.counts).toEqual(boardPageOne.value.counts);
+    }
     const backup = await exportWorkspaceBackup(context(), {
       ...envelope("backup", "2026-07-29T08:00:00.000Z"),
       payload: {},
@@ -462,6 +486,119 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     });
     expect(blockedCsv.ok).toBe(true);
     if (blockedCsv.ok) expect(blockedCsv.value.split("\n")).toHaveLength(1);
+  });
+
+  it("continues receivable and payable pages after rows without a last-entry timestamp", async () => {
+    const customerIds: readonly [CustomerId, CustomerId] = [
+      crypto.randomUUID() as CustomerId,
+      crypto.randomUUID() as CustomerId,
+    ];
+    for (const [index, customerId] of customerIds.entries()) {
+      expect(
+        (
+          await createCustomer(context(), {
+            ...envelope(`report-customer-${index}`, `2026-07-29T09:0${index}:00.000Z`),
+            payload: {
+              customerId,
+              displayName: `Khách báo cáo ${index}`,
+              phone: null,
+              note: null,
+            },
+          })
+        ).ok,
+      ).toBe(true);
+    }
+
+    const supplierIds: readonly [SupplierId, SupplierId] = [
+      crypto.randomUUID() as SupplierId,
+      crypto.randomUUID() as SupplierId,
+    ];
+    for (const [index, supplierId] of supplierIds.entries()) {
+      expect(
+        (
+          await createSupplier(context(), {
+            ...envelope(`report-supplier-${index}`, `2026-07-29T10:0${index}:00.000Z`),
+            payload: {
+              supplierId,
+              displayName: `Nhà cung cấp báo cáo ${index}`,
+              phone: null,
+              note: null,
+            },
+          })
+        ).ok,
+      ).toBe(true);
+    }
+
+    await ctx.database.sql`
+      insert into customer_account_balances
+        (workspace_id, customer_id, balance_minor, currency, entry_count, last_entry_transaction_time, updated_at)
+      values
+        (${ctx.workspaceId}::uuid, ${customerIds[0]}::uuid, 100::bigint, 'VND', 1, null, now()),
+        (${ctx.workspaceId}::uuid, ${customerIds[1]}::uuid, 200::bigint, 'VND', 1, null, now())
+    `;
+    await ctx.database.sql`
+      insert into supplier_account_balances
+        (workspace_id, supplier_id, balance_minor, currency, entry_count, last_entry_transaction_time, updated_at)
+      values
+        (${ctx.workspaceId}::uuid, ${supplierIds[0]}::uuid, 300::bigint, 'VND', 1, null, now()),
+        (${ctx.workspaceId}::uuid, ${supplierIds[1]}::uuid, 400::bigint, 'VND', 1, null, now())
+    `;
+
+    const firstCustomerPage = await deps.uow.transaction((repos) =>
+      repos.reportReads.operational({
+        workspaceId: ctx.workspaceId,
+        reportType: "customer_receivables",
+        businessDate: null,
+        productId: null,
+        unit: null,
+        page: { after: null, limit: 1 },
+      }),
+    );
+    expect(firstCustomerPage.page.items).toHaveLength(1);
+    expect(firstCustomerPage.page.nextCursor).not.toBeNull();
+    const secondCustomerPage = await deps.uow.transaction((repos) =>
+      repos.reportReads.operational({
+        workspaceId: ctx.workspaceId,
+        reportType: "customer_receivables",
+        businessDate: null,
+        productId: null,
+        unit: null,
+        page: {
+          after: decodeCursor(firstCustomerPage.page.nextCursor!),
+          limit: 1,
+        },
+      }),
+    );
+    expect(secondCustomerPage.page.items).toHaveLength(1);
+    expect(secondCustomerPage.page.items[0]?.id).not.toBe(firstCustomerPage.page.items[0]?.id);
+
+    const firstSupplierPage = await deps.uow.transaction((repos) =>
+      repos.reportReads.operational({
+        workspaceId: ctx.workspaceId,
+        reportType: "supplier_payables",
+        businessDate: null,
+        productId: null,
+        unit: null,
+        page: { after: null, limit: 1 },
+      }),
+    );
+    expect(firstSupplierPage.page.items).toHaveLength(1);
+    expect(firstSupplierPage.page.nextCursor).not.toBeNull();
+    const secondSupplierPage = await deps.uow.transaction((repos) =>
+      repos.reportReads.operational({
+        workspaceId: ctx.workspaceId,
+        reportType: "supplier_payables",
+        businessDate: null,
+        productId: null,
+        unit: null,
+        page: {
+          after: decodeCursor(firstSupplierPage.page.nextCursor!),
+          limit: 1,
+        },
+      }),
+    );
+    expect(secondSupplierPage.page.items).toHaveLength(1);
+    expect(secondSupplierPage.page.items[0]?.id).not.toBe(firstSupplierPage.page.items[0]?.id);
   });
 
   it("serializes competing dispatches so physical fulfilment cannot exceed the Sale", async () => {

@@ -448,7 +448,7 @@ async function queryRows(
     from purchases p join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id join purchase_physical on purchase_physical.id=p.id
       left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
     where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
-    )
+    ), filtered_rows as (
     select board_rows.*,
       count(*) over() as all_count,
       count(*) filter (where physical_state='needs_receiving') over() as needs_receiving_count,
@@ -458,7 +458,11 @@ async function queryRows(
       count(*) filter (where financial_state='overdue') over() as overdue_count,
       count(*) filter (where commercial_state='attention' or physical_state='attention') over() as attention_count
     from board_rows
-    where ${searchClause} and ${filterClause} and ${cursorClause}
+    where ${searchClause} and ${filterClause}
+    )
+    select *
+    from filtered_rows
+    where ${cursorClause}
     order by ${orderClause}
     limit ${limitClause}
   `);

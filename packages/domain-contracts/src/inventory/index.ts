@@ -210,6 +210,9 @@ export const productCoverageInputSchema = z.object({
 export type ProductCoverageInput = z.infer<typeof productCoverageInputSchema>;
 export const productCoverageQuantityDtoSchema = z.object({
   unit: unitSchema,
+  /** The commercial grade this row can actually cover; null means ungraded/unallocated. */
+  qualityGradeId: qualityGradeIdSchema.nullable().optional().default(null),
+  qualityGradeName: z.string().nullable().optional().default(null),
   onHand: quantitySchema,
   inboundRemaining: quantitySchema,
   outboundRemaining: quantitySchema,

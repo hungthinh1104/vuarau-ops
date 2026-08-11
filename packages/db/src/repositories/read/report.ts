@@ -55,15 +55,20 @@ async function customerReceivablesAtScale(
   args: ProjectionReportArgs,
 ): Promise<OperationalReportDto> {
   const cursor = projectionCursor(args);
+  const cursorFilter =
+    cursor === null
+      ? sql``
+      : cursor.time === ""
+        ? sql`and b.last_entry_transaction_time is null and c.id < ${cursor.id}::uuid`
+        : sql`and (coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz), c.id)
+            < (coalesce(${cursor.time}::timestamptz, '-infinity'::timestamptz), ${cursor.id}::uuid)`;
   const values = (await tx.execute(sql`
     select c.id, c.display_name, b.balance_minor, b.currency, b.last_entry_transaction_time
     from customer_account_balances b
     join customers c
       on c.workspace_id=b.workspace_id and c.id=b.customer_id
     where b.workspace_id=${args.workspaceId}::uuid and b.balance_minor > 0
-      and (${cursor?.time ?? null}::timestamptz is null
-        or (coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz), c.id)
-          < (coalesce(${cursor?.time ?? null}::timestamptz, '-infinity'::timestamptz), ${cursor?.id ?? null}::uuid))
+      ${cursorFilter}
     order by coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz) desc, c.id desc
     limit ${args.page.limit + 1}
   `)) as Record<string, unknown>[];
@@ -120,15 +125,20 @@ async function supplierPayablesAtScale(
   args: ProjectionReportArgs,
 ): Promise<OperationalReportDto> {
   const cursor = projectionCursor(args);
+  const cursorFilter =
+    cursor === null
+      ? sql``
+      : cursor.time === ""
+        ? sql`and b.last_entry_transaction_time is null and s.id < ${cursor.id}::uuid`
+        : sql`and (coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz), s.id)
+            < (coalesce(${cursor.time}::timestamptz, '-infinity'::timestamptz), ${cursor.id}::uuid)`;
   const values = (await tx.execute(sql`
     select s.id, s.display_name, b.balance_minor, b.currency, b.last_entry_transaction_time
     from supplier_account_balances b
     join suppliers s
       on s.workspace_id=b.workspace_id and s.id=b.supplier_id
     where b.workspace_id=${args.workspaceId}::uuid and b.balance_minor > 0
-      and (${cursor?.time ?? null}::timestamptz is null
-        or (coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz), s.id)
-          < (coalesce(${cursor?.time ?? null}::timestamptz, '-infinity'::timestamptz), ${cursor?.id ?? null}::uuid))
+      ${cursorFilter}
     order by coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz) desc, s.id desc
     limit ${args.page.limit + 1}
   `)) as Record<string, unknown>[];

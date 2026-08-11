@@ -1,6 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { Page, ProductCoverageDto, ProductDto } from "@vuarau/domain-contracts";
-import { PRODUCT_CA_CHUA_ID, PRODUCT_RAU_MUONG_ID, WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
+import {
+  PRODUCT_CA_CHUA_ID,
+  PRODUCT_RAU_MUONG_ID,
+  QUALITY_GRADE_1_ID,
+  WORKSPACE_ID,
+} from "@vuarau/test-fixtures/ids";
 import { RECORDED_AT } from "@vuarau/test-fixtures/time";
 import { ProductsDirectoryView } from "./products-directory-view.tsx";
 
@@ -38,6 +43,8 @@ const coverage: readonly ProductCoverageDto[] = [
     quantities: [
       {
         unit: "kg",
+        qualityGradeId: QUALITY_GRADE_1_ID,
+        qualityGradeName: "Loại 1",
         onHand: { valueScaled: 20_000, unit: "kg" },
         inboundRemaining: { valueScaled: 10_000, unit: "kg" },
         outboundRemaining: { valueScaled: 45_000, unit: "kg" },
@@ -52,6 +59,8 @@ const coverage: readonly ProductCoverageDto[] = [
     quantities: [
       {
         unit: "bo",
+        qualityGradeId: null,
+        qualityGradeName: null,
         onHand: { valueScaled: 80_000, unit: "bo" },
         inboundRemaining: { valueScaled: 0, unit: "bo" },
         outboundRemaining: { valueScaled: 25_000, unit: "bo" },

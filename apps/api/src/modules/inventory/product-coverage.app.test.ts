@@ -115,6 +115,8 @@ describe("UC-INVENTORY-001 — Product coverage", () => {
     expect(result.ok && result.value[0]?.quantities).toEqual([
       {
         unit: "kg",
+        qualityGradeId: null,
+        qualityGradeName: null,
         onHand: { valueScaled: 0, unit: "kg" },
         inboundRemaining: { valueScaled: 0, unit: "kg" },
         outboundRemaining: { valueScaled: 0, unit: "kg" },
@@ -215,10 +217,22 @@ describe("UC-INVENTORY-001 — Product coverage", () => {
     expect(beforeDispatch.ok && beforeDispatch.value[0]?.quantities).toEqual([
       {
         unit: "kg",
-        onHand: { valueScaled: 4_000, unit: "kg" },
+        qualityGradeId: null,
+        qualityGradeName: null,
+        onHand: { valueScaled: 0, unit: "kg" },
         inboundRemaining: { valueScaled: 6_000, unit: "kg" },
+        outboundRemaining: { valueScaled: 0, unit: "kg" },
+        availableAfterCommitments: { valueScaled: 6_000, unit: "kg" },
+        classification: "covered",
+      },
+      {
+        unit: "kg",
+        qualityGradeId: QUALITY_GRADE_1_ID,
+        qualityGradeName: "Loại 1",
+        onHand: { valueScaled: 4_000, unit: "kg" },
+        inboundRemaining: { valueScaled: 0, unit: "kg" },
         outboundRemaining: { valueScaled: 12_000, unit: "kg" },
-        availableAfterCommitments: { valueScaled: -2_000, unit: "kg" },
+        availableAfterCommitments: { valueScaled: -8_000, unit: "kg" },
         classification: "shortage",
       },
     ]);
@@ -255,10 +269,17 @@ describe("UC-INVENTORY-001 — Product coverage", () => {
       workspaceId: WORKSPACE_ID,
       productIds: [PRODUCT_CA_CHUA_ID],
     });
-    expect(afterDispatch.ok && afterDispatch.value[0]?.quantities[0]).toMatchObject({
+    expect(
+      afterDispatch.ok &&
+        afterDispatch.value[0]?.quantities.find(
+          (quantity) => quantity.qualityGradeId === QUALITY_GRADE_1_ID,
+        ),
+    ).toMatchObject({
+      qualityGradeId: QUALITY_GRADE_1_ID,
+      qualityGradeName: "Loại 1",
       onHand: { valueScaled: -1_000, unit: "kg" },
       outboundRemaining: { valueScaled: 7_000, unit: "kg" },
-      availableAfterCommitments: { valueScaled: -2_000, unit: "kg" },
+      availableAfterCommitments: { valueScaled: -8_000, unit: "kg" },
     });
 
     expect(
@@ -282,10 +303,17 @@ describe("UC-INVENTORY-001 — Product coverage", () => {
       workspaceId: WORKSPACE_ID,
       productIds: [PRODUCT_CA_CHUA_ID],
     });
-    expect(afterReturn.ok && afterReturn.value[0]?.quantities[0]).toMatchObject({
+    expect(
+      afterReturn.ok &&
+        afterReturn.value[0]?.quantities.find(
+          (quantity) => quantity.qualityGradeId === QUALITY_GRADE_1_ID,
+        ),
+    ).toMatchObject({
+      qualityGradeId: QUALITY_GRADE_1_ID,
+      qualityGradeName: "Loại 1",
       onHand: { valueScaled: 1_000, unit: "kg" },
       outboundRemaining: { valueScaled: 9_000, unit: "kg" },
-      availableAfterCommitments: { valueScaled: -2_000, unit: "kg" },
+      availableAfterCommitments: { valueScaled: -8_000, unit: "kg" },
     });
   });
 

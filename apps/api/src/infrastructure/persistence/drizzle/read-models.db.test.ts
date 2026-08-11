@@ -154,6 +154,8 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
     expect(result.value[0]?.quantities).toEqual([
       {
         unit: "kg",
+        qualityGradeId: ctx.qualityGradeId,
+        qualityGradeName: "Loại 1",
         onHand: { valueScaled: 0, unit: "kg" },
         inboundRemaining: { valueScaled: 0, unit: "kg" },
         outboundRemaining: { valueScaled: 4_000, unit: "kg" },

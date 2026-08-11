@@ -1,5 +1,6 @@
 import type {
   ProductCoverageQuantityDto,
+  QualityGradeId,
   Unit,
   AdjustInventoryCommand,
   IsoInstant,
@@ -126,6 +127,8 @@ export const classifyInventory = (quantityScaled: number) =>
  */
 export function deriveProductCoverageQuantity(input: {
   readonly unit: Unit;
+  readonly qualityGradeId?: QualityGradeId | null;
+  readonly qualityGradeName?: string | null;
   readonly onHand: number;
   readonly inboundRemaining: number;
   readonly outboundRemaining: number;
@@ -146,6 +149,8 @@ export function deriveProductCoverageQuantity(input: {
   const availableAfterCommitments = Number(availableAfterCommitmentsBigInt);
   return {
     unit: input.unit,
+    qualityGradeId: input.qualityGradeId ?? null,
+    qualityGradeName: input.qualityGradeName ?? null,
     onHand: { valueScaled: input.onHand, unit: input.unit },
     inboundRemaining: { valueScaled: input.inboundRemaining, unit: input.unit },
     outboundRemaining: { valueScaled: input.outboundRemaining, unit: input.unit },

@@ -7,7 +7,12 @@ import type {
   WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
-import { PRODUCT_CA_CHUA_ID, WORKSPACE_ID, testUuid } from "@vuarau/test-fixtures/ids";
+import {
+  PRODUCT_CA_CHUA_ID,
+  QUALITY_GRADE_1_ID,
+  WORKSPACE_ID,
+  testUuid,
+} from "@vuarau/test-fixtures/ids";
 import { RECORDED_AT, TRANSACTION_TIME } from "@vuarau/test-fixtures/time";
 import { ProductInventoryView, type ProductInventoryViewProps } from "./product-inventory-view.tsx";
 
@@ -36,6 +41,8 @@ const coverage: ProductCoverageDto = {
   quantities: [
     {
       unit: "kg",
+      qualityGradeId: QUALITY_GRADE_1_ID,
+      qualityGradeName: "Loại 1",
       onHand: { valueScaled: 4_000, unit: "kg" },
       inboundRemaining: { valueScaled: 6_000, unit: "kg" },
       outboundRemaining: { valueScaled: 12_000, unit: "kg" },

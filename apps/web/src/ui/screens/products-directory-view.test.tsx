@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import type { Page, ProductCoverageDto, ProductDto } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
-import { PRODUCT_CA_CHUA_ID, WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
+import { PRODUCT_CA_CHUA_ID, QUALITY_GRADE_1_ID, WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
 import { RECORDED_AT } from "@vuarau/test-fixtures/time";
 import { ProductsDirectoryView } from "./products-directory-view.tsx";
 
@@ -23,6 +23,8 @@ const coverage: ProductCoverageDto = {
   quantities: [
     {
       unit: "kg",
+      qualityGradeId: QUALITY_GRADE_1_ID,
+      qualityGradeName: "Loại 1",
       onHand: { valueScaled: 4_000, unit: "kg" },
       inboundRemaining: { valueScaled: 6_000, unit: "kg" },
       outboundRemaining: { valueScaled: 12_000, unit: "kg" },
@@ -62,6 +64,7 @@ describe("ProductsDirectoryView", () => {
     expect(within(table).getByRole("columnheader", { name: "Đang mua" })).toBeInTheDocument();
     expect(within(table).getByRole("columnheader", { name: "Cần giao" })).toBeInTheDocument();
     expect(within(table).getByText("Thiếu 2 kg")).toBeInTheDocument();
+    expect(within(table).getAllByText("Loại 1").length).toBeGreaterThan(0);
     expect(within(table).getByText("Cần bù hàng")).toBeInTheDocument();
     expect(
       screen

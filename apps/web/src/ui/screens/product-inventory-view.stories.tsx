@@ -152,6 +152,8 @@ const coverage: ProductCoverageDto = {
   quantities: [
     {
       unit: "kg",
+      qualityGradeId: QUALITY_GRADE_1_ID,
+      qualityGradeName: "Loại 1",
       onHand: { valueScaled: 83_000, unit: "kg" },
       inboundRemaining: { valueScaled: 20_000, unit: "kg" },
       outboundRemaining: { valueScaled: 115_000, unit: "kg" },

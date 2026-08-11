@@ -47,6 +47,15 @@ import { key, type Store } from "../store.ts";
 import { restorePaymentAllocationFacts } from "./payment-allocation.ts";
 import { restoreStocktakes } from "./operations-stocktake.ts";
 import { restoreCloseFacts } from "./operations-close-restore.ts";
+import {
+  customerOrderLine,
+  customerOrderTotal,
+  dispositionAllocation,
+  goodsArrivalLine,
+  inspectedQuantity,
+  supplyCommitmentLine,
+  supplyCommitmentTotal,
+} from "./backup-fact-mappers.ts";
 export const createOperationsRepositories = (store: Store): Pick<Repositories, "operations"> => ({
   operations: {
     restoreBackup: async (workspaceId, payload) => {
@@ -208,32 +217,13 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         const orderLines = new Map<string, CustomerOrderState["lines"]>();
         for (const raw of payload.customerOrderLines) {
           const orderId = String(raw["customerOrderId"]);
-          const line = {
-            lineId: raw["id"],
-            productId: raw["productId"] ?? null,
-            productName: raw["productName"],
-            quantity: {
-              valueScaled: Number(raw["quantityScaled"]),
-              unit: raw["unit"],
-            },
-            agreedUnitPrice:
-              raw["agreedUnitPriceMinor"] == null
-                ? null
-                : { amountMinor: Number(raw["agreedUnitPriceMinor"]), currency: raw["currency"] },
-            lineTotal:
-              raw["lineTotalMinor"] == null
-                ? null
-                : { amountMinor: Number(raw["lineTotalMinor"]), currency: raw["currency"] },
-          } as unknown as CustomerOrderState["lines"][number];
+          const line = customerOrderLine(raw);
           orderLines.set(orderId, [...(orderLines.get(orderId) ?? []), line]);
         }
         for (const raw of payload.customerOrders) {
           const row = remap({
             ...raw,
-            totalAmount:
-              raw["totalAmountMinor"] == null
-                ? null
-                : { amountMinor: Number(raw["totalAmountMinor"]), currency: raw["currency"] },
+            totalAmount: customerOrderTotal(raw),
             paymentTermsSnapshot:
               raw["paymentTermsLabel"] == null
                 ? null
@@ -245,30 +235,13 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         const commitmentLines = new Map<string, SupplyCommitmentState["lines"]>();
         for (const raw of payload.supplyCommitmentLines) {
           const commitmentId = String(raw["supplyCommitmentId"]);
-          const line = {
-            lineId: raw["id"],
-            productId: raw["productId"] ?? null,
-            qualityGradeId: raw["qualityGradeId"] ?? null,
-            productName: raw["productName"],
-            quantity: { valueScaled: Number(raw["quantityScaled"]), unit: raw["unit"] },
-            agreedUnitPrice:
-              raw["agreedUnitPriceMinor"] == null
-                ? null
-                : { amountMinor: Number(raw["agreedUnitPriceMinor"]), currency: raw["currency"] },
-            lineTotal:
-              raw["lineTotalMinor"] == null
-                ? null
-                : { amountMinor: Number(raw["lineTotalMinor"]), currency: raw["currency"] },
-          } as unknown as SupplyCommitmentState["lines"][number];
+          const line = supplyCommitmentLine(raw);
           commitmentLines.set(commitmentId, [...(commitmentLines.get(commitmentId) ?? []), line]);
         }
         for (const raw of payload.supplyCommitments) {
           const row = remap({
             ...raw,
-            totalAmount:
-              raw["totalAmountMinor"] == null
-                ? null
-                : { amountMinor: Number(raw["totalAmountMinor"]), currency: raw["currency"] },
+            totalAmount: supplyCommitmentTotal(raw),
             expectedArrivalAt: raw["expectedArrivalAt"] ?? null,
             paymentTermsSnapshot:
               raw["paymentTermsLabel"] == null
@@ -293,41 +266,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         const arrivalLines = new Map<string, GoodsArrivalDto["lines"]>();
         for (const raw of payload.goodsArrivalLines) {
           const arrivalId = String(raw["arrivalId"]);
-          const weightUnit = raw["weightUnit"];
-          const line = {
-            arrivalLineId: raw["id"],
-            purchaseLineId: raw["purchaseLineId"] ?? null,
-            productId: raw["productId"],
-            productName: raw["productName"],
-            arrivedQuantity: {
-              valueScaled: Number(raw["arrivedValueScaled"]),
-              unit: raw["arrivedUnit"],
-            },
-            weighing:
-              raw["grossWeightValueScaled"] == null ||
-              raw["tareWeightValueScaled"] == null ||
-              raw["netWeightValueScaled"] == null ||
-              weightUnit == null
-                ? null
-                : {
-                    containerCount:
-                      raw["containerCount"] == null ? null : Number(raw["containerCount"]),
-                    grossWeight: {
-                      valueScaled: Number(raw["grossWeightValueScaled"]),
-                      unit: weightUnit,
-                    },
-                    tareWeight: {
-                      valueScaled: Number(raw["tareWeightValueScaled"]),
-                      unit: weightUnit,
-                    },
-                    netWeight: {
-                      valueScaled: Number(raw["netWeightValueScaled"]),
-                      unit: weightUnit,
-                    },
-                  },
-            supplierLotCode: raw["supplierLotCode"] ?? null,
-            note: raw["note"] ?? null,
-          } as unknown as GoodsArrivalDto["lines"][number];
+          const line = goodsArrivalLine(raw);
           arrivalLines.set(arrivalId, [...(arrivalLines.get(arrivalId) ?? []), line]);
         }
         const arrivalReversals = new Map<string, GoodsArrivalDto["reversal"]>();
@@ -382,10 +321,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           const id = String(raw["id"]);
           const row = remap({
             ...raw,
-            inspectedQuantity: {
-              valueScaled: Number(raw["inspectedValueScaled"]),
-              unit: raw["inspectedUnit"],
-            },
+            inspectedQuantity: inspectedQuantity(raw),
             issues: inspectionIssues.get(id) ?? [],
             reversal: inspectionReversals.get(id) ?? null,
           }) as unknown as QualityInspectionDto;
@@ -394,17 +330,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
         const dispositionAllocations = new Map<string, QualityDispositionDto["allocations"]>();
         for (const raw of payload.qualityDispositionAllocations) {
           const dispositionId = String(raw["dispositionId"]);
-          const allocation = {
-            allocationId: raw["id"],
-            outcome: raw["outcome"],
-            quantity: {
-              valueScaled: Number(raw["valueScaled"]),
-              unit: raw["unit"],
-            },
-            qualityGradeId: raw["qualityGradeId"] ?? null,
-            qualityGradeName: raw["qualityGradeName"] ?? null,
-            note: raw["note"] ?? null,
-          } as unknown as QualityDispositionDto["allocations"][number];
+          const allocation = dispositionAllocation(raw);
           dispositionAllocations.set(dispositionId, [
             ...(dispositionAllocations.get(dispositionId) ?? []),
             allocation,

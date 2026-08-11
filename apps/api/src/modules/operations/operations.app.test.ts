@@ -119,6 +119,40 @@ describe("M14 logical operations evidence", () => {
     expect(integrity.ok && integrity.value.status).toBe("healthy");
   });
 
+  it("rejects a checksum-valid backup that cannot represent an integer exactly", async () => {
+    const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
+    expect(exported.ok).toBe(true);
+    if (!exported.ok) return;
+    const unsafePayload = {
+      ...exported.value.payload,
+      workspace: {
+        ...exported.value.payload.workspace,
+        unsafeInteger: Number.MAX_SAFE_INTEGER + 1,
+      },
+    };
+    const unsafeBackup = {
+      ...exported.value,
+      payload: unsafePayload,
+      digest: backupDigest(unsafePayload),
+    };
+    const validation = await validateWorkspaceBackup(harness.ctx, WORKSPACE_ID, unsafeBackup);
+    expect(validation.ok && validation.value.diagnostics).toContain("unsafe_number");
+
+    const target = workspaceIdSchema.parse("00000000-0000-4000-8000-000000000806");
+    harness.db.registerWorkspace(target, "Vựa backup số không an toàn");
+    harness.db.grantMembership(target, ACTOR_ID, "owner", true);
+    const restored = await restoreWorkspaceBackup(harness.ctx, {
+      commandId: crypto.randomUUID(),
+      idempotencyKey: "restore-unsafe-number-001",
+      workspaceId: target,
+      actorId: ACTOR_ID,
+      occurredAt: LATEST_TRANSACTION_TIME,
+      payload: { backup: unsafeBackup, reason: "Từ chối số không thể khôi phục chính xác" },
+    });
+    expect(restored.ok).toBe(false);
+    if (!restored.ok) expect(restored.error.code).toBe("BACKUP_INTEGRITY_ERROR");
+  });
+
   it("rejects a backup whose approved policy collection contains an overlap", async () => {
     const policyEnvelope = (label: string) => ({
       commandId: crypto.randomUUID(),

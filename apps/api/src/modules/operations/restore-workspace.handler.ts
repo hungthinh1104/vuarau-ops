@@ -12,13 +12,14 @@ import {
 import { err, ok, type DomainResult } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
-import { backupDigest } from "./operations.queries.ts";
+import { backupDigest, hasUnsafeBackupNumber } from "./operations.queries.ts";
 import { validCloseReferences } from "./restore-close-validation.ts";
 import { deliveryReferenceValidator } from "./restore-delivery-validation.ts";
 import { validDocumentAndCashReferences } from "./restore-document-validation.ts";
 import { purchaseReferenceValidator } from "./restore-purchase-validation.ts";
 import { paymentReferenceValidator } from "./restore-payment-validation.ts";
 import { validWorkspacePolicyCollection } from "./restore-policy-validation.ts";
+
 function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const payload = v19Payload(command);
   const source = command.payload.backup.sourceWorkspaceId;
@@ -568,6 +569,12 @@ export function restoreWorkspaceBackup(
       const backup = command.payload.backup;
       if (backupDigest(backup.payload) !== backup.digest) {
         return err("BACKUP_DIGEST_INVALID", "Backup checksum does not match its payload.");
+      }
+      if (hasUnsafeBackupNumber(backup.payload)) {
+        return err(
+          "BACKUP_INTEGRITY_ERROR",
+          "Backup contains a numeric value that cannot be restored exactly.",
+        );
       }
       if (!validReferences(command)) {
         return err("BACKUP_INTEGRITY_ERROR", "Backup references are incomplete or cross-scoped.");

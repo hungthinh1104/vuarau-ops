@@ -355,6 +355,17 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
     expect(coverage.ok && coverage.value[0]?.quantities).toEqual([
       expect.objectContaining({
         unit: "kg",
+        qualityGradeId: null,
+        qualityGradeName: null,
+        onHand: { valueScaled: 0, unit: "kg" },
+        inboundRemaining: { valueScaled: 0, unit: "kg" },
+        outboundRemaining: { valueScaled: 0, unit: "kg" },
+        availableAfterCommitments: { valueScaled: 0, unit: "kg" },
+      }),
+      expect.objectContaining({
+        unit: "kg",
+        qualityGradeId: ctx.qualityGradeId,
+        qualityGradeName: "Loại 1",
         onHand: { valueScaled: 75_000, unit: "kg" },
         inboundRemaining: { valueScaled: 0, unit: "kg" },
         outboundRemaining: { valueScaled: 5_000, unit: "kg" },

@@ -3,6 +3,7 @@ import {
   UNITS,
   type ProductCoverageDto,
   type ProductId,
+  type QualityGradeId,
   type Unit,
 } from "@vuarau/domain-contracts";
 import {
@@ -88,22 +89,38 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         })),
     coverage: async (workspaceId, productIds) => {
       type Totals = {
+        qualityGradeId: QualityGradeId | null;
+        qualityGradeName: string | null;
+        unit: Unit;
         onHand: number;
         inboundRemaining: number;
         outboundRemaining: number;
       };
       const requested = new Set<string>(productIds);
-      const byProduct = new Map<string, Map<Unit, Totals>>();
-      const ensure = (productId: ProductId, unit: Unit): Totals => {
+      const byProduct = new Map<string, Map<string, Totals>>();
+      const ensure = (
+        productId: ProductId,
+        qualityGradeId: QualityGradeId | null,
+        qualityGradeName: string | null,
+        unit: Unit,
+      ): Totals => {
         let byUnit = byProduct.get(productId);
         if (byUnit === undefined) {
           byUnit = new Map();
           byProduct.set(productId, byUnit);
         }
-        let totals = byUnit.get(unit);
+        const coverageKey = `${qualityGradeId ?? "ungraded"}:${unit}`;
+        let totals = byUnit.get(coverageKey);
         if (totals === undefined) {
-          totals = { onHand: 0, inboundRemaining: 0, outboundRemaining: 0 };
-          byUnit.set(unit, totals);
+          totals = {
+            qualityGradeId,
+            qualityGradeName,
+            unit,
+            onHand: 0,
+            inboundRemaining: 0,
+            outboundRemaining: 0,
+          };
+          byUnit.set(coverageKey, totals);
         }
         return totals;
       };
@@ -111,13 +128,18 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
       for (const productId of productIds) {
         const product = store.products.get(key(workspaceId, productId));
         if (product?.preferredUnit !== null && product?.preferredUnit !== undefined) {
-          ensure(productId, product.preferredUnit);
+          ensure(productId, null, null, product.preferredUnit);
         }
       }
 
       for (const balance of store.inventoryBalances.values()) {
         if (balance.workspaceId !== workspaceId || !requested.has(balance.productId)) continue;
-        ensure(balance.productId, balance.unit).onHand += balance.quantityScaled;
+        const qualityGradeName =
+          balance.qualityGradeId === null
+            ? null
+            : (store.qualityGrades.get(key(workspaceId, balance.qualityGradeId))?.name ?? null);
+        ensure(balance.productId, balance.qualityGradeId, qualityGradeName, balance.unit).onHand +=
+          balance.quantityScaled;
       }
 
       const acceptedByPurchaseLine = new Map<string, number>();
@@ -166,7 +188,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
               "Product coverage contains an over-received purchase line.",
             );
           }
-          ensure(line.productId, line.quantity.unit).inboundRemaining += Math.max(
+          ensure(line.productId, null, null, line.quantity.unit).inboundRemaining += Math.max(
             0,
             line.quantity.valueScaled - received,
           );
@@ -215,10 +237,12 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
               "Product coverage contains an over-fulfilled sale line.",
             );
           }
-          ensure(line.productId, line.quantity.unit).outboundRemaining += Math.max(
-            0,
-            line.quantity.valueScaled - fulfilled,
-          );
+          ensure(
+            line.productId,
+            line.qualityGradeId,
+            line.qualityGradeName,
+            line.quantity.unit,
+          ).outboundRemaining += Math.max(0, line.quantity.valueScaled - fulfilled);
         }
       }
 
@@ -226,8 +250,14 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         workspaceId,
         productId,
         quantities: [...(byProduct.get(productId)?.entries() ?? [])]
-          .sort(([left], [right]) => UNITS.indexOf(left) - UNITS.indexOf(right))
-          .map(([unit, totals]) => deriveProductCoverageQuantity({ unit, ...totals })),
+          .sort(([, left], [, right]) => {
+            const unitOrder = UNITS.indexOf(left.unit) - UNITS.indexOf(right.unit);
+            if (unitOrder !== 0) return unitOrder;
+            if (left.qualityGradeId === null) return -1;
+            if (right.qualityGradeId === null) return 1;
+            return left.qualityGradeId.localeCompare(right.qualityGradeId);
+          })
+          .map(([, totals]) => deriveProductCoverageQuantity(totals)),
       }));
     },
     valuationSources: async ({ workspaceId, productId, qualityGradeId, unit, asOf }) => {

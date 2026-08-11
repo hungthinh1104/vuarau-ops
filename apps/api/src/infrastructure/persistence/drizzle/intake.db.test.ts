@@ -298,10 +298,22 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
     expect(coverage.ok && coverage.value[0]?.quantities).toEqual([
       {
         unit: "kg",
-        onHand: { valueScaled: 80_000, unit: "kg" },
+        qualityGradeId: null,
+        qualityGradeName: null,
+        onHand: { valueScaled: 0, unit: "kg" },
         inboundRemaining: { valueScaled: 20_000, unit: "kg" },
         outboundRemaining: { valueScaled: 0, unit: "kg" },
-        availableAfterCommitments: { valueScaled: 100_000, unit: "kg" },
+        availableAfterCommitments: { valueScaled: 20_000, unit: "kg" },
+        classification: "covered",
+      },
+      {
+        unit: "kg",
+        qualityGradeId: ctx.qualityGradeId,
+        qualityGradeName: "Loại 1",
+        onHand: { valueScaled: 80_000, unit: "kg" },
+        inboundRemaining: { valueScaled: 0, unit: "kg" },
+        outboundRemaining: { valueScaled: 0, unit: "kg" },
+        availableAfterCommitments: { valueScaled: 80_000, unit: "kg" },
         classification: "covered",
       },
     ]);

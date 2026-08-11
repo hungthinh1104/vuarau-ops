@@ -139,7 +139,13 @@ function ProductCoverageSummary({
   return (
     <div className="grid gap-2 border-y border-border py-3">
       {coverage.quantities.map((quantity) => (
-        <div key={quantity.unit} className="grid gap-0.5 text-body-sm">
+        <div
+          key={`${quantity.unit}:${quantity.qualityGradeId ?? "ungraded"}`}
+          className="grid gap-0.5 text-body-sm"
+        >
+          <span className="font-medium text-ink-muted">
+            {quantity.qualityGradeName ?? "Chưa phân hạng"} · {quantity.unit}
+          </span>
           <span>Tồn thực tế: {formatQuantity(quantity.onHand)}</span>
           <span>Đang mua: {formatQuantity(quantity.inboundRemaining)}</span>
           <span>Cần giao: {formatQuantity(quantity.outboundRemaining)}</span>
