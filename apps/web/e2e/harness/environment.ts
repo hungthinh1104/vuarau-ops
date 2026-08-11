@@ -46,6 +46,36 @@ export const E2E_JWT_SECRET = "e2e-only-secret-not-a-credential-0123456789";
 export const E2E_JWT_ISSUER = "https://e2e.local/auth/v1";
 export const E2E_JWT_AUDIENCE = "authenticated";
 
+/**
+ * The root wrapper owns database creation and cleanup. Keeping this assertion
+ * in the Playwright config prevents a direct package-level E2E invocation from
+ * accidentally writing into `vuarau_test` or a development database.
+ */
+export function assertE2eDatabaseBoundary(owner: string | undefined, databaseUrl: string): void {
+  if (owner !== "web-e2e-wrapper" && owner !== "pilot-dry-run") {
+    throw new Error(
+      "E2E_DATABASE_OWNER is missing or invalid. Run the root `pnpm web:e2e` wrapper.",
+    );
+  }
+
+  let databaseName: string;
+  let url: URL;
+  try {
+    url = new URL(databaseUrl);
+    databaseName = url.pathname.replace(/^\//, "");
+  } catch {
+    throw new Error("E2E DATABASE_URL must identify a disposable local PostgreSQL database.");
+  }
+
+  if (
+    !(url.protocol === "postgres:" || url.protocol === "postgresql:") ||
+    !["localhost", "127.0.0.1", "::1"].includes(url.hostname) ||
+    !/^vuarau_(e2e|pilot)_[a-z0-9]{12}_[a-z0-9]+_test$/.test(databaseName)
+  ) {
+    throw new Error("E2E DATABASE_URL must identify a disposable local PostgreSQL database.");
+  }
+}
+
 export async function mintAccessToken(role: E2ERole): Promise<string> {
   return mintAccessTokenForActor(E2E_ACTORS[role]);
 }

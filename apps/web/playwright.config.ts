@@ -5,6 +5,7 @@ import {
   E2E_JWT_ISSUER,
   E2E_JWT_SECRET,
   E2E_WEB_PORT,
+  assertE2eDatabaseBoundary,
   endToEndDisabled,
 } from "./e2e/harness/environment.ts";
 import { DESKTOP_GOLDEN_SPECS } from "./e2e/harness/projects.ts";
@@ -30,6 +31,9 @@ const databaseUrl = process.env["DATABASE_URL"] ?? "";
  * no API process and no database — see `endToEndDisabled`.
  */
 const hasDatabase = !endToEndDisabled();
+if (hasDatabase) {
+  assertE2eDatabaseBoundary(process.env["E2E_DATABASE_OWNER"], databaseUrl);
+}
 
 const apiEnvironment = {
   DATABASE_URL: databaseUrl,

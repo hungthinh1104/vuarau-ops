@@ -8,7 +8,7 @@ pnpm --filter @vuarau/web dev              # Next dev server on :3000
 pnpm --filter @vuarau/web storybook        # Storybook on :6006
 pnpm --filter @vuarau/web build            # production build
 pnpm test:web                              # component tests (jsdom)
-DATABASE_URL=… pnpm web:e2e                # end to end, against a real API + Postgres
+DATABASE_URL=… pnpm web:e2e                # end to end; root wrapper creates a disposable DB
 ```
 
 ## Routes
@@ -88,6 +88,10 @@ NODE_ENV !== "production"          Next resolves this at build time and removes
 
 TC-WEB-024 asserts an injected token is ignored with the flag unset. "Off by
 default" is one line to break by accident, so it is tested rather than commented.
+
+Use the root `pnpm web:e2e` entry point. The package-level Playwright command is
+not a supported entry point: the config refuses a missing wrapper owner or a
+shared/non-disposable `DATABASE_URL`.
 
 ## What is here
 

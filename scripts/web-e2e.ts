@@ -142,7 +142,13 @@ function run(): void {
   try {
     const result = spawnSync("pnpm", ["--filter", "@vuarau/web", "e2e"], {
       stdio: "inherit",
-      env: { ...process.env, NODE_ENV: "test", DATABASE_URL: database.targetUrl },
+      env: {
+        ...process.env,
+        NODE_ENV: "test",
+        DATABASE_URL: database.targetUrl,
+        E2E_DATABASE_OWNER: database.ownership === "caller" ? "pilot-dry-run" : "web-e2e-wrapper",
+        E2E_DATABASE_URL: database.targetUrl,
+      },
     });
     if (result.error) {
       console.error(result.error);
