@@ -162,6 +162,55 @@ describe("BR-CUSTOMER-ORDER-003 / TC-CUSTOMER-ORDER-005", () => {
     if (!replacement.ok) expect(replacement.error.code).toBe("CUSTOMER_ORDER_REPLACEMENT_INVALID");
   });
 
+  it("revalidates replacement identity when an existing replacement draft is edited", async () => {
+    const originalId = customerOrderIdSchema.parse("44444444-4444-4444-8444-444444444449");
+    const replacementId = customerOrderIdSchema.parse("44444444-4444-4444-8444-444444444450");
+    await createCustomerOrderDraft(harness.ctx, {
+      ...createInput({ customerOrderId: originalId }),
+      commandId: "00000000-0000-4000-8000-000000000451",
+      idempotencyKey: "customer-order-original-448",
+    });
+    expect(
+      (
+        await cancelCustomerOrder(harness.ctx, {
+          ...commandInput(
+            { customerOrderId: originalId, reason: "Khách đổi lịch" },
+            {
+              commandId: "00000000-0000-4000-8000-000000000452",
+              idempotencyKey: "customer-order-cancel-448",
+              expectedVersion: 1,
+            },
+          ),
+        })
+      ).ok,
+    ).toBe(true);
+    const replacement = await createCustomerOrderDraft(harness.ctx, {
+      ...createInput({ customerOrderId: replacementId, replacesCustomerOrderId: originalId }),
+      commandId: "00000000-0000-4000-8000-000000000453",
+      idempotencyKey: "customer-order-replacement-448",
+    });
+    expect(replacement.ok).toBe(true);
+
+    const edited = await updateCustomerOrderDraft(harness.ctx, {
+      ...commandInput(
+        {
+          ...createInput().payload,
+          customerOrderId: replacementId,
+          customerId: null,
+          channel: "walk_in",
+          replacesCustomerOrderId: originalId,
+        },
+        {
+          commandId: "00000000-0000-4000-8000-000000000454",
+          idempotencyKey: "customer-order-replacement-edit-448",
+          expectedVersion: 1,
+        },
+      ),
+    });
+    expect(edited.ok).toBe(false);
+    if (!edited.ok) expect(edited.error.code).toBe("CUSTOMER_ORDER_REPLACEMENT_INVALID");
+  });
+
   it("refuses a stale edit and preserves the stored version", async () => {
     await createCustomerOrderDraft(harness.ctx, createInput());
     const result = await updateCustomerOrderDraft(

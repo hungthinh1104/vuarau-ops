@@ -60,8 +60,24 @@ async function validateReferences(
   if (requireActiveSupplier && !supplier.isActive)
     return err("SUPPLIER_INACTIVE", "Inactive supplier cannot be used for a new Purchase.");
   for (const line of purchase.lines) {
-    if ((await repos.products.findById(purchase.workspaceId, line.productId)) === null)
+    const product = await repos.products.findById(purchase.workspaceId, line.productId);
+    if (product === null)
       return err("PRODUCT_NOT_FOUND", "Purchase Product is outside this workspace.");
+    if (requireActiveSupplier && !product.isActive)
+      return err(
+        "PURCHASE_PRODUCT_INACTIVE",
+        "An inactive Product cannot be used for a new Purchase.",
+        {
+          lineId: line.lineId,
+          productId: line.productId,
+        },
+      );
+    if (requireActiveSupplier && product.displayName !== line.productName)
+      return err(
+        "PURCHASE_PRODUCT_SNAPSHOT_MISMATCH",
+        "The Purchase line no longer matches the selected Product name.",
+        { lineId: line.lineId, productId: line.productId },
+      );
   }
   return ok(undefined);
 }

@@ -76,6 +76,7 @@ async function validateReferences(
 async function validateReplacement(
   repos: Parameters<Parameters<typeof runCommand>[0]["execute"]>[0]["repos"],
   commitment: SupplyCommitmentState,
+  currentCommitmentId?: SupplyCommitmentState["id"],
 ) {
   if (commitment.replacesSupplyCommitmentId === null) return ok(undefined);
   const original = await repos.supplyCommitments.findByIdForUpdate(
@@ -92,9 +93,11 @@ async function validateReplacement(
       "SUPPLY_COMMITMENT_REPLACEMENT_INVALID",
       "A replacement must keep the cancelled commitment's supplier and currency.",
     );
-  if (
-    (await repos.supplyCommitments.findReplacementOf(commitment.workspaceId, original.id)) !== null
-  )
+  const replacement = await repos.supplyCommitments.findReplacementOf(
+    commitment.workspaceId,
+    original.id,
+  );
+  if (replacement !== null && replacement.id !== currentCommitmentId)
     return err(
       "SUPPLY_COMMITMENT_REPLACEMENT_ALREADY_EXISTS",
       "This cancelled Supply Commitment already has a replacement.",
@@ -161,6 +164,8 @@ export function updateSupplyCommitmentDraft(ctx: CommandContext, input: unknown)
       if (!decision.ok) return decision;
       const refs = await validateReferences(repos, decision.value.aggregate, false);
       if (!refs.ok) return refs;
+      const replacement = await validateReplacement(repos, decision.value.aggregate, current.id);
+      if (!replacement.ok) return replacement;
       if (!(await repos.supplyCommitments.updateDraft(decision.value.aggregate, current.version)))
         return err(
           "SUPPLY_COMMITMENT_VERSION_CONFLICT",

@@ -112,6 +112,12 @@ export async function runCommand<
   readonly requiredWorkflows?: readonly WorkspaceWorkflow[];
   /** Current response contract used to validate a completed receipt on replay. */
   readonly resultSchema: z.ZodType<TResult>;
+  /** Optional safe representation persisted in the idempotency receipt. */
+  readonly receiptResult?: (result: TResult) => unknown;
+  /** Schema for the safe representation persisted in the receipt. */
+  readonly receiptSchema?: z.ZodType | undefined;
+  /** Optional replay policy for results that contain one-time secrets. */
+  readonly replayReceipt?: ((result: unknown) => DomainResult<TResult>) | undefined;
   readonly execute: CommandExecution<TCommand, TResult>;
 }): Promise<DomainResult<TResult>> {
   const {
@@ -224,6 +230,8 @@ export async function runCommand<
         commandType,
         payloadHash,
         resultSchema: options.resultSchema,
+        receiptSchema: options.receiptSchema,
+        replayReceipt: options.replayReceipt,
       });
       if (replay !== null) {
         completedOutcome = "replayed";
@@ -265,7 +273,11 @@ export async function runCommand<
       }
 
       // 11. Store the result so a retry gets the answer, not "already done".
-      await repos.receipts.complete(command.workspaceId, command.idempotencyKey, result.value);
+      await repos.receipts.complete(
+        command.workspaceId,
+        command.idempotencyKey,
+        options.receiptResult === undefined ? result.value : options.receiptResult(result.value),
+      );
       accepted = true;
       completedOutcome = "accepted";
       return result;
@@ -358,6 +370,8 @@ async function checkIdempotency<TResult>(args: {
   commandType: string;
   payloadHash: string;
   resultSchema: z.ZodType<TResult>;
+  receiptSchema?: z.ZodType | undefined;
+  replayReceipt?: ((result: unknown) => DomainResult<TResult>) | undefined;
 }): Promise<DomainResult<TResult> | null> {
   const { repos, command, payloadHash } = args;
 
@@ -415,7 +429,7 @@ async function checkIdempotency<TResult>(args: {
     );
   }
 
-  const parsedResult = args.resultSchema.safeParse(existing.result);
+  const parsedResult = (args.receiptSchema ?? args.resultSchema).safeParse(existing.result);
   if (!parsedResult.success) {
     throw new RollbackForRejection(
       asRejection(
@@ -432,6 +446,7 @@ async function checkIdempotency<TResult>(args: {
   // would silently change a previously accepted response on replay (for
   // example, legacy delivery actor attribution). The schema validation is the
   // safety boundary; preserving the stored value is the idempotency contract.
+  if (args.replayReceipt !== undefined) return args.replayReceipt(parsedResult.data);
   return ok(existing.result as TResult);
 }
 

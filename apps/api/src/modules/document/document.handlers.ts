@@ -37,6 +37,16 @@ const documentShareRevocationResultSchema = z.object({
   revoked: z.literal(true),
 });
 
+const documentShareReceiptSchema = z.object({
+  shareId: z.string(),
+  documentId: z.string(),
+  tokenHash: z
+    .string()
+    .length(64)
+    .regex(/^[a-f0-9]+$/),
+  expiresAt: z.string(),
+});
+
 function statementEntry(row: AccountTimelineRow): AccountTimelineEntryDto {
   return { ...row, classification: classifyBalance(row.runningBalance) };
 }
@@ -275,6 +285,18 @@ export function createDocumentShare(ctx: CommandContext, input: unknown) {
     commandType: "CreateDocumentShare",
     schema: createDocumentShareCommandSchema,
     resultSchema: documentShareResultDtoSchema,
+    receiptSchema: documentShareReceiptSchema,
+    receiptResult: (result) => ({
+      shareId: result.shareId,
+      documentId: result.documentId,
+      tokenHash: hashPayload(result.token),
+      expiresAt: result.expiresAt,
+    }),
+    replayReceipt: () =>
+      err(
+        "DOCUMENT_SHARE_TOKEN_NOT_REPLAYABLE",
+        "The share token is returned only once. Create a new share to obtain another token.",
+      ),
     input,
     ctx,
     requiredPermission: "document.share",

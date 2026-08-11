@@ -174,6 +174,20 @@ describe("M20 immutable documents (TC-DOCUMENT-001)", () => {
     expect(shared.ok).toBe(true);
     if (!shared.ok) return;
     expect(shared.value.expiresAt).toBe("2026-07-24T02:00:30.000Z");
+    const receipt = harness.db.receipts().find((entry) => entry.idempotencyKey === "document-e15");
+    expect(receipt?.result).toEqual({
+      shareId,
+      documentId,
+      tokenHash: hashPayload(shared.value.token),
+      expiresAt: shared.value.expiresAt,
+    });
+    expect(JSON.stringify(receipt?.result)).not.toContain(shared.value.token);
+    const replay = await createDocumentShare(harness.ctx, {
+      ...command("e15"),
+      payload: { shareId, documentId, expiresAt: null },
+    });
+    expect(replay.ok).toBe(false);
+    if (!replay.ok) expect(replay.error.code).toBe("DOCUMENT_SHARE_TOKEN_NOT_REPLAYABLE");
     const publicRead = await harness.deps.uow.transaction((repos) =>
       repos.documentReads.publicByTokenHash(
         hashPayload(shared.value.token),

@@ -77,6 +77,7 @@ async function validateReferences(
 async function validateReplacement(
   repos: Parameters<Parameters<typeof runCommand>[0]["execute"]>[0]["repos"],
   order: CustomerOrderState,
+  currentOrderId?: CustomerOrderState["id"],
 ) {
   if (order.replacesCustomerOrderId === null) return ok(undefined);
   const original = await repos.customerOrders.findByIdForUpdate(
@@ -97,7 +98,8 @@ async function validateReplacement(
       "CUSTOMER_ORDER_REPLACEMENT_INVALID",
       "A replacement must keep the cancelled order's customer, channel and currency.",
     );
-  if ((await repos.customerOrders.findReplacementOf(order.workspaceId, original.id)) !== null)
+  const replacement = await repos.customerOrders.findReplacementOf(order.workspaceId, original.id);
+  if (replacement !== null && replacement.id !== currentOrderId)
     return err(
       "CUSTOMER_ORDER_REPLACEMENT_ALREADY_EXISTS",
       "This cancelled Customer Order already has a replacement.",
@@ -164,6 +166,8 @@ export function updateCustomerOrderDraft(ctx: CommandContext, input: unknown) {
       if (!decision.ok) return decision;
       const references = await validateReferences(repos, decision.value.aggregate, false);
       if (!references.ok) return references;
+      const replacement = await validateReplacement(repos, decision.value.aggregate, current.id);
+      if (!replacement.ok) return replacement;
       if (!(await repos.customerOrders.updateDraft(decision.value.aggregate, current.version)))
         return err("CUSTOMER_ORDER_VERSION_CONFLICT", "Customer Order changed on the server.");
       await repos.audit.append({

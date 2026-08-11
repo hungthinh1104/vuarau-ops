@@ -19,6 +19,7 @@ import {
   cancelSupplyCommitment,
   confirmSupplyCommitment,
   createSupplyCommitmentDraft,
+  updateSupplyCommitmentDraft,
 } from "./supply-commitment.handlers.ts";
 import { getSupplyCommitment, listSupplyCommitments } from "./supply-commitment.queries.ts";
 
@@ -157,5 +158,51 @@ describe("BR-SUPPLY-COMMITMENT-005 / TC-SUPPLY-COMMITMENT-004", () => {
       supplyCommitmentId: COMMITMENT_ID,
     });
     expect(read.ok).toBe(false);
+  });
+
+  it("revalidates replacement identity when an existing replacement draft is edited", async () => {
+    const originalId = supplyCommitmentIdSchema.parse("44444444-4444-4444-8444-444444444449");
+    const replacementId = supplyCommitmentIdSchema.parse("44444444-4444-4444-8444-444444444450");
+    await createSupplyCommitmentDraft(harness.ctx, {
+      ...createInput({ supplyCommitmentId: originalId }),
+      commandId: "00000000-0000-4000-8000-000000000451",
+      idempotencyKey: "supply-commitment-original-448",
+    });
+    expect(
+      (
+        await cancelSupplyCommitment(harness.ctx, {
+          ...commandInput(
+            { supplyCommitmentId: originalId, reason: "Nhà vườn đổi lịch" },
+            {
+              commandId: "00000000-0000-4000-8000-000000000452",
+              idempotencyKey: "supply-commitment-cancel-448",
+              expectedVersion: 1,
+            },
+          ),
+        })
+      ).ok,
+    ).toBe(true);
+    const replacement = await createSupplyCommitmentDraft(harness.ctx, {
+      ...createInput({ supplyCommitmentId: replacementId, replacesSupplyCommitmentId: originalId }),
+      commandId: "00000000-0000-4000-8000-000000000453",
+      idempotencyKey: "supply-commitment-replacement-448",
+    });
+    expect(replacement.ok).toBe(true);
+
+    const edited = await updateSupplyCommitmentDraft(harness.ctx, {
+      ...commandInput(
+        {
+          ...createInput().payload,
+          supplyCommitmentId: replacementId,
+          replacesSupplyCommitmentId: originalId,
+        },
+        {
+          commandId: "00000000-0000-4000-8000-000000000454",
+          idempotencyKey: "supply-commitment-replacement-edit-448",
+          expectedVersion: 1,
+        },
+      ),
+    });
+    expect(edited.ok).toBe(true);
   });
 });
