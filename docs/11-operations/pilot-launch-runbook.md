@@ -153,9 +153,11 @@ field validation.
 
 `pnpm pilot:dry-run` has the same boundary: its `DATABASE_URL` must point to a
 local database whose name ends in `_test`. The command creates a fresh
-SHA-scoped disposable database for the application, PostgreSQL and browser
-steps, then drops it even when a step fails. It refuses development and remote
-database targets so a rehearsal cannot write into a real environment.
+SHA-scoped disposable database, builds the production E2E browser artifact from
+the exact clean SHA, runs the application/PostgreSQL/browser steps, then drops
+the database even when a step fails. It refuses development and remote database
+targets so a rehearsal cannot write into a real environment or serve a stale
+browser build.
 
 ## Dry run and reset
 

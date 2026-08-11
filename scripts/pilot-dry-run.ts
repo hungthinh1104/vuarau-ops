@@ -16,7 +16,7 @@ export type DisposablePilotDatabase = {
   readonly cleanup: () => boolean;
 };
 
-const steps: readonly EvidenceStep[] = [
+export const PILOT_DRY_RUN_STEPS: readonly EvidenceStep[] = [
   {
     name: "pilot contracts and operator imports",
     command: [
@@ -59,6 +59,14 @@ const steps: readonly EvidenceStep[] = [
     name: "public and authenticated trust boundaries",
     command: ["security:surface"],
     proves: ["authenticated command/query inventory and fixed public route inventory"],
+  },
+  {
+    name: "production E2E build",
+    command: ["web:e2e:build"],
+    proves: [
+      "the browser artifact is built from the exact clean release SHA before it is served",
+      "the E2E-only authentication bridge is isolated to the disposable acceptance artifact",
+    ],
   },
   {
     name: "disposable browser/API/PostgreSQL workflow",
@@ -204,7 +212,7 @@ function run(): void {
   }> = [];
   let runStatus = 0;
   try {
-    for (const step of steps) {
+    for (const step of PILOT_DRY_RUN_STEPS) {
       console.warn(`\nM23 dry-run: ${step.name}`);
       const result = spawnSync("pnpm", step.command, {
         cwd: process.cwd(),
@@ -225,7 +233,9 @@ function run(): void {
   } finally {
     const cleanupSucceeded = database.cleanup();
     const repositoryReadiness =
-      runStatus === 0 && evidence.length === steps.length && cleanupSucceeded ? "PASS" : "FAIL";
+      runStatus === 0 && evidence.length === PILOT_DRY_RUN_STEPS.length && cleanupSucceeded
+        ? "PASS"
+        : "FAIL";
     const report = {
       kind: "M23_DISPOSABLE_DRY_RUN",
       releaseSha: release.stdout.trim(),
