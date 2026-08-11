@@ -4,6 +4,7 @@ import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideReversePayment, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { CommandIntegrityError } from "../shared/integrity.ts";
 import { applyAccountEffects } from "../shared/account-effects.ts";
 import { applyCashMovements } from "../cash/cash-effects.ts";
 import { toPaymentDto } from "../shared/mappers.ts";
@@ -98,7 +99,10 @@ export function reverseCustomerPayment(
               linkedCashAccountId,
             );
       if (linkedCashAccountId !== null && originalCashMovement === null) {
-        throw new Error(`Payment ${payment.id} is missing its linked cash movement.`);
+        throw new CommandIntegrityError(
+          "CASH_RECONCILIATION_INTEGRITY_FAILURE",
+          `Payment ${payment.id} is missing its linked cash movement.`,
+        );
       }
 
       const originalEntry = await repos.accountEntries.findBySource(
@@ -107,10 +111,8 @@ export function reverseCustomerPayment(
         payment.id,
       );
       if (originalEntry === null) {
-        // Not a business refusal: a payment without its ledger entry means the
-        // invariant that creates them together has already been violated. Failing
-        // loudly is the only safe response — see BR-COMMAND-005.
-        throw new Error(
+        throw new CommandIntegrityError(
+          "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
           `Payment ${payment.id} has no ledger entry. The ledger and the payment ` +
             "table have diverged; refusing to compensate an entry that does not exist.",
         );

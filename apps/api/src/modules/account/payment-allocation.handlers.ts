@@ -22,6 +22,7 @@ import {
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { CommandIntegrityError } from "../shared/integrity.ts";
 
 async function requireManualAllocationPolicy(
   workspaceId: RecordPaymentAllocationCommand["workspaceId"],
@@ -141,11 +142,17 @@ export function reversePaymentAllocation(
         allocation.paymentId,
       );
       if (payment === null) {
-        throw new Error(`Payment allocation ${allocation.id} references a missing payment.`);
+        throw new CommandIntegrityError(
+          "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
+          `Payment allocation ${allocation.id} references a missing payment.`,
+        );
       }
       const sale = await repos.sales.findByIdForUpdate(command.workspaceId, allocation.saleId);
       if (sale === null) {
-        throw new Error(`Payment allocation ${allocation.id} references a missing sale.`);
+        throw new CommandIntegrityError(
+          "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
+          `Payment allocation ${allocation.id} references a missing sale.`,
+        );
       }
       const existing = await repos.paymentAllocations.listByCustomer(
         command.workspaceId,

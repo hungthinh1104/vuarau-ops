@@ -33,7 +33,7 @@ import type {
   DeliveryState,
 } from "@vuarau/domain-kernel";
 import type { Store } from "./store.ts";
-import { emptyStore, key } from "./store.ts";
+import { emptyStore, key, removeCashMovement as removeStoreCashMovement } from "./store.ts";
 import { createInMemoryRepositories } from "./composition.ts";
 
 export class InMemoryDatabase {
@@ -183,6 +183,9 @@ export class InMemoryDatabase {
     return this.store.cashMovements;
   }
 
+  removeCashMovement(workspaceId: WorkspaceId, sourceType: string, sourceId: string): void {
+    removeStoreCashMovement(this.store, workspaceId, sourceType, sourceId);
+  }
   cashBalanceFor(workspaceId: WorkspaceId, cashAccountId: CashAccountId): CashBalanceDto | null {
     return this.store.cashBalances.get(key(workspaceId, cashAccountId)) ?? null;
   }

@@ -29,6 +29,7 @@ import {
 import type { DeliveryState } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { CommandIntegrityError } from "../shared/integrity.ts";
 import { applyInventoryMovements } from "../inventory/inventory-effects.ts";
 
 function dto(delivery: DeliveryState): DeliveryDto {
@@ -369,7 +370,10 @@ export function recordDeliveryReturn(ctx: CommandContext, input: unknown) {
               movement.sourceLineId === deliveryLine.deliveryLineId,
           );
           if (original === undefined)
-            throw new Error(`Delivery ${current.id} is missing dispatch movement.`);
+            throw new CommandIntegrityError(
+              "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
+              `Delivery ${current.id} is missing dispatch movement.`,
+            );
           return {
             workspaceId: command.workspaceId,
             productId: deliveryLine.productId,

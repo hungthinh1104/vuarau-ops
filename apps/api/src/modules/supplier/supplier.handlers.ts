@@ -36,6 +36,7 @@ import type { DomainResult, SupplierPaymentState, SupplierState } from "@vuarau/
 import type { z } from "zod";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { CommandIntegrityError } from "../shared/integrity.ts";
 import { applySupplierAccountEffects } from "./supplier-account-effects.ts";
 import { applyCashMovements } from "../cash/cash-effects.ts";
 
@@ -349,7 +350,10 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
               linkedCashAccountId,
             );
       if (linkedCashAccountId !== null && originalCashMovement === null) {
-        throw new Error(`Supplier payment ${current.id} is missing its linked cash movement.`);
+        throw new CommandIntegrityError(
+          "CASH_RECONCILIATION_INTEGRITY_FAILURE",
+          `Supplier payment ${current.id} is missing its linked cash movement.`,
+        );
       }
 
       const originalEntry = await repos.supplierAccountEntries.findBySource(

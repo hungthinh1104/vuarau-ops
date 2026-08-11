@@ -26,6 +26,7 @@ import { getCashTransfer, getExpense } from "./cash.queries.ts";
 import { getOperationalReport } from "../report/report.queries.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { reverseCustomerPayment } from "../payment/reverse-payment.handler.ts";
+import { withRequestId } from "../../infrastructure/logging.ts";
 import {
   createSupplier,
   recordSupplierPayment,
@@ -143,6 +144,50 @@ describe("cashbook application", () => {
     });
     expect(reversal.ok).toBe(true);
     expect(harness.db.cashBalanceFor(WORKSPACE_ID, drawer)?.balance.amountMinor).toBe(-300_000);
+  });
+
+  it("fails closed when a linked customer cash source is missing", async () => {
+    const paymentId = paymentIdSchema.parse("90000000-0000-4000-8000-000000000023");
+    const payment = await recordCustomerPayment(harness.ctx, {
+      ...envelope("customer-integrity-payment"),
+      payload: {
+        paymentId,
+        customerId: activeCustomer.id,
+        amount: { amountMinor: 75_000, currency: "VND" },
+        method: "cash",
+        cashAccountId: drawer,
+        payerName: null,
+        note: null,
+      },
+    });
+    expect(payment.ok).toBe(true);
+    harness.db.removeCashMovement(WORKSPACE_ID, "customer_payment", paymentId);
+
+    const reversal = await withRequestId("req-cash-integrity", () =>
+      reverseCustomerPayment(harness.ctx, {
+        ...envelope("customer-integrity-reversal"),
+        expectedVersion: 1,
+        payload: {
+          paymentId,
+          reversalId: paymentReversalIdSchema.parse("90000000-0000-4000-8000-000000000024"),
+          amount: { amountMinor: 75_000, currency: "VND" },
+          reason: "Đối soát phát hiện thiếu nguồn tiền",
+        },
+      }),
+    );
+
+    expect(reversal).toMatchObject({
+      ok: false,
+      error: {
+        code: "CASH_RECONCILIATION_INTEGRITY_FAILURE",
+        details: { requestId: "req-cash-integrity" },
+      },
+    });
+    if (reversal.ok) return;
+    expect(reversal.error.message).not.toContain(paymentId);
+    expect(harness.db.payments()[0]?.version).toBe(1);
+    expect(harness.db.reversals()).toHaveLength(0);
+    expect(harness.db.cashMovementRecords()).toHaveLength(0);
   });
 
   it("TC-CASH-006 — expense reversal and cash transfer conserve source-backed cash truth", async () => {

@@ -24,6 +24,7 @@ import {
 import type { PurchaseReceiptState } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { CommandIntegrityError } from "../shared/integrity.ts";
 import { acceptedQuantityByPurchaseLine } from "../shared/purchase-receiving.ts";
 import { applyInventoryMovements } from "./inventory-effects.ts";
 
@@ -172,7 +173,10 @@ export function reversePurchaseReceipt(ctx: CommandContext, input: unknown) {
         }),
       );
       if (originals.some((movement) => movement === null))
-        throw new Error(`Receipt ${receipt.id} is missing an inventory movement.`);
+        throw new CommandIntegrityError(
+          "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
+          `Receipt ${receipt.id} is missing an inventory movement.`,
+        );
       await applyInventoryMovements(
         repos,
         receipt.lines.map((line, index) => ({

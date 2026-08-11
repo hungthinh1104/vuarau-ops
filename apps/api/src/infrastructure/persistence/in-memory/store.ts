@@ -233,6 +233,21 @@ export function emptyStore(): Store {
 
 export const key = (workspaceId: string, id: string) => `${workspaceId}:${id}`;
 
+export function removeCashMovement(
+  store: Store,
+  workspaceId: string,
+  sourceType: string,
+  sourceId: string,
+): void {
+  const index = store.cashMovements.findIndex(
+    (movement) =>
+      movement.workspaceId === workspaceId &&
+      movement.sourceType === sourceType &&
+      movement.sourceId === sourceId,
+  );
+  if (index >= 0) store.cashMovements.splice(index, 1);
+}
+
 export const ascendingBy =
   <T>(sortValue: (row: T) => string, id: (row: T) => string) =>
   (a: T, b: T): number =>

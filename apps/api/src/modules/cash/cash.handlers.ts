@@ -45,6 +45,7 @@ import {
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { CommandIntegrityError } from "../shared/integrity.ts";
 import { applyCashMovements } from "./cash-effects.ts";
 
 const audit = async (
@@ -206,7 +207,10 @@ export function reverseExpense(ctx: CommandContext, input: unknown) {
         expense.cashAccountId,
       );
       if (original === null) {
-        throw new Error(`Expense ${expense.id} has no canonical cash movement.`);
+        throw new CommandIntegrityError(
+          "CASH_RECONCILIATION_INTEGRITY_FAILURE",
+          `Expense ${expense.id} has no canonical cash movement.`,
+        );
       }
       const decision = decideReverseExpense(command, expense, recordedAt);
       if (!decision.ok) return decision;
@@ -335,7 +339,10 @@ export function reverseCashTransfer(ctx: CommandContext, input: unknown) {
         ),
       ]);
       if (fromOriginal === null || toOriginal === null) {
-        throw new Error(`Cash transfer ${transfer.id} has incomplete canonical movements.`);
+        throw new CommandIntegrityError(
+          "CASH_RECONCILIATION_INTEGRITY_FAILURE",
+          `Cash transfer ${transfer.id} has incomplete canonical movements.`,
+        );
       }
       const decision = decideReverseCashTransfer(command, transfer, recordedAt);
       if (!decision.ok) return decision;

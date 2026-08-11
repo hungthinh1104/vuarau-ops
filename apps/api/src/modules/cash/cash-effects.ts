@@ -1,6 +1,7 @@
 import type { CashMovementDto } from "@vuarau/domain-contracts";
 import type { CashMovementDraft } from "@vuarau/domain-kernel";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
+import { CommandIntegrityError } from "../shared/integrity.ts";
 
 /** Append canonical money-location facts and advance disposable balances atomically. */
 export async function applyCashMovements(
@@ -10,7 +11,8 @@ export async function applyCashMovements(
   if (drafts.length === 0) return [];
   const appended = await repos.cashMovements.append(drafts);
   if (appended.length !== drafts.length) {
-    throw new Error(
+    throw new CommandIntegrityError(
+      "CASH_RECONCILIATION_INTEGRITY_FAILURE",
       `Cash movement source collision: expected ${drafts.length}, appended ${appended.length}.`,
     );
   }

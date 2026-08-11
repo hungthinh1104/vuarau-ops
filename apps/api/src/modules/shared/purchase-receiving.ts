@@ -1,6 +1,8 @@
 import type { WorkspaceId } from "@vuarau/domain-contracts";
+import { PersistedNumberOutOfRangeError } from "@vuarau/db";
 import type { PurchaseState } from "@vuarau/domain-kernel";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
+import { CommandIntegrityError } from "./integrity.ts";
 
 type ReceivingRepositories = Pick<Repositories, "purchaseReceipts" | "qualityDispositions">;
 
@@ -31,11 +33,14 @@ export async function acceptedQuantityByPurchaseLine(
   for (const { line, quantity } of inspected) {
     if (quantity === null) continue;
     if (quantity.unit !== line.quantity.unit) {
-      throw new Error(`Purchase line ${line.lineId} has mixed receiving units.`);
+      throw new CommandIntegrityError(
+        "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
+        `Purchase line ${line.lineId} has mixed receiving units.`,
+      );
     }
     const total = BigInt(combined.get(line.lineId) ?? 0) + BigInt(quantity.valueScaled);
     if (total < BigInt(Number.MIN_SAFE_INTEGER) || total > BigInt(Number.MAX_SAFE_INTEGER)) {
-      throw new RangeError("Purchase receiving aggregate exceeds the exact integer range.");
+      throw new PersistedNumberOutOfRangeError(`purchase_receiving.${line.lineId}.quantity`);
     }
     combined.set(line.lineId, Number(total));
   }

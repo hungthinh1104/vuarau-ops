@@ -24,6 +24,7 @@ import type {
 import { hashPayload } from "../../infrastructure/hash.ts";
 import { currentRequestId, log } from "../../infrastructure/logging.ts";
 import { authorizeWorkspaceAccess } from "./authorization.ts";
+import { CommandIntegrityError } from "./integrity.ts";
 
 /**
  * The eleven-step pipeline every state-changing command runs
@@ -314,6 +315,15 @@ export async function runCommand<
         },
       );
       record("rejected", "PERSISTED_NUMBER_OUT_OF_RANGE");
+      return rejection as DomainResult<TResult>;
+    }
+    if (error instanceof CommandIntegrityError) {
+      const rejection = err(
+        error.code,
+        "Stored records failed an integrity check. Contact support before retrying.",
+        { requestId: currentRequestId() },
+      );
+      record("rejected", error.code);
       return rejection as DomainResult<TResult>;
     }
     throw error;

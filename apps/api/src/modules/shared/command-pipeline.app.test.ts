@@ -18,6 +18,8 @@ import {
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { runCommand } from "./command-pipeline.ts";
+import { CommandIntegrityError } from "./integrity.ts";
+import { withRequestId } from "../../infrastructure/logging.ts";
 import { defineCommand } from "@vuarau/domain-contracts";
 import { ok } from "@vuarau/domain-kernel";
 
@@ -263,6 +265,42 @@ describe("BR-COMMAND-004 / TC-COMMAND-005", () => {
 });
 
 describe("BR-COMMAND-005 / TC-COMMAND-004", () => {
+  it("converts persisted integrity failures into a controlled rejection", async () => {
+    const schema = defineCommand(z.object({ value: z.string() }));
+    const result = await withRequestId("req-command-integrity", () =>
+      runCommand({
+        commandType: "SyntheticIntegrityCommand",
+        schema,
+        input: {
+          commandId: COMMAND_ID,
+          idempotencyKey: IDEMPOTENCY_KEY,
+          workspaceId: WORKSPACE_ID,
+          actorId: ACTOR_ID,
+          occurredAt: LATER_TRANSACTION_TIME,
+          payload: { value: "corrupt-source" },
+        },
+        ctx: harness.ctx,
+        requiredPermission: "customer.read",
+        resultSchema: z.object({ accepted: z.boolean() }),
+        execute: async () => {
+          throw new CommandIntegrityError(
+            "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
+            "test-only persisted source diagnostic",
+          );
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
+        details: { requestId: "req-command-integrity" },
+      },
+    });
+    expect(harness.db.receipts()).toHaveLength(0);
+  });
+
   it("leaves no partial effect when a command is refused", async () => {
     const result = await recordCustomerPayment(
       harness.ctx,

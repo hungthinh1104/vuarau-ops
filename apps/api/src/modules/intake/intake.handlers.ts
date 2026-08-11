@@ -45,6 +45,7 @@ import {
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { CommandIntegrityError } from "../shared/integrity.ts";
 import { acceptedQuantityByPurchaseLine } from "../shared/purchase-receiving.ts";
 import { applyInventoryMovements } from "../inventory/inventory-effects.ts";
 
@@ -502,7 +503,10 @@ export function reverseQualityDisposition(ctx: CommandContext, input: unknown) {
         snapshot.source,
       );
       if (source === null) {
-        throw new Error(`Disposition ${snapshot.id} has no canonical source.`);
+        throw new CommandIntegrityError(
+          "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
+          `Disposition ${snapshot.id} has no canonical source.`,
+        );
       }
       const current = await repos.qualityDispositions.findByIdForUpdate(
         command.workspaceId,
@@ -536,7 +540,10 @@ export function reverseQualityDisposition(ctx: CommandContext, input: unknown) {
         }),
       );
       if (originals.some((movement) => movement === null)) {
-        throw new Error(`Disposition ${current.id} is missing an accepted inventory movement.`);
+        throw new CommandIntegrityError(
+          "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
+          `Disposition ${current.id} is missing an accepted inventory movement.`,
+        );
       }
       if (!(await repos.qualityDispositions.insertReversal(decision.value.disposition))) {
         return err("QUALITY_DISPOSITION_ALREADY_REVERSED", "Disposition is already reversed.");
