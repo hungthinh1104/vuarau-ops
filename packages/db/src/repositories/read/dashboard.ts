@@ -263,9 +263,17 @@ async function queryRows(
       left join delivered on delivered.sale_line_id=sl.id left join returned on returned.sale_line_id=sl.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       group by s.id
+    ), allocation_reversals as (
+      select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0)::bigint as amount
+      from payment_allocation_reversals par
+      where par.workspace_id=${input.workspaceId}::uuid
+      group by par.workspace_id, par.allocation_id
     ), allocated as (
-      select pa.sale_id, coalesce(sum(pa.amount_minor)-coalesce(sum(par.amount_minor),0),0)::bigint as amount
-      from payment_allocations pa left join payment_allocation_reversals par on par.workspace_id=pa.workspace_id and par.allocation_id=pa.id
+      select pa.sale_id,
+        coalesce(sum(pa.amount_minor - coalesce(ar.amount,0)),0)::bigint as amount
+      from payment_allocations pa
+      left join allocation_reversals ar
+        on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
       where pa.workspace_id=${input.workspaceId}::uuid group by pa.sale_id
     ), direct_received as (
       select prl.workspace_id, prl.purchase_line_id,

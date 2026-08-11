@@ -4127,6 +4127,9 @@ contract_tests:
   TC-OPS-021:
     title: One PostgreSQL workspace crosses the canonical depot-day money, goods and recovery loop
     file: apps/api/src/infrastructure/persistence/drizzle/synthetic-depot-day.db.test.ts
+  TC-OPS-022:
+    title: PostgreSQL Operations Board does not multiply an allocation with multiple reversals
+    file: apps/api/src/infrastructure/persistence/drizzle/operations-restore-payment-lineage.db.test.ts
   TC-DOCUMENT-002:
     title: PostgreSQL proves append-only documents, digest validation, secure sharing and backup
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts

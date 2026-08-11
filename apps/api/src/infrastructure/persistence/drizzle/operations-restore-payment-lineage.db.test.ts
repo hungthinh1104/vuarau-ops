@@ -15,13 +15,18 @@ import {
 import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
-import { recordPaymentAllocation } from "../../../modules/account/payment-allocation.handlers.ts";
+import {
+  recordPaymentAllocation,
+  reversePaymentAllocation,
+} from "../../../modules/account/payment-allocation.handlers.ts";
+import { getOperationsBoard } from "../../../modules/dashboard/dashboard.queries.ts";
 import {
   backupDigest,
   exportWorkspaceBackup,
 } from "../../../modules/operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../../../modules/operations/restore-workspace.handler.ts";
 
+// TC-OPS-022
 describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
@@ -50,7 +55,10 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
     await ctx.close();
   });
 
-  async function prepareBackup(): Promise<WorkspaceBackupV19> {
+  async function prepareBackup(
+    saleUnitPrice = 100_000,
+    allocationAmount = 30_000,
+  ): Promise<WorkspaceBackupV19> {
     for (const [policyKind, definition] of [
       [
         "payment_terms_aging",
@@ -112,7 +120,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
             qualityGradeId: ctx.qualityGradeId,
             qualityGradeName: "Loại 1",
             quantity: { valueScaled: 1_000, unit: "kg" },
-            unitPrice: { amountMinor: 100_000, currency: "VND" },
+            unitPrice: { amountMinor: saleUnitPrice, currency: "VND" },
           },
         ],
         note: null,
@@ -152,7 +160,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
         allocationId: crypto.randomUUID(),
         paymentId,
         saleId,
-        amount: { amountMinor: 30_000, currency: "VND" },
+        amount: { amountMinor: allocationAmount, currency: "VND" },
         evidenceReferences: ["field://restore-payment/allocation"],
       },
     });
@@ -256,6 +264,49 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
         (select count(*)::int from payment_allocations where workspace_id = ${ctx.workspaceId}::uuid) as allocations
     `;
     expect(rows[0]).toMatchObject({ customers: 0, payments: 0, allocations: 0 });
+  });
+
+  it("counts each allocation once when several reversals exist", async () => {
+    const backup = await prepareBackup(40_000, 40_000);
+    const sale = backup.payload.sales[0]!;
+    const allocation = backup.payload.paymentAllocations[0]!;
+
+    for (const [label, amount] of [
+      ["first", 10_000],
+      ["second", 30_000],
+    ] as const) {
+      const reversal = await reversePaymentAllocation(context(), {
+        ...command(`board-allocation-reversal-${label}`),
+        expectedVersion: 1,
+        payload: {
+          allocationId: allocation["id"],
+          reversalId: crypto.randomUUID(),
+          amount: { amountMinor: amount, currency: "VND" },
+          reason: `Đối chiếu reversal ${label}.`,
+          evidenceReferences: [],
+        },
+      });
+      expect(reversal.ok).toBe(true);
+    }
+
+    const board = await getOperationsBoard(context(), {
+      workspaceId: ctx.workspaceId,
+      filter: "all",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+
+    expect(board.ok).toBe(true);
+    if (board.ok) {
+      expect(board.value.page.items).toContainEqual(
+        expect.objectContaining({
+          id: sale["id"],
+          financialState: "awaiting_payment",
+        }),
+      );
+    }
   });
 
   it("rejects an allocation reversal whose customer differs from its allocation", async () => {
