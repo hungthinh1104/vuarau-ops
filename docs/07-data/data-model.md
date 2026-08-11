@@ -148,6 +148,8 @@ a required boundary. Composite keys/foreign keys are used where an id alone woul
 allow a cross-workspace reference. Application authorization is the primary
 isolation layer under ADR-0020; provider/database defence-in-depth must not be
 confused with permission to omit workspace checks in repositories.
+Return-line facts are tenant-local too: `delivery_return_lines` binds both its
+return and delivery line through `(workspace_id, id)` composite foreign keys.
 
 ### Exact money and quantity
 

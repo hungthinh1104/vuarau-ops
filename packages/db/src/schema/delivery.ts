@@ -75,6 +75,7 @@ export const deliveryLines = pgTable(
   },
   (table) => [
     uniqueIndex("delivery_lines_delivery_sale_line_uq").on(table.deliveryId, table.saleLineId),
+    uniqueIndex("delivery_lines_workspace_id_uq").on(table.workspaceId, table.id),
     foreignKey({
       columns: [table.workspaceId, table.deliveryId],
       foreignColumns: [deliveries.workspaceId, deliveries.id],
@@ -125,19 +126,23 @@ export const deliveryReturns = pgTable(
 export const deliveryReturnLines = pgTable(
   "delivery_return_lines",
   {
+    workspaceId: uuid("workspace_id").notNull(),
     returnId: uuid("return_id").notNull(),
-    deliveryLineId: uuid("delivery_line_id")
-      .notNull()
-      .references(() => deliveryLines.id),
+    deliveryLineId: uuid("delivery_line_id").notNull(),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
     unit: unitEnum("unit").notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.returnId, table.deliveryLineId] }),
+    primaryKey({ columns: [table.workspaceId, table.returnId, table.deliveryLineId] }),
     foreignKey({
-      columns: [table.returnId],
-      foreignColumns: [deliveryReturns.id],
+      columns: [table.workspaceId, table.returnId],
+      foreignColumns: [deliveryReturns.workspaceId, deliveryReturns.id],
       name: "delivery_return_lines_return_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.deliveryLineId],
+      foreignColumns: [deliveryLines.workspaceId, deliveryLines.id],
+      name: "delivery_return_lines_workspace_delivery_line_fk",
     }),
   ],
 );

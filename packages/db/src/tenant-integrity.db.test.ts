@@ -73,6 +73,8 @@ describe.skipIf(skipWithoutDatabase())("tenant-local relational integrity", () =
       "supplier_payment_reversals_payment_fk",
       "supplier_account_entries_supplier_fk",
       "supplier_account_balances_supplier_fk",
+      "delivery_return_lines_return_fk",
+      "delivery_return_lines_workspace_delivery_line_fk",
     ];
     const rows = await ctx.database.db.execute(sql`
       SELECT conname
@@ -237,5 +239,111 @@ describe.skipIf(skipWithoutDatabase())("tenant-local relational integrity", () =
     `),
     );
     expect(recoveryInsertError).toContain("workspace_policies_workspace_command_fk");
+  });
+
+  it("rejects a return line that crosses either its return or delivery-line workspace", async () => {
+    const now = new Date("2026-08-10T00:00:00.000Z");
+    const foreignCustomerId = crypto.randomUUID();
+    const foreignProductId = crypto.randomUUID();
+    const currentSaleId = crypto.randomUUID();
+    const foreignSaleId = crypto.randomUUID();
+    const currentSaleLineId = crypto.randomUUID();
+    const foreignSaleLineId = crypto.randomUUID();
+    const currentDeliveryId = crypto.randomUUID();
+    const foreignDeliveryId = crypto.randomUUID();
+    const currentDeliveryLineId = crypto.randomUUID();
+    const foreignDeliveryLineId = crypto.randomUUID();
+    const currentReturnId = crypto.randomUUID();
+    const foreignReturnId = crypto.randomUUID();
+
+    await ctx.database.db.execute(sql`
+      INSERT INTO customers (
+        id, workspace_id, display_name, is_active, version,
+        transaction_time, recorded_at, updated_at
+      ) VALUES (
+        ${foreignCustomerId}::uuid, ${ctx.foreignWorkspaceId}::uuid, 'foreign return customer', true, 1,
+        ${now.toISOString()}, ${now.toISOString()}, ${now.toISOString()}
+      )
+    `);
+    await ctx.database.db.execute(sql`
+      INSERT INTO products (id, workspace_id, name, currency, is_active, version, created_at, updated_at)
+      VALUES (
+        ${foreignProductId}::uuid, ${ctx.foreignWorkspaceId}::uuid, 'foreign return product', 'VND', true, 1,
+        ${now.toISOString()}, ${now.toISOString()}
+      )
+    `);
+    await ctx.database.db.execute(sql`
+      INSERT INTO sales (
+        id, workspace_id, customer_id, status, currency, total_amount_minor,
+        version, transaction_time, recorded_at
+      ) VALUES
+        (${currentSaleId}::uuid, ${ctx.workspaceId}::uuid, ${ctx.customerId}::uuid,
+          'draft', 'VND', 0, 1, ${now.toISOString()}, ${now.toISOString()}),
+        (${foreignSaleId}::uuid, ${ctx.foreignWorkspaceId}::uuid, ${foreignCustomerId}::uuid,
+          'draft', 'VND', 0, 1, ${now.toISOString()}, ${now.toISOString()})
+    `);
+    await ctx.database.db.execute(sql`
+      INSERT INTO sale_lines (
+        id, workspace_id, sale_id, product_id, product_name, quantity_scaled,
+        unit, unit_price_minor, line_total_minor, currency, position
+      ) VALUES
+        (${currentSaleLineId}::uuid, ${ctx.workspaceId}::uuid, ${currentSaleId}::uuid,
+          ${ctx.productIds[0]}::uuid, 'current return product', 1000, 'kg', 1, 1, 'VND', 0),
+        (${foreignSaleLineId}::uuid, ${ctx.foreignWorkspaceId}::uuid, ${foreignSaleId}::uuid,
+          ${foreignProductId}::uuid, 'foreign return product', 1000, 'kg', 1, 1, 'VND', 0)
+    `);
+    await ctx.database.db.execute(sql`
+      INSERT INTO deliveries (
+        id, workspace_id, sale_id, status, version, transaction_time, recorded_at, actor_id
+      ) VALUES
+        (${currentDeliveryId}::uuid, ${ctx.workspaceId}::uuid, ${currentSaleId}::uuid,
+          'draft', 1, ${now.toISOString()}, ${now.toISOString()}, ${ctx.actorId}::uuid),
+        (${foreignDeliveryId}::uuid, ${ctx.foreignWorkspaceId}::uuid, ${foreignSaleId}::uuid,
+          'draft', 1, ${now.toISOString()}, ${now.toISOString()}, ${ctx.foreignActorId}::uuid)
+    `);
+    await ctx.database.db.execute(sql`
+      INSERT INTO delivery_lines (
+        id, workspace_id, delivery_id, sale_line_id, product_id, product_name,
+        quantity_scaled, unit
+      ) VALUES
+        (${currentDeliveryLineId}::uuid, ${ctx.workspaceId}::uuid, ${currentDeliveryId}::uuid,
+          ${currentSaleLineId}::uuid, ${ctx.productIds[0]}::uuid, 'current return product', 1000, 'kg'),
+        (${foreignDeliveryLineId}::uuid, ${ctx.foreignWorkspaceId}::uuid, ${foreignDeliveryId}::uuid,
+          ${foreignSaleLineId}::uuid, ${foreignProductId}::uuid, 'foreign return product', 1000, 'kg')
+    `);
+    await ctx.database.db.execute(sql`
+      INSERT INTO delivery_returns (
+        id, workspace_id, delivery_id, reason, evidence_references,
+        transaction_time, recorded_at, actor_id
+      ) VALUES
+        (${currentReturnId}::uuid, ${ctx.workspaceId}::uuid, ${currentDeliveryId}::uuid,
+          'current return', ARRAY[]::text[], ${now.toISOString()}, ${now.toISOString()}, ${ctx.actorId}::uuid),
+        (${foreignReturnId}::uuid, ${ctx.foreignWorkspaceId}::uuid, ${foreignDeliveryId}::uuid,
+          'foreign return', ARRAY[]::text[], ${now.toISOString()}, ${now.toISOString()}, ${ctx.foreignActorId}::uuid)
+    `);
+
+    const foreignReturnError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
+        INSERT INTO delivery_return_lines (
+          workspace_id, return_id, delivery_line_id, quantity_scaled, unit
+        ) VALUES (
+          ${ctx.workspaceId}::uuid, ${foreignReturnId}::uuid,
+          ${currentDeliveryLineId}::uuid, 1000, 'kg'
+        )
+      `),
+    );
+    expect(foreignReturnError).toContain("delivery_return_lines_return_fk");
+
+    const foreignDeliveryLineError = await captureDatabaseError(
+      ctx.database.db.execute(sql`
+        INSERT INTO delivery_return_lines (
+          workspace_id, return_id, delivery_line_id, quantity_scaled, unit
+        ) VALUES (
+          ${ctx.workspaceId}::uuid, ${currentReturnId}::uuid,
+          ${foreignDeliveryLineId}::uuid, 1000, 'kg'
+        )
+      `),
+    );
+    expect(foreignDeliveryLineError).toContain("delivery_return_lines_workspace_delivery_line_fk");
   });
 });

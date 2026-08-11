@@ -333,7 +333,9 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
         await tx
           .insert(deliveryReturnLines)
           .values(
-            payload.deliveryReturnLines as unknown as (typeof deliveryReturnLines.$inferInsert)[],
+            payload.deliveryReturnLines.map(
+              scoped,
+            ) as unknown as (typeof deliveryReturnLines.$inferInsert)[],
           );
       if (payload.purchases.length > 0) {
         await tx.insert(purchases).values(

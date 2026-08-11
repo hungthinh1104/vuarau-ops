@@ -128,6 +128,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
       if (inserted.length === 0) return false;
       await tx.insert(deliveryReturnLines).values(
         record.lines.map((line) => ({
+          workspaceId: record.workspaceId,
           returnId: record.id,
           deliveryLineId: line.deliveryLineId,
           quantityScaled: line.quantity.valueScaled,
