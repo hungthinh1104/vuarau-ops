@@ -88,8 +88,9 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await expect(page.getByText(/đã nhận 100 kg · còn lại 0 kg/)).toBeVisible();
 
     await page.goto(`/products/${productId}/inventory`);
-    await expect(page.getByRole("paragraph").filter({ hasText: /^70 kg$/ })).toBeVisible();
-    await expect(page.getByRole("paragraph").filter({ hasText: /^30 kg$/ })).toBeVisible();
+    const inventoryOverview = page.getByRole("tabpanel", { name: "Tổng quan" });
+    await expect(inventoryOverview.getByText("70 kg", { exact: true })).toBeVisible();
+    await expect(inventoryOverview.getByText("30 kg", { exact: true })).toBeVisible();
 
     const customerId = await api.createCustomer(`Khách M23 ${suffix}`);
     await page.goto(`/customers/${customerId}/sales/new`);
@@ -153,8 +154,8 @@ test.describe("Operational correctness (TC-E2E-032)", () => {
     await adjustment.getByRole("button", { name: "Ghi điều chỉnh" }).click();
 
     await page.getByRole("tab", { name: "Tổng quan" }).click();
-    await expect(page.getByRole("paragraph").filter({ hasText: /^6 kg$/ })).toBeVisible();
-    await expect(page.getByRole("paragraph").filter({ hasText: /^20 kg$/ })).toBeVisible();
+    await expect(inventoryOverview.getByText("6 kg", { exact: true })).toBeVisible();
+    await expect(inventoryOverview.getByText("20 kg", { exact: true })).toBeVisible();
     expect(await api.balance(customerId)).toEqual(debtAfterPost);
     expect(await api.inventoryReconciliation(productId, primaryGradeId, "kg")).toMatchObject({
       status: "consistent",
