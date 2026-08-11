@@ -17,6 +17,7 @@ import { validCloseReferences } from "./restore-close-validation.ts";
 import { deliveryReferenceValidator } from "./restore-delivery-validation.ts";
 import { validDocumentAndCashReferences } from "./restore-document-validation.ts";
 import { purchaseReferenceValidator } from "./restore-purchase-validation.ts";
+import { paymentReferenceValidator } from "./restore-payment-validation.ts";
 import { validWorkspacePolicyCollection } from "./restore-policy-validation.ts";
 function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const payload = v19Payload(command);
@@ -117,7 +118,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const customerPaymentReversals = new Set(payload.paymentReversals.map((row) => row["id"]));
   const paymentAllocationRows = payload.paymentAllocations ?? [];
   const paymentAllocationReversalRows = payload.paymentAllocationReversals ?? [];
-  const paymentAllocationIds = new Set(paymentAllocationRows.map((row) => row["id"]));
+  const paymentReferences = paymentReferenceValidator(payload);
   const qualityIssueRows = "qualityIssueCodes" in payload ? payload.qualityIssueCodes : [];
   const goodsArrivalRows = "goodsArrivals" in payload ? payload.goodsArrivals : [];
   const goodsArrivalLineRows = "goodsArrivalLines" in payload ? payload.goodsArrivalLines : [];
@@ -219,13 +220,10 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     ) &&
     payload.accountEntries.every((row) => customers.has(row["customerId"])) &&
     paymentAllocationRows.every(
-      (row) =>
-        customers.has(row["customerId"]) &&
-        customerPayments.has(row["paymentId"]) &&
-        sales.has(row["saleId"]),
+      (row) => customers.has(row["customerId"]) && paymentReferences.validAllocation(row),
     ) &&
     paymentAllocationReversalRows.every(
-      (row) => customers.has(row["customerId"]) && paymentAllocationIds.has(row["allocationId"]),
+      (row) => customers.has(row["customerId"]) && paymentReferences.validReversal(row),
     ) &&
     (!("purchases" in payload) ||
       payload.purchases.every((row) => suppliers.has(row["supplierId"]))) &&

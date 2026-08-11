@@ -1193,6 +1193,7 @@ use_cases:
       - apps/api/src/modules/operations/restore-workspace.handler.ts
       - apps/api/src/modules/operations/restore-delivery-validation.ts
       - apps/api/src/modules/operations/restore-document-validation.ts
+      - apps/api/src/modules/operations/restore-payment-validation.ts
       - apps/api/src/modules/operations/restore-purchase-validation.ts
       - apps/api/src/modules/operations/operations.queries.ts
       - packages/db/src/repositories/write/operations.ts
@@ -2322,6 +2323,7 @@ business_rules:
     implementation:
       - apps/api/src/modules/operations/restore-workspace.handler.ts
       - apps/api/src/modules/operations/restore-delivery-validation.ts
+      - apps/api/src/modules/operations/restore-payment-validation.ts
       - apps/api/src/modules/operations/restore-purchase-validation.ts
       - packages/db/src/repositories/write/operations.ts
 
