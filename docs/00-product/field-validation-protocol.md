@@ -4,6 +4,16 @@ Freeze the pass/fail criteria and exact pilot release SHA before the first
 observation. Do not change either after observations begin. A new build starts a
 new evidence series; never combine timings across SHAs without naming both.
 
+Before the session, validate the external packet against that exact SHA:
+
+```bash
+pnpm field:observation --config /secure/field-observations.json \
+  --require-field-validation --release-sha <frozen-release-sha>
+```
+
+The command checks record completeness and contradictions only. It does not
+turn a packet into product truth or replace an observer's sign-off.
+
 ## Record for every observed task
 
 ```text

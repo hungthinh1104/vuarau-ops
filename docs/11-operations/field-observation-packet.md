@@ -39,6 +39,21 @@ validation, policy approval or production acceptance. Keep completed packets in
 the approved external evidence store; never commit real names, amounts, photos,
 tokens or customer data to this repository.
 
+For the frozen H2–H6 protocol, require every observation to carry the complete
+task record and bind the packet to the deployed release before the session:
+
+```bash
+pnpm field:observation --config field-observations.json \
+  --require-field-validation --release-sha <40-character-sha>
+```
+
+This mode checks the fields that must be recorded for each task: hypothesis,
+actor/persona, canonical transaction reference, start/end time, independent
+accuracy reference, assistance, mistakes, terminology, recovery, final
+canonical state, incident severity and ASM-035–038 disposition. It only proves
+that the record is complete and attached to the expected SHA; a human still has
+to observe the task, compare the independent reference and sign off the result.
+
 The evidence progression remains:
 
 ```text

@@ -35,8 +35,25 @@ export const FIELD_OBSERVATION_CASE_KINDS = [
   "correction",
 ] as const;
 
+export const FIELD_VALIDATION_HYPOTHESES = ["H2", "H3", "H4", "H5", "H6"] as const;
+export const FIELD_VALIDATION_ASSISTANCE = ["none", "prompted", "taken_over"] as const;
+export const FIELD_VALIDATION_INCIDENT_SEVERITIES = ["none", "P0", "P1", "P2", "P3"] as const;
+export const FIELD_VALIDATION_SCENARIO_GATES = [
+  "none",
+  "ASM-035",
+  "ASM-036",
+  "ASM-037",
+  "ASM-038",
+] as const;
+export const FIELD_VALIDATION_SCENARIO_DISPOSITIONS = [
+  "not-applicable",
+  "excluded-stop",
+  "resolved-in-release",
+] as const;
+
 const observationKindSchema = z.enum(FIELD_OBSERVATION_KINDS);
 const observationCaseKindSchema = z.enum(FIELD_OBSERVATION_CASE_KINDS);
+const releaseShaSchema = z.string().regex(/^[0-9a-f]{40}$/, "expected a 40-character git SHA");
 const observationDateSchema = z
   .string()
   .trim()
@@ -46,6 +63,51 @@ const participantSchema = z.object({
   role: z.string().trim().min(1),
   name: z.string().trim().min(1),
 });
+
+const fieldValidationEvidenceSchema = z
+  .object({
+    hypothesis: z.enum(FIELD_VALIDATION_HYPOTHESES),
+    actorPersona: z.string().trim().min(1),
+    canonicalTransactionReference: z.string().trim().min(1),
+    transactionShape: z.string().trim().min(1),
+    startedAt: z.iso.datetime(),
+    endedAt: z.iso.datetime(),
+    independentAccuracyReference: z.string().trim().min(1),
+    assistance: z.enum(FIELD_VALIDATION_ASSISTANCE),
+    mistakesAndCorrections: z.string(),
+    terminologyObservedVerbatim: z.string(),
+    recoveryBehavior: z.string(),
+    finalCanonicalState: z.string().trim().min(1),
+    incidentSeverity: z.enum(FIELD_VALIDATION_INCIDENT_SEVERITIES),
+    scenarioGate: z.enum(FIELD_VALIDATION_SCENARIO_GATES),
+    scenarioDisposition: z.enum(FIELD_VALIDATION_SCENARIO_DISPOSITIONS),
+    observer: participantSchema,
+  })
+  .superRefine((evidence, ctx) => {
+    if (Date.parse(evidence.endedAt) < Date.parse(evidence.startedAt)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endedAt"],
+        message: "endedAt must not be before startedAt",
+      });
+    }
+    if (evidence.scenarioGate === "none" && evidence.scenarioDisposition !== "not-applicable") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["scenarioDisposition"],
+        message: "a task without an ASM scenario gate must be not-applicable",
+      });
+    }
+    if (evidence.scenarioGate !== "none" && evidence.scenarioDisposition === "not-applicable") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["scenarioDisposition"],
+        message: "an encountered ASM scenario gate needs a disposition",
+      });
+    }
+  });
+
+export type FieldValidationEvidence = z.infer<typeof fieldValidationEvidenceSchema>;
 
 const observationSchema = z
   .object({
@@ -59,6 +121,8 @@ const observationSchema = z
     /** Optional link to an existing canonical fact; it does not assert an effect. */
     canonicalReference: z.string().trim().min(1).optional(),
     relatedObservationId: z.string().trim().min(1).optional(),
+    /** Required only when the packet is being checked as H2–H6 field evidence. */
+    fieldEvidence: fieldValidationEvidenceSchema.optional(),
   })
   .superRefine((observation, ctx) => {
     if (observation.caseKind === "correction" && observation.relatedObservationId === undefined) {
@@ -86,6 +150,8 @@ export const fieldObservationPacketSchema = z
     packetVersion: z.literal(1),
     createdAt: z.iso.datetime(),
     releaseOrProcessBoundary: z.string().trim().min(1),
+    /** Required by readFieldValidationPacket; optional for general process notes. */
+    releaseSha: releaseShaSchema.optional(),
     workspaceReference: z.string().trim().min(1),
     observer: participantSchema,
     observations: z.array(observationSchema).min(1),
@@ -117,6 +183,27 @@ export const fieldObservationPacketSchema = z
     }
   });
 
+export const fieldValidationPacketSchema = fieldObservationPacketSchema.superRefine(
+  (packet, ctx) => {
+    if (packet.releaseSha === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["releaseSha"],
+        message: "a field-validation packet must identify the frozen release SHA",
+      });
+    }
+    for (const [index, observation] of packet.observations.entries()) {
+      if (observation.fieldEvidence === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["observations", index, "fieldEvidence"],
+          message: "field validation requires the complete H2-H6 task record",
+        });
+      }
+    }
+  },
+);
+
 export type FieldObservationPacket = z.infer<typeof fieldObservationPacketSchema>;
 
 export type ParsedFieldObservationPacket =
@@ -128,6 +215,8 @@ export type FieldObservationAssessment = {
   readonly kindCounts: Readonly<Record<(typeof FIELD_OBSERVATION_KINDS)[number], number>>;
   readonly correctionCount: number;
   readonly canonicalReferenceCount: number;
+  readonly fieldValidationEvidenceCount: number;
+  readonly fieldValidationReady: boolean;
 };
 
 export function readFieldObservationPacket(raw: string): ParsedFieldObservationPacket {
@@ -146,6 +235,37 @@ export function readFieldObservationPacket(raw: string): ParsedFieldObservationP
       (issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`,
     ),
   };
+}
+
+export function readFieldValidationPacket(
+  raw: string,
+  expectedReleaseSha?: string,
+): ParsedFieldObservationPacket {
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(raw);
+  } catch (error) {
+    return { ok: false, problems: [`not valid JSON: ${(error as Error).message}`] };
+  }
+
+  const result = fieldValidationPacketSchema.safeParse(parsedJson);
+  if (!result.success) {
+    return {
+      ok: false,
+      problems: result.error.issues.map(
+        (issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`,
+      ),
+    };
+  }
+  if (expectedReleaseSha !== undefined && result.data.releaseSha !== expectedReleaseSha) {
+    return {
+      ok: false,
+      problems: [
+        `releaseSha: packet is ${result.data.releaseSha}, expected frozen release ${expectedReleaseSha}`,
+      ],
+    };
+  }
+  return { ok: true, packet: result.data };
 }
 
 export function assessFieldObservationPacket(
@@ -167,6 +287,12 @@ export function assessFieldObservationPacket(
     canonicalReferenceCount: packet.observations.filter(
       (observation) => observation.canonicalReference !== undefined,
     ).length,
+    fieldValidationEvidenceCount: packet.observations.filter(
+      (observation) => observation.fieldEvidence !== undefined,
+    ).length,
+    fieldValidationReady: packet.observations.every(
+      (observation) => observation.fieldEvidence !== undefined,
+    ),
   };
 }
 
@@ -176,6 +302,7 @@ export const EXAMPLE_FIELD_OBSERVATION_PACKET = {
   packetVersion: 1,
   createdAt: "",
   releaseOrProcessBoundary: "",
+  releaseSha: "",
   workspaceReference: "",
   observer: { role: "", name: "" },
   observations: [
@@ -188,6 +315,24 @@ export const EXAMPLE_FIELD_OBSERVATION_PACKET = {
       participantWording: "",
       evidenceReference: "",
       canonicalReference: "",
+      fieldEvidence: {
+        hypothesis: "H2",
+        actorPersona: "",
+        canonicalTransactionReference: "",
+        transactionShape: "",
+        startedAt: "",
+        endedAt: "",
+        independentAccuracyReference: "",
+        assistance: "none",
+        mistakesAndCorrections: "",
+        terminologyObservedVerbatim: "",
+        recoveryBehavior: "",
+        finalCanonicalState: "",
+        incidentSeverity: "none",
+        scenarioGate: "none",
+        scenarioDisposition: "not-applicable",
+        observer: { role: "", name: "" },
+      },
     },
   ],
 } as const;
@@ -195,6 +340,8 @@ export const EXAMPLE_FIELD_OBSERVATION_PACKET = {
 const USAGE = `
 usage: pnpm field:observation --example
        pnpm field:observation --config <field-observations.json>
+       pnpm field:observation --config <field-observations.json> --require-field-validation \
+         --release-sha <40-character-sha>
 
 The packet is external field evidence. It is never written to the repository,
 used as workspace policy, or interpreted as a money, goods or management effect.
@@ -222,7 +369,17 @@ function main(): void {
     return;
   }
 
-  const parsed = readFieldObservationPacket(readFileSync(configPath, "utf8"));
+  const raw = readFileSync(configPath, "utf8");
+  const requireFieldValidation = process.argv.includes("--require-field-validation");
+  const expectedReleaseSha = flag("release-sha");
+  if (requireFieldValidation && (expectedReleaseSha === null || expectedReleaseSha.length === 0)) {
+    console.error("✗ --require-field-validation needs --release-sha <40-character-sha>");
+    process.exitCode = 2;
+    return;
+  }
+  const parsed = requireFieldValidation
+    ? readFieldValidationPacket(raw, expectedReleaseSha ?? undefined)
+    : readFieldObservationPacket(raw);
   if (!parsed.ok) {
     console.error("✗ the field observation packet is not usable:\n");
     for (const problem of parsed.problems) console.error(`  ${problem}`);
@@ -236,7 +393,14 @@ function main(): void {
   console.warn(`  observations: ${assessment.observationCount}`);
   console.warn(`  corrections linked: ${assessment.correctionCount}`);
   console.warn(`  canonical references: ${assessment.canonicalReferenceCount}`);
-  console.warn("  field validation: not run by automation");
+  console.warn(
+    `  complete H2-H6 task records: ${assessment.fieldValidationEvidenceCount}/${assessment.observationCount}`,
+  );
+  console.warn(
+    requireFieldValidation
+      ? "  field validation: structurally complete; human observation and acceptance still required"
+      : "  field validation: not run by automation",
+  );
 }
 
 if (process.argv[1]?.endsWith("scripts/field-observation.ts")) main();

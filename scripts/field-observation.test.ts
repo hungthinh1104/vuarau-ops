@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   assessFieldObservationPacket,
   fieldObservationPacketSchema,
+  readFieldValidationPacket,
   readFieldObservationPacket,
 } from "./field-observation.ts";
+import type { FieldObservationPacket } from "./field-observation.ts";
 
 const validPacket = () => ({
   kind: "FIELD_OPERATIONAL_OBSERVATION" as const,
@@ -77,6 +79,8 @@ test("TC-OPS-017 accepts source-linked raw observations without inferring effect
     },
     correctionCount: 1,
     canonicalReferenceCount: 1,
+    fieldValidationEvidenceCount: 0,
+    fieldValidationReady: false,
   });
   assert.equal(result.packet.observations[1]?.kind, "cost_observation");
 });
@@ -107,4 +111,72 @@ test("TC-OPS-017 keeps policy closure separate from raw observation capture", ()
   if (!result.success) return;
   assert.equal("disposition" in result.data, false);
   assert.equal("canonicalEffect" in result.data.observations[0]!, false);
+});
+
+function validFieldValidationPacket(): FieldObservationPacket {
+  const packet = validPacket();
+  return {
+    ...packet,
+    releaseSha: "a".repeat(40),
+    observations: packet.observations.map((observation, index) => ({
+      ...observation,
+      fieldEvidence: {
+        hypothesis: (index === 0 ? "H2" : index === 1 ? "H3" : "H4") as "H2" | "H3" | "H4",
+        actorPersona: "Người bán tại quầy",
+        canonicalTransactionReference: `sale-${index + 1}`,
+        transactionShape: "Một giao dịch có đối soát với sổ giấy.",
+        startedAt: "2026-08-03T10:00:00.000Z",
+        endedAt: "2026-08-03T10:05:00.000Z",
+        independentAccuracyReference: "external://notebook/day-001",
+        assistance: "none" as const,
+        mistakesAndCorrections: "Không có.",
+        terminologyObservedVerbatim: "Ghi như sổ cũ.",
+        recoveryBehavior: "Không phát sinh mất mạng.",
+        finalCanonicalState: "Đã ghi nhận và đối soát khớp.",
+        incidentSeverity: "none" as const,
+        scenarioGate: "none" as const,
+        scenarioDisposition: "not-applicable" as const,
+        observer: { role: "observer", name: "Field researcher" },
+      },
+    })),
+  };
+}
+
+test("field validation requires a frozen release and a complete task record", () => {
+  const missingEvidence = readFieldValidationPacket(JSON.stringify(validPacket()));
+  assert.equal(missingEvidence.ok, false);
+  if (!missingEvidence.ok) {
+    assert.match(missingEvidence.problems.join("\n"), /releaseSha/);
+    assert.match(missingEvidence.problems.join("\n"), /complete H2-H6 task record/);
+  }
+
+  const packet = validFieldValidationPacket();
+  const result = readFieldValidationPacket(JSON.stringify(packet), packet.releaseSha);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    const assessment = assessFieldObservationPacket(result.packet);
+    assert.equal(assessment.fieldValidationEvidenceCount, 3);
+    assert.equal(assessment.fieldValidationReady, true);
+  }
+});
+
+test("field validation rejects timing and excluded-scope contradictions", () => {
+  const packet = validFieldValidationPacket();
+  packet.observations[0]!.fieldEvidence!.endedAt = "2026-08-03T09:59:00.000Z";
+  packet.observations[1]!.fieldEvidence!.scenarioGate = "ASM-037";
+  packet.observations[1]!.fieldEvidence!.scenarioDisposition = "not-applicable";
+
+  const result = readFieldValidationPacket(JSON.stringify(packet), packet.releaseSha);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.problems.join("\n"), /endedAt/);
+    assert.match(result.problems.join("\n"), /scenarioDisposition/);
+  }
+});
+
+test("field validation remains bound to the exact release SHA", () => {
+  const packet = validFieldValidationPacket();
+  const result = readFieldValidationPacket(JSON.stringify(packet), "b".repeat(40));
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.match(result.problems.join("\n"), /expected frozen release/);
 });
