@@ -76,7 +76,9 @@ const children = [
   }),
 ];
 
+let shuttingDown = false;
 const stop = (signal: NodeJS.Signals) => {
+  shuttingDown = true;
   for (const child of children) child.kill(signal);
 };
 process.on("SIGINT", () => stop("SIGINT"));
@@ -87,9 +89,11 @@ await Promise.all(
     (child) =>
       new Promise<void>((resolve, reject) => {
         child.once("exit", (code) =>
-          code === 0 ? resolve() : reject(new Error(`dev process exited with ${code ?? "signal"}`)),
+          code === 0 || shuttingDown
+            ? resolve()
+            : reject(new Error(`dev process exited with ${code ?? "signal"}`)),
         );
-        child.once("error", reject);
+        child.once("error", (error) => (shuttingDown ? resolve() : reject(error)));
       }),
   ),
 );
