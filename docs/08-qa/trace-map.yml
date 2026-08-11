@@ -2285,6 +2285,7 @@ business_rules:
     tests: [TC-OPS-003, TC-OPS-004]
     implementation:
       - apps/api/src/infrastructure/logging.ts
+      - apps/api/src/infrastructure/auth/principal.ts
       - apps/api/src/infrastructure/readiness.ts
       - apps/api/src/modules/shared/command-pipeline.ts
 

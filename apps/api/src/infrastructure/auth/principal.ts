@@ -3,6 +3,7 @@ import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { UnitOfWork } from "../persistence/ports.ts";
 import type { JwtVerifier } from "./jwt-verifier.ts";
+import { currentRequestId, log } from "../logging.ts";
 
 /**
  * Who the server has decided is calling. Established once per request from a
@@ -75,7 +76,15 @@ export async function resolvePrincipal(
 
     return ok({ actorId: actor.actorId, subject: verified.value.subject });
   } catch (error) {
-    console.error("DB Error in resolvePrincipal:", error);
+    // The driver error can contain SQL, parameters or business data. Keep the
+    // operator breadcrumb inside the closed safe-log vocabulary and let the
+    // transport boundary turn the failure into a generic response.
+    log({
+      event: "exception",
+      requestId: currentRequestId(),
+      procedure: "auth.resolvePrincipal",
+      code: "INTERNAL_SERVER_ERROR",
+    });
     throw error;
   }
 }

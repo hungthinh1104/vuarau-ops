@@ -12,6 +12,8 @@ import { createHarness, type Harness } from "../testing/command-test-harness.ts"
 import { createCustomer } from "../modules/customer/create-customer.handler.ts";
 import { adjustCustomerDebt } from "../modules/account/adjust-debt.handler.ts";
 import type { Repositories, UnitOfWork } from "./persistence/ports.ts";
+import { resolvePrincipal } from "./auth/principal.ts";
+import type { JwtVerifier } from "./auth/jwt-verifier.ts";
 import { setLogSink, withRequestId, type LogEvent } from "./logging.ts";
 import { logUnexpectedTrpcError } from "./trpc/trpc.ts";
 
@@ -190,6 +192,34 @@ describe("BR-OPS-001 / TC-OPS-004 — what a command writes to the log", () => {
 });
 
 describe("BR-OPS-001 — unexpected transport failures stay safe", () => {
+  it("keeps an actor lookup failure safe while preserving its request correlation", async () => {
+    const rawDatabaseError = "customer=Chị Lan; amount=4500000; password=should-not-log";
+    const failingUow: UnitOfWork = {
+      transaction: async () => {
+        throw new Error(rawDatabaseError);
+      },
+    };
+    const verified: JwtVerifier = {
+      verify: async () => ({ ok: true, value: { subject: "supabase-subject" } }),
+    };
+
+    await withRequestId("req-auth-db-failure", async () => {
+      await expect(resolvePrincipal(failingUow, verified, "token")).rejects.toThrow(
+        rawDatabaseError,
+      );
+    });
+
+    expect(captured).toEqual([
+      {
+        event: "exception",
+        requestId: "req-auth-db-failure",
+        procedure: "auth.resolvePrincipal",
+        code: "INTERNAL_SERVER_ERROR",
+      },
+    ]);
+    expect(JSON.stringify(captured)).not.toContain(rawDatabaseError);
+  });
+
   it("records only correlation, procedure and transport code", async () => {
     await withRequestId("req-exception", async () => {
       logUnexpectedTrpcError({
