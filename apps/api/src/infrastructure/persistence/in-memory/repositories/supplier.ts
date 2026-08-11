@@ -17,7 +17,9 @@ export const createSupplierRepositories = (
     findByIdForUpdate: async (workspaceId, supplierId) =>
       store.suppliers.get(key(workspaceId, supplierId)) ?? null,
     insert: async (supplier) => {
+      if (store.suppliers.has(key(supplier.workspaceId, supplier.id))) return false;
       store.suppliers.set(key(supplier.workspaceId, supplier.id), supplier);
+      return true;
     },
     update: async (supplier, expectedVersion) => {
       const current = store.suppliers.get(key(supplier.workspaceId, supplier.id));
@@ -30,7 +32,9 @@ export const createSupplierRepositories = (
     findByIdForUpdate: async (workspaceId, paymentId) =>
       store.supplierPayments.get(key(workspaceId, paymentId)) ?? null,
     insert: async (payment) => {
+      if (store.supplierPayments.has(key(payment.workspaceId, payment.id))) return false;
       store.supplierPayments.set(key(payment.workspaceId, payment.id), payment);
+      return true;
     },
     update: async (payment, expectedVersion) => {
       const current = store.supplierPayments.get(key(payment.workspaceId, payment.id));
@@ -39,7 +43,15 @@ export const createSupplierRepositories = (
       return true;
     },
     insertReversal: async (reversal) => {
+      if (
+        store.supplierPaymentReversals.some(
+          (existing) =>
+            existing.workspaceId === reversal.workspaceId && existing.id === reversal.id,
+        )
+      )
+        return false;
       store.supplierPaymentReversals.push(reversal);
+      return true;
     },
   },
   supplierAccountEntries: {

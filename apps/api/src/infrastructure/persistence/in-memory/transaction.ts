@@ -20,7 +20,7 @@ import {
 } from "@vuarau/domain-contracts";
 import type { PaymentReversalState, SaleVoidState } from "@vuarau/domain-kernel";
 import type { IdGenerator } from "../../clock.ts";
-import type { Repositories, UnitOfWork } from "../ports.ts";
+import type { CommandReceipt, Repositories, UnitOfWork } from "../ports.ts";
 import type {
   CustomerAccountBalance,
   CustomerState,
@@ -157,6 +157,14 @@ export class InMemoryDatabase {
 
   auditRecords(): readonly AuditRecordDto[] {
     return this.store.audit;
+  }
+
+  receipts(): readonly CommandReceipt[] {
+    return [...this.store.receipts.values()];
+  }
+
+  replaceReceipt(receipt: CommandReceipt): void {
+    this.store.receipts.set(key(receipt.workspaceId, receipt.idempotencyKey), receipt);
   }
 
   reversals(): readonly PaymentReversalState[] {

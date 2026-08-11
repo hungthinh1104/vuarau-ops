@@ -44,6 +44,19 @@ export const createInventoryRepositories = (
               ? a.recordedAt.localeCompare(b.recordedAt)
               : a.id.localeCompare(b.id),
         ),
+    listByProducts: async (workspaceId, productIds) =>
+      store.inventoryMovements
+        .filter(
+          (movement) =>
+            movement.workspaceId === workspaceId && productIds.includes(movement.productId),
+        )
+        .sort((a, b) =>
+          a.transactionTime !== b.transactionTime
+            ? a.transactionTime.localeCompare(b.transactionTime)
+            : a.recordedAt !== b.recordedAt
+              ? a.recordedAt.localeCompare(b.recordedAt)
+              : a.id.localeCompare(b.id),
+        ),
   },
   inventoryBalances: {
     get: async (workspaceId, productId, qualityGradeId, unit) =>

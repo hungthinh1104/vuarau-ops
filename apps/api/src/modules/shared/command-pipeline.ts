@@ -105,6 +105,8 @@ export async function runCommand<
   readonly requiredPermission: Permission;
   /** Every listed workflow must be enabled for a new command to execute. */
   readonly requiredWorkflows?: readonly WorkspaceWorkflow[];
+  /** Current response contract used to validate a completed receipt on replay. */
+  readonly resultSchema: z.ZodType<TResult>;
   readonly execute: CommandExecution<TCommand, TResult>;
 }): Promise<DomainResult<TResult>> {
   const {
@@ -166,6 +168,7 @@ export async function runCommand<
   };
 
   let accepted = false;
+  let completedOutcome: "accepted" | "replayed" | null = null;
   try {
     const result = await deps.uow.transaction(async (repos) => {
       // 4. Identity, membership, and permission — before any business data is
@@ -215,9 +218,10 @@ export async function runCommand<
         command,
         commandType,
         payloadHash,
+        resultSchema: options.resultSchema,
       });
       if (replay !== null) {
-        record("replayed", null);
+        completedOutcome = "replayed";
         return replay;
       }
 
@@ -258,9 +262,13 @@ export async function runCommand<
       // 11. Store the result so a retry gets the answer, not "already done".
       await repos.receipts.complete(command.workspaceId, command.idempotencyKey, result.value);
       accepted = true;
-      record("accepted", null);
+      completedOutcome = "accepted";
       return result;
     });
+    // This is deliberately outside the transaction callback. If the database
+    // rejects the commit, execution never reaches here and no success event can
+    // claim that a result was persisted.
+    if (result.ok && completedOutcome !== null) record(completedOutcome, null);
     if (accepted && result.ok && deps.publishInvalidation !== undefined) {
       const payload = command.payload;
       const candidateEntityId =
@@ -317,6 +325,7 @@ async function checkIdempotency<TResult>(args: {
   command: CommandEnvelope;
   commandType: string;
   payloadHash: string;
+  resultSchema: z.ZodType<TResult>;
 }): Promise<DomainResult<TResult> | null> {
   const { repos, command, payloadHash } = args;
 
@@ -374,8 +383,23 @@ async function checkIdempotency<TResult>(args: {
     );
   }
 
-  // BR-COMMAND-001 — the original answer, replayed verbatim. The stored result was
-  // produced by this same command type, so the cast restores what was serialised.
+  const parsedResult = args.resultSchema.safeParse(existing.result);
+  if (!parsedResult.success) {
+    throw new RollbackForRejection(
+      asRejection(
+        err(
+          "COMMAND_RECEIPT_RESULT_INVALID",
+          "The stored command result no longer matches the current response contract.",
+          { commandType: args.commandType },
+        ),
+      ),
+    );
+  }
+  // Validate the persisted JSON, then return the original stored DTO. Zod
+  // object schemas strip unknown keys by default; returning parsedResult.data
+  // would silently change a previously accepted response on replay (for
+  // example, legacy delivery actor attribution). The schema validation is the
+  // safety boundary; preserving the stored value is the idempotency contract.
   return ok(existing.result as TResult);
 }
 

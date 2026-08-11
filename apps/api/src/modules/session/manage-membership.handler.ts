@@ -9,6 +9,7 @@ import {
   changeWorkspaceMemberRoleCommandSchema,
   reactivateWorkspaceMemberCommandSchema,
   primaryWorkspaceRole,
+  workspaceMembershipDtoSchema,
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import {
@@ -28,6 +29,7 @@ export function addWorkspaceMember(
   return runCommand<AddWorkspaceMemberCommand, WorkspaceMembershipDto>({
     commandType: "AddWorkspaceMember",
     schema: addWorkspaceMemberCommandSchema,
+    resultSchema: workspaceMembershipDtoSchema,
     input,
     ctx,
     requiredPermission: "workspace.manage",
@@ -80,6 +82,7 @@ export function changeWorkspaceMemberRole(
   return runCommand<ChangeWorkspaceMemberRoleCommand, WorkspaceMembershipDto>({
     commandType: "ChangeWorkspaceMemberRole",
     schema: changeWorkspaceMemberRoleCommandSchema,
+    resultSchema: workspaceMembershipDtoSchema,
     input,
     ctx,
     requiredPermission: "workspace.manage",
@@ -140,6 +143,7 @@ export function reactivateWorkspaceMember(
   return runCommand<ReactivateWorkspaceMemberCommand, WorkspaceMembershipDto>({
     commandType: "ReactivateWorkspaceMember",
     schema: reactivateWorkspaceMemberCommandSchema,
+    resultSchema: workspaceMembershipDtoSchema,
     input,
     ctx,
     requiredPermission: "workspace.manage",

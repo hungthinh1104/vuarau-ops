@@ -6,6 +6,8 @@ import type {
 } from "@vuarau/domain-contracts";
 import {
   paymentAllocationPolicyDefinitionSchema,
+  paymentAllocationDtoSchema,
+  paymentAllocationReversalDtoSchema,
   recordPaymentAllocationCommandSchema,
   reversePaymentAllocationCommandSchema,
 } from "@vuarau/domain-contracts";
@@ -63,6 +65,7 @@ export function recordPaymentAllocation(
     input,
     ctx,
     requiredPermission: "debt.allocate",
+    resultSchema: paymentAllocationDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const policy = await requireManualAllocationPolicy(
         command.workspaceId,
@@ -124,6 +127,7 @@ export function reversePaymentAllocation(
     input,
     ctx,
     requiredPermission: "debt.allocate",
+    resultSchema: paymentAllocationReversalDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const allocation = await repos.paymentAllocations.findByIdForUpdate(
         command.workspaceId,

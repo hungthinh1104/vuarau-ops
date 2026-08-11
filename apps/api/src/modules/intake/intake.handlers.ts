@@ -25,6 +25,10 @@ import {
   reverseQualityDispositionCommandSchema,
   reverseQualityInspectionCommandSchema,
   updateQualityIssueCodeCommandSchema,
+  goodsArrivalDtoSchema,
+  qualityDispositionDtoSchema,
+  qualityInspectionDtoSchema,
+  qualityIssueCodeDtoSchema,
 } from "@vuarau/domain-contracts";
 import {
   decideCreateQualityIssueCode,
@@ -61,6 +65,7 @@ export function createQualityIssueCode(ctx: CommandContext, input: unknown) {
   return runCommand<CreateQualityIssueCodeCommand, QualityIssueCodeDto>({
     commandType: "CreateQualityIssueCode",
     schema: createQualityIssueCodeCommandSchema,
+    resultSchema: qualityIssueCodeDtoSchema,
     input,
     ctx,
     requiredPermission: "quality.issue.manage",
@@ -83,6 +88,7 @@ export function updateQualityIssueCode(ctx: CommandContext, input: unknown) {
   return runCommand<UpdateQualityIssueCodeCommand, QualityIssueCodeDto>({
     commandType: "UpdateQualityIssueCode",
     schema: updateQualityIssueCodeCommandSchema,
+    resultSchema: qualityIssueCodeDtoSchema,
     input,
     ctx,
     requiredPermission: "quality.issue.manage",
@@ -113,6 +119,7 @@ function issueCodeLifecycle(ctx: CommandContext, input: unknown, targetActive: b
   >({
     commandType: targetActive ? "ReactivateQualityIssueCode" : "DeactivateQualityIssueCode",
     schema,
+    resultSchema: qualityIssueCodeDtoSchema,
     input,
     ctx,
     requiredPermission: "quality.issue.manage",
@@ -142,6 +149,7 @@ export function recordGoodsArrival(ctx: CommandContext, input: unknown) {
   return runCommand<RecordGoodsArrivalCommand, GoodsArrivalDto>({
     commandType: "RecordGoodsArrival",
     schema: recordGoodsArrivalCommandSchema,
+    resultSchema: goodsArrivalDtoSchema,
     input,
     ctx,
     requiredPermission: "intake.record",
@@ -238,6 +246,7 @@ export function reverseGoodsArrival(ctx: CommandContext, input: unknown) {
   return runCommand<ReverseGoodsArrivalCommand, GoodsArrivalDto>({
     commandType: "ReverseGoodsArrival",
     schema: reverseGoodsArrivalCommandSchema,
+    resultSchema: goodsArrivalDtoSchema,
     input,
     ctx,
     requiredPermission: "intake.reverse",
@@ -266,6 +275,7 @@ export function recordQualityInspection(ctx: CommandContext, input: unknown) {
   return runCommand<RecordQualityInspectionCommand, QualityInspectionDto>({
     commandType: "RecordQualityInspection",
     schema: recordQualityInspectionCommandSchema,
+    resultSchema: qualityInspectionDtoSchema,
     input,
     ctx,
     requiredPermission: "quality.inspect",
@@ -322,6 +332,7 @@ export function reverseQualityInspection(ctx: CommandContext, input: unknown) {
   return runCommand<ReverseQualityInspectionCommand, QualityInspectionDto>({
     commandType: "ReverseQualityInspection",
     schema: reverseQualityInspectionCommandSchema,
+    resultSchema: qualityInspectionDtoSchema,
     input,
     ctx,
     requiredPermission: "quality.inspect.reverse",
@@ -366,6 +377,7 @@ export function recordQualityDisposition(ctx: CommandContext, input: unknown) {
   return runCommand<RecordQualityDispositionCommand, QualityDispositionDto>({
     commandType: "RecordQualityDisposition",
     schema: recordQualityDispositionCommandSchema,
+    resultSchema: qualityDispositionDtoSchema,
     input,
     ctx,
     requiredPermission: "quality.disposition",
@@ -475,6 +487,7 @@ export function reverseQualityDisposition(ctx: CommandContext, input: unknown) {
   return runCommand<ReverseQualityDispositionCommand, QualityDispositionDto>({
     commandType: "ReverseQualityDisposition",
     schema: reverseQualityDispositionCommandSchema,
+    resultSchema: qualityDispositionDtoSchema,
     input,
     ctx,
     requiredPermission: "quality.disposition.reverse",

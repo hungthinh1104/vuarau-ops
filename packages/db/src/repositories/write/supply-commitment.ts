@@ -6,10 +6,11 @@ import { loadSupplyCommitment } from "../shared/supply-commitment-mappers.ts";
 import type { Tx } from "../shared/types.ts";
 
 function lineValues(commitment: SupplyCommitmentState) {
-  return commitment.lines.map((line) => ({
+  return commitment.lines.map((line, position) => ({
     id: line.lineId,
     workspaceId: commitment.workspaceId,
     supplyCommitmentId: commitment.id,
+    position,
     productId: line.productId,
     qualityGradeId: line.qualityGradeId,
     productName: line.productName,
@@ -89,6 +90,7 @@ export const createSupplyCommitmentWriteRepositories = (tx: Tx) => ({
           note: commitment.note,
           evidenceReferences: [...commitment.evidenceReferences],
           version: commitment.version,
+          recordedAt: fromIso(commitment.recordedAt),
         })
         .where(
           and(

@@ -7,6 +7,7 @@ import {
   defaultWorkspaceOperationalProfile,
   restoreWorkspaceBackupCommandSchema,
   workspaceOperationalProfileDtoSchema,
+  workspaceRestoreResultDtoSchema,
 } from "@vuarau/domain-contracts";
 import { err, ok, type DomainResult } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -15,7 +16,6 @@ import { hashPayload } from "../../infrastructure/hash.ts";
 import { backupDigest } from "./operations.queries.ts";
 import { validCloseReferences } from "./restore-close-validation.ts";
 import { validWorkspacePolicyCollection } from "./restore-policy-validation.ts";
-
 function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const payload = v19Payload(command);
   const source = command.payload.backup.sourceWorkspaceId;
@@ -582,6 +582,7 @@ export function restoreWorkspaceBackup(
   return runCommand<RestoreWorkspaceBackupCommand, WorkspaceRestoreResultDto>({
     commandType: "RestoreWorkspaceBackup",
     schema: restoreWorkspaceBackupCommandSchema,
+    resultSchema: workspaceRestoreResultDtoSchema,
     input,
     ctx,
     requiredPermission: "workspace.manage",

@@ -5,6 +5,21 @@ type CounterKey = `${string}|${string}`;
 const counters = new Map<CounterKey, number>();
 const latency = new Map<string, { count: number; sumMs: number; maxMs: number }>();
 
+/**
+ * HTTP request paths are caller-controlled. Keep transport metrics useful for
+ * broad health signals without turning an arbitrary path into an unbounded map
+ * key. Business command/query metrics retain their closed operation names.
+ */
+const requestFamily = (procedure: string): string => {
+  const path = procedure.split("?")[0] ?? procedure;
+  if (path === "events") return "events";
+  if (path === "metrics") return "metrics";
+  if (path === "trpc" || path.startsWith("trpc/")) return "trpc";
+  if (path.startsWith("health/")) return "health";
+  if (path.startsWith("public/documents/")) return "public_document";
+  return "unknown";
+};
+
 const increment = (family: string, label: string): void => {
   const key: CounterKey = `${family}|${label}`;
   counters.set(key, (counters.get(key) ?? 0) + 1);
@@ -22,8 +37,9 @@ const observeLatency = (operation: string, durationMs: number): void => {
 /** Consumes only the closed, business-data-free log vocabulary. */
 export function observeOperationalEvent(event: LogEvent): void {
   if (event.event === "request") {
-    increment("http_requests", `${event.procedure}:${event.status}`);
-    observeLatency(`request:${event.procedure}`, event.durationMs);
+    const family = requestFamily(event.procedure);
+    increment("http_requests", `${family}:${event.status}`);
+    observeLatency(`request:${family}`, event.durationMs);
   } else if (event.event === "command") {
     increment("commands", `${event.commandType}:${event.outcome}`);
     if (event.code !== null) increment("rejections", event.code);

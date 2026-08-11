@@ -10,8 +10,10 @@ import type {
   WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
 import {
+  cashStatementMatchDtoSchema,
   cashCustodyDepositPolicyDefinitionSchema,
   operationalClosePolicyDefinitionSchema,
+  operationalCloseDtoSchema,
   recordCashStatementMatchCommandSchema,
   recordOperationalCloseCommandSchema,
   reopenOperationalCloseCommandSchema,
@@ -127,6 +129,7 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
   return runCommand<RecordOperationalCloseCommand, OperationalCloseDto>({
     commandType: "RecordOperationalClose",
     schema: recordOperationalCloseCommandSchema,
+    resultSchema: operationalCloseDtoSchema,
     input,
     ctx,
     requiredPermission: "operations.close",
@@ -192,6 +195,7 @@ export function reopenOperationalClose(ctx: CommandContext, input: unknown) {
   return runCommand<ReopenOperationalCloseCommand, OperationalCloseDto>({
     commandType: "ReopenOperationalClose",
     schema: reopenOperationalCloseCommandSchema,
+    resultSchema: operationalCloseDtoSchema,
     input,
     ctx,
     requiredPermission: "operations.close",
@@ -242,6 +246,7 @@ export function recordCashStatementMatch(ctx: CommandContext, input: unknown) {
   return runCommand<RecordCashStatementMatchCommand, CashStatementMatchDto>({
     commandType: "RecordCashStatementMatch",
     schema: recordCashStatementMatchCommandSchema,
+    resultSchema: cashStatementMatchDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.statement.match",
@@ -304,6 +309,7 @@ export function reverseCashStatementMatch(ctx: CommandContext, input: unknown) {
   return runCommand<ReverseCashStatementMatchCommand, CashStatementMatchDto>({
     commandType: "ReverseCashStatementMatch",
     schema: reverseCashStatementMatchCommandSchema,
+    resultSchema: cashStatementMatchDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.statement.match",

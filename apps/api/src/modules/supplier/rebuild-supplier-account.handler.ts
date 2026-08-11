@@ -2,7 +2,10 @@ import type {
   RebuildSupplierAccountCommand,
   SupplierAccountBalanceDto,
 } from "@vuarau/domain-contracts";
-import { rebuildSupplierAccountCommandSchema } from "@vuarau/domain-contracts";
+import {
+  rebuildSupplierAccountCommandSchema,
+  supplierAccountBalanceDtoSchema,
+} from "@vuarau/domain-contracts";
 import { classifySupplierBalance, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
@@ -12,6 +15,7 @@ export const rebuildSupplierAccount = (ctx: CommandContext, input: unknown) =>
   runCommand<RebuildSupplierAccountCommand, SupplierAccountBalanceDto>({
     commandType: "RebuildSupplierAccount",
     schema: rebuildSupplierAccountCommandSchema,
+    resultSchema: supplierAccountBalanceDtoSchema,
     input,
     ctx,
     requiredPermission: "supplier.account.rebuild",

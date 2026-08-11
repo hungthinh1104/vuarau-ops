@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PERMISSIONS,
   ROLE_PERMISSIONS,
@@ -26,7 +26,8 @@ import {
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { adjustCustomerDebt } from "../account/adjust-debt.handler.ts";
 import { getCustomerAccountBalance } from "../account/account.queries.ts";
-import { accountCapabilities } from "./authorization.ts";
+import type { Repositories } from "../../infrastructure/persistence/ports.ts";
+import { accountCapabilities, authorizeWorkspaceAccess } from "./authorization.ts";
 
 let harness: Harness;
 
@@ -58,6 +59,33 @@ function expectNothingWritten(): void {
   expect(harness.db.auditRecords()).toHaveLength(0);
   expect(harness.db.balanceFor(WORKSPACE_ID, CUSTOMER_ID)).toBeNull();
 }
+
+describe("BR-AUTH-009 — authorization serializes with membership changes", () => {
+  it("uses the lock-aware membership read rather than a plain membership read", async () => {
+    const findMembership = vi.fn();
+    const findMembershipForUpdate = vi.fn(async () => ({
+      workspaceId: WORKSPACE_ID,
+      actorId: ACTOR_ID,
+      role: "owner" as const,
+      roles: ["owner" as const],
+      isActive: true,
+    }));
+    const repos = {
+      workspaces: { findMembership, findMembershipForUpdate },
+    } as unknown as Repositories;
+
+    const result = await authorizeWorkspaceAccess({
+      repos,
+      principal: { actorId: ACTOR_ID, subject: "subject" },
+      workspaceId: WORKSPACE_ID,
+      permission: "report.read",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(findMembershipForUpdate).toHaveBeenCalledWith(WORKSPACE_ID, ACTOR_ID);
+    expect(findMembership).not.toHaveBeenCalled();
+  });
+});
 
 describe("BR-AUTH-002 / TC-AUTH-002", () => {
   it("refuses a command that names an actor other than the authenticated one", async () => {

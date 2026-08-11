@@ -6,6 +6,7 @@ import type {
 import {
   defaultWorkspaceOperationalProfile,
   updateWorkspaceOperationalProfileCommandSchema,
+  workspaceOperationalProfileDtoSchema,
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideUpdateWorkspaceOperationalProfile, err, ok } from "@vuarau/domain-kernel";
@@ -37,6 +38,7 @@ export function updateWorkspaceOperationalProfile(
   return runCommand<UpdateWorkspaceOperationalProfileCommand, WorkspaceOperationalProfileDto>({
     commandType: "UpdateWorkspaceOperationalProfile",
     schema: updateWorkspaceOperationalProfileCommandSchema,
+    resultSchema: workspaceOperationalProfileDtoSchema,
     input,
     ctx,
     requiredPermission: "workspace.manage",

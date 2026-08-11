@@ -1,5 +1,5 @@
 import type { PaymentDto, RecordCustomerPaymentCommand } from "@vuarau/domain-contracts";
-import { recordCustomerPaymentCommandSchema } from "@vuarau/domain-contracts";
+import { paymentDtoSchema, recordCustomerPaymentCommandSchema } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideRecordPayment, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -19,6 +19,7 @@ export function recordCustomerPayment(
     input,
     ctx,
     requiredPermission: "payment.record",
+    resultSchema: paymentDtoSchema,
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const customer = await repos.customers.findByIdForUpdate(
         command.workspaceId,

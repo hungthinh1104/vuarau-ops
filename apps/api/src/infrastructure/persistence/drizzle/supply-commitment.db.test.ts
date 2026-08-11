@@ -13,6 +13,7 @@ import {
   cancelSupplyCommitment,
   confirmSupplyCommitment,
   createSupplyCommitmentDraft,
+  updateSupplyCommitmentDraft,
 } from "../../../modules/supply-commitment/supply-commitment.handlers.ts";
 import {
   getSupplyCommitment,
@@ -25,6 +26,7 @@ describe.skipIf(skipWithoutDatabase())("Supply Commitment against PostgreSQL", (
   let deps: CommandDeps;
   let supplierId: SupplierId;
   let commitmentId: SupplyCommitmentId;
+  let recordedAt = "2026-07-23T02:00:00.000Z";
   const context = (): CommandContext => ({
     deps,
     principal: { actorId: ctx.actorId, subject: ctx.subject },
@@ -41,7 +43,7 @@ describe.skipIf(skipWithoutDatabase())("Supply Commitment against PostgreSQL", (
     ctx = await createDbTestContext("supply-commitment");
     deps = {
       uow: createUnitOfWork(ctx.database.db, randomIdGenerator) as CommandDeps["uow"],
-      clock: { now: () => new Date().toISOString() as ReturnType<CommandDeps["clock"]["now"]> },
+      clock: { now: () => recordedAt as ReturnType<CommandDeps["clock"]["now"]> },
     };
     supplierId = crypto.randomUUID() as SupplierId;
     commitmentId = crypto.randomUUID() as SupplyCommitmentId;
@@ -140,5 +142,62 @@ describe.skipIf(skipWithoutDatabase())("Supply Commitment against PostgreSQL", (
     });
     expect(foreign.ok).toBe(false);
     if (!foreign.ok) expect(foreign.error.code).toBe("WORKSPACE_ACCESS_DENIED");
+  });
+
+  it("persists input line order and the server recordedAt on draft updates", async () => {
+    const persistedCommitmentId = crypto.randomUUID() as SupplyCommitmentId;
+    const createPayload = {
+      supplyCommitmentId: persistedCommitmentId,
+      supplierId,
+      currency: "VND" as const,
+      lines: [
+        {
+          lineId: crypto.randomUUID(),
+          productId: ctx.productIds[1],
+          qualityGradeId: ctx.qualityGradeId,
+          productName: "Rau muống",
+          quantity: { valueScaled: 2_000, unit: "bo" as const },
+          agreedUnitPrice: { amountMinor: 5_000, currency: "VND" as const },
+        },
+        {
+          lineId: crypto.randomUUID(),
+          productId: ctx.productIds[0],
+          qualityGradeId: ctx.qualityGradeId,
+          productName: "Cà chua",
+          quantity: { valueScaled: 1_000, unit: "kg" as const },
+          agreedUnitPrice: { amountMinor: 12_000, currency: "VND" as const },
+        },
+      ],
+      expectedArrivalAt: "2026-07-27T05:00:00.000Z",
+      paymentTermsSnapshot: null,
+      note: null,
+      evidenceReferences: [],
+      replacesSupplyCommitmentId: null,
+    };
+    recordedAt = "2026-07-23T02:00:00.000Z";
+    expect(
+      await createSupplyCommitmentDraft(context(), {
+        ...command("commitment-position-create"),
+        payload: createPayload,
+      }),
+    ).toMatchObject({ ok: true });
+
+    recordedAt = "2026-07-23T03:00:00.000Z";
+    expect(
+      await updateSupplyCommitmentDraft(context(), {
+        ...command("commitment-position-update"),
+        expectedVersion: 1,
+        payload: createPayload,
+      }),
+    ).toMatchObject({ ok: true });
+
+    const detail = await getSupplyCommitment(context(), {
+      workspaceId: ctx.workspaceId,
+      supplyCommitmentId: persistedCommitmentId,
+    });
+    expect(detail.ok).toBe(true);
+    if (!detail.ok || detail.value === null) return;
+    expect(detail.value.lines.map((line) => line.productName)).toEqual(["Rau muống", "Cà chua"]);
+    expect(detail.value.recordedAt).toBe("2026-07-23T03:00:00.000Z");
   });
 });

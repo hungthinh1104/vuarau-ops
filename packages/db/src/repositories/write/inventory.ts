@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { IsoInstant, ProductId, QualityGradeId, WorkspaceId } from "@vuarau/domain-contracts";
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
 import { inventoryMovements, inventoryBalances } from "../../schema/index.ts";
@@ -67,6 +67,41 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         .select()
         .from(inventoryMovements)
         .where(and(...filters))
+        .orderBy(
+          asc(inventoryMovements.transactionTime),
+          asc(inventoryMovements.recordedAt),
+          asc(inventoryMovements.id),
+        );
+      return rows.map((row) => ({
+        id: row.id,
+        workspaceId: row.workspaceId,
+        productId: row.productId,
+        qualityGradeId: row.qualityGradeId,
+        qualityGradeName: row.qualityGradeName,
+        quantity: { valueScaled: row.quantityScaled, unit: row.unit },
+        sourceType: row.sourceType,
+        sourceId: row.sourceId,
+        sourceLineId: row.sourceLineId,
+        reversalOfMovementId: row.reversalOfMovementId,
+        reasonCode: row.reasonCode,
+        reason: row.reason,
+        transactionTime: toIso(row.transactionTime),
+        recordedAt: toIso(row.recordedAt),
+        actorId: row.actorId,
+        commandId: row.commandId,
+      })) as unknown as readonly InventoryMovementState[];
+    },
+    async listByProducts(workspaceId: WorkspaceId, productIds: readonly ProductId[]) {
+      if (productIds.length === 0) return [];
+      const rows = await tx
+        .select()
+        .from(inventoryMovements)
+        .where(
+          and(
+            eq(inventoryMovements.workspaceId, workspaceId),
+            inArray(inventoryMovements.productId, [...productIds]),
+          ),
+        )
         .orderBy(
           asc(inventoryMovements.transactionTime),
           asc(inventoryMovements.recordedAt),

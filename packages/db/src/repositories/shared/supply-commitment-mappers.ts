@@ -14,7 +14,7 @@ export function mapSupplyCommitmentRows(
   return rows.map((row) => {
     const lines = lineRows
       .filter((line) => line.supplyCommitmentId === row.id)
-      .sort((left, right) => left.id.localeCompare(right.id))
+      .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
       .map((line) => ({
         lineId: line.id,
         productId: line.productId,
@@ -80,6 +80,6 @@ export async function loadSupplyCommitment(
         eq(supplyCommitmentLines.supplyCommitmentId, id),
       ),
     )
-    .orderBy(asc(supplyCommitmentLines.id));
+    .orderBy(asc(supplyCommitmentLines.position), asc(supplyCommitmentLines.id));
   return mapSupplyCommitmentRows([row], lines)[0] ?? null;
 }

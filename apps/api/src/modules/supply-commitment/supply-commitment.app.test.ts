@@ -6,6 +6,7 @@ import {
   IDEMPOTENCY_KEY,
   OTHER_IDEMPOTENCY_KEY,
   PRODUCT_CA_CHUA_ID,
+  QUALITY_GRADE_1_ID,
   SECOND_COMMAND_ID,
   SUPPLIER_ID,
   THIRD_COMMAND_ID,
@@ -72,6 +73,41 @@ const commandInput = (
 });
 
 describe("BR-SUPPLY-COMMITMENT-005 / TC-SUPPLY-COMMITMENT-004", () => {
+  it("rejects unknown quality grades and stale product snapshots", async () => {
+    const unknownGrade = await createSupplyCommitmentDraft(
+      harness.ctx,
+      createInput({
+        lines: [
+          {
+            ...createInput().payload.lines[0],
+            qualityGradeId: "00000000-0000-4000-8000-000000000999",
+          },
+        ],
+      }),
+    );
+    expect(unknownGrade.ok).toBe(false);
+    if (!unknownGrade.ok) expect(unknownGrade.error.code).toBe("QUALITY_GRADE_NOT_FOUND");
+
+    await createSupplyCommitmentDraft(
+      harness.ctx,
+      createInput({ qualityGradeId: QUALITY_GRADE_1_ID }),
+    );
+    await harness.db.unitOfWork().transaction(async ({ products }) => {
+      const product = await products.findById(WORKSPACE_ID, PRODUCT_CA_CHUA_ID);
+      if (product === null) throw new Error("seed product missing");
+      expect(
+        await products.update({ ...product, displayName: "Cà chua mới" }, product.version),
+      ).toBe(true);
+    });
+
+    const confirmed = await confirmSupplyCommitment(harness.ctx, {
+      ...commandInput({ supplyCommitmentId: COMMITMENT_ID }, { expectedVersion: 1 }),
+    });
+    expect(confirmed.ok).toBe(false);
+    if (!confirmed.ok)
+      expect(confirmed.error.code).toBe("SUPPLY_COMMITMENT_PRODUCT_SNAPSHOT_MISMATCH");
+  });
+
   it("TC-SUPPLY-COMMITMENT-004 replays a create and leaves customer and supplier ledgers untouched", async () => {
     const first = await createSupplyCommitmentDraft(harness.ctx, createInput());
     const retry = await createSupplyCommitmentDraft(harness.ctx, createInput());

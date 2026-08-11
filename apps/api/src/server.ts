@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { findWorkspace, createDatabase, createUnitOfWork } from "@vuarau/db";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHTTPHandler } from "@trpc/server/adapters/standalone";
-import { workspaceIdSchema } from "@vuarau/domain-contracts";
 import { appRouter } from "./infrastructure/trpc/router.ts";
 import { createContext } from "./infrastructure/trpc/context.ts";
 import { createSupabaseJwtVerifier, type JwtVerifier } from "./infrastructure/auth/jwt-verifier.ts";
@@ -13,13 +12,13 @@ import {
   readServerConfig,
 } from "./infrastructure/config.ts";
 import { log, withRequestId } from "./infrastructure/logging.ts";
-import { renderMetrics } from "./infrastructure/metrics.ts";
 import { createRequestGuard, safeRequestId } from "./infrastructure/request-guard.ts";
 import { checkReadiness } from "./infrastructure/readiness.ts";
 import type { CommandDeps } from "./modules/shared/command-pipeline.ts";
 import { createPublicDocumentHandler } from "./modules/document/public-document.ts";
-import { authorizeWorkspaceAccess } from "./modules/shared/authorization.ts";
-import { createInvalidationBus, type InvalidationBus } from "./infrastructure/invalidation.ts";
+import { createInvalidationBus } from "./infrastructure/invalidation.ts";
+import { createEventsHandler } from "./infrastructure/events.ts";
+import { createMetricsHandler } from "./infrastructure/metrics-handler.ts";
 import {
   readPilotRuntimeConfig,
   validatePilotWorkspace,
@@ -92,68 +91,6 @@ export function createHealthHandler(
   };
 }
 
-export function createEventsHandler(
-  deps: CommandDeps,
-  verifier: JwtVerifier,
-  bus: InvalidationBus,
-): (req: IncomingMessage, res: ServerResponse) => Promise<boolean> {
-  return async (req, res) => {
-    const url = new URL(req.url ?? "/", "http://localhost");
-    if (req.method !== "GET" || url.pathname !== "/events") return false;
-    const parsedWorkspace = workspaceIdSchema.safeParse(url.searchParams.get("workspaceId"));
-    if (!parsedWorkspace.success) {
-      res.writeHead(400, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: "workspaceId is required" }));
-      return true;
-    }
-    const context = await createContext({
-      deps,
-      verifier,
-      authorizationHeader: req.headers.authorization,
-    });
-    if (context.principal === null) {
-      res.writeHead(401, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: "Authentication required" }));
-      return true;
-    }
-    const allowed = await deps.uow.transaction((repos) =>
-      authorizeWorkspaceAccess({
-        repos,
-        principal: context.principal!,
-        workspaceId: parsedWorkspace.data,
-        permission: "report.read",
-      }),
-    );
-    if (!allowed.ok) {
-      res.writeHead(403, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: allowed.error.code }));
-      return true;
-    }
-
-    res.writeHead(200, {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-store",
-      connection: "keep-alive",
-      "x-accel-buffering": "no",
-    });
-    res.write(": connected\n\n");
-    const unsubscribe = bus.subscribe(parsedWorkspace.data, (event) => {
-      if (!res.writableEnded) res.write(`event: invalidation\ndata: ${JSON.stringify(event)}\n\n`);
-    });
-    const heartbeat = setInterval(() => {
-      if (!res.writableEnded) res.write(": keepalive\n\n");
-    }, 25_000);
-    heartbeat.unref?.();
-    const cleanup = () => {
-      clearInterval(heartbeat);
-      unsubscribe();
-    };
-    req.once("close", cleanup);
-    res.once("close", cleanup);
-    return true;
-  };
-}
-
 const configuration = readServerConfig(process.env);
 if (!configuration.ok) {
   console.error("The API cannot start. Fix these environment variables:\n");
@@ -213,6 +150,7 @@ async function startServer(): Promise<void> {
   const publicDocument = createPublicDocumentHandler(deps);
   const trpc = createApiHandler(deps, verifier, config.requestLimits.maxBatchOperations);
   const events = createEventsHandler(deps, verifier, invalidationBus);
+  const metrics = createMetricsHandler(deps, verifier);
   const guard = createRequestGuard(config.requestLimits);
 
   createServer((req, res) => {
@@ -244,14 +182,7 @@ async function startServer(): Promise<void> {
       if (guard(req, res)) return;
       if (await health(req, res)) return;
       if (await events(req, res)) return;
-      if ((req.url ?? "").split("?")[0] === "/metrics" && req.method === "GET") {
-        res.writeHead(200, {
-          "content-type": "text/plain; version=0.0.4; charset=utf-8",
-          "cache-control": "no-store",
-        });
-        res.end(renderMetrics());
-        return;
-      }
+      if (await metrics(req, res)) return;
       if (await publicDocument(req, res)) return;
       trpc(req, res);
     });

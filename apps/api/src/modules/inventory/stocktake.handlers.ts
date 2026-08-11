@@ -12,6 +12,7 @@ import {
   approveStocktakeCommandSchema,
   recordStocktakeCountCommandSchema,
   reopenStocktakeCommandSchema,
+  stocktakeDtoSchema,
   startStocktakeCommandSchema,
   stocktakeVariancePolicyDefinitionSchema,
 } from "@vuarau/domain-contracts";
@@ -98,6 +99,7 @@ export function startStocktake(ctx: CommandContext, input: unknown) {
   return runCommand<StartStocktakeCommand, StocktakeDto>({
     commandType: "StartStocktake",
     schema: startStocktakeCommandSchema,
+    resultSchema: stocktakeDtoSchema,
     input,
     ctx,
     requiredPermission: "inventory.adjust",
@@ -133,6 +135,7 @@ export function recordStocktakeCount(ctx: CommandContext, input: unknown) {
   return runCommand<RecordStocktakeCountCommand, StocktakeDto>({
     commandType: "RecordStocktakeCount",
     schema: recordStocktakeCountCommandSchema,
+    resultSchema: stocktakeDtoSchema,
     input,
     ctx,
     requiredPermission: "inventory.adjust",
@@ -205,6 +208,7 @@ export function approveStocktake(ctx: CommandContext, input: unknown) {
   return runCommand<ApproveStocktakeCommand, StocktakeDto>({
     commandType: "ApproveStocktake",
     schema: approveStocktakeCommandSchema,
+    resultSchema: stocktakeDtoSchema,
     input,
     ctx,
     requiredPermission: "inventory.adjust",
@@ -223,15 +227,22 @@ export function approveStocktake(ctx: CommandContext, input: unknown) {
       const decision = decideApproveStocktake({ session, command });
       if (!decision.ok) return decision;
       const drafts: Array<Parameters<typeof applyInventoryMovements>[1][number]> = [];
-      for (const count of activeStocktakeCounts(session.counts)) {
-        const movements = await repos.inventoryMovements.listByProduct(
-          command.workspaceId,
-          count.productId,
-          count.quantity.unit,
-        );
+      const activeCounts = activeStocktakeCounts(session.counts);
+      const movements = await repos.inventoryMovements.listByProducts(command.workspaceId, [
+        ...new Set(activeCounts.map((count) => count.productId)),
+      ]);
+      const movementsByProduct = new Map<string, InventoryMovementState[]>();
+      for (const movement of movements) {
+        const rows = movementsByProduct.get(movement.productId) ?? [];
+        rows.push(movement);
+        movementsByProduct.set(movement.productId, rows);
+      }
+      for (const count of activeCounts) {
         const expected = calculateStocktakeExpectedQuantity({
-          movements: movements.filter(
-            (movement) => movement.qualityGradeId === count.qualityGradeId,
+          movements: (movementsByProduct.get(count.productId) ?? []).filter(
+            (movement) =>
+              movement.quantity.unit === count.quantity.unit &&
+              movement.qualityGradeId === count.qualityGradeId,
           ),
           asOf: session.asOf,
         });
@@ -295,6 +306,7 @@ export function reopenStocktake(ctx: CommandContext, input: unknown) {
   return runCommand<ReopenStocktakeCommand, StocktakeDto>({
     commandType: "ReopenStocktake",
     schema: reopenStocktakeCommandSchema,
+    resultSchema: stocktakeDtoSchema,
     input,
     ctx,
     requiredPermission: "inventory.adjust",
@@ -318,14 +330,22 @@ export function reopenStocktake(ctx: CommandContext, input: unknown) {
       if (!decision.ok) return decision;
       const candidates: InventoryMovementState[] = [];
       const knownMovementIds = new Set<string>();
-      for (const count of activeStocktakeCounts(session.counts)) {
-        const movements = await repos.inventoryMovements.listByProduct(
-          command.workspaceId,
-          count.productId,
-          count.quantity.unit,
+      const activeCounts = activeStocktakeCounts(session.counts);
+      const movements = await repos.inventoryMovements.listByProducts(command.workspaceId, [
+        ...new Set(activeCounts.map((count) => count.productId)),
+      ]);
+      const movementsByProduct = new Map<string, InventoryMovementState[]>();
+      for (const movement of movements) {
+        const rows = movementsByProduct.get(movement.productId) ?? [];
+        rows.push(movement);
+        movementsByProduct.set(movement.productId, rows);
+      }
+      for (const count of activeCounts) {
+        const productMovements = (movementsByProduct.get(count.productId) ?? []).filter(
+          (movement) => movement.quantity.unit === count.quantity.unit,
         );
-        for (const movement of movements) knownMovementIds.add(movement.id);
-        for (const movement of movements) {
+        for (const movement of productMovements) knownMovementIds.add(movement.id);
+        for (const movement of productMovements) {
           if (
             movement.sourceType === "stocktake_variance" &&
             session.varianceMovementIds.includes(movement.id)

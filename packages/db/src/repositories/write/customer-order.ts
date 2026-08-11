@@ -7,10 +7,11 @@ import type { Tx } from "../shared/types.ts";
 import type { WorkspaceId } from "@vuarau/domain-contracts";
 
 function lineValues(order: CustomerOrderState) {
-  return order.lines.map((line) => ({
+  return order.lines.map((line, position) => ({
     id: line.lineId,
     workspaceId: order.workspaceId,
     customerOrderId: order.id,
+    position,
     productId: line.productId,
     productName: line.productName,
     quantityScaled: line.quantity.valueScaled,
@@ -91,6 +92,7 @@ export const createCustomerOrderWriteRepositories = (tx: Tx) => ({
           paymentTermsDueAt: fromIsoOrNull(order.paymentTermsSnapshot?.dueAt ?? null),
           evidenceReferences: [...order.evidenceReferences],
           version: order.version,
+          recordedAt: fromIso(order.recordedAt),
         })
         .where(
           and(

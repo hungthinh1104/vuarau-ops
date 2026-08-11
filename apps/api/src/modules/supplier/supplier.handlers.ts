@@ -13,11 +13,14 @@ import type {
 } from "@vuarau/domain-contracts";
 import {
   adjustSupplierAccountCommandSchema,
+  accountAdjustmentDetailDtoSchema,
   createSupplierCommandSchema,
   deactivateSupplierCommandSchema,
   reactivateSupplierCommandSchema,
   recordSupplierPaymentCommandSchema,
   reverseSupplierPaymentCommandSchema,
+  supplierDtoSchema,
+  supplierPaymentDtoSchema,
   updateSupplierCommandSchema,
 } from "@vuarau/domain-contracts";
 import {
@@ -63,6 +66,7 @@ export function createSupplier(
     input,
     ctx,
     requiredPermission: "supplier.create",
+    resultSchema: supplierDtoSchema,
     requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       if (
@@ -71,7 +75,8 @@ export function createSupplier(
         return err("SUPPLIER_VERSION_CONFLICT", "Supplier identity already exists.");
       const decision = decideCreateSupplier(command, recordedAt);
       if (!decision.ok) return decision;
-      await repos.suppliers.insert(decision.value);
+      if (!(await repos.suppliers.insert(decision.value)))
+        return err("SUPPLIER_VERSION_CONFLICT", "Supplier identity was claimed concurrently.");
       await repos.audit.append({
         workspaceId: command.workspaceId,
         actorId: command.actorId,
@@ -111,6 +116,7 @@ function mutateSupplier<
     input: args.input,
     ctx: args.ctx,
     requiredPermission: args.permission,
+    resultSchema: supplierDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.suppliers.findByIdForUpdate(
         command.workspaceId,
@@ -177,6 +183,7 @@ export function recordSupplierPayment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supplier.payment.record",
+    resultSchema: supplierPaymentDtoSchema,
     requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const supplier = await repos.suppliers.findById(
@@ -212,7 +219,11 @@ export function recordSupplierPayment(ctx: CommandContext, input: unknown) {
       const decision = decideRecordSupplierPayment(command, recordedAt);
       if (!decision.ok) return decision;
       const payment = decision.value;
-      await repos.supplierPayments.insert(payment);
+      if (!(await repos.supplierPayments.insert(payment)))
+        return err(
+          "SUPPLIER_VERSION_CONFLICT",
+          "Supplier payment identity was claimed concurrently.",
+        );
       await applySupplierAccountEffects(
         repos,
         [
@@ -278,6 +289,7 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supplier.payment.reverse",
+    resultSchema: supplierPaymentDtoSchema,
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const current = await repos.supplierPayments.findByIdForUpdate(
         command.workspaceId,
@@ -354,7 +366,7 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
       if (!decision.ok) return decision;
       if (!(await repos.supplierPayments.update(decision.value, current.version)))
         return err("SUPPLIER_VERSION_CONFLICT", "Supplier payment changed.");
-      await repos.supplierPayments.insertReversal({
+      const insertedReversal = await repos.supplierPayments.insertReversal({
         id: command.payload.reversalId,
         workspaceId: command.workspaceId,
         supplierPaymentId: current.id,
@@ -364,6 +376,11 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
         transactionTime: command.occurredAt,
         recordedAt,
       });
+      if (!insertedReversal)
+        return err(
+          "SUPPLIER_VERSION_CONFLICT",
+          "Supplier payment reversal identity was claimed concurrently.",
+        );
       await applySupplierAccountEffects(
         repos,
         [
@@ -414,20 +431,16 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
         after: { version: decision.value.version },
         reason: command.payload.reason.trim(),
       });
-      return ok(
-        paymentDto(decision.value, [
-          {
-            id: command.payload.reversalId,
-            workspaceId: command.workspaceId,
-            supplierPaymentId: current.id,
-            amount: command.payload.amount,
-            reason: command.payload.reason.trim(),
-            evidenceReferences: [...command.payload.evidenceReferences],
-            transactionTime: command.occurredAt,
-            recordedAt,
-          },
-        ]),
+      const canonicalPayment = await repos.supplierAccountReads.payment(
+        command.workspaceId,
+        current.id,
       );
+      if (canonicalPayment === null)
+        return err(
+          "SUPPLIER_ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
+          "Supplier payment could not be read after reversal.",
+        );
+      return ok(canonicalPayment);
     },
   });
 }
@@ -436,6 +449,7 @@ export function adjustSupplierAccount(ctx: CommandContext, input: unknown) {
   return runCommand<AdjustSupplierAccountCommand, { adjustmentId: string }>({
     commandType: "AdjustSupplierAccount",
     schema: adjustSupplierAccountCommandSchema,
+    resultSchema: accountAdjustmentDetailDtoSchema.pick({ adjustmentId: true }),
     input,
     ctx,
     requiredPermission: "supplier.account.adjust",

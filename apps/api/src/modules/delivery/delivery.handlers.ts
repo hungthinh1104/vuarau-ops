@@ -14,6 +14,7 @@ import {
   markDeliveryDeliveredCommandSchema,
   recordDeliveryReturnCommandSchema,
   updateDeliveryDraftCommandSchema,
+  deliveryDtoSchema,
 } from "@vuarau/domain-contracts";
 import {
   decideCancelDelivery,
@@ -63,6 +64,7 @@ export function createDeliveryDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.create",
+    resultSchema: deliveryDtoSchema,
     requiredWorkflows: ["delivery"],
     execute: async ({ command, repos, recordedAt }) => {
       const sale = await repos.sales.findByIdForUpdate(command.workspaceId, command.payload.saleId);
@@ -135,6 +137,7 @@ export function updateDeliveryDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.update",
+    resultSchema: deliveryDtoSchema,
     requiredWorkflows: ["delivery"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(
@@ -184,6 +187,7 @@ export function cancelDeliveryDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.cancel",
+    resultSchema: deliveryDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(
         command.workspaceId,
@@ -219,6 +223,7 @@ export function dispatchDelivery(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.dispatch",
+    resultSchema: deliveryDtoSchema,
     requiredWorkflows: ["delivery"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(
@@ -294,6 +299,7 @@ export function markDeliveryDelivered(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.complete",
+    resultSchema: deliveryDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(
         command.workspaceId,
@@ -329,6 +335,7 @@ export function recordDeliveryReturn(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.return",
+    resultSchema: deliveryDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(
         command.workspaceId,

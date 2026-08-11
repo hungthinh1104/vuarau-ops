@@ -12,6 +12,7 @@ import {
   deactivateProductCommandSchema,
   reactivateProductCommandSchema,
   updateProductCommandSchema,
+  productDtoSchema,
 } from "@vuarau/domain-contracts";
 import {
   decideCreateProduct,
@@ -44,6 +45,7 @@ export function createProduct(
   return runCommand<CreateProductCommand, ProductDto>({
     commandType: "CreateProduct",
     schema: createProductCommandSchema,
+    resultSchema: productDtoSchema,
     input,
     ctx,
     requiredPermission: "product.create",
@@ -92,6 +94,7 @@ function mutateProduct<
   return runCommand<TCommand, ProductDto>({
     commandType: args.commandType,
     schema: args.schema,
+    resultSchema: productDtoSchema,
     input: args.input,
     ctx: args.ctx,
     requiredPermission: args.permission,

@@ -70,10 +70,12 @@ without failing.
 
 ## Database tests
 
-`pnpm test:db` loads the root `.env` when it exists, so the documented local
-command exercises the configured disposable database without requiring a manual
-`export`. Environment variables already present in the shell still win, which is
-how CI supplies its service-container URL.
+`pnpm test:db` loads the root `.env` when it exists, then creates a fresh local
+database whose name ends in `_test`, runs migrations and drops it after the
+suite. The configured database is used only as the local PostgreSQL source; its
+existing rows are never part of the test run. Environment variables already
+present in the shell still win, which is how CI supplies its service-container
+URL.
 
 `pnpm test:db` **skips** its suites when `DATABASE_URL` is unset rather than
 failing, so a laptop without Postgres still gets a green `pnpm verify`. Skipped is
@@ -98,12 +100,12 @@ docker run -d --name vuarau-ops-dev-pg \
   -p 55432:5432 postgres:17-alpine
 
 export DATABASE_URL=postgres://postgres:postgres@localhost:55432/vuarau_test
-pnpm db:migrate
 pnpm test:db
 ```
 
-CI runs a `postgres:17` service container against an empty database, so migrations
-apply from scratch on every push and the suites execute there.
+CI runs a `postgres:17` service container. `pnpm test:db` creates a second
+disposable database inside that service, so migrations apply from scratch on
+every push and stale rows cannot mask or block the suite.
 
 The repository migration runner reconciles the migration table by content hash in
 journal order, not only by the newest folder timestamp. This keeps an existing

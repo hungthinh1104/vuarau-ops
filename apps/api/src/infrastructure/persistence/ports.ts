@@ -115,11 +115,11 @@ export type WorkspaceRepository = {
    * A repository that filtered inactive rows away would collapse the two.
    */
   findMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<WorkspaceMembership | null>;
-  /**
-   * Counts active owners **under a lock**, so two owners revoking each other at
-   * the same moment cannot both see a count of two (BR-AUTH-007). A version on
-   * the membership row would not have caught that; this is the race that matters.
-   */
+  findMembershipForUpdate(
+    workspaceId: WorkspaceId,
+    actorId: ActorId,
+  ): Promise<WorkspaceMembership | null>;
+  /** Counts active owners under a lock to preserve the last-owner race guard. */
   countActiveOwnersForUpdate(workspaceId: WorkspaceId): Promise<number>;
   /** Sets `is_active = false`. Never deletes the row (UC-AUTH-002). */
   revokeMembership(workspaceId: WorkspaceId, actorId: ActorId): Promise<boolean>;
@@ -180,15 +180,6 @@ export type CustomerRepository = {
     customerId: CustomerId,
   ): Promise<CustomerState | null>;
   insert(customer: CustomerState): Promise<void>;
-  /**
-   * Applies only if the stored version still matches. Covers both
-   * `UpdateCustomer` and `DeactivateCustomer`: the columns they touch are
-   * disjoint, and the domain decides which — the repository writes what it is
-   * given (BR-CUSTOMER-004).
-   *
-   * There is deliberately no `delete`. A customer's history and their account
-   * entries are never removed.
-   */
   update(customer: CustomerState, expectedVersion: number): Promise<boolean>;
 };
 
@@ -218,7 +209,7 @@ export type SupplierRepository = {
     workspaceId: WorkspaceId,
     supplierId: SupplierId,
   ): Promise<SupplierState | null>;
-  insert(supplier: SupplierState): Promise<void>;
+  insert(supplier: SupplierState): Promise<boolean>;
   update(supplier: SupplierState, expectedVersion: number): Promise<boolean>;
 };
 
@@ -227,9 +218,9 @@ export type SupplierPaymentRepository = {
     workspaceId: WorkspaceId,
     supplierPaymentId: SupplierPaymentId,
   ): Promise<SupplierPaymentState | null>;
-  insert(payment: SupplierPaymentState): Promise<void>;
+  insert(payment: SupplierPaymentState): Promise<boolean>;
   update(payment: SupplierPaymentState, expectedVersion: number): Promise<boolean>;
-  insertReversal(reversal: SupplierPaymentReversalState): Promise<void>;
+  insertReversal(reversal: SupplierPaymentReversalState): Promise<boolean>;
 };
 
 export type SupplierAccountEntryDraft = Omit<SupplierAccountEntryDto, "id">;
@@ -302,6 +293,10 @@ export type InventoryMovementRepository = {
     workspaceId: WorkspaceId,
     productId: ProductId,
     unit: InventoryMovementState["quantity"]["unit"] | null,
+  ): Promise<readonly InventoryMovementState[]>;
+  listByProducts(
+    workspaceId: WorkspaceId,
+    productIds: readonly ProductId[],
   ): Promise<readonly InventoryMovementState[]>;
 };
 export type InventoryBalanceState = {

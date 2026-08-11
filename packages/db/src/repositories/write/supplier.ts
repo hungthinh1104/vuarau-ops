@@ -44,17 +44,22 @@ export const createSupplierWriteRepositories = (tx: Tx, ids: IdMinter) => ({
       return rows[0] === undefined ? null : toSupplierState(rows[0]);
     },
     async insert(supplier: SupplierState) {
-      await tx.insert(suppliers).values({
-        id: supplier.id,
-        workspaceId: supplier.workspaceId,
-        displayName: supplier.displayName,
-        phone: supplier.phone,
-        note: supplier.note,
-        isActive: supplier.isActive,
-        version: supplier.version,
-        createdAt: fromIso(supplier.createdAt),
-        updatedAt: fromIso(supplier.updatedAt),
-      });
+      const rows = await tx
+        .insert(suppliers)
+        .values({
+          id: supplier.id,
+          workspaceId: supplier.workspaceId,
+          displayName: supplier.displayName,
+          phone: supplier.phone,
+          note: supplier.note,
+          isActive: supplier.isActive,
+          version: supplier.version,
+          createdAt: fromIso(supplier.createdAt),
+          updatedAt: fromIso(supplier.updatedAt),
+        })
+        .onConflictDoNothing()
+        .returning({ id: suppliers.id });
+      return rows.length === 1;
     },
     async update(supplier: SupplierState, expectedVersion: number) {
       const rows = await tx
@@ -94,21 +99,26 @@ export const createSupplierWriteRepositories = (tx: Tx, ids: IdMinter) => ({
       return rows[0] === undefined ? null : toSupplierPaymentState(rows[0]);
     },
     async insert(payment: SupplierPaymentState) {
-      await tx.insert(supplierPayments).values({
-        id: payment.id,
-        workspaceId: payment.workspaceId,
-        supplierId: payment.supplierId,
-        amountMinor: payment.amount.amountMinor,
-        currency: payment.amount.currency,
-        method: payment.method,
-        cashAccountId: payment.cashAccountId ?? null,
-        note: payment.note,
-        evidenceReferences: [...payment.evidenceReferences],
-        reversedAmountMinor: payment.reversedAmount.amountMinor,
-        version: payment.version,
-        transactionTime: fromIso(payment.transactionTime),
-        recordedAt: fromIso(payment.recordedAt),
-      });
+      const rows = await tx
+        .insert(supplierPayments)
+        .values({
+          id: payment.id,
+          workspaceId: payment.workspaceId,
+          supplierId: payment.supplierId,
+          amountMinor: payment.amount.amountMinor,
+          currency: payment.amount.currency,
+          method: payment.method,
+          cashAccountId: payment.cashAccountId ?? null,
+          note: payment.note,
+          evidenceReferences: [...payment.evidenceReferences],
+          reversedAmountMinor: payment.reversedAmount.amountMinor,
+          version: payment.version,
+          transactionTime: fromIso(payment.transactionTime),
+          recordedAt: fromIso(payment.recordedAt),
+        })
+        .onConflictDoNothing()
+        .returning({ id: supplierPayments.id });
+      return rows.length === 1;
     },
     async update(payment: SupplierPaymentState, expectedVersion: number) {
       const rows = await tx
@@ -128,17 +138,22 @@ export const createSupplierWriteRepositories = (tx: Tx, ids: IdMinter) => ({
       return rows.length === 1;
     },
     async insertReversal(reversal: SupplierPaymentReversalState) {
-      await tx.insert(supplierPaymentReversals).values({
-        id: reversal.id,
-        workspaceId: reversal.workspaceId,
-        supplierPaymentId: reversal.supplierPaymentId,
-        amountMinor: reversal.amount.amountMinor,
-        currency: reversal.amount.currency,
-        reason: reversal.reason,
-        evidenceReferences: [...reversal.evidenceReferences],
-        transactionTime: fromIso(reversal.transactionTime),
-        recordedAt: fromIso(reversal.recordedAt),
-      });
+      const rows = await tx
+        .insert(supplierPaymentReversals)
+        .values({
+          id: reversal.id,
+          workspaceId: reversal.workspaceId,
+          supplierPaymentId: reversal.supplierPaymentId,
+          amountMinor: reversal.amount.amountMinor,
+          currency: reversal.amount.currency,
+          reason: reversal.reason,
+          evidenceReferences: [...reversal.evidenceReferences],
+          transactionTime: fromIso(reversal.transactionTime),
+          recordedAt: fromIso(reversal.recordedAt),
+        })
+        .onConflictDoNothing()
+        .returning({ id: supplierPaymentReversals.id });
+      return rows.length === 1;
     },
   },
   supplierAccountEntries: {

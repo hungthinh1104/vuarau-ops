@@ -1,5 +1,9 @@
 import type { CreateSaleDraftCommand, SaleDto } from "@vuarau/domain-contracts";
-import { createSaleDraftCommandSchema, roleHasPermission } from "@vuarau/domain-contracts";
+import {
+  createSaleDraftCommandSchema,
+  roleHasPermission,
+  saleDtoSchema,
+} from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideCreateSaleDraft, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -21,6 +25,7 @@ export function createSaleDraft(
   return runCommand<CreateSaleDraftCommand, SaleDto>({
     commandType: "CreateSaleDraft",
     schema: createSaleDraftCommandSchema,
+    resultSchema: saleDtoSchema,
     input,
     ctx,
     // Both ordinary sale entry and a correction continuation need read access to

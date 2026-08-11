@@ -8,6 +8,7 @@ import {
   approveWorkspacePolicyCommandSchema,
   createWorkspacePolicyDraftCommandSchema,
   retireWorkspacePolicyCommandSchema,
+  workspacePolicyDtoSchema,
 } from "@vuarau/domain-contracts";
 import {
   decideApproveWorkspacePolicy,
@@ -23,6 +24,7 @@ export function createWorkspacePolicyDraft(ctx: CommandContext, input: unknown) 
   return runCommand<CreateWorkspacePolicyDraftCommand, WorkspacePolicyDto>({
     commandType: "CreateWorkspacePolicyDraft",
     schema: createWorkspacePolicyDraftCommandSchema,
+    resultSchema: workspacePolicyDtoSchema,
     input,
     ctx,
     requiredPermission: "policy.manage",
@@ -54,6 +56,7 @@ export function approveWorkspacePolicy(ctx: CommandContext, input: unknown) {
   return runCommand<ApproveWorkspacePolicyCommand, WorkspacePolicyDto>({
     commandType: "ApproveWorkspacePolicy",
     schema: approveWorkspacePolicyCommandSchema,
+    resultSchema: workspacePolicyDtoSchema,
     input,
     ctx,
     requiredPermission: "policy.manage",
@@ -86,6 +89,7 @@ export function retireWorkspacePolicy(ctx: CommandContext, input: unknown) {
   return runCommand<RetireWorkspacePolicyCommand, WorkspacePolicyDto>({
     commandType: "RetireWorkspacePolicy",
     schema: retireWorkspacePolicyCommandSchema,
+    resultSchema: workspacePolicyDtoSchema,
     input,
     ctx,
     requiredPermission: "policy.manage",

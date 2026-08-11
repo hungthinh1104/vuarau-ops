@@ -74,6 +74,12 @@ export function decideRecordStocktakeCount(args: {
     ) {
       return err("STOCKTAKE_COUNT_INVALID", "A corrected count must keep the counted identity.");
     }
+    if (args.existingCounts.some((count) => count.supersedesCountId === target.id)) {
+      return err(
+        "STOCKTAKE_COUNT_INVALID",
+        "Only the current count in a correction chain may be superseded.",
+      );
+    }
   } else if (
     args.existingCounts.some(
       (count) =>

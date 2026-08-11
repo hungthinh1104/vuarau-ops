@@ -10,6 +10,7 @@ import {
   confirmPurchaseCommandSchema,
   createPurchaseDraftCommandSchema,
   discardPurchaseDraftCommandSchema,
+  purchaseDtoSchema,
   updatePurchaseDraftCommandSchema,
   voidPurchaseCommandSchema,
 } from "@vuarau/domain-contracts";
@@ -72,6 +73,7 @@ export function createPurchaseDraft(
   return runCommand<CreatePurchaseDraftCommand, PurchaseDto>({
     commandType: "CreatePurchaseDraft",
     schema: createPurchaseDraftCommandSchema,
+    resultSchema: purchaseDtoSchema,
     input,
     ctx,
     requiredPermission: "purchase.create",
@@ -136,6 +138,7 @@ export function updatePurchaseDraft(ctx: CommandContext, input: unknown) {
   return runCommand<UpdatePurchaseDraftCommand, PurchaseDto>({
     commandType: "UpdatePurchaseDraft",
     schema: updatePurchaseDraftCommandSchema,
+    resultSchema: purchaseDtoSchema,
     input,
     ctx,
     requiredPermission: "purchase.update",
@@ -174,6 +177,7 @@ export function discardPurchaseDraft(ctx: CommandContext, input: unknown) {
   return runCommand<DiscardPurchaseDraftCommand, PurchaseDto>({
     commandType: "DiscardPurchaseDraft",
     schema: discardPurchaseDraftCommandSchema,
+    resultSchema: purchaseDtoSchema,
     input,
     ctx,
     requiredPermission: "purchase.discard",
@@ -209,6 +213,7 @@ export function confirmPurchase(ctx: CommandContext, input: unknown) {
   return runCommand<ConfirmPurchaseCommand, PurchaseDto>({
     commandType: "ConfirmPurchase",
     schema: confirmPurchaseCommandSchema,
+    resultSchema: purchaseDtoSchema,
     input,
     ctx,
     requiredPermission: "purchase.confirm",
@@ -267,6 +272,7 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
   return runCommand<VoidPurchaseCommand, PurchaseDto>({
     commandType: "VoidPurchase",
     schema: voidPurchaseCommandSchema,
+    resultSchema: purchaseDtoSchema,
     input,
     ctx,
     requiredPermission: "purchase.void",

@@ -2,7 +2,10 @@ import type {
   RevokeWorkspaceMembershipCommand,
   WorkspaceMembershipDto,
 } from "@vuarau/domain-contracts";
-import { revokeWorkspaceMembershipCommandSchema } from "@vuarau/domain-contracts";
+import {
+  revokeWorkspaceMembershipCommandSchema,
+  workspaceMembershipDtoSchema,
+} from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideRevokeMembership, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -28,6 +31,7 @@ export function revokeWorkspaceMembership(
   return runCommand<RevokeWorkspaceMembershipCommand, WorkspaceMembershipDto>({
     commandType: "RevokeWorkspaceMembership",
     schema: revokeWorkspaceMembershipCommandSchema,
+    resultSchema: workspaceMembershipDtoSchema,
     input,
     ctx,
     requiredPermission: "workspace.manage",

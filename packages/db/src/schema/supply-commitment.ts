@@ -13,6 +13,7 @@ import { currencyCodeEnum, supplyCommitmentStatusEnum, unitEnum } from "./enums.
 import { products } from "./customer.ts";
 import { qualityGrades } from "./quality.ts";
 import { workspaces } from "./workspace.ts";
+import { suppliers } from "./supplier.ts";
 import { safeBigint as bigint } from "./safe-bigint.ts";
 
 export const supplyCommitments = pgTable(
@@ -41,6 +42,16 @@ export const supplyCommitments = pgTable(
   },
   (table) => [
     uniqueIndex("supply_commitments_workspace_id_id_uq").on(table.workspaceId, table.id),
+    foreignKey({
+      columns: [table.workspaceId, table.supplierId],
+      foreignColumns: [suppliers.workspaceId, suppliers.id],
+      name: "supply_commitments_workspace_supplier_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.replacesSupplyCommitmentId],
+      foreignColumns: [table.workspaceId, table.id],
+      name: "supply_commitments_workspace_replacement_fk",
+    }),
     uniqueIndex("supply_commitments_replacement_uq")
       .on(table.workspaceId, table.replacesSupplyCommitmentId)
       .where(sql`${table.replacesSupplyCommitmentId} is not null`),
@@ -67,6 +78,7 @@ export const supplyCommitmentLines = pgTable(
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
     supplyCommitmentId: uuid("supply_commitment_id").notNull(),
+    position: integer("position").notNull(),
     productId: uuid("product_id"),
     qualityGradeId: uuid("quality_grade_id"),
     productName: text("product_name").notNull(),
@@ -80,6 +92,11 @@ export const supplyCommitmentLines = pgTable(
     uniqueIndex("supply_commitment_lines_commitment_id_id_uq").on(
       table.supplyCommitmentId,
       table.id,
+    ),
+    uniqueIndex("supply_commitment_lines_commitment_position_uq").on(
+      table.workspaceId,
+      table.supplyCommitmentId,
+      table.position,
     ),
     uniqueIndex("supply_commitment_lines_workspace_id_id_uq").on(table.workspaceId, table.id),
     index("supply_commitment_lines_product_idx").on(table.workspaceId, table.productId),

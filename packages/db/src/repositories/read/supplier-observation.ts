@@ -47,11 +47,13 @@ export const createSupplierObservationReadRepositories = (tx: Tx) => ({
         id: row.id,
       }));
     },
-    async listAll(workspaceId: string) {
+    async listAll(workspaceId: string, supplierId?: string) {
+      const filters = [eq(supplierObservations.workspaceId, workspaceId)];
+      if (supplierId !== undefined) filters.push(eq(supplierObservations.supplierId, supplierId));
       const rows = await tx
         .select()
         .from(supplierObservations)
-        .where(eq(supplierObservations.workspaceId, workspaceId))
+        .where(and(...filters))
         .orderBy(
           supplierObservations.transactionTime,
           supplierObservations.recordedAt,

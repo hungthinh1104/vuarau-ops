@@ -9,6 +9,7 @@ import {
   cancelSupplyCommitmentCommandSchema,
   confirmSupplyCommitmentCommandSchema,
   createSupplyCommitmentDraftCommandSchema,
+  supplyCommitmentDtoSchema,
   updateSupplyCommitmentDraftCommandSchema,
 } from "@vuarau/domain-contracts";
 import type { SupplyCommitmentState } from "@vuarau/domain-kernel";
@@ -45,10 +46,29 @@ async function validateReferences(
   if (requireActiveSupplier && !supplier.isActive)
     return err("SUPPLIER_INACTIVE", "Inactive supplier cannot confirm a new commitment.");
   for (const line of commitment.lines) {
-    if (line.productId === null) continue;
-    const product = await repos.products.findById(commitment.workspaceId, line.productId);
-    if (product === null || (requireActiveSupplier && !product.isActive))
-      return err("PRODUCT_NOT_FOUND", "A referenced product is not active in this workspace.");
+    if (line.productId !== null) {
+      const product = await repos.products.findById(commitment.workspaceId, line.productId);
+      if (product === null)
+        return err("PRODUCT_NOT_FOUND", "A referenced product is not active in this workspace.");
+      if (requireActiveSupplier && !product.isActive)
+        return err("PRODUCT_NOT_FOUND", "A referenced product is not active in this workspace.");
+      if (requireActiveSupplier && product.displayName !== line.productName)
+        return err(
+          "SUPPLY_COMMITMENT_PRODUCT_SNAPSHOT_MISMATCH",
+          "The Supply Commitment line no longer matches the selected Product name.",
+          { lineId: line.lineId, productId: line.productId },
+        );
+    }
+    if (line.qualityGradeId !== null) {
+      const grade = await repos.qualityGrades.findById(commitment.workspaceId, line.qualityGradeId);
+      if (grade === null)
+        return err(
+          "QUALITY_GRADE_NOT_FOUND",
+          "A referenced quality grade is not in this workspace.",
+        );
+      if (requireActiveSupplier && !grade.isActive)
+        return err("QUALITY_GRADE_INACTIVE", "An inactive quality grade cannot be confirmed.");
+    }
   }
   return ok(undefined);
 }
@@ -67,6 +87,11 @@ async function validateReplacement(
       "SUPPLY_COMMITMENT_REPLACEMENT_INVALID",
       "A replacement requires one cancelled Supply Commitment in this workspace.",
     );
+  if (original.supplierId !== commitment.supplierId || original.currency !== commitment.currency)
+    return err(
+      "SUPPLY_COMMITMENT_REPLACEMENT_INVALID",
+      "A replacement must keep the cancelled commitment's supplier and currency.",
+    );
   if (
     (await repos.supplyCommitments.findReplacementOf(commitment.workspaceId, original.id)) !== null
   )
@@ -84,6 +109,7 @@ export function createSupplyCommitmentDraft(ctx: CommandContext, input: unknown)
     input,
     ctx,
     requiredPermission: "supply_commitment.create",
+    resultSchema: supplyCommitmentDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       if (
         (await repos.supplyCommitments.findById(
@@ -124,6 +150,7 @@ export function updateSupplyCommitmentDraft(ctx: CommandContext, input: unknown)
     input,
     ctx,
     requiredPermission: "supply_commitment.update",
+    resultSchema: supplyCommitmentDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.supplyCommitments.findByIdForUpdate(
         command.workspaceId,
@@ -157,6 +184,7 @@ export function confirmSupplyCommitment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supply_commitment.confirm",
+    resultSchema: supplyCommitmentDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.supplyCommitments.findByIdForUpdate(
         command.workspaceId,
@@ -190,6 +218,7 @@ export function cancelSupplyCommitment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supply_commitment.cancel",
+    resultSchema: supplyCommitmentDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.supplyCommitments.findByIdForUpdate(
         command.workspaceId,

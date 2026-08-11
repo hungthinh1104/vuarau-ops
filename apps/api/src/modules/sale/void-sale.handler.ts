@@ -1,5 +1,5 @@
 import type { SaleDto, VoidSaleCommand } from "@vuarau/domain-contracts";
-import { voidSaleCommandSchema } from "@vuarau/domain-contracts";
+import { saleDtoSchema, voidSaleCommandSchema } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideVoidSale, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -23,6 +23,7 @@ export function voidSale(ctx: CommandContext, input: unknown): Promise<DomainRes
   return runCommand<VoidSaleCommand, SaleDto>({
     commandType: "VoidSale",
     schema: voidSaleCommandSchema,
+    resultSchema: saleDtoSchema,
     input,
     ctx,
     // Not `sale.post`. Somebody who can both create and erase a sale can make a

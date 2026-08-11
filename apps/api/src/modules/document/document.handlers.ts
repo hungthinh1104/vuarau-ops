@@ -19,15 +19,23 @@ import {
   classifyBalance,
   createDocumentShareCommandSchema,
   documentSnapshotSchema,
+  documentDtoSchema,
+  documentShareResultDtoSchema,
   generateDocumentCommandSchema,
   revokeDocumentShareCommandSchema,
 } from "@vuarau/domain-contracts";
+import { z } from "zod";
 import { err, ok } from "@vuarau/domain-kernel";
 import { hashPayload } from "../../infrastructure/hash.ts";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import type { AccountTimelineRow } from "../../infrastructure/persistence/read-ports.ts";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+
+const documentShareRevocationResultSchema = z.object({
+  shareId: z.string(),
+  revoked: z.literal(true),
+});
 
 function statementEntry(row: AccountTimelineRow): AccountTimelineEntryDto {
   return { ...row, classification: classifyBalance(row.runningBalance) };
@@ -203,6 +211,7 @@ export function generateDocument(ctx: CommandContext, input: unknown) {
   return runCommand<GenerateDocumentCommand, DocumentDto>({
     commandType: "GenerateDocument",
     schema: generateDocumentCommandSchema,
+    resultSchema: documentDtoSchema,
     input,
     ctx,
     requiredPermission: "document.generate",
@@ -265,6 +274,7 @@ export function createDocumentShare(ctx: CommandContext, input: unknown) {
   return runCommand<CreateDocumentShareCommand, DocumentShareResultDto>({
     commandType: "CreateDocumentShare",
     schema: createDocumentShareCommandSchema,
+    resultSchema: documentShareResultDtoSchema,
     input,
     ctx,
     requiredPermission: "document.share",
@@ -314,6 +324,7 @@ export function revokeDocumentShare(ctx: CommandContext, input: unknown) {
   return runCommand<RevokeDocumentShareCommand, { shareId: string; revoked: true }>({
     commandType: "RevokeDocumentShare",
     schema: revokeDocumentShareCommandSchema,
+    resultSchema: documentShareRevocationResultSchema,
     input,
     ctx,
     requiredPermission: "document.share",

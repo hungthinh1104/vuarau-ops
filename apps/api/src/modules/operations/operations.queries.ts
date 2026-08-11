@@ -6,7 +6,10 @@ import type {
   WorkspaceId,
   WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
-import { exportWorkspaceBackupCommandSchema } from "@vuarau/domain-contracts";
+import {
+  exportWorkspaceBackupCommandSchema,
+  workspaceBackupV19Schema,
+} from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -62,6 +65,7 @@ export function exportWorkspaceBackup(
   return runCommand<ExportWorkspaceBackupCommand, WorkspaceBackupV19>({
     commandType: "ExportWorkspaceBackup",
     schema: exportWorkspaceBackupCommandSchema,
+    resultSchema: workspaceBackupV19Schema,
     input,
     ctx,
     requiredPermission: "workspace.manage",

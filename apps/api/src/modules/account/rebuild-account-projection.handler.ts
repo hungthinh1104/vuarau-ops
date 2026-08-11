@@ -2,7 +2,11 @@ import type {
   RebuildAccountProjectionCommand,
   RebuildAccountProjectionResultDto,
 } from "@vuarau/domain-contracts";
-import { DEFAULT_CURRENCY, rebuildAccountProjectionCommandSchema } from "@vuarau/domain-contracts";
+import {
+  DEFAULT_CURRENCY,
+  rebuildAccountProjectionCommandSchema,
+  rebuildAccountProjectionResultDtoSchema,
+} from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
 import type { CustomerAccountBalance } from "@vuarau/domain-kernel";
@@ -30,6 +34,7 @@ export function rebuildAccountProjection(
     input,
     ctx,
     requiredPermission: "debt.adjust",
+    resultSchema: rebuildAccountProjectionResultDtoSchema,
     execute: async ({ command, repos, recordedAt, membership }) => {
       const before = await loadAccountReconciliation({
         repos,

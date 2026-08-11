@@ -143,6 +143,31 @@ export const createWorkspaceWriteRepositories = (tx: Tx) => ({
       };
     },
 
+    async findMembershipForUpdate(workspaceId: WorkspaceId, actorId: ActorId) {
+      const rows = await tx
+        .select({ role: workspaceMemberships.role, isActive: workspaceMemberships.isActive })
+        .from(workspaceMemberships)
+        .where(
+          and(
+            eq(workspaceMemberships.workspaceId, workspaceId),
+            eq(workspaceMemberships.actorId, actorId),
+          ),
+        )
+        .for("update")
+        .limit(1);
+      const row = rows[0];
+      if (row === undefined) return null;
+      const grouped = await rolesByActor(tx, workspaceId, [actorId]);
+      const roles = grouped.get(actorId) ?? [row.role];
+      return {
+        workspaceId,
+        actorId,
+        role: primaryWorkspaceRole(roles),
+        roles,
+        isActive: row.isActive,
+      };
+    },
+
     async countActiveOwnersForUpdate(workspaceId: WorkspaceId): Promise<number> {
       // `owner` is exclusive and remains the transitional primary projection, so
       // locking these membership rows preserves the established last-owner race guard.
@@ -332,20 +357,39 @@ export const createWorkspaceWriteRepositories = (tx: Tx) => ({
           and(eq(workspaceMemberships.actorId, actorId), eq(workspaceMemberships.isActive, true)),
         )
         .orderBy(asc(workspaces.name), asc(workspaces.id));
-
-      return Promise.all(
-        rows.map(async (row) => {
-          const workspaceId = row.workspaceId as WorkspaceId;
-          const grouped = await rolesByActor(tx, workspaceId, [actorId]);
-          const roles = grouped.get(actorId) ?? [row.role];
-          return {
-            workspaceId,
-            workspaceName: row.workspaceName,
-            role: primaryWorkspaceRole(roles),
-            roles,
-          };
-        }),
-      );
+      if (rows.length === 0) return [];
+      const roleRows = await tx
+        .select({
+          workspaceId: workspaceMembershipRoles.workspaceId,
+          role: workspaceMembershipRoles.role,
+        })
+        .from(workspaceMembershipRoles)
+        .where(
+          and(
+            eq(workspaceMembershipRoles.actorId, actorId),
+            inArray(
+              workspaceMembershipRoles.workspaceId,
+              rows.map((row) => row.workspaceId),
+            ),
+          ),
+        )
+        .orderBy(asc(workspaceMembershipRoles.workspaceId), asc(workspaceMembershipRoles.role));
+      const rolesByWorkspace = new Map<string, WorkspaceRole[]>();
+      for (const row of roleRows) {
+        const roles = rolesByWorkspace.get(row.workspaceId) ?? [];
+        roles.push(row.role);
+        rolesByWorkspace.set(row.workspaceId, roles);
+      }
+      return rows.map((row) => {
+        const workspaceId = row.workspaceId as WorkspaceId;
+        const roles = normalizeWorkspaceRoles(rolesByWorkspace.get(row.workspaceId) ?? [row.role]);
+        return {
+          workspaceId,
+          workspaceName: row.workspaceName,
+          role: primaryWorkspaceRole(roles),
+          roles,
+        };
+      });
     },
   },
 });

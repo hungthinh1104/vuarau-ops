@@ -1,5 +1,5 @@
 import type { PaymentDto, ReverseCustomerPaymentCommand } from "@vuarau/domain-contracts";
-import { reverseCustomerPaymentCommandSchema } from "@vuarau/domain-contracts";
+import { paymentDtoSchema, reverseCustomerPaymentCommandSchema } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideReversePayment, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -23,6 +23,7 @@ export function reverseCustomerPayment(
     input,
     ctx,
     requiredPermission: "payment.reverse",
+    resultSchema: paymentDtoSchema,
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const payment = await repos.payments.findByIdForUpdate(
         command.workspaceId,

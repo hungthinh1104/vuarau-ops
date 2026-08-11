@@ -10,12 +10,12 @@ import { createReadRepositories } from "../repositories/read-queries.ts";
  * its account entry is corrupt data, and a partial failure is exactly when it
  * would happen.
  *
- * Reads run inside a transaction too, and share this one. A query authorized
- * against a membership that is revoked while the query is still running would
- * otherwise be possible: the check and the read have to see the same snapshot.
+ * Reads run inside a transaction too, and share this one. Authorization locks
+ * the caller's membership row for the transaction, so a concurrent revoke
+ * cannot commit between the access decision and the protected read or write.
  *
- * Isolation is Postgres's default READ COMMITTED. Lost updates are prevented by
- * `SELECT … FOR UPDATE` plus a version check (ADR-0009) rather than by
+ * Isolation is Postgres's default READ COMMITTED. Authorization and aggregate
+ * races are prevented by `SELECT … FOR UPDATE` plus a version check (ADR-0009) rather than by
  * SERIALIZABLE, so a conflict surfaces as a precise `SALE_VERSION_CONFLICT` the
  * UI can explain instead of a generic serialisation failure it cannot.
  *

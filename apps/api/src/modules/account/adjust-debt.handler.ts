@@ -2,7 +2,10 @@ import type {
   AdjustCustomerDebtCommand,
   CustomerAccountBalanceDto,
 } from "@vuarau/domain-contracts";
-import { adjustCustomerDebtCommandSchema } from "@vuarau/domain-contracts";
+import {
+  adjustCustomerDebtCommandSchema,
+  customerAccountBalanceDtoSchema,
+} from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideAdjustDebt, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -31,6 +34,7 @@ export function adjustCustomerDebt(
     input,
     ctx,
     requiredPermission: "debt.adjust",
+    resultSchema: customerAccountBalanceDtoSchema,
     execute: async ({ command, repos, recordedAt, membership }) => {
       const customer = await repos.customers.findByIdForUpdate(
         command.workspaceId,

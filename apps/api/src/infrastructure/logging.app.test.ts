@@ -11,6 +11,7 @@ import {
 import { createHarness, type Harness } from "../testing/command-test-harness.ts";
 import { createCustomer } from "../modules/customer/create-customer.handler.ts";
 import { adjustCustomerDebt } from "../modules/account/adjust-debt.handler.ts";
+import type { Repositories, UnitOfWork } from "./persistence/ports.ts";
 import { setLogSink, withRequestId, type LogEvent } from "./logging.ts";
 import { logUnexpectedTrpcError } from "./trpc/trpc.ts";
 
@@ -75,6 +76,27 @@ describe("BR-OPS-001 / TC-OPS-004 — what a command writes to the log", () => {
       outcome: "accepted",
       code: null,
     });
+  });
+
+  it("does not log accepted when the transaction boundary rejects the commit", async () => {
+    const commitFailedUow: UnitOfWork = {
+      transaction: async <T>(work: (repos: Repositories) => Promise<T>): Promise<T> => {
+        await harness.deps.uow.transaction(work);
+        throw new Error("simulated commit failure");
+      },
+    };
+
+    await expect(
+      createCustomer(
+        {
+          ...harness.ctx,
+          deps: { ...harness.deps, uow: commitFailedUow },
+        },
+        createInput,
+      ),
+    ).rejects.toThrow("simulated commit failure");
+
+    expect(captured.filter((event) => event.event === "command")).toHaveLength(0);
   });
 
   it("never writes the customer's name, phone or note", async () => {

@@ -470,6 +470,20 @@
       "when": 1786397250379,
       "tag": "0066_petite_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1786401858660,
+      "tag": "0067_big_annihilus",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1786402368565,
+      "tag": "0068_silent_magus",
+      "breakpoints": true
     }
   ]
 }

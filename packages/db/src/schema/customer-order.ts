@@ -16,7 +16,7 @@ import {
   customerOrderStatusEnum,
   unitEnum,
 } from "./enums.ts";
-import { products } from "./customer.ts";
+import { customers, products } from "./customer.ts";
 import { workspaces } from "./workspace.ts";
 import { safeBigint as bigint } from "./safe-bigint.ts";
 
@@ -46,6 +46,16 @@ export const customerOrders = pgTable(
   },
   (table) => [
     uniqueIndex("customer_orders_workspace_id_id_uq").on(table.workspaceId, table.id),
+    foreignKey({
+      columns: [table.workspaceId, table.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+      name: "customer_orders_workspace_customer_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.replacesCustomerOrderId],
+      foreignColumns: [table.workspaceId, table.id],
+      name: "customer_orders_workspace_replacement_fk",
+    }),
     uniqueIndex("customer_orders_replacement_uq")
       .on(table.workspaceId, table.replacesCustomerOrderId)
       .where(sql`${table.replacesCustomerOrderId} is not null`),
@@ -80,6 +90,7 @@ export const customerOrderLines = pgTable(
     id: uuid("id").primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
     customerOrderId: uuid("customer_order_id").notNull(),
+    position: integer("position").notNull(),
     productId: uuid("product_id"),
     productName: text("product_name").notNull(),
     quantityScaled: bigint("quantity_scaled", { mode: "number" }).notNull(),
@@ -90,6 +101,11 @@ export const customerOrderLines = pgTable(
   },
   (table) => [
     uniqueIndex("customer_order_lines_order_id_id_uq").on(table.customerOrderId, table.id),
+    uniqueIndex("customer_order_lines_order_position_uq").on(
+      table.workspaceId,
+      table.customerOrderId,
+      table.position,
+    ),
     uniqueIndex("customer_order_lines_workspace_id_id_uq").on(table.workspaceId, table.id),
     index("customer_order_lines_product_idx").on(table.workspaceId, table.productId),
     foreignKey({

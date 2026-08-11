@@ -1,5 +1,5 @@
 import type { RebuildInventoryCommand, InventoryBalanceDto } from "@vuarau/domain-contracts";
-import { rebuildInventoryCommandSchema } from "@vuarau/domain-contracts";
+import { inventoryBalanceDtoSchema, rebuildInventoryCommandSchema } from "@vuarau/domain-contracts";
 import { classifyInventory, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
@@ -8,6 +8,7 @@ export const rebuildInventory = (ctx: CommandContext, input: unknown) =>
   runCommand<RebuildInventoryCommand, InventoryBalanceDto>({
     commandType: "RebuildInventory",
     schema: rebuildInventoryCommandSchema,
+    resultSchema: inventoryBalanceDtoSchema,
     input,
     ctx,
     requiredPermission: "inventory.rebuild",

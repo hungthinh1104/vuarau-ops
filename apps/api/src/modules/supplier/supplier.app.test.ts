@@ -232,6 +232,21 @@ describe("M16 Supplier Account", () => {
     });
     expect(replay.ok).toBe(true);
 
+    const identityCollision = await recordSupplierPayment(harness.ctx, {
+      ...envelope("811"),
+      payload: {
+        supplierPaymentId: paymentId,
+        supplierId,
+        amount: { amountMinor: 150_000, currency: "VND" },
+        method: "cash",
+        note: null,
+        evidenceReferences: [],
+      },
+    });
+    expect(identityCollision.ok).toBe(false);
+    if (!identityCollision.ok)
+      expect(identityCollision.error.code).toBe("SUPPLIER_VERSION_CONFLICT");
+
     const reversed = await reverseSupplierPayment(harness.ctx, {
       ...envelope("807"),
       expectedVersion: 1,
@@ -245,6 +260,20 @@ describe("M16 Supplier Account", () => {
     });
     expect(reversed.ok).toBe(true);
 
+    const reversedAgain = await reverseSupplierPayment(harness.ctx, {
+      ...envelope("812"),
+      expectedVersion: 2,
+      payload: {
+        reversalId: "00000000-0000-4000-8000-000000000812",
+        supplierPaymentId: paymentId,
+        amount: { amountMinor: 10_000, currency: "VND" },
+        reason: "Trả nhầm phần tiền lần hai",
+        evidenceReferences: ["receipt://supplier-reversal/812"],
+      },
+    });
+    expect(reversedAgain.ok).toBe(true);
+    expect(reversedAgain.ok && reversedAgain.value.reversals).toHaveLength(2);
+
     const detail = await getSupplierPayment(harness.ctx, {
       workspaceId: WORKSPACE_ID,
       supplierPaymentId: paymentId,
@@ -255,6 +284,9 @@ describe("M16 Supplier Account", () => {
         {
           evidenceReferences: ["receipt://supplier-reversal/807"],
         },
+        {
+          evidenceReferences: ["receipt://supplier-reversal/812"],
+        },
       ],
     });
 
@@ -263,9 +295,9 @@ describe("M16 Supplier Account", () => {
       supplierId,
     });
     expect(balance.ok && balance.value).toMatchObject({
-      balance: { amountMinor: -30_000, currency: "VND" },
+      balance: { amountMinor: -20_000, currency: "VND" },
       classification: "supplier_credit",
-      entryCount: 3,
+      entryCount: 4,
     });
     const timeline = await getSupplierTimeline(harness.ctx, {
       workspaceId: WORKSPACE_ID,
@@ -273,7 +305,7 @@ describe("M16 Supplier Account", () => {
       cursor: null,
       limit: 20,
     });
-    expect(timeline.ok && timeline.value.items).toHaveLength(3);
+    expect(timeline.ok && timeline.value.items).toHaveLength(4);
   });
 
   it("requires reasons and enforces conservative financial permissions", async () => {

@@ -614,7 +614,10 @@ export type SupplierObservationReadRepository = {
     kind: SupplierObservationKind | null;
     page: PageQuery;
   }): Promise<PageResult<SupplierObservationDto>>;
-  listAll(workspaceId: WorkspaceId): Promise<readonly SupplierObservationDto[]>;
+  listAll(
+    workspaceId: WorkspaceId,
+    supplierId?: SupplierId,
+  ): Promise<readonly SupplierObservationDto[]>;
 };
 
 export type DemandObservationReadRepository = {

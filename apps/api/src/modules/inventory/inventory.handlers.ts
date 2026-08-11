@@ -10,7 +10,9 @@ import {
   recordPurchaseReceiptCommandSchema,
   reversePurchaseReceiptCommandSchema,
   reclassifyInventoryCommandSchema,
+  purchaseReceiptDtoSchema,
 } from "@vuarau/domain-contracts";
+import { z } from "zod";
 import {
   decideRecordPurchaseReceipt,
   decideReversePurchaseReceipt,
@@ -24,6 +26,9 @@ import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { acceptedQuantityByPurchaseLine } from "../shared/purchase-receiving.ts";
 import { applyInventoryMovements } from "./inventory-effects.ts";
+
+const inventoryAdjustmentResultSchema = z.object({ adjustmentId: z.string() });
+const inventoryReclassificationResultSchema = z.object({ reclassificationId: z.string() });
 
 const dto = (receipt: PurchaseReceiptState): PurchaseReceiptDto => ({
   ...receipt,
@@ -46,6 +51,7 @@ export function recordPurchaseReceipt(ctx: CommandContext, input: unknown) {
   return runCommand<RecordPurchaseReceiptCommand, PurchaseReceiptDto>({
     commandType: "RecordPurchaseReceipt",
     schema: recordPurchaseReceiptCommandSchema,
+    resultSchema: purchaseReceiptDtoSchema,
     input,
     ctx,
     requiredPermission: "receiving.record",
@@ -134,6 +140,7 @@ export function reversePurchaseReceipt(ctx: CommandContext, input: unknown) {
   return runCommand<ReversePurchaseReceiptCommand, PurchaseReceiptDto>({
     commandType: "ReversePurchaseReceipt",
     schema: reversePurchaseReceiptCommandSchema,
+    resultSchema: purchaseReceiptDtoSchema,
     input,
     ctx,
     requiredPermission: "receiving.reverse",
@@ -208,6 +215,7 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
   return runCommand<AdjustInventoryCommand, { adjustmentId: string }>({
     commandType: "AdjustInventory",
     schema: adjustInventoryCommandSchema,
+    resultSchema: inventoryAdjustmentResultSchema,
     input,
     ctx,
     requiredPermission: "inventory.adjust",
@@ -289,6 +297,7 @@ export function reclassifyInventory(ctx: CommandContext, input: unknown) {
   return runCommand<ReclassifyInventoryCommand, { reclassificationId: string }>({
     commandType: "ReclassifyInventory",
     schema: reclassifyInventoryCommandSchema,
+    resultSchema: inventoryReclassificationResultSchema,
     input,
     ctx,
     requiredPermission: "inventory.reclassify",

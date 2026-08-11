@@ -28,6 +28,11 @@ export const createWorkspaceRepositories = (
     // caught it.
     findMembership: async (workspaceId, actorId) =>
       store.memberships.get(key(workspaceId, actorId)) ?? null,
+    // The in-memory adapter is single-threaded, so there is no physical row to
+    // lock. Keeping the explicit method preserves the same authorization
+    // contract as PostgreSQL and prevents adapter-only behavior from drifting.
+    findMembershipForUpdate: async (workspaceId, actorId) =>
+      store.memberships.get(key(workspaceId, actorId)) ?? null,
 
     countActiveOwnersForUpdate: async (workspaceId) =>
       [...store.memberships.values()].filter(

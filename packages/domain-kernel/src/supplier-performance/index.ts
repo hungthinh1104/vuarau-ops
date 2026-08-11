@@ -184,7 +184,7 @@ export function calculateSupplierPerformance(
       windowStart,
       input.policyVersionId,
       ["insufficient_supplier_observations"],
-      measurements,
+      relevant,
       measurements.length,
     );
   }
@@ -207,7 +207,7 @@ export function calculateSupplierPerformance(
         windowStart,
         input.policyVersionId,
         ["invalid_supplier_quantity_fact"],
-        measurements,
+        relevant,
         measurements.length,
       );
     }
@@ -222,7 +222,7 @@ export function calculateSupplierPerformance(
         windowStart,
         input.policyVersionId,
         ["supplier_quantity_lineage_missing"],
-        measurements,
+        relevant,
         measurements.length,
       );
     }
@@ -295,7 +295,7 @@ export function calculateSupplierPerformance(
       windowStart,
       input.policyVersionId,
       ["supplier_quantity_overflow"],
-      measurements,
+      relevant,
       measurements.length,
     );
   }

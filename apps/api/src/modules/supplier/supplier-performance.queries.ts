@@ -66,7 +66,10 @@ export async function getSupplierPerformance(ctx: CommandContext, input: Supplie
         policy: definition.data,
         policyVersionId: policy.id,
         policyVersion: policy.version,
-        observations: await repos.supplierObservationReads.listAll(input.workspaceId),
+        observations: await repos.supplierObservationReads.listAll(
+          input.workspaceId,
+          input.supplierId,
+        ),
       });
     },
   });

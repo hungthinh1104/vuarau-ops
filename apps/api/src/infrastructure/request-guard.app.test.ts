@@ -141,4 +141,32 @@ describe("Request trust boundary", () => {
       );
     }
   });
+
+  it("rate limits metrics instead of treating it as an unbounded public exception", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(10_000);
+    const guard = createRequestGuard({
+      maxBodyBytes: 1_024,
+      windowMs: 2_500,
+      authenticatedRequestsPerWindow: 1,
+      publicRequestsPerWindow: 10,
+      trustedProxyAddresses: [],
+    });
+    const server = createServer((request, response) => {
+      if (guard(request, response)) return;
+      response.writeHead(200).end("ok");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (address === null || typeof address === "string") throw new Error("No test address.");
+    const origin = `http://127.0.0.1:${address.port}`;
+    try {
+      expect((await fetch(`${origin}/metrics`)).status).toBe(200);
+      expect((await fetch(`${origin}/metrics`)).status).toBe(429);
+    } finally {
+      now.mockRestore();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error === undefined ? resolve() : reject(error))),
+      );
+    }
+  });
 });

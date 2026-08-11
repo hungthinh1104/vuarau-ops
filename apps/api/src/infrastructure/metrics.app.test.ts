@@ -52,4 +52,23 @@ describe("Safe operational metrics", () => {
     expect(output).not.toContain("command-1");
     expect(output).not.toContain("req-");
   });
+
+  it("bounds caller-controlled request paths to finite transport families", () => {
+    for (let index = 0; index < 5_000; index += 1) {
+      observeOperationalEvent({
+        event: "request",
+        requestId: `request-${index}`,
+        procedure: `untrusted/${index}/path`,
+        status: 404,
+        durationMs: index,
+      });
+    }
+
+    const output = renderMetrics();
+    expect(output).toContain('family="http_requests",result="unknown_404"');
+    expect(output).toContain('operation="request_unknown"');
+    expect(output).not.toContain("untrusted_4999_path");
+    expect(output.match(/family="http_requests"/g)).toHaveLength(1);
+    expect(output.match(/operation="request_unknown"/g)).toHaveLength(3);
+  });
 });

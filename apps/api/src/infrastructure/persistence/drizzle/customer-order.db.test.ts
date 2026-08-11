@@ -12,6 +12,7 @@ import {
   cancelCustomerOrder,
   confirmCustomerOrder,
   createCustomerOrderDraft,
+  updateCustomerOrderDraft,
 } from "../../../modules/customer-order/customer-order.handlers.ts";
 import {
   getCustomerOrder,
@@ -23,12 +24,13 @@ describe.skipIf(skipWithoutDatabase())("Customer Order against PostgreSQL", () =
   let deps: CommandDeps;
   let owner: CommandContext;
   let orderId: CustomerOrderId;
+  let recordedAt = "2026-07-23T02:00:00.000Z";
 
   beforeAll(async () => {
     ctx = await createDbTestContext("customer-order");
     deps = {
       uow: createUnitOfWork(ctx.database.db, randomIdGenerator) as CommandDeps["uow"],
-      clock: { now: () => new Date().toISOString() as ReturnType<CommandDeps["clock"]["now"]> },
+      clock: { now: () => recordedAt as ReturnType<CommandDeps["clock"]["now"]> },
     };
     owner = { deps, principal: { actorId: ctx.actorId, subject: ctx.subject } };
     orderId = crypto.randomUUID() as CustomerOrderId;
@@ -135,5 +137,60 @@ describe.skipIf(skipWithoutDatabase())("Customer Order against PostgreSQL", () =
     });
     expect(foreignRead.ok).toBe(false);
     if (!foreignRead.ok) expect(foreignRead.error.code).toBe("WORKSPACE_ACCESS_DENIED");
+  });
+
+  it("persists input line order and the server recordedAt on draft updates", async () => {
+    const persistedOrderId = crypto.randomUUID() as CustomerOrderId;
+    const createPayload = {
+      customerOrderId: persistedOrderId,
+      customerId: ctx.customerId,
+      channel: "account_customer" as const,
+      currency: "VND" as const,
+      lines: [
+        {
+          lineId: crypto.randomUUID(),
+          productId: ctx.productIds[1],
+          productName: "Rau muống",
+          quantity: { valueScaled: 2_000, unit: "bo" as const },
+          agreedUnitPrice: { amountMinor: 5_000, currency: "VND" as const },
+        },
+        {
+          lineId: crypto.randomUUID(),
+          productId: ctx.productIds[0],
+          productName: "Cà chua",
+          quantity: { valueScaled: 1_000, unit: "kg" as const },
+          agreedUnitPrice: { amountMinor: 18_000, currency: "VND" as const },
+        },
+      ],
+      note: null,
+      paymentTermsSnapshot: null,
+      evidenceReferences: [],
+      replacesCustomerOrderId: null,
+    };
+    recordedAt = "2026-07-23T02:00:00.000Z";
+    expect(
+      await createCustomerOrderDraft(owner, {
+        ...envelope("customer-order-position-create"),
+        payload: createPayload,
+      }),
+    ).toMatchObject({ ok: true });
+
+    recordedAt = "2026-07-23T03:00:00.000Z";
+    expect(
+      await updateCustomerOrderDraft(owner, {
+        ...envelope("customer-order-position-update"),
+        expectedVersion: 1,
+        payload: createPayload,
+      }),
+    ).toMatchObject({ ok: true });
+
+    const detail = await getCustomerOrder(owner, {
+      workspaceId: ctx.workspaceId,
+      customerOrderId: persistedOrderId,
+    });
+    expect(detail.ok).toBe(true);
+    if (!detail.ok || detail.value === null) return;
+    expect(detail.value.lines.map((line) => line.productName)).toEqual(["Rau muống", "Cà chua"]);
+    expect(detail.value.recordedAt).toBe("2026-07-23T03:00:00.000Z");
   });
 });

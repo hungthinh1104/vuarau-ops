@@ -5,6 +5,7 @@ import type {
   UpdateCustomerCommand,
 } from "@vuarau/domain-contracts";
 import {
+  customerDtoSchema,
   deactivateCustomerCommandSchema,
   reactivateCustomerCommandSchema,
   updateCustomerCommandSchema,
@@ -42,6 +43,7 @@ export function updateCustomer(
     input,
     ctx,
     requiredPermission: "customer.update",
+    resultSchema: customerDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const customer = await repos.customers.findByIdForUpdate(
         command.workspaceId,
@@ -91,6 +93,7 @@ export function deactivateCustomer(
     input,
     ctx,
     requiredPermission: "customer.deactivate",
+    resultSchema: customerDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const customer = await repos.customers.findByIdForUpdate(
         command.workspaceId,
@@ -138,6 +141,7 @@ export function reactivateCustomer(
     input,
     ctx,
     requiredPermission: "customer.reactivate",
+    resultSchema: customerDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const customer = await repos.customers.findByIdForUpdate(
         command.workspaceId,

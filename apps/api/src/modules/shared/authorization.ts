@@ -48,7 +48,11 @@ export async function authorizeWorkspaceAccess(args: {
     );
   }
 
-  const membership = await repos.workspaces.findMembership(workspaceId, principal.actorId);
+  // Lock the membership row for the duration of the surrounding transaction.
+  // Under READ COMMITTED a plain read could pass immediately before a revoke;
+  // the lock makes the authorization decision and the protected operation
+  // serialize with membership changes.
+  const membership = await repos.workspaces.findMembershipForUpdate(workspaceId, principal.actorId);
 
   if (membership === null) {
     return err("WORKSPACE_ACCESS_DENIED", "You do not have access to this workspace.", {

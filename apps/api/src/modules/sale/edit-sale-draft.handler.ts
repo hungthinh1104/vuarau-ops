@@ -5,6 +5,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import {
   discardSaleDraftCommandSchema,
+  saleDtoSchema,
   updateSaleDraftCommandSchema,
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
@@ -31,6 +32,7 @@ export function updateSaleDraft(
   return runCommand<UpdateSaleDraftCommand, SaleDto>({
     commandType: "UpdateSaleDraft",
     schema: updateSaleDraftCommandSchema,
+    resultSchema: saleDtoSchema,
     input,
     ctx,
     requiredPermission: "sale.create",
@@ -87,6 +89,7 @@ export function discardSaleDraft(
   return runCommand<DiscardSaleDraftCommand, SaleDto>({
     commandType: "DiscardSaleDraft",
     schema: discardSaleDraftCommandSchema,
+    resultSchema: saleDtoSchema,
     input,
     ctx,
     requiredPermission: "sale.create",

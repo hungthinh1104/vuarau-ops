@@ -25,7 +25,12 @@ import {
   reverseCashTransferCommandSchema,
   reverseExpenseCommandSchema,
   updateCashAccountCommandSchema,
+  cashAccountDtoSchema,
+  cashBalanceDtoSchema,
+  cashTransferDtoSchema,
+  expenseDtoSchema,
 } from "@vuarau/domain-contracts";
+import { z } from "zod";
 import {
   decideAdjustCash,
   decideCashAccountLifecycle,
@@ -54,10 +59,13 @@ const audit = async (
     commandId: command.commandId,
   } as Parameters<typeof repos.audit.append>[0]);
 
+const cashAdjustmentResultSchema = z.object({ adjustmentId: z.string() });
+
 export function createCashAccount(ctx: CommandContext, input: unknown) {
   return runCommand<CreateCashAccountCommand, CashAccountDto>({
     commandType: "CreateCashAccount",
     schema: createCashAccountCommandSchema,
+    resultSchema: cashAccountDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.account.manage",
@@ -78,6 +86,7 @@ export function updateCashAccount(ctx: CommandContext, input: unknown) {
   return runCommand<UpdateCashAccountCommand, CashAccountDto>({
     commandType: "UpdateCashAccount",
     schema: updateCashAccountCommandSchema,
+    resultSchema: cashAccountDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.account.manage",
@@ -105,6 +114,7 @@ function cashAccountLifecycle(ctx: CommandContext, input: unknown, targetActive:
   return runCommand<DeactivateCashAccountCommand | ReactivateCashAccountCommand, CashAccountDto>({
     commandType: targetActive ? "ReactivateCashAccount" : "DeactivateCashAccount",
     schema,
+    resultSchema: cashAccountDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.account.manage",
@@ -135,6 +145,7 @@ export function recordExpense(ctx: CommandContext, input: unknown) {
   return runCommand<RecordExpenseCommand, ExpenseDto>({
     commandType: "RecordExpense",
     schema: recordExpenseCommandSchema,
+    resultSchema: expenseDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.expense.record",
@@ -178,6 +189,7 @@ export function reverseExpense(ctx: CommandContext, input: unknown) {
   return runCommand<ReverseExpenseCommand, ExpenseDto>({
     commandType: "ReverseExpense",
     schema: reverseExpenseCommandSchema,
+    resultSchema: expenseDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.expense.reverse",
@@ -229,6 +241,7 @@ export function recordCashTransfer(ctx: CommandContext, input: unknown) {
   return runCommand<RecordCashTransferCommand, CashTransferDto>({
     commandType: "RecordCashTransfer",
     schema: recordCashTransferCommandSchema,
+    resultSchema: cashTransferDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.transfer",
@@ -297,6 +310,7 @@ export function reverseCashTransfer(ctx: CommandContext, input: unknown) {
   return runCommand<ReverseCashTransferCommand, CashTransferDto>({
     commandType: "ReverseCashTransfer",
     schema: reverseCashTransferCommandSchema,
+    resultSchema: cashTransferDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.transfer",
@@ -366,6 +380,7 @@ export function adjustCash(ctx: CommandContext, input: unknown) {
   return runCommand<AdjustCashCommand, { adjustmentId: string }>({
     commandType: "AdjustCash",
     schema: adjustCashCommandSchema,
+    resultSchema: cashAdjustmentResultSchema,
     input,
     ctx,
     requiredPermission: "cash.adjust",
@@ -427,6 +442,7 @@ export function rebuildCashBalance(ctx: CommandContext, input: unknown) {
   return runCommand<RebuildCashBalanceCommand, CashBalanceDto>({
     commandType: "RebuildCashBalance",
     schema: rebuildCashBalanceCommandSchema,
+    resultSchema: cashBalanceDtoSchema,
     input,
     ctx,
     requiredPermission: "cash.rebuild",

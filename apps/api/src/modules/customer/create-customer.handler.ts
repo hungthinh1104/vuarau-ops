@@ -1,5 +1,5 @@
 import type { CreateCustomerCommand, CustomerDto } from "@vuarau/domain-contracts";
-import { createCustomerCommandSchema } from "@vuarau/domain-contracts";
+import { createCustomerCommandSchema, customerDtoSchema } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideCreateCustomer, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -17,6 +17,7 @@ export function createCustomer(
     input,
     ctx,
     requiredPermission: "customer.create",
+    resultSchema: customerDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const decision = decideCreateCustomer({ command, recordedAt });
       if (!decision.ok) {

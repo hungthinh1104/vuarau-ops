@@ -11,6 +11,7 @@ import {
   deactivateQualityGradeCommandSchema,
   reactivateQualityGradeCommandSchema,
   updateQualityGradeCommandSchema,
+  qualityGradeDtoSchema,
 } from "@vuarau/domain-contracts";
 import {
   decideCreateQualityGrade,
@@ -30,6 +31,7 @@ export function createQualityGrade(ctx: CommandContext, input: unknown) {
   return runCommand<CreateQualityGradeCommand, QualityGradeDto>({
     commandType: "CreateQualityGrade",
     schema: createQualityGradeCommandSchema,
+    resultSchema: qualityGradeDtoSchema,
     input,
     ctx,
     requiredPermission: "quality.manage",
@@ -81,6 +83,7 @@ function mutate<
   return runCommand<TCommand, QualityGradeDto>({
     commandType: args.commandType,
     schema: args.schema,
+    resultSchema: qualityGradeDtoSchema,
     input: args.input,
     ctx: args.ctx,
     requiredPermission: "quality.manage",

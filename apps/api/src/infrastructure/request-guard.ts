@@ -107,7 +107,10 @@ export function createRequestGuard(limits: RequestLimits) {
   const limiter = new FixedWindowRateLimiter(limits.windowMs);
   return (req: IncomingMessage, res: ServerResponse): boolean => {
     const path = (req.url ?? "/").split("?")[0] ?? "/";
-    if (path.startsWith("/health/") || path === "/metrics") return false;
+    // Health is intentionally unauthenticated and cheap. Metrics is an
+    // authenticated operational surface, so it must consume the same bounded
+    // request bucket as the API even when the caller has not supplied a token.
+    if (path.startsWith("/health/")) return false;
 
     const declared = req.headers["content-length"];
     if (

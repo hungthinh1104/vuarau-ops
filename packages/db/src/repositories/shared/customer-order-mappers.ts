@@ -14,7 +14,7 @@ export function mapCustomerOrderRows(
   return rows.map((row) => {
     const lines = lineRows
       .filter((line) => line.customerOrderId === row.id)
-      .sort((left, right) => left.id.localeCompare(right.id))
+      .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
       .map((line) => ({
         lineId: line.id,
         productId: line.productId,
@@ -79,6 +79,6 @@ export async function loadCustomerOrder(
         eq(customerOrderLines.customerOrderId, customerOrderId),
       ),
     )
-    .orderBy(asc(customerOrderLines.id));
+    .orderBy(asc(customerOrderLines.position), asc(customerOrderLines.id));
   return mapCustomerOrderRows([row], lines)[0] ?? null;
 }

@@ -12,12 +12,20 @@ import type {
   DemandObservationDto,
   RecordDemandObservationCommand,
 } from "@vuarau/domain-contracts";
-import { recordCostObservationCommandSchema } from "@vuarau/domain-contracts";
-import { recordReconciliationObservationCommandSchema } from "@vuarau/domain-contracts";
-import { recordDebtObservationCommandSchema } from "@vuarau/domain-contracts";
-import { recordSupplyCommitmentObservationCommandSchema } from "@vuarau/domain-contracts";
-import { recordSupplierObservationCommandSchema } from "@vuarau/domain-contracts";
-import { recordDemandObservationCommandSchema } from "@vuarau/domain-contracts";
+import {
+  costObservationDtoSchema,
+  debtObservationDtoSchema,
+  demandObservationDtoSchema,
+  reconciliationObservationDtoSchema,
+  recordCostObservationCommandSchema,
+  recordDebtObservationCommandSchema,
+  recordDemandObservationCommandSchema,
+  recordReconciliationObservationCommandSchema,
+  recordSupplyCommitmentObservationCommandSchema,
+  recordSupplierObservationCommandSchema,
+  supplyCommitmentObservationDtoSchema,
+  supplierObservationDtoSchema,
+} from "@vuarau/domain-contracts";
 import {
   decideRecordCostObservation,
   decideRecordReconciliationObservation,
@@ -35,6 +43,7 @@ export function recordCostObservation(ctx: CommandContext, input: unknown) {
   return runCommand<RecordCostObservationCommand, CostObservationDto>({
     commandType: "RecordCostObservation",
     schema: recordCostObservationCommandSchema,
+    resultSchema: costObservationDtoSchema,
     input,
     ctx,
     requiredPermission: "evidence.record",
@@ -73,6 +82,7 @@ export function recordReconciliationObservation(ctx: CommandContext, input: unkn
   return runCommand<RecordReconciliationObservationCommand, ReconciliationObservationDto>({
     commandType: "RecordReconciliationObservation",
     schema: recordReconciliationObservationCommandSchema,
+    resultSchema: reconciliationObservationDtoSchema,
     input,
     ctx,
     requiredPermission: "evidence.record",
@@ -119,6 +129,7 @@ export function recordDebtObservation(ctx: CommandContext, input: unknown) {
   return runCommand<RecordDebtObservationCommand, DebtObservationDto>({
     commandType: "RecordDebtObservation",
     schema: recordDebtObservationCommandSchema,
+    resultSchema: debtObservationDtoSchema,
     input,
     ctx,
     requiredPermission: "evidence.record",
@@ -157,6 +168,7 @@ export function recordSupplyCommitmentObservation(ctx: CommandContext, input: un
   return runCommand<RecordSupplyCommitmentObservationCommand, SupplyCommitmentObservationDto>({
     commandType: "RecordSupplyCommitmentObservation",
     schema: recordSupplyCommitmentObservationCommandSchema,
+    resultSchema: supplyCommitmentObservationDtoSchema,
     input,
     ctx,
     requiredPermission: "evidence.record",
@@ -203,6 +215,7 @@ export function recordSupplierObservation(ctx: CommandContext, input: unknown) {
   return runCommand<RecordSupplierObservationCommand, SupplierObservationDto>({
     commandType: "RecordSupplierObservation",
     schema: recordSupplierObservationCommandSchema,
+    resultSchema: supplierObservationDtoSchema,
     input,
     ctx,
     requiredPermission: "evidence.record",
@@ -246,6 +259,7 @@ export function recordDemandObservation(ctx: CommandContext, input: unknown) {
   return runCommand<RecordDemandObservationCommand, DemandObservationDto>({
     commandType: "RecordDemandObservation",
     schema: recordDemandObservationCommandSchema,
+    resultSchema: demandObservationDtoSchema,
     input,
     ctx,
     requiredPermission: "evidence.record",

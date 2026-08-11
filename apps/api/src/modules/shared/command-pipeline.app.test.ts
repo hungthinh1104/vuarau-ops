@@ -143,6 +143,7 @@ describe("BR-COMMAND-001 / command type binding", () => {
       input,
       ctx: harness.ctx,
       requiredPermission: "customer.read",
+      resultSchema: z.object({ accepted: z.boolean() }),
       execute: async () => ok({ accepted: true }),
     });
     const secondExecution = vi.fn(async () => ok({ accepted: false }));
@@ -152,6 +153,7 @@ describe("BR-COMMAND-001 / command type binding", () => {
       input,
       ctx: harness.ctx,
       requiredPermission: "customer.read",
+      resultSchema: z.object({ accepted: z.boolean() }),
       execute: secondExecution,
     });
 
@@ -161,6 +163,45 @@ describe("BR-COMMAND-001 / command type binding", () => {
       error: { code: "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_COMMAND" },
     });
     expect(secondExecution).not.toHaveBeenCalled();
+  });
+
+  it("rejects a completed receipt whose result no longer matches its response schema", async () => {
+    const schema = defineCommand(z.object({ value: z.string() }));
+    const resultSchema = z.object({ accepted: z.boolean() });
+    const input = {
+      commandId: COMMAND_ID,
+      idempotencyKey: IDEMPOTENCY_KEY,
+      workspaceId: WORKSPACE_ID,
+      actorId: ACTOR_ID,
+      occurredAt: LATER_TRANSACTION_TIME,
+      payload: { value: "stored-result-contract" },
+    };
+    const first = await runCommand({
+      commandType: "SyntheticCommandA",
+      schema,
+      input,
+      ctx: harness.ctx,
+      requiredPermission: "customer.read",
+      resultSchema,
+      execute: async () => ok({ accepted: true }),
+    });
+    const receipt = harness.db.receipts()[0]!;
+    harness.db.replaceReceipt({ ...receipt, result: { accepted: "not-a-boolean" } });
+    const replay = await runCommand({
+      commandType: "SyntheticCommandA",
+      schema,
+      input: { ...input, commandId: SECOND_COMMAND_ID },
+      ctx: harness.ctx,
+      requiredPermission: "customer.read",
+      resultSchema,
+      execute: async () => ok({ accepted: false }),
+    });
+
+    expect(first.ok).toBe(true);
+    expect(replay).toMatchObject({
+      ok: false,
+      error: { code: "COMMAND_RECEIPT_RESULT_INVALID" },
+    });
   });
 });
 

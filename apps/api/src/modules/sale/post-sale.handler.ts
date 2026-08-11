@@ -4,6 +4,7 @@ import {
   paymentTermsAgingPolicyDefinitionSchema,
   postSaleCommandSchema,
   roleHasPermission,
+  saleDtoSchema,
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import {
@@ -32,6 +33,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
   return runCommand<PostSaleCommand, SaleDto>({
     commandType: "PostSale",
     schema: postSaleCommandSchema,
+    resultSchema: saleDtoSchema,
     input,
     ctx,
     // A correction replacement is posted by its void-authorized correcting

@@ -1,5 +1,5 @@
 import type { PriceRuleDto, RecordPriceRuleCommand } from "@vuarau/domain-contracts";
-import { recordPriceRuleCommandSchema } from "@vuarau/domain-contracts";
+import { priceRuleDtoSchema, recordPriceRuleCommandSchema } from "@vuarau/domain-contracts";
 import { decideRecordPriceRule, err, ok } from "@vuarau/domain-kernel";
 import type { DomainResult, PriceRuleState } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -34,6 +34,7 @@ export function recordPriceRule(
   return runCommand<RecordPriceRuleCommand, PriceRuleDto>({
     commandType: "RecordPriceRule",
     schema: recordPriceRuleCommandSchema,
+    resultSchema: priceRuleDtoSchema,
     input,
     ctx,
     requiredPermission: "pricing.manage",

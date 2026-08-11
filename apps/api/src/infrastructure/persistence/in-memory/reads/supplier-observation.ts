@@ -33,9 +33,12 @@ export const createSupplierObservationReads = (
         id: observation.id,
       }));
     },
-    listAll: async (workspaceId) =>
+    listAll: async (workspaceId, supplierId) =>
       [...store.supplierObservations.values()]
         .filter((observation) => observation.workspaceId === workspaceId)
+        .filter(
+          (observation) => supplierId === undefined || observation.facts.supplierId === supplierId,
+        )
         .sort(
           (left, right) =>
             left.transactionTime.localeCompare(right.transactionTime) ||

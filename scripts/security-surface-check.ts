@@ -42,7 +42,7 @@ const publicFiles = [
   "apps/api/src/modules/document/public-document.ts",
 ].map((path) => readFileSync(join(ROOT, path), "utf8"));
 const publicRoutes = [
-  ...publicFiles.join("\n").matchAll(/["'`]\/(health\/\w+|metrics|public\/documents\/)/g),
+  ...publicFiles.join("\n").matchAll(/["'`]\/(health\/\w+|public\/documents\/)/g),
 ]
   .map((match) => match[1])
   .filter((value, index, all) => all.indexOf(value) === index)
@@ -51,7 +51,7 @@ if (publicFiles.join("\n").includes("\\/public\\/documents\\/")) {
   publicRoutes.push("public/documents/");
   publicRoutes.sort();
 }
-const expectedPublic = ["health/live", "health/ready", "metrics", "public/documents/"].sort();
+const expectedPublic = ["health/live", "health/ready", "public/documents/"].sort();
 if (JSON.stringify(publicRoutes) !== JSON.stringify(expectedPublic)) {
   failures.push(`public route allowlist changed: ${publicRoutes.join(", ")}`);
 }

@@ -9,6 +9,7 @@ import {
   cancelCustomerOrderCommandSchema,
   confirmCustomerOrderCommandSchema,
   createCustomerOrderDraftCommandSchema,
+  customerOrderDtoSchema,
   updateCustomerOrderDraftCommandSchema,
 } from "@vuarau/domain-contracts";
 import type { CustomerOrderState, DomainResult } from "@vuarau/domain-kernel";
@@ -63,6 +64,12 @@ async function validateReferences(
       return err("PRODUCT_NOT_FOUND", "An inactive product cannot be confirmed on a new order.", {
         productId: line.productId,
       });
+    if (requireActive && product.displayName !== line.productName)
+      return err(
+        "CUSTOMER_ORDER_PRODUCT_SNAPSHOT_MISMATCH",
+        "The Customer Order line no longer matches the selected Product name.",
+        { lineId: line.lineId, productId: line.productId },
+      );
   }
   return ok(undefined);
 }
@@ -80,6 +87,15 @@ async function validateReplacement(
     return err(
       "CUSTOMER_ORDER_REPLACEMENT_INVALID",
       "A replacement requires one cancelled Customer Order in this workspace.",
+    );
+  if (
+    original.customerId !== order.customerId ||
+    original.channel !== order.channel ||
+    original.currency !== order.currency
+  )
+    return err(
+      "CUSTOMER_ORDER_REPLACEMENT_INVALID",
+      "A replacement must keep the cancelled order's customer, channel and currency.",
     );
   if ((await repos.customerOrders.findReplacementOf(order.workspaceId, original.id)) !== null)
     return err(
@@ -99,6 +115,7 @@ export function createCustomerOrderDraft(
     input,
     ctx,
     requiredPermission: "customer_order.create",
+    resultSchema: customerOrderDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       if (
         (await repos.customerOrders.findById(
@@ -136,6 +153,7 @@ export function updateCustomerOrderDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "customer_order.update",
+    resultSchema: customerOrderDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.customerOrders.findByIdForUpdate(
         command.workspaceId,
@@ -166,6 +184,7 @@ export function confirmCustomerOrder(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "customer_order.confirm",
+    resultSchema: customerOrderDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.customerOrders.findByIdForUpdate(
         command.workspaceId,
@@ -196,6 +215,7 @@ export function cancelCustomerOrder(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "customer_order.cancel",
+    resultSchema: customerOrderDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.customerOrders.findByIdForUpdate(
         command.workspaceId,
