@@ -4,6 +4,7 @@ import type {
   QualityDispositionSource,
   QualityDispositionSourceSummaryDto,
 } from "@vuarau/domain-contracts";
+import { PersistedIntegrityError } from "@vuarau/db";
 import type { Repositories } from "../../ports.ts";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
@@ -206,10 +207,14 @@ export const createIntakeRepositories = (
       );
       if (active.length === 0) return null;
       return {
-        valueScaled: active.reduce(
-          (sum, inspection) => sum + inspection.inspectedQuantity.valueScaled,
-          0,
-        ),
+        valueScaled: active.reduce((sum, inspection) => {
+          if (inspection.inspectedQuantity.unit !== active[0]!.inspectedQuantity.unit) {
+            throw new PersistedIntegrityError(
+              `Arrival line ${arrivalLineId} has mixed inspection units.`,
+            );
+          }
+          return sum + inspection.inspectedQuantity.valueScaled;
+        }, 0),
         unit: active[0]!.inspectedQuantity.unit,
       };
     },
@@ -271,7 +276,9 @@ export const createIntakeRepositories = (
           if (allocation.outcome !== "accepted") continue;
           unit ??= allocation.quantity.unit;
           if (unit !== allocation.quantity.unit)
-            throw new Error("Accepted purchase quantities use mixed units.");
+            throw new PersistedIntegrityError(
+              `Purchase line ${purchaseLineId} has mixed accepted units.`,
+            );
           valueScaled += allocation.quantity.valueScaled;
         }
       }

@@ -7,6 +7,7 @@ import {
   goodsArrivals,
   products,
   qualityDispositionAllocations,
+  PersistedIntegrityError,
   skipWithoutDatabase,
   sql,
   workspaceOperationalProfiles,
@@ -335,5 +336,51 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
         .from(qualityDispositionAllocations)
         .where(eq(qualityDispositionAllocations.dispositionId, dispositionId)),
     ).toHaveLength(2);
+  });
+
+  it("TC-INTAKE-012 — mixed persisted inspection units fail closed", async () => {
+    const commandId = crypto.randomUUID();
+    const recordedAt = new Date().toISOString();
+    await ctx.database.db.execute(sql`
+      insert into command_receipts (
+        command_id, workspace_id, idempotency_key, command_type,
+        payload_hash, status, recorded_at
+      ) values (
+        ${commandId}::uuid, ${ctx.workspaceId}::uuid, ${`corrupt-${commandId}`},
+        'CorruptInspectionFixture', 'corrupt-fixture', 'completed', ${recordedAt}
+      )
+    `);
+    await ctx.database.db.execute(sql`
+      insert into quality_inspections (
+        id, workspace_id, arrival_line_id, inspected_value_scaled, inspected_unit,
+        note, evidence_references, transaction_time, recorded_at, actor_id, command_id
+      ) values (
+        ${crypto.randomUUID()}::uuid, ${ctx.workspaceId}::uuid, ${arrivalLineId}::uuid,
+        1, 'bo', 'corrupt mixed-unit fixture', ARRAY[]::text[], ${recordedAt},
+        ${recordedAt}, ${ctx.actorId}::uuid, ${commandId}::uuid
+      )
+    `);
+
+    await ctx.database.db.execute(sql`
+      insert into quality_disposition_allocations (
+        id, workspace_id, disposition_id, outcome, value_scaled, unit,
+        quality_grade_id, quality_grade_name, note
+      ) values (
+        ${crypto.randomUUID()}::uuid, ${ctx.workspaceId}::uuid, ${dispositionId}::uuid,
+        'accepted', 1, 'bo', NULL, NULL, 'corrupt mixed-unit fixture'
+      )
+    `);
+
+    const uow = createUnitOfWork(ctx.database.db, randomIdGenerator) as CommandDeps["uow"];
+    await expect(
+      uow.transaction((repos) =>
+        repos.qualityInspections.activeInspectedQuantity(ctx.workspaceId, arrivalLineId),
+      ),
+    ).rejects.toBeInstanceOf(PersistedIntegrityError);
+    await expect(
+      uow.transaction((repos) =>
+        repos.qualityDispositions.acceptedQuantityForPurchaseLine(ctx.workspaceId, purchaseLineId),
+      ),
+    ).rejects.toBeInstanceOf(PersistedIntegrityError);
   });
 });

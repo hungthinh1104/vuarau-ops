@@ -3,7 +3,7 @@
 - **BR-INTAKE-001** — GoodsArrival is an append-only physical observation. It may link a confirmed Purchase, but recording arrival alone does not create sellable inventory or change supplier payable.
 - **BR-INTAKE-002** — A Purchase-linked arrival must use the same supplier and every line must match one Purchase line by product, unit and immutable snapshot identity.
 - **BR-INTAKE-003** — In `quantity_only` mode weighing is forbidden. In `gross_tare_net` mode every line requires one mass unit and must satisfy `gross = tare + net`; arrived quantity equals net weight.
-- **BR-INTAKE-004** — Active cumulative inspection quantity cannot exceed the active arrival-line quantity. Issue-code id, code and name are captured as evidence snapshots.
+- **BR-INTAKE-004** — Active cumulative inspection quantity cannot exceed the active arrival-line quantity, and active inspection facts must use one unit. Issue-code id, code and name are captured as evidence snapshots.
 - **BR-INTAKE-005** — QualityInspection is an append-only observation. It creates no inventory and may be reversed only after all active downstream dispositions are reversed.
 - **BR-INTAKE-006** — QualityDisposition allocates only currently eligible inspected quantity. Allocation totals cannot exceed the source remainder and all quantities use the source unit.
 - **BR-INTAKE-007** — Only `accepted` allocations create positive sellable InventoryMovement. `quarantined`, `rejected` and `disposed` remain physical/responsibility outcomes and do not increase inventory.

@@ -13,7 +13,7 @@ import {
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
-import { PersistedNumberOutOfRangeError } from "@vuarau/db";
+import { PersistedIntegrityError, PersistedNumberOutOfRangeError } from "@vuarau/db";
 import type { Clock } from "../../infrastructure/clock.ts";
 import type { AuthenticatedPrincipal } from "../../infrastructure/auth/principal.ts";
 import type {
@@ -315,6 +315,15 @@ export async function runCommand<
         },
       );
       record("rejected", "PERSISTED_NUMBER_OUT_OF_RANGE");
+      return rejection as DomainResult<TResult>;
+    }
+    if (error instanceof PersistedIntegrityError) {
+      const rejection = err(
+        error.code,
+        "Stored quantity facts failed an integrity check. Contact support before retrying.",
+        { requestId: currentRequestId() },
+      );
+      record("rejected", error.code);
       return rejection as DomainResult<TResult>;
     }
     if (error instanceof CommandIntegrityError) {

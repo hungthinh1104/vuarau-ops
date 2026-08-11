@@ -1,4 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
+import { PersistedIntegrityError } from "../../errors.ts";
 import type {
   GoodsArrivalDto,
   GoodsArrivalId,
@@ -285,7 +286,9 @@ export const createIntakeWriteRepositories = (tx: Tx) => ({
       if (active.length === 0) return null;
       const unit = active[0]!.inspection.inspectedUnit;
       if (active.some(({ inspection }) => inspection.inspectedUnit !== unit)) {
-        throw new Error(`Arrival line ${arrivalLineId} has mixed inspection units.`);
+        throw new PersistedIntegrityError(
+          `Arrival line ${arrivalLineId} has mixed inspection units.`,
+        );
       }
       return {
         valueScaled: active.reduce(
@@ -461,7 +464,9 @@ export const createIntakeWriteRepositories = (tx: Tx) => ({
         if (root === null || root.line.purchaseLineId !== purchaseLineId) continue;
         unit ??= row.allocation.unit;
         if (unit !== row.allocation.unit)
-          throw new Error(`Purchase line ${purchaseLineId} has mixed accepted units.`);
+          throw new PersistedIntegrityError(
+            `Purchase line ${purchaseLineId} has mixed accepted units.`,
+          );
         valueScaled += row.allocation.valueScaled;
       }
       return unit === null ? null : { valueScaled, unit };

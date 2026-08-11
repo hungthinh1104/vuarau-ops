@@ -9,3 +9,13 @@ export class PersistedNumberOutOfRangeError extends Error {
     this.field = field;
   }
 }
+
+/** A persisted aggregate cannot be reduced without inventing a quantity. */
+export class PersistedIntegrityError extends Error {
+  readonly code = "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE" as const;
+
+  constructor(diagnostic: string) {
+    super(diagnostic);
+    this.name = "PersistedIntegrityError";
+  }
+}
