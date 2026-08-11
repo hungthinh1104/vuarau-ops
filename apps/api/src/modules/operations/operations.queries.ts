@@ -69,6 +69,9 @@ export function exportWorkspaceBackup(
     input,
     ctx,
     requiredPermission: "workspace.manage",
+    // Export is a read-only evidence operation and must remain available after
+    // the business day has been closed.
+    allowClosedBusinessDay: true,
     execute: async ({ command, repos, recordedAt }) => {
       const found = await repos.operationsReads.backupPayload(command.workspaceId);
       if (found === null) return err("WORKSPACE_ACCESS_DENIED", "Workspace not found.");

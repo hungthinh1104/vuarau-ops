@@ -25,7 +25,7 @@ import {
   revokeDocumentShareCommandSchema,
 } from "@vuarau/domain-contracts";
 import { z } from "zod";
-import { err, ok } from "@vuarau/domain-kernel";
+import { err, ok, sumMoneyExact } from "@vuarau/domain-kernel";
 import { hashPayload } from "../../infrastructure/hash.ts";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import type { AccountTimelineRow } from "../../infrastructure/persistence/read-ports.ts";
@@ -46,6 +46,13 @@ const documentShareReceiptSchema = z.object({
     .regex(/^[a-f0-9]+$/),
   expiresAt: z.string(),
 });
+
+class DocumentIntegrityError extends Error {
+  constructor() {
+    super("Document source contains an aggregate outside the supported exact range.");
+    this.name = "DocumentIntegrityError";
+  }
+}
 
 function statementEntry(row: AccountTimelineRow): AccountTimelineEntryDto {
   return { ...row, classification: classifyBalance(row.runningBalance) };
@@ -164,15 +171,16 @@ async function canonicalSnapshot(
             amountMinor: entries[0]!.runningBalance.amountMinor - entries[0]!.amount.amountMinor,
             currency: entries[0]!.amount.currency,
           };
-    const periodChange = entries.reduce<Money>(
-      (sum, entry) => ({
-        amountMinor: sum.amountMinor + entry.amount.amountMinor,
-        currency: sum.currency,
-      }),
-      { amountMinor: 0, currency: openingBalance.currency },
+    if (!Number.isSafeInteger(openingBalance.amountMinor)) throw new DocumentIntegrityError();
+    const periodChange = sumMoneyExact(
+      entries.map((entry) => entry.amount),
+      openingBalance.currency,
     );
+    if (periodChange === null) throw new DocumentIntegrityError();
+    const closingAmount = openingBalance.amountMinor + periodChange.amountMinor;
+    if (!Number.isSafeInteger(closingAmount)) throw new DocumentIntegrityError();
     const closingBalance = {
-      amountMinor: openingBalance.amountMinor + periodChange.amountMinor,
+      amountMinor: closingAmount,
       currency: openingBalance.currency,
     };
     return documentSnapshotSchema.parse({
@@ -190,7 +198,8 @@ async function canonicalSnapshot(
   }
   if (documentType === "purchase_order") {
     const purchase = await repos.purchaseReads.get(workspaceId, sourceId as PurchaseId);
-    if (purchase === null) return null;
+    if (purchase === null || purchase.status !== "confirmed" || purchase.voidRecord !== null)
+      return null;
     const supplier = await repos.supplierReads.get(workspaceId, purchase.supplierId);
     if (supplier === null) return null;
     return documentSnapshotSchema.parse({
@@ -202,7 +211,7 @@ async function canonicalSnapshot(
     });
   }
   const delivery = await repos.deliveryReads.get(workspaceId, sourceId as DeliveryId);
-  if (delivery === null || delivery.status === "cancelled") return null;
+  if (delivery === null || !["dispatched", "delivered"].includes(delivery.status)) return null;
   const sale = await repos.saleReads.get(workspaceId, delivery.saleId);
   if (sale === null) return null;
   const customer = await repos.customerReads.get(workspaceId, sale.customerId);
@@ -226,7 +235,16 @@ export function generateDocument(ctx: CommandContext, input: unknown) {
     ctx,
     requiredPermission: "document.generate",
     execute: async ({ command, repos, recordedAt }) => {
-      const snapshot = await canonicalSnapshot(repos, command);
+      let snapshot: DocumentSnapshot | null;
+      try {
+        snapshot = await canonicalSnapshot(repos, command);
+      } catch (error) {
+        if (!(error instanceof DocumentIntegrityError)) throw error;
+        return err(
+          "REPORT_INTEGRITY_FAILURE",
+          "Document cannot be generated because its source totals are not exact.",
+        );
+      }
       if (snapshot === null)
         return err("DOCUMENT_SOURCE_INVALID", "Document source is absent or incompatible.");
       const version = await repos.documents.nextVersion({
@@ -276,8 +294,9 @@ export function generateDocument(ctx: CommandContext, input: unknown) {
 const DEFAULT_SHARE_LIFETIME_MS = 24 * 60 * 60 * 1_000;
 
 function effectiveShareExpiry(requested: IsoInstant | null, recordedAt: IsoInstant): IsoInstant {
-  if (requested !== null) return requested;
-  return new Date(Date.parse(recordedAt) + DEFAULT_SHARE_LIFETIME_MS).toISOString() as IsoInstant;
+  const maximum = Date.parse(recordedAt) + DEFAULT_SHARE_LIFETIME_MS;
+  if (requested === null) return new Date(maximum).toISOString() as IsoInstant;
+  return new Date(Math.min(Date.parse(requested), maximum)).toISOString() as IsoInstant;
 }
 
 export function createDocumentShare(ctx: CommandContext, input: unknown) {

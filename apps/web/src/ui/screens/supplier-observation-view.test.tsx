@@ -65,6 +65,9 @@ describe("SupplierObservationView", () => {
         supplierId=""
         productId=""
         qualityGradeId=""
+        supplierSearch=""
+        productSearch=""
+        qualityGradeSearch=""
         supplierOptions={[]}
         productOptions={[]}
         qualityGradeOptions={[]}
@@ -100,6 +103,9 @@ describe("SupplierObservationView", () => {
         onSupplierId={() => undefined}
         onProductId={() => undefined}
         onQualityGradeId={() => undefined}
+        onSupplierSearch={() => undefined}
+        onProductSearch={() => undefined}
+        onQualityGradeSearch={() => undefined}
         onRole={() => undefined}
         onSourceArea={() => undefined}
         onPickupResponsibility={() => undefined}
@@ -128,12 +134,14 @@ describe("SupplierObservationView", () => {
       screen.getByRole("heading", { name: "Quan sát quan hệ nhà cung cấp" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Nhà cung cấp liên quan")).toBeInTheDocument();
-    expect(screen.getByLabelText("Số lượng được nhận")).toBeInTheDocument();
-    expect(screen.getByLabelText("Mã khiếu nại")).toBeInTheDocument();
-    expect(screen.getByText("Nguồn hàng: Đức Trọng")).toBeInTheDocument();
-    expect(screen.getByText("Đã hứa: 200 kg")).toBeInTheDocument();
-    expect(screen.getByText("Được nhận: 185 kg")).toBeInTheDocument();
-    expect(screen.getByText("Khiếu nại: claim://supplier/ui-002")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tìm nhà cung cấp")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Số lượng được nhận")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Mã khiếu nại")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nguồn hàng: Đức Trọng")).not.toBeInTheDocument();
+    expect(screen.queryByText("Đã hứa: 200 kg")).not.toBeInTheDocument();
+    expect(screen.queryByText("Được nhận: 185 kg")).not.toBeInTheDocument();
+    expect(screen.queryByText("Khiếu nại: claim://supplier/ui-002")).not.toBeInTheDocument();
+    expect(screen.getByText("Vai trò: hợp tác xã")).toBeInTheDocument();
     expect(screen.getByText(/Chưa kết luận điểm xếp hạng/)).toBeInTheDocument();
     expect(screen.getByText("photo://supplier/ui-001")).toBeInTheDocument();
   });

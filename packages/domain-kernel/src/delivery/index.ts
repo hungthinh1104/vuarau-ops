@@ -19,8 +19,12 @@ function deliveryLines(
   fulfilled: ReadonlyMap<string, number>,
 ): DomainResult<DeliveryState["lines"]> {
   const seen = new Set<string>();
+  const seenDeliveryLineIds = new Set<string>();
   const lines: DeliveryState["lines"][number][] = [];
   for (const inputLine of input) {
+    if (seenDeliveryLineIds.has(inputLine.deliveryLineId))
+      return err("DELIVERY_LINE_INVALID", "A delivery line id may appear once in a Delivery.");
+    seenDeliveryLineIds.add(inputLine.deliveryLineId);
     if (seen.has(inputLine.saleLineId))
       return err("DELIVERY_LINE_INVALID", "A Sale line may appear once in a Delivery.");
     seen.add(inputLine.saleLineId);

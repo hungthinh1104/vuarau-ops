@@ -147,7 +147,8 @@ export function recordStocktakeCount(ctx: CommandContext, input: unknown) {
       );
       if (session === null) return err("STOCKTAKE_NOT_FOUND", "No such stocktake session.");
       if (
-        (await repos.products.findById(command.workspaceId, command.payload.productId)) === null
+        (await repos.products.findByIdForUpdate(command.workspaceId, command.payload.productId)) ===
+        null
       ) {
         return err("PRODUCT_NOT_FOUND", "No such Product.");
       }
@@ -155,12 +156,21 @@ export function recordStocktakeCount(ctx: CommandContext, input: unknown) {
         if (command.payload.qualityGradeId === null || command.payload.qualityGradeName === null) {
           return err("SALE_QUALITY_GRADE_REQUIRED", "A quality grade is required for this depot.");
         }
-        const grade = await repos.qualityGrades.findById(
+        const grade = await repos.qualityGrades.findByIdForUpdate(
           command.workspaceId,
           command.payload.qualityGradeId,
         );
         if (grade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
-        if (!grade.isActive) return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
+        if (!grade.isActive) {
+          const movements = await repos.inventoryMovements.listByProduct(
+            command.workspaceId,
+            command.payload.productId,
+            command.payload.quantity.unit,
+          );
+          if (!movements.some((movement) => movement.qualityGradeId === grade.id)) {
+            return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
+          }
+        }
         if (grade.name !== command.payload.qualityGradeName) {
           return err(
             "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
@@ -246,7 +256,19 @@ export function approveStocktake(ctx: CommandContext, input: unknown) {
           ),
           asOf: session.asOf,
         });
+        if (expected === null) {
+          return err(
+            "STOCKTAKE_COUNT_INVALID",
+            "Persisted inventory is outside the supported exact quantity range.",
+          );
+        }
         const variance = count.quantity.valueScaled - expected;
+        if (!Number.isSafeInteger(variance)) {
+          return err(
+            "STOCKTAKE_COUNT_INVALID",
+            "Stocktake variance is outside the supported exact quantity range.",
+          );
+        }
         if (variance === 0) continue;
         drafts.push({
           workspaceId: command.workspaceId,

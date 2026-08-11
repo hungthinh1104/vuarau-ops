@@ -1,10 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import {
-  customerAccountBalances,
-  customers,
   products,
-  suppliers,
-  supplierAccountBalances,
   inventoryBalances,
   qualityGrades,
   cashAccounts,
@@ -14,13 +10,297 @@ import {
   expenseReversals,
 } from "../../schema/index.ts";
 import type { inventoryMovements } from "../../schema/index.ts";
-import { classifyInventory } from "@vuarau/domain-kernel";
-import { encodeCursor, vietnamBusinessDayRange, type ReportType } from "@vuarau/domain-contracts";
+import { classifyInventory, sumMoneyExact } from "@vuarau/domain-kernel";
+import {
+  encodeCursor,
+  vietnamBusinessDayRange,
+  type OperationalReportDto,
+  type ReportType,
+} from "@vuarau/domain-contracts";
 import { money, toIsoOrNull } from "../row-mappers.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
-import { customerActivityAtScale, inventoryMovementReportAtScale } from "./report-scale.ts";
+import {
+  cashBalancesAtScale,
+  cashMovementAtScale,
+  customerActivityAtScale,
+  expenseAtScale,
+  inventoryBalancesAtScale,
+  inventoryMovementReportAtScale,
+  nextProjectionCursor,
+} from "./report-scale.ts";
+
+type ProjectionReportArgs = {
+  readonly workspaceId: string;
+  readonly businessDate: string | null;
+  readonly businessDayStartMinute?: number;
+  readonly productId: string | null;
+  readonly unit: typeof inventoryMovements.$inferSelect.unit | null;
+  readonly page: Page;
+};
+
+type ProjectionRow = OperationalReportDto["page"]["items"][number];
+
+function projectionCursor(args: ProjectionReportArgs): { time: string | null; id: string } | null {
+  if (args.page.after === null) return null;
+  return {
+    time: args.page.after.sortValue,
+    id: args.page.after.id,
+  };
+}
+
+async function customerReceivablesAtScale(
+  tx: Tx,
+  args: ProjectionReportArgs,
+): Promise<OperationalReportDto> {
+  const cursor = projectionCursor(args);
+  const values = (await tx.execute(sql`
+    select c.id, c.display_name, b.balance_minor, b.currency, b.last_entry_transaction_time
+    from customer_account_balances b
+    join customers c
+      on c.workspace_id=b.workspace_id and c.id=b.customer_id
+    where b.workspace_id=${args.workspaceId}::uuid and b.balance_minor > 0
+      and (${cursor?.time ?? null}::timestamptz is null
+        or (coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz), c.id)
+          < (coalesce(${cursor?.time ?? null}::timestamptz, '-infinity'::timestamptz), ${cursor?.id ?? null}::uuid))
+    order by coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz) desc, c.id desc
+    limit ${args.page.limit + 1}
+  `)) as Record<string, unknown>[];
+  const total = (
+    await tx.execute(sql`
+    select count(*)::int as count, coalesce(sum(balance_minor), 0)::bigint as amount
+    from customer_account_balances
+    where workspace_id=${args.workspaceId}::uuid and balance_minor > 0
+  `)
+  )[0] as Record<string, unknown> | undefined;
+  const items: ProjectionRow[] = values.slice(0, args.page.limit).map((row) => ({
+    id: String(row["id"]),
+    label: String(row["display_name"]),
+    productId: null,
+    productName: null,
+    qualityGradeId: null,
+    qualityGradeName: null,
+    sourceType: "customer",
+    sourceId: String(row["id"]),
+    documentHref: `/customers/${String(row["id"])}`,
+    transactionTime:
+      row["last_entry_transaction_time"] === null
+        ? null
+        : new Date(String(row["last_entry_transaction_time"])).toISOString(),
+    amount: money(
+      persistedBigintToSafeNumber(row["balance_minor"], "customer receivable row amount"),
+      String(row["currency"]) as "VND",
+    ),
+    quantity: null,
+    status: "receivable",
+  }));
+  return {
+    reportType: "customer_receivables",
+    businessDate: args.businessDate,
+    timezone: "Asia/Ho_Chi_Minh",
+    integrity: "healthy",
+    diagnostics: [],
+    totals: {
+      amount: money(
+        persistedBigintToSafeNumber(total?.["amount"] ?? 0, "customer receivable total"),
+        "VND",
+      ),
+      quantities: [],
+    },
+    page: {
+      items,
+      nextCursor: nextProjectionCursor(values, args.page.limit, "last_entry_transaction_time"),
+    },
+  };
+}
+
+async function supplierPayablesAtScale(
+  tx: Tx,
+  args: ProjectionReportArgs,
+): Promise<OperationalReportDto> {
+  const cursor = projectionCursor(args);
+  const values = (await tx.execute(sql`
+    select s.id, s.display_name, b.balance_minor, b.currency, b.last_entry_transaction_time
+    from supplier_account_balances b
+    join suppliers s
+      on s.workspace_id=b.workspace_id and s.id=b.supplier_id
+    where b.workspace_id=${args.workspaceId}::uuid and b.balance_minor > 0
+      and (${cursor?.time ?? null}::timestamptz is null
+        or (coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz), s.id)
+          < (coalesce(${cursor?.time ?? null}::timestamptz, '-infinity'::timestamptz), ${cursor?.id ?? null}::uuid))
+    order by coalesce(b.last_entry_transaction_time, '-infinity'::timestamptz) desc, s.id desc
+    limit ${args.page.limit + 1}
+  `)) as Record<string, unknown>[];
+  const total = (
+    await tx.execute(sql`
+    select count(*)::int as count, coalesce(sum(balance_minor), 0)::bigint as amount
+    from supplier_account_balances
+    where workspace_id=${args.workspaceId}::uuid and balance_minor > 0
+  `)
+  )[0] as Record<string, unknown> | undefined;
+  const items: ProjectionRow[] = values.slice(0, args.page.limit).map((row) => ({
+    id: String(row["id"]),
+    label: String(row["display_name"]),
+    productId: null,
+    productName: null,
+    qualityGradeId: null,
+    qualityGradeName: null,
+    sourceType: "supplier",
+    sourceId: String(row["id"]),
+    documentHref: `/suppliers/${String(row["id"])}`,
+    transactionTime:
+      row["last_entry_transaction_time"] === null
+        ? null
+        : new Date(String(row["last_entry_transaction_time"])).toISOString(),
+    amount: money(
+      persistedBigintToSafeNumber(row["balance_minor"], "supplier payable row amount"),
+      String(row["currency"]) as "VND",
+    ),
+    quantity: null,
+    status: "payable",
+  }));
+  return {
+    reportType: "supplier_payables",
+    businessDate: args.businessDate,
+    timezone: "Asia/Ho_Chi_Minh",
+    integrity: "healthy",
+    diagnostics: [],
+    totals: {
+      amount: money(
+        persistedBigintToSafeNumber(total?.["amount"] ?? 0, "supplier payable total"),
+        "VND",
+      ),
+      quantities: [],
+    },
+    page: {
+      items,
+      nextCursor: nextProjectionCursor(values, args.page.limit, "last_entry_transaction_time"),
+    },
+  };
+}
+
+async function outstandingDeliveryAtScale(
+  tx: Tx,
+  args: ProjectionReportArgs,
+): Promise<OperationalReportDto> {
+  const after = args.page.after;
+  const values = (await tx.execute(sql`
+    with dispatched as (
+      select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as quantity
+      from delivery_lines dl
+      join deliveries d
+        on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
+      where d.workspace_id=${args.workspaceId}::uuid
+        and d.status in ('dispatched','delivered')
+      group by dl.sale_line_id
+    ), returned as (
+      select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as quantity
+      from delivery_return_lines drl
+      join delivery_returns dr
+        on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
+      join delivery_lines dl
+        on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
+      where dr.workspace_id=${args.workspaceId}::uuid
+      group by dl.sale_line_id
+    ), outstanding as (
+      select s.id as sale_id, c.display_name, sl.id as sale_line_id,
+        sl.product_name, sl.quantity_scaled, sl.unit,
+        (coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0))::bigint as net_fulfilled
+      from sales s
+      join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
+      join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
+      left join dispatched on dispatched.sale_line_id=sl.id
+      left join returned on returned.sale_line_id=sl.id
+      left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
+      where s.workspace_id=${args.workspaceId}::uuid and s.status='posted' and sv.id is null
+        and (${args.productId}::uuid is null or sl.product_id=${args.productId}::uuid)
+        and (${args.unit}::unit is null or sl.unit=${args.unit}::unit)
+        and sl.quantity_scaled > coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0)
+    )
+    select * from outstanding
+    where (${after?.id ?? null}::uuid is null or sale_line_id < ${after?.id ?? null}::uuid)
+    order by sale_line_id desc
+    limit ${args.page.limit + 1}
+  `)) as Record<string, unknown>[];
+  const totals = (await tx.execute(sql`
+    with dispatched as (
+      select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as quantity
+      from delivery_lines dl
+      join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
+      where d.workspace_id=${args.workspaceId}::uuid and d.status in ('dispatched','delivered')
+      group by dl.sale_line_id
+    ), returned as (
+      select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as quantity
+      from delivery_return_lines drl
+      join delivery_returns dr
+        on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
+      join delivery_lines dl
+        on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
+      where dr.workspace_id=${args.workspaceId}::uuid
+      group by dl.sale_line_id
+    )
+    select sl.unit,
+      coalesce(sum(sl.quantity_scaled-coalesce(dispatched.quantity,0)+coalesce(returned.quantity,0)),0)::bigint as quantity
+    from sales s
+    join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
+    left join dispatched on dispatched.sale_line_id=sl.id
+    left join returned on returned.sale_line_id=sl.id
+    left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
+    where s.workspace_id=${args.workspaceId}::uuid and s.status='posted' and sv.id is null
+      and (${args.productId}::uuid is null or sl.product_id=${args.productId}::uuid)
+      and (${args.unit}::unit is null or sl.unit=${args.unit}::unit)
+      and sl.quantity_scaled > coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0)
+    group by sl.unit
+  `)) as Record<string, unknown>[];
+  const items: OperationalReportDto["page"]["items"] = values
+    .slice(0, args.page.limit)
+    .map((row) => ({
+      id: String(row["sale_line_id"]),
+      label: `${String(row["display_name"])} · ${String(row["product_name"])}`,
+      productId: null,
+      productName: String(row["product_name"]),
+      qualityGradeId: null,
+      qualityGradeName: null,
+      sourceType: "sale",
+      sourceId: String(row["sale_id"]),
+      documentHref: `/sales/${String(row["sale_id"])}`,
+      transactionTime: null,
+      amount: null,
+      quantity: {
+        valueScaled: persistedBigintToSafeNumber(
+          BigInt(String(row["quantity_scaled"])) - BigInt(String(row["net_fulfilled"])),
+          "outstanding delivery quantity",
+        ),
+        unit: row["unit"] as typeof inventoryMovements.$inferSelect.unit,
+      },
+      status: "outstanding",
+    }));
+  return {
+    reportType: "outstanding_delivery",
+    businessDate: args.businessDate,
+    timezone: "Asia/Ho_Chi_Minh",
+    integrity: "healthy",
+    diagnostics: [],
+    totals: {
+      amount: null,
+      quantities: totals.map((row) => ({
+        unit: row["unit"] as typeof inventoryMovements.$inferSelect.unit,
+        valueScaled: persistedBigintToSafeNumber(
+          row["quantity"],
+          "outstanding delivery total quantity",
+        ),
+      })),
+    },
+    page: {
+      items,
+      nextCursor:
+        values.length <= args.page.limit || items.length === 0
+          ? null
+          : encodeCursor({ sortValue: "", id: items[items.length - 1]!.id }),
+    },
+  };
+}
 
 export const createReportReadRepositories = (tx: Tx) => ({
   reportReads: {
@@ -45,6 +325,27 @@ export const createReportReadRepositories = (tx: Tx) => ({
           businessDayStartMinute: args.businessDayStartMinute ?? 0,
         });
       }
+      if (args.reportType === "customer_receivables") {
+        return customerReceivablesAtScale(tx, args);
+      }
+      if (args.reportType === "supplier_payables") {
+        return supplierPayablesAtScale(tx, args);
+      }
+      if (args.reportType === "outstanding_delivery") {
+        return outstandingDeliveryAtScale(tx, args);
+      }
+      if (args.reportType === "cash_balances") {
+        return cashBalancesAtScale(tx, args);
+      }
+      if (args.reportType === "cash_movement_report") {
+        return cashMovementAtScale(tx, args);
+      }
+      if (args.reportType === "expense_report") {
+        return expenseAtScale(tx, args);
+      }
+      if (args.reportType === "inventory_by_product_unit") {
+        return inventoryBalancesAtScale(tx, args);
+      }
       type Row = {
         id: string;
         label: string;
@@ -61,57 +362,7 @@ export const createReportReadRepositories = (tx: Tx) => ({
       };
       let rows: Row[] = [];
       const diagnostics: string[] = [];
-      if (args.reportType === "customer_receivables") {
-        const values = await tx
-          .select({ balance: customerAccountBalances, customer: customers })
-          .from(customerAccountBalances)
-          .innerJoin(
-            customers,
-            and(
-              eq(customers.workspaceId, customerAccountBalances.workspaceId),
-              eq(customers.id, customerAccountBalances.customerId),
-            ),
-          )
-          .where(eq(customerAccountBalances.workspaceId, args.workspaceId));
-        rows = values
-          .filter((value) => value.balance.balanceMinor > 0)
-          .map(({ balance, customer }) => ({
-            id: customer.id,
-            label: customer.displayName,
-            sourceType: "customer",
-            sourceId: customer.id,
-            documentHref: `/customers/${customer.id}`,
-            transactionTime: toIsoOrNull(balance.lastEntryTransactionTime),
-            amount: money(balance.balanceMinor, balance.currency),
-            quantity: null,
-            status: "receivable",
-          }));
-      } else if (args.reportType === "supplier_payables") {
-        const values = await tx
-          .select({ balance: supplierAccountBalances, supplier: suppliers })
-          .from(supplierAccountBalances)
-          .innerJoin(
-            suppliers,
-            and(
-              eq(suppliers.workspaceId, supplierAccountBalances.workspaceId),
-              eq(suppliers.id, supplierAccountBalances.supplierId),
-            ),
-          )
-          .where(eq(supplierAccountBalances.workspaceId, args.workspaceId));
-        rows = values
-          .filter((value) => value.balance.balanceMinor > 0)
-          .map(({ balance, supplier }) => ({
-            id: supplier.id,
-            label: supplier.displayName,
-            sourceType: "supplier",
-            sourceId: supplier.id,
-            documentHref: `/suppliers/${supplier.id}`,
-            transactionTime: toIsoOrNull(balance.lastEntryTransactionTime),
-            amount: money(balance.balanceMinor, balance.currency),
-            quantity: null,
-            status: "payable",
-          }));
-      } else if (args.reportType === "cash_balances") {
+      if (args.reportType === "cash_balances") {
         const values = await tx
           .select({ account: cashAccounts, balance: cashBalances })
           .from(cashAccounts)
@@ -257,8 +508,10 @@ export const createReportReadRepositories = (tx: Tx) => ({
             ), returned as (
               select dl.sale_line_id, sum(drl.quantity_scaled)::bigint quantity
               from delivery_return_lines drl
-              join delivery_returns dr on dr.id=drl.return_id
-              join delivery_lines dl on dl.id=drl.delivery_line_id
+              join delivery_returns dr
+                on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
+              join delivery_lines dl
+                on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
               where dr.workspace_id=${args.workspaceId}::uuid
               group by dl.sale_line_id
             )
@@ -271,7 +524,8 @@ export const createReportReadRepositories = (tx: Tx) => ({
             join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
             left join dispatched on dispatched.sale_line_id=sl.id
             left join returned on returned.sale_line_id=sl.id
-            where s.workspace_id=${args.workspaceId}::uuid and s.status='posted'
+            left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
+            where s.workspace_id=${args.workspaceId}::uuid and s.status='posted' and sv.id is null
           `);
         rows = values.flatMap((value) => {
           const ordered = persistedBigintToSafeNumber(
@@ -322,13 +576,20 @@ export const createReportReadRepositories = (tx: Tx) => ({
             };
       const amountRows = allRows.flatMap((row) => (row.amount === null ? [] : [row.amount]));
       const quantityTotals = new Map<string, number>();
+      let quantityOverflow = false;
       for (const row of allRows) {
-        if (row.quantity !== null)
-          quantityTotals.set(
-            row.quantity.unit,
-            (quantityTotals.get(row.quantity.unit) ?? 0) + row.quantity.valueScaled,
-          );
+        if (row.quantity === null || quantityOverflow) continue;
+        const next = (quantityTotals.get(row.quantity.unit) ?? 0) + row.quantity.valueScaled;
+        if (!Number.isSafeInteger(next)) {
+          quantityOverflow = true;
+          continue;
+        }
+        quantityTotals.set(row.quantity.unit, next);
       }
+      const amountTotal = amountRows.length === 0 ? null : sumMoneyExact(amountRows, "VND");
+      if (amountRows.length > 0 && amountTotal === null)
+        diagnostics.push("report_integrity_failure");
+      if (quantityOverflow) diagnostics.push("report_integrity_failure");
       return {
         reportType: args.reportType,
         businessDate: args.businessDate,
@@ -337,16 +598,13 @@ export const createReportReadRepositories = (tx: Tx) => ({
         diagnostics,
         totals: {
           amount:
-            amountRows.length === 0
-              ? null
-              : money(
-                  amountRows.reduce((sum, amount) => sum + amount.amountMinor, 0),
-                  "VND",
-                ),
-          quantities: [...quantityTotals.entries()].map(([unit, valueScaled]) => ({
-            unit: unit as typeof inventoryMovements.$inferSelect.unit,
-            valueScaled,
-          })),
+            amountTotal === null ? null : money(amountTotal.amountMinor, amountTotal.currency),
+          quantities: quantityOverflow
+            ? []
+            : [...quantityTotals.entries()].map(([unit, valueScaled]) => ({
+                unit: unit as typeof inventoryMovements.$inferSelect.unit,
+                valueScaled,
+              })),
         },
         page: {
           items: visible,

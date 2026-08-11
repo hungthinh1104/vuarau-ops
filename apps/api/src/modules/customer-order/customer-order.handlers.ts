@@ -42,7 +42,9 @@ async function validateReferences(
   requireActive: boolean,
 ) {
   if (order.customerId !== null) {
-    const customer = await repos.customers.findById(order.workspaceId, order.customerId);
+    const customer = requireActive
+      ? await repos.customers.findByIdForUpdate(order.workspaceId, order.customerId)
+      : await repos.customers.findById(order.workspaceId, order.customerId);
     if (customer === null)
       return err("CUSTOMER_NOT_FOUND", "No such customer in this workspace.", {
         customerId: order.customerId,
@@ -55,7 +57,9 @@ async function validateReferences(
   }
   for (const line of order.lines) {
     if (line.productId === null) continue;
-    const product = await repos.products.findById(order.workspaceId, line.productId);
+    const product = requireActive
+      ? await repos.products.findByIdForUpdate(order.workspaceId, line.productId)
+      : await repos.products.findById(order.workspaceId, line.productId);
     if (product === null)
       return err("PRODUCT_NOT_FOUND", "A referenced product is not in this workspace.", {
         productId: line.productId,

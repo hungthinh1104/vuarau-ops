@@ -9,6 +9,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
+  vietnamBusinessDateForInstant,
   workspaceWorkflowEnabled,
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
@@ -110,6 +111,10 @@ export async function runCommand<
   readonly requiredPermission: Permission;
   /** Every listed workflow must be enabled for a new command to execute. */
   readonly requiredWorkflows?: readonly WorkspaceWorkflow[];
+  /** Close/reopen commands are the explicit exceptions to the closed-day guard. */
+  readonly allowClosedBusinessDay?: boolean;
+  /** Membership administration locks the owner set first, then rechecks auth. */
+  readonly lockAuthorizationMembership?: boolean;
   /** Current response contract used to validate a completed receipt on replay. */
   readonly resultSchema: z.ZodType<TResult>;
   /** Optional safe representation persisted in the idempotency receipt. */
@@ -127,6 +132,8 @@ export async function runCommand<
     ctx,
     requiredPermission,
     requiredWorkflows = [],
+    allowClosedBusinessDay = false,
+    lockAuthorizationMembership = true,
     execute,
   } = options;
   const { deps, principal } = ctx;
@@ -191,13 +198,14 @@ export async function runCommand<
         workspaceId: command.workspaceId,
         permission: requiredPermission,
         claimedActorId: command.actorId,
+        lockMembership: lockAuthorizationMembership,
       });
       if (!authorized.ok) {
         throw new RollbackForRejection(authorized);
       }
 
       const operationalProfile =
-        (await repos.workspaces.findOperationalProfile(command.workspaceId)) ??
+        (await repos.workspaces.findOperationalProfileForUpdate(command.workspaceId)) ??
         defaultWorkspaceOperationalProfile(command.workspaceId);
       const disabledWorkflow = requiredWorkflows.find(
         (workflow) => !workspaceWorkflowEnabled(operationalProfile, workflow),
@@ -210,6 +218,33 @@ export async function runCommand<
             }),
           ),
         );
+      }
+
+      if (!allowClosedBusinessDay) {
+        const businessDate = vietnamBusinessDateForInstant(
+          command.occurredAt,
+          operationalProfile.businessDayStartMinute,
+        );
+        // Closing a business date takes the same transaction-scoped lock. This
+        // makes the check and the subsequent mutation one serialized decision;
+        // a command cannot pass the read and then commit after a concurrent
+        // close has completed.
+        await repos.operationalCloses.lockBusinessDate(command.workspaceId, businessDate);
+        const close = await repos.operationalCloses.findByBusinessDate(
+          command.workspaceId,
+          businessDate,
+        );
+        if (close?.state === "closed") {
+          throw new RollbackForRejection(
+            asRejection(
+              err(
+                "OPERATIONAL_DAY_CLOSED",
+                "The business day is closed; reopen it before recording a backdated change.",
+                { businessDate },
+              ),
+            ),
+          );
+        }
       }
 
       if (deps.pilotScope?.isCommandExcluded(commandType) === true) {

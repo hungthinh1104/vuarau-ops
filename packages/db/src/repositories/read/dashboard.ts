@@ -5,7 +5,6 @@ import {
   type DashboardSeriesDto,
   type DashboardSummaryDto,
   type DashboardTopProductsDto,
-  type OperationsBoardDto,
   type OperationsBoardCountsDto,
   type OperationsBoardCountsInput,
   type OperationsBoardInput,
@@ -14,6 +13,7 @@ import {
   type Quantity,
   type DeliveryId,
   vietnamBusinessDateForInstant,
+  vietnamBusinessDayRange,
 } from "@vuarau/domain-contracts";
 import type { CursorPosition } from "@vuarau/domain-contracts";
 import type { Tx } from "../shared/types.ts";
@@ -67,14 +67,14 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
   const [sales, purchases, received, stock, outstanding, receivables, payables, cash] =
     await Promise.all([
       tx.execute(sql`
-        select count(*)::int as count,
+        select count(*) filter (where s.total_amount_minor - coalesce(sv.amount_minor, 0) > 0)::int as count,
           coalesce(sum(s.total_amount_minor - coalesce(sv.amount_minor, 0)), 0)::bigint as amount
         from sales s
         left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
         where s.workspace_id=${workspaceId}::uuid and s.status='posted'
       `),
       tx.execute(sql`
-        select count(*)::int as count,
+        select count(*) filter (where p.total_amount_minor - coalesce(pv.amount_minor, 0) > 0)::int as count,
           coalesce(sum(p.total_amount_minor - coalesce(pv.amount_minor, 0)), 0)::bigint as amount
         from purchases p
         left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
@@ -101,8 +101,11 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
           group by dl.sale_line_id
         ), returned as (
           select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as value
-          from delivery_return_lines drl join delivery_returns dr on dr.id=drl.return_id
-          join delivery_lines dl on dl.id=drl.delivery_line_id
+          from delivery_return_lines drl
+          join delivery_returns dr
+            on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
+          join delivery_lines dl
+            on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
           where dr.workspace_id=${workspaceId}::uuid group by dl.sale_line_id
         )
         select sl.unit, coalesce(sum(greatest(sl.quantity_scaled-coalesce(dispatched.value,0)+coalesce(returned.value,0),0)),0)::bigint as value
@@ -114,11 +117,11 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
         group by sl.unit
       `),
       tx.execute(sql`
-        select count(*)::int as count, coalesce(sum(greatest(balance_minor,0)),0)::bigint as amount
+        select count(*) filter (where balance_minor > 0)::int as count, coalesce(sum(greatest(balance_minor,0)),0)::bigint as amount
         from customer_account_balances where workspace_id=${workspaceId}::uuid
       `),
       tx.execute(sql`
-        select count(*)::int as count, coalesce(sum(greatest(balance_minor,0)),0)::bigint as amount
+        select count(*) filter (where balance_minor > 0)::int as count, coalesce(sum(greatest(balance_minor,0)),0)::bigint as amount
         from supplier_account_balances where workspace_id=${workspaceId}::uuid
       `),
       tx.execute(sql`
@@ -152,6 +155,11 @@ async function querySeries(
   },
 ): Promise<DashboardSeriesDto> {
   const timestamp = input.now;
+  const today = vietnamBusinessDateForInstant(timestamp, input.businessDayStartMinute);
+  const startOfWindow = new Date(
+    Date.parse(vietnamBusinessDayRange(today, input.businessDayStartMinute).start) -
+      (input.days - 1) * 86_400_000,
+  ).toISOString();
   const [sales, purchases, received, cash] = await Promise.all([
     tx.execute(sql`
       select (s.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date,
@@ -159,7 +167,7 @@ async function querySeries(
         coalesce(sum(s.total_amount_minor-coalesce(sv.amount_minor,0)),0)::bigint as amount
       from sales s left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
-        and s.transaction_time >= (${timestamp}::timestamptz - (${input.days - 1} || ' days')::interval)
+        and s.transaction_time >= ${startOfWindow}::timestamptz
       group by date
     `),
     tx.execute(sql`
@@ -167,7 +175,7 @@ async function querySeries(
         coalesce(sum(p.total_amount_minor-coalesce(pv.amount_minor,0)),0)::bigint as amount
       from purchases p left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
       where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
-        and p.transaction_time >= (${timestamp}::timestamptz - (${input.days - 1} || ' days')::interval)
+        and p.transaction_time >= ${startOfWindow}::timestamptz
       group by date
     `),
     tx.execute(sql`
@@ -176,7 +184,7 @@ async function querySeries(
       from inventory_movements im
       where im.workspace_id=${input.workspaceId}::uuid
         and im.source_type in ('purchase_receipt','purchase_receipt_reversal','quality_disposition','quality_disposition_reversal')
-        and im.transaction_time >= (${timestamp}::timestamptz - (${input.days - 1} || ' days')::interval)
+        and im.transaction_time >= ${startOfWindow}::timestamptz
       group by date, im.unit
     `),
     tx.execute(sql`
@@ -184,12 +192,11 @@ async function querySeries(
         coalesce(sum(cm.amount_minor),0)::bigint as amount
       from cash_movements cm
       where cm.workspace_id=${input.workspaceId}::uuid
-        and cm.transaction_time >= (${timestamp}::timestamptz - (${input.days - 1} || ' days')::interval)
+        and cm.transaction_time >= ${startOfWindow}::timestamptz
       group by date
     `),
   ]);
   const points = new Map<string, DashboardSeriesDto["points"][number]>();
-  const today = vietnamBusinessDateForInstant(timestamp, input.businessDayStartMinute);
   const endDate = new Date(`${today}T00:00:00.000Z`);
   for (let index = 0; index < input.days; index += 1) {
     const date = new Date(endDate.getTime() - (input.days - 1 - index) * 86_400_000)
@@ -242,25 +249,93 @@ async function queryRows(
     now: string;
   },
 ) {
+  const filterClause =
+    input.filter === "needs_receiving"
+      ? sql`physical_state = 'needs_receiving'`
+      : input.filter === "needs_delivery"
+        ? sql`physical_state = 'needs_delivery'`
+        : input.filter === "in_delivery"
+          ? sql`physical_state = 'in_delivery'`
+          : input.filter === "awaiting_payment"
+            ? sql`financial_state = 'awaiting_payment'`
+            : input.filter === "overdue"
+              ? sql`financial_state = 'overdue'`
+              : input.filter === "attention"
+                ? sql`(commercial_state = 'attention' or physical_state = 'attention')`
+                : sql`true`;
+  const searchClause =
+    input.search.length === 0
+      ? sql`true`
+      : sql`lower(reference || ' ' || counterparty) like ${`%${input.search.toLocaleLowerCase()}%`}`;
+  const cursorClause = (() => {
+    const after = input.page.after;
+    if (after === null) return sql`true`;
+    if (input.sort === "amount_desc") {
+      const amount = Number(after.sortValue);
+      return sql`(amount < ${amount} or (amount = ${amount} and id < ${after.id}))`;
+    }
+    if (input.sort === "age_desc") {
+      const age = Number(after.sortValue);
+      return sql`(age_seconds < ${age} or (age_seconds = ${age} and id < ${after.id}))`;
+    }
+    return sql`(updated_at < ${after.sortValue}::timestamptz or (updated_at = ${after.sortValue}::timestamptz and id < ${after.id}))`;
+  })();
+  const orderClause =
+    input.sort === "amount_desc"
+      ? sql`amount desc, id desc`
+      : input.sort === "age_desc"
+        ? sql`age_seconds desc, id desc`
+        : sql`updated_at desc, id desc`;
+  const limitClause =
+    input.page.limit === Number.MAX_SAFE_INTEGER ? sql`all` : sql`${input.page.limit + 1}`;
   const rows = await tx.execute(sql`
     with recursive delivered as (
-      select dl.sale_line_id, max(d.id::text) as delivery_id,
+      select dl.sale_line_id,
         sum(dl.quantity_scaled)::bigint as dispatched
       from delivery_lines dl join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
       where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
       group by dl.sale_line_id
+    ), latest_delivery as (
+      select distinct on (d.sale_id) d.sale_id, d.id as delivery_id
+      from deliveries d
+      where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
+      order by d.sale_id, d.transaction_time desc, d.recorded_at desc, d.id desc
     ), returned as (
       select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as returned
-      from delivery_return_lines drl join delivery_lines dl on dl.id=drl.delivery_line_id
-      join delivery_returns dr on dr.id=drl.return_id
+      from delivery_return_lines drl
+      join delivery_lines dl
+        on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
+      join delivery_returns dr
+        on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
       where dr.workspace_id=${input.workspaceId}::uuid group by dl.sale_line_id
+    ), dispatched_remaining as (
+      select dl.sale_line_id,
+        sum(greatest(dl.quantity_scaled-coalesce(ret.returned,0),0))::bigint as remaining
+      from delivery_lines dl
+      join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
+      left join (
+        select drl.delivery_line_id, sum(drl.quantity_scaled)::bigint as returned
+        from delivery_return_lines drl
+        join delivery_returns dr on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
+        where dr.workspace_id=${input.workspaceId}::uuid
+        group by drl.delivery_line_id
+      ) ret on ret.delivery_line_id=dl.id
+      where dl.workspace_id=${input.workspaceId}::uuid and d.status='dispatched'
+      group by dl.sale_line_id
     ), sale_physical as (
       select s.id,
-        case when coalesce(sum(greatest(sl.quantity_scaled-coalesce(delivered.dispatched,0)+coalesce(returned.returned,0),0)),0)=0 then 'delivered'
-          when count(delivered.delivery_id)>0 then 'in_delivery' else 'needs_delivery' end as physical_state,
-        max(delivered.delivery_id) as delivery_id
+        case
+          when bool_or(coalesce(delivered.dispatched,0)-coalesce(returned.returned,0) > sl.quantity_scaled) then 'attention'
+          when coalesce(sum(greatest(sl.quantity_scaled-coalesce(delivered.dispatched,0)+coalesce(returned.returned,0),0)),0)=0 then 'delivered'
+          when coalesce(sum(dispatched_remaining.remaining),0)>0 then 'in_delivery'
+          else 'needs_delivery'
+        end as physical_state,
+        max(latest_delivery.delivery_id::text)::uuid as delivery_id
       from sales s join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
-      left join delivered on delivered.sale_line_id=sl.id left join returned on returned.sale_line_id=sl.id
+      left join delivered on delivered.sale_line_id=sl.id
+      left join returned on returned.sale_line_id=sl.id
+      left join dispatched_remaining on dispatched_remaining.sale_line_id=sl.id
+      left join latest_delivery on latest_delivery.sale_id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       group by s.id
     ), allocation_reversals as (
@@ -275,6 +350,24 @@ async function queryRows(
       left join allocation_reversals ar
         on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
       where pa.workspace_id=${input.workspaceId}::uuid group by pa.sale_id
+    ), unallocated_by_customer as (
+      select p.customer_id,
+        coalesce(sum(greatest(
+          p.amount_minor-p.reversed_amount_minor-coalesce(allocated_payment.amount,0),
+          0
+        )),0)::bigint as amount
+      from payments p
+      left join (
+        select pa.payment_id,
+          coalesce(sum(pa.amount_minor-coalesce(ar.amount,0)),0)::bigint as amount
+        from payment_allocations pa
+        left join allocation_reversals ar
+          on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
+        where pa.workspace_id=${input.workspaceId}::uuid
+        group by pa.payment_id
+      ) allocated_payment on allocated_payment.payment_id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
+      group by p.customer_id
     ), direct_received as (
       select prl.workspace_id, prl.purchase_line_id,
         coalesce(sum(case when prr.id is null then prl.quantity_scaled else -prl.quantity_scaled end),0)::bigint as received
@@ -326,16 +419,23 @@ async function queryRows(
       select p.id, case when bool_and(pr.received >= pr.quantity_scaled) then 'received' else 'needs_receiving' end as physical_state
       from purchases p join purchase_received pr on pr.purchase_id=p.id
       where p.workspace_id=${input.workspaceId}::uuid group by p.id
-    )
+    ), board_rows as (
     select s.id, 'sale' as kind, ('SALE-' || upper(substr(s.id::text,1,8))) as reference,
       c.display_name as counterparty, s.total_amount_minor as amount, s.currency,
-      case when sv.id is null then 'posted' else 'voided' end as commercial_state,
-      sale_physical.physical_state, case when sv.id is not null then 'voided' when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid' else 'awaiting_payment' end as financial_state,
+      case when sv.id is not null then 'voided' when sale_physical.physical_state='attention' then 'attention' else 'posted' end as commercial_state,
+      sale_physical.physical_state,
+      case
+        when sv.id is not null then 'voided'
+        when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
+        when coalesce(unallocated_by_customer.amount,0) > 0 then 'reconciliation_required'
+        when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
+        else 'awaiting_payment'
+      end as financial_state,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, s.posted_at as updated_at,
-      case when sv.id is not null then null when sale_physical.physical_state='needs_delivery' then 'Giao hàng' when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền' else null end as next_action,
+      case when sv.id is not null then null when sale_physical.physical_state='attention' then 'Kiểm tra' when sale_physical.physical_state='needs_delivery' then 'Giao hàng' when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán' when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền' else null end as next_action,
       sale_physical.delivery_id, ('/sales/' || s.id::text) as href
     from sales s join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
-      join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id
+      join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id left join unallocated_by_customer on unallocated_by_customer.customer_id=s.customer_id
     where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
     union all
     select p.id, 'purchase' as kind, ('PUR-' || upper(substr(p.id::text,1,8))) as reference,
@@ -348,57 +448,48 @@ async function queryRows(
     from purchases p join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id join purchase_physical on purchase_physical.id=p.id
       left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
     where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
-  `);
-  return (rows as Row[]).map((row) => ({
-    id: stringOf(row, "id"),
-    kind: stringOf(row, "kind") as "sale" | "purchase",
-    reference: stringOf(row, "reference"),
-    counterparty: stringOf(row, "counterparty"),
-    amount: asMoney(numberOf(row, "amount")),
-    commercialState: stringOf(row, "commercial_state"),
-    physicalState: stringOf(row, "physical_state"),
-    financialState: stringOf(row, "financial_state"),
-    ageSeconds: numberOf(row, "age_seconds"),
-    nextAction: row["next_action"] === null ? null : stringOf(row, "next_action"),
-    updatedAt: new Date(String(row["updated_at"])).toISOString(),
-    href: stringOf(row, "href"),
-    deliveryId: row["delivery_id"] === null ? null : (stringOf(row, "delivery_id") as DeliveryId),
-  }));
-}
-
-function filterBoardRows(
-  rows: readonly OperationsBoardDto["page"]["items"][number][],
-  input: Pick<OperationsBoardInput, "filter" | "search">,
-) {
-  return rows
-    .filter(
-      (row) =>
-        input.search.length === 0 ||
-        `${row.reference} ${row.counterparty}`
-          .toLocaleLowerCase()
-          .includes(input.search.toLocaleLowerCase()),
     )
-    .filter(
-      (row) =>
-        input.filter === "all" ||
-        (input.filter === "needs_receiving" && row.physicalState === "needs_receiving") ||
-        (input.filter === "needs_delivery" && row.physicalState === "needs_delivery") ||
-        (input.filter === "in_delivery" && row.physicalState === "in_delivery") ||
-        (input.filter === "awaiting_payment" && row.financialState === "awaiting_payment") ||
-        (input.filter === "overdue" && row.financialState === "overdue") ||
-        (input.filter === "attention" && row.commercialState === "attention"),
-    );
-}
-
-function countsForRows(rows: readonly OperationsBoardDto["page"]["items"][number][]) {
+    select board_rows.*,
+      count(*) over() as all_count,
+      count(*) filter (where physical_state='needs_receiving') over() as needs_receiving_count,
+      count(*) filter (where physical_state='needs_delivery') over() as needs_delivery_count,
+      count(*) filter (where physical_state='in_delivery') over() as in_delivery_count,
+      count(*) filter (where financial_state='awaiting_payment') over() as awaiting_payment_count,
+      count(*) filter (where financial_state='overdue') over() as overdue_count,
+      count(*) filter (where commercial_state='attention' or physical_state='attention') over() as attention_count
+    from board_rows
+    where ${searchClause} and ${filterClause} and ${cursorClause}
+    order by ${orderClause}
+    limit ${limitClause}
+  `);
+  const rawRows = rows as Row[];
+  const first = rawRows[0];
+  const counts = {
+    all: first === undefined ? 0 : numberOf(first, "all_count"),
+    needsReceiving: first === undefined ? 0 : numberOf(first, "needs_receiving_count"),
+    needsDelivery: first === undefined ? 0 : numberOf(first, "needs_delivery_count"),
+    inDelivery: first === undefined ? 0 : numberOf(first, "in_delivery_count"),
+    awaitingPayment: first === undefined ? 0 : numberOf(first, "awaiting_payment_count"),
+    overdue: first === undefined ? 0 : numberOf(first, "overdue_count"),
+    attention: first === undefined ? 0 : numberOf(first, "attention_count"),
+  };
   return {
-    all: rows.length,
-    needsReceiving: rows.filter((row) => row.physicalState === "needs_receiving").length,
-    needsDelivery: rows.filter((row) => row.physicalState === "needs_delivery").length,
-    inDelivery: rows.filter((row) => row.physicalState === "in_delivery").length,
-    awaitingPayment: rows.filter((row) => row.financialState === "awaiting_payment").length,
-    overdue: rows.filter((row) => row.financialState === "overdue").length,
-    attention: rows.filter((row) => row.commercialState === "attention").length,
+    counts,
+    rows: rawRows.map((row) => ({
+      id: stringOf(row, "id"),
+      kind: stringOf(row, "kind") as "sale" | "purchase",
+      reference: stringOf(row, "reference"),
+      counterparty: stringOf(row, "counterparty"),
+      amount: asMoney(numberOf(row, "amount")),
+      commercialState: stringOf(row, "commercial_state"),
+      physicalState: stringOf(row, "physical_state"),
+      financialState: stringOf(row, "financial_state"),
+      ageSeconds: numberOf(row, "age_seconds"),
+      nextAction: row["next_action"] === null ? null : stringOf(row, "next_action"),
+      updatedAt: new Date(String(row["updated_at"])).toISOString(),
+      href: stringOf(row, "href"),
+      deliveryId: row["delivery_id"] === null ? null : (stringOf(row, "delivery_id") as DeliveryId),
+    })),
   };
 }
 
@@ -414,20 +505,20 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
     async orderStatusCounts(
       workspaceId: DashboardOrderStatusCountsDto["workspaceId"],
     ): Promise<DashboardOrderStatusCountsDto> {
-      const rows = await queryRows(tx, {
+      const result = await queryRows(tx, {
         workspaceId,
         filter: "all",
         sort: "updated_desc",
         search: "",
         cursor: null,
-        limit: 200,
-        page: { after: null, limit: 200 },
+        limit: Number.MAX_SAFE_INTEGER,
+        page: { after: null, limit: Number.MAX_SAFE_INTEGER },
         now: asOf(),
       });
       const count = (field: "commercialState" | "physicalState" | "financialState") =>
-        [...new Set(rows.map((row) => row[field]))].map((key) => ({
+        [...new Set(result.rows.map((row) => row[field]))].map((key) => ({
           key,
-          count: rows.filter((row) => row[field] === key).length,
+          count: result.rows.filter((row) => row[field] === key).length,
         }));
       return {
         workspaceId,
@@ -440,7 +531,7 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
     async operationsBoardCounts(
       input: OperationsBoardCountsInput & { readonly now: string },
     ): Promise<OperationsBoardCountsDto> {
-      const rows = await queryRows(tx, {
+      const result = await queryRows(tx, {
         ...input,
         sort: "updated_desc",
         cursor: null,
@@ -450,7 +541,7 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
       return {
         workspaceId: input.workspaceId,
         asOf: input.now,
-        counts: countsForRows(filterBoardRows(rows, input)),
+        counts: result.counts,
       };
     },
     async topProducts(input: DashboardTopProductsInput) {
@@ -482,24 +573,8 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
         now: string;
       },
     ) {
-      const allRows = await queryRows(tx, input);
-      const filtered = filterBoardRows(allRows, input).sort((left, right) =>
-        input.sort === "amount_desc"
-          ? right.amount.amountMinor - left.amount.amountMinor
-          : input.sort === "age_desc"
-            ? right.ageSeconds - left.ageSeconds
-            : right.updatedAt.localeCompare(left.updatedAt) || right.id.localeCompare(left.id),
-      );
-      const after = input.page.after;
-      const visible = filtered
-        .filter(
-          (row) =>
-            after === null ||
-            (input.sort === "updated_desc"
-              ? `${row.updatedAt}|${row.id}` < `${after.sortValue}|${after.id}`
-              : row.id < after.id),
-        )
-        .slice(0, input.page.limit);
+      const result = await queryRows(tx, input);
+      const visible = result.rows.slice(0, input.page.limit);
       const last = visible.at(-1);
       const sortValue =
         last === undefined
@@ -507,13 +582,13 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
           : input.sort === "amount_desc"
             ? String(last.amount.amountMinor)
             : input.sort === "age_desc"
-              ? String(Math.round(last.ageSeconds))
+              ? String(last.ageSeconds)
               : last.updatedAt;
-      const hasNext = last !== undefined && filtered.length > visible.length;
+      const hasNext = result.rows.length > visible.length;
       return {
         workspaceId: input.workspaceId,
         asOf: input.now,
-        counts: countsForRows(filtered),
+        counts: result.counts,
         page: {
           items: visible,
           nextCursor:

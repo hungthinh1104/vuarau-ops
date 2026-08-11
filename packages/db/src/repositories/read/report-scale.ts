@@ -1,5 +1,11 @@
 import { sql } from "drizzle-orm";
-import { encodeCursor, vietnamBusinessDayRange, type Unit } from "@vuarau/domain-contracts";
+import {
+  encodeCursor,
+  vietnamBusinessDayRange,
+  type OperationalReportDto,
+  type Unit,
+} from "@vuarau/domain-contracts";
+import { classifyInventory } from "@vuarau/domain-kernel";
 import { money } from "../row-mappers.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Page } from "../shared/read-helpers.ts";
@@ -15,6 +21,289 @@ type ScaleReportArgs = {
 };
 
 type RawRow = Record<string, unknown>;
+
+export type ProjectionReportArgs = {
+  readonly workspaceId: string;
+  readonly businessDate: string | null;
+  readonly businessDayStartMinute?: number;
+  readonly productId: string | null;
+  readonly unit: Unit | null;
+  readonly page: Page;
+};
+
+type ProjectionRow = OperationalReportDto["page"]["items"][number];
+
+export function nextProjectionCursor(
+  rows: readonly Record<string, unknown>[],
+  limit: number,
+  timeField: string,
+) {
+  if (rows.length <= limit) return null;
+  const row = rows[limit - 1]!;
+  const rawTime = row[timeField];
+  return encodeCursor({
+    sortValue: rawTime === null ? "" : new Date(String(rawTime)).toISOString(),
+    id: String(row["id"] ?? row["account_id"] ?? row["movement_id"] ?? row["expense_id"]),
+  });
+}
+
+function amountTotal(raw: Record<string, unknown> | undefined, label: string) {
+  return money(persistedBigintToSafeNumber(raw?.["amount"] ?? 0, `${label} total`), "VND");
+}
+
+export async function cashBalancesAtScale(
+  tx: Tx,
+  args: ProjectionReportArgs,
+): Promise<OperationalReportDto> {
+  const after = args.page.after;
+  const values = (await tx.execute(sql`
+    select a.id, a.display_name, a.is_active, a.currency,
+      b.balance_minor, b.last_movement_transaction_time
+    from cash_accounts a
+    left join cash_balances b
+      on b.workspace_id=a.workspace_id and b.cash_account_id=a.id
+    where a.workspace_id=${args.workspaceId}::uuid
+      and (
+        ${after === null ? null : after.sortValue || null}::timestamptz is null
+        or (
+          ${after?.sortValue === "" ? sql`b.last_movement_transaction_time is null and a.id < ${after.id}::uuid` : sql`(coalesce(b.last_movement_transaction_time, '-infinity'::timestamptz), a.id) < (coalesce(${after?.sortValue ?? null}::timestamptz, '-infinity'::timestamptz), ${after?.id ?? null}::uuid)`}
+        )
+      )
+    order by coalesce(b.last_movement_transaction_time, '-infinity'::timestamptz) desc, a.id desc
+    limit ${args.page.limit + 1}
+  `)) as Record<string, unknown>[];
+  const total = (await tx.execute(sql`
+    select coalesce(sum(coalesce(b.balance_minor, 0)), 0)::bigint as amount
+    from cash_accounts a
+    left join cash_balances b
+      on b.workspace_id=a.workspace_id and b.cash_account_id=a.id
+    where a.workspace_id=${args.workspaceId}::uuid
+  `)) as Record<string, unknown>[];
+  const items: ProjectionRow[] = values.slice(0, args.page.limit).map((row) => ({
+    id: String(row["id"]),
+    label: String(row["display_name"]),
+    productId: null,
+    productName: null,
+    qualityGradeId: null,
+    qualityGradeName: null,
+    sourceType: "cash_account",
+    sourceId: String(row["id"]),
+    documentHref: `/cash/accounts/${String(row["id"])}`,
+    transactionTime:
+      row["last_movement_transaction_time"] === null
+        ? null
+        : new Date(String(row["last_movement_transaction_time"])).toISOString(),
+    amount: money(
+      persistedBigintToSafeNumber(row["balance_minor"] ?? 0, "cash balance row"),
+      String(row["currency"]) as "VND",
+    ),
+    quantity: null,
+    status: row["is_active"] === true ? "active" : "inactive",
+  }));
+  return {
+    reportType: "cash_balances",
+    businessDate: args.businessDate,
+    timezone: "Asia/Ho_Chi_Minh",
+    integrity: "healthy",
+    diagnostics: [],
+    totals: { amount: amountTotal(total[0], "cash balance"), quantities: [] },
+    page: {
+      items,
+      nextCursor: nextProjectionCursor(values, args.page.limit, "last_movement_transaction_time"),
+    },
+  };
+}
+
+export async function cashMovementAtScale(
+  tx: Tx,
+  args: ProjectionReportArgs,
+): Promise<OperationalReportDto> {
+  const range =
+    args.businessDate === null
+      ? null
+      : vietnamBusinessDayRange(args.businessDate, args.businessDayStartMinute ?? 0);
+  const after = args.page.after;
+  const values = (await tx.execute(sql`
+    select m.id, m.amount_minor, m.currency, m.source_type, m.source_id,
+      m.transaction_time, a.display_name
+    from cash_movements m
+    join cash_accounts a on a.workspace_id=m.workspace_id and a.id=m.cash_account_id
+    where m.workspace_id=${args.workspaceId}::uuid
+      ${range === null ? sql`` : sql`and m.transaction_time >= ${range.start}::timestamptz and m.transaction_time < ${range.end}::timestamptz`}
+      ${after === null ? sql`` : sql`and (m.transaction_time < ${after.sortValue}::timestamptz or (m.transaction_time = ${after.sortValue}::timestamptz and m.id < ${after.id}::uuid))`}
+    order by m.transaction_time desc, m.id desc
+    limit ${args.page.limit + 1}
+  `)) as Record<string, unknown>[];
+  const total = (await tx.execute(sql`
+    select coalesce(sum(m.amount_minor), 0)::bigint as amount
+    from cash_movements m
+    where m.workspace_id=${args.workspaceId}::uuid
+      ${range === null ? sql`` : sql`and m.transaction_time >= ${range.start}::timestamptz and m.transaction_time < ${range.end}::timestamptz`}
+  `)) as Record<string, unknown>[];
+  const items: ProjectionRow[] = values.slice(0, args.page.limit).map((row) => ({
+    id: String(row["id"]),
+    label: `${String(row["display_name"])} · ${String(row["source_type"])}`,
+    productId: null,
+    productName: null,
+    qualityGradeId: null,
+    qualityGradeName: null,
+    sourceType: String(row["source_type"]),
+    sourceId: String(row["source_id"]),
+    documentHref: `/cash/accounts/${String(row["id"])}`,
+    transactionTime: new Date(String(row["transaction_time"])).toISOString(),
+    amount: money(
+      persistedBigintToSafeNumber(row["amount_minor"], "cash movement row"),
+      String(row["currency"]) as "VND",
+    ),
+    quantity: null,
+    status: Number(row["amount_minor"]) >= 0 ? "cash_in" : "cash_out",
+  }));
+  return {
+    reportType: "cash_movement_report",
+    businessDate: args.businessDate,
+    timezone: "Asia/Ho_Chi_Minh",
+    integrity: "healthy",
+    diagnostics: [],
+    totals: { amount: amountTotal(total[0], "cash movement"), quantities: [] },
+    page: {
+      items,
+      nextCursor: nextProjectionCursor(values, args.page.limit, "transaction_time"),
+    },
+  };
+}
+
+export async function expenseAtScale(
+  tx: Tx,
+  args: ProjectionReportArgs,
+): Promise<OperationalReportDto> {
+  const range =
+    args.businessDate === null
+      ? null
+      : vietnamBusinessDayRange(args.businessDate, args.businessDayStartMinute ?? 0);
+  const after = args.page.after;
+  const values = (await tx.execute(sql`
+    select e.id, e.category, e.amount_minor, e.currency, e.transaction_time,
+      a.display_name
+    from expenses e
+    join cash_accounts a on a.workspace_id=e.workspace_id and a.id=e.cash_account_id
+    left join expense_reversals er on er.workspace_id=e.workspace_id and er.expense_id=e.id
+    where e.workspace_id=${args.workspaceId}::uuid and er.id is null
+      ${range === null ? sql`` : sql`and e.transaction_time >= ${range.start}::timestamptz and e.transaction_time < ${range.end}::timestamptz`}
+      ${after === null ? sql`` : sql`and (e.transaction_time < ${after.sortValue}::timestamptz or (e.transaction_time = ${after.sortValue}::timestamptz and e.id < ${after.id}::uuid))`}
+    order by e.transaction_time desc, e.id desc
+    limit ${args.page.limit + 1}
+  `)) as Record<string, unknown>[];
+  const total = (await tx.execute(sql`
+    select coalesce(sum(e.amount_minor), 0)::bigint as amount
+    from expenses e
+    left join expense_reversals er on er.workspace_id=e.workspace_id and er.expense_id=e.id
+    where e.workspace_id=${args.workspaceId}::uuid and er.id is null
+      ${range === null ? sql`` : sql`and e.transaction_time >= ${range.start}::timestamptz and e.transaction_time < ${range.end}::timestamptz`}
+  `)) as Record<string, unknown>[];
+  const items: ProjectionRow[] = values.slice(0, args.page.limit).map((row) => ({
+    id: String(row["id"]),
+    label: `${String(row["category"])} · ${String(row["display_name"])}`,
+    productId: null,
+    productName: null,
+    qualityGradeId: null,
+    qualityGradeName: null,
+    sourceType: "expense",
+    sourceId: String(row["id"]),
+    documentHref: `/cash/expenses/${String(row["id"])}`,
+    transactionTime: new Date(String(row["transaction_time"])).toISOString(),
+    amount: money(
+      persistedBigintToSafeNumber(row["amount_minor"], "expense row"),
+      String(row["currency"]) as "VND",
+    ),
+    quantity: null,
+    status: "expense",
+  }));
+  return {
+    reportType: "expense_report",
+    businessDate: args.businessDate,
+    timezone: "Asia/Ho_Chi_Minh",
+    integrity: "healthy",
+    diagnostics: [],
+    totals: { amount: amountTotal(total[0], "expense"), quantities: [] },
+    page: {
+      items,
+      nextCursor: nextProjectionCursor(values, args.page.limit, "transaction_time"),
+    },
+  };
+}
+
+export async function inventoryBalancesAtScale(
+  tx: Tx,
+  args: ProjectionReportArgs,
+): Promise<OperationalReportDto> {
+  const after = args.page.after;
+  const values = (await tx.execute(sql`
+    select ib.product_id, ib.quality_grade_id, ib.unit, ib.quantity_scaled,
+      ib.product_id::text || ':' || coalesce(ib.quality_grade_id::text, 'legacy') || ':' || ib.unit::text as id,
+      ib.last_movement_transaction_time, p.name as product_name, q.name as grade_name
+    from inventory_balances ib
+    join products p on p.workspace_id=ib.workspace_id and p.id=ib.product_id
+    left join quality_grades q on q.workspace_id=ib.workspace_id and q.id=ib.quality_grade_id
+    where ib.workspace_id=${args.workspaceId}::uuid
+      ${args.productId === null ? sql`` : sql`and ib.product_id=${args.productId}::uuid`}
+      ${args.unit === null ? sql`` : sql`and ib.unit=${args.unit}::unit`}
+      ${after === null ? sql`` : after.sortValue === "" ? sql`and ib.last_movement_transaction_time is null and ib.product_id::text || ':' || coalesce(ib.quality_grade_id::text, 'legacy') || ':' || ib.unit::text < ${after.id}` : sql`and (coalesce(ib.last_movement_transaction_time, '-infinity'::timestamptz) < ${after.sortValue}::timestamptz or (coalesce(ib.last_movement_transaction_time, '-infinity'::timestamptz) = ${after.sortValue}::timestamptz and ib.product_id::text || ':' || coalesce(ib.quality_grade_id::text, 'legacy') || ':' || ib.unit::text < ${after.id}))`}
+    order by coalesce(ib.last_movement_transaction_time, '-infinity'::timestamptz) desc,
+      ib.product_id::text || ':' || coalesce(ib.quality_grade_id::text, 'legacy') || ':' || ib.unit::text desc
+    limit ${args.page.limit + 1}
+  `)) as Record<string, unknown>[];
+  const totals = (await tx.execute(sql`
+    select ib.unit, coalesce(sum(ib.quantity_scaled), 0)::bigint as quantity
+    from inventory_balances ib
+    where ib.workspace_id=${args.workspaceId}::uuid
+      ${args.productId === null ? sql`` : sql`and ib.product_id=${args.productId}::uuid`}
+      ${args.unit === null ? sql`` : sql`and ib.unit=${args.unit}::unit`}
+    group by ib.unit
+  `)) as Record<string, unknown>[];
+  const items: ProjectionRow[] = values.slice(0, args.page.limit).map((row) => {
+    const id = `${String(row["product_id"])}:${row["quality_grade_id"] === null ? "legacy" : String(row["quality_grade_id"])}:${String(row["unit"])}`;
+    const quantity = persistedBigintToSafeNumber(row["quantity_scaled"], "inventory balance row");
+    return {
+      id,
+      label: `${String(row["product_name"])} · ${row["grade_name"] === null ? "Chưa phân hạng" : String(row["grade_name"])} · ${String(row["unit"])}`,
+      productId: String(row["product_id"]),
+      productName: String(row["product_name"]),
+      qualityGradeId: row["quality_grade_id"] === null ? null : String(row["quality_grade_id"]),
+      qualityGradeName: row["grade_name"] === null ? null : String(row["grade_name"]),
+      sourceType: "product",
+      sourceId: String(row["product_id"]),
+      documentHref: `/products/${String(row["product_id"])}/inventory`,
+      transactionTime:
+        row["last_movement_transaction_time"] === null
+          ? null
+          : new Date(String(row["last_movement_transaction_time"])).toISOString(),
+      amount: null,
+      quantity: {
+        valueScaled: quantity,
+        unit: row["unit"] as Unit,
+      },
+      status: classifyInventory(quantity),
+    };
+  });
+  return {
+    reportType: "inventory_by_product_unit",
+    businessDate: args.businessDate,
+    timezone: "Asia/Ho_Chi_Minh",
+    integrity: "healthy",
+    diagnostics: [],
+    totals: {
+      amount: null,
+      quantities: totals.map((row) => ({
+        unit: row["unit"] as Unit,
+        valueScaled: persistedBigintToSafeNumber(row["quantity"], "inventory balance total"),
+      })),
+    },
+    page: {
+      items,
+      nextCursor: nextProjectionCursor(values, args.page.limit, "last_movement_transaction_time"),
+    },
+  };
+}
 const iso = (value: unknown): string => new Date(String(value)).toISOString();
 const businessDateRange = (
   businessDate: string | null,
@@ -147,7 +436,7 @@ export async function inventoryMovementReportAtScale(tx: Tx, args: ScaleReportAr
         else '/inventory-adjustments/' || m.source_id::text
       end document_href
     from inventory_movements m
-    join products p on p.id=m.product_id
+    join products p on p.workspace_id=m.workspace_id and p.id=m.product_id
     where m.workspace_id=${args.workspaceId}::uuid
       and (${args.productId}::uuid is null or m.product_id=${args.productId}::uuid)
       and (${args.unit}::unit is null or m.unit=${args.unit}::unit)

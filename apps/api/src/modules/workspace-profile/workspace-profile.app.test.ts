@@ -97,4 +97,34 @@ describe("workspace operational profile", () => {
       details: { workflow: "purchasing" },
     });
   });
+
+  it("locks business-day boundary changes after canonical activity exists", async () => {
+    const supplier = await createSupplier(harness.ctx, {
+      ...envelope("supplier-before-boundary-change"),
+      payload: {
+        supplierId: crypto.randomUUID(),
+        displayName: "Nhà vườn đã ghi nhận",
+        phone: null,
+        note: null,
+      },
+    });
+    expect(supplier.ok).toBe(true);
+
+    const result = await updateWorkspaceOperationalProfile(harness.ctx, {
+      ...envelope("profile-boundary-after-activity"),
+      expectedVersion: 1,
+      payload: {
+        purchasingMode: "purchase_receiving",
+        inventoryMode: "movement_ledger",
+        qualityGradeMode: "required",
+        deliveryMode: "sale_fulfilment",
+        businessDayStartMinute: 4 * 60,
+        reason: "Đổi giờ chốt ngày sau khi đã ghi nhận dữ liệu.",
+      },
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "WORKSPACE_PROFILE_BOUNDARY_CHANGE_LOCKED" },
+    });
+  });
 });

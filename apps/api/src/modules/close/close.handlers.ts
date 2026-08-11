@@ -133,6 +133,7 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "operations.close",
+    allowClosedBusinessDay: true,
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       await repos.operationalCloses.lockBusinessDate(
         command.workspaceId,
@@ -199,6 +200,7 @@ export function reopenOperationalClose(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "operations.close",
+    allowClosedBusinessDay: true,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.operationalCloses.findByIdForUpdate(
         command.workspaceId,

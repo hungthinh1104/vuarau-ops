@@ -78,6 +78,7 @@ function stateLabel(value: string): string {
     paid: "Đã thanh toán",
     payable: "Phải trả",
     overdue: "Quá hạn",
+    reconciliation_required: "Cần đối soát",
     attention: "Cần kiểm tra",
   };
   return labels[value] ?? "Cần kiểm tra";
@@ -86,10 +87,18 @@ function stateLabel(value: string): string {
 function stateTone(value: string): "info" | "warning" | "positive" | "neutral" {
   if (["paid", "received", "delivered"].includes(value)) return "positive";
   if (
-    ["needs_delivery", "needs_receiving", "awaiting_payment", "payable", "overdue"].includes(value)
+    [
+      "needs_delivery",
+      "needs_receiving",
+      "awaiting_payment",
+      "payable",
+      "overdue",
+      "reconciliation_required",
+    ].includes(value)
   )
     return "warning";
-  if (["in_delivery", "posted", "confirmed"].includes(value)) return "info";
+  if (["in_delivery", "posted", "confirmed", "reconciliation_required"].includes(value))
+    return "info";
   return "neutral";
 }
 

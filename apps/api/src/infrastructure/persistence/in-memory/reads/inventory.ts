@@ -9,6 +9,7 @@ import {
   deriveProductCoverageQuantity,
   type InventoryValuationMovement,
 } from "@vuarau/domain-kernel";
+import { PersistedIntegrityError } from "@vuarau/db";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
@@ -160,6 +161,11 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           const received =
             (receivedByPurchaseLine.get(line.lineId) ?? 0) +
             (acceptedByPurchaseLine.get(line.lineId) ?? 0);
+          if (received > line.quantity.valueScaled) {
+            throw new PersistedIntegrityError(
+              "Product coverage contains an over-received purchase line.",
+            );
+          }
           ensure(line.productId, line.quantity.unit).inboundRemaining += Math.max(
             0,
             line.quantity.valueScaled - received,
@@ -203,9 +209,15 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           continue;
         for (const line of sale.lines) {
           if (line.productId === null || !requested.has(line.productId)) continue;
+          const fulfilled = fulfilmentBySaleLine.get(line.lineId) ?? 0;
+          if (fulfilled > line.quantity.valueScaled) {
+            throw new PersistedIntegrityError(
+              "Product coverage contains an over-fulfilled sale line.",
+            );
+          }
           ensure(line.productId, line.quantity.unit).outboundRemaining += Math.max(
             0,
-            line.quantity.valueScaled - (fulfilmentBySaleLine.get(line.lineId) ?? 0),
+            line.quantity.valueScaled - fulfilled,
           );
         }
       }

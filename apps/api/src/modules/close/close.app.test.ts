@@ -196,6 +196,22 @@ describe("operational close", () => {
         period: { start: "2026-07-19T17:00:00.000Z", end: "2026-07-20T17:00:00.000Z" },
       },
     });
+    const backdated = await recordCustomerPayment(harness.ctx, {
+      ...envelope("backdated-after-close"),
+      occurredAt: "2026-07-20T12:00:00.000+07:00",
+      payload: {
+        paymentId: uuid(),
+        customerId: activeCustomer.id,
+        amount: { amountMinor: 10_000, currency: "VND" },
+        method: "cash",
+        payerName: null,
+        note: null,
+      },
+    });
+    expect(backdated).toMatchObject({
+      ok: false,
+      error: { code: "OPERATIONAL_DAY_CLOSED", details: { businessDate: "2026-07-20" } },
+    });
     const duplicateDate = await recordOperationalClose(harness.ctx, {
       ...envelope("duplicate-date"),
       payload: { ...command.payload, operationalCloseId: uuid() },

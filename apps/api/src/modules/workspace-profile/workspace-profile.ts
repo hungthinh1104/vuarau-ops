@@ -44,7 +44,7 @@ export function updateWorkspaceOperationalProfile(
     requiredPermission: "workspace.manage",
     execute: async ({ command, repos, recordedAt }) => {
       const current =
-        (await repos.workspaces.findOperationalProfile(command.workspaceId)) ??
+        (await repos.workspaces.findOperationalProfileForUpdate(command.workspaceId)) ??
         defaultWorkspaceOperationalProfile(command.workspaceId);
       const decision = decideUpdateWorkspaceOperationalProfile({
         command,
@@ -52,6 +52,15 @@ export function updateWorkspaceOperationalProfile(
         recordedAt,
       });
       if (!decision.ok) return decision;
+      if (
+        decision.value.profile.businessDayStartMinute !== current.businessDayStartMinute &&
+        (await repos.workspaces.hasCanonicalActivity(command.workspaceId))
+      ) {
+        return err(
+          "WORKSPACE_PROFILE_BOUNDARY_CHANGE_LOCKED",
+          "The business-day boundary cannot change after canonical activity exists.",
+        );
+      }
       const updated = await repos.workspaces.updateOperationalProfile(
         decision.value.profile,
         current.version,

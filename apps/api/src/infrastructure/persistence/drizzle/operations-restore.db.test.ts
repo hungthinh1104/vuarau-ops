@@ -345,7 +345,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
               {
                 lineId: purchaseLineId,
                 productId,
-                productName: "Cải ngọt snapshot",
+                productName: "Cải ngọt phục hồi",
                 quantity: { valueScaled: 10_000, unit: "kg" },
                 unitPrice: { amountMinor: 5_000, currency: "VND" },
               },

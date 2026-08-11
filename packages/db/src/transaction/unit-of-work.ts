@@ -14,7 +14,8 @@ import { createReadRepositories } from "../repositories/read-queries.ts";
  * the caller's membership row for the transaction, so a concurrent revoke
  * cannot commit between the access decision and the protected read or write.
  *
- * Isolation is Postgres's default READ COMMITTED. Authorization and aggregate
+ * Commands use Postgres's default READ COMMITTED. Read queries may opt into a
+ * transaction-wide REPEATABLE READ snapshot. Authorization and aggregate
  * races are prevented by `SELECT … FOR UPDATE` plus a version check (ADR-0009) rather than by
  * SERIALIZABLE, so a conflict surfaces as a precise `SALE_VERSION_CONFLICT` the
  * UI can explain instead of a generic serialisation failure it cannot.
@@ -28,15 +29,19 @@ export function createUnitOfWork(database: Database["db"], ids: IdMinter) {
       work: (
         repos: ReturnType<typeof createRepositories> & ReturnType<typeof createReadRepositories>,
       ) => Promise<T>,
+      options: { readonly isolationLevel?: "repeatable read" } = {},
     ): Promise<T> {
-      return database.transaction(async (tx) => {
-        // The cast bridges Drizzle's fully-parameterised transaction type to the
-        // loose one the repositories accept; the runtime object is the same.
-        return work({
-          ...createRepositories(tx as never, ids),
-          ...createReadRepositories(tx as never),
-        });
-      });
+      return database.transaction(
+        async (tx) => {
+          // The cast bridges Drizzle's fully-parameterised transaction type to the
+          // loose one the repositories accept; the runtime object is the same.
+          return work({
+            ...createRepositories(tx as never, ids),
+            ...createReadRepositories(tx as never),
+          });
+        },
+        options.isolationLevel ? { isolationLevel: options.isolationLevel } : undefined,
+      );
     },
   } as unknown;
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   recordPriceRuleCommandSchema,
   resolvePriceInputSchema,
+  type RecordPriceRuleCommand,
   type PriceRuleKind,
 } from "@vuarau/domain-contracts";
 import type { PriceRuleState } from "../shared/state.ts";
@@ -110,6 +111,14 @@ describe("pricing rules", () => {
     expect(
       decideRecordPriceRule(command({ baseUnitPriceMinor: 100, discountMinor: 101 }), RECORDED_AT),
     ).toMatchObject({ ok: false, error: { code: "PRICING_RULE_INVALID" } });
+    const unsafe = {
+      ...command(),
+      payload: { ...command().payload, minimumQuantityScaled: -1 },
+    } as RecordPriceRuleCommand;
+    expect(decideRecordPriceRule(unsafe, RECORDED_AT)).toMatchObject({
+      ok: false,
+      error: { code: "PRICING_RULE_INVALID" },
+    });
   });
 
   it("selects the explicit highest-priority applicable rule", () => {

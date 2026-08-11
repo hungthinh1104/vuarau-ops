@@ -49,6 +49,19 @@ const create = (quantity = 2_000): CreatePurchaseDraftCommand =>
 
 // TC-GOODS-003
 describe("Purchase lifecycle", () => {
+  it("rejects duplicate child line identities", () => {
+    const base = create();
+    const result = decideCreatePurchaseDraft(
+      {
+        ...base,
+        payload: { ...base.payload, lines: [base.payload.lines[0]!, base.payload.lines[0]!] },
+      },
+      "2026-07-29T01:00:01.000Z",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("PURCHASE_LINE_INVALID");
+  });
+
   it("uses canonical Sale arithmetic and freezes a confirmed snapshot", () => {
     const draft = decideCreatePurchaseDraft(create(), "2026-07-29T01:00:01.000Z");
     expect(draft.ok && draft.value.totalAmount.amountMinor).toBe(50_000);

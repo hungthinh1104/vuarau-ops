@@ -31,6 +31,7 @@ import {
   saleVoids,
 } from "../../schema/index.ts";
 import { deriveProductCoverageQuantity } from "@vuarau/domain-kernel";
+import { PersistedIntegrityError } from "../../errors.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -114,12 +115,16 @@ export async function readProductCoverage(
       group by root_line.purchase_line_id
     ), inbound as (
       select pl.product_id, pl.unit,
-        sum(greatest(
+        sum(
           pl.quantity_scaled
             - coalesce(legacy_received.quantity, 0)
-            - coalesce(accepted_received.quantity, 0),
-          0
-        ))::bigint as quantity
+            - coalesce(accepted_received.quantity, 0)
+        )::bigint as quantity,
+        bool_or(
+          pl.quantity_scaled
+            - coalesce(legacy_received.quantity, 0)
+            - coalesce(accepted_received.quantity, 0) < 0
+        ) as invalid
       from ${purchaseLines} pl
       join ${purchases} purchase
         on purchase.workspace_id = pl.workspace_id and purchase.id = pl.purchase_id
@@ -144,8 +149,12 @@ export async function readProductCoverage(
     ), returned as (
       select dl.sale_line_id, sum(return_line.quantity_scaled)::bigint as quantity
       from ${deliveryReturnLines} return_line
-      join ${deliveryReturns} delivery_return on delivery_return.id = return_line.return_id
-      join ${deliveryLines} dl on dl.id = return_line.delivery_line_id
+      join ${deliveryReturns} delivery_return
+        on delivery_return.workspace_id = return_line.workspace_id
+        and delivery_return.id = return_line.return_id
+      join ${deliveryLines} dl
+        on dl.workspace_id = return_line.workspace_id
+        and dl.id = return_line.delivery_line_id
       join ${deliveries} delivery
         on delivery.workspace_id = delivery_return.workspace_id
         and delivery.id = delivery_return.delivery_id
@@ -155,12 +164,16 @@ export async function readProductCoverage(
       group by dl.sale_line_id
     ), outbound as (
       select sl.product_id, sl.unit,
-        sum(greatest(
+        sum(
           sl.quantity_scaled
             - coalesce(dispatched.quantity, 0)
-            + coalesce(returned.quantity, 0),
-          0
-        ))::bigint as quantity
+            + coalesce(returned.quantity, 0)
+        )::bigint as quantity,
+        bool_or(
+          sl.quantity_scaled
+            - coalesce(dispatched.quantity, 0)
+            + coalesce(returned.quantity, 0) < 0
+        ) as invalid
       from ${saleLines} sl
       join ${sales} sale
         on sale.workspace_id = sl.workspace_id and sale.id = sl.sale_id
@@ -184,7 +197,8 @@ export async function readProductCoverage(
     select coverage_units.product_id as "productId", coverage_units.unit as "unit",
       coalesce(on_hand.quantity, 0)::bigint as "onHand",
       coalesce(inbound.quantity, 0)::bigint as "inboundRemaining",
-      coalesce(outbound.quantity, 0)::bigint as "outboundRemaining"
+      coalesce(outbound.quantity, 0)::bigint as "outboundRemaining",
+      coalesce(inbound.invalid, false) or coalesce(outbound.invalid, false) as "invalid"
     from coverage_units
     left join on_hand using (product_id, unit)
     left join inbound using (product_id, unit)
@@ -200,7 +214,13 @@ export async function readProductCoverage(
     onHand: number | string;
     inboundRemaining: number | string;
     outboundRemaining: number | string;
+    invalid: boolean;
   }>) {
+    if (raw.invalid) {
+      throw new PersistedIntegrityError(
+        "Product coverage contains an over-received or over-fulfilled source line.",
+      );
+    }
     const onHand = persistedBigintToSafeNumber(raw.onHand, "product coverage on-hand quantity");
     const inboundRemaining = persistedBigintToSafeNumber(
       raw.inboundRemaining,

@@ -40,7 +40,14 @@ function validateLines(
   requireConfirmationFields: boolean,
 ): DomainResult<readonly CustomerOrderLineState[]> {
   const result: CustomerOrderLineState[] = [];
+  const seenLineIds = new Set<string>();
   for (const [index, line] of lines.entries()) {
+    if (seenLineIds.has(line.lineId))
+      return err(
+        "CUSTOMER_ORDER_LINE_INVALID",
+        `Customer Order line ${index} has a duplicate line id.`,
+      );
+    seenLineIds.add(line.lineId);
     if (
       line.productName.trim().length === 0 ||
       line.quantity.valueScaled <= 0 ||

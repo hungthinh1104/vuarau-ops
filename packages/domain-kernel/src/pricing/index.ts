@@ -42,7 +42,8 @@ export function decideRecordPriceRule(
     !validMoney(payload.discountPerUnit.amountMinor) ||
     !validMoney(payload.feePerUnit.amountMinor) ||
     !Number.isSafeInteger(payload.priority) ||
-    !Number.isSafeInteger(payload.minimumQuantityScaled)
+    !Number.isSafeInteger(payload.minimumQuantityScaled) ||
+    payload.minimumQuantityScaled < 0
   ) {
     return err(
       "PRICING_RULE_INVALID",

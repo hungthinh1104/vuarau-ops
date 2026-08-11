@@ -12,6 +12,7 @@ import type {
   Quantity,
 } from "@vuarau/domain-contracts";
 import { encodeCursor, vietnamBusinessDateForInstant } from "@vuarau/domain-contracts";
+import type { DeliveryState } from "@vuarau/domain-kernel";
 import type { Repositories } from "../../ports.ts";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
@@ -104,7 +105,12 @@ function acceptedAfterInspectionFor(store: Store, workspaceId: string): Map<stri
   return accepted;
 }
 
-function saleFinancialState(store: Store, workspaceId: string, saleId: string): string {
+function saleFinancialState(
+  store: Store,
+  workspaceId: string,
+  saleId: string,
+  asOf: string,
+): string {
   const sale = store.sales.get(key(workspaceId, saleId));
   if (sale?.voidRecord !== null && sale?.voidRecord !== undefined) return "voided";
   const allocated = store.paymentAllocations
@@ -118,9 +124,50 @@ function saleFinancialState(store: Store, workspaceId: string, saleId: string): 
       ),
     )
     .reduce((sum, reversal) => sum + reversal.amount.amountMinor, 0);
-  return sale !== undefined && allocated - reversed >= sale.totalAmount.amountMinor
-    ? "paid"
-    : "awaiting_payment";
+  if (sale !== undefined && allocated - reversed >= sale.totalAmount.amountMinor) return "paid";
+  const unallocated = [...store.payments.values()]
+    .filter(
+      (payment) =>
+        payment.workspaceId === workspaceId &&
+        payment.customerId === sale?.customerId &&
+        payment.status !== "reversed",
+    )
+    .reduce((sum, payment) => {
+      const allocatedToPayment = store.paymentAllocations
+        .filter(
+          (allocation) =>
+            allocation.workspaceId === workspaceId && allocation.paymentId === payment.id,
+        )
+        .reduce((total, allocation) => total + allocation.amount.amountMinor, 0);
+      const reversedAllocations = store.paymentAllocationReversals
+        .filter(
+          (reversal) =>
+            reversal.workspaceId === workspaceId &&
+            store.paymentAllocations.some(
+              (allocation) =>
+                allocation.id === reversal.allocationId && allocation.paymentId === payment.id,
+            ),
+        )
+        .reduce((total, reversal) => total + reversal.amount.amountMinor, 0);
+      return (
+        sum +
+        Math.max(
+          0,
+          payment.amount.amountMinor -
+            payment.reversedAmount.amountMinor -
+            allocatedToPayment +
+            reversedAllocations,
+        )
+      );
+    }, 0);
+  if (unallocated > 0) return "reconciliation_required";
+  if (
+    sale?.dueAt !== null &&
+    sale?.dueAt !== undefined &&
+    Date.parse(sale.dueAt) < Date.parse(asOf)
+  )
+    return "overdue";
+  return "awaiting_payment";
 }
 
 function salePhysicalState(
@@ -134,23 +181,68 @@ function salePhysicalState(
   const sale = store.sales.get(key(workspaceId, saleId));
   if (sale === undefined) return { state: "unknown", deliveryId: null };
   const fulfilled = new Map<string, number>();
-  let deliveryId: string | null = null;
+  const activeDispatchRemaining = new Map<string, number>();
+  let latestDelivery: DeliveryState | null = null;
   for (const delivery of store.deliveries.values()) {
     if (delivery.workspaceId !== workspaceId || delivery.saleId !== saleId) continue;
     if (delivery.status === "dispatched" || delivery.status === "delivered") {
-      deliveryId = delivery.id;
+      if (
+        latestDelivery === null ||
+        `${delivery.transactionTime}|${delivery.recordedAt}|${delivery.id}` >
+          `${latestDelivery.transactionTime}|${latestDelivery.recordedAt}|${latestDelivery.id}`
+      )
+        latestDelivery = delivery;
       for (const line of delivery.lines)
         fulfilled.set(
           line.saleLineId,
           (fulfilled.get(line.saleLineId) ?? 0) + line.quantity.valueScaled,
         );
+      if (delivery.status === "dispatched")
+        for (const line of delivery.lines)
+          activeDispatchRemaining.set(
+            line.deliveryLineId,
+            (activeDispatchRemaining.get(line.deliveryLineId) ?? 0) + line.quantity.valueScaled,
+          );
     }
   }
+  for (const returned of store.deliveryReturns) {
+    if (returned.workspaceId !== workspaceId) continue;
+    const delivery = store.deliveries.get(key(workspaceId, returned.deliveryId));
+    if (
+      delivery === undefined ||
+      delivery.saleId !== saleId ||
+      (delivery.status !== "dispatched" && delivery.status !== "delivered")
+    )
+      continue;
+    for (const line of returned.lines) {
+      const deliveryLine = delivery.lines.find(
+        (candidate) => candidate.deliveryLineId === line.deliveryLineId,
+      );
+      if (deliveryLine === undefined) continue;
+      fulfilled.set(
+        deliveryLine.saleLineId,
+        (fulfilled.get(deliveryLine.saleLineId) ?? 0) - line.quantity.valueScaled,
+      );
+      if (delivery.status === "dispatched")
+        activeDispatchRemaining.set(
+          line.deliveryLineId,
+          (activeDispatchRemaining.get(line.deliveryLineId) ?? 0) - line.quantity.valueScaled,
+        );
+    }
+  }
+  const deliveryId = latestDelivery?.id ?? null;
+  if (sale.lines.some((line) => (fulfilled.get(line.lineId) ?? 0) > line.quantity.valueScaled))
+    return { state: "attention", deliveryId };
   const hasRemaining = sale.lines.some(
     (line) => line.quantity.valueScaled > (fulfilled.get(line.lineId) ?? 0),
   );
   if (!hasRemaining) return { state: "delivered", deliveryId };
-  return { state: deliveryId === null ? "needs_delivery" : "in_delivery", deliveryId };
+  return {
+    state: [...activeDispatchRemaining.values()].some((value) => value > 0)
+      ? "in_delivery"
+      : "needs_delivery",
+    deliveryId,
+  };
 }
 
 function boardCounts(rows: readonly OperationsBoardDto["page"]["items"][number][]) {
@@ -161,7 +253,9 @@ function boardCounts(rows: readonly OperationsBoardDto["page"]["items"][number][
     inDelivery: rows.filter((row) => row.physicalState === "in_delivery").length,
     awaitingPayment: rows.filter((row) => row.financialState === "awaiting_payment").length,
     overdue: rows.filter((row) => row.financialState === "overdue").length,
-    attention: rows.filter((row) => row.commercialState === "attention").length,
+    attention: rows.filter(
+      (row) => row.commercialState === "attention" || row.physicalState === "attention",
+    ).length,
   };
 }
 
@@ -169,11 +263,19 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
   dashboardReads: {
     summary: async (workspaceId) => {
       const asOf = now();
+      const outstandingDelivery = outstandingFor(store, workspaceId);
       const sales = [...store.sales.values()].filter(
         (sale) => sale.workspaceId === workspaceId && sale.status === "posted",
       );
       const purchases = [...store.purchases.values()].filter(
         (purchase) => purchase.workspaceId === workspaceId && purchase.status === "confirmed",
+      );
+      const activeSales = sales.filter(
+        (sale) => sale.totalAmount.amountMinor - (sale.voidRecord?.amount.amountMinor ?? 0) > 0,
+      );
+      const activePurchases = purchases.filter(
+        (purchase) =>
+          purchase.totalAmount.amountMinor - (purchase.voidRecord?.amount.amountMinor ?? 0) > 0,
       );
       const salesAmount = sales.reduce(
         (sum, sale) =>
@@ -207,8 +309,8 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       return {
         workspaceId,
         asOf,
-        sales: amount(salesAmount, sales.length),
-        purchases: amount(purchaseAmount, purchases.length),
+        sales: amount(salesAmount, activeSales.length),
+        purchases: amount(purchaseAmount, activePurchases.length),
         received: quantity(
           receivedFor(store, workspaceId),
           [...store.purchaseReceipts.values()].filter(
@@ -223,16 +325,17 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             (balance) => balance.workspaceId === workspaceId,
           ).length,
         ),
-        outstandingDelivery: quantity(outstandingFor(store, workspaceId), sales.length),
+        outstandingDelivery: quantity(outstandingDelivery, outstandingDelivery.length),
         receivables: amount(
           receivables,
-          [...store.balances.values()].filter((balance) => balance.workspaceId === workspaceId)
-            .length,
+          [...store.balances.values()].filter(
+            (balance) => balance.workspaceId === workspaceId && balance.balance.amountMinor > 0,
+          ).length,
         ),
         payables: amount(
           payables,
           [...store.supplierAccountBalances.values()].filter(
-            (balance) => balance.workspaceId === workspaceId,
+            (balance) => balance.workspaceId === workspaceId && balance.balance.amountMinor > 0,
           ).length,
         ),
         cash: amount(
@@ -408,7 +511,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       for (const sale of store.sales.values()) {
         if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
         const physical = salePhysicalState(store, input.workspaceId, sale.id);
-        const financial = saleFinancialState(store, input.workspaceId, sale.id);
+        const financial = saleFinancialState(store, input.workspaceId, sale.id, asOf);
         rows.push({
           id: sale.id,
           kind: "sale",
@@ -417,18 +520,27 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             store.customers.get(key(input.workspaceId, sale.customerId))?.displayName ??
             "Khách hàng",
           amount: sale.totalAmount,
-          commercialState: sale.voidRecord === null ? "posted" : "voided",
+          commercialState:
+            sale.voidRecord !== null
+              ? "voided"
+              : physical.state === "attention"
+                ? "attention"
+                : "posted",
           physicalState: physical.state,
           financialState: financial,
           ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(sale.recordedAt)) / 1000),
           nextAction:
             sale.voidRecord !== null
               ? null
-              : physical.state === "needs_delivery"
-                ? "Giao hàng"
-                : financial === "awaiting_payment"
-                  ? "Thu tiền"
-                  : null,
+              : physical.state === "attention"
+                ? "Kiểm tra"
+                : physical.state === "needs_delivery"
+                  ? "Giao hàng"
+                  : financial === "reconciliation_required"
+                    ? "Đối soát thanh toán"
+                    : financial === "awaiting_payment"
+                      ? "Thu tiền"
+                      : null,
           updatedAt: sale.postedAt ?? sale.recordedAt,
           href: `/sales/${sale.id}`,
           deliveryId:
@@ -486,30 +598,41 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             (input.filter === "in_delivery" && row.physicalState === "in_delivery") ||
             (input.filter === "awaiting_payment" && row.financialState === "awaiting_payment") ||
             (input.filter === "overdue" && row.financialState === "overdue") ||
-            (input.filter === "attention" && row.commercialState === "attention"),
+            (input.filter === "attention" &&
+              (row.commercialState === "attention" || row.physicalState === "attention")),
         )
         .sort((left, right) =>
           input.sort === "amount_desc"
-            ? right.amount.amountMinor - left.amount.amountMinor
+            ? right.amount.amountMinor - left.amount.amountMinor || right.id.localeCompare(left.id)
             : input.sort === "age_desc"
-              ? right.ageSeconds - left.ageSeconds
+              ? right.ageSeconds - left.ageSeconds || right.id.localeCompare(left.id)
               : right.updatedAt.localeCompare(left.updatedAt) || right.id.localeCompare(left.id),
         );
       const cursorOf = (row: OperationsBoardDto["page"]["items"][number]) =>
         input.sort === "amount_desc"
-          ? { sortValue: String(row.amount.amountMinor).padStart(20, "0"), id: row.id }
+          ? { sortValue: String(row.amount.amountMinor), id: row.id }
           : input.sort === "age_desc"
-            ? { sortValue: String(Math.round(row.ageSeconds)).padStart(20, "0"), id: row.id }
+            ? { sortValue: String(row.ageSeconds), id: row.id }
             : { sortValue: row.updatedAt, id: row.id };
       const after = input.page.after;
       const afterRows =
         after === null
           ? filtered
           : filtered.filter((row) => {
-              const position = cursorOf(row);
+              if (input.sort === "amount_desc") {
+                const amount = Number(after.sortValue);
+                return (
+                  row.amount.amountMinor < amount ||
+                  (row.amount.amountMinor === amount && row.id < after.id)
+                );
+              }
+              if (input.sort === "age_desc") {
+                const age = Number(after.sortValue);
+                return row.ageSeconds < age || (row.ageSeconds === age && row.id < after.id);
+              }
               return (
-                position.sortValue < after.sortValue ||
-                (position.sortValue === after.sortValue && position.id < after.id)
+                row.updatedAt < after.sortValue ||
+                (row.updatedAt === after.sortValue && row.id < after.id)
               );
             });
       const page = takePage(afterRows, input.page, cursorOf);

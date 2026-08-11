@@ -156,7 +156,7 @@ export function recordGoodsArrival(ctx: CommandContext, input: unknown) {
     requiredPermission: "intake.record",
     requiredWorkflows: ["purchasing", "inventory", "inspected_intake"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
-      const supplier = await repos.suppliers.findById(
+      const supplier = await repos.suppliers.findByIdForUpdate(
         command.workspaceId,
         command.payload.supplierId,
       );
@@ -188,7 +188,7 @@ export function recordGoodsArrival(ctx: CommandContext, input: unknown) {
           return err("GOODS_ARRIVAL_LINE_INVALID", "Arrival line identities must be unique.");
         }
         lineIds.add(line.arrivalLineId);
-        const product = await repos.products.findById(command.workspaceId, line.productId);
+        const product = await repos.products.findByIdForUpdate(command.workspaceId, line.productId);
         if (
           product === null ||
           !product.isActive ||
@@ -400,7 +400,7 @@ export function recordQualityDisposition(ctx: CommandContext, input: unknown) {
               "Accepted quantity requires a commercial grade.",
             );
           }
-          const grade = await repos.qualityGrades.findById(
+          const grade = await repos.qualityGrades.findByIdForUpdate(
             command.workspaceId,
             allocation.qualityGradeId,
           );

@@ -41,13 +41,17 @@ async function validateReferences(
   commitment: SupplyCommitmentState,
   requireActiveSupplier: boolean,
 ) {
-  const supplier = await repos.suppliers.findById(commitment.workspaceId, commitment.supplierId);
+  const supplier = requireActiveSupplier
+    ? await repos.suppliers.findByIdForUpdate(commitment.workspaceId, commitment.supplierId)
+    : await repos.suppliers.findById(commitment.workspaceId, commitment.supplierId);
   if (supplier === null) return err("SUPPLIER_NOT_FOUND", "No such supplier in this workspace.");
   if (requireActiveSupplier && !supplier.isActive)
     return err("SUPPLIER_INACTIVE", "Inactive supplier cannot confirm a new commitment.");
   for (const line of commitment.lines) {
     if (line.productId !== null) {
-      const product = await repos.products.findById(commitment.workspaceId, line.productId);
+      const product = requireActiveSupplier
+        ? await repos.products.findByIdForUpdate(commitment.workspaceId, line.productId)
+        : await repos.products.findById(commitment.workspaceId, line.productId);
       if (product === null)
         return err("PRODUCT_NOT_FOUND", "A referenced product is not active in this workspace.");
       if (requireActiveSupplier && !product.isActive)
@@ -60,7 +64,9 @@ async function validateReferences(
         );
     }
     if (line.qualityGradeId !== null) {
-      const grade = await repos.qualityGrades.findById(commitment.workspaceId, line.qualityGradeId);
+      const grade = requireActiveSupplier
+        ? await repos.qualityGrades.findByIdForUpdate(commitment.workspaceId, line.qualityGradeId)
+        : await repos.qualityGrades.findById(commitment.workspaceId, line.qualityGradeId);
       if (grade === null)
         return err(
           "QUALITY_GRADE_NOT_FOUND",

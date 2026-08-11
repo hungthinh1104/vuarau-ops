@@ -22,6 +22,7 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
+import { parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
 import { DemandObservationView } from "@/ui/screens/demand-observation-view.tsx";
 
 export function DemandObservationController() {
@@ -207,10 +208,7 @@ function parseOptionalQuantity(raw: string, unit: Unit) {
 function parseOptionalInstant(raw: string) {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return { ok: true as const, value: null };
-  const date = new Date(trimmed);
-  return Number.isNaN(date.getTime())
-    ? { ok: false as const, reason: "Thời điểm nhu cầu không hợp lệ." }
-    : { ok: true as const, value: date.toISOString() };
+  return parseVietnamDateTimeLocal(trimmed, "Thời điểm nhu cầu");
 }
 
 export const DEMAND_OBSERVATION_KIND_OPTIONS = DEMAND_OBSERVATION_KINDS.map((value) => ({

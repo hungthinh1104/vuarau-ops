@@ -16,6 +16,7 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
+import { parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
 import { DebtEvidenceView } from "@/ui/screens/debt-evidence-view.tsx";
 
 export function DebtEvidenceController() {
@@ -67,6 +68,22 @@ export function DebtEvidenceController() {
       setFormError("Chọn bản ghi cần điều chỉnh trong lịch sử bên dưới.");
       return;
     }
+    const dueAt =
+      agreedDueAt.trim() === ""
+        ? { ok: true as const, value: null }
+        : parseVietnamDateTimeLocal(agreedDueAt, "Hạn thanh toán");
+    const promiseAt =
+      promiseToPayAt.trim() === ""
+        ? { ok: true as const, value: null }
+        : parseVietnamDateTimeLocal(promiseToPayAt, "Hẹn thanh toán");
+    if (!dueAt.ok) {
+      setFormError(dueAt.reason);
+      return;
+    }
+    if (!promiseAt.ok) {
+      setFormError(promiseAt.reason);
+      return;
+    }
     const result = await command.submit({
       debtObservationId: observationId.current,
       kind,
@@ -75,9 +92,8 @@ export function DebtEvidenceController() {
       participantWording,
       facts: {
         amount: parsedAmount.value,
-        agreedDueAt: agreedDueAt.trim() === "" ? null : new Date(agreedDueAt).toISOString(),
-        promiseToPayAt:
-          promiseToPayAt.trim() === "" ? null : new Date(promiseToPayAt).toISOString(),
+        agreedDueAt: dueAt.value,
+        promiseToPayAt: promiseAt.value,
         termCode: termCode.trim() || null,
         termText: termText.trim() || null,
         paymentReference: paymentReference.trim() || null,

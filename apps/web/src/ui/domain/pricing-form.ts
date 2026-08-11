@@ -7,6 +7,7 @@ import type {
   Unit,
 } from "@vuarau/domain-contracts";
 import { parseMoneyText, parseQuantityText } from "./numeric-text.ts";
+import { parseVietnamDateTimeLocal } from "./time.ts";
 
 const MAX_PRICE_RULE_PRIORITY = 1_000_000;
 
@@ -54,10 +55,8 @@ function parseInteger(raw: string, label: string): { value: number } | { error: 
 }
 
 function parseInstant(raw: string, label: string): { value: string } | { error: string } {
-  const date = new Date(raw);
-  return Number.isNaN(date.getTime())
-    ? { error: `${label} không hợp lệ.` }
-    : { value: date.toISOString() };
+  const result = parseVietnamDateTimeLocal(raw, label);
+  return result.ok ? { value: result.value } : { error: result.reason };
 }
 
 /**

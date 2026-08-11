@@ -164,10 +164,14 @@ export function decideReopenStocktake(args: {
 export function calculateStocktakeExpectedQuantity(args: {
   readonly movements: readonly Pick<InventoryMovementState, "quantity" | "transactionTime">[];
   readonly asOf: string;
-}): number {
-  return args.movements
-    .filter((movement) => Date.parse(movement.transactionTime) <= Date.parse(args.asOf))
-    .reduce((total, movement) => total + movement.quantity.valueScaled, 0);
+}): number | null {
+  let total = 0;
+  for (const movement of args.movements) {
+    if (Date.parse(movement.transactionTime) > Date.parse(args.asOf)) continue;
+    total += movement.quantity.valueScaled;
+    if (!Number.isSafeInteger(total)) return null;
+  }
+  return total;
 }
 
 export function stocktakeCountDto(count: StocktakeCountState): StocktakeCountDto {

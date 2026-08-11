@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type {
   ActorId,
   WorkspaceId,
@@ -11,6 +11,7 @@ import {
   workspaceMembershipRoles,
   workspaceMemberships,
   workspaceOperationalProfiles,
+  commandReceipts,
   workspaces,
 } from "../../schema/index.ts";
 import { toIso } from "../row-mappers.ts";
@@ -79,6 +80,44 @@ export const createWorkspaceWriteRepositories = (tx: Tx) => ({
         .from(workspaceOperationalProfiles)
         .where(eq(workspaceOperationalProfiles.workspaceId, workspaceId))
         .limit(1);
+      const row = rows[0];
+      return row === undefined ? null : { workspaceId, ...row };
+    },
+
+    async hasCanonicalActivity(workspaceId: WorkspaceId): Promise<boolean> {
+      const rows = await tx
+        .select({ commandId: commandReceipts.commandId })
+        .from(commandReceipts)
+        .where(
+          and(
+            eq(commandReceipts.workspaceId, workspaceId),
+            eq(commandReceipts.status, "completed"),
+            sql`${commandReceipts.commandType} <> 'UpdateWorkspaceOperationalProfile'`,
+          ),
+        )
+        .limit(1);
+      return rows.length === 1;
+    },
+
+    async findOperationalProfileForUpdate(
+      workspaceId: WorkspaceId,
+    ): Promise<WorkspaceOperationalProfileDto | null> {
+      const rows = await tx
+        .select({
+          purchasingMode: workspaceOperationalProfiles.purchasingMode,
+          inventoryMode: workspaceOperationalProfiles.inventoryMode,
+          qualityGradeMode: workspaceOperationalProfiles.qualityGradeMode,
+          deliveryMode: workspaceOperationalProfiles.deliveryMode,
+          cashbookMode: workspaceOperationalProfiles.cashbookMode,
+          intakeMode: workspaceOperationalProfiles.intakeMode,
+          weighingMode: workspaceOperationalProfiles.weighingMode,
+          businessDayStartMinute: workspaceOperationalProfiles.businessDayStartMinute,
+          version: workspaceOperationalProfiles.version,
+        })
+        .from(workspaceOperationalProfiles)
+        .where(eq(workspaceOperationalProfiles.workspaceId, workspaceId))
+        .limit(1)
+        .for("update");
       const row = rows[0];
       return row === undefined ? null : { workspaceId, ...row };
     },
@@ -181,6 +220,7 @@ export const createWorkspaceWriteRepositories = (tx: Tx) => ({
             eq(workspaceMemberships.isActive, true),
           ),
         )
+        .orderBy(asc(workspaceMemberships.actorId))
         .for("update");
       return rows.length;
     },

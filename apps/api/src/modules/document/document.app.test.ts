@@ -5,18 +5,22 @@ import {
   LATER_TRANSACTION_TIME,
   PRODUCT_CA_CHUA_ID,
   QUALITY_GRADE_1_ID,
+  SUPPLIER_ID,
   WORKSPACE_ID,
 } from "@vuarau/test-fixtures";
 import type {
   DocumentId,
   DocumentShareId,
   PaymentId,
+  PurchaseId,
+  PurchaseLineId,
   SaleId,
   SaleLineId,
 } from "@vuarau/domain-contracts";
 import { documentSnapshotSchema } from "@vuarau/domain-contracts";
 import { hashPayload } from "../../infrastructure/hash.ts";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
+import { confirmPurchase, createPurchaseDraft } from "../purchase/purchase.handlers.ts";
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
@@ -158,6 +162,63 @@ describe("M20 immutable documents (TC-DOCUMENT-001)", () => {
     });
 
     expect(result).toMatchObject({ ok: false, error: { code: "INVALID_COMMAND_PAYLOAD" } });
+  });
+
+  it("only generates a Purchase document after the Purchase is confirmed", async () => {
+    const purchaseId = "00000000-0000-4000-8000-000000000e31" as PurchaseId;
+    const purchaseLineId = "00000000-0000-4000-8000-000000000e32" as PurchaseLineId;
+    const draft = await createPurchaseDraft(harness.ctx, {
+      ...command("e30"),
+      payload: {
+        purchaseId,
+        supplierId: SUPPLIER_ID,
+        currency: "VND",
+        lines: [
+          {
+            lineId: purchaseLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            productName: "Cà chua",
+            quantity: { valueScaled: 10_000, unit: "kg" },
+            unitPrice: { amountMinor: 10_000, currency: "VND" },
+          },
+        ],
+        note: null,
+        evidenceReferences: [],
+        dueAt: null,
+        replacesPurchaseId: null,
+      },
+    });
+    expect(draft.ok).toBe(true);
+    const beforeConfirm = await generateDocument(harness.ctx, {
+      ...command("e33"),
+      payload: {
+        documentId: "00000000-0000-4000-8000-000000000e34" as DocumentId,
+        documentType: "purchase_order",
+        sourceType: "purchase",
+        sourceId: purchaseId,
+      },
+    });
+    expect(beforeConfirm).toMatchObject({
+      ok: false,
+      error: { code: "DOCUMENT_SOURCE_INVALID" },
+    });
+
+    const confirmed = await confirmPurchase(harness.ctx, {
+      ...command("e35"),
+      expectedVersion: 1,
+      payload: { purchaseId },
+    });
+    expect(confirmed.ok).toBe(true);
+    const afterConfirm = await generateDocument(harness.ctx, {
+      ...command("e36"),
+      payload: {
+        documentId: "00000000-0000-4000-8000-000000000e37" as DocumentId,
+        documentType: "purchase_order",
+        sourceType: "purchase",
+        sourceId: purchaseId,
+      },
+    });
+    expect(afterConfirm.ok).toBe(true);
   });
 
   it("stores only a token hash and safely rejects expiry and revocation", async () => {

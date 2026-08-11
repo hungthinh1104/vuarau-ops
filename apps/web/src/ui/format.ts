@@ -80,12 +80,14 @@ const DATE_TIME = new Intl.DateTimeFormat(VI, {
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: "Asia/Ho_Chi_Minh",
 });
 
 const DATE_ONLY = new Intl.DateTimeFormat(VI, {
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
+  timeZone: "Asia/Ho_Chi_Minh",
 });
 
 export function formatInstant(iso: string): string {

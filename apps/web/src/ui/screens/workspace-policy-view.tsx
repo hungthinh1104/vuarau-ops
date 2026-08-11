@@ -18,6 +18,7 @@ import { Badge, type BadgeTone } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { EmptyState } from "@/ui/primitives/empty-state.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
+import { parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
 
 const KIND_COPY: Readonly<Record<WorkspacePolicyKind, string>> = {
   receivable_payable_recognition: "Ghi nhận phải thu / phải trả",
@@ -271,9 +272,18 @@ function PolicyStateActions(props: {
                 setError("Cần lý do khi ngừng quy định.");
                 return;
               }
+              const parsedEffectiveTo =
+                effectiveTo === ""
+                  ? { ok: true as const, value: null }
+                  : parseVietnamDateTimeLocal(effectiveTo, "Thời điểm kết thúc hiệu lực");
+              if (!parsedEffectiveTo.ok) {
+                setError(parsedEffectiveTo.reason);
+                return;
+              }
+              setError(null);
               props.onRetire({
                 policyVersionId: props.policy.id,
-                effectiveTo: effectiveTo === "" ? null : new Date(effectiveTo).toISOString(),
+                effectiveTo: parsedEffectiveTo.value,
                 reason: reason.trim(),
               });
             }}

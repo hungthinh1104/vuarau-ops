@@ -16,14 +16,13 @@ import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { useDebounced } from "@/api/use-debounced.ts";
 import { parsePriceRuleForm } from "@/ui/domain/pricing-form.ts";
+import { vietnamDateTimeLocalNow } from "@/ui/domain/time.ts";
 import { PricingView } from "@/ui/screens/pricing-view.tsx";
 
 const EMPTY_CURSOR = null;
 
 function localDateTimeNow(): string {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60_000;
-  return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+  return vietnamDateTimeLocalNow();
 }
 
 export function PricingController() {

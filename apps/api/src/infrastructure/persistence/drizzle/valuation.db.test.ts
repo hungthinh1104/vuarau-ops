@@ -122,7 +122,7 @@ describe.skipIf(skipWithoutDatabase())("inventory valuation against PostgreSQL",
               {
                 lineId: purchaseLineId,
                 productId,
-                productName: "Cà chua valuation",
+                productName: "Cà chua",
                 quantity: { valueScaled: 1_000, unit: "kg" },
                 unitPrice: { amountMinor: 100, currency: "VND" },
               },

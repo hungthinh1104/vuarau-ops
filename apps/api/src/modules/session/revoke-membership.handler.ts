@@ -10,6 +10,7 @@ import type { DomainResult } from "@vuarau/domain-kernel";
 import { decideRevokeMembership, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { authorizeWorkspaceAccess } from "../shared/authorization.ts";
 
 /**
  * UC-AUTH-002 — turning off somebody's access.
@@ -35,8 +36,24 @@ export function revokeWorkspaceMembership(
     input,
     ctx,
     requiredPermission: "workspace.manage",
+    lockAuthorizationMembership: false,
     execute: async ({ command, repos, recordedAt }) => {
-      const target = await repos.workspaces.findMembership(
+      // Counted under a lock **before** the decision, so two owners revoking each
+      // other at the same moment cannot both see a count of two (BR-AUTH-007).
+      // All membership mutations take this lock set first, then lock the target;
+      // that fixed order prevents two owners revoking each other from deadlocking.
+      const activeOwnerCount = await repos.workspaces.countActiveOwnersForUpdate(
+        command.workspaceId,
+      );
+      const authorization = await authorizeWorkspaceAccess({
+        repos,
+        principal: ctx.principal,
+        workspaceId: command.workspaceId,
+        permission: "workspace.manage",
+        claimedActorId: command.actorId,
+      });
+      if (!authorization.ok) return authorization;
+      const target = await repos.workspaces.findMembershipForUpdate(
         command.workspaceId,
         command.payload.actorId,
       );
@@ -46,12 +63,6 @@ export function revokeWorkspaceMembership(
           actorId: command.payload.actorId,
         });
       }
-
-      // Counted under a lock **before** the decision, so two owners revoking each
-      // other at the same moment cannot both see a count of two (BR-AUTH-007).
-      const activeOwnerCount = await repos.workspaces.countActiveOwnersForUpdate(
-        command.workspaceId,
-      );
 
       const decision = decideRevokeMembership({
         command,

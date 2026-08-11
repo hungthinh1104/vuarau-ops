@@ -33,7 +33,7 @@ describe("dashboard reads", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.sales.amount).toEqual({ amountMinor: 875_000, currency: "VND" });
-    expect(result.value.sales.count).toBe(2);
+    expect(result.value.sales.count).toBe(1);
   });
 
   it("returns a stable cursor for the next board page without repeating rows", async () => {

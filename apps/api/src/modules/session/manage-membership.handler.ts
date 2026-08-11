@@ -21,6 +21,7 @@ import {
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
+import { authorizeWorkspaceAccess } from "../shared/authorization.ts";
 
 export function addWorkspaceMember(
   ctx: CommandContext,
@@ -86,8 +87,20 @@ export function changeWorkspaceMemberRole(
     input,
     ctx,
     requiredPermission: "workspace.manage",
+    lockAuthorizationMembership: false,
     execute: async ({ command, repos, recordedAt }) => {
-      const membership = await repos.workspaces.findMembership(
+      const activeOwnerCount = await repos.workspaces.countActiveOwnersForUpdate(
+        command.workspaceId,
+      );
+      const authorization = await authorizeWorkspaceAccess({
+        repos,
+        principal: ctx.principal,
+        workspaceId: command.workspaceId,
+        permission: "workspace.manage",
+        claimedActorId: command.actorId,
+      });
+      if (!authorization.ok) return authorization;
+      const membership = await repos.workspaces.findMembershipForUpdate(
         command.workspaceId,
         command.payload.actorId,
       );
@@ -96,9 +109,6 @@ export function changeWorkspaceMemberRole(
           actorId: command.payload.actorId,
         });
       }
-      const activeOwnerCount = await repos.workspaces.countActiveOwnersForUpdate(
-        command.workspaceId,
-      );
       const decision = decideChangeMembershipRole({
         command,
         membership,
@@ -148,7 +158,7 @@ export function reactivateWorkspaceMember(
     ctx,
     requiredPermission: "workspace.manage",
     execute: async ({ command, repos, recordedAt }) => {
-      const membership = await repos.workspaces.findMembership(
+      const membership = await repos.workspaces.findMembershipForUpdate(
         command.workspaceId,
         command.payload.actorId,
       );

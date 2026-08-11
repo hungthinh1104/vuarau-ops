@@ -41,7 +41,6 @@ export class InMemoryDatabase {
   /** Serializes transactions so in-memory policy allocation matches the DB contract. */
   private transactionTail: Promise<void> = Promise.resolve();
 
-  /** An explicit field: Node strips types, and a parameter property emits code. */
   private readonly ids: IdGenerator;
 
   constructor(ids: IdGenerator) {
@@ -71,13 +70,7 @@ export class InMemoryDatabase {
     });
   }
 
-  /**
-   * Names a workspace, so it can appear in a picker.
-   *
-   * Mirrors the inner join in the SQL: a membership whose workspace was never
-   * named is invisible to `listActiveWorkspaces`, exactly as a membership with no
-   * `workspaces` row would be.
-   */
+  /** Names a workspace and mirrors the SQL inner join used by the workspace picker. */
   registerWorkspace(workspaceId: WorkspaceId, name: string): void {
     this.store.workspaceNames.set(workspaceId, name);
     if (!this.store.operationalProfiles.has(workspaceId)) {
@@ -215,7 +208,10 @@ export class InMemoryDatabase {
 
   unitOfWork(): UnitOfWork {
     return {
-      transaction: async <T>(work: (repos: Repositories) => Promise<T>): Promise<T> => {
+      transaction: async <T>(
+        work: (repos: Repositories) => Promise<T>,
+        _options?: { readonly isolationLevel?: "repeatable read" },
+      ): Promise<T> => {
         const previous = this.transactionTail;
         let release!: () => void;
         this.transactionTail = new Promise<void>((resolve) => {

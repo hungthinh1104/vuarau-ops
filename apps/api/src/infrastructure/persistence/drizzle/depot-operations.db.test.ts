@@ -414,7 +414,7 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     });
     expect(board.ok).toBe(true);
     if (board.ok) {
-      expect(board.value.page.items.find((row) => row.id === saleId)?.nextAction).toBe("Thu tiền");
+      expect(board.value.page.items.find((row) => row.id === saleId)?.nextAction).toBe("Giao hàng");
     }
     const backup = await exportWorkspaceBackup(context(), {
       ...envelope("backup", "2026-07-29T08:00:00.000Z"),

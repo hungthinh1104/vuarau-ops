@@ -72,6 +72,15 @@ function confirmCommand(expectedVersion: number): ConfirmCustomerOrderCommand {
 }
 
 describe("BR-CUSTOMER-ORDER-001 / TC-CUSTOMER-ORDER-001", () => {
+  it("rejects duplicate child line identities", () => {
+    const result = decideCreateCustomerOrderDraft(
+      createCommand({ lines: [baseLine, baseLine] }),
+      RECORDED_AT,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("CUSTOMER_ORDER_LINE_INVALID");
+  });
+
   it("keeps an unpriced draft commercial-only", () => {
     const result = decideCreateCustomerOrderDraft(
       createCommand({ lines: [{ ...baseLine, agreedUnitPrice: null }] }),

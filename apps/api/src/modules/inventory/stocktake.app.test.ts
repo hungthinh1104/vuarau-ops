@@ -9,6 +9,7 @@ import type { StocktakeSessionId } from "@vuarau/domain-contracts";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { approveWorkspacePolicy, createWorkspacePolicyDraft } from "../policy/policy.handlers.ts";
 import { adjustInventory } from "./inventory.handlers.ts";
+import { deactivateQualityGrade } from "../quality/quality.handlers.ts";
 import {
   approveStocktake,
   recordStocktakeCount,
@@ -100,6 +101,16 @@ describe("stocktake commands", () => {
         },
       }),
     ).toMatchObject({ ok: true });
+    expect(
+      await deactivateQualityGrade(harness.ctx, {
+        ...envelope("retire-grade"),
+        expectedVersion: 1,
+        payload: {
+          qualityGradeId: QUALITY_GRADE_1_ID,
+          reason: "Không còn nhận lô mới theo hạng này.",
+        },
+      }),
+    ).toMatchObject({ ok: true, value: { isActive: false } });
 
     const stocktakeSessionId = crypto.randomUUID() as StocktakeSessionId;
     const started = await startStocktake(harness.ctx, {

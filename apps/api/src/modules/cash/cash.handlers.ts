@@ -324,6 +324,20 @@ export function reverseCashTransfer(ctx: CommandContext, input: unknown) {
         command.payload.transferId,
       );
       if (transfer === null) return err("CASH_TRANSFER_NOT_FOUND", "No such transfer.");
+      // Reversal applies two balance deltas. Acquire both account rows in the
+      // same order as RecordCashTransfer so opposite-direction reversals cannot
+      // deadlock while the balance upserts run.
+      const accountIds = [transfer.fromCashAccountId, transfer.toCashAccountId].sort(
+        (left, right) => left.localeCompare(right),
+      );
+      for (const accountId of accountIds) {
+        if ((await repos.cashAccounts.findByIdForUpdate(command.workspaceId, accountId)) === null) {
+          throw new CommandIntegrityError(
+            "CASH_RECONCILIATION_INTEGRITY_FAILURE",
+            `Cash transfer ${transfer.id} references a missing cash account.`,
+          );
+        }
+      }
       const [fromOriginal, toOriginal] = await Promise.all([
         repos.cashMovements.findBySource(
           command.workspaceId,

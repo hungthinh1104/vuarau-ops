@@ -39,6 +39,7 @@ export function validateSaleLines(
   currency: CurrencyCode,
 ): DomainResult<readonly SaleLineState[]> {
   const validated: SaleLineState[] = [];
+  const seenLineIds = new Set<string>();
 
   for (const [index, line] of lines.entries()) {
     const invalid = (problem: string) =>
@@ -51,6 +52,9 @@ export function validateSaleLines(
           problem,
         },
       );
+
+    if (seenLineIds.has(line.lineId)) return invalid("line id is duplicated");
+    seenLineIds.add(line.lineId);
 
     if (line.productName.trim().length === 0) {
       return invalid("product name is blank");

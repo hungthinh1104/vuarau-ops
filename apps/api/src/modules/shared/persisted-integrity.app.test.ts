@@ -24,6 +24,7 @@ import type {
 import type { AccountEntryDraft } from "@vuarau/domain-kernel";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
+import { runQuery } from "./read-pipeline.ts";
 
 const now = LATEST_TRANSACTION_TIME;
 
@@ -240,5 +241,25 @@ describe("persisted intake integrity boundary", () => {
       },
     });
     expect(harness.db.payments()).toHaveLength(0);
+  });
+
+  it("maps persisted integrity failures to a controlled read rejection", async () => {
+    const harness = createHarness();
+    const result = await runQuery({
+      ctx: {
+        ...harness.ctx,
+        deps: { ...harness.deps, uow: throwsPersistedIntegrityAfterSuccess(harness) },
+      },
+      workspaceId: WORKSPACE_ID,
+      permission: "report.read",
+      execute: async () => ({ ok: true }),
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
+        retryable: false,
+      },
+    });
   });
 });

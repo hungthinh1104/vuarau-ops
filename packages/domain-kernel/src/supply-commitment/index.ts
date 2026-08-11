@@ -19,7 +19,14 @@ function validateLines(
   currency: SupplyCommitmentState["currency"],
 ): DomainResult<readonly SupplyCommitmentLineState[]> {
   const result: SupplyCommitmentLineState[] = [];
+  const seenLineIds = new Set<string>();
   for (const [index, line] of lines.entries()) {
+    if (seenLineIds.has(line.lineId))
+      return err(
+        "SUPPLY_COMMITMENT_LINE_INVALID",
+        `Supply Commitment line ${index} has a duplicate line id.`,
+      );
+    seenLineIds.add(line.lineId);
     if (
       line.productName.trim().length === 0 ||
       line.quantity.valueScaled <= 0 ||

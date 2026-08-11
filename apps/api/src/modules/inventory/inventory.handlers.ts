@@ -71,7 +71,7 @@ export function recordPurchaseReceipt(ctx: CommandContext, input: unknown) {
               "This depot requires a quality grade on every accepted Receipt line.",
             );
           }
-          const grade = await repos.qualityGrades.findById(
+          const grade = await repos.qualityGrades.findByIdForUpdate(
             command.workspaceId,
             line.qualityGradeId,
           );
@@ -225,7 +225,10 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
     requiredPermission: "inventory.adjust",
     requiredWorkflows: ["inventory"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
-      if ((await repos.products.findById(command.workspaceId, command.payload.productId)) === null)
+      if (
+        (await repos.products.findByIdForUpdate(command.workspaceId, command.payload.productId)) ===
+        null
+      )
         return err("PRODUCT_NOT_FOUND", "No such Product.");
       let grade: { id: typeof command.payload.qualityGradeId; name: string } | null = null;
       if (operationalProfile.qualityGradeMode === "required") {
@@ -235,13 +238,24 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
             "This depot requires a quality grade for inventory adjustments.",
           );
         }
-        const currentGrade = await repos.qualityGrades.findById(
+        const currentGrade = await repos.qualityGrades.findByIdForUpdate(
           command.workspaceId,
           command.payload.qualityGradeId,
         );
         if (currentGrade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
-        if (!currentGrade.isActive)
-          return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
+        if (!currentGrade.isActive) {
+          const movements = await repos.inventoryMovements.listByProduct(
+            command.workspaceId,
+            command.payload.productId,
+            command.payload.quantity.unit,
+          );
+          if (
+            command.payload.direction !== "decrease" ||
+            !movements.some((movement) => movement.qualityGradeId === currentGrade.id)
+          ) {
+            return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
+          }
+        }
         if (currentGrade.name !== command.payload.qualityGradeName) {
           return err(
             "SALE_QUALITY_GRADE_SNAPSHOT_MISMATCH",
@@ -307,16 +321,31 @@ export function reclassifyInventory(ctx: CommandContext, input: unknown) {
     requiredPermission: "inventory.reclassify",
     requiredWorkflows: ["inventory", "quality_grading"],
     execute: async ({ command, repos, recordedAt }) => {
-      if ((await repos.products.findById(command.workspaceId, command.payload.productId)) === null)
+      if (
+        (await repos.products.findByIdForUpdate(command.workspaceId, command.payload.productId)) ===
+        null
+      )
         return err("PRODUCT_NOT_FOUND", "No such Product.");
       const [fromGrade, toGrade] = await Promise.all([
-        repos.qualityGrades.findById(command.workspaceId, command.payload.fromQualityGradeId),
-        repos.qualityGrades.findById(command.workspaceId, command.payload.toQualityGradeId),
+        repos.qualityGrades.findByIdForUpdate(
+          command.workspaceId,
+          command.payload.fromQualityGradeId,
+        ),
+        repos.qualityGrades.findByIdForUpdate(
+          command.workspaceId,
+          command.payload.toQualityGradeId,
+        ),
       ]);
       if (fromGrade === null || toGrade === null)
         return err("QUALITY_GRADE_NOT_FOUND", "Reclassification grade is missing.");
-      if (!fromGrade.isActive || !toGrade.isActive)
-        return err("QUALITY_GRADE_INACTIVE", "Reclassification requires active grades.");
+      // A retired source grade remains part of historical stock truth and must
+      // stay movable during correction. Only the destination is a new
+      // classification and therefore must still be active.
+      if (!toGrade.isActive)
+        return err(
+          "QUALITY_GRADE_INACTIVE",
+          "Reclassification requires an active destination grade.",
+        );
       if (
         fromGrade.name !== command.payload.fromQualityGradeName ||
         toGrade.name !== command.payload.toQualityGradeName

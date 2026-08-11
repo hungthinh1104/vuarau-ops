@@ -34,12 +34,10 @@ test.describe("Operations board production pagination", () => {
 
       await page.goto("/operations-board");
       await expect(page.getByRole("heading", { name: "Bảng điều hành" })).toBeVisible();
-      const footer = page.getByText(/Đang hiện \d+ đơn\./);
-      await expect(footer).toHaveText("Đang hiện 25 đơn.");
+      const boardItems = page.getByRole("list", { name: "Việc cần xử lý" }).getByRole("link");
+      await expect(boardItems).toHaveCount(25);
       await page.getByRole("button", { name: "Tải thêm" }).click();
-      await expect
-        .poll(async () => Number((await footer.textContent())?.match(/\d+/)?.[0] ?? 0))
-        .toBeGreaterThan(25);
+      await expect.poll(() => boardItems.count()).toBeGreaterThan(25);
     } finally {
       await api.setQualityGradeMode(previousQualityGradeMode);
     }

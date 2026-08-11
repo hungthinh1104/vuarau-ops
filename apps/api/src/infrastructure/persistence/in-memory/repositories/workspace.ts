@@ -11,6 +11,15 @@ export const createWorkspaceRepositories = (
     findName: async (workspaceId) => store.workspaceNames.get(workspaceId) ?? null,
     findOperationalProfile: async (workspaceId) =>
       store.operationalProfiles.get(workspaceId) ?? null,
+    findOperationalProfileForUpdate: async (workspaceId) =>
+      store.operationalProfiles.get(workspaceId) ?? null,
+    hasCanonicalActivity: async (workspaceId) =>
+      [...store.receipts.values()].some(
+        (receipt) =>
+          receipt.workspaceId === workspaceId &&
+          receipt.status === "completed" &&
+          receipt.commandType !== "UpdateWorkspaceOperationalProfile",
+      ),
     updateOperationalProfile: async (profile, expectedVersion) => {
       const current = store.operationalProfiles.get(profile.workspaceId);
       if (current === undefined) {

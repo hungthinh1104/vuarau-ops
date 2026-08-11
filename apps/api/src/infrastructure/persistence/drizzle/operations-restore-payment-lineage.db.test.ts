@@ -303,7 +303,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
       expect(board.value.page.items).toContainEqual(
         expect.objectContaining({
           id: sale["id"],
-          financialState: "awaiting_payment",
+          financialState: "reconciliation_required",
         }),
       );
     }

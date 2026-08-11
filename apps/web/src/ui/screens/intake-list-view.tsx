@@ -1,6 +1,6 @@
 import type { GoodsArrivalDto } from "@vuarau/domain-contracts";
 import Link from "next/link";
-import { formatQuantity } from "@/ui/format.ts";
+import { formatDate, formatQuantity } from "@/ui/format.ts";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
@@ -73,7 +73,7 @@ export function IntakeListView(props: IntakeListViewProps) {
                           {arrival.reversal === null ? "Đang hiệu lực" : "Đã hoàn tác"}
                         </Badge>
                         <span className="text-caption text-ink-muted">
-                          {new Date(arrival.transactionTime).toLocaleDateString("vi-VN")}
+                          {formatDate(arrival.transactionTime)}
                         </span>
                       </div>
                     </Link>

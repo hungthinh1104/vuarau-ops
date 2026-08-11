@@ -9,19 +9,28 @@ export type OfflineSender = (
 
 export type ErrorClassifier = (error: unknown) => DomainError | null;
 
-const BLOCKING_CODES = new Set([
-  "CUSTOMER_VERSION_CONFLICT",
-  "SALE_VERSION_CONFLICT",
-  "SALE_REPLACEMENT_NOT_VOIDED",
+const TERMINAL_CODES = new Set([
+  "AUTHENTICATION_REQUIRED",
+  "AUTHENTICATION_INVALID",
+  "ACTOR_NOT_FOUND",
+  "ACTOR_IMPERSONATION_DENIED",
+  "WORKSPACE_ACCESS_DENIED",
+  "WORKSPACE_MEMBERSHIP_INACTIVE",
+  "PERMISSION_DENIED",
+  "INVALID_COMMAND_PAYLOAD",
+  "DUPLICATE_COMMAND",
+  "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD",
+  "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_COMMAND",
+  "PILOT_SCOPE_EXCLUDED",
 ]);
 
 function nextState(error: DomainError | null): OutboxRecord["state"] {
   if (error === null || error.retryable) return "retry_wait";
-  return BLOCKING_CODES.has(error.code) ? "blocked" : "rejected";
+  return TERMINAL_CODES.has(error.code) ? "rejected" : "blocked";
 }
 
 export class OfflineSyncEngine {
-  private running = false;
+  private readonly running = new Set<string>();
 
   constructor(
     private readonly database: OfflineDatabase,
@@ -31,8 +40,9 @@ export class OfflineSyncEngine {
   ) {}
 
   async sync(partition: OfflinePartition): Promise<void> {
-    if (this.running) return;
-    this.running = true;
+    const partitionKey = `${partition.actorId}:${partition.workspaceId}`;
+    if (this.running.has(partitionKey)) return;
+    this.running.add(partitionKey);
     try {
       const records = await this.database.commands(partition);
       const chains = new Map<string, OutboxRecord[]>();
@@ -57,7 +67,7 @@ export class OfflineSyncEngine {
         await this.database.markSuccessfulSync(partition, new Date().toISOString());
       }
     } finally {
-      this.running = false;
+      this.running.delete(partitionKey);
     }
   }
 

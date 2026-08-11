@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createServer } from "node:http";
 import { ok } from "@vuarau/domain-kernel";
-import { subjectFor, ACTOR_ID } from "@vuarau/test-fixtures";
+import { subjectFor, ACTOR_ID, WORKSPACE_ID } from "@vuarau/test-fixtures";
 import { createMetricsHandler } from "./metrics-handler.ts";
 import { createHarness } from "../testing/command-test-harness.ts";
 import type { JwtVerifier } from "./auth/jwt-verifier.ts";
@@ -54,5 +54,15 @@ describe("protected metrics endpoint", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/plain");
     expect(await response.text()).toContain("vuarau_events_total");
+  });
+
+  it("rejects a provisioned actor whose workspace access is fully revoked", async () => {
+    const harness = createHarness();
+    harness.db.grantMembership(WORKSPACE_ID, ACTOR_ID, "owner", false);
+    const response = await request(createMetricsHandler(harness.deps, verifier), {
+      authorization: "Bearer valid-token",
+    });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "forbidden" });
   });
 });

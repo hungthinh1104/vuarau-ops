@@ -40,6 +40,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
     // actor. An ordinary sale still requires the normal sales-post permission.
     requiredPermission: "sale.read",
     execute: async ({ command, repos, recordedAt, membership, operationalProfile }) => {
+      let replacementSource: Awaited<ReturnType<typeof repos.sales.findByIdForUpdate>> = null;
       const sale = await repos.sales.findByIdForUpdate(command.workspaceId, command.payload.saleId);
       if (sale === null) {
         return err("SALE_NOT_FOUND", "No such sale in this workspace.", {
@@ -79,6 +80,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
             { saleId: source.id, voidActorId: source.voidRecord.actorId },
           );
         }
+        replacementSource = source;
       }
 
       // Every command that can add or compensate a customer ledger entry takes
@@ -93,7 +95,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
           customerId: sale.customerId,
         });
       }
-      if (!customer.isActive) {
+      if (!customer.isActive && replacementSource?.customerId !== customer.id) {
         return err(
           "SALE_CUSTOMER_INACTIVE",
           "An inactive customer cannot receive a new posted sale.",
@@ -112,7 +114,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
             { saleId: sale.id, lineId: line.lineId },
           );
         }
-        const product = await repos.products.findById(command.workspaceId, line.productId);
+        const product = await repos.products.findByIdForUpdate(command.workspaceId, line.productId);
         if (product === null) {
           return err(
             "SALE_PRODUCT_NOT_FOUND",
@@ -120,7 +122,13 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
             { saleId: sale.id, lineId: line.lineId, productId: line.productId },
           );
         }
-        if (!product.isActive) {
+        const sourceLine = replacementSource?.lines.find(
+          (candidate) =>
+            candidate.productId === line.productId &&
+            candidate.productName === line.productName &&
+            candidate.quantity.unit === line.quantity.unit,
+        );
+        if (!product.isActive && sourceLine === undefined) {
           return err("SALE_PRODUCT_INACTIVE", "An inactive Product cannot be posted.", {
             saleId: sale.id,
             lineId: line.lineId,
@@ -151,7 +159,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
               { saleId: sale.id, lineId: line.lineId },
             );
           }
-          const grade = await repos.qualityGrades.findById(
+          const grade = await repos.qualityGrades.findByIdForUpdate(
             command.workspaceId,
             line.qualityGradeId,
           );
@@ -162,7 +170,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
               { saleId: sale.id, lineId: line.lineId, qualityGradeId: line.qualityGradeId },
             );
           }
-          if (!grade.isActive) {
+          if (!grade.isActive && sourceLine === undefined) {
             return err("SALE_QUALITY_GRADE_INACTIVE", "An inactive grade cannot be posted.", {
               saleId: sale.id,
               lineId: line.lineId,

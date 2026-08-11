@@ -19,6 +19,7 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
+import { parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
 import { SupplyCommitmentEvidenceView } from "@/ui/screens/supply-commitment-evidence-view.tsx";
 
 export function SupplyCommitmentEvidenceController() {
@@ -166,10 +167,7 @@ export function SupplyCommitmentEvidenceController() {
 function parseOptionalInstant(raw: string) {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return { ok: true as const, value: null };
-  const date = new Date(trimmed);
-  return Number.isNaN(date.getTime())
-    ? { ok: false as const, reason: "Ngày giờ dự kiến không hợp lệ." }
-    : { ok: true as const, value: date.toISOString() };
+  return parseVietnamDateTimeLocal(trimmed, "Ngày giờ dự kiến");
 }
 
 export const SUPPLY_COMMITMENT_KIND_OPTIONS = SUPPLY_COMMITMENT_OBSERVATION_KINDS.map((value) => ({

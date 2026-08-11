@@ -157,7 +157,7 @@ function renderDeliveryNote(
 function renderDocumentBody(document: DocumentDto): string {
   const parsed = documentSnapshotSchema.safeParse(document.snapshot);
   if (!parsed.success) {
-    return `<header><h1>Chứng từ phiên bản cũ</h1></header><p>Snapshot vẫn được kiểm tra digest nhưng chưa có schema trình bày mới.</p><pre>${escapeHtml(JSON.stringify(document.snapshot, null, 2))}</pre>${documentFooter(document)}`;
+    return `<header><h1>Chứng từ phiên bản cũ</h1></header><p>Chứng từ này đã được lưu nhưng phiên bản trình bày hiện tại không hỗ trợ xem công khai.</p>${documentFooter(document)}`;
   }
   switch (parsed.data.kind) {
     case "sale_receipt":

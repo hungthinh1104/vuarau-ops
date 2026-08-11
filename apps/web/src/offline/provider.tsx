@@ -117,6 +117,13 @@ export function OfflineProvider(props: {
     };
   }, [retry]);
 
+  useEffect(() => {
+    const retryTimer = setInterval(() => {
+      if (commands.some((record) => record.state === "retry_wait")) void retry();
+    }, 5_000);
+    return () => clearInterval(retryTimer);
+  }, [commands, retry]);
+
   const queueSale = useCallback(
     async (input: Omit<QueueSaleInput, "partition">) => {
       const chain = buildOfflineSaleChain({ ...input, partition });

@@ -66,6 +66,15 @@ function postSaleCommand(expectedVersion: number): PostSaleCommand {
 }
 
 describe("BR-SALE-001 / TC-SALE-001", () => {
+  it("rejects duplicate child line identities", () => {
+    const result = decideCreateSaleDraft({
+      command: createSaleDraftCommand({ lines: [saleLineInputs[0]!, saleLineInputs[0]!] }),
+      recordedAt: RECORDED_AT,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("SALE_LINE_INVALID");
+  });
+
   it("sets the sale total to the sum of its line totals", () => {
     const result = decideCreateSaleDraft({
       command: createSaleDraftCommand(),

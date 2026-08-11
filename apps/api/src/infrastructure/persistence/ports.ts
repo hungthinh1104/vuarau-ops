@@ -88,11 +88,8 @@ import type { OperationsRepository } from "./operations-ports.ts";
 export type WorkspaceMembership = {
   readonly workspaceId: WorkspaceId;
   readonly actorId: ActorId;
-  /** Transitional primary projection; authorization consumes `roles`. */
   readonly role: WorkspaceRole;
-  /** Complete normalized role set (ADR-0021). */
   readonly roles: readonly WorkspaceRole[];
-  /** Revokes access without deleting who was once a member (BR-AUTH-003). */
   readonly isActive: boolean;
 };
 
@@ -102,9 +99,12 @@ export type WorkspaceMember = WorkspaceMembership & {
 };
 
 export type WorkspaceRepository = {
-  /** Presentation name for an already workspace-scoped read model. */
   findName(workspaceId: WorkspaceId): Promise<string | null>;
   findOperationalProfile(workspaceId: WorkspaceId): Promise<WorkspaceOperationalProfileDto | null>;
+  findOperationalProfileForUpdate(
+    workspaceId: WorkspaceId,
+  ): Promise<WorkspaceOperationalProfileDto | null>;
+  hasCanonicalActivity(workspaceId: WorkspaceId): Promise<boolean>;
   updateOperationalProfile(
     profile: WorkspaceOperationalProfileDto,
     expectedVersion: number,
@@ -691,4 +691,9 @@ export type Repositories = ReadRepositories & {
   readonly audit: AuditRepository;
   readonly receipts: CommandReceiptRepository;
 };
-export type UnitOfWork = { transaction<T>(work: (repos: Repositories) => Promise<T>): Promise<T> };
+export type UnitOfWork = {
+  transaction<T>(
+    work: (repos: Repositories) => Promise<T>,
+    options?: { readonly isolationLevel?: "repeatable read" },
+  ): Promise<T>;
+};

@@ -55,12 +55,16 @@ async function validateReferences(
   purchase: PurchaseState,
   requireActiveSupplier: boolean,
 ) {
-  const supplier = await repos.suppliers.findById(purchase.workspaceId, purchase.supplierId);
+  const supplier = requireActiveSupplier
+    ? await repos.suppliers.findByIdForUpdate(purchase.workspaceId, purchase.supplierId)
+    : await repos.suppliers.findById(purchase.workspaceId, purchase.supplierId);
   if (supplier === null) return err("SUPPLIER_NOT_FOUND", "No such supplier.");
   if (requireActiveSupplier && !supplier.isActive)
     return err("SUPPLIER_INACTIVE", "Inactive supplier cannot be used for a new Purchase.");
   for (const line of purchase.lines) {
-    const product = await repos.products.findById(purchase.workspaceId, line.productId);
+    const product = requireActiveSupplier
+      ? await repos.products.findByIdForUpdate(purchase.workspaceId, line.productId)
+      : await repos.products.findById(purchase.workspaceId, line.productId);
     if (product === null)
       return err("PRODUCT_NOT_FOUND", "Purchase Product is outside this workspace.");
     if (requireActiveSupplier && !product.isActive)
@@ -75,8 +79,11 @@ async function validateReferences(
     if (requireActiveSupplier && product.displayName !== line.productName)
       return err(
         "PURCHASE_PRODUCT_SNAPSHOT_MISMATCH",
-        "The Purchase line no longer matches the selected Product name.",
-        { lineId: line.lineId, productId: line.productId },
+        "The Purchase line name must match the selected Product when a new Purchase is created.",
+        {
+          lineId: line.lineId,
+          productId: line.productId,
+        },
       );
   }
   return ok(undefined);
@@ -102,7 +109,7 @@ export function createPurchaseDraft(
       const decision = decideCreatePurchaseDraft(command, recordedAt);
       if (!decision.ok) return decision;
       if (decision.value.replacesPurchaseId !== null) {
-        const original = await repos.purchases.findById(
+        const original = await repos.purchases.findByIdForUpdate(
           command.workspaceId,
           decision.value.replacesPurchaseId,
         );
@@ -122,7 +129,11 @@ export function createPurchaseDraft(
           );
         }
       }
-      const refs = await validateReferences(repos, decision.value, true);
+      const refs = await validateReferences(
+        repos,
+        decision.value,
+        decision.value.replacesPurchaseId === null,
+      );
       if (!refs.ok) return refs;
       if (!(await repos.purchases.insert(decision.value))) {
         return decision.value.replacesPurchaseId === null
@@ -167,7 +178,11 @@ export function updatePurchaseDraft(ctx: CommandContext, input: unknown) {
       if (current === null) return err("PURCHASE_NOT_FOUND", "No such Purchase.");
       const decision = decideUpdatePurchaseDraft(current, command, recordedAt);
       if (!decision.ok) return decision;
-      const refs = await validateReferences(repos, decision.value, true);
+      const refs = await validateReferences(
+        repos,
+        decision.value,
+        current.replacesPurchaseId === null,
+      );
       if (!refs.ok) return refs;
       if (!(await repos.purchases.updateDraft(decision.value, current.version, true)))
         return err("PURCHASE_VERSION_CONFLICT", "Purchase changed on the server.");
@@ -240,7 +255,7 @@ export function confirmPurchase(ctx: CommandContext, input: unknown) {
         command.payload.purchaseId,
       );
       if (current === null) return err("PURCHASE_NOT_FOUND", "No such Purchase.");
-      const refs = await validateReferences(repos, current, true);
+      const refs = await validateReferences(repos, current, current.replacesPurchaseId === null);
       if (!refs.ok) return refs;
       const decision = decideConfirmPurchase(current, command, recordedAt);
       if (!decision.ok) return decision;

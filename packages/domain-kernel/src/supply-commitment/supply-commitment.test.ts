@@ -70,6 +70,15 @@ function versioned(expectedVersion: number): ConfirmSupplyCommitmentCommand {
 }
 
 describe("BR-SUPPLY-COMMITMENT-001 / TC-SUPPLY-COMMITMENT-001", () => {
+  it("rejects duplicate child line identities", () => {
+    const result = decideCreateSupplyCommitmentDraft(
+      createCommand({ lines: [line, line] }),
+      RECORDED_AT,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("SUPPLY_COMMITMENT_LINE_INVALID");
+  });
+
   it("TC-SUPPLY-COMMITMENT-001 keeps a commitment commercial-only and exact", () => {
     const result = decideCreateSupplyCommitmentDraft(
       createCommand({ lines: [{ ...line, agreedUnitPrice: null }] }),

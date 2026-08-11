@@ -258,7 +258,12 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
           });
       } else if (reportType === "outstanding_delivery") {
         for (const sale of store.sales.values()) {
-          if (sale.workspaceId !== workspaceId || sale.status !== "posted") continue;
+          if (
+            sale.workspaceId !== workspaceId ||
+            sale.status !== "posted" ||
+            sale.voidRecord !== null
+          )
+            continue;
           const fulfilled = new Map<string, number>();
           for (const delivery of store.deliveries.values()) {
             if (

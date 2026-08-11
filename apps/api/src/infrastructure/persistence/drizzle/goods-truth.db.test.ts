@@ -108,7 +108,7 @@ describe.skipIf(skipWithoutDatabase())("Goods Truth against Postgres", () => {
           {
             lineId: purchaseLineId,
             productId: ctx.productIds[0],
-            productName: "Cà chua snapshot",
+            productName: "Cà chua",
             quantity: { valueScaled: 100_000, unit: "kg" },
             unitPrice: { amountMinor: 10_000, currency: "VND" },
           },
