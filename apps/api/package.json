@@ -13,7 +13,8 @@
     "ops:check-env": "node --env-file-if-exists=../../.env src/operations/check-env.ts",
     "ops:pilot-readiness": "node --env-file-if-exists=../../.env src/operations/pilot-readiness.ts",
     "ops:correct-sale": "node --env-file-if-exists=../../.env src/operations/correct-sale.ts",
-    "ops:check-supabase": "node --env-file-if-exists=../../.env src/operations/check-supabase.ts"
+    "ops:check-supabase": "node --env-file-if-exists=../../.env src/operations/check-supabase.ts",
+    "ops:check-supabase-db": "node --env-file-if-exists=../../.env src/operations/check-supabase-db.ts"
   },
   "dependencies": {
     "@trpc/server": "^11.7.1",

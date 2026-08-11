@@ -105,6 +105,13 @@ and uses PostgreSQL through `DATABASE_URL`. Do not put either key in any
 environment this application reads. An unused copy is not harmless; it is a key
 somebody later reaches for because it was already there.
 
+After configuring the pilot database, run
+`pnpm --filter @vuarau/api ops:check-supabase-db`. This read-only check rejects
+localhost, requires explicit TLS, verifies connectivity, and compares the applied
+migration hashes with this checkout. It prints only the database host/name and
+counts; it never prints credentials or database contents. It is an operator gate,
+not a replacement for the explicit migration step below.
+
 ## Trusted proxy and rate-limit identity
 
 The API trusts no forwarded address by default. In the required same-origin
