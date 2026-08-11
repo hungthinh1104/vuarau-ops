@@ -16,6 +16,7 @@ import { backupDigest } from "./operations.queries.ts";
 import { validCloseReferences } from "./restore-close-validation.ts";
 import { deliveryReferenceValidator } from "./restore-delivery-validation.ts";
 import { validDocumentAndCashReferences } from "./restore-document-validation.ts";
+import { purchaseReferenceValidator } from "./restore-purchase-validation.ts";
 import { validWorkspacePolicyCollection } from "./restore-policy-validation.ts";
 function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const payload = v19Payload(command);
@@ -89,6 +90,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     "deliveryReturns" in payload ? payload.deliveryReturns.map((row) => row["id"]) : [],
   );
   const deliveryReferences = deliveryReferenceValidator(payload);
+  const purchaseReferences = purchaseReferenceValidator(payload);
   const documents = new Set(
     "documents" in payload ? payload.documents.map((row) => row["id"]) : [],
   );
@@ -237,20 +239,12 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
       payload.purchaseLines.every(
         (row) => purchases.has(row["purchaseId"]) && products.has(row["productId"]),
       )) &&
-    (!("receipts" in payload) ||
-      payload.receipts.every((row) => purchases.has(row["purchaseId"]))) &&
     (!("purchaseVoids" in payload) ||
       payload.purchaseVoids.every((row) => purchases.has(row["purchaseId"]))) &&
-    (!("receiptLines" in payload) ||
-      payload.receiptLines.every(
-        (row) =>
-          receipts.has(row["receiptId"]) &&
-          purchaseLines.has(row["purchaseLineId"]) &&
-          products.has(row["productId"]) &&
-          hasGrade(row["qualityGradeId"]),
-      )) &&
-    (!("receiptReversals" in payload) ||
-      payload.receiptReversals.every((row) => receipts.has(row["receiptId"]))) &&
+    purchaseReferences.validReceiptRecords({
+      products,
+      qualityGrades,
+    }) &&
     goodsArrivalRows.every(
       (row) =>
         suppliers.has(row["supplierId"]) &&
@@ -334,9 +328,12 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
     (!("inventoryMovements" in payload) ||
       payload.inventoryMovements.every((row) => {
         if (!products.has(row["productId"]) || !hasGrade(row["qualityGradeId"])) return false;
-        if (row["sourceType"] === "purchase_receipt") return receipts.has(row["sourceId"]);
+        if (row["sourceType"] === "purchase_receipt")
+          return receipts.has(row["sourceId"]) && purchaseReferences.validReceiptMovement(row);
         if (row["sourceType"] === "purchase_receipt_reversal")
-          return receiptReversals.has(row["sourceId"]);
+          return (
+            receiptReversals.has(row["sourceId"]) && purchaseReferences.validReceiptMovement(row)
+          );
         if (row["sourceType"] === "delivery_dispatch")
           return (
             deliveries.has(row["sourceId"]) &&
