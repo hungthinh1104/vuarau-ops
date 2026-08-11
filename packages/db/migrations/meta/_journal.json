@@ -498,6 +498,13 @@
       "when": 1786418991451,
       "tag": "0070_old_shatterstar",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1786475763066,
+      "tag": "0071_solid_lyja",
+      "breakpoints": true
     }
   ]
 }

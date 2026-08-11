@@ -1,0 +1,6 @@
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'WORKSPACE_PROFILE_BOUNDARY_CHANGE_LOCKED' BEFORE 'WORKSPACE_PROFILE_UNCHANGED';--> statement-breakpoint
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'PURCHASE_PRODUCT_INACTIVE' BEFORE 'CUSTOMER_ORDER_NOT_FOUND';--> statement-breakpoint
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'PURCHASE_PRODUCT_SNAPSHOT_MISMATCH' BEFORE 'CUSTOMER_ORDER_NOT_FOUND';--> statement-breakpoint
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'DOCUMENT_SHARE_TOKEN_NOT_REPLAYABLE' BEFORE 'REPORT_INTEGRITY_FAILURE';--> statement-breakpoint
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'PAYMENT_ALREADY_EXISTS' BEFORE 'PAYMENT_ALREADY_REVERSED';--> statement-breakpoint
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'OPERATIONAL_DAY_CLOSED' BEFORE 'QUALITY_ISSUE_CODE_NOT_FOUND';
