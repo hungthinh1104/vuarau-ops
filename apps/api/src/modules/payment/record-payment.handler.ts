@@ -31,6 +31,16 @@ export function recordCustomerPayment(
         });
       }
 
+      const existingPayment = await repos.payments.findByIdForUpdate(
+        command.workspaceId,
+        command.payload.paymentId,
+      );
+      if (existingPayment !== null) {
+        return err("PAYMENT_ALREADY_EXISTS", "This payment identity has already been recorded.", {
+          paymentId: command.payload.paymentId,
+        });
+      }
+
       const cashbookEnabled = operationalProfile.cashbookMode === "accounts_ledger";
       if (!cashbookEnabled && (command.payload.cashAccountId ?? null) !== null) {
         return err("WORKSPACE_WORKFLOW_DISABLED", "Cashbook is disabled for this depot.", {

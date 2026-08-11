@@ -3,6 +3,7 @@ import type { CustomerAccountEntryDto } from "@vuarau/domain-contracts";
 import { key } from "../store.ts";
 import type { IdGenerator } from "../../../clock.ts";
 import type { Store } from "../store.ts";
+import { PersistedIntegrityError } from "@vuarau/db";
 
 export const createAccountRepositories = (
   store: Store,
@@ -22,9 +23,10 @@ export const createAccountRepositories = (
             entry.sourceId === draft.sourceId,
         );
         if (duplicate) {
-          throw new Error(
+          throw new PersistedIntegrityError(
             `Duplicate account entry for ${draft.sourceType}:${draft.sourceId} — ` +
               "unique (source_type, source_id) violated.",
+            "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
           );
         }
         const entry: CustomerAccountEntryDto = {

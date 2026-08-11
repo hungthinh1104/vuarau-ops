@@ -11,11 +11,48 @@ export class PersistedNumberOutOfRangeError extends Error {
 }
 
 /** A persisted aggregate cannot be reduced without inventing a quantity. */
-export class PersistedIntegrityError extends Error {
-  readonly code = "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE" as const;
+export type PersistedIntegrityCode =
+  | "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE"
+  | "CASH_RECONCILIATION_INTEGRITY_FAILURE"
+  | "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE"
+  | "SUPPLIER_ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE";
 
-  constructor(diagnostic: string) {
+export class PersistedIntegrityError extends Error {
+  readonly code: PersistedIntegrityCode;
+
+  constructor(
+    diagnostic: string,
+    code: PersistedIntegrityCode = "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
+  ) {
     super(diagnostic);
     this.name = "PersistedIntegrityError";
+    this.code = code;
   }
+}
+
+/** A client reused a persisted payment identity for a new command. */
+export class PaymentIdentityConflictError extends Error {
+  readonly code = "PAYMENT_ALREADY_EXISTS" as const;
+
+  constructor(paymentId: string) {
+    super(`Payment ${paymentId} already exists.`);
+    this.name = "PaymentIdentityConflictError";
+  }
+}
+
+export function isUniqueConstraintViolation(error: unknown, constraint: string): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as {
+    readonly code?: unknown;
+    readonly constraint?: unknown;
+    readonly constraint_name?: unknown;
+    readonly cause?: unknown;
+  };
+  if (
+    candidate.code === "23505" &&
+    (candidate.constraint === constraint || candidate.constraint_name === constraint)
+  ) {
+    return true;
+  }
+  return candidate.cause !== error && isUniqueConstraintViolation(candidate.cause, constraint);
 }

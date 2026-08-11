@@ -13,7 +13,11 @@ import {
 } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
 import { err, ok } from "@vuarau/domain-kernel";
-import { PersistedIntegrityError, PersistedNumberOutOfRangeError } from "@vuarau/db";
+import {
+  PaymentIdentityConflictError,
+  PersistedIntegrityError,
+  PersistedNumberOutOfRangeError,
+} from "@vuarau/db";
 import type { Clock } from "../../infrastructure/clock.ts";
 import type { AuthenticatedPrincipal } from "../../infrastructure/auth/principal.ts";
 import type {
@@ -315,6 +319,15 @@ export async function runCommand<
         },
       );
       record("rejected", "PERSISTED_NUMBER_OUT_OF_RANGE");
+      return rejection as DomainResult<TResult>;
+    }
+    if (error instanceof PaymentIdentityConflictError) {
+      const rejection = err(
+        "PAYMENT_ALREADY_EXISTS",
+        "This payment identity has already been recorded.",
+        { requestId: currentRequestId() },
+      );
+      record("rejected", "PAYMENT_ALREADY_EXISTS");
       return rejection as DomainResult<TResult>;
     }
     if (error instanceof PersistedIntegrityError) {

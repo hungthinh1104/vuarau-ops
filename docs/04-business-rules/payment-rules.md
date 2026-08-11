@@ -14,11 +14,15 @@ one is a debt increase wearing a disguise, and debt increases go through
 
 ### BR-PAYMENT-002 — Recording a payment produces exactly one ledger entry of −amount
 
-**Risk:** P0 · **Code:** — · **Tests:** TC-PAYMENT-001 · **Cases:** CASE-PAYMENT-001, CASE-PAYMENT-002, CASE-ACCOUNT-002
+**Risk:** P0 · **Code:** `PAYMENT_ALREADY_EXISTS` · **Tests:** TC-PAYMENT-001, TC-PAYMENT-012 · **Cases:** CASE-PAYMENT-001, CASE-PAYMENT-002, CASE-ACCOUNT-002
 
 `sourceType = payment`, `sourceId = paymentId`,
 `transactionTime = command.occurredAt`. The customer's balance drops by exactly the
 amount received — once.
+
+The payment identity is single-use. A different command with an already recorded
+`paymentId` is refused as `PAYMENT_ALREADY_EXISTS`; only a retry of the original
+idempotency key replays the stored result.
 
 ---
 

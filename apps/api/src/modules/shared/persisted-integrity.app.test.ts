@@ -21,6 +21,7 @@ import type {
   Repositories as ApiRepositories,
   UnitOfWork as ApiUnitOfWork,
 } from "../../infrastructure/persistence/ports.ts";
+import type { AccountEntryDraft } from "@vuarau/domain-kernel";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 
@@ -137,6 +138,31 @@ function throwsPersistedIntegrityAfterSuccess(harness: Harness): ApiUnitOfWork {
 }
 
 describe("persisted intake integrity boundary", () => {
+  it("keeps duplicate account sources fail-closed in the in-memory adapter", async () => {
+    const harness = createHarness();
+    const draft: AccountEntryDraft = {
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+      amount: { amountMinor: -10_000, currency: "VND" },
+      sourceType: "payment",
+      sourceId: crypto.randomUUID(),
+      reversalOfEntryId: null,
+      reasonCode: null,
+      reason: null,
+      transactionTime: now,
+      recordedAt: now,
+      actorId: ACTOR_ID,
+      commandId: crypto.randomUUID() as AccountEntryDraft["commandId"],
+    };
+
+    await harness.deps.uow.transaction((repos) => repos.accountEntries.append([draft]));
+    await expect(
+      harness.deps.uow.transaction((repos) => repos.accountEntries.append([draft])),
+    ).rejects.toMatchObject({
+      code: "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
+    });
+  });
+
   it("keeps the in-memory adapter from summing inspection units", async () => {
     const harness = createHarness();
     const arrivalLineId = await insertMixedFacts(harness);

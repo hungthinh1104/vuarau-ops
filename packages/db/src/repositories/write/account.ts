@@ -14,6 +14,7 @@ import {
   toAccountEntryDto,
 } from "../row-mappers.ts";
 import type { Tx, IdMinter } from "../shared/types.ts";
+import { isUniqueConstraintViolation, PersistedIntegrityError } from "../../errors.ts";
 
 export const createAccountWriteRepositories = (tx: Tx, ids: IdMinter) => ({
   accountEntries: {
@@ -23,28 +24,39 @@ export const createAccountWriteRepositories = (tx: Tx, ids: IdMinter) => ({
       if (drafts.length === 0) {
         return [];
       }
-      const inserted = await tx
-        .insert(customerAccountEntries)
-        .values(
-          drafts.map((draft) => ({
-            id: ids.newId(),
-            workspaceId: draft.workspaceId,
-            customerId: draft.customerId,
-            amountMinor: draft.amount.amountMinor,
-            currency: draft.amount.currency,
-            sourceType: draft.sourceType,
-            sourceId: draft.sourceId,
-            reversalOfEntryId: draft.reversalOfEntryId,
-            reasonCode: draft.reasonCode,
-            reason: draft.reason,
-            transactionTime: fromIso(draft.transactionTime),
-            recordedAt: fromIso(draft.recordedAt),
-            actorId: draft.actorId,
-            commandId: draft.commandId,
-          })),
-        )
-        .returning();
-      return inserted.map(toAccountEntryDto);
+      try {
+        const inserted = await tx
+          .insert(customerAccountEntries)
+          .values(
+            drafts.map((draft) => ({
+              id: ids.newId(),
+              workspaceId: draft.workspaceId,
+              customerId: draft.customerId,
+              amountMinor: draft.amount.amountMinor,
+              currency: draft.amount.currency,
+              sourceType: draft.sourceType,
+              sourceId: draft.sourceId,
+              reversalOfEntryId: draft.reversalOfEntryId,
+              reasonCode: draft.reasonCode,
+              reason: draft.reason,
+              transactionTime: fromIso(draft.transactionTime),
+              recordedAt: fromIso(draft.recordedAt),
+              actorId: draft.actorId,
+              commandId: draft.commandId,
+            })),
+          )
+          .returning();
+        return inserted.map(toAccountEntryDto);
+      } catch (error) {
+        if (isUniqueConstraintViolation(error, "customer_account_entries_source_unique")) {
+          const source = drafts[0]!;
+          throw new PersistedIntegrityError(
+            `Account entry source ${source.sourceType}:${source.sourceId} is already present.`,
+            "ACCOUNT_RECONCILIATION_INTEGRITY_FAILURE",
+          );
+        }
+        throw error;
+      }
     },
 
     async listByCustomer(

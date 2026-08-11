@@ -2,10 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createDbTestContext,
   createUnitOfWork,
+  PersistedIntegrityError,
   skipWithoutDatabase,
   type DbTestContext,
 } from "@vuarau/db";
+import type { AccountEntryDraft } from "@vuarau/domain-kernel";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
+import type { IdempotencyKey } from "@vuarau/domain-contracts";
 import { randomIdGenerator } from "../../clock.ts";
 import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
@@ -173,6 +176,61 @@ describe.skipIf(skipWithoutDatabase())("full slice against Postgres", () => {
     if (!summary.ok) return;
     expect(summary.value.balance.amountMinor).toBe(375_000);
     expect(summary.value.entryCount).toBe(2);
+  });
+
+  it("TC-PAYMENT-012 — a new command cannot reuse a recorded payment identity", async () => {
+    const duplicate = await recordCustomerPayment(owner, {
+      ...envelope("db-payment-duplicate-identity"),
+      payload: {
+        paymentId,
+        customerId: ctx.customerId,
+        amount: { amountMinor: 500_000, currency: "VND" },
+        method: "cash",
+        payerName: null,
+        note: null,
+        evidenceReferences: [],
+      },
+    });
+
+    expect(duplicate).toMatchObject({
+      ok: false,
+      error: { code: "PAYMENT_ALREADY_EXISTS", retryable: false },
+    });
+  });
+
+  it("TC-ACCOUNT-013 — duplicate ledger sources fail closed on PostgreSQL", async () => {
+    const commandId = crypto.randomUUID() as AccountEntryDraft["commandId"];
+    const draft: AccountEntryDraft = {
+      workspaceId: ctx.workspaceId,
+      customerId: ctx.customerId,
+      amount: { amountMinor: -10_000, currency: "VND" },
+      sourceType: "payment",
+      sourceId: paymentId,
+      reversalOfEntryId: null,
+      reasonCode: null,
+      reason: null,
+      transactionTime,
+      recordedAt: transactionTime,
+      actorId: ctx.actorId,
+      commandId,
+    };
+
+    await expect(
+      owner.deps.uow.transaction(async (repos) => {
+        const claimed = await repos.receipts.claim({
+          commandId,
+          workspaceId: ctx.workspaceId,
+          idempotencyKey: crypto.randomUUID() as IdempotencyKey,
+          commandType: "TestDuplicateLedgerSource",
+          payloadHash: "test",
+          status: "in_progress",
+          result: null,
+          recordedAt: transactionTime,
+        });
+        expect(claimed).toBe(true);
+        return repos.accountEntries.append([draft]);
+      }),
+    ).rejects.toBeInstanceOf(PersistedIntegrityError);
   });
 
   it("BR-PAYMENT-005 / TC-PAYMENT-004 — a reversal compensates without erasing", async () => {

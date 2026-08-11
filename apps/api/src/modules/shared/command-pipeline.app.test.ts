@@ -327,17 +327,17 @@ describe("BR-COMMAND-005 / TC-COMMAND-004", () => {
     expect(ledgerBalance(harness, CUSTOMER_ID)).toBe(-500_000);
   });
 
-  it("rolls back every effect when persistence fails midway", async () => {
+  it("TC-PAYMENT-012 — refuses a payment identity reused by a different command", async () => {
     await recordCustomerPayment(harness.ctx, paymentInput());
 
-    // A second payment reusing the same paymentId: the ledger's
-    // UNIQUE (source_type, source_id) constraint throws mid-transaction.
-    await expect(
-      recordCustomerPayment(
-        harness.ctx,
-        paymentInput({ commandId: SECOND_COMMAND_ID, idempotencyKey: OTHER_IDEMPOTENCY_KEY }),
-      ),
-    ).rejects.toThrow(/Duplicate account entry/);
+    const result = await recordCustomerPayment(
+      harness.ctx,
+      paymentInput({ commandId: SECOND_COMMAND_ID, idempotencyKey: OTHER_IDEMPOTENCY_KEY }),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "PAYMENT_ALREADY_EXISTS", retryable: false },
+    });
 
     // Exactly the state after the first payment — nothing half-applied.
     expect(harness.db.payments()).toHaveLength(1);

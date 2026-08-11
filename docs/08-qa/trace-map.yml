@@ -2404,8 +2404,10 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/payment-rules.md
     cases: [CASE-PAYMENT-001, CASE-PAYMENT-002, CASE-ACCOUNT-002]
-    tests: [TC-PAYMENT-001]
-    implementation: [packages/domain-kernel/src/payment/record-payment.ts]
+    tests: [TC-PAYMENT-001, TC-PAYMENT-012]
+    implementation:
+      - packages/domain-kernel/src/payment/record-payment.ts
+      - apps/api/src/modules/payment/record-payment.handler.ts
 
   BR-PAYMENT-003:
     title: A reversal cannot exceed the remaining reversible amount
@@ -2497,9 +2499,11 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/customer-account-rules.md
     cases: [CASE-ACCOUNT-003]
-    tests: [TC-ACCOUNT-005]
+    tests: [TC-ACCOUNT-005, TC-ACCOUNT-013]
     implementation:
       - packages/db/migrations/0001_append_only_guards.sql
+      - packages/db/src/repositories/write/account.ts
+      - apps/api/src/infrastructure/persistence/in-memory/repositories/account.ts
       - apps/api/src/infrastructure/persistence/ports.ts
 
   BR-ACCOUNT-006:

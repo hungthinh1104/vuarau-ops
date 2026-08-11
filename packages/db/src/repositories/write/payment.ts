@@ -4,6 +4,7 @@ import type { PaymentReversalState, PaymentState } from "@vuarau/domain-kernel";
 import { paymentReversals, payments } from "../../schema/index.ts";
 import { fromIso, toPaymentState } from "../row-mappers.ts";
 import type { Tx } from "../shared/types.ts";
+import { isUniqueConstraintViolation, PaymentIdentityConflictError } from "../../errors.ts";
 
 export const createPaymentWriteRepositories = (tx: Tx) => ({
   payments: {
@@ -22,23 +23,30 @@ export const createPaymentWriteRepositories = (tx: Tx) => ({
     },
 
     async insert(payment: PaymentState): Promise<void> {
-      await tx.insert(payments).values({
-        id: payment.id,
-        workspaceId: payment.workspaceId,
-        customerId: payment.customerId,
-        amountMinor: payment.amount.amountMinor,
-        currency: payment.amount.currency,
-        method: payment.method,
-        cashAccountId: payment.cashAccountId ?? null,
-        payerName: payment.payerName,
-        note: payment.note,
-        evidenceReferences: [...payment.evidenceReferences],
-        status: payment.status,
-        reversedAmountMinor: payment.reversedAmount.amountMinor,
-        version: payment.version,
-        transactionTime: fromIso(payment.transactionTime),
-        recordedAt: fromIso(payment.recordedAt),
-      });
+      try {
+        await tx.insert(payments).values({
+          id: payment.id,
+          workspaceId: payment.workspaceId,
+          customerId: payment.customerId,
+          amountMinor: payment.amount.amountMinor,
+          currency: payment.amount.currency,
+          method: payment.method,
+          cashAccountId: payment.cashAccountId ?? null,
+          payerName: payment.payerName,
+          note: payment.note,
+          evidenceReferences: [...payment.evidenceReferences],
+          status: payment.status,
+          reversedAmountMinor: payment.reversedAmount.amountMinor,
+          version: payment.version,
+          transactionTime: fromIso(payment.transactionTime),
+          recordedAt: fromIso(payment.recordedAt),
+        });
+      } catch (error) {
+        if (isUniqueConstraintViolation(error, "payments_pkey")) {
+          throw new PaymentIdentityConflictError(payment.id);
+        }
+        throw error;
+      }
     },
 
     /** The only mutable columns on a payment, and `reversed` only ever grows. */
