@@ -1,23 +1,25 @@
-# ADR-0015 — Quick Sale uses a durable, partitioned browser outbox
+# ADR-0015 — Selected money workflows use a durable, partitioned browser outbox
 
 **Status:** accepted · 2026-07-29
 
 ## Context
 
-Quick Sale must survive weak connectivity and a browser reload without inventing
-a second Sale or presenting local state as receivable truth.
+Quick Sale and customer payment capture must survive weak connectivity and a
+browser reload without inventing a second effect or presenting local state as
+canonical money truth.
 
 ## Decision
 
-Offline Quick Sale is an explicit IndexedDB outbox, not a service-worker mutation
+Offline capture is an explicit IndexedDB outbox, not a service-worker mutation
 cache. Records are schema-versioned and partitioned by authenticated actor and
-workspace. Accepting a local Sale writes its draft and immutable command chain in
-one IndexedDB transaction.
+workspace. Accepting a local Sale or payment writes its draft and immutable
+command record in one IndexedDB transaction.
 
-The supported chain is deliberately narrow:
+The supported workflows are deliberately narrow:
 
 ```text
 optional CreateCustomer → CreateSaleDraft → PostSale
+RecordCustomerPayment
 ```
 
 Each command keeps its original aggregate id, command id, idempotency key and
@@ -37,8 +39,9 @@ queued Sale posted. Cached financial values carry `fetchedAt` and remain display
 information only. Sign-out clears the cached authority bootstrap, while queued
 records remain partitioned and cannot replay as another actor.
 
-Background Sync is not required. Product mutation, payment and correction queues
-remain outside this ADR.
+Background Sync is not required. Product mutation, receiving, delivery, reversal
+and correction queues remain outside this ADR; each needs its own dependency and
+recovery contract before it may be queued.
 
 ## Alternatives considered
 

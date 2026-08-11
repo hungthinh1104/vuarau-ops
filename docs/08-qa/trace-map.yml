@@ -3788,7 +3788,7 @@ cases:
     title: Payment captured offline, submitted later
     doc: docs/05-casebook/payment-cases.md
     rules: [BR-COMMAND-001, BR-COMMAND-003]
-    tests: [TC-COMMAND-003]
+    tests: [TC-COMMAND-003, TC-OFFLINE-003]
   CASE-PAYMENT-009:
     title: A payment needs full reversal
     doc: docs/05-casebook/payment-cases.md
@@ -4434,6 +4434,9 @@ contract_tests:
   TC-OFFLINE-002:
     title: Cached workspace authority is subject-scoped and cleared on sign-out
     file: apps/web/src/offline/session-cache.test.ts
+  TC-OFFLINE-003:
+    title: Offline customer payment survives reload and synchronizes one money effect
+    file: apps/web/e2e/offline-payment.spec.ts
   TC-OPS-006:
     title: Logical backup is deterministic, secret-free, validated and idempotently restored to an empty target
     file: apps/api/src/modules/operations/operations.app.test.ts
@@ -4470,6 +4473,9 @@ contract_tests:
   TC-E2E-026:
     title: Offline Quick Sale survives reload and synchronizes one posting
     file: apps/web/e2e/offline-quick-sale.spec.ts
+  TC-E2E-033:
+    title: Offline customer payment survives reload and synchronizes one payment
+    file: apps/web/e2e/offline-payment.spec.ts
   TC-E2E-027:
     title: Owner inspects integrity and exports a checksummed backup
     file: apps/web/e2e/workspace-operations.spec.ts

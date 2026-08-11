@@ -1,8 +1,13 @@
-import type { CustomerDetailDto, DomainError } from "@vuarau/domain-contracts";
+import type {
+  CustomerDetailDto,
+  DomainError,
+  RecordCustomerPaymentPayload,
+} from "@vuarau/domain-contracts";
 
-export const OFFLINE_DATABASE_VERSION = 3;
+export const OFFLINE_DATABASE_VERSION = 4;
 
-export type OfflineCommandKind = "customer.create" | "sale.createDraft" | "sale.post";
+export type OfflineCommandKind =
+  "customer.create" | "sale.createDraft" | "sale.post" | "payment.record";
 export type OfflineCommandState =
   "queued" | "syncing" | "confirmed" | "retry_wait" | "blocked" | "rejected";
 
@@ -41,6 +46,23 @@ export type OfflineSaleDraft = {
   readonly note: string | null;
   readonly evidenceReferences: readonly string[];
   /** Server-authored customer context needed to reopen a queued sale offline. */
+  readonly customerSnapshot?: CustomerDetailDto;
+  readonly occurredAt: string;
+  readonly syncState: "local" | OfflineCommandState;
+  readonly updatedAt: string;
+};
+
+/**
+ * A payment captured while the device cannot reach the API. The parsed command
+ * payload is the source of truth for replay; the customer snapshot is only for
+ * reopening the screen and is never used to decide the account effect.
+ */
+export type OfflinePaymentDraft = {
+  readonly paymentId: string;
+  readonly customerId: string;
+  readonly actorId: string;
+  readonly workspaceId: string;
+  readonly payload: RecordCustomerPaymentPayload;
   readonly customerSnapshot?: CustomerDetailDto;
   readonly occurredAt: string;
   readonly syncState: "local" | OfflineCommandState;

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CustomerDetailDto, CustomerId, Money, PaymentMethod } from "@vuarau/domain-contracts";
+import type { ReactNode } from "react";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import { BalancePreview } from "@/ui/patterns/finance/balance-preview.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
@@ -35,6 +36,8 @@ export type PaymentCreateViewProps = {
   readonly note: string;
   readonly evidence: string;
   readonly command: CommandOutcomeView;
+  readonly offlineFeedback: ReactNode;
+  readonly offlineLocked: boolean;
   readonly onAmount: (value: string) => void;
   readonly onMethod: (value: PaymentMethod) => void;
   readonly onPayerName: (value: string) => void;
@@ -135,6 +138,7 @@ export function PaymentCreateView(props: PaymentCreateViewProps) {
                 onReload={props.onRetry}
                 onCancel={props.onCancel}
               />
+              {props.offlineFeedback}
               <ActionDock
                 label="Hành động ghi nhận thanh toán"
                 summary={
@@ -152,11 +156,13 @@ export function PaymentCreateView(props: PaymentCreateViewProps) {
                     onClick={props.onSubmit}
                     {...(!props.canRecord
                       ? { disabledReason: "Bạn không có quyền ghi nhận thanh toán." }
-                      : props.command.phase.kind === "sending"
-                        ? { disabledReason: "Đang gửi…" }
-                        : props.command.phase.kind === "succeeded"
-                          ? { disabledReason: "Đã ghi nhận." }
-                          : {})}
+                      : props.offlineLocked
+                        ? { disabledReason: "Đã lưu trên thiết bị, chờ máy chủ xác nhận." }
+                        : props.command.phase.kind === "sending"
+                          ? { disabledReason: "Đang gửi…" }
+                          : props.command.phase.kind === "succeeded"
+                            ? { disabledReason: "Đã ghi nhận." }
+                            : {})}
                   >
                     Ghi nhận thanh toán
                   </Button>

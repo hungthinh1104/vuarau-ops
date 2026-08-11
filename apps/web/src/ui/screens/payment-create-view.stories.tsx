@@ -37,6 +37,8 @@ const meta = {
     note: "Thu tiền chuyến sáng",
     evidence: "receipt://morning-collection-001",
     command: idle,
+    offlineFeedback: null,
+    offlineLocked: false,
     onAmount: () => undefined,
     onMethod: () => undefined,
     onPayerName: () => undefined,

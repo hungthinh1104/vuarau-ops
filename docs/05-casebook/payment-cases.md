@@ -105,9 +105,11 @@ phone uploads it at 09:40.
 `paymentId` and `idempotencyKey` were created at 06:15, so an upload that is itself
 retried still produces one payment.
 
-**Note.** Offline _storage and sync_ on the client is out of scope. What is in
-scope is that the backend contract already accepts this shape — client-supplied
-ids, back-dated `occurredAt`, idempotent replay.
+**Implementation note.** The web client stores this one-command payment in the
+partitioned IndexedDB outbox before attempting synchronization. The parsed
+payload, client-supplied `paymentId`, command identity and `occurredAt` remain
+frozen through reload and reconnect. The cached customer is display context only;
+the server remains the source of the account effect.
 
 **Rules.** BR-COMMAND-001, BR-COMMAND-003 · **Tests.** TC-COMMAND-003
 

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { indexedDB as fakeIndexedDb } from "fake-indexeddb";
-import { buildOfflineSaleChain } from "./command-builders.ts";
+import { buildOfflinePaymentCommand, buildOfflineSaleChain } from "./command-builders.ts";
 import { OfflineSyncEngine } from "./sync-engine.ts";
 import { OfflineDatabase } from "./database.ts";
+import type { CustomerId, PaymentId } from "@vuarau/domain-contracts";
 import type { OfflinePartition, OutboxRecord } from "./types.ts";
 
 const partition: OfflinePartition = { actorId: "actor-a", workspaceId: "workspace-a" };
@@ -32,6 +33,22 @@ function chain(saleId: string) {
   });
 }
 
+function payment(paymentId = "payment-a") {
+  return buildOfflinePaymentCommand({
+    partition,
+    occurredAt: "2026-07-29T01:02:03.000Z",
+    payment: {
+      paymentId: paymentId as PaymentId,
+      customerId: "customer-a" as CustomerId,
+      amount: { amountMinor: 125_000, currency: "VND" },
+      method: "cash",
+      payerName: null,
+      note: "Thu tại quầy",
+      evidenceReferences: [],
+    },
+  });
+}
+
 class MemoryOfflineStore {
   readonly records = new Map<string, OutboxRecord>();
   successfulSyncs = 0;
@@ -55,6 +72,51 @@ class MemoryOfflineStore {
 
 // TC-OFFLINE-001
 describe("offline Quick Sale outbox", () => {
+  it("freezes an offline payment as one partitioned, replayable command", async () => {
+    const built = payment();
+    const database = new OfflineDatabase();
+    await database.acceptPayment({ partition, ...built });
+
+    await expect(database.commands(partition)).resolves.toMatchObject([
+      {
+        id: "payment-a:0",
+        chainId: "payment-a",
+        kind: "payment.record",
+        state: "queued",
+        envelope: {
+          payload: built.command.envelope.payload,
+          occurredAt: "2026-07-29T01:02:03.000Z",
+        },
+      },
+    ]);
+    await expect(database.paymentDraft(partition, "payment-a")).resolves.toMatchObject({
+      paymentId: "payment-a",
+      syncState: "queued",
+      payload: { amount: { amountMinor: 125_000, currency: "VND" } },
+    });
+  });
+
+  it("replays an offline payment with the same identity and no second effect", async () => {
+    const built = payment();
+    const store = new MemoryOfflineStore([built.command]);
+    const sender = vi.fn(
+      async (_kind: OutboxRecord["kind"], envelope: OutboxRecord["envelope"]) => ({
+        id: "payment-a",
+        commandId: envelope.commandId,
+      }),
+    );
+    const engine = new OfflineSyncEngine(store as unknown as OfflineDatabase, sender, () => null);
+
+    await engine.sync(partition);
+    await engine.sync(partition);
+
+    expect(sender).toHaveBeenCalledOnce();
+    expect(sender).toHaveBeenCalledWith("payment.record", built.command.envelope);
+    expect([...store.records.values()]).toMatchObject([
+      { id: "payment-a:0", state: "confirmed", result: { id: "payment-a" } },
+    ]);
+  });
+
   it("rebuilds one deterministic chain while keeping queued envelopes immutable", () => {
     const first = chain("sale-a");
     const second = chain("sale-a");

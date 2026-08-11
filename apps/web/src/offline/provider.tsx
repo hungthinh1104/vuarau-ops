@@ -7,24 +7,27 @@ import {
   createCustomerCommandSchema,
   createSaleDraftCommandSchema,
   postSaleCommandSchema,
+  recordCustomerPaymentCommandSchema,
   type SessionDto,
   type WorkspaceId,
 } from "@vuarau/domain-contracts";
 import { useTRPC } from "@/api/providers.tsx";
 import { domainErrorOf } from "@/api/domain-error.ts";
 import { OfflineDatabase, requestPersistentStorage } from "./database.ts";
-import { buildOfflineSaleChain } from "./command-builders.ts";
+import { buildOfflinePaymentCommand, buildOfflineSaleChain } from "./command-builders.ts";
 import { OfflineSyncEngine } from "./sync-engine.ts";
 import type {
   CachedCustomer,
   CachedProduct,
   CachedQualityGrade,
   OfflinePartition,
+  OfflinePaymentDraft,
   OfflineSaleDraft,
   OutboxRecord,
 } from "./types.ts";
 
 type QueueSaleInput = Parameters<typeof buildOfflineSaleChain>[0];
+type QueuePaymentInput = Parameters<typeof buildOfflinePaymentCommand>[0];
 
 type OfflineContextValue = {
   readonly partition: OfflinePartition;
@@ -35,6 +38,8 @@ type OfflineContextValue = {
   readonly queueSale: (
     input: Omit<QueueSaleInput, "partition">,
   ) => Promise<readonly OutboxRecord[]>;
+  readonly queuePayment: (input: Omit<QueuePaymentInput, "partition">) => Promise<OutboxRecord>;
+  readonly loadPaymentDraft: (paymentId: string) => Promise<OfflinePaymentDraft | null>;
   readonly saveDraft: (draft: OfflineSaleDraft) => Promise<void>;
   readonly loadDraft: (saleId: string) => Promise<OfflineSaleDraft | null>;
   readonly cacheCustomers: (customers: readonly CachedCustomer[]) => Promise<void>;
@@ -68,6 +73,7 @@ export function OfflineProvider(props: {
   const { mutateAsync: createCustomer } = useMutation(trpc.customer.create.mutationOptions());
   const { mutateAsync: createDraft } = useMutation(trpc.sale.createDraft.mutationOptions());
   const { mutateAsync: postSale } = useMutation(trpc.sale.post.mutationOptions());
+  const { mutateAsync: recordPayment } = useMutation(trpc.payment.record.mutationOptions());
   const [commands, setCommands] = useState<readonly OutboxRecord[]>([]);
   const [lastSuccessfulSync, setLastSuccessfulSync] = useState<string | null>(null);
 
@@ -89,11 +95,12 @@ export function OfflineProvider(props: {
             return createCustomer(createCustomerCommandSchema.parse(envelope));
           if (kind === "sale.createDraft")
             return createDraft(createSaleDraftCommandSchema.parse(envelope));
-          return postSale(postSaleCommandSchema.parse(envelope));
+          if (kind === "sale.post") return postSale(postSaleCommandSchema.parse(envelope));
+          return recordPayment(recordCustomerPaymentCommandSchema.parse(envelope));
         },
         domainErrorOf,
       ),
-    [createCustomer, createDraft, database, postSale],
+    [createCustomer, createDraft, database, postSale, recordPayment],
   );
 
   const retry = useCallback(async () => {
@@ -133,6 +140,19 @@ export function OfflineProvider(props: {
     },
     [database, partition, refresh],
   );
+  const queuePayment = useCallback(
+    async (input: Omit<QueuePaymentInput, "partition">) => {
+      const built = buildOfflinePaymentCommand({ ...input, partition });
+      await database.acceptPayment({ partition, ...built });
+      await refresh();
+      return built.command;
+    },
+    [database, partition, refresh],
+  );
+  const loadPaymentDraft = useCallback(
+    (paymentId: string) => database.paymentDraft(partition, paymentId),
+    [database, partition],
+  );
   const saveDraft = useCallback(
     (draft: OfflineSaleDraft) => database.saveDraft(partition, draft),
     [database, partition],
@@ -171,6 +191,8 @@ export function OfflineProvider(props: {
         .length,
       lastSuccessfulSync,
       queueSale,
+      queuePayment,
+      loadPaymentDraft,
       saveDraft,
       loadDraft,
       cacheCustomers,
@@ -191,7 +213,9 @@ export function OfflineProvider(props: {
       commands,
       lastSuccessfulSync,
       loadDraft,
+      loadPaymentDraft,
       partition,
+      queuePayment,
       queueSale,
       retry,
       saveDraft,

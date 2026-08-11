@@ -1,7 +1,7 @@
 # apps/web
 
-Two production workflows — **record a payment** and **quick sale** — on the design
-system and typed tRPC client from the previous milestone.
+Two production workflows — **record a payment** and **quick sale** — have a
+durable, partitioned offline boundary on the design system and typed tRPC client.
 
 ```bash
 pnpm --filter @vuarau/web dev              # Next dev server on :3000
@@ -240,8 +240,8 @@ it passes handlers, and a function prop does not cross the server boundary.
 - **A customer-create screen, and any import screen.** Customers arrive through
   the onboarding CLI before a session (BR-CUSTOMER-005); an import UI would be a
   second way to create them with its own validation and its own bugs.
-- **An offline queue.** Client-supplied ids and idempotency keys are already in
-  every command, which is the part that had to be decided at the backend
-  ([ADR-0008](../../docs/09-decisions/ADR-0008-idempotency-records.md)). The sync
-  engine is future work.
+- **A generic offline queue.** The outbox supports only Quick Sale's bounded
+  customer/sale chain and one standalone customer payment. Receiving, delivery,
+  reversal and correction stay online-only until their own dependency and
+  recovery contracts are proven.
 - **A dashboard.** design.md: don't build one before the core workflows.

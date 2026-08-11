@@ -3,6 +3,7 @@ import type {
   CachedProduct,
   CachedQualityGrade,
   OfflinePartition,
+  OfflinePaymentDraft,
   OfflineSaleDraft,
   OutboxRecord,
 } from "./types.ts";
@@ -14,6 +15,7 @@ const DRAFTS = "drafts";
 const CUSTOMERS = "customers";
 const PRODUCTS = "products";
 const QUALITY_GRADES = "quality-grades";
+const PAYMENT_DRAFTS = "payment-drafts";
 const META = "meta";
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -66,6 +68,10 @@ function openDatabase(): Promise<IDBDatabase> {
       }
       if (!database.objectStoreNames.contains(QUALITY_GRADES)) {
         const store = database.createObjectStore(QUALITY_GRADES, { keyPath: "storageKey" });
+        store.createIndex("partition", "partition");
+      }
+      if (!database.objectStoreNames.contains(PAYMENT_DRAFTS)) {
+        const store = database.createObjectStore(PAYMENT_DRAFTS, { keyPath: "storageKey" });
         store.createIndex("partition", "partition");
       }
       if (!database.objectStoreNames.contains(META)) {
@@ -124,6 +130,27 @@ export class OfflineDatabase {
     database.close();
   }
 
+  async acceptPayment(args: {
+    partition: OfflinePartition;
+    draft: OfflinePaymentDraft;
+    command: OutboxRecord;
+  }): Promise<void> {
+    const database = await openDatabase();
+    const transaction = database.transaction([PAYMENT_DRAFTS, OUTBOX], "readwrite");
+    const completed = transactionDone(transaction);
+    const outbox = transaction.objectStore(OUTBOX);
+    const storageKey = recordKey(args.partition, args.command.id);
+    const exists = await requestResult(outbox.get(storageKey));
+    if (exists === undefined) {
+      transaction
+        .objectStore(PAYMENT_DRAFTS)
+        .put(stored(args.partition, args.draft.paymentId, args.draft));
+      outbox.add(stored(args.partition, args.command.id, args.command));
+    }
+    await completed;
+    database.close();
+  }
+
   async draft(partition: OfflinePartition, saleId: string): Promise<OfflineSaleDraft | null> {
     const database = await openDatabase();
     const transaction = database.transaction([DRAFTS, OUTBOX]);
@@ -149,6 +176,36 @@ export class OfflineDatabase {
     if (blocked !== undefined) {
       return { ...draft, syncState: blocked.state };
     }
+    if (commands.some((command) => command.state !== "confirmed")) {
+      return { ...draft, syncState: "queued" };
+    }
+    return { ...draft, syncState: "confirmed" };
+  }
+
+  async paymentDraft(
+    partition: OfflinePartition,
+    paymentId: string,
+  ): Promise<OfflinePaymentDraft | null> {
+    const database = await openDatabase();
+    const transaction = database.transaction([PAYMENT_DRAFTS, OUTBOX]);
+    const completed = transactionDone(transaction);
+    const rowRequest = transaction.objectStore(PAYMENT_DRAFTS).get(recordKey(partition, paymentId));
+    const [row, commandRows] = await Promise.all([
+      requestResult(rowRequest),
+      requestResult(
+        transaction.objectStore(OUTBOX).index("partition").getAll(partitionKey(partition)),
+      ),
+    ]);
+    await completed;
+    database.close();
+    if (row === undefined) return null;
+
+    const draft = stripStorage(row as Stored<OfflinePaymentDraft>);
+    const commands = (commandRows as Stored<OutboxRecord>[])
+      .map(stripStorage)
+      .filter((command) => command.chainId === paymentId);
+    const blocked = commands.find((command) => ["blocked", "rejected"].includes(command.state));
+    if (blocked !== undefined) return { ...draft, syncState: blocked.state };
     if (commands.some((command) => command.state !== "confirmed")) {
       return { ...draft, syncState: "queued" };
     }

@@ -1,5 +1,10 @@
-import type { CustomerDetailDto } from "@vuarau/domain-contracts";
-import type { OfflinePartition, OfflineSaleDraft, OutboxRecord } from "./types.ts";
+import type { CustomerDetailDto, RecordCustomerPaymentPayload } from "@vuarau/domain-contracts";
+import type {
+  OfflinePartition,
+  OfflinePaymentDraft,
+  OfflineSaleDraft,
+  OutboxRecord,
+} from "./types.ts";
 
 function identity(partition: OfflinePartition, occurredAt: string) {
   return {
@@ -100,5 +105,47 @@ export function buildOfflineSaleChain(args: {
       updatedAt: createdAt,
     },
     commands,
+  };
+}
+
+export function buildOfflinePaymentCommand(args: {
+  partition: OfflinePartition;
+  payment: RecordCustomerPaymentPayload;
+  occurredAt: string;
+  customerSnapshot?: CustomerDetailDto;
+}): { draft: OfflinePaymentDraft; command: OutboxRecord } {
+  const createdAt = new Date().toISOString();
+  const command: OutboxRecord = {
+    id: `${args.payment.paymentId}:0`,
+    chainId: args.payment.paymentId,
+    sequence: 0,
+    kind: "payment.record",
+    actorId: args.partition.actorId,
+    workspaceId: args.partition.workspaceId,
+    envelope: {
+      ...identity(args.partition, args.occurredAt),
+      payload: args.payment,
+    },
+    createdAt,
+    state: "queued",
+    attempts: 0,
+    lastAttemptAt: null,
+    result: null,
+    error: null,
+  };
+
+  return {
+    draft: {
+      paymentId: args.payment.paymentId,
+      customerId: args.payment.customerId,
+      actorId: args.partition.actorId,
+      workspaceId: args.partition.workspaceId,
+      payload: args.payment,
+      ...(args.customerSnapshot === undefined ? {} : { customerSnapshot: args.customerSnapshot }),
+      occurredAt: args.occurredAt,
+      syncState: "queued",
+      updatedAt: createdAt,
+    },
+    command,
   };
 }
