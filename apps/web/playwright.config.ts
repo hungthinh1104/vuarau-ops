@@ -51,6 +51,11 @@ const apiEnvironment = {
   // harness deliberately mints HS256 tokens, so it must clear that inherited
   // setting rather than leave two mutually-exclusive verifier modes configured.
   SUPABASE_JWKS_URL: "",
+  // The API refuses elevated provider keys in every environment. Explicitly
+  // clear them because the package script loads a developer `.env` before
+  // Playwright starts the web servers.
+  SUPABASE_SECRET_KEY: "",
+  SUPABASE_SERVICE_ROLE_KEY: "",
 };
 
 const webEnvironment = {
