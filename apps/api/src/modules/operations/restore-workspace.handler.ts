@@ -12,9 +12,10 @@ import {
 import { err, ok, type DomainResult } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
-import { hashPayload } from "../../infrastructure/hash.ts";
 import { backupDigest } from "./operations.queries.ts";
 import { validCloseReferences } from "./restore-close-validation.ts";
+import { deliveryReferenceValidator } from "./restore-delivery-validation.ts";
+import { validDocumentAndCashReferences } from "./restore-document-validation.ts";
 import { validWorkspacePolicyCollection } from "./restore-policy-validation.ts";
 function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const payload = v19Payload(command);
@@ -87,6 +88,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const deliveryReturns = new Set(
     "deliveryReturns" in payload ? payload.deliveryReturns.map((row) => row["id"]) : [],
   );
+  const deliveryReferences = deliveryReferenceValidator(payload);
   const documents = new Set(
     "documents" in payload ? payload.documents.map((row) => row["id"]) : [],
   );
@@ -336,9 +338,17 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
         if (row["sourceType"] === "purchase_receipt_reversal")
           return receiptReversals.has(row["sourceId"]);
         if (row["sourceType"] === "delivery_dispatch")
-          return deliveries.has(row["sourceId"]) && deliveryLines.has(row["sourceLineId"]);
+          return (
+            deliveries.has(row["sourceId"]) &&
+            deliveryLines.has(row["sourceLineId"]) &&
+            deliveryReferences.validDispatchMovement(row)
+          );
         if (row["sourceType"] === "delivery_return")
-          return deliveryReturns.has(row["sourceId"]) && deliveryLines.has(row["sourceLineId"]);
+          return (
+            deliveryReturns.has(row["sourceId"]) &&
+            deliveryLines.has(row["sourceLineId"]) &&
+            deliveryReferences.validReturnMovement(row)
+          );
         if (row["sourceType"] === "quality_disposition") {
           const allocation = allocationById.get(row["sourceLineId"]);
           return (
@@ -369,39 +379,12 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
           row["sourceType"] === "inventory_reclassification"
         );
       })) &&
-    (!("deliveries" in payload) || payload.deliveries.every((row) => sales.has(row["saleId"]))) &&
-    (!("deliveryLines" in payload) ||
-      payload.deliveryLines.every(
-        (row) =>
-          deliveries.has(row["deliveryId"]) &&
-          products.has(row["productId"]) &&
-          hasGrade(row["qualityGradeId"]) &&
-          payload.saleLines.some((saleLine) => saleLine["id"] === row["saleLineId"]),
-      )) &&
-    (!("deliveryReturns" in payload) ||
-      payload.deliveryReturns.every((row) => deliveries.has(row["deliveryId"]))) &&
-    (!("deliveryReturnLines" in payload) ||
-      payload.deliveryReturnLines.every(
-        (row) => deliveryReturns.has(row["returnId"]) && deliveryLines.has(row["deliveryLineId"]),
-      )) &&
-    (!("documents" in payload) ||
-      payload.documents.every((row) => {
-        if (hashPayload(row["snapshot"]) !== row["digest"]) return false;
-        if (row["sourceType"] === "sale") return sales.has(row["sourceId"]);
-        if (row["sourceType"] === "customer") return customers.has(row["sourceId"]);
-        if (row["sourceType"] === "purchase") return purchases.has(row["sourceId"]);
-        if (row["sourceType"] === "delivery") return deliveries.has(row["sourceId"]);
-        return false;
-      })) &&
-    (!("documentShares" in payload) ||
-      payload.documentShares.every((row) => documents.has(row["documentId"]))) &&
-    (!("cashAccounts" in payload) ||
-      payload.cashAccounts.every((row) => {
-        const custodian = row["custodianActorId"];
-        return row["kind"] === "employee_holding"
-          ? typeof custodian === "string"
-          : custodian == null;
-      })) &&
+    deliveryReferences.validDeliveryRecords({
+      sales,
+      products,
+      qualityGrades,
+    }) &&
+    validDocumentAndCashReferences(payload, [customers, sales, purchases, deliveries, documents]) &&
     payload.payments.every(
       (row) => row["cashAccountId"] == null || cashAccounts.has(row["cashAccountId"]),
     ) &&

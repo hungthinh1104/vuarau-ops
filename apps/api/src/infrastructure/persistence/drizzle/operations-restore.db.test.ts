@@ -22,6 +22,7 @@ import type {
   WorkspacePolicyVersionId,
   DeliveryId,
   DeliveryLineId,
+  DeliveryReturnId,
   DocumentId,
   DocumentShareId,
   StocktakeSessionId,
@@ -63,6 +64,7 @@ import {
 import {
   createDeliveryDraft,
   dispatchDelivery,
+  recordDeliveryReturn,
 } from "../../../modules/delivery/delivery.handlers.ts";
 import {
   createDocumentShare,
@@ -106,7 +108,9 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     await ctx.close();
   });
 
-  async function prepareCanonicalBackup(): Promise<WorkspaceBackupV19> {
+  async function prepareCanonicalBackup(
+    options: { withDeliveryLineageFixture?: boolean } = {},
+  ): Promise<WorkspaceBackupV19> {
     const productId = crypto.randomUUID() as ProductId;
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
@@ -437,6 +441,60 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         })
       ).ok,
     ).toBe(true);
+    if (options.withDeliveryLineageFixture) {
+      const secondDeliveryId = crypto.randomUUID() as DeliveryId;
+      const secondDeliveryLineId = crypto.randomUUID() as DeliveryLineId;
+      expect(
+        (
+          await createDeliveryDraft(context(), {
+            ...command("recovery-delivery-second"),
+            payload: {
+              deliveryId: secondDeliveryId,
+              saleId,
+              lines: [
+                {
+                  deliveryLineId: secondDeliveryLineId,
+                  saleLineId,
+                  productId,
+                  qualityGradeId: ctx.qualityGradeId,
+                  quantity: { valueScaled: 1_000, unit: "kg" },
+                },
+              ],
+              note: null,
+            },
+          })
+        ).ok,
+      ).toBe(true);
+      expect(
+        (
+          await dispatchDelivery(context(), {
+            ...command("recovery-dispatch-second"),
+            expectedVersion: 1,
+            payload: { deliveryId: secondDeliveryId },
+          })
+        ).ok,
+      ).toBe(true);
+      const secondReturnId = crypto.randomUUID() as DeliveryReturnId;
+      expect(
+        (
+          await recordDeliveryReturn(context(), {
+            ...command("recovery-return-second"),
+            payload: {
+              returnId: secondReturnId,
+              deliveryId: secondDeliveryId,
+              lines: [
+                {
+                  deliveryLineId: secondDeliveryLineId,
+                  quantity: { valueScaled: 100, unit: "kg" },
+                },
+              ],
+              reason: "Hàng trả trong diễn tập phục hồi",
+              evidenceReferences: ["photo://recovery/return-001"],
+            },
+          })
+        ).ok,
+      ).toBe(true);
+    }
     const documentId = crypto.randomUUID() as DocumentId;
     expect(
       (
@@ -938,6 +996,50 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       purchases: 0,
       supplier_account_entries: 0,
       receipts: 0,
+      inventory_movements: 0,
+    });
+  });
+
+  it("rejects a delivery return line whose delivery lineage does not match", async () => {
+    const backup = await prepareCanonicalBackup({ withDeliveryLineageFixture: true });
+    await emptyRecoveryWorkspace();
+
+    const returnRow = backup.payload.deliveryReturns[0];
+    const returnLine = backup.payload.deliveryReturnLines.find(
+      (row) => row["returnId"] === returnRow?.["id"],
+    );
+    const unrelatedDeliveryLine = backup.payload.deliveryLines.find(
+      (row) => row["deliveryId"] !== returnRow?.["deliveryId"],
+    );
+    expect(returnRow).toBeDefined();
+    expect(returnLine).toBeDefined();
+    expect(unrelatedDeliveryLine).toBeDefined();
+    if (!returnRow || !returnLine || !unrelatedDeliveryLine) return;
+
+    const payload = {
+      ...backup.payload,
+      deliveryReturnLines: backup.payload.deliveryReturnLines.map((row) =>
+        row["id"] === returnLine["id"]
+          ? { ...row, deliveryLineId: unrelatedDeliveryLine["id"] }
+          : row,
+      ),
+    };
+    const malformed: WorkspaceBackupV19 = {
+      ...backup,
+      payload,
+      digest: backupDigest(payload),
+    };
+
+    const restored = await restoreWorkspaceBackup(context(), {
+      ...command("recovery-return-line-lineage"),
+      payload: { backup: malformed, reason: "Return line phải cùng delivery." },
+    });
+    expect(restored.ok).toBe(false);
+    if (!restored.ok) expect(restored.error.code).toBe("BACKUP_INTEGRITY_ERROR");
+    expect(await canonicalCounts()).toMatchObject({
+      sales: 0,
+      sale_lines: 0,
+      deliveries: 0,
       inventory_movements: 0,
     });
   });

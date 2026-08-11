@@ -1191,6 +1191,8 @@ use_cases:
     tests: [TC-OPS-006, TC-OPS-007, TC-OPS-008, TC-OPS-016]
     implementation:
       - apps/api/src/modules/operations/restore-workspace.handler.ts
+      - apps/api/src/modules/operations/restore-delivery-validation.ts
+      - apps/api/src/modules/operations/restore-document-validation.ts
       - apps/api/src/modules/operations/operations.queries.ts
       - packages/db/src/repositories/write/operations.ts
 
@@ -2318,6 +2320,7 @@ business_rules:
     tests: [TC-OPS-006]
     implementation:
       - apps/api/src/modules/operations/restore-workspace.handler.ts
+      - apps/api/src/modules/operations/restore-delivery-validation.ts
       - packages/db/src/repositories/write/operations.ts
 
   BR-OPS-005:
