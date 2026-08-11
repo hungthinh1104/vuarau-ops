@@ -14,6 +14,11 @@ pnpm field:observation --config /secure/field-observations.json \
 The command checks record completeness and contradictions only. It does not
 turn a packet into product truth or replace an observer's sign-off.
 
+Before `ops:pilot-readiness` can report the pilot as ready, the operator must
+attach an externally reviewed H2–H6 packet reference in the pilot declaration.
+The readiness check verifies that the declaration covers the frozen release; it
+does not claim that a machine observed or accepted the field session.
+
 ## Record for every observed task
 
 ```text

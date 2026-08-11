@@ -183,6 +183,61 @@ const recoveryEvidenceSchema = z.discriminatedUnion("status", [
   }),
 ]);
 
+/**
+ * H2–H6 are field evidence, not another repository dry-run. The declaration
+ * records where the externally reviewed packet lives and which exact release it
+ * covers. `ops:pilot-readiness` checks the identity and refuses to treat a
+ * missing/pending packet as pilot evidence.
+ */
+const fieldValidationEvidenceSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("passed"),
+    releaseSha: z.string().regex(/^[0-9a-f]{40}$/),
+    evidenceReference: z.string().trim().min(1),
+    packetValidationReference: z.string().trim().min(1),
+    reviewerName: z.string().trim().min(1),
+    reviewedAt: z.iso.datetime(),
+    hypotheses: z.object({
+      H2: z.literal(true),
+      H3: z.literal(true),
+      H4: z.literal(true),
+      H5: z.literal(true),
+      H6: z.literal(true),
+    }),
+  }),
+  z.object({
+    status: z.literal("pending"),
+    owner: z.string().trim().min(1),
+    trigger: z.string().trim().min(1),
+  }),
+]);
+
+export type FieldValidationEvidence = z.infer<typeof fieldValidationEvidenceSchema>;
+
+export function evaluateFieldValidationEvidence(
+  evidence: FieldValidationEvidence,
+  frozenReleaseSha: string,
+): { readonly ok: boolean; readonly detail: string } {
+  if (evidence.status === "pending") {
+    return {
+      ok: false,
+      detail: `pending — owner: ${evidence.owner}; trigger: ${evidence.trigger}`,
+    };
+  }
+  if (evidence.releaseSha !== frozenReleaseSha) {
+    return {
+      ok: false,
+      detail: `evidence belongs to ${evidence.releaseSha}, not frozen ${frozenReleaseSha}`,
+    };
+  }
+  return {
+    ok: true,
+    detail:
+      `H2-H6 reviewed by ${evidence.reviewerName} on ${evidence.reviewedAt}; ` +
+      `evidence: ${evidence.evidenceReference}; packet validation: ${evidence.packetValidationReference}`,
+  };
+}
+
 export const pilotConfigSchema = z.object({
   /**
    * Only `shadow` is implemented. `operational` is refused rather than absent, so
@@ -240,6 +295,7 @@ export const pilotConfigSchema = z.object({
   authenticationSmoke: authenticationSmokeSchema,
   deploymentEvidence: deploymentEvidenceSchema,
   recoveryEvidence: recoveryEvidenceSchema,
+  fieldValidationEvidence: fieldValidationEvidenceSchema,
 });
 export type PilotConfig = z.infer<typeof pilotConfigSchema>;
 
@@ -386,6 +442,11 @@ export const EXAMPLE_PILOT_CONFIG = {
     status: "pending",
     owner: "",
     trigger: "",
+  },
+  fieldValidationEvidence: {
+    status: "pending",
+    owner: "field facilitator",
+    trigger: "complete and independently review the H2-H6 packet",
   },
 } as const;
 

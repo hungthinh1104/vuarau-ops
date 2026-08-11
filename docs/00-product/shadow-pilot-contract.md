@@ -85,6 +85,7 @@ pilot readiness: BLOCKED/PENDING
 That is the expected state while owner evidence, the real two-account Supabase
 smoke, a real-phone deployment test or provider PITR drill is absent.
 `pilot readiness: PASS` requires all policy worksheets/scenario declarations,
+an externally reviewed H2–H6 field-validation packet for the same release,
 exact members/owners, Customer/Product imports, disposable dry-run, same-tab A→B
 auth and real-phone smoke, encrypted restore evidence, measured RPO/RTO, frozen
 H2–H6 protocol and no known P0/P1. An excluded ASM-035–038 scenario is a hard

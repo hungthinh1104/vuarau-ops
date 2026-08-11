@@ -18,6 +18,7 @@ import { listActorWorkspaces } from "../modules/session/session.queries.ts";
 import {
   EXAMPLE_PILOT_CONFIG,
   evaluateCrossDimensionScenarioGate,
+  evaluateFieldValidationEvidence,
   readPilotConfig,
   type PilotConfig,
 } from "./pilot-config.ts";
@@ -289,6 +290,16 @@ async function runChecks(database: Db, config: PilotConfig): Promise<readonly Ch
             `trigger: ${config.recoveryEvidence.trigger}`,
           "external",
         ),
+  );
+
+  const fieldValidation = evaluateFieldValidationEvidence(
+    config.fieldValidationEvidence,
+    config.releaseSha,
+  );
+  checks.push(
+    fieldValidation.ok
+      ? pass("H2-H6 field-validation evidence attached", fieldValidation.detail, "external")
+      : fail("H2-H6 field-validation evidence attached", fieldValidation.detail, "external"),
   );
 
   // 1. Database reachable.

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EXAMPLE_PILOT_CONFIG,
   evaluateCrossDimensionScenarioGate,
+  evaluateFieldValidationEvidence,
   readPilotConfig,
 } from "./pilot-config.ts";
 
@@ -53,6 +54,29 @@ describe("Pilot declaration is fail-closed", () => {
     expect(result).toMatchObject({
       ok: true,
       config: { recoveryEvidence: { status: "pending" } },
+    });
+  });
+
+  it("requires an explicit H2-H6 field-validation gate", () => {
+    const result = readPilotConfig(
+      JSON.stringify({ ...filled, fieldValidationEvidence: undefined }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems.join("\n")).toContain("fieldValidationEvidence");
+  });
+
+  it("does not accept field evidence from another release", () => {
+    const evidence = {
+      status: "passed" as const,
+      releaseSha: "7".repeat(40),
+      evidenceReference: "external://field-session",
+      packetValidationReference: "external://field-packet-check",
+      reviewerName: "facilitator",
+      reviewedAt: "2026-08-12T10:00:00.000Z",
+      hypotheses: { H2: true, H3: true, H4: true, H5: true, H6: true } as const,
+    };
+    expect(evaluateFieldValidationEvidence(evidence, "6".repeat(40))).toMatchObject({
+      ok: false,
     });
   });
 
