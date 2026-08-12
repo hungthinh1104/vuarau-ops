@@ -19,43 +19,72 @@ import { workspaceIdSchema } from "@vuarau/domain-contracts";
  * answer to it.
  *
  * What is kept here is the **selection**: which of the discovered depots this
- * subject is working in. The subject is part of the key so the next person using
- * the same tab cannot inherit it.
+ * subject is working in. It is durable across a tab/process restart so an
+ * already queued offline workflow can reopen after the worker signs in again.
+ * The subject is part of the key, and logout clears it, so another person using
+ * the same device cannot inherit it.
  */
 export const WORKSPACE_SELECTION_PREFIX = "vuarau.workspace_id:";
 const legacySelectionKey = "vuarau.workspace_id";
 const selectionKey = (subject: string) =>
   `${WORKSPACE_SELECTION_PREFIX}${encodeURIComponent(subject)}`;
 
+function storageAreas(): Storage[] {
+  if (typeof window === "undefined") return [];
+  const areas: Storage[] = [];
+  for (const getStorage of [() => window.localStorage, () => window.sessionStorage]) {
+    try {
+      areas.push(getStorage());
+    } catch {
+      // A browser may block one storage area while leaving the other available.
+    }
+  }
+  return areas;
+}
+
 export function storedWorkspaceId(subject: string): WorkspaceId | null {
   if (typeof window === "undefined") return null;
-  try {
-    const raw = window.sessionStorage.getItem(selectionKey(subject));
-    if (raw === null) return null;
-    const parsed = workspaceIdSchema.safeParse(raw);
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
+  for (const storage of storageAreas()) {
+    try {
+      const raw = storage.getItem(selectionKey(subject));
+      if (raw === null) continue;
+      const parsed = workspaceIdSchema.safeParse(raw);
+      if (parsed.success) return parsed.data;
+    } catch {
+      // Try the other storage area when this browser blocks one of them.
+    }
   }
+  return null;
 }
 
 export function storeWorkspaceId(subject: string, workspaceId: WorkspaceId | null): void {
   if (typeof window === "undefined") return;
+  const key = selectionKey(subject);
+  if (workspaceId === null) {
+    clearWorkspaceSelection(subject);
+    return;
+  }
   try {
-    if (workspaceId === null) window.sessionStorage.removeItem(selectionKey(subject));
-    else window.sessionStorage.setItem(selectionKey(subject), workspaceId);
+    window.localStorage.setItem(key, workspaceId);
+    window.sessionStorage.removeItem(key);
   } catch {
-    // Storage unavailable: the choice lasts the page rather than the tab.
+    try {
+      window.sessionStorage.setItem(key, workspaceId);
+    } catch {
+      // Storage unavailable: the choice lasts only for the current React tree.
+    }
   }
 }
 
 export function clearWorkspaceSelection(subject: string): void {
   if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.removeItem(selectionKey(subject));
-    // Remove the pre-subject key so an upgraded tab cannot inherit it.
-    window.sessionStorage.removeItem(legacySelectionKey);
-  } catch {
-    // Storage unavailable means there is no persisted selection to clear.
+  for (const storage of storageAreas()) {
+    try {
+      storage.removeItem(selectionKey(subject));
+      // Remove the pre-subject key so an upgraded tab cannot inherit it.
+      storage.removeItem(legacySelectionKey);
+    } catch {
+      // Storage unavailable means there is no persisted selection to clear.
+    }
   }
 }

@@ -46,6 +46,9 @@ export function DemandObservationView(props: {
   readonly customerId: string;
   readonly productId: string;
   readonly qualityGradeId: string;
+  readonly customerSearch: string;
+  readonly productSearch: string;
+  readonly qualityGradeSearch: string;
   readonly customerOptions: readonly SelectOption[];
   readonly productOptions: readonly SelectOption[];
   readonly qualityGradeOptions: readonly SelectOption[];
@@ -66,6 +69,9 @@ export function DemandObservationView(props: {
   readonly onCustomerId: (value: string) => void;
   readonly onProductId: (value: string) => void;
   readonly onQualityGradeId: (value: string) => void;
+  readonly onCustomerSearch: (value: string) => void;
+  readonly onProductSearch: (value: string) => void;
+  readonly onQualityGradeSearch: (value: string) => void;
   readonly onKind: (value: string) => void;
   readonly onCaseKind: (value: CostObservationCaseKind) => void;
   readonly onDescription: (value: string) => void;
@@ -150,6 +156,9 @@ function DemandObservationForm(props: Parameters<typeof DemandObservationView>[0
           value={props.customerId}
           options={props.customerOptions}
           placeholder="Không gắn hồ sơ"
+          searchValue={props.customerSearch}
+          onSearchChange={props.onCustomerSearch}
+          searchPlaceholder="Tên hoặc mã khách hàng"
           onChange={(event) => props.onCustomerId(event.target.value)}
         />
         <Select
@@ -157,6 +166,9 @@ function DemandObservationForm(props: Parameters<typeof DemandObservationView>[0
           value={props.productId}
           options={props.productOptions}
           placeholder="Không gắn hồ sơ"
+          searchValue={props.productSearch}
+          onSearchChange={props.onProductSearch}
+          searchPlaceholder="Tên hoặc mã mặt hàng"
           onChange={(event) => props.onProductId(event.target.value)}
         />
         <Select
@@ -164,6 +176,9 @@ function DemandObservationForm(props: Parameters<typeof DemandObservationView>[0
           value={props.qualityGradeId}
           options={props.qualityGradeOptions}
           placeholder="Không gắn hạng hàng"
+          searchValue={props.qualityGradeSearch}
+          onSearchChange={props.onQualityGradeSearch}
+          searchPlaceholder="Tên hạng hàng"
           onChange={(event) => props.onQualityGradeId(event.target.value)}
         />
         <Select

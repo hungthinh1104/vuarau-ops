@@ -21,6 +21,7 @@ import { useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
+import { useDebounced } from "@/api/use-debounced.ts";
 import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
 import { DemandObservationView } from "@/ui/screens/demand-observation-view.tsx";
@@ -36,10 +37,13 @@ export function DemandObservationController() {
       limit: 50,
     }),
   );
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+  const [qualityGradeSearch, setQualityGradeSearch] = useState("");
   const customers = useQuery(
     trpc.customer.search.queryOptions({
       workspaceId,
-      query: "",
+      query: useDebounced(customerSearch, 250),
       isActive: null,
       cursor: null,
       limit: 100,
@@ -48,7 +52,7 @@ export function DemandObservationController() {
   const products = useQuery(
     trpc.product.search.queryOptions({
       workspaceId,
-      query: "",
+      query: useDebounced(productSearch, 250),
       isActive: null,
       cursor: null,
       limit: 100,
@@ -57,7 +61,7 @@ export function DemandObservationController() {
   const grades = useQuery(
     trpc.quality.list.queryOptions({
       workspaceId,
-      query: "",
+      query: useDebounced(qualityGradeSearch, 250),
       isActive: null,
       cursor: null,
       limit: 100,
@@ -67,8 +71,11 @@ export function DemandObservationController() {
   const command = useContractCommand(recordDemandObservationCommandSchema, mutation.mutateAsync);
   const observationId = useRef(crypto.randomUUID() as DemandObservationId);
   const [customerId, setCustomerId] = useState<CustomerId | "">("");
+  const [customerLabel, setCustomerLabel] = useState("");
   const [productId, setProductId] = useState<ProductId | "">("");
+  const [productLabel, setProductLabel] = useState("");
   const [qualityGradeId, setQualityGradeId] = useState<QualityGradeId | "">("");
+  const [qualityGradeLabel, setQualityGradeLabel] = useState("");
   const [kind, setKind] = useState<DemandObservationKind>("requested_order");
   const [caseKind, setCaseKind] = useState<CostObservationCaseKind>("normal");
   const [description, setDescription] = useState("");
@@ -122,8 +129,11 @@ export function DemandObservationController() {
     if (result === null) return;
     observationId.current = crypto.randomUUID() as DemandObservationId;
     setCustomerId("");
+    setCustomerLabel("");
     setProductId("");
+    setProductLabel("");
     setQualityGradeId("");
+    setQualityGradeLabel("");
     setDescription("");
     setParticipantWording("");
     setCounterpartyLabel("");
@@ -145,18 +155,24 @@ export function DemandObservationController() {
       customerId={customerId}
       productId={productId}
       qualityGradeId={qualityGradeId}
-      customerOptions={(customers.data?.items ?? []).map((item) => ({
-        value: item.id,
-        label: item.displayName,
-      }))}
-      productOptions={(products.data?.items ?? []).map((item) => ({
-        value: item.id,
-        label: item.displayName,
-      }))}
-      qualityGradeOptions={(grades.data?.items ?? []).map((item) => ({
-        value: item.id,
-        label: item.name,
-      }))}
+      customerSearch={customerSearch}
+      productSearch={productSearch}
+      qualityGradeSearch={qualityGradeSearch}
+      customerOptions={withSelectedOption(
+        (customers.data?.items ?? []).map((item) => ({ value: item.id, label: item.displayName })),
+        customerId,
+        customerLabel,
+      )}
+      productOptions={withSelectedOption(
+        (products.data?.items ?? []).map((item) => ({ value: item.id, label: item.displayName })),
+        productId,
+        productLabel,
+      )}
+      qualityGradeOptions={withSelectedOption(
+        (grades.data?.items ?? []).map((item) => ({ value: item.id, label: item.name })),
+        qualityGradeId,
+        qualityGradeLabel,
+      )}
       kind={kind}
       caseKind={caseKind}
       description={description}
@@ -171,9 +187,34 @@ export function DemandObservationController() {
       relatedObservationLabel={relatedObservationLabel}
       formError={formError}
       command={command}
-      onCustomerId={(value) => setCustomerId(value as CustomerId | "")}
-      onProductId={(value) => setProductId(value as ProductId | "")}
-      onQualityGradeId={(value) => setQualityGradeId(value as QualityGradeId | "")}
+      onCustomerId={(value) => {
+        setCustomerId(value as CustomerId | "");
+        setCustomerLabel(
+          value === ""
+            ? ""
+            : (customers.data?.items.find((item) => item.id === value)?.displayName ??
+                customerLabel),
+        );
+      }}
+      onProductId={(value) => {
+        setProductId(value as ProductId | "");
+        setProductLabel(
+          value === ""
+            ? ""
+            : (products.data?.items.find((item) => item.id === value)?.displayName ?? productLabel),
+        );
+      }}
+      onQualityGradeId={(value) => {
+        setQualityGradeId(value as QualityGradeId | "");
+        setQualityGradeLabel(
+          value === ""
+            ? ""
+            : (grades.data?.items.find((item) => item.id === value)?.name ?? qualityGradeLabel),
+        );
+      }}
+      onCustomerSearch={setCustomerSearch}
+      onProductSearch={setProductSearch}
+      onQualityGradeSearch={setQualityGradeSearch}
       onKind={(value) => setKind(demandObservationKindSchema.parse(value))}
       onCaseKind={setCaseKind}
       onDescription={setDescription}
@@ -198,6 +239,17 @@ export function DemandObservationController() {
       onRetry={() => void observations.refetch()}
     />
   );
+}
+
+function withSelectedOption(
+  options: readonly { value: string; label: string }[],
+  selectedValue: string,
+  selectedLabel: string,
+): readonly { value: string; label: string }[] {
+  if (selectedValue === "" || options.some((option) => option.value === selectedValue)) {
+    return options;
+  }
+  return [{ value: selectedValue, label: selectedLabel || "Đã chọn" }, ...options];
 }
 
 function parseOptionalQuantity(raw: string, unit: Unit) {

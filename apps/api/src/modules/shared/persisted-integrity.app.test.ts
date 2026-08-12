@@ -201,10 +201,9 @@ describe("persisted intake integrity boundary", () => {
 
     await expect(
       harness.deps.uow.transaction((repos) =>
-        repos.qualityDispositions.acceptedQuantityForPurchaseLine(
-          WORKSPACE_ID,
+        repos.qualityDispositions.acceptedQuantitiesForPurchaseLines(WORKSPACE_ID, [
           purchaseLineId as PurchaseLineId,
-        ),
+        ]),
       ),
     ).rejects.toBeInstanceOf(PersistedIntegrityError);
   });

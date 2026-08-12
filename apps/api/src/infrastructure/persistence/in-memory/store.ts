@@ -36,6 +36,7 @@ import type {
   SaleVoidState,
   SupplierPaymentReversalState,
 } from "@vuarau/domain-kernel";
+import { exactAdd } from "./reads/exact-number.ts";
 import type { IdGenerator } from "../../clock.ts";
 import type { CommandReceipt, WorkspaceMembership } from "../ports.ts";
 import type {
@@ -356,7 +357,11 @@ export function toDeliveryDto(delivery: DeliveryState): DeliveryDto {
         valueScaled: delivery.returns
           .flatMap((record) => record.lines)
           .filter((candidate) => candidate.deliveryLineId === line.deliveryLineId)
-          .reduce((sum, candidate) => sum + candidate.quantity.valueScaled, 0),
+          .reduce(
+            (sum, candidate) =>
+              exactAdd(sum, candidate.quantity.valueScaled, "delivery.returned.value_scaled"),
+            0,
+          ),
         unit: line.quantity.unit,
       },
     })),

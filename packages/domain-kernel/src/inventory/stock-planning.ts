@@ -1,6 +1,7 @@
 import type { IsoInstant, StockPlanningRow, StockPlanningRule } from "@vuarau/domain-contracts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { exactIntegerSum } from "../shared/money.ts";
 
 export type StockPlanningMovement = {
   readonly id: string;
@@ -35,8 +36,13 @@ export function calculateFixedThresholdPlan(args: {
     if (Date.parse(movement.transactionTime) > Date.parse(args.asOf)) continue;
     const movementKey = key(movement.productId, movement.qualityGradeId, movement.quantity.unit);
     const current = totals.get(movementKey) ?? { quantityScaled: 0, movementIds: [] };
-    const next = current.quantityScaled + movement.quantity.valueScaled;
-    if (!Number.isSafeInteger(next)) {
+    let next: number;
+    try {
+      next = exactIntegerSum(
+        [current.quantityScaled, movement.quantity.valueScaled],
+        "inventory.stock_planning.quantity_scaled",
+      );
+    } catch {
       return err("STOCK_PLANNING_POLICY_UNAVAILABLE", "Inventory quantity exceeds exact range.");
     }
     current.quantityScaled = next;

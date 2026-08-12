@@ -288,7 +288,7 @@ export const createPurchaseWriteRepositories = (tx: Tx) => ({
     async netReceivedByPurchaseLine(workspaceId: WorkspaceId, purchaseId: string) {
       const rows = await tx.execute(sql`
           select prl.purchase_line_id as "purchaseLineId",
-            coalesce(sum(case when prr.id is null then prl.quantity_scaled else 0 end), 0)::bigint as "net"
+            coalesce(sum(case when prr.id is null then prl.quantity_scaled else 0 end), 0) as "net"
           from purchase_receipt_lines prl
           join purchase_receipts pr on pr.id = prl.receipt_id and pr.workspace_id = prl.workspace_id
           left join purchase_receipt_reversals prr

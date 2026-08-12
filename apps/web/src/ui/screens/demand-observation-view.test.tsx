@@ -52,6 +52,9 @@ describe("DemandObservationView", () => {
         customerId=""
         productId=""
         qualityGradeId=""
+        customerSearch=""
+        productSearch=""
+        qualityGradeSearch=""
         customerOptions={[]}
         productOptions={[]}
         qualityGradeOptions={[]}
@@ -72,6 +75,9 @@ describe("DemandObservationView", () => {
         onCustomerId={() => undefined}
         onProductId={() => undefined}
         onQualityGradeId={() => undefined}
+        onCustomerSearch={() => undefined}
+        onProductSearch={() => undefined}
+        onQualityGradeSearch={() => undefined}
         onKind={() => undefined}
         onCaseKind={() => undefined}
         onDescription={() => undefined}

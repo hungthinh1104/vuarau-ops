@@ -25,6 +25,8 @@ import {
   calculateFixedThresholdPlan,
   canVoidPurchase,
   err,
+  exactIntegerDifference,
+  exactIntegerSum,
   ok,
   resolvePolicyForDecision,
   resolvePurchaseCorrectionPolicy,
@@ -91,20 +93,12 @@ export async function getPurchaseReceivingSummary(
           purchase === null
             ? new Map<string, number>()
             : new Map(
-                await Promise.all(
-                  purchase.lines.map(
-                    async (line) =>
-                      [
-                        line.lineId,
-                        (
-                          await repos.qualityDispositions.acceptedQuantityForPurchaseLine(
-                            input.workspaceId,
-                            line.lineId,
-                          )
-                        )?.valueScaled ?? 0,
-                      ] as const,
-                  ),
-                ),
+                [
+                  ...(await repos.qualityDispositions.acceptedQuantitiesForPurchaseLines(
+                    input.workspaceId,
+                    purchase.lines.map((line) => line.lineId),
+                  )),
+                ].map(([lineId, quantity]) => [lineId, quantity.valueScaled] as const),
               ),
         correctionPolicies: await repos.workspacePolicyReads.listAll(input.workspaceId),
         role: membership.role,
@@ -120,7 +114,10 @@ export async function getPurchaseReceivingSummary(
     for (const line of receipt.lines)
       received.set(
         line.purchaseLineId,
-        (received.get(line.purchaseLineId) ?? 0) + line.quantity.valueScaled,
+        exactIntegerSum(
+          [received.get(line.purchaseLineId) ?? 0, line.quantity.valueScaled],
+          "inventory.purchase_received.quantity_scaled",
+        ),
       );
   }
   const hasActiveReceipts =
@@ -158,9 +155,13 @@ export async function getPurchaseReceivingSummary(
       commercialCorrection: aggregateCommercialCorrectionCapability,
     },
     lines: result.value.purchase.lines.map((line) => {
-      const receivedScaled =
-        (received.get(line.lineId) ?? 0) +
-        (result.value.acceptedAfterInspection.get(line.lineId) ?? 0);
+      const receivedScaled = exactIntegerSum(
+        [
+          received.get(line.lineId) ?? 0,
+          result.value.acceptedAfterInspection.get(line.lineId) ?? 0,
+        ],
+        "inventory.purchase_received.quantity_scaled",
+      );
       return {
         purchaseLineId: line.lineId,
         productId: line.productId,
@@ -168,7 +169,11 @@ export async function getPurchaseReceivingSummary(
         ordered: line.quantity,
         received: { valueScaled: receivedScaled, unit: line.quantity.unit },
         remaining: {
-          valueScaled: line.quantity.valueScaled - receivedScaled,
+          valueScaled: exactIntegerDifference(
+            line.quantity.valueScaled,
+            receivedScaled,
+            "inventory.purchase_remaining.quantity_scaled",
+          ),
           unit: line.quantity.unit,
         },
       };
@@ -442,9 +447,9 @@ export const getInventoryReconciliation = (
       const gradedMovements = movements.filter(
         (movement) => movement.qualityGradeId === input.qualityGradeId,
       );
-      const quantityScaled = gradedMovements.reduce(
-        (total, movement) => total + movement.quantity.valueScaled,
-        0,
+      const quantityScaled = exactIntegerSum(
+        gradedMovements.map((movement) => movement.quantity.valueScaled),
+        "inventory.balance.quantity_scaled",
       );
       const last = gradedMovements.reduce<null | string>(
         (current, movement) =>

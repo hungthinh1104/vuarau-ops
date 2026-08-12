@@ -25,7 +25,7 @@ import {
   revokeDocumentShareCommandSchema,
 } from "@vuarau/domain-contracts";
 import { z } from "zod";
-import { err, ok, sumMoneyExact } from "@vuarau/domain-kernel";
+import { addMoney, err, ok, subtractMoney, sumMoneyExact } from "@vuarau/domain-kernel";
 import { hashPayload } from "../../infrastructure/hash.ts";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import type { AccountTimelineRow } from "../../infrastructure/persistence/read-ports.ts";
@@ -167,22 +167,22 @@ async function canonicalSnapshot(
             period,
             customer.balance,
           )
-        : {
-            amountMinor: entries[0]!.runningBalance.amountMinor - entries[0]!.amount.amountMinor,
-            currency: entries[0]!.amount.currency,
-          };
+        : subtractMoney(
+            entries[0]!.runningBalance,
+            entries[0]!.amount,
+            "document.customer_statement.opening_balance.amount_minor",
+          );
     if (!Number.isSafeInteger(openingBalance.amountMinor)) throw new DocumentIntegrityError();
     const periodChange = sumMoneyExact(
       entries.map((entry) => entry.amount),
       openingBalance.currency,
     );
     if (periodChange === null) throw new DocumentIntegrityError();
-    const closingAmount = openingBalance.amountMinor + periodChange.amountMinor;
-    if (!Number.isSafeInteger(closingAmount)) throw new DocumentIntegrityError();
-    const closingBalance = {
-      amountMinor: closingAmount,
-      currency: openingBalance.currency,
-    };
+    const closingBalance = addMoney(
+      openingBalance,
+      periodChange,
+      "document.customer_statement.closing_balance.amount_minor",
+    );
     return documentSnapshotSchema.parse({
       kind: "customer_statement",
       schemaVersion: 1,

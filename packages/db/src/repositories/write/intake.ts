@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { PersistedIntegrityError } from "../../errors.ts";
 import type {
   GoodsArrivalDto,
@@ -7,6 +7,7 @@ import type {
   PurchaseLineId,
   QualityDispositionDto,
   QualityDispositionId,
+  QualityDispositionSourceSummaryDto,
   QualityInspectionDto,
   QualityInspectionId,
   QualityIssueCodeDto,
@@ -25,6 +26,7 @@ import {
   qualityIssueCodes,
 } from "../../schema/index.ts";
 import { fromIso } from "../row-mappers.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import {
   dispositionSourceSummary,
   findArrivalLine,
@@ -32,7 +34,6 @@ import {
   readArrival,
   readDisposition,
   readInspection,
-  sourceRoot,
 } from "../shared/intake-mappers.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -416,60 +417,84 @@ export const createIntakeWriteRepositories = (tx: Tx) => ({
       }
       return count;
     },
-    async acceptedQuantityForPurchaseLine(
+    async acceptedQuantitiesForPurchaseLines(
       workspaceId: WorkspaceId,
-      purchaseLineId: PurchaseLineId,
+      purchaseLineIds: readonly PurchaseLineId[],
     ) {
-      const rows = await tx
-        .select({ allocation: qualityDispositionAllocations, disposition: qualityDispositions })
-        .from(qualityDispositionAllocations)
-        .innerJoin(
-          qualityDispositions,
-          and(
-            eq(qualityDispositions.workspaceId, qualityDispositionAllocations.workspaceId),
-            eq(qualityDispositions.id, qualityDispositionAllocations.dispositionId),
-          ),
+      if (purchaseLineIds.length === 0) return new Map();
+      const rows = await tx.execute(sql`
+        with recursive rooted as (
+          select qd.workspace_id, qd.id as disposition_id,
+            qd.source_arrival_line_id as root_arrival_line_id
+          from quality_dispositions qd
+          left join quality_disposition_reversals reversal
+            on reversal.workspace_id = qd.workspace_id
+           and reversal.disposition_id = qd.id
+          where qd.workspace_id = ${workspaceId}::uuid
+            and qd.source_type = 'arrival_line'
+            and reversal.id is null
+          union all
+          select child.workspace_id, child.id, parent.root_arrival_line_id
+          from quality_dispositions child
+          left join quality_disposition_reversals child_reversal
+            on child_reversal.workspace_id = child.workspace_id
+           and child_reversal.disposition_id = child.id
+          join quality_disposition_allocations source_allocation
+            on source_allocation.workspace_id = child.workspace_id
+           and source_allocation.id = child.source_quarantine_allocation_id
+           and source_allocation.outcome = 'quarantined'
+          join rooted parent
+            on parent.workspace_id = source_allocation.workspace_id
+           and parent.disposition_id = source_allocation.disposition_id
+          where child.workspace_id = ${workspaceId}::uuid
+            and child.source_type = 'quarantine_allocation'
+            and child_reversal.id is null
         )
-        .leftJoin(
-          qualityDispositionReversals,
-          and(
-            eq(qualityDispositionReversals.workspaceId, qualityDispositions.workspaceId),
-            eq(qualityDispositionReversals.dispositionId, qualityDispositions.id),
-          ),
-        )
-        .where(
-          and(
-            eq(qualityDispositionAllocations.workspaceId, workspaceId),
-            eq(qualityDispositionAllocations.outcome, "accepted"),
-            isNull(qualityDispositionReversals.id),
-          ),
-        );
-      let valueScaled = 0;
-      let unit: QualityDispositionDto["allocations"][number]["quantity"]["unit"] | null = null;
-      for (const row of rows) {
-        const root = await sourceRoot(
-          tx,
-          workspaceId,
-          row.disposition.sourceType === "arrival_line"
-            ? {
-                type: "arrival_line",
-                arrivalLineId: row.disposition.sourceArrivalLineId as GoodsArrivalLineId,
-              }
-            : {
-                type: "quarantine_allocation",
-                allocationId: row.disposition
-                  .sourceQuarantineAllocationId as QualityDispositionDto["allocations"][number]["allocationId"],
-              },
-        );
-        if (root === null || root.line.purchaseLineId !== purchaseLineId) continue;
-        unit ??= row.allocation.unit;
-        if (unit !== row.allocation.unit)
+        select root_line.purchase_line_id as "purchaseLineId",
+          allocation.unit as "unit",
+          sum(allocation.value_scaled) as "valueScaled"
+        from quality_disposition_allocations allocation
+        join quality_dispositions disposition
+          on disposition.workspace_id = allocation.workspace_id
+         and disposition.id = allocation.disposition_id
+        join rooted
+          on rooted.workspace_id = disposition.workspace_id
+         and rooted.disposition_id = disposition.id
+        join goods_arrival_lines root_line
+          on root_line.workspace_id = rooted.workspace_id
+         and root_line.id = rooted.root_arrival_line_id
+        where allocation.workspace_id = ${workspaceId}::uuid
+          and allocation.outcome = 'accepted'
+          and root_line.purchase_line_id in (${sql.join(
+            purchaseLineIds.map((id) => sql`${id}::uuid`),
+            sql`, `,
+          )})
+        group by root_line.purchase_line_id, allocation.unit
+        order by root_line.purchase_line_id, allocation.unit
+      `);
+      const result = new Map<
+        PurchaseLineId,
+        QualityDispositionSourceSummaryDto["sourceQuantity"]
+      >();
+      for (const raw of rows as unknown as Array<{
+        purchaseLineId: string;
+        unit: QualityDispositionDto["allocations"][number]["quantity"]["unit"];
+        valueScaled: bigint | number | string;
+      }>) {
+        const purchaseLineId = raw.purchaseLineId as PurchaseLineId;
+        const current = result.get(purchaseLineId);
+        if (current !== undefined && current.unit !== raw.unit)
           throw new PersistedIntegrityError(
             `Purchase line ${purchaseLineId} has mixed accepted units.`,
           );
-        valueScaled += row.allocation.valueScaled;
+        const prior = current?.valueScaled ?? 0;
+        const valueScaled = persistedBigintToSafeNumber(
+          BigInt(prior) + BigInt(raw.valueScaled),
+          "intake.accepted.value_scaled",
+        );
+        result.set(purchaseLineId, { valueScaled, unit: raw.unit });
       }
-      return unit === null ? null : { valueScaled, unit };
+      return result;
     },
     async insert(disposition: QualityDispositionDto) {
       const rows = await tx

@@ -1381,7 +1381,7 @@ use_cases:
     doc: docs/02-use-cases/intake-use-cases.md
     rules: [BR-INTAKE-006, BR-INTAKE-011, BR-INTAKE-012, BR-INTAKE-013]
     cases: [CASE-INTAKE-006, CASE-INTAKE-007]
-    tests: [TC-INTAKE-008, TC-INTAKE-009, TC-INTAKE-011, TC-OPS-016]
+    tests: [TC-INTAKE-008, TC-INTAKE-009, TC-INTAKE-011, TC-INTAKE-013, TC-INTAKE-014, TC-OPS-016]
     implementation:
       - apps/api/src/modules/intake/intake.queries.ts
       - packages/db/src/repositories/read/intake.ts
@@ -4005,6 +4005,9 @@ contract_tests:
     file: apps/web/src/ui/patterns/intake/fact-history.test.tsx
   TC-INTAKE-012:
     title: Persisted intake units fail closed instead of being summed
+    file: apps/api/src/infrastructure/persistence/drizzle/intake.db.test.ts
+  TC-INTAKE-014:
+    title: Inventory grade existence stays workspace and unit scoped without loading the timeline
     file: apps/api/src/infrastructure/persistence/drizzle/intake.db.test.ts
   TC-EVIDENCE-001:
     title: Sale preserves source-linked order evidence without changing receivable

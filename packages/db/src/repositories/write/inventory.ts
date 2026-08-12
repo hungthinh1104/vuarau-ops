@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { IsoInstant, ProductId, QualityGradeId, WorkspaceId } from "@vuarau/domain-contracts";
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
+import { PersistedNumberOutOfRangeError } from "../../errors.ts";
 import { inventoryMovements, inventoryBalances } from "../../schema/index.ts";
 import { fromIso, fromIsoOrNull, toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Tx, IdMinter } from "../shared/types.ts";
@@ -126,6 +127,26 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         commandId: row.commandId,
       })) as unknown as readonly InventoryMovementState[];
     },
+    async hasByProductQualityGrade(
+      workspaceId: WorkspaceId,
+      productId: ProductId,
+      qualityGradeId: QualityGradeId,
+      unit: InventoryMovementState["quantity"]["unit"],
+    ) {
+      const rows = await tx
+        .select({ id: inventoryMovements.id })
+        .from(inventoryMovements)
+        .where(
+          and(
+            eq(inventoryMovements.workspaceId, workspaceId),
+            eq(inventoryMovements.productId, productId),
+            eq(inventoryMovements.qualityGradeId, qualityGradeId),
+            eq(inventoryMovements.unit, unit),
+          ),
+        )
+        .limit(1);
+      return rows.length > 0;
+    },
   },
   inventoryBalances: {
     async get(
@@ -172,7 +193,11 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
       lastMovementTransactionTime: IsoInstant;
       updatedAt: IsoInstant;
     }) {
-      await tx
+      if (!Number.isSafeInteger(delta.quantityScaled)) {
+        throw new PersistedNumberOutOfRangeError("inventory_balances.quantity_scaled");
+      }
+
+      const rows = await tx
         .insert(inventoryBalances)
         .values({
           workspaceId: delta.workspaceId,
@@ -200,7 +225,17 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
               )`,
             updatedAt: sql`greatest(${inventoryBalances.updatedAt}, excluded.updated_at)`,
           },
-        });
+          setWhere: sql`
+            ${inventoryBalances.quantityScaled} between ${Number.MIN_SAFE_INTEGER} and ${Number.MAX_SAFE_INTEGER}
+            and ${inventoryBalances.quantityScaled} + ${sql.raw("excluded.quantity_scaled")}
+              between ${Number.MIN_SAFE_INTEGER} and ${Number.MAX_SAFE_INTEGER}
+          `,
+        })
+        .returning({ quantityScaled: inventoryBalances.quantityScaled });
+
+      if (rows.length === 0) {
+        throw new PersistedNumberOutOfRangeError("inventory_balances.quantity_scaled");
+      }
     },
     async save(balance: {
       workspaceId: WorkspaceId;
@@ -212,6 +247,9 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
       lastMovementTransactionTime: IsoInstant | null;
       updatedAt: IsoInstant;
     }) {
+      if (!Number.isSafeInteger(balance.quantityScaled)) {
+        throw new PersistedNumberOutOfRangeError("inventory_balances.quantity_scaled");
+      }
       await tx
         .insert(inventoryBalances)
         .values({

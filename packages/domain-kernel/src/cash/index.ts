@@ -17,6 +17,7 @@ import type {
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { negateMoney } from "../shared/money.ts";
 
 function validCustodian(
   kind: CashAccountDto["kind"],
@@ -167,7 +168,10 @@ export function decideRecordExpense(
   recordedAt: IsoInstant,
 ): DomainResult<{ expense: ExpenseDto; movementAmountMinor: number; audit: AuditDraft }> {
   if (!account.isActive) return err("CASH_ACCOUNT_INACTIVE", "Cash account is inactive.");
-  if (command.payload.amount.amountMinor <= 0) {
+  if (
+    !Number.isSafeInteger(command.payload.amount.amountMinor) ||
+    command.payload.amount.amountMinor <= 0
+  ) {
     return err("CASH_AMOUNT_INVALID", "Expense amount must be positive.");
   }
   if (command.payload.amount.currency !== account.currency) {
@@ -190,7 +194,7 @@ export function decideRecordExpense(
   };
   return ok({
     expense,
-    movementAmountMinor: -expense.amount.amountMinor,
+    movementAmountMinor: negateMoney(expense.amount).amountMinor,
     audit: {
       aggregateType: "expense",
       aggregateId: expense.id,
@@ -252,7 +256,10 @@ export function decideRecordCashTransfer(
   if (from.id === to.id) return err("CASH_TRANSFER_INVALID", "Transfer accounts must differ.");
   if (!from.isActive || !to.isActive)
     return err("CASH_ACCOUNT_INACTIVE", "Both cash accounts must be active.");
-  if (command.payload.amount.amountMinor <= 0)
+  if (
+    !Number.isSafeInteger(command.payload.amount.amountMinor) ||
+    command.payload.amount.amountMinor <= 0
+  )
     return err("CASH_AMOUNT_INVALID", "Transfer amount must be positive.");
   if (from.currency !== to.currency || command.payload.amount.currency !== from.currency) {
     return err("CASH_ACCOUNT_CURRENCY_MISMATCH", "Transfer currency must match both accounts.");
@@ -342,7 +349,7 @@ export function decideAdjustCash(
   const signed =
     command.payload.direction === "increase"
       ? command.payload.amount.amountMinor
-      : -command.payload.amount.amountMinor;
+      : negateMoney(command.payload.amount).amountMinor;
   return ok({
     movementAmountMinor: signed,
     audit: {

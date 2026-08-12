@@ -45,6 +45,8 @@ export type E2ERole = keyof typeof E2E_ACTORS;
 export const E2E_JWT_SECRET = "e2e-only-secret-not-a-credential-0123456789";
 export const E2E_JWT_ISSUER = "https://e2e.local/auth/v1";
 export const E2E_JWT_AUDIENCE = "authenticated";
+/** Long enough for the complete browser matrix; production tokens keep their provider lifetime. */
+export const E2E_TOKEN_LIFETIME_SECONDS = 24 * 60 * 60;
 
 /**
  * The root wrapper owns database creation and cleanup. Keeping this assertion
@@ -87,7 +89,7 @@ export async function mintAccessTokenForActor(actorId: string): Promise<string> 
     .setIssuer(E2E_JWT_ISSUER)
     .setAudience(E2E_JWT_AUDIENCE)
     .setIssuedAt()
-    .setExpirationTime("1h")
+    .setExpirationTime(`${E2E_TOKEN_LIFETIME_SECONDS}s`)
     .sign(new TextEncoder().encode(E2E_JWT_SECRET));
 }
 

@@ -3,6 +3,7 @@ import type { Repositories } from "../../ports.ts";
 import type { IdGenerator } from "../../../clock.ts";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
+import { exactAdd } from "../reads/exact-number.ts";
 
 export const createCashRepositories = (
   store: Store,
@@ -148,7 +149,11 @@ export const createCashRepositories = (
         workspaceId: delta.workspaceId,
         cashAccountId: delta.cashAccountId,
         balance: {
-          amountMinor: (current?.balance.amountMinor ?? 0) + delta.amount.amountMinor,
+          amountMinor: exactAdd(
+            current?.balance.amountMinor ?? 0,
+            delta.amount.amountMinor,
+            "cash.balance.amount_minor",
+          ),
           currency: delta.amount.currency,
         },
         movementCount: (current?.movementCount ?? 0) + delta.movementCount,

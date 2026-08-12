@@ -1,4 +1,5 @@
 import type { Repositories } from "../../ports.ts";
+import { PersistedNumberOutOfRangeError } from "@vuarau/db";
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
 import type { IdGenerator } from "../../../clock.ts";
 import type { Store } from "../store.ts";
@@ -57,6 +58,14 @@ export const createInventoryRepositories = (
               ? a.recordedAt.localeCompare(b.recordedAt)
               : a.id.localeCompare(b.id),
         ),
+    hasByProductQualityGrade: async (workspaceId, productId, qualityGradeId, unit) =>
+      store.inventoryMovements.some(
+        (movement) =>
+          movement.workspaceId === workspaceId &&
+          movement.productId === productId &&
+          movement.qualityGradeId === qualityGradeId &&
+          movement.quantity.unit === unit,
+      ),
   },
   inventoryBalances: {
     get: async (workspaceId, productId, qualityGradeId, unit) =>
@@ -66,12 +75,26 @@ export const createInventoryRepositories = (
     applyDelta: async (delta) => {
       const balanceKey = `${delta.workspaceId}:${delta.productId}:${delta.qualityGradeId ?? "legacy"}:${delta.unit}`;
       const current = store.inventoryBalances.get(balanceKey);
+      if (
+        !Number.isSafeInteger(delta.quantityScaled) ||
+        (current !== undefined && !Number.isSafeInteger(current.quantityScaled))
+      ) {
+        throw new PersistedNumberOutOfRangeError("inventory_balances.quantity_scaled");
+      }
+      const nextQuantityScaled =
+        BigInt(current?.quantityScaled ?? 0) + BigInt(delta.quantityScaled);
+      if (
+        nextQuantityScaled < BigInt(Number.MIN_SAFE_INTEGER) ||
+        nextQuantityScaled > BigInt(Number.MAX_SAFE_INTEGER)
+      ) {
+        throw new PersistedNumberOutOfRangeError("inventory_balances.quantity_scaled");
+      }
       store.inventoryBalances.set(balanceKey, {
         workspaceId: delta.workspaceId,
         productId: delta.productId,
         qualityGradeId: delta.qualityGradeId,
         unit: delta.unit,
-        quantityScaled: (current?.quantityScaled ?? 0) + delta.quantityScaled,
+        quantityScaled: Number(nextQuantityScaled),
         movementCount: (current?.movementCount ?? 0) + delta.movementCount,
         lastMovementTransactionTime:
           current?.lastMovementTransactionTime !== null &&
@@ -86,6 +109,9 @@ export const createInventoryRepositories = (
       });
     },
     save: async (balance) => {
+      if (!Number.isSafeInteger(balance.quantityScaled)) {
+        throw new PersistedNumberOutOfRangeError("inventory_balances.quantity_scaled");
+      }
       store.inventoryBalances.set(
         `${balance.workspaceId}:${balance.productId}:${balance.qualityGradeId ?? "legacy"}:${balance.unit}`,
         balance,

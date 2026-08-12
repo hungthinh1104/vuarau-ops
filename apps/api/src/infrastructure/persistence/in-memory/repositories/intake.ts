@@ -1,5 +1,6 @@
 import type {
   GoodsArrivalDto,
+  PurchaseLineId,
   QualityDispositionDto,
   QualityDispositionSource,
   QualityDispositionSourceSummaryDto,
@@ -8,6 +9,7 @@ import { PersistedIntegrityError } from "@vuarau/db";
 import type { Repositories } from "../../ports.ts";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
+import { exactAdd, exactSubtract } from "../reads/exact-number.ts";
 
 const sourceEqual = (left: QualityDispositionSource, right: QualityDispositionSource): boolean =>
   left.type === right.type &&
@@ -76,7 +78,11 @@ export function intakeSourceSummary(
         sourceEqual(disposition.source, source),
     )
     .flatMap((disposition) => disposition.allocations)
-    .reduce((sum, allocation) => sum + allocation.quantity.valueScaled, 0);
+    .reduce(
+      (sum, allocation) =>
+        exactAdd(sum, allocation.quantity.valueScaled, "intake.allocated.value_scaled"),
+      0,
+    );
   const inspected =
     source.type === "arrival_line"
       ? [...store.qualityInspections.values()]
@@ -86,9 +92,21 @@ export function intakeSourceSummary(
               inspection.arrivalLineId === source.arrivalLineId &&
               inspection.reversal === null,
           )
-          .reduce((sum, inspection) => sum + inspection.inspectedQuantity.valueScaled, 0)
+          .reduce(
+            (sum, inspection) =>
+              exactAdd(
+                sum,
+                inspection.inspectedQuantity.valueScaled,
+                "intake.inspected.value_scaled",
+              ),
+            0,
+          )
       : null;
-  const remaining = root.quantity.valueScaled - allocated;
+  const remaining = exactSubtract(
+    root.quantity.valueScaled,
+    allocated,
+    "intake.remaining.value_scaled",
+  );
   const eligible =
     inspected === null
       ? remaining
@@ -213,7 +231,11 @@ export const createIntakeRepositories = (
               `Arrival line ${arrivalLineId} has mixed inspection units.`,
             );
           }
-          return sum + inspection.inspectedQuantity.valueScaled;
+          return exactAdd(
+            sum,
+            inspection.inspectedQuantity.valueScaled,
+            "intake.inspected.value_scaled",
+          );
         }, 0),
         unit: active[0]!.inspectedQuantity.unit,
       };
@@ -265,24 +287,43 @@ export const createIntakeRepositories = (
           quarantineIds.has(candidate.source.allocationId),
       ).length;
     },
-    acceptedQuantityForPurchaseLine: async (workspaceId, purchaseLineId) => {
-      let unit: QualityDispositionDto["allocations"][number]["quantity"]["unit"] | null = null;
-      let valueScaled = 0;
+    acceptedQuantitiesForPurchaseLines: async (workspaceId, purchaseLineIds) => {
+      const requested = new Set(purchaseLineIds);
+      const totals = new Map<
+        PurchaseLineId,
+        {
+          unit: QualityDispositionDto["allocations"][number]["quantity"]["unit"];
+          valueScaled: number;
+        }
+      >();
       for (const disposition of store.qualityDispositions.values()) {
         if (disposition.workspaceId !== workspaceId || disposition.reversal !== null) continue;
         const root = intakeSourceRoot(store, workspaceId, disposition.source);
-        if (root === null || root.line.purchaseLineId !== purchaseLineId) continue;
+        const purchaseLineId = root?.line.purchaseLineId as PurchaseLineId | null | undefined;
+        if (
+          purchaseLineId === null ||
+          purchaseLineId === undefined ||
+          !requested.has(purchaseLineId)
+        )
+          continue;
         for (const allocation of disposition.allocations) {
           if (allocation.outcome !== "accepted") continue;
-          unit ??= allocation.quantity.unit;
-          if (unit !== allocation.quantity.unit)
+          const current = totals.get(purchaseLineId);
+          if (current !== undefined && current.unit !== allocation.quantity.unit)
             throw new PersistedIntegrityError(
               `Purchase line ${purchaseLineId} has mixed accepted units.`,
             );
-          valueScaled += allocation.quantity.valueScaled;
+          totals.set(purchaseLineId, {
+            unit: current?.unit ?? allocation.quantity.unit,
+            valueScaled: exactAdd(
+              current?.valueScaled ?? 0,
+              allocation.quantity.valueScaled,
+              "intake.accepted.value_scaled",
+            ),
+          });
         }
       }
-      return unit === null ? null : { valueScaled, unit };
+      return totals;
     },
     insert: async (disposition: QualityDispositionDto) => {
       const dispositionKey = key(disposition.workspaceId, disposition.id);

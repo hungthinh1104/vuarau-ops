@@ -20,18 +20,14 @@ export async function acceptedQuantityByPurchaseLine(
   purchase: Pick<PurchaseState, "id" | "lines">,
 ): Promise<ReadonlyMap<string, number>> {
   const direct = await repos.purchaseReceipts.netReceivedByPurchaseLine(workspaceId, purchase.id);
-  const inspected = await Promise.all(
-    purchase.lines.map(async (line) => ({
-      line,
-      quantity: await repos.qualityDispositions.acceptedQuantityForPurchaseLine(
-        workspaceId,
-        line.lineId,
-      ),
-    })),
+  const inspected = await repos.qualityDispositions.acceptedQuantitiesForPurchaseLines(
+    workspaceId,
+    purchase.lines.map((line) => line.lineId),
   );
   const combined = new Map(direct);
-  for (const { line, quantity } of inspected) {
-    if (quantity === null) continue;
+  for (const line of purchase.lines) {
+    const quantity = inspected.get(line.lineId);
+    if (quantity === undefined) continue;
     if (quantity.unit !== line.quantity.unit) {
       throw new CommandIntegrityError(
         "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",

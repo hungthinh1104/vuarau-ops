@@ -7,6 +7,7 @@ import type {
   WorkspaceId,
 } from "@vuarau/domain-contracts";
 import { calculateLineTotal } from "@vuarau/domain-contracts";
+import { subtractExactIntegers, sumExactIntegers } from "@vuarau/domain-kernel";
 import { deterministicUuid } from "../infrastructure/deterministic-id.ts";
 import type { CommandContext } from "../modules/shared/command-pipeline.ts";
 import { getSale } from "../modules/sale/sale.queries.ts";
@@ -124,9 +125,8 @@ function idsFor(request: CorrectionRequest) {
 
 function replacementTotalMinor(replacement: ReplacementInput | null): number | null {
   if (replacement === null) return null;
-  return replacement.lines.reduce(
-    (total, line) => total + calculateLineTotal(line.quantity, line.unitPrice).amountMinor,
-    0,
+  return sumExactIntegers(
+    replacement.lines.map((line) => calculateLineTotal(line.quantity, line.unitPrice).amountMinor),
   );
 }
 
@@ -203,11 +203,27 @@ export async function planCorrection(
   const replacementPosted = existingReplacement.ok && existingReplacement.value.status === "posted";
 
   const replacementTotal = replacementTotalMinor(request.replacement);
+  if (request.replacement !== null && replacementTotal === null) {
+    return refuse(
+      "PERSISTED_NUMBER_OUT_OF_RANGE",
+      "The replacement sale total is outside the exact supported range.",
+    );
+  }
   const before = balance.value.balance.amountMinor;
+  const afterVoid = subtractExactIntegers(
+    before,
+    alreadyVoided ? 0 : sale.value.totalAmount.amountMinor,
+  );
   const projected =
-    before -
-    (alreadyVoided ? 0 : sale.value.totalAmount.amountMinor) +
-    (replacementPosted ? 0 : (replacementTotal ?? 0));
+    afterVoid === null
+      ? null
+      : sumExactIntegers([afterVoid, replacementPosted ? 0 : (replacementTotal ?? 0)]);
+  if (projected === null) {
+    return refuse(
+      "PERSISTED_NUMBER_OUT_OF_RANGE",
+      "The correction total is outside the exact supported range.",
+    );
+  }
 
   const steps: CorrectionStep[] = [
     {

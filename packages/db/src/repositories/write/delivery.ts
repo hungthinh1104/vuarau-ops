@@ -144,7 +144,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
     ) {
       const rows = await tx.execute(sql`
           with dispatched as (
-            select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as quantity
+            select dl.sale_line_id, sum(dl.quantity_scaled) as quantity
             from ${deliveryLines} dl
             join ${deliveries} d
               on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
@@ -154,7 +154,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
               and (${excludeDeliveryId}::uuid is null or d.id <> ${excludeDeliveryId}::uuid)
             group by dl.sale_line_id
           ), returned as (
-            select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as quantity
+            select dl.sale_line_id, sum(drl.quantity_scaled) as quantity
             from ${deliveryReturnLines} drl
             join ${deliveryReturns} dr on dr.id = drl.return_id
             join ${deliveryLines} dl on dl.id = drl.delivery_line_id
@@ -166,7 +166,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
             group by dl.sale_line_id
           )
           select coalesce(dispatched.sale_line_id, returned.sale_line_id) as "saleLineId",
-            (coalesce(dispatched.quantity, 0) - coalesce(returned.quantity, 0))::bigint as "net"
+            (coalesce(dispatched.quantity, 0) - coalesce(returned.quantity, 0)) as "net"
           from dispatched
           full join returned using (sale_line_id)
         `);
@@ -180,7 +180,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
     async fulfilmentBySaleLine(workspaceId: WorkspaceId, saleId: SaleId) {
       const rows = await tx.execute(sql`
           with dispatched as (
-            select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as quantity
+            select dl.sale_line_id, sum(dl.quantity_scaled) as quantity
             from ${deliveryLines} dl
             join ${deliveries} d
               on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
@@ -189,7 +189,7 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
               and d.status in ('dispatched', 'delivered')
             group by dl.sale_line_id
           ), returned as (
-            select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as quantity
+            select dl.sale_line_id, sum(drl.quantity_scaled) as quantity
             from ${deliveryReturnLines} drl
             join ${deliveryReturns} dr
               on dr.workspace_id = ${workspaceId}::uuid and dr.id = drl.return_id
@@ -201,8 +201,8 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
             group by dl.sale_line_id
           )
           select coalesce(dispatched.sale_line_id, returned.sale_line_id) as "saleLineId",
-            coalesce(dispatched.quantity, 0)::bigint as "dispatched",
-            coalesce(returned.quantity, 0)::bigint as "returned"
+            coalesce(dispatched.quantity, 0) as "dispatched",
+            coalesce(returned.quantity, 0) as "returned"
           from dispatched
           full join returned using (sale_line_id)
         `);

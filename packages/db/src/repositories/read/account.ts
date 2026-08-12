@@ -21,6 +21,50 @@ import type { Tx } from "../shared/types.ts";
 
 export const createAccountReadRepositories = (tx: Tx) => ({
   accountReads: {
+    async balanceAtEntry({
+      workspaceId,
+      customerId,
+      entryId,
+    }: {
+      workspaceId: string;
+      customerId: string;
+      entryId: string;
+    }) {
+      const ranked = tx.$with("sale_detail_account_running_balance").as(
+        tx
+          .select({
+            id: customerAccountEntries.id,
+            currency: customerAccountEntries.currency,
+            runningBalanceMinor:
+              sql<number>`sum(${customerAccountEntries.amountMinor}) over (order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})`.as(
+                "running_balance_minor",
+              ),
+          })
+          .from(customerAccountEntries)
+          .where(
+            and(
+              eq(customerAccountEntries.workspaceId, workspaceId),
+              eq(customerAccountEntries.customerId, customerId),
+            ),
+          ),
+      );
+      const [row] = await tx
+        .with(ranked)
+        .select({
+          currency: ranked.currency,
+          runningBalanceMinor: ranked.runningBalanceMinor,
+        })
+        .from(ranked)
+        .where(eq(ranked.id, entryId))
+        .limit(1);
+      if (row === undefined) return null;
+      return {
+        balanceAfter: money(
+          persistedBigintToSafeNumber(row.runningBalanceMinor, "customer running balance"),
+          row.currency,
+        ),
+      };
+    },
     async adjustmentDetail({
       workspaceId,
       adjustmentId,
@@ -45,7 +89,7 @@ export const createAccountReadRepositories = (tx: Tx) => ({
             sourceType: customerAccountEntries.sourceType,
             sourceId: customerAccountEntries.sourceId,
             runningBalanceMinor:
-              sql<number>`sum(${customerAccountEntries.amountMinor}) over (partition by ${customerAccountEntries.workspaceId}, ${customerAccountEntries.customerId} order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})::bigint`.as(
+              sql<number>`sum(${customerAccountEntries.amountMinor}) over (partition by ${customerAccountEntries.workspaceId}, ${customerAccountEntries.customerId} order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})`.as(
                 "running_balance_minor",
               ),
           })
@@ -151,7 +195,7 @@ export const createAccountReadRepositories = (tx: Tx) => ({
             actorId: customerAccountEntries.actorId,
             commandId: customerAccountEntries.commandId,
             runningBalanceMinor:
-              sql<number>`sum(${customerAccountEntries.amountMinor}) over (order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})::bigint`.as(
+              sql<number>`sum(${customerAccountEntries.amountMinor}) over (order by ${customerAccountEntries.transactionTime}, ${customerAccountEntries.recordedAt}, ${customerAccountEntries.id})`.as(
                 "running_balance_minor",
               ),
           })

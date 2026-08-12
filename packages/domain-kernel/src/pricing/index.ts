@@ -6,6 +6,7 @@ import type {
 import type { PriceRuleState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { addMoney, subtractMoney } from "../shared/money.ts";
 
 function validMoney(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
@@ -51,10 +52,20 @@ export function decideRecordPriceRule(
     );
   }
 
-  const finalAmount =
-    payload.baseUnitPrice.amountMinor -
-    payload.discountPerUnit.amountMinor +
-    payload.feePerUnit.amountMinor;
+  let finalAmount: number;
+  try {
+    finalAmount = addMoney(
+      subtractMoney(
+        payload.baseUnitPrice,
+        payload.discountPerUnit,
+        "pricing.final_unit_price.amount_minor",
+      ),
+      payload.feePerUnit,
+      "pricing.final_unit_price.amount_minor",
+    ).amountMinor;
+  } catch {
+    return err("PRICING_RULE_INVALID", "Price adjustments cannot exceed the exact range.");
+  }
   if (!validMoney(finalAmount)) {
     return err("PRICING_RULE_INVALID", "Price adjustments cannot produce a negative price.");
   }

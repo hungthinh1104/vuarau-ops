@@ -2,6 +2,7 @@ import type { Repositories } from "../../ports.ts";
 import type { PurchaseReceiptReversalState } from "@vuarau/domain-kernel";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
+import { exactAdd } from "../reads/exact-number.ts";
 
 export const createPurchaseRepositories = (
   store: Store,
@@ -97,7 +98,11 @@ export const createPurchaseRepositories = (
         for (const line of receipt.lines) {
           result.set(
             line.purchaseLineId,
-            (result.get(line.purchaseLineId) ?? 0) + line.quantity.valueScaled,
+            exactAdd(
+              result.get(line.purchaseLineId) ?? 0,
+              line.quantity.valueScaled,
+              "purchase.received.quantity_scaled",
+            ),
           );
         }
       }

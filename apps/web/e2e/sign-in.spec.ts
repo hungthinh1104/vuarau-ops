@@ -80,12 +80,14 @@ test.describe("TC-E2E-021 — workspace discovery", () => {
 
     const aResidue = await page.evaluate((subject) => {
       const encoded = encodeURIComponent(subject);
-      return Object.keys(window.sessionStorage).filter(
-        (key) =>
-          key.includes(encoded) ||
-          key === "vuarau.access_token" ||
-          key === "vuarau.workspace_id" ||
-          key.startsWith("vuarau.offline."),
+      return [window.sessionStorage, window.localStorage].flatMap((storage) =>
+        Object.keys(storage).filter(
+          (key) =>
+            key.includes(encoded) ||
+            key === "vuarau.access_token" ||
+            key === "vuarau.workspace_id" ||
+            key.startsWith("vuarau.offline."),
+        ),
       );
     }, E2E_ACTORS.owner);
     expect(aResidue).toEqual([]);

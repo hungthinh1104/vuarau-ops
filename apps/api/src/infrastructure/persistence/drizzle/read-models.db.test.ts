@@ -356,6 +356,20 @@ describe.skipIf(skipWithoutDatabase())("read models against Postgres", () => {
     // And the last one equals the maintained projection (BR-ACCOUNT-001).
     const entries = await ctx.accountEntryRows();
     expect(expected).toBe(entries.reduce((sum, entry) => sum + entry.amount.amountMinor, 0));
+
+    const posting = entries.find((entry) => entry.sourceType === "sale_posting");
+    expect(posting).toBeDefined();
+    if (posting === undefined) return;
+    const balanceAtEntry = await ctx.database.db.transaction((tx) =>
+      createReadRepositories(tx).accountReads.balanceAtEntry({
+        workspaceId: ctx.workspaceId,
+        customerId: ctx.customerId,
+        entryId: posting.id,
+      }),
+    );
+    expect(balanceAtEntry?.balanceAfter.amountMinor).toBe(
+      timeline.value.items.find((item) => item.id === posting.id)?.runningBalance.amountMinor,
+    );
   });
 
   it("UC-ACCOUNT-001 / TC-READ-009 — page two retains full-history balances without tuple skips", async () => {

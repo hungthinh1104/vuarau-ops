@@ -1,7 +1,13 @@
 import type { SaleDto, VoidSaleCommand } from "@vuarau/domain-contracts";
 import { saleDtoSchema, voidSaleCommandSchema } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
-import { decideVoidSale, err, ok } from "@vuarau/domain-kernel";
+import {
+  decideVoidSale,
+  err,
+  exactIntegerDifference,
+  exactIntegerSum,
+  ok,
+} from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyAccountEffects } from "../shared/account-effects.ts";
@@ -60,15 +66,20 @@ export function voidSale(ctx: CommandContext, input: unknown): Promise<DomainRes
       );
       const reversedByAllocation = new Map<string, number>();
       for (const reversal of allocationFacts.reversals) {
-        reversedByAllocation.set(
-          reversal.allocationId,
-          (reversedByAllocation.get(reversal.allocationId) ?? 0) + reversal.amount.amountMinor,
+        const reversed = exactIntegerSum(
+          [reversedByAllocation.get(reversal.allocationId) ?? 0, reversal.amount.amountMinor],
+          "sale.payment_allocation.reversed.amount_minor",
         );
+        reversedByAllocation.set(reversal.allocationId, reversed);
       }
       const hasActiveAllocation = allocationFacts.allocations.some(
         (allocation) =>
           allocation.saleId === sale.id &&
-          allocation.amount.amountMinor - (reversedByAllocation.get(allocation.id) ?? 0) > 0,
+          exactIntegerDifference(
+            allocation.amount.amountMinor,
+            reversedByAllocation.get(allocation.id) ?? 0,
+            "sale.payment_allocation.remaining.amount_minor",
+          ) > 0,
       );
       if (hasActiveAllocation) {
         return err(

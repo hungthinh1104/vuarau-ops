@@ -14,6 +14,7 @@ import type {
 } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { sumExactIntegers } from "../shared/money.ts";
 
 function countKey(count: {
   productId: string;
@@ -168,8 +169,9 @@ export function calculateStocktakeExpectedQuantity(args: {
   let total = 0;
   for (const movement of args.movements) {
     if (Date.parse(movement.transactionTime) > Date.parse(args.asOf)) continue;
-    total += movement.quantity.valueScaled;
-    if (!Number.isSafeInteger(total)) return null;
+    const next = sumExactIntegers([total, movement.quantity.valueScaled]);
+    if (next === null) return null;
+    total = next;
   }
   return total;
 }

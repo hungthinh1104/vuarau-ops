@@ -3,6 +3,7 @@ import {
   createDbTestContext,
   createUnitOfWork,
   skipWithoutDatabase,
+  sql,
   type DbTestContext,
 } from "@vuarau/db";
 import { decodeCursor } from "@vuarau/domain-contracts";
@@ -41,6 +42,7 @@ import {
 } from "../../../modules/delivery/delivery.handlers.ts";
 import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
 import { getDelivery, getSaleFulfilment } from "../../../modules/delivery/delivery.queries.ts";
+import { getProductCoverage } from "../../../modules/inventory/inventory.queries.ts";
 import {
   createDocumentShare,
   generateDocument,
@@ -51,7 +53,10 @@ import {
   getOperationalReport,
   getOperationalReportCsv,
 } from "../../../modules/report/report.queries.ts";
-import { getOperationsBoard } from "../../../modules/dashboard/dashboard.queries.ts";
+import {
+  getDashboardOrderStatusCounts,
+  getOperationsBoard,
+} from "../../../modules/dashboard/dashboard.queries.ts";
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
 
 // TC-DELIVERY-003, TC-DOCUMENT-002, TC-REPORT-001
@@ -419,6 +424,19 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     if (board.ok) {
       expect(board.value.page.items.find((row) => row.id === saleId)?.nextAction).toBe("Giao hàng");
     }
+    const statusCounts = await getDashboardOrderStatusCounts(context(), ctx.workspaceId);
+    expect(statusCounts.ok).toBe(true);
+    if (statusCounts.ok) {
+      expect(statusCounts.value.commercial).toEqual(
+        expect.arrayContaining([{ key: "posted", count: expect.any(Number) }]),
+      );
+      expect(statusCounts.value.physical).toEqual(
+        expect.arrayContaining([{ key: "needs_delivery", count: expect.any(Number) }]),
+      );
+      expect(statusCounts.value.financial).toEqual(
+        expect.arrayContaining([{ key: "awaiting_payment", count: expect.any(Number) }]),
+      );
+    }
     const boardPageOne = await getOperationsBoard(context(), {
       workspaceId: ctx.workspaceId,
       filter: "all",
@@ -486,6 +504,76 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     });
     expect(blockedCsv.ok).toBe(true);
     if (blockedCsv.ok) expect(blockedCsv.value.split("\n")).toHaveLength(1);
+
+    const draftReturnDeliveryId = crypto.randomUUID() as DeliveryId;
+    const draftReturnDeliveryLineId = crypto.randomUUID() as DeliveryLineId;
+    expect(
+      (
+        await createDeliveryDraft(context(), {
+          ...envelope("draft-return-delivery", "2026-07-29T06:30:00.000Z"),
+          payload: {
+            deliveryId: draftReturnDeliveryId,
+            saleId,
+            lines: [
+              {
+                deliveryLineId: draftReturnDeliveryLineId,
+                saleLineId,
+                productId,
+                qualityGradeId: ctx.qualityGradeId,
+                quantity: { valueScaled: 1_000, unit: "kg" },
+              },
+            ],
+            note: null,
+            evidenceReferences: [],
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const corruptDraftReturnId = crypto.randomUUID();
+    await ctx.database.db.execute(sql`
+      insert into delivery_returns (
+        id, workspace_id, delivery_id, reason, evidence_references,
+        transaction_time, recorded_at, actor_id
+      ) values (
+        ${corruptDraftReturnId}::uuid, ${ctx.workspaceId}::uuid, ${draftReturnDeliveryId}::uuid,
+        'corrupt draft return fixture', ARRAY[]::text[], '2026-07-29T06:31:00.000Z',
+        '2026-07-29T06:31:00.000Z', ${ctx.actorId}::uuid
+      )
+    `);
+    await ctx.database.db.execute(sql`
+      insert into delivery_return_lines (
+        workspace_id, return_id, delivery_line_id, quantity_scaled, unit
+      ) values (
+        ${ctx.workspaceId}::uuid, ${corruptDraftReturnId}::uuid,
+        ${draftReturnDeliveryLineId}::uuid, 1_000, 'kg'
+      )
+    `);
+    const coverageWithDraftReturn = await getProductCoverage(context(), {
+      workspaceId: ctx.workspaceId,
+      productIds: [productId],
+    });
+    expect(coverageWithDraftReturn.ok && coverageWithDraftReturn.value[0]?.quantities).toEqual([
+      {
+        unit: "kg",
+        qualityGradeId: null,
+        qualityGradeName: null,
+        onHand: { valueScaled: 0, unit: "kg" },
+        inboundRemaining: { valueScaled: 0, unit: "kg" },
+        outboundRemaining: { valueScaled: 0, unit: "kg" },
+        availableAfterCommitments: { valueScaled: 0, unit: "kg" },
+        classification: "idle",
+      },
+      {
+        unit: "kg",
+        qualityGradeId: ctx.qualityGradeId,
+        qualityGradeName: "Loại 1",
+        onHand: { valueScaled: 10_001, unit: "kg" },
+        inboundRemaining: { valueScaled: 0, unit: "kg" },
+        outboundRemaining: { valueScaled: 10_000, unit: "kg" },
+        availableAfterCommitments: { valueScaled: 1, unit: "kg" },
+        classification: "covered",
+      },
+    ]);
   });
 
   it("continues receivable and payable pages after rows without a last-entry timestamp", async () => {

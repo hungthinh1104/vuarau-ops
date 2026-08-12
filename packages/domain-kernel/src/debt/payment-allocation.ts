@@ -9,6 +9,7 @@ import type { PaymentState, SaleState } from "../shared/state.ts";
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { subtractExactIntegers, sumExactIntegers } from "../shared/money.ts";
 
 export type PaymentAllocationContext = {
   readonly payment: PaymentState;
@@ -23,16 +24,25 @@ export type PaymentAllocationDecision<T> = {
   readonly audit: AuditDraft;
 };
 
-function activeAllocationAmount(
+export function calculateActivePaymentAllocationAmount(
   allocation: PaymentAllocationDto,
   reversals: readonly PaymentAllocationReversalDto[],
-): number {
-  return Math.max(
-    0,
-    allocation.amount.amountMinor -
-      reversals
-        .filter((reversal) => reversal.allocationId === allocation.id)
-        .reduce((total, reversal) => total + reversal.amount.amountMinor, 0),
+): number | null {
+  const reversed = sumExactIntegers(
+    reversals
+      .filter((reversal) => reversal.allocationId === allocation.id)
+      .map((reversal) => reversal.amount.amountMinor),
+  );
+  const remaining =
+    reversed === null ? null : subtractExactIntegers(allocation.amount.amountMinor, reversed);
+  return remaining === null ? null : Math.max(0, remaining);
+}
+
+function persistedRange(field: string): DomainResult<never> {
+  return err(
+    "PERSISTED_NUMBER_OUT_OF_RANGE",
+    "Persisted monetary data is outside the supported exact range.",
+    { field },
   );
 }
 
@@ -83,21 +93,35 @@ export function decideRecordPaymentAllocation(
     return err("PAYMENT_ALLOCATION_SALE_VOIDED", "A voided sale cannot receive an allocation.");
   }
 
-  const allocatedPayment = context.allocations.reduce(
-    (total, allocation) => total + activeAllocationAmount(allocation, context.reversals),
-    0,
+  const activeAllocations = context.allocations.map((allocation) =>
+    calculateActivePaymentAllocationAmount(allocation, context.reversals),
   );
-  const allocatedSale = context.allocations
-    .filter((allocation) => allocation.saleId === context.sale.id)
-    .reduce(
-      (total, allocation) => total + activeAllocationAmount(allocation, context.reversals),
-      0,
-    );
+  if (activeAllocations.some((amount) => amount === null)) {
+    return persistedRange("payment.allocation.amount_minor");
+  }
+  const allocatedPayment = sumExactIntegers(
+    activeAllocations.filter((amount): amount is number => amount !== null),
+  );
+  const allocatedSale = sumExactIntegers(
+    context.allocations.map((allocation, index) =>
+      allocation.saleId === context.sale.id ? activeAllocations[index]! : 0,
+    ),
+  );
+  const effectivePayment = subtractExactIntegers(
+    context.payment.amount.amountMinor,
+    context.payment.reversedAmount.amountMinor,
+  );
   const remainingPayment =
-    context.payment.amount.amountMinor -
-    context.payment.reversedAmount.amountMinor -
-    allocatedPayment;
-  const remainingSale = context.sale.totalAmount.amountMinor - allocatedSale;
+    allocatedPayment === null || effectivePayment === null
+      ? null
+      : subtractExactIntegers(effectivePayment, allocatedPayment);
+  const remainingSale =
+    allocatedSale === null
+      ? null
+      : subtractExactIntegers(context.sale.totalAmount.amountMinor, allocatedSale);
+  if (remainingPayment === null || remainingSale === null) {
+    return persistedRange("payment.allocation.remaining_amount_minor");
+  }
   if (command.payload.amount.amountMinor > remainingPayment) {
     return err(
       "PAYMENT_ALLOCATION_EXCEEDS_PAYMENT",
@@ -161,7 +185,10 @@ export function decideReversePaymentAllocation(
   if (command.payload.amount.currency !== context.allocation.amount.currency) {
     return err("PAYMENT_ALLOCATION_CURRENCY_MISMATCH", "Reversal currency must match allocation.");
   }
-  const remaining = activeAllocationAmount(context.allocation, context.reversals);
+  const remaining = calculateActivePaymentAllocationAmount(context.allocation, context.reversals);
+  if (remaining === null) {
+    return persistedRange("payment.allocation.remaining_amount_minor");
+  }
   if (command.payload.amount.amountMinor > remaining) {
     return err(
       "PAYMENT_ALLOCATION_REVERSAL_EXCEEDS_REMAINING",
@@ -174,6 +201,13 @@ export function decideReversePaymentAllocation(
       "PAYMENT_ALLOCATION_REVERSAL_REASON_REQUIRED",
       "A reason is required to reverse an allocation.",
     );
+  }
+  const remainingAfterReversal = subtractExactIntegers(
+    remaining,
+    command.payload.amount.amountMinor,
+  );
+  if (remainingAfterReversal === null) {
+    return persistedRange("payment.allocation.remaining_amount_minor");
   }
   const reversal: PaymentAllocationReversalDto = {
     id: command.payload.reversalId,
@@ -197,7 +231,7 @@ export function decideReversePaymentAllocation(
       transactionTime: command.occurredAt,
       recordedAt: reversal.recordedAt,
       before: { allocationId: reversal.allocationId, amountMinor: remaining },
-      after: { amountMinor: remaining - reversal.amount.amountMinor },
+      after: { amountMinor: remainingAfterReversal },
       reason: reversal.reason,
     },
   });

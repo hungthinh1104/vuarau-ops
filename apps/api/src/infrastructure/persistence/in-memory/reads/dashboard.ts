@@ -12,11 +12,12 @@ import type {
   Quantity,
 } from "@vuarau/domain-contracts";
 import { encodeCursor, vietnamBusinessDateForInstant } from "@vuarau/domain-contracts";
-import type { DeliveryState } from "@vuarau/domain-kernel";
 import type { Repositories } from "../../ports.ts";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
+import { exactAdd, exactSubtract } from "./exact-number.ts";
+import { saleFinancialState, salePhysicalState } from "./dashboard-order-state.ts";
 
 const now = () => new Date().toISOString();
 const money = (amountMinor: number) => ({ amountMinor, currency: "VND" as const });
@@ -28,7 +29,10 @@ function availability(updatedAt: string | null = null): DashboardAvailability {
 function quantities(values: readonly Quantity[]): Quantity[] {
   const totals = new Map<string, number>();
   for (const value of values)
-    totals.set(value.unit, (totals.get(value.unit) ?? 0) + value.valueScaled);
+    totals.set(
+      value.unit,
+      exactAdd(totals.get(value.unit) ?? 0, value.valueScaled, "dashboard.quantity.value_scaled"),
+    );
   return [...totals].map(([unit, valueScaled]) => ({
     unit: unit as Quantity["unit"],
     valueScaled,
@@ -63,7 +67,11 @@ function outstandingFor(store: Store, workspaceId: string): Quantity[] {
       deliveryLineToSaleLine.set(line.deliveryLineId, line.saleLineId);
       fulfilled.set(
         line.saleLineId,
-        (fulfilled.get(line.saleLineId) ?? 0) + line.quantity.valueScaled,
+        exactAdd(
+          fulfilled.get(line.saleLineId) ?? 0,
+          line.quantity.valueScaled,
+          "dashboard.outstanding_delivery.value_scaled",
+        ),
       );
     }
   }
@@ -72,7 +80,14 @@ function outstandingFor(store: Store, workspaceId: string): Quantity[] {
     for (const line of returned.lines) {
       const saleLineId = deliveryLineToSaleLine.get(line.deliveryLineId);
       if (saleLineId === undefined) continue;
-      fulfilled.set(saleLineId, (fulfilled.get(saleLineId) ?? 0) - line.quantity.valueScaled);
+      fulfilled.set(
+        saleLineId,
+        exactSubtract(
+          fulfilled.get(saleLineId) ?? 0,
+          line.quantity.valueScaled,
+          "dashboard.outstanding_delivery.value_scaled",
+        ),
+      );
     }
   }
   const remaining: Quantity[] = [];
@@ -80,7 +95,11 @@ function outstandingFor(store: Store, workspaceId: string): Quantity[] {
     if (sale.workspaceId !== workspaceId || sale.status !== "posted" || sale.voidRecord !== null)
       continue;
     for (const line of sale.lines) {
-      const valueScaled = line.quantity.valueScaled - (fulfilled.get(line.lineId) ?? 0);
+      const valueScaled = exactSubtract(
+        line.quantity.valueScaled,
+        fulfilled.get(line.lineId) ?? 0,
+        "dashboard.outstanding_delivery.value_scaled",
+      );
       if (valueScaled > 0) remaining.push({ ...line.quantity, valueScaled });
     }
   }
@@ -98,151 +117,15 @@ function acceptedAfterInspectionFor(store: Store, workspaceId: string): Map<stri
       if (allocation.outcome !== "accepted") continue;
       accepted.set(
         purchaseLineId,
-        (accepted.get(purchaseLineId) ?? 0) + allocation.quantity.valueScaled,
+        exactAdd(
+          accepted.get(purchaseLineId) ?? 0,
+          allocation.quantity.valueScaled,
+          "dashboard.accepted_inbound.value_scaled",
+        ),
       );
     }
   }
   return accepted;
-}
-
-function saleFinancialState(
-  store: Store,
-  workspaceId: string,
-  saleId: string,
-  asOf: string,
-): string {
-  const sale = store.sales.get(key(workspaceId, saleId));
-  if (sale?.voidRecord !== null && sale?.voidRecord !== undefined) return "voided";
-  const allocated = store.paymentAllocations
-    .filter((allocation) => allocation.workspaceId === workspaceId && allocation.saleId === saleId)
-    .reduce((sum, allocation) => sum + allocation.amount.amountMinor, 0);
-  const reversed = store.paymentAllocationReversals
-    .filter((reversal) => reversal.workspaceId === workspaceId)
-    .filter((reversal) =>
-      store.paymentAllocations.some(
-        (allocation) => allocation.id === reversal.allocationId && allocation.saleId === saleId,
-      ),
-    )
-    .reduce((sum, reversal) => sum + reversal.amount.amountMinor, 0);
-  if (sale !== undefined && allocated - reversed >= sale.totalAmount.amountMinor) return "paid";
-  const unallocated = [...store.payments.values()]
-    .filter(
-      (payment) =>
-        payment.workspaceId === workspaceId &&
-        payment.customerId === sale?.customerId &&
-        payment.status !== "reversed",
-    )
-    .reduce((sum, payment) => {
-      const allocatedToPayment = store.paymentAllocations
-        .filter(
-          (allocation) =>
-            allocation.workspaceId === workspaceId && allocation.paymentId === payment.id,
-        )
-        .reduce((total, allocation) => total + allocation.amount.amountMinor, 0);
-      const reversedAllocations = store.paymentAllocationReversals
-        .filter(
-          (reversal) =>
-            reversal.workspaceId === workspaceId &&
-            store.paymentAllocations.some(
-              (allocation) =>
-                allocation.id === reversal.allocationId && allocation.paymentId === payment.id,
-            ),
-        )
-        .reduce((total, reversal) => total + reversal.amount.amountMinor, 0);
-      return (
-        sum +
-        Math.max(
-          0,
-          payment.amount.amountMinor -
-            payment.reversedAmount.amountMinor -
-            allocatedToPayment +
-            reversedAllocations,
-        )
-      );
-    }, 0);
-  if (unallocated > 0) return "reconciliation_required";
-  if (
-    sale?.dueAt !== null &&
-    sale?.dueAt !== undefined &&
-    Date.parse(sale.dueAt) < Date.parse(asOf)
-  )
-    return "overdue";
-  return "awaiting_payment";
-}
-
-function salePhysicalState(
-  store: Store,
-  workspaceId: string,
-  saleId: string,
-): {
-  state: string;
-  deliveryId: string | null;
-} {
-  const sale = store.sales.get(key(workspaceId, saleId));
-  if (sale === undefined) return { state: "unknown", deliveryId: null };
-  const fulfilled = new Map<string, number>();
-  const activeDispatchRemaining = new Map<string, number>();
-  let latestDelivery: DeliveryState | null = null;
-  for (const delivery of store.deliveries.values()) {
-    if (delivery.workspaceId !== workspaceId || delivery.saleId !== saleId) continue;
-    if (delivery.status === "dispatched" || delivery.status === "delivered") {
-      if (
-        latestDelivery === null ||
-        `${delivery.transactionTime}|${delivery.recordedAt}|${delivery.id}` >
-          `${latestDelivery.transactionTime}|${latestDelivery.recordedAt}|${latestDelivery.id}`
-      )
-        latestDelivery = delivery;
-      for (const line of delivery.lines)
-        fulfilled.set(
-          line.saleLineId,
-          (fulfilled.get(line.saleLineId) ?? 0) + line.quantity.valueScaled,
-        );
-      if (delivery.status === "dispatched")
-        for (const line of delivery.lines)
-          activeDispatchRemaining.set(
-            line.deliveryLineId,
-            (activeDispatchRemaining.get(line.deliveryLineId) ?? 0) + line.quantity.valueScaled,
-          );
-    }
-  }
-  for (const returned of store.deliveryReturns) {
-    if (returned.workspaceId !== workspaceId) continue;
-    const delivery = store.deliveries.get(key(workspaceId, returned.deliveryId));
-    if (
-      delivery === undefined ||
-      delivery.saleId !== saleId ||
-      (delivery.status !== "dispatched" && delivery.status !== "delivered")
-    )
-      continue;
-    for (const line of returned.lines) {
-      const deliveryLine = delivery.lines.find(
-        (candidate) => candidate.deliveryLineId === line.deliveryLineId,
-      );
-      if (deliveryLine === undefined) continue;
-      fulfilled.set(
-        deliveryLine.saleLineId,
-        (fulfilled.get(deliveryLine.saleLineId) ?? 0) - line.quantity.valueScaled,
-      );
-      if (delivery.status === "dispatched")
-        activeDispatchRemaining.set(
-          line.deliveryLineId,
-          (activeDispatchRemaining.get(line.deliveryLineId) ?? 0) - line.quantity.valueScaled,
-        );
-    }
-  }
-  const deliveryId = latestDelivery?.id ?? null;
-  if (sale.lines.some((line) => (fulfilled.get(line.lineId) ?? 0) > line.quantity.valueScaled))
-    return { state: "attention", deliveryId };
-  const hasRemaining = sale.lines.some(
-    (line) => line.quantity.valueScaled > (fulfilled.get(line.lineId) ?? 0),
-  );
-  if (!hasRemaining) return { state: "delivered", deliveryId };
-  return {
-    state: [...activeDispatchRemaining.values()].some((value) => value > 0)
-      ? "in_delivery"
-      : "needs_delivery",
-    deliveryId,
-  };
 }
 
 function boardCounts(rows: readonly OperationsBoardDto["page"]["items"][number][]) {
@@ -271,31 +154,68 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         (purchase) => purchase.workspaceId === workspaceId && purchase.status === "confirmed",
       );
       const activeSales = sales.filter(
-        (sale) => sale.totalAmount.amountMinor - (sale.voidRecord?.amount.amountMinor ?? 0) > 0,
+        (sale) =>
+          exactSubtract(
+            sale.totalAmount.amountMinor,
+            sale.voidRecord?.amount.amountMinor ?? 0,
+            "dashboard.sales.amount_minor",
+          ) > 0,
       );
       const activePurchases = purchases.filter(
         (purchase) =>
-          purchase.totalAmount.amountMinor - (purchase.voidRecord?.amount.amountMinor ?? 0) > 0,
+          exactSubtract(
+            purchase.totalAmount.amountMinor,
+            purchase.voidRecord?.amount.amountMinor ?? 0,
+            "dashboard.purchases.amount_minor",
+          ) > 0,
       );
       const salesAmount = sales.reduce(
         (sum, sale) =>
-          sum + sale.totalAmount.amountMinor - (sale.voidRecord?.amount.amountMinor ?? 0),
+          exactAdd(
+            sum,
+            exactSubtract(
+              sale.totalAmount.amountMinor,
+              sale.voidRecord?.amount.amountMinor ?? 0,
+              "dashboard.sales.amount_minor",
+            ),
+            "dashboard.sales.amount_minor",
+          ),
         0,
       );
       const purchaseAmount = purchases.reduce(
         (sum, purchase) =>
-          sum + purchase.totalAmount.amountMinor - (purchase.voidRecord?.amount.amountMinor ?? 0),
+          exactAdd(
+            sum,
+            exactSubtract(
+              purchase.totalAmount.amountMinor,
+              purchase.voidRecord?.amount.amountMinor ?? 0,
+              "dashboard.purchases.amount_minor",
+            ),
+            "dashboard.purchases.amount_minor",
+          ),
         0,
       );
       const receivables = [...store.balances.values()]
         .filter((balance) => balance.workspaceId === workspaceId && balance.balance.amountMinor > 0)
-        .reduce((sum, balance) => sum + balance.balance.amountMinor, 0);
+        .reduce(
+          (sum, balance) =>
+            exactAdd(sum, balance.balance.amountMinor, "dashboard.receivables.amount_minor"),
+          0,
+        );
       const payables = [...store.supplierAccountBalances.values()]
         .filter((balance) => balance.workspaceId === workspaceId && balance.balance.amountMinor > 0)
-        .reduce((sum, balance) => sum + balance.balance.amountMinor, 0);
+        .reduce(
+          (sum, balance) =>
+            exactAdd(sum, balance.balance.amountMinor, "dashboard.payables.amount_minor"),
+          0,
+        );
       const cash = [...store.cashBalances.values()]
         .filter((balance) => balance.workspaceId === workspaceId)
-        .reduce((sum, balance) => sum + balance.balance.amountMinor, 0);
+        .reduce(
+          (sum, balance) =>
+            exactAdd(sum, balance.balance.amountMinor, "dashboard.cash.amount_minor"),
+          0,
+        );
       const amount = (value: number, count: number): DashboardSummaryDto["sales"] => ({
         availability: availability(asOf),
         amount: money(value),
@@ -383,9 +303,15 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         if (point === undefined) continue;
         add(date, {
           sales: money(
-            point.sales.amountMinor +
-              sale.totalAmount.amountMinor -
-              (sale.voidRecord?.amount.amountMinor ?? 0),
+            exactAdd(
+              point.sales.amountMinor,
+              exactSubtract(
+                sale.totalAmount.amountMinor,
+                sale.voidRecord?.amount.amountMinor ?? 0,
+                "dashboard.series.sales.amount_minor",
+              ),
+              "dashboard.series.sales.amount_minor",
+            ),
           ),
           orderCount: point.orderCount + 1,
         });
@@ -399,7 +325,13 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         const point = dates.get(date);
         if (point !== undefined)
           add(date, {
-            purchases: money(point.purchases.amountMinor + purchase.totalAmount.amountMinor),
+            purchases: money(
+              exactAdd(
+                point.purchases.amountMinor,
+                purchase.totalAmount.amountMinor,
+                "dashboard.series.purchases.amount_minor",
+              ),
+            ),
           });
       }
       for (const movement of store.inventoryMovements) {
@@ -427,7 +359,15 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         );
         const point = dates.get(date);
         if (point !== undefined)
-          add(date, { cash: money(point.cash.amountMinor + movement.amount.amountMinor) });
+          add(date, {
+            cash: money(
+              exactAdd(
+                point.cash.amountMinor,
+                movement.amount.amountMinor,
+                "dashboard.series.cash.amount_minor",
+              ),
+            ),
+          });
       }
       return { workspaceId: input.workspaceId, asOf, points: [...dates.values()] };
     },
@@ -484,8 +424,16 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             quantity: 0,
             sales: 0,
           };
-          current.quantity += line.quantity.valueScaled;
-          current.sales += line.lineTotal.amountMinor;
+          current.quantity = exactAdd(
+            current.quantity,
+            line.quantity.valueScaled,
+            "dashboard.top_products.quantity.value_scaled",
+          );
+          current.sales = exactAdd(
+            current.sales,
+            line.lineTotal.amountMinor,
+            "dashboard.top_products.sales.amount_minor",
+          );
           grouped.set(groupKey, current);
         }
       }
@@ -493,7 +441,9 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         workspaceId: input.workspaceId,
         asOf: now(),
         products: [...grouped.values()]
-          .sort((left, right) => right.sales - left.sales)
+          .sort((left, right) =>
+            right.sales === left.sales ? 0 : right.sales > left.sales ? 1 : -1,
+          )
           .slice(0, input.limit)
           .map((row) => ({
             productId: row.productId as DashboardTopProductsDto["products"][number]["productId"],
@@ -560,9 +510,15 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         const remaining = purchase.lines.some((line) => {
           const got = received
             .filter((item) => item.purchaseLineId === line.lineId)
-            .reduce((sum, item) => sum + item.quantity.valueScaled, 0);
+            .reduce(
+              (sum, item) =>
+                exactAdd(sum, item.quantity.valueScaled, "dashboard.received.value_scaled"),
+              0,
+            );
           const accepted = inspectedAccepted.get(line.lineId) ?? 0;
-          return got + accepted < line.quantity.valueScaled;
+          return (
+            exactAdd(got, accepted, "dashboard.received.value_scaled") < line.quantity.valueScaled
+          );
         });
         rows.push({
           id: purchase.id,
@@ -603,7 +559,11 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         )
         .sort((left, right) =>
           input.sort === "amount_desc"
-            ? right.amount.amountMinor - left.amount.amountMinor || right.id.localeCompare(left.id)
+            ? right.amount.amountMinor === left.amount.amountMinor
+              ? right.id.localeCompare(left.id)
+              : right.amount.amountMinor > left.amount.amountMinor
+                ? 1
+                : -1
             : input.sort === "age_desc"
               ? right.ageSeconds - left.ageSeconds || right.id.localeCompare(left.id)
               : right.updatedAt.localeCompare(left.updatedAt) || right.id.localeCompare(left.id),

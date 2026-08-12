@@ -80,6 +80,7 @@ function QueryProbe() {
 
 describe("TC-WEB-028 — Supabase session lifecycle", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     window.sessionStorage.clear();
     supabase.setListener(null);
     supabase.getSession.mockClear();

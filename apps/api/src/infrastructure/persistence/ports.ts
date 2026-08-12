@@ -72,6 +72,7 @@ import type { CustomerOrderRepository } from "./customer-order-ports.ts";
 import type { SupplyCommitmentRepository } from "./supply-commitment-ports.ts";
 import type { ReadRepositories } from "./read-ports.ts";
 import type { PriceRuleRepository } from "./pricing-ports.ts";
+import type { InventoryMovementRepository } from "./inventory-ports.ts";
 import type {
   CostObservationRepository,
   ReconciliationObservationRepository,
@@ -284,20 +285,6 @@ export type ReceiptRepository = {
     workspaceId: WorkspaceId,
     purchaseId: string,
   ): Promise<ReadonlyMap<string, number>>;
-};
-export type InventoryMovementRepository = {
-  append(
-    movements: readonly Omit<InventoryMovementState, "id">[],
-  ): Promise<readonly InventoryMovementState[]>;
-  listByProduct(
-    workspaceId: WorkspaceId,
-    productId: ProductId,
-    unit: InventoryMovementState["quantity"]["unit"] | null,
-  ): Promise<readonly InventoryMovementState[]>;
-  listByProducts(
-    workspaceId: WorkspaceId,
-    productIds: readonly ProductId[],
-  ): Promise<readonly InventoryMovementState[]>;
 };
 export type InventoryBalanceState = {
   workspaceId: WorkspaceId;
@@ -530,10 +517,10 @@ export type QualityDispositionRepository = {
     workspaceId: WorkspaceId,
     dispositionId: QualityDispositionId,
   ): Promise<number>;
-  acceptedQuantityForPurchaseLine(
+  acceptedQuantitiesForPurchaseLines(
     workspaceId: WorkspaceId,
-    purchaseLineId: PurchaseLineId,
-  ): Promise<QualityDispositionSourceSummaryDto["sourceQuantity"] | null>;
+    purchaseLineIds: readonly PurchaseLineId[],
+  ): Promise<ReadonlyMap<PurchaseLineId, QualityDispositionSourceSummaryDto["sourceQuantity"]>>;
   insert(disposition: QualityDispositionDto): Promise<boolean>;
   insertReversal(disposition: QualityDispositionDto): Promise<boolean>;
 };

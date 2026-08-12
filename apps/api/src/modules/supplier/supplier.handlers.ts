@@ -30,6 +30,7 @@ import {
   decideSupplierLifecycle,
   decideUpdateSupplier,
   err,
+  negateMoney,
   ok,
 } from "@vuarau/domain-kernel";
 import type { DomainResult, SupplierPaymentState, SupplierState } from "@vuarau/domain-kernel";
@@ -231,7 +232,7 @@ export function recordSupplierPayment(ctx: CommandContext, input: unknown) {
           {
             workspaceId: command.workspaceId,
             supplierId: payment.supplierId,
-            amount: { amountMinor: -payment.amount.amountMinor, currency: payment.amount.currency },
+            amount: negateMoney(payment.amount),
             sourceType: "supplier_payment",
             sourceId: payment.id,
             reversalOfEntryId: null,
@@ -250,10 +251,7 @@ export function recordSupplierPayment(ctx: CommandContext, input: unknown) {
           {
             workspaceId: command.workspaceId,
             cashAccountId: cashAccount.id,
-            amount: {
-              amountMinor: -payment.amount.amountMinor,
-              currency: payment.amount.currency,
-            },
+            amount: negateMoney(payment.amount),
             sourceType: "supplier_payment",
             sourceId: payment.id,
             reversalOfMovementId: null,
@@ -470,7 +468,7 @@ export function adjustSupplierAccount(ctx: CommandContext, input: unknown) {
       const signed =
         command.payload.direction === "increase_payable"
           ? command.payload.amount.amountMinor
-          : -command.payload.amount.amountMinor;
+          : negateMoney(command.payload.amount).amountMinor;
       await applySupplierAccountEffects(
         repos,
         [

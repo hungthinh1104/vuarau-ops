@@ -299,7 +299,7 @@ export const createCashReadRepositories = (tx: Tx) => ({
       const aggregate = (
         await tx
           .select({
-            amountMinor: sql<number>`coalesce(sum(${cashMovements.amountMinor}), 0)::bigint`,
+            amountMinor: sql<number>`coalesce(sum(${cashMovements.amountMinor}), 0)`,
             movementCount: sql<number>`count(*)::integer`,
             lastTransactionTime: sql<Date | null>`max(${cashMovements.transactionTime})`,
             lastRecordedAt: sql<Date | null>`max(${cashMovements.recordedAt})`,

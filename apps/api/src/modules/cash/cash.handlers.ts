@@ -41,6 +41,7 @@ import {
   decideReverseExpense,
   decideUpdateCashAccount,
   err,
+  negateMoney,
   ok,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -280,7 +281,7 @@ export function recordCashTransfer(ctx: CommandContext, input: unknown) {
         {
           workspaceId: command.workspaceId,
           cashAccountId: from.id,
-          amount: { amountMinor: -command.payload.amount.amountMinor, currency: from.currency },
+          amount: negateMoney(command.payload.amount),
           sourceType: "cash_transfer_out",
           sourceId: command.payload.transferId,
           reversalOfMovementId: null,
@@ -380,7 +381,7 @@ export function reverseCashTransfer(ctx: CommandContext, input: unknown) {
         {
           workspaceId: command.workspaceId,
           cashAccountId: transfer.toCashAccountId,
-          amount: { amountMinor: -transfer.amount.amountMinor, currency: transfer.amount.currency },
+          amount: negateMoney(transfer.amount),
           sourceType: "cash_transfer_reversal_in",
           sourceId: command.payload.reversalId,
           reversalOfMovementId: toOriginal.id,

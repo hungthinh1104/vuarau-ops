@@ -83,7 +83,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
     async integrity(workspaceId: string) {
       const rows = await tx.execute(sql`
           WITH ledger AS (
-            SELECT workspace_id, customer_id, sum(amount_minor)::bigint AS ledger_minor
+            SELECT workspace_id, customer_id, sum(amount_minor) AS ledger_minor
             FROM ${customerAccountEntries}
             WHERE workspace_id = ${workspaceId}::uuid
             GROUP BY workspace_id, customer_id
@@ -181,7 +181,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
       const anomalousCustomers = safeCount(row, "anomalous_customers");
       const goodsRows = await tx.execute(sql`
           WITH supplier_ledger AS (
-            SELECT supplier_id, sum(amount_minor)::bigint balance_minor, count(*)::int entry_count
+            SELECT supplier_id, sum(amount_minor) balance_minor, count(*)::int entry_count
             FROM ${supplierAccountEntries}
             WHERE workspace_id = ${workspaceId}::uuid
             GROUP BY supplier_id
@@ -226,7 +226,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
           ),
           inventory_ledger AS (
             SELECT product_id, quality_grade_id, unit,
-                   sum(quantity_scaled)::bigint quantity_scaled,
+                   sum(quantity_scaled) quantity_scaled,
                    count(*)::int movement_count
             FROM ${inventoryMovements}
             WHERE workspace_id = ${workspaceId}::uuid

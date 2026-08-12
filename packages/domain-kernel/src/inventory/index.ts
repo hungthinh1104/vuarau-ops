@@ -14,6 +14,7 @@ import type {
 } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { exactIntegerSum } from "../shared/money.ts";
 
 export function decideRecordPurchaseReceipt(args: {
   command: RecordPurchaseReceiptCommand;
@@ -34,9 +35,13 @@ export function decideRecordPurchaseReceipt(args: {
     if (line.quantity.valueScaled <= 0 || !Number.isInteger(line.quantity.valueScaled))
       return err("PURCHASE_LINE_INVALID", "Receipt quantity must be positive.");
     const existing = pendingByLine.get(line.purchaseLineId) ?? 0;
-    if (existing + line.quantity.valueScaled > purchased.quantity.valueScaled)
+    const next = exactIntegerSum(
+      [existing, line.quantity.valueScaled],
+      "inventory.receipt.pending.quantity_scaled",
+    );
+    if (next > purchased.quantity.valueScaled)
       return err("RECEIPT_QUANTITY_EXCEEDS_PURCHASE", "Receipt exceeds Purchase quantity.");
-    pendingByLine.set(line.purchaseLineId, existing + line.quantity.valueScaled);
+    pendingByLine.set(line.purchaseLineId, next);
   }
   return ok({
     id: command.payload.receiptId,

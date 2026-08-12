@@ -8,6 +8,7 @@ import type {
   Unit,
 } from "@vuarau/domain-contracts";
 import { calculateLineTotal } from "@vuarau/domain-contracts";
+import { exactIntegerDifference, exactIntegerSum } from "../shared/money.ts";
 
 export type InventoryValuationMovement = {
   readonly movementId: InventoryMovementId;
@@ -59,9 +60,18 @@ function compareMovement(left: InventoryValuationMovement, right: InventoryValua
 }
 
 function addMoney(left: Money, right: Money): Money | null {
-  return left.currency === right.currency
-    ? { amountMinor: left.amountMinor + right.amountMinor, currency: left.currency }
-    : null;
+  if (left.currency !== right.currency) return null;
+  if (!Number.isSafeInteger(left.amountMinor) || !Number.isSafeInteger(right.amountMinor)) {
+    return null;
+  }
+  const amountMinor = BigInt(left.amountMinor) + BigInt(right.amountMinor);
+  if (
+    amountMinor < BigInt(Number.MIN_SAFE_INTEGER) ||
+    amountMinor > BigInt(Number.MAX_SAFE_INTEGER)
+  ) {
+    return null;
+  }
+  return { amountMinor: Number(amountMinor), currency: left.currency };
 }
 
 type MoneyAccumulator = {
@@ -79,6 +89,11 @@ function appendMoney(
   diagnostics: DiagnosticSink,
 ): void {
   if (accumulator.invalid) return;
+  if (!Number.isSafeInteger(value.amountMinor)) {
+    accumulator.invalid = true;
+    diagnostics.add("money_aggregate_out_of_range");
+    return;
+  }
   if (accumulator.value === null) {
     accumulator.value = value;
     return;
@@ -86,7 +101,11 @@ function appendMoney(
   const next = addMoney(accumulator.value, value);
   if (next === null) {
     accumulator.invalid = true;
-    diagnostics.add("mixed_currency");
+    diagnostics.add(
+      accumulator.value.currency === value.currency
+        ? "money_aggregate_out_of_range"
+        : "mixed_currency",
+    );
     return;
   }
   accumulator.value = next;
@@ -116,8 +135,12 @@ function consume(
     const value = layerValue(taken, unit, layer.unitCost);
     appendMoney(total, value, diagnostics);
     allocations.push({ quantityScaled: taken, unitCost: layer.unitCost });
-    layer.quantityScaled -= taken;
-    remaining -= taken;
+    layer.quantityScaled = exactIntegerDifference(
+      layer.quantityScaled,
+      taken,
+      "valuation.layer.quantity_scaled",
+    );
+    remaining = exactIntegerDifference(remaining, taken, "valuation.remaining.quantity_scaled");
     if (layer.quantityScaled === 0) layers.splice(layerIndex, 1);
   }
   return total.invalid ? null : total.value;
@@ -134,8 +157,12 @@ function removeFromMovementLayer(
     if (remaining === 0) break;
     if (layer.movementId !== movementId) continue;
     const taken = Math.min(remaining, layer.quantityScaled);
-    layer.quantityScaled -= taken;
-    remaining -= taken;
+    layer.quantityScaled = exactIntegerDifference(
+      layer.quantityScaled,
+      taken,
+      "valuation.layer.quantity_scaled",
+    );
+    remaining = exactIntegerDifference(remaining, taken, "valuation.remaining.quantity_scaled");
   }
   for (let index = layers.length - 1; index >= 0; index -= 1) {
     if (layers[index]!.quantityScaled === 0) layers.splice(index, 1);
@@ -157,12 +184,29 @@ function proportionalMoney(
   value: Money,
   quantityScaled: number,
   totalQuantityScaled: number,
-): Money {
+): Money | null {
   if (quantityScaled === totalQuantityScaled) return value;
-  return {
-    amountMinor: Math.floor((value.amountMinor * quantityScaled) / totalQuantityScaled),
-    currency: value.currency,
-  };
+  if (
+    !Number.isSafeInteger(value.amountMinor) ||
+    !Number.isSafeInteger(quantityScaled) ||
+    !Number.isSafeInteger(totalQuantityScaled) ||
+    totalQuantityScaled <= 0
+  ) {
+    return null;
+  }
+  const numerator = BigInt(value.amountMinor) * BigInt(quantityScaled);
+  const denominator = BigInt(totalQuantityScaled);
+  let amountMinor = numerator / denominator;
+  // BigInt division truncates toward zero. The old number implementation used
+  // Math.floor, so preserve that contract for negative compensation values too.
+  if (numerator < 0n && numerator % denominator !== 0n) amountMinor -= 1n;
+  if (
+    amountMinor < BigInt(Number.MIN_SAFE_INTEGER) ||
+    amountMinor > BigInt(Number.MAX_SAFE_INTEGER)
+  ) {
+    return null;
+  }
+  return { amountMinor: Number(amountMinor), currency: value.currency };
 }
 
 function takeMovingAverageLineage(
@@ -181,7 +225,15 @@ function takeMovingAverageLineage(
   }
   if (quantityScaled <= 0 || lineage.quantityScaled <= 0) return null;
   const value = proportionalMoney(lineage.value, quantityScaled, lineage.quantityScaled);
-  lineage.quantityScaled -= quantityScaled;
+  if (value === null) {
+    diagnostics.add("money_aggregate_out_of_range");
+    return null;
+  }
+  lineage.quantityScaled = exactIntegerDifference(
+    lineage.quantityScaled,
+    quantityScaled,
+    "valuation.lineage.quantity_scaled",
+  );
   lineage.value = {
     amountMinor: lineage.value.amountMinor - value.amountMinor,
     currency: lineage.value.currency,
@@ -195,7 +247,10 @@ function addToMovingAveragePool(
   value: Money,
   diagnostics: DiagnosticSink,
 ): void {
-  pool.quantityScaled += quantityScaled;
+  pool.quantityScaled = exactIntegerSum(
+    [pool.quantityScaled, quantityScaled],
+    "valuation.pool.quantity_scaled",
+  );
   appendMoney(pool.value, value, diagnostics);
 }
 
@@ -209,12 +264,20 @@ function consumeMovingAveragePool(
   if (quantityScaled < requestedQuantityScaled) diagnostics.add("negative_inventory");
   if (quantityScaled <= 0) return { quantityScaled: 0, value: null };
 
-  pool.quantityScaled -= quantityScaled;
+  pool.quantityScaled = exactIntegerDifference(
+    pool.quantityScaled,
+    quantityScaled,
+    "valuation.pool.quantity_scaled",
+  );
   if (pool.value.invalid || pool.value.value === null) {
     diagnostics.add("missing_unit_cost");
     return { quantityScaled, value: null };
   }
   const value = proportionalMoney(pool.value.value, quantityScaled, availableQuantityScaled);
+  if (value === null) {
+    diagnostics.add("money_aggregate_out_of_range");
+    return { quantityScaled, value: null };
+  }
   appendMoney(
     pool.value,
     { amountMinor: -value.amountMinor, currency: value.currency },
@@ -242,7 +305,10 @@ function calculateMovingAverageValuation(
   let quantityScaled = 0;
 
   for (const movement of ordered) {
-    quantityScaled += movement.quantityScaled;
+    quantityScaled = exactIntegerSum(
+      [quantityScaled, movement.quantityScaled],
+      "valuation.inventory.quantity_scaled",
+    );
     if (reversalSourceTypes.has(movement.sourceType) && movement.reversalOfMovementId === null) {
       diagnostics.add("reversal_lineage_missing");
       continue;
@@ -317,7 +383,11 @@ function calculateMovingAverageValuation(
         diagnostics,
       );
       if (reversed !== null) {
-        pool.quantityScaled -= reversed.quantityScaled;
+        pool.quantityScaled = exactIntegerDifference(
+          pool.quantityScaled,
+          reversed.quantityScaled,
+          "valuation.pool.quantity_scaled",
+        );
         appendMoney(
           pool.value,
           { amountMinor: -reversed.value.amountMinor, currency: reversed.value.currency },
@@ -342,6 +412,13 @@ function calculateMovingAverageValuation(
   }
 
   const inventoryValue = quantityScaled <= 0 || pool.value.invalid ? null : pool.value.value;
+  const averageUnitCost =
+    inventoryValue === null || quantityScaled <= 0
+      ? null
+      : proportionalMoney(inventoryValue, 1_000, quantityScaled);
+  if (inventoryValue !== null && quantityScaled > 0 && averageUnitCost === null) {
+    diagnostics.add("money_aggregate_out_of_range");
+  }
   return {
     qualityGradeId: ordered[0]!.qualityGradeId,
     unit: ordered[0]!.unit,
@@ -349,13 +426,7 @@ function calculateMovingAverageValuation(
     inventoryValue,
     cogs: cogs.invalid ? null : cogs.value,
     classifiedLossCost: classifiedLossCost.invalid ? null : classifiedLossCost.value,
-    averageUnitCost:
-      inventoryValue === null || quantityScaled <= 0
-        ? null
-        : {
-            amountMinor: Math.floor((inventoryValue.amountMinor * 1000) / quantityScaled),
-            currency: inventoryValue.currency,
-          },
+    averageUnitCost,
     diagnostics: [...diagnostics],
     inputReferences,
   };
@@ -401,7 +472,10 @@ export function calculateInventoryValuation(
       const allocationsByMovementId = new Map<string, CostAllocation[]>();
 
       for (const movement of ordered) {
-        quantityScaled += movement.quantityScaled;
+        quantityScaled = exactIntegerSum(
+          [quantityScaled, movement.quantityScaled],
+          "valuation.inventory.quantity_scaled",
+        );
         if (strategy === "no_valuation") continue;
         if (
           reversalSourceTypes.has(movement.sourceType) &&
@@ -439,7 +513,11 @@ export function calculateInventoryValuation(
               });
               const value = layerValue(restored, movement.unit, allocation.unitCost);
               appendMoney(restoredValue, value, diagnostics);
-              remaining -= restored;
+              remaining = exactIntegerDifference(
+                remaining,
+                restored,
+                "valuation.remaining.quantity_scaled",
+              );
             }
             if (remaining > 0) diagnostics.add("reversal_cost_quantity_unavailable");
             if (!restoredValue.invalid && restoredValue.value !== null) {
@@ -568,10 +646,10 @@ export function calculateInventoryValuation(
       const averageUnitCost =
         inventoryValue === null || quantityScaled <= 0
           ? null
-          : {
-              amountMinor: Math.floor((inventoryValue.amountMinor * 1000) / quantityScaled),
-              currency: inventoryValue.currency,
-            };
+          : proportionalMoney(inventoryValue, 1_000, quantityScaled);
+      if (inventoryValue !== null && quantityScaled > 0 && averageUnitCost === null) {
+        diagnostics.add("money_aggregate_out_of_range");
+      }
       return {
         qualityGradeId: ordered[0]!.qualityGradeId,
         unit: ordered[0]!.unit,

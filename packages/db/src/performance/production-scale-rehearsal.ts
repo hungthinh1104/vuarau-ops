@@ -318,25 +318,25 @@ const checks = [
     budgetMs: 250,
     sequentialScanPolicy: "canonical_aggregate",
     query: `with on_hand as (
-        select product_id,unit,sum(quantity_scaled)::bigint as quantity
+        select product_id,unit,sum(quantity_scaled) as quantity
         from inventory_balances
         where workspace_id='${WORKSPACE_ID}' and product_id='f2220000-0000-4000-8000-000000000001'
         group by product_id,unit
       ), inbound as (
-        select pl.product_id,pl.unit,sum(pl.quantity_scaled)::bigint as quantity
+        select pl.product_id,pl.unit,sum(pl.quantity_scaled) as quantity
         from purchase_lines pl join purchases p
           on p.workspace_id=pl.workspace_id and p.id=pl.purchase_id
         where pl.workspace_id='${WORKSPACE_ID}' and pl.product_id='f2220000-0000-4000-8000-000000000001'
           and p.status='confirmed'
         group by pl.product_id,pl.unit
       ), outbound as (
-        select sl.product_id,sl.unit,sum(greatest(sl.quantity_scaled-coalesce(d.dispatched,0)+coalesce(r.returned,0),0))::bigint as quantity
+        select sl.product_id,sl.unit,sum(greatest(sl.quantity_scaled-coalesce(d.dispatched,0)+coalesce(r.returned,0),0)) as quantity
         from sale_lines sl join sales s on s.workspace_id=sl.workspace_id and s.id=sl.sale_id
-        left join (select sale_line_id,sum(quantity_scaled)::bigint as dispatched from delivery_lines dl
+        left join (select sale_line_id,sum(quantity_scaled) as dispatched from delivery_lines dl
           join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
           where dl.workspace_id='${WORKSPACE_ID}' and d.status in ('dispatched','delivered') group by sale_line_id) d
           on d.sale_line_id=sl.id
-        left join (select dl.sale_line_id,sum(drl.quantity_scaled)::bigint as returned from delivery_return_lines drl
+        left join (select dl.sale_line_id,sum(drl.quantity_scaled) as returned from delivery_return_lines drl
           join delivery_lines dl on dl.id=drl.delivery_line_id
           where dl.workspace_id='${WORKSPACE_ID}' group by dl.sale_line_id) r on r.sale_line_id=sl.id
         where sl.workspace_id='${WORKSPACE_ID}' and sl.product_id='f2220000-0000-4000-8000-000000000001'
@@ -368,7 +368,7 @@ const checks = [
     budgetMs: 100,
     allowedSequentialScanTables: ["purchase_receipt_lines"],
     query: `select p.id,pl.id as purchase_line_id,pl.quantity_scaled,
-      coalesce(sum(prl.quantity_scaled),0)::bigint as received
+      coalesce(sum(prl.quantity_scaled),0) as received
       from purchases p join purchase_lines pl
         on pl.workspace_id=p.workspace_id and pl.purchase_id=p.id
       left join purchase_receipt_lines prl
@@ -393,7 +393,7 @@ const checks = [
     budgetMs: 250,
     sequentialScanPolicy: "canonical_aggregate",
     query: `select date_trunc('day',transaction_time)::date as business_date,
-      count(*)::int as order_count,coalesce(sum(total_amount_minor),0)::bigint as amount
+      count(*)::int as order_count,coalesce(sum(total_amount_minor),0) as amount
       from sales where workspace_id='${WORKSPACE_ID}' and status='posted'
         and transaction_time >= timestamp '2026-01-01'
       group by business_date order by business_date`,
@@ -403,7 +403,7 @@ const checks = [
     budgetMs: 250,
     sequentialScanPolicy: "canonical_aggregate",
     query: `select customer_id,count(*)::int as entry_count,
-      coalesce(sum(amount_minor),0)::bigint as balance
+      coalesce(sum(amount_minor),0) as balance
       from customer_account_entries where workspace_id='${WORKSPACE_ID}'
       group by customer_id order by customer_id limit 10001`,
   },
@@ -412,7 +412,7 @@ const checks = [
     budgetMs: 250,
     sequentialScanPolicy: "canonical_aggregate",
     query: `select supplier_id,count(*)::int as entry_count,
-      coalesce(sum(amount_minor),0)::bigint as balance
+      coalesce(sum(amount_minor),0) as balance
       from supplier_account_entries where workspace_id='${WORKSPACE_ID}'
         and supplier_id='${SUPPLIER_ID}' group by supplier_id`,
   },

@@ -23,6 +23,7 @@ import type {
 } from "@vuarau/domain-contracts";
 import { hasOverlappingWorkspacePolicyEffectiveWindow, money } from "@vuarau/domain-kernel";
 import { parseWorkspacePolicyDto } from "@vuarau/domain-contracts";
+import { exactAdd } from "../reads/exact-number.ts";
 import type {
   CustomerState,
   PriceRuleState,
@@ -501,7 +502,10 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
             (entry) => entry.workspaceId === workspaceId && entry.customerId === customer.id,
           );
           const balance = money(
-            entries.reduce((sum, entry) => sum + entry.amount.amountMinor, 0),
+            entries.reduce(
+              (sum, entry) => exactAdd(sum, entry.amount.amountMinor, "restore.customer_balance"),
+              0,
+            ),
             "VND",
           );
           store.balances.set(key(workspaceId, customer.id), {
@@ -527,7 +531,10 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
             workspaceId,
             supplierId: supplier.id,
             balance: money(
-              entries.reduce((sum, entry) => sum + entry.amount.amountMinor, 0),
+              entries.reduce(
+                (sum, entry) => exactAdd(sum, entry.amount.amountMinor, "restore.supplier_balance"),
+                0,
+              ),
               "VND",
             ),
             entryCount: entries.length,
@@ -565,7 +572,8 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
                 : (qualityGradeId as InventoryMovementState["qualityGradeId"]),
             unit: unit as InventoryMovementState["quantity"]["unit"],
             quantityScaled: movements.reduce(
-              (sum, movement) => sum + movement.quantity.valueScaled,
+              (sum, movement) =>
+                exactAdd(sum, movement.quantity.valueScaled, "restore.inventory_quantity"),
               0,
             ),
             movementCount: movements.length,
@@ -589,7 +597,8 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
             cashAccountId: account.id,
             balance: {
               amountMinor: movements.reduce(
-                (sum, movement) => sum + movement.amount.amountMinor,
+                (sum, movement) =>
+                  exactAdd(sum, movement.amount.amountMinor, "restore.cash_balance"),
                 0,
               ),
               currency: account.currency,

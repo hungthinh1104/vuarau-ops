@@ -1,4 +1,5 @@
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
+import { PersistedNumberOutOfRangeError } from "@vuarau/db";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 
 export async function applyInventoryMovements(
@@ -6,41 +7,27 @@ export async function applyInventoryMovements(
   drafts: readonly Omit<InventoryMovementState, "id">[],
 ) {
   const appended = await repos.inventoryMovements.append(drafts);
-  const keys = new Map<
-    string,
-    {
-      workspaceId: InventoryMovementState["workspaceId"];
-      productId: InventoryMovementState["productId"];
-      qualityGradeId: InventoryMovementState["qualityGradeId"];
-      unit: InventoryMovementState["quantity"]["unit"];
-    }
-  >();
+  const keyOf = (
+    value: Pick<
+      InventoryMovementState,
+      "workspaceId" | "productId" | "qualityGradeId" | "quantity"
+    >,
+  ) =>
+    `${value.workspaceId}:${value.productId}:${value.qualityGradeId ?? "legacy"}:${value.quantity.unit}`;
+  const movementsByKey = new Map<string, InventoryMovementState[]>();
   for (const movement of appended) {
-    keys.set(
-      `${movement.workspaceId}:${movement.productId}:${movement.qualityGradeId ?? "legacy"}:${movement.quantity.unit}`,
-      {
-        workspaceId: movement.workspaceId,
-        productId: movement.productId,
-        qualityGradeId: movement.qualityGradeId,
-        unit: movement.quantity.unit,
-      },
-    );
+    const key = keyOf(movement);
+    const bucket = movementsByKey.get(key) ?? [];
+    bucket.push(movement);
+    movementsByKey.set(key, bucket);
   }
   // A reclassification (or any multi-bucket movement) can touch more than one
   // balance row. Stable acquisition order prevents opposite reclassifications
   // from waiting on each other's upsert locks in PostgreSQL.
-  for (const target of [...keys.values()].sort((left, right) => {
-    const keyOf = (value: typeof left | typeof right) =>
-      `${value.workspaceId}:${value.productId}:${value.qualityGradeId ?? "legacy"}:${value.unit}`;
-    return keyOf(left).localeCompare(keyOf(right));
-  })) {
-    const movements = appended.filter(
-      (movement) =>
-        movement.workspaceId === target.workspaceId &&
-        movement.productId === target.productId &&
-        movement.qualityGradeId === target.qualityGradeId &&
-        movement.quantity.unit === target.unit,
-    );
+  for (const [, movements] of [...movementsByKey.entries()].sort(([left], [right]) =>
+    left.localeCompare(right),
+  )) {
+    const target = movements[0]!;
     let quantityScaled = 0n;
     let last = movements[0]!.transactionTime;
     for (const movement of movements) {
@@ -51,13 +38,15 @@ export async function applyInventoryMovements(
       quantityScaled < BigInt(Number.MIN_SAFE_INTEGER) ||
       quantityScaled > BigInt(Number.MAX_SAFE_INTEGER)
     ) {
-      throw new RangeError("Inventory movement aggregate exceeds the exact integer range.");
+      throw new PersistedNumberOutOfRangeError(
+        `inventory_balances.${target.productId}.${target.quantity.unit}.quantity_scaled`,
+      );
     }
     await repos.inventoryBalances.applyDelta({
       workspaceId: target.workspaceId,
       productId: target.productId,
       qualityGradeId: target.qualityGradeId,
-      unit: target.unit,
+      unit: target.quantity.unit,
       quantityScaled: Number(quantityScaled),
       movementCount: movements.length,
       lastMovementTransactionTime: last,

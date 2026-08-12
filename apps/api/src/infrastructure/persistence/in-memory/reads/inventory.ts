@@ -10,10 +10,41 @@ import {
   deriveProductCoverageQuantity,
   type InventoryValuationMovement,
 } from "@vuarau/domain-kernel";
-import { PersistedIntegrityError } from "@vuarau/db";
+import { PersistedIntegrityError, PersistedNumberOutOfRangeError } from "@vuarau/db";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
+
+const MIN_SAFE_BIGINT = BigInt(Number.MIN_SAFE_INTEGER);
+const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
+
+function exactQuantityOperation(
+  left: number,
+  right: number,
+  operation: "add" | "subtract",
+  field: string,
+): number {
+  if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right)) {
+    throw new PersistedNumberOutOfRangeError(field);
+  }
+  const result = operation === "add" ? BigInt(left) + BigInt(right) : BigInt(left) - BigInt(right);
+  if (result < MIN_SAFE_BIGINT || result > MAX_SAFE_BIGINT) {
+    throw new PersistedNumberOutOfRangeError(field);
+  }
+  return Number(result);
+}
+
+function exactAdd(left: number, right: number, field: string): number {
+  return exactQuantityOperation(left, right, "add", field);
+}
+
+function exactSubtract(left: number, right: number, field: string): number {
+  return exactQuantityOperation(left, right, "subtract", field);
+}
+
+function remainingQuantity(total: number, fulfilled: number, field: string): number {
+  return Math.max(0, exactSubtract(total, fulfilled, field));
+}
 
 export const createInventoryReads = (store: Store): Pick<Repositories, "inventoryReads"> => ({
   inventoryReads: {
@@ -138,11 +169,16 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           balance.qualityGradeId === null
             ? null
             : (store.qualityGrades.get(key(workspaceId, balance.qualityGradeId))?.name ?? null);
-        ensure(balance.productId, balance.qualityGradeId, qualityGradeName, balance.unit).onHand +=
-          balance.quantityScaled;
+        const totals = ensure(
+          balance.productId,
+          balance.qualityGradeId,
+          qualityGradeName,
+          balance.unit,
+        );
+        totals.onHand = exactAdd(totals.onHand, balance.quantityScaled, "product_coverage.on_hand");
       }
 
-      const acceptedByPurchaseLine = new Map<string, number>();
+      const acceptedByPurchaseLine = new Map<string, { unit: Unit; valueScaled: number }>();
       for (const disposition of store.qualityDispositions.values()) {
         if (disposition.workspaceId !== workspaceId || disposition.reversal !== null) continue;
         const root = intakeSourceRoot(store, workspaceId, disposition.source);
@@ -154,21 +190,40 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           continue;
         for (const allocation of disposition.allocations) {
           if (allocation.outcome !== "accepted") continue;
-          acceptedByPurchaseLine.set(
-            root.line.purchaseLineId,
-            (acceptedByPurchaseLine.get(root.line.purchaseLineId) ?? 0) +
+          const current = acceptedByPurchaseLine.get(root.line.purchaseLineId);
+          if (current !== undefined && current.unit !== allocation.quantity.unit) {
+            throw new PersistedIntegrityError(
+              `Purchase line ${root.line.purchaseLineId} has mixed accepted units.`,
+            );
+          }
+          acceptedByPurchaseLine.set(root.line.purchaseLineId, {
+            unit: allocation.quantity.unit,
+            valueScaled: exactAdd(
+              current?.valueScaled ?? 0,
               allocation.quantity.valueScaled,
-          );
+              "product_coverage.accepted_inbound",
+            ),
+          });
         }
       }
-      const receivedByPurchaseLine = new Map<string, number>();
+      const receivedByPurchaseLine = new Map<string, { unit: Unit; valueScaled: number }>();
       for (const receipt of store.purchaseReceipts.values()) {
         if (receipt.workspaceId !== workspaceId || receipt.reversal !== null) continue;
         for (const line of receipt.lines) {
-          receivedByPurchaseLine.set(
-            line.purchaseLineId,
-            (receivedByPurchaseLine.get(line.purchaseLineId) ?? 0) + line.quantity.valueScaled,
-          );
+          const current = receivedByPurchaseLine.get(line.purchaseLineId);
+          if (current !== undefined && current.unit !== line.quantity.unit) {
+            throw new PersistedIntegrityError(
+              `Purchase line ${line.purchaseLineId} has mixed receipt units.`,
+            );
+          }
+          receivedByPurchaseLine.set(line.purchaseLineId, {
+            unit: line.quantity.unit,
+            valueScaled: exactAdd(
+              current?.valueScaled ?? 0,
+              line.quantity.valueScaled,
+              "product_coverage.received_inbound",
+            ),
+          });
         }
       }
       for (const purchase of store.purchases.values()) {
@@ -180,22 +235,39 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           continue;
         for (const line of purchase.lines) {
           if (!requested.has(line.productId)) continue;
-          const received =
-            (receivedByPurchaseLine.get(line.lineId) ?? 0) +
-            (acceptedByPurchaseLine.get(line.lineId) ?? 0);
+          const receivedFact = receivedByPurchaseLine.get(line.lineId);
+          const acceptedFact = acceptedByPurchaseLine.get(line.lineId);
+          for (const fact of [receivedFact, acceptedFact]) {
+            if (fact !== undefined && fact.unit !== line.quantity.unit) {
+              throw new PersistedIntegrityError(
+                `Purchase line ${line.lineId} has a quantity unit mismatch.`,
+              );
+            }
+          }
+          const received = exactAdd(
+            receivedFact?.valueScaled ?? 0,
+            acceptedFact?.valueScaled ?? 0,
+            "product_coverage.received_total",
+          );
           if (received > line.quantity.valueScaled) {
             throw new PersistedIntegrityError(
               "Product coverage contains an over-received purchase line.",
             );
           }
-          ensure(line.productId, null, null, line.quantity.unit).inboundRemaining += Math.max(
-            0,
-            line.quantity.valueScaled - received,
+          const totals = ensure(line.productId, null, null, line.quantity.unit);
+          totals.inboundRemaining = exactAdd(
+            totals.inboundRemaining,
+            remainingQuantity(
+              line.quantity.valueScaled,
+              received,
+              "product_coverage.inbound_remaining",
+            ),
+            "product_coverage.inbound_remaining",
           );
         }
       }
 
-      const fulfilmentBySaleLine = new Map<string, number>();
+      const fulfilmentBySaleLine = new Map<string, { unit: Unit; valueScaled: number }>();
       const deliveryLineToSaleLine = new Map<string, string>();
       for (const delivery of store.deliveries.values()) {
         if (
@@ -205,10 +277,20 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           continue;
         for (const line of delivery.lines) {
           deliveryLineToSaleLine.set(line.deliveryLineId, line.saleLineId);
-          fulfilmentBySaleLine.set(
-            line.saleLineId,
-            (fulfilmentBySaleLine.get(line.saleLineId) ?? 0) + line.quantity.valueScaled,
-          );
+          const current = fulfilmentBySaleLine.get(line.saleLineId);
+          if (current !== undefined && current.unit !== line.quantity.unit) {
+            throw new PersistedIntegrityError(
+              `Sale line ${line.saleLineId} has mixed delivery units.`,
+            );
+          }
+          fulfilmentBySaleLine.set(line.saleLineId, {
+            unit: line.quantity.unit,
+            valueScaled: exactAdd(
+              current?.valueScaled ?? 0,
+              line.quantity.valueScaled,
+              "product_coverage.fulfilled_outbound",
+            ),
+          });
         }
       }
       for (const returned of store.deliveryReturns) {
@@ -216,10 +298,20 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         for (const line of returned.lines) {
           const saleLineId = deliveryLineToSaleLine.get(line.deliveryLineId);
           if (saleLineId === undefined) continue;
-          fulfilmentBySaleLine.set(
-            saleLineId,
-            (fulfilmentBySaleLine.get(saleLineId) ?? 0) - line.quantity.valueScaled,
-          );
+          const current = fulfilmentBySaleLine.get(saleLineId);
+          if (current !== undefined && current.unit !== line.quantity.unit) {
+            throw new PersistedIntegrityError(
+              `Sale line ${saleLineId} has mixed delivery and return units.`,
+            );
+          }
+          fulfilmentBySaleLine.set(saleLineId, {
+            unit: line.quantity.unit,
+            valueScaled: exactSubtract(
+              current?.valueScaled ?? 0,
+              line.quantity.valueScaled,
+              "product_coverage.returned_outbound",
+            ),
+          });
         }
       }
       for (const sale of store.sales.values()) {
@@ -231,18 +323,33 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           continue;
         for (const line of sale.lines) {
           if (line.productId === null || !requested.has(line.productId)) continue;
-          const fulfilled = fulfilmentBySaleLine.get(line.lineId) ?? 0;
+          const fulfilledFact = fulfilmentBySaleLine.get(line.lineId);
+          if (fulfilledFact !== undefined && fulfilledFact.unit !== line.quantity.unit) {
+            throw new PersistedIntegrityError(
+              `Sale line ${line.lineId} has a quantity unit mismatch.`,
+            );
+          }
+          const fulfilled = fulfilledFact?.valueScaled ?? 0;
           if (fulfilled > line.quantity.valueScaled) {
             throw new PersistedIntegrityError(
               "Product coverage contains an over-fulfilled sale line.",
             );
           }
-          ensure(
+          const totals = ensure(
             line.productId,
             line.qualityGradeId,
             line.qualityGradeName,
             line.quantity.unit,
-          ).outboundRemaining += Math.max(0, line.quantity.valueScaled - fulfilled);
+          );
+          totals.outboundRemaining = exactAdd(
+            totals.outboundRemaining,
+            remainingQuantity(
+              line.quantity.valueScaled,
+              fulfilled,
+              "product_coverage.outbound_remaining",
+            ),
+            "product_coverage.outbound_remaining",
+          );
         }
       }
 
@@ -257,7 +364,18 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
             if (right.qualityGradeId === null) return 1;
             return left.qualityGradeId.localeCompare(right.qualityGradeId);
           })
-          .map(([, totals]) => deriveProductCoverageQuantity(totals)),
+          .map(([, totals]) => {
+            try {
+              return deriveProductCoverageQuantity(totals);
+            } catch (error) {
+              if (error instanceof RangeError) {
+                throw new PersistedNumberOutOfRangeError(
+                  "product_coverage.available_after_commitments",
+                );
+              }
+              throw error;
+            }
+          }),
       }));
     },
     valuationSources: async ({ workspaceId, productId, qualityGradeId, unit, asOf }) => {

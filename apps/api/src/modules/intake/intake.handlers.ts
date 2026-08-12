@@ -41,6 +41,7 @@ import {
   decideReverseQualityInspection,
   decideUpdateQualityIssueCode,
   err,
+  exactIntegerSum,
   ok,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -413,9 +414,12 @@ export function recordQualityDisposition(ctx: CommandContext, input: unknown) {
           return err("QUALITY_GRADE_NOT_USED", "This depot does not use commercial grades.");
         }
       }
-      const acceptedNew = command.payload.allocations
-        .filter((allocation) => allocation.outcome === "accepted")
-        .reduce((sum, allocation) => sum + allocation.quantity.valueScaled, 0);
+      const acceptedNew = exactIntegerSum(
+        command.payload.allocations
+          .filter((allocation) => allocation.outcome === "accepted")
+          .map((allocation) => allocation.quantity.valueScaled),
+        "intake.accepted.quantity_scaled",
+      );
       if (
         acceptedNew > 0 &&
         source.summary.purchaseId !== null &&
@@ -522,22 +526,19 @@ export function reverseQualityDisposition(ctx: CommandContext, input: unknown) {
       const accepted = current.allocations.filter(
         (allocation) => allocation.outcome === "accepted",
       );
-      const originals = await Promise.all(
-        accepted.map(async (allocation) => {
-          const movements = await repos.inventoryMovements.listByProduct(
-            command.workspaceId,
-            source.summary.productId,
-            allocation.quantity.unit,
-          );
-          return (
-            movements.find(
-              (movement) =>
-                movement.sourceType === "quality_disposition" &&
-                movement.sourceId === current.id &&
-                movement.sourceLineId === allocation.allocationId,
-            ) ?? null
-          );
-        }),
+      const movements = await repos.inventoryMovements.listByProducts(command.workspaceId, [
+        source.summary.productId,
+      ]);
+      const originals = accepted.map(
+        (allocation) =>
+          movements.find(
+            (movement) =>
+              movement.sourceType === "quality_disposition" &&
+              movement.sourceId === current.id &&
+              movement.sourceLineId === allocation.allocationId &&
+              movement.productId === source.summary.productId &&
+              movement.quantity.unit === allocation.quantity.unit,
+          ) ?? null,
       );
       if (originals.some((movement) => movement === null)) {
         throw new CommandIntegrityError(

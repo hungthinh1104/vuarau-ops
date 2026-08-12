@@ -162,12 +162,13 @@ export function recordStocktakeCount(ctx: CommandContext, input: unknown) {
         );
         if (grade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
         if (!grade.isActive) {
-          const movements = await repos.inventoryMovements.listByProduct(
+          const hasMovement = await repos.inventoryMovements.hasByProductQualityGrade(
             command.workspaceId,
             command.payload.productId,
+            grade.id,
             command.payload.quantity.unit,
           );
-          if (!movements.some((movement) => movement.qualityGradeId === grade.id)) {
+          if (!hasMovement) {
             return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
           }
         }

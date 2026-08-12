@@ -8,7 +8,12 @@ import type {
 } from "@vuarau/domain-contracts";
 import { decodeCursor, encodeCursor } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
-import { err, ok } from "@vuarau/domain-kernel";
+import {
+  ExactIntegerArithmeticError,
+  ExactMoneyArithmeticError,
+  err,
+  ok,
+} from "@vuarau/domain-kernel";
 import { PersistedIntegrityError, PersistedNumberOutOfRangeError } from "@vuarau/db";
 import type { Repositories, WorkspaceMembership } from "../../infrastructure/persistence/ports.ts";
 import type { PageQuery, PageResult } from "../../infrastructure/persistence/read-ports.ts";
@@ -68,7 +73,11 @@ export async function runQuery<TResult>(args: {
       { isolationLevel: "repeatable read" },
     );
   } catch (error) {
-    if (error instanceof PersistedNumberOutOfRangeError) {
+    if (
+      error instanceof PersistedNumberOutOfRangeError ||
+      error instanceof ExactMoneyArithmeticError ||
+      error instanceof ExactIntegerArithmeticError
+    ) {
       result = err(
         "PERSISTED_NUMBER_OUT_OF_RANGE",
         "Persisted numeric data is outside the supported range.",

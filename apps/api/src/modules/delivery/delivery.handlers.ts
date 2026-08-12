@@ -24,6 +24,7 @@ import {
   decideRecordDeliveryReturn,
   decideUpdateDeliveryDraft,
   err,
+  exactIntegerSum,
   ok,
 } from "@vuarau/domain-kernel";
 import type { DeliveryState } from "@vuarau/domain-kernel";
@@ -41,7 +42,14 @@ function dto(delivery: DeliveryState): DeliveryDto {
         valueScaled: delivery.returns
           .flatMap((record) => record.lines)
           .filter((item) => item.deliveryLineId === line.deliveryLineId)
-          .reduce((sum, item) => sum + item.quantity.valueScaled, 0),
+          .reduce(
+            (sum, item) =>
+              exactIntegerSum(
+                [sum, item.quantity.valueScaled],
+                "delivery.returned.quantity_scaled",
+              ),
+            0,
+          ),
         unit: line.quantity.unit,
       },
     })),
@@ -353,46 +361,44 @@ export function recordDeliveryReturn(ctx: CommandContext, input: unknown) {
       if (!decision.ok) return decision;
       if (!(await repos.deliveries.insertReturn(decision.value)))
         return err("DELIVERY_VERSION_CONFLICT", "Delivery return identity already exists.");
-      const movements = await Promise.all(
-        decision.value.lines.map(async (returnLine) => {
-          const deliveryLine = current.lines.find(
-            (line) => line.deliveryLineId === returnLine.deliveryLineId,
-          )!;
-          const inventory = await repos.inventoryMovements.listByProduct(
-            command.workspaceId,
-            deliveryLine.productId,
-            deliveryLine.quantity.unit,
+      const inventory = await repos.inventoryMovements.listByProducts(command.workspaceId, [
+        ...new Set(current.lines.map((line) => line.productId)),
+      ]);
+      const movements = decision.value.lines.map((returnLine) => {
+        const deliveryLine = current.lines.find(
+          (line) => line.deliveryLineId === returnLine.deliveryLineId,
+        )!;
+        const original = inventory.find(
+          (movement) =>
+            movement.sourceType === "delivery_dispatch" &&
+            movement.sourceId === current.id &&
+            movement.sourceLineId === deliveryLine.deliveryLineId &&
+            movement.productId === deliveryLine.productId &&
+            movement.quantity.unit === deliveryLine.quantity.unit,
+        );
+        if (original === undefined)
+          throw new CommandIntegrityError(
+            "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
+            `Delivery ${current.id} is missing dispatch movement.`,
           );
-          const original = inventory.find(
-            (movement) =>
-              movement.sourceType === "delivery_dispatch" &&
-              movement.sourceId === current.id &&
-              movement.sourceLineId === deliveryLine.deliveryLineId,
-          );
-          if (original === undefined)
-            throw new CommandIntegrityError(
-              "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
-              `Delivery ${current.id} is missing dispatch movement.`,
-            );
-          return {
-            workspaceId: command.workspaceId,
-            productId: deliveryLine.productId,
-            qualityGradeId: deliveryLine.qualityGradeId,
-            qualityGradeName: deliveryLine.qualityGradeName,
-            quantity: returnLine.quantity,
-            sourceType: "delivery_return" as const,
-            sourceId: decision.value.id,
-            sourceLineId: deliveryLine.deliveryLineId,
-            reversalOfMovementId: original.id,
-            reasonCode: "customer_return",
-            reason: decision.value.reason,
-            transactionTime: command.occurredAt,
-            recordedAt,
-            actorId: command.actorId,
-            commandId: command.commandId,
-          };
-        }),
-      );
+        return {
+          workspaceId: command.workspaceId,
+          productId: deliveryLine.productId,
+          qualityGradeId: deliveryLine.qualityGradeId,
+          qualityGradeName: deliveryLine.qualityGradeName,
+          quantity: returnLine.quantity,
+          sourceType: "delivery_return" as const,
+          sourceId: decision.value.id,
+          sourceLineId: deliveryLine.deliveryLineId,
+          reversalOfMovementId: original.id,
+          reasonCode: "customer_return",
+          reason: decision.value.reason,
+          transactionTime: command.occurredAt,
+          recordedAt,
+          actorId: command.actorId,
+          commandId: command.commandId,
+        };
+      });
       await applyInventoryMovements(repos, movements);
       await repos.audit.append({
         workspaceId: command.workspaceId,

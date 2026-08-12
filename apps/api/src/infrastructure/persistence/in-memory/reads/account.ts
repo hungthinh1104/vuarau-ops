@@ -2,9 +2,28 @@ import type { Repositories } from "../../ports.ts";
 import { money } from "@vuarau/domain-kernel";
 import { key, ascendingBy, before, takePage, sourceDocument } from "../store.ts";
 import type { Store } from "../store.ts";
+import { exactAdd } from "./exact-number.ts";
 
 export const createAccountReads = (store: Store): Pick<Repositories, "accountReads"> => ({
   accountReads: {
+    balanceAtEntry: async ({ workspaceId, customerId, entryId }) => {
+      const history = store.accountEntries
+        .filter((entry) => entry.workspaceId === workspaceId && entry.customerId === customerId)
+        .sort(
+          ascendingBy(
+            (entry) => `${entry.transactionTime}|${entry.recordedAt}`,
+            (entry) => entry.id,
+          ),
+        );
+      let running = 0;
+      for (const entry of history) {
+        running = exactAdd(running, entry.amount.amountMinor, "account.running_balance_minor");
+        if (entry.id === entryId) {
+          return { balanceAfter: money(running, entry.amount.currency) };
+        }
+      }
+      return null;
+    },
     adjustmentDetail: async ({ workspaceId, adjustmentId }) => {
       const entry = store.accountEntries.find(
         (item) =>
@@ -30,7 +49,7 @@ export const createAccountReads = (store: Store): Pick<Repositories, "accountRea
         );
       let running = 0;
       for (const item of history) {
-        running += item.amount.amountMinor;
+        running = exactAdd(running, item.amount.amountMinor, "account.running_balance_minor");
         if (item.id === entry.id) break;
       }
       const customer = store.customers.get(key(workspaceId, entry.customerId));
@@ -72,7 +91,7 @@ export const createAccountReads = (store: Store): Pick<Repositories, "accountRea
 
       let running = 0;
       const withBalance = ascending.map((entry) => {
-        running += entry.amount.amountMinor;
+        running = exactAdd(running, entry.amount.amountMinor, "account.running_balance_minor");
         return { entry, runningBalance: money(running, entry.amount.currency) };
       });
 

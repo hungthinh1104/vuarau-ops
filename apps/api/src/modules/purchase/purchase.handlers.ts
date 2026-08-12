@@ -22,6 +22,7 @@ import {
   decideUpdatePurchaseDraft,
   decideVoidPurchase,
   err,
+  negateMoney,
   ok,
   resolvePurchaseCorrectionPolicy,
 } from "@vuarau/domain-kernel";
@@ -317,14 +318,11 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
         command.workspaceId,
         current.id,
       );
-      const acceptedAfterInspection = await Promise.all(
-        current.lines.map((line) =>
-          repos.qualityDispositions.acceptedQuantityForPurchaseLine(
-            command.workspaceId,
-            line.lineId,
-          ),
-        ),
-      );
+      const acceptedAfterInspection =
+        await repos.qualityDispositions.acceptedQuantitiesForPurchaseLines(
+          command.workspaceId,
+          current.lines.map((line) => line.lineId),
+        );
       const hasActiveArrival = await repos.goodsArrivals.hasActiveForPurchase(
         command.workspaceId,
         current.id,
@@ -339,7 +337,7 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
         hasActiveReceipts:
           hasActiveArrival ||
           [...received.values()].some((quantity) => quantity > 0) ||
-          acceptedAfterInspection.some((quantity) => (quantity?.valueScaled ?? 0) > 0),
+          [...acceptedAfterInspection.values()].some((quantity) => quantity.valueScaled > 0),
         correctionPolicyVersionId: correctionPolicy?.policyVersionId ?? null,
       });
       if (!voidCapability.allowed) {
@@ -371,7 +369,7 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
           {
             workspaceId: command.workspaceId,
             supplierId: current.supplierId,
-            amount: { amountMinor: -current.totalAmount.amountMinor, currency: current.currency },
+            amount: negateMoney(current.totalAmount),
             sourceType: "purchase_void",
             sourceId: decision.value.id,
             reversalOfEntryId: null,

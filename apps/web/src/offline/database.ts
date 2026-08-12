@@ -106,16 +106,16 @@ export class OfflineDatabase {
   }): Promise<void> {
     const database = await openDatabase();
     const transaction = database.transaction([DRAFTS, OUTBOX], "readwrite");
+    const drafts = transaction.objectStore(DRAFTS);
     const outbox = transaction.objectStore(OUTBOX);
-    const first = args.commands[0];
-    const exists =
-      first === undefined
-        ? undefined
-        : await requestResult(outbox.get(recordKey(args.partition, first.id)));
-    if (exists === undefined) {
-      transaction.objectStore(DRAFTS).put(stored(args.partition, args.draft.saleId, args.draft));
-      for (const command of args.commands) {
-        outbox.add(stored(args.partition, command.id, command));
+    const draftKey = recordKey(args.partition, args.draft.saleId);
+    if ((await requestResult(drafts.get(draftKey))) === undefined) {
+      drafts.put(stored(args.partition, args.draft.saleId, args.draft));
+    }
+    for (const command of args.commands) {
+      const commandKey = recordKey(args.partition, command.id);
+      if ((await requestResult(outbox.get(commandKey))) === undefined) {
+        outbox.put(stored(args.partition, command.id, command));
       }
     }
     await transactionDone(transaction);
@@ -138,14 +138,15 @@ export class OfflineDatabase {
     const database = await openDatabase();
     const transaction = database.transaction([PAYMENT_DRAFTS, OUTBOX], "readwrite");
     const completed = transactionDone(transaction);
+    const drafts = transaction.objectStore(PAYMENT_DRAFTS);
     const outbox = transaction.objectStore(OUTBOX);
-    const storageKey = recordKey(args.partition, args.command.id);
-    const exists = await requestResult(outbox.get(storageKey));
-    if (exists === undefined) {
-      transaction
-        .objectStore(PAYMENT_DRAFTS)
-        .put(stored(args.partition, args.draft.paymentId, args.draft));
-      outbox.add(stored(args.partition, args.command.id, args.command));
+    const draftKey = recordKey(args.partition, args.draft.paymentId);
+    if ((await requestResult(drafts.get(draftKey))) === undefined) {
+      drafts.put(stored(args.partition, args.draft.paymentId, args.draft));
+    }
+    const commandKey = recordKey(args.partition, args.command.id);
+    if ((await requestResult(outbox.get(commandKey))) === undefined) {
+      outbox.put(stored(args.partition, args.command.id, args.command));
     }
     await completed;
     database.close();

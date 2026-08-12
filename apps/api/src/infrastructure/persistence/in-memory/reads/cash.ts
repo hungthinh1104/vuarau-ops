@@ -2,6 +2,7 @@ import type { CashMovementDto, CashReconciliationDto } from "@vuarau/domain-cont
 import type { Repositories } from "../../ports.ts";
 import { after, ascendingBy, fold, key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
+import { exactAdd } from "./exact-number.ts";
 
 const canonicalBalance = (
   store: Store,
@@ -17,7 +18,10 @@ const canonicalBalance = (
     workspaceId,
     cashAccountId,
     balance: {
-      amountMinor: movements.reduce((sum, movement) => sum + movement.amount.amountMinor, 0),
+      amountMinor: movements.reduce(
+        (sum, movement) => exactAdd(sum, movement.amount.amountMinor, "cash.balance.amount_minor"),
+        0,
+      ),
       currency: account.currency,
     },
     movementCount: movements.length,

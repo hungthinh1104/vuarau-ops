@@ -6,6 +6,7 @@ import {
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
+import { exactAdd } from "./exact-number.ts";
 
 export const createOperationsReads = (store: Store): Pick<Repositories, "operationsReads"> => ({
   operationsReads: {
@@ -19,7 +20,11 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
       for (const customer of customers) {
         const ledger = entries
           .filter((entry) => entry.customerId === customer.id)
-          .reduce((sum, entry) => sum + entry.amount.amountMinor, 0);
+          .reduce(
+            (sum, entry) =>
+              exactAdd(sum, entry.amount.amountMinor, "operations.customer_ledger.amount_minor"),
+            0,
+          );
         if (
           (store.balances.get(key(workspaceId, customer.id))?.balance.amountMinor ?? 0) !== ledger
         ) {
@@ -123,7 +128,11 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
             .filter(
               (entry) => entry.workspaceId === workspaceId && entry.supplierId === supplier.id,
             )
-            .reduce((sum, entry) => sum + entry.amount.amountMinor, 0);
+            .reduce(
+              (sum, entry) =>
+                exactAdd(sum, entry.amount.amountMinor, "operations.supplier_ledger.amount_minor"),
+              0,
+            );
           const projected =
             store.supplierAccountBalances.get(key(workspaceId, supplier.id))?.balance.amountMinor ??
             0;
@@ -138,7 +147,11 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
         const movementKey = `${movement.productId}:${movement.qualityGradeId ?? "legacy"}:${movement.quantity.unit}`;
         inventoryGroups.set(
           movementKey,
-          (inventoryGroups.get(movementKey) ?? 0) + movement.quantity.valueScaled,
+          exactAdd(
+            inventoryGroups.get(movementKey) ?? 0,
+            movement.quantity.valueScaled,
+            "operations.inventory.quantity_scaled",
+          ),
         );
         if (movement.quantity.valueScaled === 0) anomalousInventory.add(movementKey);
         if (

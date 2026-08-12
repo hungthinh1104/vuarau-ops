@@ -5,7 +5,12 @@ import type {
   SaleFulfilmentInput,
 } from "@vuarau/domain-contracts";
 import { denied, roleHasPermission } from "@vuarau/domain-contracts";
-import { canCreateDeliveryDraftForSale, err, ok } from "@vuarau/domain-kernel";
+import {
+  canCreateDeliveryDraftForSale,
+  err,
+  exactIntegerDifference,
+  ok,
+} from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 
@@ -94,8 +99,16 @@ export async function getSaleFulfilment(ctx: CommandContext, input: SaleFulfilme
           });
       const lines: SaleFulfilmentDto["lines"] = sale.lines.map((line) => {
         const amounts = fulfilment.get(line.lineId) ?? { dispatched: 0, returned: 0 };
-        const net = amounts.dispatched - amounts.returned;
-        const remaining = line.quantity.valueScaled - net;
+        const net = exactIntegerDifference(
+          amounts.dispatched,
+          amounts.returned,
+          "delivery.fulfilment.net_quantity_scaled",
+        );
+        const remaining = exactIntegerDifference(
+          line.quantity.valueScaled,
+          net,
+          "delivery.fulfilment.remaining_quantity_scaled",
+        );
         const invalid =
           line.productId === null ||
           (line.qualityGradeId !== null && line.qualityGradeName === null) ||

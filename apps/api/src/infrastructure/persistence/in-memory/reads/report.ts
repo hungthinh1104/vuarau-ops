@@ -5,6 +5,7 @@ import { encodeCursor, vietnamBusinessDateForInstant } from "@vuarau/domain-cont
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
+import { exactAdd, exactSubtract } from "./exact-number.ts";
 
 export const createReportReads = (store: Store): Pick<Repositories, "reportReads"> => ({
   reportReads: {
@@ -275,7 +276,11 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
             for (const line of delivery.lines)
               fulfilled.set(
                 line.saleLineId,
-                (fulfilled.get(line.saleLineId) ?? 0) + line.quantity.valueScaled,
+                exactAdd(
+                  fulfilled.get(line.saleLineId) ?? 0,
+                  line.quantity.valueScaled,
+                  "report.outstanding_delivery.value_scaled",
+                ),
               );
             for (const returned of delivery.returns)
               for (const returnLine of returned.lines) {
@@ -285,12 +290,20 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
                 if (deliveryLine !== undefined)
                   fulfilled.set(
                     deliveryLine.saleLineId,
-                    (fulfilled.get(deliveryLine.saleLineId) ?? 0) - returnLine.quantity.valueScaled,
+                    exactSubtract(
+                      fulfilled.get(deliveryLine.saleLineId) ?? 0,
+                      returnLine.quantity.valueScaled,
+                      "report.outstanding_delivery.value_scaled",
+                    ),
                   );
               }
           }
           for (const line of sale.lines) {
-            const remaining = line.quantity.valueScaled - (fulfilled.get(line.lineId) ?? 0);
+            const remaining = exactSubtract(
+              line.quantity.valueScaled,
+              fulfilled.get(line.lineId) ?? 0,
+              "report.outstanding_delivery.value_scaled",
+            );
             if (remaining > 0)
               rows.push({
                 id: line.lineId,
@@ -329,7 +342,11 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
         if (row.quantity !== null)
           quantities.set(
             row.quantity.unit,
-            (quantities.get(row.quantity.unit) ?? 0) + row.quantity.valueScaled,
+            exactAdd(
+              quantities.get(row.quantity.unit) ?? 0,
+              row.quantity.valueScaled,
+              "report.quantity.value_scaled",
+            ),
           );
       const amounts = all.flatMap((row) => (row.amount === null ? [] : [row.amount]));
       return {
@@ -343,7 +360,11 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
             amounts.length === 0
               ? null
               : money(
-                  amounts.reduce((sum, amount) => sum + amount.amountMinor, 0),
+                  amounts.reduce(
+                    (sum, amount) =>
+                      exactAdd(sum, amount.amountMinor, "report.amount.amount_minor"),
+                    0,
+                  ),
                   "VND",
                 ),
           quantities: [...quantities].map(([quantityUnit, valueScaled]) => ({

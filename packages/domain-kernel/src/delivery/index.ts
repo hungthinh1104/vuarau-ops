@@ -12,6 +12,7 @@ import { ALLOWED, denied } from "@vuarau/domain-contracts";
 import type { DeliveryState, DeliveryReturnState, SaleState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { exactIntegerDifference } from "../shared/money.ts";
 
 function deliveryLines(
   sale: SaleState,
@@ -44,7 +45,11 @@ function deliveryLines(
       );
     if (inputLine.quantity.valueScaled <= 0 || !Number.isInteger(inputLine.quantity.valueScaled))
       return err("DELIVERY_LINE_INVALID", "Delivery quantity must be positive.");
-    const remaining = saleLine.quantity.valueScaled - (fulfilled.get(saleLine.lineId) ?? 0);
+    const remaining = exactIntegerDifference(
+      saleLine.quantity.valueScaled,
+      fulfilled.get(saleLine.lineId) ?? 0,
+      "delivery.remaining.quantity_scaled",
+    );
     if (inputLine.quantity.valueScaled > remaining)
       return err("DELIVERY_QUANTITY_EXCEEDS_SALE", "Dispatch would exceed Sale quantity.");
     lines.push({

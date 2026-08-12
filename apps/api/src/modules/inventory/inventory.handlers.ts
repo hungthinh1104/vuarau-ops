@@ -155,22 +155,19 @@ export function reversePurchaseReceipt(ctx: CommandContext, input: unknown) {
       if (!decision.ok) return decision;
       if (!(await repos.purchaseReceipts.insertReversal(decision.value)))
         return err("RECEIPT_ALREADY_REVERSED", "Receipt is already reversed.");
-      const originals = await Promise.all(
-        receipt.lines.map(async (line) => {
-          const movements = await repos.inventoryMovements.listByProduct(
-            command.workspaceId,
-            line.productId,
-            line.quantity.unit,
-          );
-          return (
-            movements.find(
-              (movement) =>
-                movement.sourceType === "purchase_receipt" &&
-                movement.sourceId === receipt.id &&
-                movement.sourceLineId === line.receiptLineId,
-            ) ?? null
-          );
-        }),
+      const movements = await repos.inventoryMovements.listByProducts(command.workspaceId, [
+        ...new Set(receipt.lines.map((line) => line.productId)),
+      ]);
+      const originals = receipt.lines.map(
+        (line) =>
+          movements.find(
+            (movement) =>
+              movement.sourceType === "purchase_receipt" &&
+              movement.sourceId === receipt.id &&
+              movement.sourceLineId === line.receiptLineId &&
+              movement.productId === line.productId &&
+              movement.quantity.unit === line.quantity.unit,
+          ) ?? null,
       );
       if (originals.some((movement) => movement === null))
         throw new CommandIntegrityError(
@@ -244,15 +241,13 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
         );
         if (currentGrade === null) return err("QUALITY_GRADE_NOT_FOUND", "No such quality grade.");
         if (!currentGrade.isActive) {
-          const movements = await repos.inventoryMovements.listByProduct(
+          const hasMovement = await repos.inventoryMovements.hasByProductQualityGrade(
             command.workspaceId,
             command.payload.productId,
+            currentGrade.id,
             command.payload.quantity.unit,
           );
-          if (
-            command.payload.direction !== "decrease" ||
-            !movements.some((movement) => movement.qualityGradeId === currentGrade.id)
-          ) {
+          if (command.payload.direction !== "decrease" || !hasMovement) {
             return err("QUALITY_GRADE_INACTIVE", "Quality grade is inactive.");
           }
         }

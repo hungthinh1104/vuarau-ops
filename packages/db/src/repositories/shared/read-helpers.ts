@@ -15,6 +15,7 @@ import {
   deliveryReturnLines,
 } from "../../schema/index.ts";
 import { money, toIso, toIsoOrNull } from "../row-mappers.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Tx } from "./types.ts";
 
 export type Page = { after: { sortValue: string; id: string } | null; limit: number };
@@ -30,6 +31,12 @@ export function vietnamBusinessDate(value: Date): string {
 
 export function fetchLimit(page: Page): number {
   return page.limit + 1;
+}
+
+export function sumPersistedIntegers(values: readonly number[], field: string): number {
+  let total = 0n;
+  for (const value of values) total += BigInt(value);
+  return persistedBigintToSafeNumber(total, field);
 }
 
 export function paged<TRow>(
@@ -227,7 +234,7 @@ export async function readDeliveryDto(tx: Tx, workspaceId: string, deliveryId: s
     lines: lines.map((line) => {
       const returnedQuantity = returnLineRows
         .filter((item) => item.deliveryLineId === line.id)
-        .reduce((sum, item) => sum + item.quantityScaled, 0);
+        .map((item) => item.quantityScaled);
       return {
         deliveryLineId: line.id,
         saleLineId: line.saleLineId,
@@ -236,7 +243,10 @@ export async function readDeliveryDto(tx: Tx, workspaceId: string, deliveryId: s
         qualityGradeId: line.qualityGradeId,
         qualityGradeName: line.qualityGradeName,
         quantity: { valueScaled: line.quantityScaled, unit: line.unit },
-        returnedQuantity: { valueScaled: returnedQuantity, unit: line.unit },
+        returnedQuantity: {
+          valueScaled: sumPersistedIntegers(returnedQuantity, "delivery.returned.quantity_scaled"),
+          unit: line.unit,
+        },
       };
     }),
     note: row.note,

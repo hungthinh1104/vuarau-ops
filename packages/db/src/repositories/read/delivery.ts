@@ -11,7 +11,12 @@ import {
 } from "../../schema/index.ts";
 import { toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
-import { fetchLimit, paged, readDeliveryDto } from "../shared/read-helpers.ts";
+import {
+  fetchLimit,
+  paged,
+  readDeliveryDto,
+  sumPersistedIntegers,
+} from "../shared/read-helpers.ts";
 import type { Tx } from "../shared/types.ts";
 
 export const createDeliveryReadRepositories = (tx: Tx) => ({
@@ -132,9 +137,12 @@ export const createDeliveryReadRepositories = (tx: Tx) => ({
             productName: line.productName,
             quantity: { valueScaled: line.quantityScaled, unit: line.unit },
             returnedQuantity: {
-              valueScaled: returnLineRows
-                .filter((item) => item.deliveryLineId === line.id)
-                .reduce((sum, item) => sum + item.quantityScaled, 0),
+              valueScaled: sumPersistedIntegers(
+                returnLineRows
+                  .filter((item) => item.deliveryLineId === line.id)
+                  .map((item) => item.quantityScaled),
+                "delivery.returned.quantity_scaled",
+              ),
               unit: line.unit,
             },
           })),

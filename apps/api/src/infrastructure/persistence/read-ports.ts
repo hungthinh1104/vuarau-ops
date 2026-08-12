@@ -465,6 +465,16 @@ export type ReportReadRepository = {
   }): Promise<OperationalReportDto>;
 };
 export type AccountReadRepository = {
+  /**
+   * Reads the running balance at one ledger entry without materialising the
+   * customer's history in the application. The SQL adapter computes this with
+   * one windowed query; the in-memory adapter mirrors the same ordering.
+   */
+  balanceAtEntry(args: {
+    workspaceId: WorkspaceId;
+    customerId: CustomerId;
+    entryId: string;
+  }): Promise<{ readonly balanceAfter: Money } | null>;
   adjustmentDetail(args: {
     workspaceId: WorkspaceId;
     adjustmentId: string;

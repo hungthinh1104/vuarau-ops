@@ -4,7 +4,7 @@ import { buildOfflinePaymentCommand, buildOfflineSaleChain } from "./command-bui
 import { OfflineSyncEngine } from "./sync-engine.ts";
 import { OfflineDatabase } from "./database.ts";
 import type { CustomerId, PaymentId } from "@vuarau/domain-contracts";
-import type { OfflinePartition, OutboxRecord } from "./types.ts";
+import { recordKey, type OfflinePartition, type OutboxRecord } from "./types.ts";
 
 const partition: OfflinePartition = { actorId: "actor-a", workspaceId: "workspace-a" };
 const databaseName = "vuarau-offline";
@@ -46,6 +46,30 @@ function payment(paymentId = "payment-a") {
       note: "Thu tại quầy",
       evidenceReferences: [],
     },
+  });
+}
+
+async function deleteStored(storeName: "drafts" | "outbox" | "payment-drafts", key: string) {
+  await new Promise<void>((resolve, reject) => {
+    const request = fakeIndexedDb.open(databaseName);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const database = request.result;
+      const transaction = database.transaction(storeName, "readwrite");
+      transaction.objectStore(storeName).delete(key);
+      transaction.oncomplete = () => {
+        database.close();
+        resolve();
+      };
+      transaction.onerror = () => {
+        database.close();
+        reject(transaction.error ?? new Error("offline test delete failed"));
+      };
+      transaction.onabort = () => {
+        database.close();
+        reject(transaction.error ?? new Error("offline test delete aborted"));
+      };
+    };
   });
 }
 
@@ -94,6 +118,28 @@ describe("offline Quick Sale outbox", () => {
       syncState: "queued",
       payload: { amount: { amountMinor: 125_000, currency: "VND" } },
     });
+  });
+
+  it("repairs missing payment draft and command records without resetting confirmed state", async () => {
+    const built = payment("payment-repair");
+    const database = new OfflineDatabase();
+    await database.acceptPayment({ partition, ...built });
+
+    const confirmed = { ...built.command, state: "confirmed" as const, result: { id: "payment" } };
+    await database.updateCommand(partition, confirmed);
+    await deleteStored("payment-drafts", recordKey(partition, built.draft.paymentId));
+    await database.acceptPayment({ partition, ...built });
+
+    await expect(database.paymentDraft(partition, built.draft.paymentId)).resolves.toMatchObject({
+      paymentId: built.draft.paymentId,
+      syncState: "confirmed",
+    });
+
+    await deleteStored("outbox", recordKey(partition, built.command.id));
+    await database.acceptPayment({ partition, ...built });
+    await expect(database.commands(partition)).resolves.toMatchObject([
+      { id: built.command.id, state: "queued" },
+    ]);
   });
 
   it("replays an offline payment with the same identity and no second effect", async () => {
@@ -198,6 +244,32 @@ describe("offline Quick Sale outbox", () => {
 
     await expect(database.draft(partition, "sale-a")).resolves.toMatchObject({
       saleId: "sale-a",
+      syncState: "queued",
+    });
+  });
+
+  it("repairs a partial sale chain without overwriting an existing command result", async () => {
+    const built = chain("sale-repair");
+    const database = new OfflineDatabase();
+    await database.acceptSale({ partition, ...built });
+
+    const first = (await database.commands(partition))[0]!;
+    await database.updateCommand(partition, {
+      ...first,
+      state: "confirmed",
+      result: { id: "sale-draft" },
+    });
+    await deleteStored("outbox", recordKey(partition, built.commands[1]!.id));
+    await deleteStored("drafts", recordKey(partition, built.draft.saleId));
+
+    await database.acceptSale({ partition, ...built });
+
+    await expect(database.commands(partition)).resolves.toMatchObject([
+      { id: built.commands[0]!.id, state: "confirmed", result: { id: "sale-draft" } },
+      { id: built.commands[1]!.id, state: "queued" },
+    ]);
+    await expect(database.draft(partition, built.draft.saleId)).resolves.toMatchObject({
+      saleId: built.draft.saleId,
       syncState: "queued",
     });
   });

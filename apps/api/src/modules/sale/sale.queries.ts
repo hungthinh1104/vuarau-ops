@@ -12,7 +12,13 @@ import type {
   SaleDetailInput,
 } from "@vuarau/domain-contracts";
 import type { DomainResult, SaleState } from "@vuarau/domain-kernel";
-import { err, saleDueState, saleSummaryCapabilities } from "@vuarau/domain-kernel";
+import {
+  ExactMoneyArithmeticError,
+  err,
+  saleDueState,
+  saleSummaryCapabilities,
+  subtractExactIntegers,
+} from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 import { toSaleDto } from "../shared/mappers.ts";
@@ -157,29 +163,33 @@ export async function getSaleDetail(
       if (sale.status === "posted" && entry === null) return { integrityFailure: true };
       const workspaceName = await repos.workspaces.findName(input.workspaceId);
       if (workspaceName === null) return null;
-      const allEntries =
-        entry === null
-          ? []
-          : [
-              ...(await repos.accountEntries.listByCustomer(input.workspaceId, sale.customerId)),
-            ].sort(
-              (left, right) =>
-                left.transactionTime.localeCompare(right.transactionTime) ||
-                left.id.localeCompare(right.id),
-            );
-      const balanceAfter =
+      const balanceAtEntry =
         entry === null
           ? null
-          : allEntries
-              .slice(0, allEntries.findIndex((row) => row.id === entry.id) + 1)
-              .reduce((sum, row) => sum + row.amount.amountMinor, 0);
+          : await repos.accountReads.balanceAtEntry({
+              workspaceId: input.workspaceId,
+              customerId: sale.customerId,
+              entryId: entry.id,
+            });
+      if (entry !== null && balanceAtEntry === null) return { integrityFailure: true };
+      const balanceAfter = balanceAtEntry?.balanceAfter.amountMinor ?? null;
+      if (entry !== null && balanceAfter === null) {
+        throw new ExactMoneyArithmeticError("sale.account_effect.balance_after.amount_minor");
+      }
+      const balanceBefore =
+        entry === null || balanceAfter === null
+          ? null
+          : subtractExactIntegers(balanceAfter, entry.amount.amountMinor);
+      if (entry !== null && balanceBefore === null) {
+        throw new ExactMoneyArithmeticError("sale.account_effect.balance_before.amount_minor");
+      }
       const accountEffect =
         entry === null || balanceAfter === null
           ? null
           : {
               balanceBefore: {
                 ...entry.amount,
-                amountMinor: balanceAfter - entry.amount.amountMinor,
+                amountMinor: balanceBefore!,
               },
               change: entry.amount,
               balanceAfter: { ...entry.amount, amountMinor: balanceAfter },

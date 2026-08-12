@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { commandIdSchema, customerAccountEntryIdSchema } from "@vuarau/domain-contracts";
 import {
   ACTOR_ID,
   COMMAND_ID,
@@ -118,5 +119,48 @@ describe("BR-SALE-022 / TC-SALE-030 — sale detail is derived from the ledger",
     expect(result.value.sale.totalAmount.amountMinor).toBe(875_000);
     expect(result.value.accountEffect?.change.amountMinor).toBe(875_000);
     expect(result.value.accountEffect?.balanceAfter.amountMinor).toBe(875_000);
+  });
+
+  it("computes the sale balance without loading unrelated account history into the detail handler", async () => {
+    const harness = await postedHarness();
+    harness.db.seedAccountEntry({
+      id: customerAccountEntryIdSchema.parse("00000000-0000-4000-8000-000000009701"),
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+      amount: { amountMinor: -100_000, currency: "VND" },
+      sourceType: "manual_adjustment",
+      sourceId: "00000000-0000-4000-8000-000000009702",
+      reversalOfEntryId: null,
+      reasonCode: "opening_balance",
+      reason: "Số dư đầu ngày",
+      transactionTime: "2025-01-01T00:00:00.000Z",
+      recordedAt: "2025-01-01T00:00:00.000Z",
+      actorId: ACTOR_ID,
+      commandId: commandIdSchema.parse("00000000-0000-4000-8000-000000009703"),
+    });
+    harness.db.seedAccountEntry({
+      id: customerAccountEntryIdSchema.parse("00000000-0000-4000-8000-000000009704"),
+      workspaceId: WORKSPACE_ID,
+      customerId: CUSTOMER_ID,
+      amount: { amountMinor: 50_000, currency: "VND" },
+      sourceType: "manual_adjustment",
+      sourceId: "00000000-0000-4000-8000-000000009705",
+      reversalOfEntryId: null,
+      reasonCode: "other",
+      reason: "Phát sinh sau đó",
+      transactionTime: "2027-01-01T00:00:00.000Z",
+      recordedAt: "2027-01-01T00:00:00.000Z",
+      actorId: ACTOR_ID,
+      commandId: commandIdSchema.parse("00000000-0000-4000-8000-000000009706"),
+    });
+
+    const result = await getSaleDetail(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      saleId: SALE_ID,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.accountEffect?.balanceBefore.amountMinor).toBe(-100_000);
+    expect(result.value.accountEffect?.balanceAfter.amountMinor).toBe(775_000);
   });
 });

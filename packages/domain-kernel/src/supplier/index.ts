@@ -11,7 +11,7 @@ import type {
 import type { SupplierPaymentState, SupplierState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
-import { money } from "../shared/money.ts";
+import { addMoney, money, subtractMoney } from "../shared/money.ts";
 
 const clean = (value: string | null): string | null => {
   const normalized = value?.trim() ?? "";
@@ -111,7 +111,19 @@ export function decideReverseSupplierPayment(
       "Supplier payment reversal requires a reason.",
     );
   const amount = command.payload.amount;
-  const remaining = current.amount.amountMinor - current.reversedAmount.amountMinor;
+  let remaining: number;
+  try {
+    remaining = subtractMoney(
+      current.amount,
+      current.reversedAmount,
+      "supplier_payment.reversal.remaining.amount_minor",
+    ).amountMinor;
+  } catch {
+    return err(
+      "SUPPLIER_PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT",
+      "Reversal exceeds the remaining supplier payment.",
+    );
+  }
   if (
     amount.currency !== current.amount.currency ||
     !Number.isSafeInteger(amount.amountMinor) ||
@@ -123,12 +135,22 @@ export function decideReverseSupplierPayment(
       "Reversal exceeds the remaining supplier payment.",
     );
   }
+  let reversedAmount: number;
+  try {
+    reversedAmount = addMoney(
+      current.reversedAmount,
+      amount,
+      "supplier_payment.reversed_amount.amount_minor",
+    ).amountMinor;
+  } catch {
+    return err(
+      "SUPPLIER_PAYMENT_REVERSAL_EXCEEDS_REMAINING_AMOUNT",
+      "Reversal exceeds the remaining supplier payment.",
+    );
+  }
   return ok({
     ...current,
-    reversedAmount: money(
-      current.reversedAmount.amountMinor + amount.amountMinor,
-      current.amount.currency,
-    ),
+    reversedAmount: money(reversedAmount, current.amount.currency),
     version: current.version + 1,
   });
 }

@@ -24,6 +24,7 @@ const SUBJECT_B = "supabase-user-b";
  */
 describe("TC-WEB-017 — the depot list and the stored selection", () => {
   afterEach(() => {
+    window.localStorage.clear();
     window.sessionStorage.clear();
   });
 
@@ -39,7 +40,7 @@ describe("TC-WEB-017 — the depot list and the stored selection", () => {
     expect(parsed.workspaces[1]?.permissions).not.toContain("sale.void");
   });
 
-  it("round-trips a chosen depot for the life of the tab", () => {
+  it("round-trips a chosen depot across a tab restart", () => {
     expect(storedWorkspaceId(SUBJECT_A)).toBeNull();
     storeWorkspaceId(SUBJECT_A, WORKSPACE_ID);
     expect(storedWorkspaceId(SUBJECT_A)).toBe(WORKSPACE_ID);
@@ -48,7 +49,7 @@ describe("TC-WEB-017 — the depot list and the stored selection", () => {
   });
 
   it("refuses a stored value that is not a workspace id", () => {
-    window.sessionStorage.setItem(
+    window.localStorage.setItem(
       `vuarau.workspace_id:${encodeURIComponent(SUBJECT_A)}`,
       "not-a-uuid",
     );
@@ -74,6 +75,7 @@ describe("TC-WEB-017 — the depot list and the stored selection", () => {
 describe("TC-WEB-018 — access token source", () => {
   afterEach(() => {
     setAccessToken(null);
+    window.localStorage.clear();
     window.sessionStorage.clear();
     delete process.env["NEXT_PUBLIC_E2E_AUTH_BRIDGE"];
   });
@@ -108,6 +110,7 @@ describe("TC-WEB-018 — access token source", () => {
 describe("TC-WEB-024 — the E2E token bridge", () => {
   afterEach(() => {
     setAccessToken(null);
+    window.localStorage.clear();
     window.sessionStorage.clear();
     delete process.env["NEXT_PUBLIC_E2E_AUTH_BRIDGE"];
   });

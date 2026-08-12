@@ -20,6 +20,7 @@ import type {
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { exactIntegerSum } from "../shared/money.ts";
 
 const positiveQuantity = (value: { valueScaled: number }): boolean => value.valueScaled > 0;
 
@@ -343,7 +344,10 @@ export function decideRecordQualityDisposition(
         "Quarantined quantity cannot be quarantined again.",
       );
     }
-    allocated += allocation.quantity.valueScaled;
+    allocated = exactIntegerSum(
+      [allocated, allocation.quantity.valueScaled],
+      "intake.disposition.allocated.quantity_scaled",
+    );
   }
   if (allocated > source.eligibleQuantity.valueScaled) {
     return err(

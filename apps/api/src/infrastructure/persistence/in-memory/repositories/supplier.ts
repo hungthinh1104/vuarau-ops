@@ -3,6 +3,7 @@ import type { SupplierAccountEntryDto } from "@vuarau/domain-contracts";
 import { key } from "../store.ts";
 import type { IdGenerator } from "../../../clock.ts";
 import type { Store } from "../store.ts";
+import { exactAdd } from "../reads/exact-number.ts";
 
 export const createSupplierRepositories = (
   store: Store,
@@ -91,7 +92,11 @@ export const createSupplierRepositories = (
         workspaceId: delta.workspaceId,
         supplierId: delta.supplierId,
         balance: {
-          amountMinor: (current?.balance.amountMinor ?? 0) + delta.amount.amountMinor,
+          amountMinor: exactAdd(
+            current?.balance.amountMinor ?? 0,
+            delta.amount.amountMinor,
+            "supplier.balance.amount_minor",
+          ),
           currency: delta.amount.currency,
         },
         entryCount: (current?.entryCount ?? 0) + delta.entryCount,

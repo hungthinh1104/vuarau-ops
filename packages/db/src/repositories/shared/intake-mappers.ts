@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type {
   GoodsArrivalDto,
   GoodsArrivalId,
@@ -43,42 +43,21 @@ export const issueCodeDto = (
   updatedAt: toIso(row.updatedAt),
 });
 
-export async function readArrival(
-  tx: Tx,
-  workspaceId: WorkspaceId,
-  arrivalId: GoodsArrivalId,
-  lock = false,
-): Promise<GoodsArrivalDto | null> {
-  const query = tx
-    .select()
-    .from(goodsArrivals)
-    .where(and(eq(goodsArrivals.workspaceId, workspaceId), eq(goodsArrivals.id, arrivalId)))
-    .limit(1);
-  const row = (lock ? await query.for("update") : await query)[0];
-  if (row === undefined) return null;
-  const [lines, reversal] = await Promise.all([
-    tx
-      .select()
-      .from(goodsArrivalLines)
-      .where(
-        and(
-          eq(goodsArrivalLines.workspaceId, workspaceId),
-          eq(goodsArrivalLines.arrivalId, arrivalId),
-        ),
-      )
-      .orderBy(asc(goodsArrivalLines.id)),
-    tx
-      .select()
-      .from(goodsArrivalReversals)
-      .where(
-        and(
-          eq(goodsArrivalReversals.workspaceId, workspaceId),
-          eq(goodsArrivalReversals.arrivalId, arrivalId),
-        ),
-      )
-      .limit(1),
-  ]);
-  const reversalRow = reversal[0];
+type GoodsArrivalRow = typeof goodsArrivals.$inferSelect;
+type GoodsArrivalLineRow = typeof goodsArrivalLines.$inferSelect;
+type GoodsArrivalReversalRow = typeof goodsArrivalReversals.$inferSelect;
+type QualityInspectionRow = typeof qualityInspections.$inferSelect;
+type QualityInspectionIssueRow = typeof qualityInspectionIssues.$inferSelect;
+type QualityInspectionReversalRow = typeof qualityInspectionReversals.$inferSelect;
+type QualityDispositionRow = typeof qualityDispositions.$inferSelect;
+type QualityDispositionAllocationRow = typeof qualityDispositionAllocations.$inferSelect;
+type QualityDispositionReversalRow = typeof qualityDispositionReversals.$inferSelect;
+
+function mapArrival(
+  row: GoodsArrivalRow,
+  lines: readonly GoodsArrivalLineRow[],
+  reversalRow: GoodsArrivalReversalRow | undefined,
+): GoodsArrivalDto {
   return {
     id: row.id as GoodsArrivalDto["id"],
     workspaceId: row.workspaceId as WorkspaceId,
@@ -129,6 +108,68 @@ export async function readArrival(
   };
 }
 
+export async function readArrivals(
+  tx: Tx,
+  workspaceId: WorkspaceId,
+  arrivalIds: readonly GoodsArrivalId[],
+  lock = false,
+): Promise<readonly GoodsArrivalDto[]> {
+  if (arrivalIds.length === 0) return [];
+  const query = tx
+    .select()
+    .from(goodsArrivals)
+    .where(and(eq(goodsArrivals.workspaceId, workspaceId), inArray(goodsArrivals.id, arrivalIds)));
+  const rows = lock ? await query.for("update") : await query;
+  if (rows.length === 0) return [];
+  const [lineRows, reversalRows] = await Promise.all([
+    tx
+      .select()
+      .from(goodsArrivalLines)
+      .where(
+        and(
+          eq(goodsArrivalLines.workspaceId, workspaceId),
+          inArray(
+            goodsArrivalLines.arrivalId,
+            rows.map((row) => row.id),
+          ),
+        ),
+      )
+      .orderBy(asc(goodsArrivalLines.arrivalId), asc(goodsArrivalLines.id)),
+    tx
+      .select()
+      .from(goodsArrivalReversals)
+      .where(
+        and(
+          eq(goodsArrivalReversals.workspaceId, workspaceId),
+          inArray(
+            goodsArrivalReversals.arrivalId,
+            rows.map((row) => row.id),
+          ),
+        ),
+      ),
+  ]);
+  const linesByArrival = new Map<string, GoodsArrivalLineRow[]>();
+  for (const line of lineRows) {
+    const lines = linesByArrival.get(line.arrivalId) ?? [];
+    lines.push(line);
+    linesByArrival.set(line.arrivalId, lines);
+  }
+  const reversalByArrival = new Map<string, GoodsArrivalReversalRow>();
+  for (const reversal of reversalRows) reversalByArrival.set(reversal.arrivalId, reversal);
+  return rows.map((row) =>
+    mapArrival(row, linesByArrival.get(row.id) ?? [], reversalByArrival.get(row.id)),
+  );
+}
+
+export async function readArrival(
+  tx: Tx,
+  workspaceId: WorkspaceId,
+  arrivalId: GoodsArrivalId,
+  lock = false,
+): Promise<GoodsArrivalDto | null> {
+  return (await readArrivals(tx, workspaceId, [arrivalId], lock))[0] ?? null;
+}
+
 export async function findArrivalLine(
   tx: Tx,
   workspaceId: WorkspaceId,
@@ -149,44 +190,11 @@ export async function findArrivalLine(
   return arrival === null || found === undefined ? null : { arrival, line: found };
 }
 
-export async function readInspection(
-  tx: Tx,
-  workspaceId: WorkspaceId,
-  inspectionId: QualityInspectionId,
-  lock = false,
-): Promise<QualityInspectionDto | null> {
-  const query = tx
-    .select()
-    .from(qualityInspections)
-    .where(
-      and(eq(qualityInspections.workspaceId, workspaceId), eq(qualityInspections.id, inspectionId)),
-    )
-    .limit(1);
-  const row = (lock ? await query.for("update") : await query)[0];
-  if (row === undefined) return null;
-  const [issues, reversals] = await Promise.all([
-    tx
-      .select()
-      .from(qualityInspectionIssues)
-      .where(
-        and(
-          eq(qualityInspectionIssues.workspaceId, workspaceId),
-          eq(qualityInspectionIssues.inspectionId, inspectionId),
-        ),
-      )
-      .orderBy(asc(qualityInspectionIssues.qualityIssueCode)),
-    tx
-      .select()
-      .from(qualityInspectionReversals)
-      .where(
-        and(
-          eq(qualityInspectionReversals.workspaceId, workspaceId),
-          eq(qualityInspectionReversals.inspectionId, inspectionId),
-        ),
-      )
-      .limit(1),
-  ]);
-  const reversal = reversals[0];
+function mapInspection(
+  row: QualityInspectionRow,
+  issues: readonly QualityInspectionIssueRow[],
+  reversal: QualityInspectionReversalRow | undefined,
+): QualityInspectionDto {
   return {
     id: row.id as QualityInspectionDto["id"],
     workspaceId: row.workspaceId as WorkspaceId,
@@ -222,6 +230,76 @@ export async function readInspection(
   };
 }
 
+export async function readInspections(
+  tx: Tx,
+  workspaceId: WorkspaceId,
+  inspectionIds: readonly QualityInspectionId[],
+  lock = false,
+): Promise<readonly QualityInspectionDto[]> {
+  if (inspectionIds.length === 0) return [];
+  const query = tx
+    .select()
+    .from(qualityInspections)
+    .where(
+      and(
+        eq(qualityInspections.workspaceId, workspaceId),
+        inArray(qualityInspections.id, inspectionIds),
+      ),
+    );
+  const rows = lock ? await query.for("update") : await query;
+  if (rows.length === 0) return [];
+  const [issueRows, reversalRows] = await Promise.all([
+    tx
+      .select()
+      .from(qualityInspectionIssues)
+      .where(
+        and(
+          eq(qualityInspectionIssues.workspaceId, workspaceId),
+          inArray(
+            qualityInspectionIssues.inspectionId,
+            rows.map((row) => row.id),
+          ),
+        ),
+      )
+      .orderBy(
+        asc(qualityInspectionIssues.inspectionId),
+        asc(qualityInspectionIssues.qualityIssueCode),
+      ),
+    tx
+      .select()
+      .from(qualityInspectionReversals)
+      .where(
+        and(
+          eq(qualityInspectionReversals.workspaceId, workspaceId),
+          inArray(
+            qualityInspectionReversals.inspectionId,
+            rows.map((row) => row.id),
+          ),
+        ),
+      ),
+  ]);
+  const issuesByInspection = new Map<string, QualityInspectionIssueRow[]>();
+  for (const issue of issueRows) {
+    const issues = issuesByInspection.get(issue.inspectionId) ?? [];
+    issues.push(issue);
+    issuesByInspection.set(issue.inspectionId, issues);
+  }
+  const reversalByInspection = new Map<string, QualityInspectionReversalRow>();
+  for (const reversal of reversalRows) reversalByInspection.set(reversal.inspectionId, reversal);
+  return rows.map((row) =>
+    mapInspection(row, issuesByInspection.get(row.id) ?? [], reversalByInspection.get(row.id)),
+  );
+}
+
+export async function readInspection(
+  tx: Tx,
+  workspaceId: WorkspaceId,
+  inspectionId: QualityInspectionId,
+  lock = false,
+): Promise<QualityInspectionDto | null> {
+  return (await readInspections(tx, workspaceId, [inspectionId], lock))[0] ?? null;
+}
+
 const sourceFromRow = (row: typeof qualityDispositions.$inferSelect): QualityDispositionSource =>
   row.sourceType === "arrival_line"
     ? {
@@ -239,47 +317,11 @@ const sourceFromRow = (row: typeof qualityDispositions.$inferSelect): QualityDis
         >["allocationId"],
       };
 
-export async function readDisposition(
-  tx: Tx,
-  workspaceId: WorkspaceId,
-  dispositionId: QualityDispositionId,
-  lock = false,
-): Promise<QualityDispositionDto | null> {
-  const query = tx
-    .select()
-    .from(qualityDispositions)
-    .where(
-      and(
-        eq(qualityDispositions.workspaceId, workspaceId),
-        eq(qualityDispositions.id, dispositionId),
-      ),
-    )
-    .limit(1);
-  const row = (lock ? await query.for("update") : await query)[0];
-  if (row === undefined) return null;
-  const [allocations, reversals] = await Promise.all([
-    tx
-      .select()
-      .from(qualityDispositionAllocations)
-      .where(
-        and(
-          eq(qualityDispositionAllocations.workspaceId, workspaceId),
-          eq(qualityDispositionAllocations.dispositionId, dispositionId),
-        ),
-      )
-      .orderBy(asc(qualityDispositionAllocations.id)),
-    tx
-      .select()
-      .from(qualityDispositionReversals)
-      .where(
-        and(
-          eq(qualityDispositionReversals.workspaceId, workspaceId),
-          eq(qualityDispositionReversals.dispositionId, dispositionId),
-        ),
-      )
-      .limit(1),
-  ]);
-  const reversal = reversals[0];
+function mapDisposition(
+  row: QualityDispositionRow,
+  allocations: readonly QualityDispositionAllocationRow[],
+  reversal: QualityDispositionReversalRow | undefined,
+): QualityDispositionDto {
   return {
     id: row.id as QualityDispositionDto["id"],
     workspaceId: row.workspaceId as WorkspaceId,
@@ -314,6 +356,80 @@ export async function readDisposition(
             evidenceReferences: reversal.evidenceReferences ?? [],
           },
   };
+}
+
+export async function readDispositions(
+  tx: Tx,
+  workspaceId: WorkspaceId,
+  dispositionIds: readonly QualityDispositionId[],
+  lock = false,
+): Promise<readonly QualityDispositionDto[]> {
+  if (dispositionIds.length === 0) return [];
+  const query = tx
+    .select()
+    .from(qualityDispositions)
+    .where(
+      and(
+        eq(qualityDispositions.workspaceId, workspaceId),
+        inArray(qualityDispositions.id, dispositionIds),
+      ),
+    );
+  const rows = lock ? await query.for("update") : await query;
+  if (rows.length === 0) return [];
+  const [allocationRows, reversalRows] = await Promise.all([
+    tx
+      .select()
+      .from(qualityDispositionAllocations)
+      .where(
+        and(
+          eq(qualityDispositionAllocations.workspaceId, workspaceId),
+          inArray(
+            qualityDispositionAllocations.dispositionId,
+            rows.map((row) => row.id),
+          ),
+        ),
+      )
+      .orderBy(
+        asc(qualityDispositionAllocations.dispositionId),
+        asc(qualityDispositionAllocations.id),
+      ),
+    tx
+      .select()
+      .from(qualityDispositionReversals)
+      .where(
+        and(
+          eq(qualityDispositionReversals.workspaceId, workspaceId),
+          inArray(
+            qualityDispositionReversals.dispositionId,
+            rows.map((row) => row.id),
+          ),
+        ),
+      ),
+  ]);
+  const allocationsByDisposition = new Map<string, QualityDispositionAllocationRow[]>();
+  for (const allocation of allocationRows) {
+    const allocations = allocationsByDisposition.get(allocation.dispositionId) ?? [];
+    allocations.push(allocation);
+    allocationsByDisposition.set(allocation.dispositionId, allocations);
+  }
+  const reversalByDisposition = new Map<string, QualityDispositionReversalRow>();
+  for (const reversal of reversalRows) reversalByDisposition.set(reversal.dispositionId, reversal);
+  return rows.map((row) =>
+    mapDisposition(
+      row,
+      allocationsByDisposition.get(row.id) ?? [],
+      reversalByDisposition.get(row.id),
+    ),
+  );
+}
+
+export async function readDisposition(
+  tx: Tx,
+  workspaceId: WorkspaceId,
+  dispositionId: QualityDispositionId,
+  lock = false,
+): Promise<QualityDispositionDto | null> {
+  return (await readDispositions(tx, workspaceId, [dispositionId], lock))[0] ?? null;
 }
 
 type SourceRoot = {
@@ -417,7 +533,7 @@ export async function dispositionSourceSummary(
   const allocatedRow = (
     await tx
       .select({
-        total: sql<number>`coalesce(sum(${qualityDispositionAllocations.valueScaled}), 0)::bigint`,
+        total: sql<number>`coalesce(sum(${qualityDispositionAllocations.valueScaled}), 0)`,
       })
       .from(qualityDispositionAllocations)
       .innerJoin(
@@ -451,7 +567,7 @@ export async function dispositionSourceSummary(
     const inspectionRow = (
       await tx
         .select({
-          total: sql<number>`coalesce(sum(${qualityInspections.inspectedValueScaled}), 0)::bigint`,
+          total: sql<number>`coalesce(sum(${qualityInspections.inspectedValueScaled}), 0)`,
         })
         .from(qualityInspections)
         .leftJoin(

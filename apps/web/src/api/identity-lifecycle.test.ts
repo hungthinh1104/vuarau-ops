@@ -14,7 +14,10 @@ const SUBJECT_A = "supabase-user-a";
 const SUBJECT_B = "supabase-user-b";
 
 describe("TC-WEB-027 — authentication-subject cleanup", () => {
-  afterEach(() => window.sessionStorage.clear());
+  afterEach(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
 
   it("cancels and clears the old identity query cache", async () => {
     const queryClient = new QueryClient();

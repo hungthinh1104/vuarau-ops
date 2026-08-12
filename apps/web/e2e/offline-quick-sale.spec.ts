@@ -1,5 +1,5 @@
-import { expect, test, signIn } from "./harness/signed-in.ts";
 import type { Page } from "@playwright/test";
+import { expect, injectToken, signIn, test } from "./harness/signed-in.ts";
 import { api } from "./harness/api.ts";
 import { uniqueCustomerName } from "./harness/environment.ts";
 
@@ -107,9 +107,28 @@ test.describe("Durable offline Quick Sale", () => {
     await expect(page.getByLabel("Ghi chú")).toBeDisabled();
     await expect(page.getByRole("button", { name: "Lưu nháp" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Chốt đơn" })).toBeDisabled();
+    // A reload is not the strongest browser failure we can exercise. Closing the
+    // page and opening a new one in the same context simulates the tab/process
+    // being restarted while preserving the browser's durable IndexedDB outbox
+    // and subject-scoped bootstrap cache.
+    const queuedUrl = page.url();
+    await page.close();
+    const restartedPage = await context.newPage();
+    // The E2E bridge deliberately stores its token in page sessionStorage. A
+    // real restart may require signing in again; it must not require re-entering
+    // the queued transaction itself.
+    await injectToken(restartedPage);
+    await restartedPage.goto(queuedUrl);
+    await expect(
+      restartedPage.getByText("Đã lưu trên thiết bị · chờ máy chủ", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      restartedPage.getByTestId("sale-line-0").getByRole("textbox", { name: "Mặt hàng" }),
+    ).toHaveValue("Rau muống");
+    await expect(restartedPage.getByText("Đơn đã được lưu an toàn trên thiết bị.")).toBeVisible();
 
     await context.setOffline(false);
-    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await restartedPage.evaluate(() => window.dispatchEvent(new Event("online")));
     await expect
       .poll(async () => (await api.sales(customerId)).items.length, { timeout: 20_000 })
       .toBe(1);

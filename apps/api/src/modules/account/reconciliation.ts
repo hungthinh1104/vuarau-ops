@@ -9,7 +9,12 @@ import type {
 } from "@vuarau/domain-contracts";
 import { ALLOWED, DEFAULT_CURRENCY, denied, roleHasPermission } from "@vuarau/domain-contracts";
 import type { CustomerAccountBalance } from "@vuarau/domain-kernel";
-import { calculateAccountBalance, classifyBalance, money } from "@vuarau/domain-kernel";
+import {
+  calculateAccountBalance,
+  classifyBalance,
+  money,
+  subtractMoney,
+} from "@vuarau/domain-kernel";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import type { AccountSourceObservation } from "../../infrastructure/persistence/read-ports.ts";
 
@@ -140,10 +145,7 @@ export function buildAccountReconciliation(
   if (entries.length > 0 && data.projection === null) {
     diagnostics.push(diagnostic("projection_missing"));
   } else if (data.projection !== null) {
-    if (
-      data.projection.balance.currency !== currency ||
-      data.projection.balance.amountMinor !== ledgerBalance.amountMinor
-    ) {
+    if (data.projection.balance.amountMinor !== ledgerBalance.amountMinor) {
       diagnostics.push(diagnostic("projection_balance_mismatch"));
     }
     if (data.projection.entryCount !== entries.length) {
@@ -164,9 +166,10 @@ export function buildAccountReconciliation(
   }
 
   const projectedBalance: Money = data.projection?.balance ?? money(0, currency);
-  const difference = money(
-    projectedBalance.amountMinor - ledgerBalance.amountMinor,
-    ledgerBalance.currency,
+  const difference = subtractMoney(
+    projectedBalance,
+    ledgerBalance,
+    "account.reconciliation.difference.amount_minor",
   );
   const common = {
     workspace: { id: data.workspaceId, name: data.workspaceName },

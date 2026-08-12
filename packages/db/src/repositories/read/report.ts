@@ -74,7 +74,7 @@ async function customerReceivablesAtScale(
   `)) as Record<string, unknown>[];
   const total = (
     await tx.execute(sql`
-    select count(*)::int as count, coalesce(sum(balance_minor), 0)::bigint as amount
+    select count(*)::int as count, coalesce(sum(balance_minor), 0) as amount
     from customer_account_balances
     where workspace_id=${args.workspaceId}::uuid and balance_minor > 0
   `)
@@ -144,7 +144,7 @@ async function supplierPayablesAtScale(
   `)) as Record<string, unknown>[];
   const total = (
     await tx.execute(sql`
-    select count(*)::int as count, coalesce(sum(balance_minor), 0)::bigint as amount
+    select count(*)::int as count, coalesce(sum(balance_minor), 0) as amount
     from supplier_account_balances
     where workspace_id=${args.workspaceId}::uuid and balance_minor > 0
   `)
@@ -197,7 +197,7 @@ async function outstandingDeliveryAtScale(
   const after = args.page.after;
   const values = (await tx.execute(sql`
     with dispatched as (
-      select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as quantity
+      select dl.sale_line_id, sum(dl.quantity_scaled) as quantity
       from delivery_lines dl
       join deliveries d
         on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
@@ -205,7 +205,7 @@ async function outstandingDeliveryAtScale(
         and d.status in ('dispatched','delivered')
       group by dl.sale_line_id
     ), returned as (
-      select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as quantity
+      select dl.sale_line_id, sum(drl.quantity_scaled) as quantity
       from delivery_return_lines drl
       join delivery_returns dr
         on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
@@ -216,7 +216,7 @@ async function outstandingDeliveryAtScale(
     ), outstanding as (
       select s.id as sale_id, c.display_name, sl.id as sale_line_id,
         sl.product_name, sl.quantity_scaled, sl.unit,
-        (coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0))::bigint as net_fulfilled
+        (coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0)) as net_fulfilled
       from sales s
       join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
       join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
@@ -235,13 +235,13 @@ async function outstandingDeliveryAtScale(
   `)) as Record<string, unknown>[];
   const totals = (await tx.execute(sql`
     with dispatched as (
-      select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as quantity
+      select dl.sale_line_id, sum(dl.quantity_scaled) as quantity
       from delivery_lines dl
       join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
       where d.workspace_id=${args.workspaceId}::uuid and d.status in ('dispatched','delivered')
       group by dl.sale_line_id
     ), returned as (
-      select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as quantity
+      select dl.sale_line_id, sum(drl.quantity_scaled) as quantity
       from delivery_return_lines drl
       join delivery_returns dr
         on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
@@ -251,7 +251,7 @@ async function outstandingDeliveryAtScale(
       group by dl.sale_line_id
     )
     select sl.unit,
-      coalesce(sum(sl.quantity_scaled-coalesce(dispatched.quantity,0)+coalesce(returned.quantity,0)),0)::bigint as quantity
+      coalesce(sum(sl.quantity_scaled-coalesce(dispatched.quantity,0)+coalesce(returned.quantity,0)),0) as quantity
     from sales s
     join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
     left join dispatched on dispatched.sale_line_id=sl.id
@@ -508,7 +508,7 @@ export const createReportReadRepositories = (tx: Tx) => ({
       } else if (args.reportType === "outstanding_delivery") {
         const values = await tx.execute(sql`
             with dispatched as (
-              select dl.sale_line_id, sum(dl.quantity_scaled)::bigint quantity
+              select dl.sale_line_id, sum(dl.quantity_scaled) quantity
               from delivery_lines dl
               join deliveries d
                 on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
@@ -516,7 +516,7 @@ export const createReportReadRepositories = (tx: Tx) => ({
                 and d.status in ('dispatched','delivered')
               group by dl.sale_line_id
             ), returned as (
-              select dl.sale_line_id, sum(drl.quantity_scaled)::bigint quantity
+              select dl.sale_line_id, sum(drl.quantity_scaled) quantity
               from delivery_return_lines drl
               join delivery_returns dr
                 on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
@@ -527,7 +527,7 @@ export const createReportReadRepositories = (tx: Tx) => ({
             )
             select s.id as sale_id, c.display_name,
               sl.id as sale_line_id, sl.product_name, sl.quantity_scaled, sl.unit,
-              (coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0))::bigint
+              (coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0))
                 as net_fulfilled
             from sales s
             join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id

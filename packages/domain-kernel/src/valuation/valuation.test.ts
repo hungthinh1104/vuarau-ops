@@ -180,6 +180,40 @@ describe("BR-VALUATION-001 / BR-VALUATION-002 / BR-VALUATION-003 / TC-VALUATION-
     });
   });
 
+  it("uses bigint proportional allocation when the intermediate product exceeds safe number range", () => {
+    const result = calculateInventoryValuation(
+      [movement("1", 11_000, 818_836_295_885_457), movement("2", -1_234, null)],
+      "moving_weighted_average",
+    )[0]!;
+
+    // The receipt value is 9,007,199,254,740,027. The exact floor of its
+    // 1,234/11,000 share is 1,010,443,989,122,653. A Number multiplication
+    // rounds the intermediate product and produces one extra minor unit.
+    expect(result).toMatchObject({
+      quantityScaled: 9_766,
+      cogs: { amountMinor: 1_010_443_989_122_653, currency: "VND" },
+      inventoryValue: { amountMinor: 7_996_755_265_617_374, currency: "VND" },
+      diagnostics: [],
+    });
+    expect(result.cogs!.amountMinor + result.inventoryValue!.amountMinor).toBe(
+      9_007_199_254_740_027,
+    );
+  });
+
+  it("rejects a quantity pool that cannot be represented exactly", () => {
+    const rows = [
+      movement("1", Number.MAX_SAFE_INTEGER, null, "inventory_adjustment"),
+      movement("2", 1, null, "inventory_adjustment"),
+    ];
+
+    expect(() => calculateInventoryValuation(rows, "fifo")).toThrow(
+      "Integer arithmetic exceeds the exact supported range.",
+    );
+    expect(() => calculateInventoryValuation(rows, "moving_weighted_average")).toThrow(
+      "Integer arithmetic exceeds the exact supported range.",
+    );
+  });
+
   it("does not classify adjustment loss as COGS", () => {
     const result = calculateInventoryValuation(
       [movement("1", 1000, 100), movement("2", -500, null, "inventory_adjustment")],

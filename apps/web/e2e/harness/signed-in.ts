@@ -28,6 +28,12 @@ export async function signIn(page: Page, role: E2ERole = "sales"): Promise<void>
   await injectToken(page, role);
   await page.addInitScript(
     ({ subject, workspaceId }) => {
+      window.localStorage.setItem(
+        `vuarau.workspace_id:${encodeURIComponent(subject)}`,
+        workspaceId,
+      );
+      // Keep the old tab-scoped key for harness compatibility; production code
+      // prefers the durable subject-scoped selection above.
       window.sessionStorage.setItem(
         `vuarau.workspace_id:${encodeURIComponent(subject)}`,
         workspaceId,
@@ -42,6 +48,10 @@ export async function signInActor(page: Page, actorId: string): Promise<void> {
   await page.addInitScript(
     ({ accessToken, actorId, workspaceId }) => {
       window.sessionStorage.setItem("vuarau.access_token", accessToken);
+      window.localStorage.setItem(
+        `vuarau.workspace_id:${encodeURIComponent(actorId)}`,
+        workspaceId,
+      );
       window.sessionStorage.setItem(
         `vuarau.workspace_id:${encodeURIComponent(actorId)}`,
         workspaceId,

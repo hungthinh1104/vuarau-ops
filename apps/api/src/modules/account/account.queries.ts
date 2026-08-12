@@ -27,6 +27,7 @@ import {
   err,
   ok,
   resolvePolicyForDecision,
+  subtractMoney,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { authorizeWorkspaceAccess, accountCapabilities } from "../shared/authorization.ts";
@@ -303,10 +304,11 @@ export async function getAccountAdjustmentDetail(
       const row = await repos.accountReads.adjustmentDetail(input);
       if (row.kind !== "found") return row;
       const change = row.row.amount;
-      const balanceBefore = {
-        amountMinor: row.row.runningBalance.amountMinor - change.amountMinor,
-        currency: change.currency,
-      };
+      const balanceBefore = subtractMoney(
+        row.row.runningBalance,
+        change,
+        "account.adjustment.balance_before.amount_minor",
+      );
       return {
         kind: "found" as const,
         detail: {

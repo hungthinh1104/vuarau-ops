@@ -33,7 +33,7 @@ import {
   saleVoids,
 } from "../../schema/index.ts";
 import { deriveProductCoverageQuantity } from "@vuarau/domain-kernel";
-import { PersistedIntegrityError } from "../../errors.ts";
+import { PersistedIntegrityError, PersistedNumberOutOfRangeError } from "../../errors.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import type { Tx } from "../shared/types.ts";
 
@@ -72,15 +72,19 @@ export async function readProductCoverage(
         and child.source_type = 'quarantine_allocation'
         and child_reversal.id is null
     ), on_hand as (
-      select ib.product_id, ib.quality_grade_id, ib.unit, sum(ib.quantity_scaled)::bigint as quantity
+      select ib.product_id, ib.quality_grade_id, ib.unit, sum(ib.quantity_scaled) as quantity
       from ${inventoryBalances} ib
       where ib.workspace_id = ${workspaceId}::uuid and ib.product_id in (${ids})
       group by ib.product_id, ib.quality_grade_id, ib.unit
     ), legacy_received as (
-      select prl.purchase_line_id, sum(prl.quantity_scaled)::bigint as quantity
+      select prl.purchase_line_id,
+        sum(prl.quantity_scaled) as quantity,
+        bool_or(prl.unit <> pl.unit) as invalid
       from ${purchaseReceiptLines} prl
       join ${purchaseReceipts} pr
         on pr.workspace_id = prl.workspace_id and pr.id = prl.receipt_id
+      join ${purchaseLines} pl
+        on pl.workspace_id = prl.workspace_id and pl.id = prl.purchase_line_id
       left join ${purchaseReceiptReversals} prr
         on prr.workspace_id = pr.workspace_id and prr.receipt_id = pr.id
       where prl.workspace_id = ${workspaceId}::uuid
@@ -88,7 +92,8 @@ export async function readProductCoverage(
       group by prl.purchase_line_id
     ), accepted_received as (
       select root_line.purchase_line_id,
-        sum(allocation.value_scaled)::bigint as quantity
+        sum(allocation.value_scaled) as quantity,
+        bool_or(allocation.unit <> root_line.arrived_unit) as invalid
       from ${qualityDispositionAllocations} allocation
       join ${qualityDispositions} disposition
         on disposition.workspace_id = allocation.workspace_id
@@ -121,12 +126,14 @@ export async function readProductCoverage(
           pl.quantity_scaled
             - coalesce(legacy_received.quantity, 0)
             - coalesce(accepted_received.quantity, 0)
-        )::bigint as quantity,
+        ) as quantity,
         bool_or(
           pl.quantity_scaled
             - coalesce(legacy_received.quantity, 0)
             - coalesce(accepted_received.quantity, 0) < 0
-        ) as invalid
+        )
+        or bool_or(coalesce(legacy_received.invalid, false))
+        or bool_or(coalesce(accepted_received.invalid, false)) as invalid
       from ${purchaseLines} pl
       join ${purchases} purchase
         on purchase.workspace_id = pl.workspace_id and purchase.id = pl.purchase_id
@@ -140,16 +147,22 @@ export async function readProductCoverage(
         and purchase.status = 'confirmed' and purchase_void.id is null
       group by pl.product_id, pl.unit
     ), dispatched as (
-      select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as quantity
+      select dl.sale_line_id,
+        sum(dl.quantity_scaled) as quantity,
+        bool_or(dl.unit <> sl.unit) as invalid
       from ${deliveryLines} dl
       join ${deliveries} delivery
         on delivery.workspace_id = dl.workspace_id and delivery.id = dl.delivery_id
+      join ${saleLines} sl
+        on sl.workspace_id = dl.workspace_id and sl.id = dl.sale_line_id
       where dl.workspace_id = ${workspaceId}::uuid
         and dl.product_id in (${ids})
         and delivery.status in ('dispatched', 'delivered')
       group by dl.sale_line_id
     ), returned as (
-      select dl.sale_line_id, sum(return_line.quantity_scaled)::bigint as quantity
+      select dl.sale_line_id,
+        sum(return_line.quantity_scaled) as quantity,
+        bool_or(return_line.unit <> dl.unit) as invalid
       from ${deliveryReturnLines} return_line
       join ${deliveryReturns} delivery_return
         on delivery_return.workspace_id = return_line.workspace_id
@@ -163,6 +176,7 @@ export async function readProductCoverage(
         and delivery.id = dl.delivery_id
       where delivery_return.workspace_id = ${workspaceId}::uuid
         and dl.product_id in (${ids})
+        and delivery.status in ('dispatched', 'delivered')
       group by dl.sale_line_id
     ), outbound as (
       select sl.product_id, sl.quality_grade_id, sl.unit,
@@ -170,12 +184,14 @@ export async function readProductCoverage(
           sl.quantity_scaled
             - coalesce(dispatched.quantity, 0)
             + coalesce(returned.quantity, 0)
-        )::bigint as quantity,
+        ) as quantity,
         bool_or(
           sl.quantity_scaled
             - coalesce(dispatched.quantity, 0)
             + coalesce(returned.quantity, 0) < 0
-        ) as invalid
+        )
+        or bool_or(coalesce(dispatched.invalid, false))
+        or bool_or(coalesce(returned.invalid, false)) as invalid
       from ${saleLines} sl
       join ${sales} sale
         on sale.workspace_id = sl.workspace_id and sale.id = sl.sale_id
@@ -201,9 +217,9 @@ export async function readProductCoverage(
       coverage_units.quality_grade_id as "qualityGradeId",
       grade.name as "qualityGradeName",
       coverage_units.unit as "unit",
-      coalesce(on_hand.quantity, 0)::bigint as "onHand",
-      coalesce(inbound.quantity, 0)::bigint as "inboundRemaining",
-      coalesce(outbound.quantity, 0)::bigint as "outboundRemaining",
+      coalesce(on_hand.quantity, 0) as "onHand",
+      coalesce(inbound.quantity, 0) as "inboundRemaining",
+      coalesce(outbound.quantity, 0) as "outboundRemaining",
       coalesce(inbound.invalid, false) or coalesce(outbound.invalid, false) as "invalid"
     from coverage_units
     left join ${qualityGrades} grade
@@ -250,16 +266,23 @@ export async function readProductCoverage(
       raw.outboundRemaining,
       "product coverage outbound quantity",
     );
-    byProduct.get(raw.productId)?.push(
-      deriveProductCoverageQuantity({
-        unit: raw.unit,
-        qualityGradeId: raw.qualityGradeId as QualityGradeId | null,
-        qualityGradeName: raw.qualityGradeName,
-        onHand,
-        inboundRemaining,
-        outboundRemaining,
-      }),
-    );
+    try {
+      byProduct.get(raw.productId)?.push(
+        deriveProductCoverageQuantity({
+          unit: raw.unit,
+          qualityGradeId: raw.qualityGradeId as QualityGradeId | null,
+          qualityGradeName: raw.qualityGradeName,
+          onHand,
+          inboundRemaining,
+          outboundRemaining,
+        }),
+      );
+    } catch (error) {
+      if (error instanceof RangeError) {
+        throw new PersistedNumberOutOfRangeError("product_coverage.available_after_commitments");
+      }
+      throw error;
+    }
   }
   return productIds.map((productId) => ({
     workspaceId,

@@ -18,6 +18,7 @@ import {
 import type { CursorPosition } from "@vuarau/domain-contracts";
 import type { Tx } from "../shared/types.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
+import { exactIntegerSum } from "@vuarau/domain-kernel";
 
 type Row = Record<string, unknown>;
 const numberOf = (row: Row, name: string): number => {
@@ -35,11 +36,14 @@ const asOf = () => new Date().toISOString();
 
 function quantityTotals(rows: readonly Row[]): Quantity[] {
   const totals = new Map<string, number>();
-  for (const row of rows)
-    totals.set(
-      stringOf(row, "unit"),
-      (totals.get(stringOf(row, "unit")) ?? 0) + numberOf(row, "value"),
+  for (const row of rows) {
+    const unit = stringOf(row, "unit");
+    const next = exactIntegerSum(
+      [totals.get(unit) ?? 0, numberOf(row, "value")],
+      `dashboard.${unit}.quantity_scaled`,
     );
+    totals.set(unit, next);
+  }
   return [...totals].map(([unit, valueScaled]) => ({
     unit: unit as Quantity["unit"],
     valueScaled,
@@ -68,39 +72,39 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
     await Promise.all([
       tx.execute(sql`
         select count(*) filter (where s.total_amount_minor - coalesce(sv.amount_minor, 0) > 0)::int as count,
-          coalesce(sum(s.total_amount_minor - coalesce(sv.amount_minor, 0)), 0)::bigint as amount
+          coalesce(sum(s.total_amount_minor - coalesce(sv.amount_minor, 0)), 0) as amount
         from sales s
         left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
         where s.workspace_id=${workspaceId}::uuid and s.status='posted'
       `),
       tx.execute(sql`
         select count(*) filter (where p.total_amount_minor - coalesce(pv.amount_minor, 0) > 0)::int as count,
-          coalesce(sum(p.total_amount_minor - coalesce(pv.amount_minor, 0)), 0)::bigint as amount
+          coalesce(sum(p.total_amount_minor - coalesce(pv.amount_minor, 0)), 0) as amount
         from purchases p
         left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
         where p.workspace_id=${workspaceId}::uuid and p.status='confirmed'
       `),
       tx.execute(sql`
-        select im.unit, coalesce(sum(im.quantity_scaled), 0)::bigint as value
+        select im.unit, coalesce(sum(im.quantity_scaled), 0) as value
         from inventory_movements im
         where im.workspace_id=${workspaceId}::uuid
           and im.source_type in ('purchase_receipt','purchase_receipt_reversal','quality_disposition','quality_disposition_reversal')
         group by im.unit
       `),
       tx.execute(sql`
-        select ib.unit, coalesce(sum(ib.quantity_scaled), 0)::bigint as value
+        select ib.unit, coalesce(sum(ib.quantity_scaled), 0) as value
         from inventory_balances ib
         where ib.workspace_id=${workspaceId}::uuid
         group by ib.unit
       `),
       tx.execute(sql`
         with dispatched as (
-          select dl.sale_line_id, sum(dl.quantity_scaled)::bigint as value
+          select dl.sale_line_id, sum(dl.quantity_scaled) as value
           from delivery_lines dl join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
           where d.workspace_id=${workspaceId}::uuid and d.status in ('dispatched','delivered')
           group by dl.sale_line_id
         ), returned as (
-          select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as value
+          select dl.sale_line_id, sum(drl.quantity_scaled) as value
           from delivery_return_lines drl
           join delivery_returns dr
             on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
@@ -108,7 +112,7 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
             on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
           where dr.workspace_id=${workspaceId}::uuid group by dl.sale_line_id
         )
-        select sl.unit, coalesce(sum(greatest(sl.quantity_scaled-coalesce(dispatched.value,0)+coalesce(returned.value,0),0)),0)::bigint as value
+        select sl.unit, coalesce(sum(greatest(sl.quantity_scaled-coalesce(dispatched.value,0)+coalesce(returned.value,0),0)),0) as value
         from sales s join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
         left join dispatched on dispatched.sale_line_id=sl.id
         left join returned on returned.sale_line_id=sl.id
@@ -117,15 +121,15 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
         group by sl.unit
       `),
       tx.execute(sql`
-        select count(*) filter (where balance_minor > 0)::int as count, coalesce(sum(greatest(balance_minor,0)),0)::bigint as amount
+        select count(*) filter (where balance_minor > 0)::int as count, coalesce(sum(greatest(balance_minor,0)),0) as amount
         from customer_account_balances where workspace_id=${workspaceId}::uuid
       `),
       tx.execute(sql`
-        select count(*) filter (where balance_minor > 0)::int as count, coalesce(sum(greatest(balance_minor,0)),0)::bigint as amount
+        select count(*) filter (where balance_minor > 0)::int as count, coalesce(sum(greatest(balance_minor,0)),0) as amount
         from supplier_account_balances where workspace_id=${workspaceId}::uuid
       `),
       tx.execute(sql`
-        select count(*)::int as count, coalesce(sum(balance_minor),0)::bigint as amount
+        select count(*)::int as count, coalesce(sum(balance_minor),0) as amount
         from cash_balances where workspace_id=${workspaceId}::uuid
       `),
     ]);
@@ -164,7 +168,7 @@ async function querySeries(
     tx.execute(sql`
       select (s.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date,
         count(*)::int as orders,
-        coalesce(sum(s.total_amount_minor-coalesce(sv.amount_minor,0)),0)::bigint as amount
+        coalesce(sum(s.total_amount_minor-coalesce(sv.amount_minor,0)),0) as amount
       from sales s left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
         and s.transaction_time >= ${startOfWindow}::timestamptz
@@ -172,7 +176,7 @@ async function querySeries(
     `),
     tx.execute(sql`
       select (p.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date,
-        coalesce(sum(p.total_amount_minor-coalesce(pv.amount_minor,0)),0)::bigint as amount
+        coalesce(sum(p.total_amount_minor-coalesce(pv.amount_minor,0)),0) as amount
       from purchases p left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
       where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
         and p.transaction_time >= ${startOfWindow}::timestamptz
@@ -180,7 +184,7 @@ async function querySeries(
     `),
     tx.execute(sql`
       select (im.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date, im.unit,
-        coalesce(sum(im.quantity_scaled),0)::bigint as value
+        coalesce(sum(im.quantity_scaled),0) as value
       from inventory_movements im
       where im.workspace_id=${input.workspaceId}::uuid
         and im.source_type in ('purchase_receipt','purchase_receipt_reversal','quality_disposition','quality_disposition_reversal')
@@ -189,7 +193,7 @@ async function querySeries(
     `),
     tx.execute(sql`
       select (cm.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date,
-        coalesce(sum(cm.amount_minor),0)::bigint as amount
+        coalesce(sum(cm.amount_minor),0) as amount
       from cash_movements cm
       where cm.workspace_id=${input.workspaceId}::uuid
         and cm.transaction_time >= ${startOfWindow}::timestamptz
@@ -291,7 +295,7 @@ async function queryRows(
   const rows = await tx.execute(sql`
     with recursive delivered as (
       select dl.sale_line_id,
-        sum(dl.quantity_scaled)::bigint as dispatched
+        sum(dl.quantity_scaled) as dispatched
       from delivery_lines dl join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
       where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
       group by dl.sale_line_id
@@ -301,7 +305,7 @@ async function queryRows(
       where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
       order by d.sale_id, d.transaction_time desc, d.recorded_at desc, d.id desc
     ), returned as (
-      select dl.sale_line_id, sum(drl.quantity_scaled)::bigint as returned
+      select dl.sale_line_id, sum(drl.quantity_scaled) as returned
       from delivery_return_lines drl
       join delivery_lines dl
         on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
@@ -310,11 +314,11 @@ async function queryRows(
       where dr.workspace_id=${input.workspaceId}::uuid group by dl.sale_line_id
     ), dispatched_remaining as (
       select dl.sale_line_id,
-        sum(greatest(dl.quantity_scaled-coalesce(ret.returned,0),0))::bigint as remaining
+        sum(greatest(dl.quantity_scaled-coalesce(ret.returned,0),0)) as remaining
       from delivery_lines dl
       join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
       left join (
-        select drl.delivery_line_id, sum(drl.quantity_scaled)::bigint as returned
+        select drl.delivery_line_id, sum(drl.quantity_scaled) as returned
         from delivery_return_lines drl
         join delivery_returns dr on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
         where dr.workspace_id=${input.workspaceId}::uuid
@@ -339,13 +343,13 @@ async function queryRows(
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       group by s.id
     ), allocation_reversals as (
-      select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0)::bigint as amount
+      select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0) as amount
       from payment_allocation_reversals par
       where par.workspace_id=${input.workspaceId}::uuid
       group by par.workspace_id, par.allocation_id
     ), allocated as (
       select pa.sale_id,
-        coalesce(sum(pa.amount_minor - coalesce(ar.amount,0)),0)::bigint as amount
+      coalesce(sum(pa.amount_minor - coalesce(ar.amount,0)),0) as amount
       from payment_allocations pa
       left join allocation_reversals ar
         on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
@@ -355,11 +359,11 @@ async function queryRows(
         coalesce(sum(greatest(
           p.amount_minor-p.reversed_amount_minor-coalesce(allocated_payment.amount,0),
           0
-        )),0)::bigint as amount
+        )),0) as amount
       from payments p
       left join (
         select pa.payment_id,
-          coalesce(sum(pa.amount_minor-coalesce(ar.amount,0)),0)::bigint as amount
+          coalesce(sum(pa.amount_minor-coalesce(ar.amount,0)),0) as amount
         from payment_allocations pa
         left join allocation_reversals ar
           on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
@@ -370,7 +374,7 @@ async function queryRows(
       group by p.customer_id
     ), direct_received as (
       select prl.workspace_id, prl.purchase_line_id,
-        coalesce(sum(case when prr.id is null then prl.quantity_scaled else -prl.quantity_scaled end),0)::bigint as received
+        coalesce(sum(case when prr.id is null then prl.quantity_scaled else -prl.quantity_scaled end),0) as received
       from purchase_receipt_lines prl
       join purchase_receipts pr on pr.workspace_id=prl.workspace_id and pr.id=prl.receipt_id
       left join purchase_receipt_reversals prr on prr.workspace_id=pr.workspace_id and prr.receipt_id=pr.id
@@ -395,7 +399,7 @@ async function queryRows(
       where child.workspace_id=${input.workspaceId}::uuid and child.source_type='quarantine_allocation'
     ), inspected_accepted as (
       select qda.workspace_id, roots.purchase_line_id,
-        coalesce(sum(qda.value_scaled),0)::bigint as accepted
+        coalesce(sum(qda.value_scaled),0) as accepted
       from quality_disposition_allocations qda
       join quality_dispositions qd
         on qd.workspace_id=qda.workspace_id and qd.id=qda.disposition_id
@@ -408,7 +412,7 @@ async function queryRows(
       group by qda.workspace_id, roots.purchase_line_id
     ), purchase_received as (
       select pl.purchase_id, pl.id as line_id, pl.quantity_scaled,
-        (coalesce(direct.received,0) + coalesce(inspected.accepted,0))::bigint as received
+        (coalesce(direct.received,0) + coalesce(inspected.accepted,0)) as received
       from purchase_lines pl
       left join direct_received direct
         on direct.workspace_id=pl.workspace_id and direct.purchase_line_id=pl.id
@@ -456,7 +460,23 @@ async function queryRows(
       count(*) filter (where physical_state='in_delivery') over() as in_delivery_count,
       count(*) filter (where financial_state='awaiting_payment') over() as awaiting_payment_count,
       count(*) filter (where financial_state='overdue') over() as overdue_count,
-      count(*) filter (where commercial_state='attention' or physical_state='attention') over() as attention_count
+      count(*) filter (where commercial_state='attention' or physical_state='attention') over() as attention_count,
+      count(*) filter (where commercial_state='posted') over() as commercial_posted_count,
+      count(*) filter (where commercial_state='confirmed') over() as commercial_confirmed_count,
+      count(*) filter (where commercial_state='voided') over() as commercial_voided_count,
+      count(*) filter (where commercial_state='attention') over() as commercial_attention_count,
+      count(*) filter (where physical_state='needs_receiving') over() as physical_needs_receiving_count,
+      count(*) filter (where physical_state='needs_delivery') over() as physical_needs_delivery_count,
+      count(*) filter (where physical_state='in_delivery') over() as physical_in_delivery_count,
+      count(*) filter (where physical_state='delivered') over() as physical_delivered_count,
+      count(*) filter (where physical_state='received') over() as physical_received_count,
+      count(*) filter (where physical_state='attention') over() as physical_attention_count,
+      count(*) filter (where financial_state='paid') over() as financial_paid_count,
+      count(*) filter (where financial_state='payable') over() as financial_payable_count,
+      count(*) filter (where financial_state='reconciliation_required') over() as financial_reconciliation_required_count,
+      count(*) filter (where financial_state='awaiting_payment') over() as financial_awaiting_payment_count,
+      count(*) filter (where financial_state='overdue') over() as financial_overdue_count,
+      count(*) filter (where financial_state='voided') over() as financial_voided_count
     from board_rows
     where ${searchClause} and ${filterClause}
     )
@@ -479,6 +499,30 @@ async function queryRows(
   };
   return {
     counts,
+    statusCounts: {
+      commercial: statusCounts(first, [
+        ["posted", "commercial_posted_count"],
+        ["confirmed", "commercial_confirmed_count"],
+        ["voided", "commercial_voided_count"],
+        ["attention", "commercial_attention_count"],
+      ]),
+      physical: statusCounts(first, [
+        ["needs_receiving", "physical_needs_receiving_count"],
+        ["needs_delivery", "physical_needs_delivery_count"],
+        ["in_delivery", "physical_in_delivery_count"],
+        ["delivered", "physical_delivered_count"],
+        ["received", "physical_received_count"],
+        ["attention", "physical_attention_count"],
+      ]),
+      financial: statusCounts(first, [
+        ["paid", "financial_paid_count"],
+        ["payable", "financial_payable_count"],
+        ["reconciliation_required", "financial_reconciliation_required_count"],
+        ["awaiting_payment", "financial_awaiting_payment_count"],
+        ["overdue", "financial_overdue_count"],
+        ["voided", "financial_voided_count"],
+      ]),
+    },
     rows: rawRows.map((row) => ({
       id: stringOf(row, "id"),
       kind: stringOf(row, "kind") as "sale" | "purchase",
@@ -495,6 +539,16 @@ async function queryRows(
       deliveryId: row["delivery_id"] === null ? null : (stringOf(row, "delivery_id") as DeliveryId),
     })),
   };
+}
+
+function statusCounts(
+  row: Row | undefined,
+  entries: readonly (readonly [string, string])[],
+): { key: string; count: number }[] {
+  if (row === undefined) return [];
+  return entries
+    .map(([key, column]) => ({ key, count: numberOf(row, column) }))
+    .filter((entry) => entry.count > 0);
 }
 
 export const createDashboardReadRepositories = (tx: Tx) => ({
@@ -515,21 +569,14 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
         sort: "updated_desc",
         search: "",
         cursor: null,
-        limit: Number.MAX_SAFE_INTEGER,
-        page: { after: null, limit: Number.MAX_SAFE_INTEGER },
+        limit: 1,
+        page: { after: null, limit: 1 },
         now: asOf(),
       });
-      const count = (field: "commercialState" | "physicalState" | "financialState") =>
-        [...new Set(result.rows.map((row) => row[field]))].map((key) => ({
-          key,
-          count: result.rows.filter((row) => row[field] === key).length,
-        }));
       return {
         workspaceId,
         asOf: asOf(),
-        commercial: count("commercialState"),
-        physical: count("physicalState"),
-        financial: count("financialState"),
+        ...result.statusCounts,
       };
     },
     async operationsBoardCounts(
@@ -539,8 +586,8 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
         ...input,
         sort: "updated_desc",
         cursor: null,
-        limit: Number.MAX_SAFE_INTEGER,
-        page: { after: null, limit: Number.MAX_SAFE_INTEGER },
+        limit: 1,
+        page: { after: null, limit: 1 },
       });
       return {
         workspaceId: input.workspaceId,
@@ -551,7 +598,7 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
     async topProducts(input: DashboardTopProductsInput) {
       const rows = await tx.execute(sql`
         select sl.product_id, sl.product_name, sl.unit,
-          sum(sl.quantity_scaled)::bigint as quantity, sum(sl.line_total_minor)::bigint as amount
+          sum(sl.quantity_scaled) as quantity, sum(sl.line_total_minor) as amount
         from sale_lines sl join sales s on s.workspace_id=sl.workspace_id and s.id=sl.sale_id
         left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
         where sl.workspace_id=${input.workspaceId}::uuid and s.status='posted' and sv.id is null

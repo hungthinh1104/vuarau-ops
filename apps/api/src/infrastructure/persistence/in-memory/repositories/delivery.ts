@@ -1,6 +1,7 @@
 import type { Repositories } from "../../ports.ts";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
+import { exactAdd, exactSubtract } from "../reads/exact-number.ts";
 
 export const createDeliveryRepositories = (store: Store): Pick<Repositories, "deliveries"> => ({
   deliveries: {
@@ -51,7 +52,11 @@ export const createDeliveryRepositories = (store: Store): Pick<Repositories, "de
         for (const line of delivery.lines)
           totals.set(
             line.saleLineId,
-            (totals.get(line.saleLineId) ?? 0) + line.quantity.valueScaled,
+            exactAdd(
+              totals.get(line.saleLineId) ?? 0,
+              line.quantity.valueScaled,
+              "delivery.fulfilment.dispatched.quantity_scaled",
+            ),
           );
       }
       for (const returned of store.deliveryReturns) {
@@ -69,7 +74,11 @@ export const createDeliveryRepositories = (store: Store): Pick<Repositories, "de
           if (deliveryLine !== undefined)
             totals.set(
               deliveryLine.saleLineId,
-              (totals.get(deliveryLine.saleLineId) ?? 0) - line.quantity.valueScaled,
+              exactSubtract(
+                totals.get(deliveryLine.saleLineId) ?? 0,
+                line.quantity.valueScaled,
+                "delivery.fulfilment.returned.quantity_scaled",
+              ),
             );
         }
       }
@@ -87,7 +96,11 @@ export const createDeliveryRepositories = (store: Store): Pick<Repositories, "de
         for (const line of delivery.lines) {
           const current = totals.get(line.saleLineId) ?? { dispatched: 0, returned: 0 };
           totals.set(line.saleLineId, {
-            dispatched: current.dispatched + line.quantity.valueScaled,
+            dispatched: exactAdd(
+              current.dispatched,
+              line.quantity.valueScaled,
+              "delivery.fulfilment.dispatched.quantity_scaled",
+            ),
             returned: current.returned,
           });
         }
@@ -106,7 +119,11 @@ export const createDeliveryRepositories = (store: Store): Pick<Repositories, "de
           };
           totals.set(deliveryLine.saleLineId, {
             dispatched: current.dispatched,
-            returned: current.returned + line.quantity.valueScaled,
+            returned: exactAdd(
+              current.returned,
+              line.quantity.valueScaled,
+              "delivery.fulfilment.returned.quantity_scaled",
+            ),
           });
         }
       }

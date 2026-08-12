@@ -288,6 +288,7 @@ test.describe("TC-E2E-010 — the workspace is chosen explicitly", () => {
     await signIn(page);
     await page.addInitScript((subject) => {
       window.sessionStorage.removeItem(`vuarau.workspace_id:${encodeURIComponent(subject)}`);
+      window.localStorage.removeItem(`vuarau.workspace_id:${encodeURIComponent(subject)}`);
     }, E2E_ACTORS.sales);
     await page.goto("/customers");
 

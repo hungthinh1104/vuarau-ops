@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   actorWorkspacesDtoSchema,
   sessionDtoSchema,
@@ -19,7 +19,12 @@ const SUBJECT_B = "supabase-user-b";
 
 // TC-OFFLINE-002
 describe("offline session partition bootstrap", () => {
-  it("restores validated server authority for the same workspace and clears it on sign-out", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
+
+  it("restores validated server authority after a tab restart and clears it on sign-out", () => {
     const workspaces = actorWorkspacesDtoSchema.parse({
       actorId,
       workspaces: [
@@ -45,13 +50,21 @@ describe("offline session partition bootstrap", () => {
     expect(cachedSession(SUBJECT_A, workspaceId)).toEqual(session);
     expect(cachedWorkspaces(SUBJECT_B)).toBeNull();
     expect(cachedSession(SUBJECT_B, workspaceId)).toBeNull();
-    window.sessionStorage.setItem("vuarau.offline.workspaces", "legacy-authority");
+    window.localStorage.setItem("vuarau.offline.workspaces", "legacy-authority");
     window.sessionStorage.setItem(`vuarau.offline.session:${workspaceId}`, "legacy-authority");
 
     clearOfflineSessionCache(SUBJECT_A);
     expect(cachedWorkspaces(SUBJECT_A)).toBeNull();
     expect(cachedSession(SUBJECT_A, workspaceId)).toBeNull();
-    expect(window.sessionStorage.getItem("vuarau.offline.workspaces")).toBeNull();
+    expect(window.localStorage.getItem("vuarau.offline.workspaces")).toBeNull();
     expect(window.sessionStorage.getItem(`vuarau.offline.session:${workspaceId}`)).toBeNull();
+  });
+
+  it("fails closed when a persisted cache entry is malformed", () => {
+    window.localStorage.setItem(
+      `vuarau.offline.${encodeURIComponent(SUBJECT_A)}.session:${workspaceId}`,
+      "not-json",
+    );
+    expect(cachedSession(SUBJECT_A, workspaceId)).toBeNull();
   });
 });

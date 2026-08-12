@@ -74,7 +74,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
 
   /*
-   * The chosen depot lives in `sessionStorage`, which does not exist on the
+   * The chosen depot lives in browser storage, which does not exist on the
    * server. Reading it during render makes the server's HTML and the client's
    * first render disagree, and React throws away the tree — visibly, as a
    * hydration error, and invisibly as a double render on every page load.

@@ -20,6 +20,7 @@ import type {
   SaleId,
   SaleLineId,
 } from "@vuarau/domain-contracts";
+import type { PurchaseReceiptState } from "@vuarau/domain-kernel";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { createPurchaseDraft, confirmPurchase } from "../purchase/purchase.handlers.ts";
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
@@ -323,5 +324,143 @@ describe("UC-INVENTORY-001 — Product coverage", () => {
       productIds: [PRODUCT_CA_CHUA_ID],
     });
     expect(result.ok).toBe(false);
+  });
+
+  it("fails closed when available coverage exceeds the exact numeric range", async () => {
+    const purchaseId = crypto.randomUUID() as PurchaseId;
+    const purchaseLineId = crypto.randomUUID() as PurchaseLineId;
+    expect(
+      await createPurchaseDraft(harness.ctx, {
+        ...envelope("ca10"),
+        payload: {
+          purchaseId,
+          supplierId: SUPPLIER_ID,
+          currency: "VND",
+          lines: [
+            {
+              lineId: purchaseLineId,
+              productId: PRODUCT_CA_CHUA_ID,
+              productName: "Cà chua",
+              quantity: { valueScaled: Number.MAX_SAFE_INTEGER, unit: "kg" },
+              unitPrice: { amountMinor: 1, currency: "VND" },
+            },
+          ],
+          note: null,
+          evidenceReferences: [],
+          dueAt: null,
+          replacesPurchaseId: null,
+        },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      await confirmPurchase(harness.ctx, {
+        ...envelope("ca11"),
+        expectedVersion: 1,
+        payload: { purchaseId },
+      }),
+    ).toMatchObject({ ok: true });
+    await harness.deps.uow.transaction((repos) =>
+      repos.inventoryBalances.save({
+        workspaceId: WORKSPACE_ID,
+        productId: PRODUCT_CA_CHUA_ID,
+        qualityGradeId: null,
+        unit: "kg",
+        quantityScaled: Number.MAX_SAFE_INTEGER,
+        movementCount: 1,
+        lastMovementTransactionTime: LATER_TRANSACTION_TIME,
+        updatedAt: LATER_TRANSACTION_TIME,
+      }),
+    );
+
+    const result = await getProductCoverage(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      productIds: [PRODUCT_CA_CHUA_ID],
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: "PERSISTED_NUMBER_OUT_OF_RANGE",
+        details: { field: "product_coverage.available_after_commitments" },
+      },
+    });
+  });
+
+  it("fails closed when persisted receipts mix units for one purchase line", async () => {
+    const purchaseId = "00000000-0000-4000-8000-00000000ca01" as PurchaseId;
+    const purchaseLineId = "00000000-0000-4000-8000-00000000ca02" as PurchaseLineId;
+    const receiptId = "00000000-0000-4000-8000-00000000ca03" as PurchaseReceiptId;
+
+    expect(
+      await createPurchaseDraft(harness.ctx, {
+        ...envelope("ca01"),
+        payload: {
+          purchaseId,
+          supplierId: SUPPLIER_ID,
+          currency: "VND",
+          lines: [
+            {
+              lineId: purchaseLineId,
+              productId: PRODUCT_CA_CHUA_ID,
+              productName: "Cà chua",
+              quantity: { valueScaled: 10_000, unit: "kg" },
+              unitPrice: { amountMinor: 10_000, currency: "VND" },
+            },
+          ],
+          note: null,
+          evidenceReferences: [],
+          dueAt: null,
+          replacesPurchaseId: null,
+        },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      await confirmPurchase(harness.ctx, {
+        ...envelope("ca02"),
+        expectedVersion: 1,
+        payload: { purchaseId },
+      }),
+    ).toMatchObject({ ok: true });
+
+    await harness.deps.uow.transaction((repos) =>
+      repos.purchaseReceipts.insert({
+        id: receiptId,
+        workspaceId: WORKSPACE_ID,
+        purchaseId,
+        lines: [
+          {
+            receiptLineId: "00000000-0000-4000-8000-00000000ca04" as PurchaseReceiptLineId,
+            purchaseLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: null,
+            qualityGradeName: null,
+            quantity: { valueScaled: 1_000, unit: "kg" },
+          },
+          {
+            receiptLineId: "00000000-0000-4000-8000-00000000ca05" as PurchaseReceiptLineId,
+            purchaseLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: null,
+            qualityGradeName: null,
+            quantity: { valueScaled: 1, unit: "bo" },
+          },
+        ],
+        note: null,
+        evidenceReferences: [],
+        transactionTime: LATER_TRANSACTION_TIME,
+        recordedAt: LATER_TRANSACTION_TIME,
+        actorId: ACTOR_ID,
+        reversal: null,
+      } satisfies PurchaseReceiptState),
+    );
+
+    expect(
+      await getProductCoverage(harness.ctx, {
+        workspaceId: WORKSPACE_ID,
+        productIds: [PRODUCT_CA_CHUA_ID],
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { code: "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE", retryable: false },
+    });
   });
 });

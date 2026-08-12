@@ -12,8 +12,11 @@ import {
   dispositionSourceSummary,
   issueCodeDto,
   readArrival,
+  readArrivals,
   readDisposition,
+  readDispositions,
   readInspection,
+  readInspections,
 } from "../shared/intake-mappers.ts";
 import type { Page } from "../shared/read-helpers.ts";
 import { fetchLimit, paged } from "../shared/read-helpers.ts";
@@ -79,11 +82,16 @@ export const createIntakeReadRepositories = (tx: Tx) => ({
         .where(and(...filters))
         .orderBy(desc(goodsArrivals.transactionTime), desc(goodsArrivals.id))
         .limit(fetchLimit(args.page));
-      const arrivals = [];
-      for (const row of ids) {
-        const arrival = await readArrival(tx, args.workspaceId, row.id as GoodsArrivalId);
-        if (arrival !== null) arrivals.push(arrival);
-      }
+      const loaded = await readArrivals(
+        tx,
+        args.workspaceId,
+        ids.map((row) => row.id as GoodsArrivalId),
+      );
+      const byId = new Map(loaded.map((arrival) => [arrival.id, arrival]));
+      const arrivals = ids.flatMap((row) => {
+        const arrival = byId.get(row.id as GoodsArrivalId);
+        return arrival === undefined ? [] : [arrival];
+      });
       return paged(arrivals, args.page, (row) => ({
         sortValue: row.transactionTime,
         id: row.id,
@@ -129,20 +137,28 @@ export const createIntakeReadRepositories = (tx: Tx) => ({
         )
         select id::text as id from rooted order by transaction_time, id
       `);
-      const inspections = [];
-      for (const row of inspectionIds) {
-        const inspection = await readInspection(tx, workspaceId, row.id as QualityInspectionId);
-        if (inspection !== null) inspections.push(inspection);
-      }
-      const dispositions = [];
-      for (const raw of dispositionRows) {
-        const disposition = await readDisposition(
-          tx,
-          workspaceId,
-          String(raw["id"]) as QualityDispositionId,
-        );
-        if (disposition !== null) dispositions.push(disposition);
-      }
+      const inspectionIdList = inspectionIds.map((row) => row.id as QualityInspectionId);
+      const dispositionIdList = dispositionRows.map(
+        (raw) => String(raw["id"]) as QualityDispositionId,
+      );
+      const [loadedInspections, loadedDispositions] = await Promise.all([
+        readInspections(tx, workspaceId, inspectionIdList),
+        readDispositions(tx, workspaceId, dispositionIdList),
+      ]);
+      const inspectionsById = new Map(
+        loadedInspections.map((inspection) => [inspection.id, inspection]),
+      );
+      const dispositionsById = new Map(
+        loadedDispositions.map((disposition) => [disposition.id, disposition]),
+      );
+      const inspections = inspectionIdList.flatMap((id) => {
+        const inspection = inspectionsById.get(id);
+        return inspection === undefined ? [] : [inspection];
+      });
+      const dispositions = dispositionIdList.flatMap((id) => {
+        const disposition = dispositionsById.get(id);
+        return disposition === undefined ? [] : [disposition];
+      });
       return { arrivalLineId, inspections, dispositions };
     },
   },

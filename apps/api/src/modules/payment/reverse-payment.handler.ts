@@ -1,13 +1,22 @@
 import type { PaymentDto, ReverseCustomerPaymentCommand } from "@vuarau/domain-contracts";
 import { paymentDtoSchema, reverseCustomerPaymentCommandSchema } from "@vuarau/domain-contracts";
 import type { DomainResult } from "@vuarau/domain-kernel";
-import { decideReversePayment, err, ok } from "@vuarau/domain-kernel";
+import {
+  calculateActivePaymentAllocationAmount,
+  decideReversePayment,
+  err,
+  negateMoney,
+  ok,
+  subtractExactIntegers,
+  sumExactIntegers,
+} from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { CommandIntegrityError } from "../shared/integrity.ts";
 import { applyAccountEffects } from "../shared/account-effects.ts";
 import { applyCashMovements } from "../cash/cash-effects.ts";
 import { toPaymentDto } from "../shared/mappers.ts";
+import { currentRequestId } from "../../infrastructure/logging.ts";
 
 /**
  * UC-PAYMENT-002. Undoes a payment's financial effect while preserving the fact
@@ -133,16 +142,25 @@ export function reverseCustomerPayment(
         command.workspaceId,
         payment.customerId,
       );
-      const activeAllocatedAmount = allocations.allocations
+      const activeAllocationAmounts = allocations.allocations
         .filter((allocation) => allocation.paymentId === payment.id)
-        .reduce((total, allocation) => {
-          const reversed = allocations.reversals
-            .filter((allocationReversal) => allocationReversal.allocationId === allocation.id)
-            .reduce((sum, allocationReversal) => sum + allocationReversal.amount.amountMinor, 0);
-          return total + Math.max(0, allocation.amount.amountMinor - reversed);
-        }, 0);
-      const effectivePaymentAfterReversal =
-        payment.amount.amountMinor - updatedPayment.reversedAmount.amountMinor;
+        .map((allocation) =>
+          calculateActivePaymentAllocationAmount(allocation, allocations.reversals),
+        );
+      const activeAllocatedAmount = activeAllocationAmounts.some((amount) => amount === null)
+        ? null
+        : sumExactIntegers(activeAllocationAmounts as number[]);
+      const effectivePaymentAfterReversal = subtractExactIntegers(
+        payment.amount.amountMinor,
+        updatedPayment.reversedAmount.amountMinor,
+      );
+      if (activeAllocatedAmount === null || effectivePaymentAfterReversal === null) {
+        return err(
+          "PERSISTED_NUMBER_OUT_OF_RANGE",
+          "Persisted monetary data is outside the supported exact range.",
+          { field: "payment.active_allocation.amount_minor", requestId: currentRequestId() },
+        );
+      }
       if (activeAllocatedAmount > effectivePaymentAfterReversal) {
         return err(
           "PAYMENT_REVERSAL_WOULD_EXCEED_ALLOCATIONS",
@@ -172,8 +190,7 @@ export function reverseCustomerPayment(
             workspaceId: command.workspaceId,
             cashAccountId: cashAccount.id,
             amount: {
-              amountMinor: -command.payload.amount.amountMinor,
-              currency: command.payload.amount.currency,
+              ...negateMoney(command.payload.amount),
             },
             sourceType: "customer_payment_reversal",
             sourceId: command.payload.reversalId,

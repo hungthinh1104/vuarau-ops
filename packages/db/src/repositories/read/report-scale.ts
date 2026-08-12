@@ -73,7 +73,7 @@ export async function cashBalancesAtScale(
     limit ${args.page.limit + 1}
   `)) as Record<string, unknown>[];
   const total = (await tx.execute(sql`
-    select coalesce(sum(coalesce(b.balance_minor, 0)), 0)::bigint as amount
+    select coalesce(sum(coalesce(b.balance_minor, 0)), 0) as amount
     from cash_accounts a
     left join cash_balances b
       on b.workspace_id=a.workspace_id and b.cash_account_id=a.id
@@ -135,7 +135,7 @@ export async function cashMovementAtScale(
     limit ${args.page.limit + 1}
   `)) as Record<string, unknown>[];
   const total = (await tx.execute(sql`
-    select coalesce(sum(m.amount_minor), 0)::bigint as amount
+    select coalesce(sum(m.amount_minor), 0) as amount
     from cash_movements m
     where m.workspace_id=${args.workspaceId}::uuid
       ${range === null ? sql`` : sql`and m.transaction_time >= ${range.start}::timestamptz and m.transaction_time < ${range.end}::timestamptz`}
@@ -194,7 +194,7 @@ export async function expenseAtScale(
     limit ${args.page.limit + 1}
   `)) as Record<string, unknown>[];
   const total = (await tx.execute(sql`
-    select coalesce(sum(e.amount_minor), 0)::bigint as amount
+    select coalesce(sum(e.amount_minor), 0) as amount
     from expenses e
     left join expense_reversals er on er.workspace_id=e.workspace_id and er.expense_id=e.id
     where e.workspace_id=${args.workspaceId}::uuid and er.id is null
@@ -253,7 +253,7 @@ export async function inventoryBalancesAtScale(
     limit ${args.page.limit + 1}
   `)) as Record<string, unknown>[];
   const totals = (await tx.execute(sql`
-    select ib.unit, coalesce(sum(ib.quantity_scaled), 0)::bigint as quantity
+    select ib.unit, coalesce(sum(ib.quantity_scaled), 0) as quantity
     from inventory_balances ib
     where ib.workspace_id=${args.workspaceId}::uuid
       ${args.productId === null ? sql`` : sql`and ib.product_id=${args.productId}::uuid`}
@@ -370,7 +370,7 @@ export async function customerActivityAtScale(tx: Tx, args: ScaleReportArgs) {
     limit ${args.page.limit + 1}
   `);
   const totals = await tx.execute(sql`
-    select count(*)::int entry_count, coalesce(sum(e.amount_minor),0)::bigint amount_minor
+    select count(*)::int entry_count, coalesce(sum(e.amount_minor),0) amount_minor
     from customer_account_entries e
     where e.workspace_id=${args.workspaceId}::uuid
       and (${date.start}::timestamptz is null or e.transaction_time>=${date.start}::timestamptz)
@@ -451,7 +451,7 @@ export async function inventoryMovementReportAtScale(tx: Tx, args: ScaleReportAr
     limit ${args.page.limit + 1}
   `);
   const totals = await tx.execute(sql`
-    select m.unit, coalesce(sum(m.quantity_scaled),0)::bigint quantity_scaled
+    select m.unit, coalesce(sum(m.quantity_scaled),0) quantity_scaled
     from inventory_movements m
     where m.workspace_id=${args.workspaceId}::uuid
       and (${args.productId}::uuid is null or m.product_id=${args.productId}::uuid)

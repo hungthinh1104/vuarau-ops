@@ -38,6 +38,7 @@ import {
 import {
   getArrivalLineHistory,
   getDispositionSourceSummary,
+  listGoodsArrivals,
 } from "../../../modules/intake/intake.queries.ts";
 import {
   getInventoryReconciliation,
@@ -317,6 +318,40 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
         classification: "covered",
       },
     ]);
+    const acceptedByPurchaseLine = await deps.uow.transaction((repos) =>
+      repos.qualityDispositions.acceptedQuantitiesForPurchaseLines(ctx.workspaceId, [
+        purchaseLineId,
+      ]),
+    );
+    expect(acceptedByPurchaseLine.get(purchaseLineId)).toEqual({
+      valueScaled: 80_000,
+      unit: "kg",
+    });
+  });
+
+  it("TC-INTAKE-014 — inventory grade existence is scoped without loading movement history", async () => {
+    const result = await deps.uow.transaction(async (repos) => ({
+      existing: await repos.inventoryMovements.hasByProductQualityGrade(
+        ctx.workspaceId,
+        ctx.productIds[0]!,
+        ctx.qualityGradeId,
+        "kg",
+      ),
+      wrongUnit: await repos.inventoryMovements.hasByProductQualityGrade(
+        ctx.workspaceId,
+        ctx.productIds[0]!,
+        ctx.qualityGradeId,
+        "bo",
+      ),
+      otherWorkspace: await repos.inventoryMovements.hasByProductQualityGrade(
+        crypto.randomUUID() as typeof ctx.workspaceId,
+        ctx.productIds[0]!,
+        ctx.qualityGradeId,
+        "kg",
+      ),
+    }));
+
+    expect(result).toEqual({ existing: true, wrongUnit: false, otherWorkspace: false });
   });
 
   it("TC-INTAKE-010 — database guards arrival and disposition facts from mutation", async () => {
@@ -391,8 +426,74 @@ describe.skipIf(skipWithoutDatabase())("inspected intake against PostgreSQL", ()
     ).rejects.toBeInstanceOf(PersistedIntegrityError);
     await expect(
       uow.transaction((repos) =>
-        repos.qualityDispositions.acceptedQuantityForPurchaseLine(ctx.workspaceId, purchaseLineId),
+        repos.qualityDispositions.acceptedQuantitiesForPurchaseLines(ctx.workspaceId, [
+          purchaseLineId,
+        ]),
       ),
     ).rejects.toBeInstanceOf(PersistedIntegrityError);
+
+    expect(
+      await getProductCoverage(context(), {
+        workspaceId: ctx.workspaceId,
+        productIds: [ctx.productIds[0]!],
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { code: "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE", retryable: false },
+    });
+  });
+
+  it("TC-INTAKE-013 — lists multiple arrivals with complete lines in one read contract", async () => {
+    const extraArrivalIds = [
+      crypto.randomUUID() as GoodsArrivalId,
+      crypto.randomUUID() as GoodsArrivalId,
+    ];
+    for (const [index, arrivalId] of extraArrivalIds.entries()) {
+      const result = await recordGoodsArrival(context(), {
+        ...command(`batch-arrival-${index}`),
+        payload: {
+          arrivalId,
+          supplierId,
+          purchaseId: null,
+          vehicleReference: `XE-${index}`,
+          lines: [
+            {
+              arrivalLineId: crypto.randomUUID() as GoodsArrivalLineId,
+              purchaseLineId: null,
+              productId: ctx.productIds[0]!,
+              productName: "Cà chua",
+              arrivedQuantity: { valueScaled: 1_000 + index, unit: "kg" },
+              weighing: {
+                containerCount: 1,
+                grossWeight: { valueScaled: 1_100 + index, unit: "kg" },
+                tareWeight: { valueScaled: 100, unit: "kg" },
+                netWeight: { valueScaled: 1_000 + index, unit: "kg" },
+              },
+              supplierLotCode: null,
+              note: null,
+            },
+          ],
+          note: null,
+          evidenceReferences: [],
+        },
+      });
+      expect(result.ok).toBe(true);
+    }
+
+    const result = await listGoodsArrivals(context(), {
+      workspaceId: ctx.workspaceId,
+      supplierId,
+      purchaseId: null,
+      cursor: null,
+      limit: 20,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.items.map((arrival) => arrival.id)).toEqual(
+      expect.arrayContaining(extraArrivalIds),
+    );
+    for (const arrivalId of extraArrivalIds) {
+      expect(result.value.items.find((arrival) => arrival.id === arrivalId)?.lines).toHaveLength(1);
+    }
   });
 });

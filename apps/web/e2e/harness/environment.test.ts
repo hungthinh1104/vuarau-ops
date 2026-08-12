@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertE2eDatabaseBoundary, parseE2EPort } from "./environment.ts";
+import { decodeJwt } from "jose";
+import {
+  assertE2eDatabaseBoundary,
+  E2E_TOKEN_LIFETIME_SECONDS,
+  mintAccessToken,
+  parseE2EPort,
+} from "./environment.ts";
 
 test("E2E port defaults when the override is absent or empty", () => {
   assert.equal(parseE2EPort(undefined, 3102), 3102);
@@ -16,6 +22,12 @@ test("E2E port rejects values that could not safely configure a server", () => {
   assert.throws(() => parseE2EPort("3102; rm -rf /", 3102), /must be an integer/);
   assert.throws(() => parseE2EPort("80", 3102), /between 1024 and 65535/);
   assert.throws(() => parseE2EPort("65536", 3102), /between 1024 and 65535/);
+});
+
+test("E2E auth tokens outlive the complete browser matrix without changing production auth", async () => {
+  const claims = decodeJwt(await mintAccessToken("sales"));
+  assert.equal(claims.exp! - claims.iat!, E2E_TOKEN_LIFETIME_SECONDS);
+  assert.ok(E2E_TOKEN_LIFETIME_SECONDS >= 6 * 60 * 60);
 });
 
 test("E2E database boundary accepts only wrapper-owned disposable targets", () => {
