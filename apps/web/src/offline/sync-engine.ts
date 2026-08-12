@@ -76,8 +76,16 @@ export class OfflineSyncEngine {
     chain: readonly OutboxRecord[],
   ): Promise<boolean> {
     let confirmed = false;
+    const accepted = new Set<string>();
     for (const record of [...chain].sort((a, b) => a.sequence - b.sequence)) {
       if (record.state === "confirmed") continue;
+      if (
+        record.state === "dependency_blocked" &&
+        (record.dependencyBlockedBy === undefined ||
+          record.dependencyBlockedBy === null ||
+          !accepted.has(record.dependencyBlockedBy))
+      )
+        return confirmed;
       if (record.state === "rejected" || record.state === "blocked") return confirmed;
       const syncing: OutboxRecord = {
         ...record,
@@ -93,15 +101,64 @@ export class OfflineSyncEngine {
           state: "confirmed",
           result,
           error: null,
+          dependencyBlockedBy: null,
         });
+        accepted.add(record.id);
+        const releaseDependents = (
+          this.database as OfflineDatabase & {
+            releaseDependents?: (partition: OfflinePartition, blockerId: string) => Promise<void>;
+          }
+        ).releaseDependents;
+        if (releaseDependents !== undefined) {
+          await releaseDependents.call(this.database, partition, record.id);
+        }
         confirmed = true;
       } catch (error) {
         const domainError = this.classify(error);
-        await this.database.updateCommand(partition, {
-          ...syncing,
-          state: nextState(domainError),
-          error: domainError,
-        });
+        const state = nextState(domainError);
+        if (state === "blocked" || state === "rejected") {
+          const settleFailedCommand = (
+            this.database as OfflineDatabase & {
+              settleFailedCommand?: (args: {
+                partition: OfflinePartition;
+                record: OutboxRecord;
+                state: "blocked" | "rejected";
+                error: DomainError | null;
+              }) => Promise<void>;
+            }
+          ).settleFailedCommand;
+          if (settleFailedCommand !== undefined) {
+            await settleFailedCommand.call(this.database, {
+              partition,
+              record: syncing,
+              state,
+              error: domainError,
+            });
+          } else {
+            await this.database.updateCommand(partition, {
+              ...syncing,
+              state,
+              error: domainError,
+              dependencyBlockedBy: null,
+            });
+            for (const descendant of chain) {
+              if (descendant.sequence <= record.sequence || descendant.state === "confirmed")
+                continue;
+              await this.database.updateCommand(partition, {
+                ...descendant,
+                state: "dependency_blocked",
+                dependencyBlockedBy: record.id,
+              });
+            }
+          }
+        } else {
+          await this.database.updateCommand(partition, {
+            ...syncing,
+            state,
+            error: domainError,
+            dependencyBlockedBy: null,
+          });
+        }
         return confirmed;
       }
     }

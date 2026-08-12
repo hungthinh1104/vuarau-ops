@@ -89,6 +89,52 @@ class MemoryOfflineStore {
     this.records.set(record.id, record);
   }
 
+  async settleFailedCommand(args: {
+    record: OutboxRecord;
+    state: "blocked" | "rejected";
+    error: OutboxRecord["error"];
+  }) {
+    this.records.set(args.record.id, {
+      ...args.record,
+      state: args.state,
+      error: args.error,
+      dependencyBlockedBy: null,
+    });
+    for (const record of this.records.values()) {
+      if (record.chainId !== args.record.chainId || record.sequence <= args.record.sequence)
+        continue;
+      this.records.set(record.id, {
+        ...record,
+        state: "dependency_blocked",
+        dependencyBlockedBy: args.record.id,
+      });
+    }
+  }
+
+  async retryCommand(_partition: OfflinePartition, commandId: string) {
+    const record = this.records.get(commandId);
+    if (record === undefined || !["blocked", "rejected"].includes(record.state)) return;
+    this.records.set(commandId, {
+      ...record,
+      state: "queued",
+      error: null,
+      dependencyBlockedBy: null,
+    });
+  }
+
+  async releaseDependents(_partition: OfflinePartition, blockerId: string) {
+    for (const record of this.records.values()) {
+      if (record.state !== "dependency_blocked" || record.dependencyBlockedBy !== blockerId)
+        continue;
+      this.records.set(record.id, {
+        ...record,
+        state: "queued",
+        error: null,
+        dependencyBlockedBy: null,
+      });
+    }
+  }
+
   async markSuccessfulSync() {
     this.successfulSyncs += 1;
   }
@@ -326,9 +372,40 @@ describe("offline Quick Sale outbox", () => {
 
     expect([...store.records.values()].map((record) => record.state)).toEqual([
       "blocked",
-      "queued",
+      "dependency_blocked",
     ]);
     expect(store.successfulSyncs).toBe(0);
+  });
+
+  it("retries only the blocker and releases descendants after acceptance", async () => {
+    const built = chain("sale-retry-blocker");
+    const store = new MemoryOfflineStore(built.commands);
+    let rejected = true;
+    const sender = vi.fn(async (kind: OutboxRecord["kind"]) => {
+      if (rejected) {
+        rejected = false;
+        throw new Error("conflict");
+      }
+      return { kind };
+    });
+    const engine = new OfflineSyncEngine(store as unknown as OfflineDatabase, sender, () => ({
+      code: "SALE_VERSION_CONFLICT",
+      message: "stale",
+      details: {},
+      retryable: false,
+    }));
+
+    await engine.sync(partition);
+    expect(sender).toHaveBeenCalledTimes(1);
+    expect([...store.records.values()].map((record) => record.state)).toEqual([
+      "blocked",
+      "dependency_blocked",
+    ]);
+
+    await store.retryCommand(partition, built.commands[0]!.id);
+    await engine.sync(partition);
+    expect(sender).toHaveBeenCalledTimes(3);
+    expect([...store.records.values()].every((record) => record.state === "confirmed")).toBe(true);
   });
 
   it("keeps independent actors and workspaces in separate partitions", () => {
@@ -347,6 +424,42 @@ describe("offline Quick Sale outbox", () => {
         },
       }).draft,
     ).toMatchObject({ actorId: "actor-b", workspaceId: "workspace-b" });
+  });
+
+  it("keeps query-scoped catalog snapshots isolated and replaces inactive entries", async () => {
+    const database = new OfflineDatabase();
+    await database.replaceProducts(partition, "quick-sale:cà chua", [
+      {
+        productId: "product-a",
+        actorId: partition.actorId,
+        workspaceId: partition.workspaceId,
+        displayName: "Cà chua",
+        aliases: [],
+        preferredUnit: "kg",
+        fetchedAt: "2026-08-13T01:00:00.000Z",
+      },
+    ]);
+    await database.replaceProducts(partition, "quick-sale:cà chua", []);
+    await database.replaceProducts(
+      { actorId: "actor-b", workspaceId: "workspace-b" },
+      "quick-sale:cà chua",
+      [
+        {
+          productId: "product-b",
+          actorId: "actor-b",
+          workspaceId: "workspace-b",
+          displayName: "Cà chua của B",
+          aliases: [],
+          preferredUnit: "kg",
+          fetchedAt: "2026-08-13T01:00:00.000Z",
+        },
+      ],
+    );
+
+    await expect(database.products(partition, "quick-sale:cà chua")).resolves.toEqual([]);
+    await expect(
+      database.products({ actorId: "actor-b", workspaceId: "workspace-b" }, "quick-sale:cà chua"),
+    ).resolves.toMatchObject([{ productId: "product-b" }]);
   });
 
   it("runs independent chains concurrently while preserving FIFO inside each chain", async () => {
@@ -404,7 +517,7 @@ describe("offline Quick Sale outbox", () => {
     expect(sender).toHaveBeenCalledTimes(1);
     expect([...store.records.values()].map((record) => record.state)).toEqual([
       "rejected",
-      "queued",
+      "dependency_blocked",
     ]);
   });
 

@@ -119,6 +119,10 @@ export function resolveLine(line: SaleLineDraft): ResolvedLine {
   const resolvedPrice = price.ok ? price.value : null;
   const resolvable =
     Object.keys(issues).length === 0 && resolvedQuantity !== null && resolvedPrice !== null;
+  const total = resolvable ? safeLineTotal(resolvedQuantity, resolvedPrice) : null;
+  if (resolvable && total === null) {
+    issues.unitPrice = "Tổng dòng quá lớn để tính chính xác.";
+  }
 
   return {
     issues,
@@ -128,8 +132,16 @@ export function resolveLine(line: SaleLineDraft): ResolvedLine {
     // implementation the server posts with (BR-SALE-004). A second copy here
     // would be a number read aloud to the customer and a different number they
     // are charged.
-    total: resolvable ? calculateLineTotal(resolvedQuantity, resolvedPrice) : null,
+    total,
   };
+}
+
+function safeLineTotal(quantity: Quantity, price: Money): Money | null {
+  try {
+    return calculateLineTotal(quantity, price);
+  } catch {
+    return null;
+  }
 }
 
 const UNIT_OPTIONS = UNITS.map((unit) => ({ value: unit, label: UNIT_LABEL_VI[unit] }));

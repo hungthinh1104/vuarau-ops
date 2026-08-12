@@ -283,7 +283,7 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
           }
           total={total}
           balanceSection={
-            total.amountMinor > 0 && pendingCustomerCreate === null ? (
+            total !== null && total.amountMinor > 0 && pendingCustomerCreate === null ? (
               <BalancePreview
                 currentBalance={detail.balance}
                 currentClassification={detail.classification}

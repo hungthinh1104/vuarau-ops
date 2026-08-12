@@ -239,10 +239,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   const noProductMatch = activeLine.productName.trim().length > 0 && activeLine.productId == null;
   const mayCreateProduct = hasPermission(session, "product.create");
 
-  const total: Money = {
-    amountMinor: resolved.reduce((sum, line) => sum + (line.total?.amountMinor ?? 0), 0),
-    currency: "VND",
-  };
+  const total = sumSaleTotals(resolved);
 
   // A correction replacement is authorized by sale.void; ordinary quick sales
   // keep their narrower create/post permissions.
@@ -536,4 +533,17 @@ export type QuickSaleFormModel = ReturnType<typeof useQuickSaleFormModel>;
 function readLineIndex(details: Record<string, unknown> | null): number | null {
   const value = details?.["lineIndex"];
   return typeof value === "number" ? value : null;
+}
+
+function sumSaleTotals(resolved: readonly ReturnType<typeof resolveLine>[]): Money | null {
+  if (resolved.some((line) => line.total === null)) return null;
+  let amountMinor = 0n;
+  for (const line of resolved) amountMinor += BigInt(line.total!.amountMinor);
+  if (
+    amountMinor < BigInt(Number.MIN_SAFE_INTEGER) ||
+    amountMinor > BigInt(Number.MAX_SAFE_INTEGER)
+  ) {
+    return null;
+  }
+  return { amountMinor: Number(amountMinor), currency: "VND" };
 }

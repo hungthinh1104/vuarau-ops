@@ -4,6 +4,7 @@ import {
 } from "@vuarau/domain-contracts";
 import { CUSTOMER_ID, SALE_ID } from "@vuarau/test-fixtures/ids";
 import { describe, expect, it } from "vitest";
+import { resolveLine } from "@/ui/patterns/sale/sale-line-editor.tsx";
 import type { ResolvedLine, SaleLineDraft } from "@/ui/patterns/sale/sale-line-editor.tsx";
 import { buildQuickSalePayload } from "./quick-sale-payload.ts";
 
@@ -61,5 +62,16 @@ describe("buildQuickSalePayload", () => {
     });
     expect(payload).not.toHaveProperty("customerId");
     expect(payload).not.toHaveProperty("replacesSaleId");
+  });
+
+  it("fails closed when one line total exceeds the exact integer range", () => {
+    const result = resolveLine({
+      ...line,
+      quantityText: "9007199254740",
+      unitPriceText: Number.MAX_SAFE_INTEGER.toString(),
+    });
+
+    expect(result.total).toBeNull();
+    expect(result.issues).toHaveProperty("unitPrice");
   });
 });

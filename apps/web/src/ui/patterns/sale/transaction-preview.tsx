@@ -8,7 +8,7 @@ export type TransactionPreviewProps = {
   readonly customerName: string;
   readonly lines: readonly SaleLineDraft[];
   readonly resolved: readonly ResolvedLine[];
-  readonly total: Money;
+  readonly total: Money | null;
   readonly currentBalance: Money | null;
   readonly currentClassification: BalanceClassification | null;
 };
@@ -74,10 +74,17 @@ export function TransactionPreview({
 
       <div className="flex items-baseline justify-between border-t border-border pt-3">
         <span className="text-subheading font-semibold">Tổng đơn</span>
-        <MoneyValue value={total} className="text-display font-bold" />
+        {total === null ? (
+          <span className="text-danger">Chưa thể tính tổng</span>
+        ) : (
+          <MoneyValue value={total} className="text-display font-bold" />
+        )}
       </div>
 
-      {total.amountMinor > 0 && currentBalance !== null && currentClassification !== null ? (
+      {total !== null &&
+      total.amountMinor > 0 &&
+      currentBalance !== null &&
+      currentClassification !== null ? (
         <BalancePreview
           currentBalance={currentBalance}
           currentClassification={currentClassification}

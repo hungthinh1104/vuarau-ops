@@ -4,7 +4,8 @@ import type { DomainError } from "@vuarau/domain-contracts";
 import { Button } from "@/ui/primitives/button.tsx";
 import { BusinessRejection } from "./business-rejection.tsx";
 
-type OfflineState = "queued" | "syncing" | "confirmed" | "retry_wait" | "blocked" | "rejected";
+type OfflineState =
+  "queued" | "syncing" | "confirmed" | "retry_wait" | "blocked" | "dependency_blocked" | "rejected";
 
 export function OfflineCommandOutcome(props: {
   readonly state: OfflineState | null;
@@ -22,6 +23,21 @@ export function OfflineCommandOutcome(props: {
         <p className="mt-1 text-body-sm text-ink">
           {props.attemptedAction} chưa được máy chủ xác nhận. Giữ nguyên giao dịch này và liên hệ
           người quản lý trước khi ghi lại.
+        </p>
+      </div>
+    );
+  }
+
+  if (props.state === "dependency_blocked") {
+    return (
+      <div
+        role="status"
+        className="rounded-card border border-warning/40 bg-warning-soft px-4 py-3"
+      >
+        <p className="text-label font-semibold text-warning">Đang chờ xử lý trước</p>
+        <p className="mt-1 text-body-sm text-ink">
+          {props.attemptedAction} chưa được gửi vì một bước trước chưa được máy chủ chấp nhận. Không
+          tạo lại giao dịch này.
         </p>
       </div>
     );

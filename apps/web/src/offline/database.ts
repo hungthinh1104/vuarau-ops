@@ -17,6 +17,7 @@ const PRODUCTS = "products";
 const QUALITY_GRADES = "quality-grades";
 const PAYMENT_DRAFTS = "payment-drafts";
 const META = "meta";
+const DEFAULT_SNAPSHOT = "default";
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -83,18 +84,36 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-type Stored<T> = T & { readonly storageKey: string; readonly partition: string };
+type Stored<T> = T & {
+  readonly storageKey: string;
+  readonly partition: string;
+  readonly snapshotKey?: string;
+};
 
-function stored<T extends object>(partition: OfflinePartition, id: string, value: T): Stored<T> {
+function stored<T extends object>(
+  partition: OfflinePartition,
+  id: string,
+  value: T,
+  snapshotKey = DEFAULT_SNAPSHOT,
+): Stored<T> {
   return {
     ...value,
-    storageKey: recordKey(partition, id),
+    storageKey: recordKey(
+      partition,
+      snapshotKey === DEFAULT_SNAPSHOT ? id : `${snapshotKey}:${id}`,
+    ),
     partition: partitionKey(partition),
+    snapshotKey,
   };
 }
 
 function stripStorage<T extends object>(value: Stored<T>): T {
-  const { storageKey: _storageKey, partition: _partition, ...record } = value;
+  const {
+    storageKey: _storageKey,
+    partition: _partition,
+    snapshotKey: _snapshotKey,
+    ...record
+  } = value;
   return record as T;
 }
 
@@ -173,7 +192,9 @@ export class OfflineDatabase {
       .filter((command) => command.chainId === saleId);
     if (commands.length === 0) return draft;
 
-    const blocked = commands.find((command) => ["blocked", "rejected"].includes(command.state));
+    const blocked = commands.find((command) =>
+      ["blocked", "dependency_blocked", "rejected"].includes(command.state),
+    );
     if (blocked !== undefined) {
       return { ...draft, syncState: blocked.state };
     }
@@ -205,7 +226,9 @@ export class OfflineDatabase {
     const commands = (commandRows as Stored<OutboxRecord>[])
       .map(stripStorage)
       .filter((command) => command.chainId === paymentId);
-    const blocked = commands.find((command) => ["blocked", "rejected"].includes(command.state));
+    const blocked = commands.find((command) =>
+      ["blocked", "dependency_blocked", "rejected"].includes(command.state),
+    );
     if (blocked !== undefined) return { ...draft, syncState: blocked.state };
     if (commands.some((command) => command.state !== "confirmed")) {
       return { ...draft, syncState: "queued" };
@@ -232,6 +255,92 @@ export class OfflineDatabase {
     const database = await openDatabase();
     const transaction = database.transaction(OUTBOX, "readwrite");
     transaction.objectStore(OUTBOX).put(stored(partition, record.id, record));
+    await transactionDone(transaction);
+    database.close();
+  }
+
+  /** Atomically records a terminal parent failure and blocks its descendants. */
+  async settleFailedCommand(args: {
+    partition: OfflinePartition;
+    record: OutboxRecord;
+    state: "blocked" | "rejected";
+    error: import("@vuarau/domain-contracts").DomainError | null;
+  }): Promise<void> {
+    const database = await openDatabase();
+    const transaction = database.transaction(OUTBOX, "readwrite");
+    const store = transaction.objectStore(OUTBOX);
+    const rows = (await requestResult(
+      store.index("partition").getAll(partitionKey(args.partition)),
+    )) as Stored<OutboxRecord>[];
+    const parent = rows.find((row) => row.id === args.record.id);
+    if (parent !== undefined) {
+      store.put(
+        stored(args.partition, args.record.id, {
+          ...args.record,
+          state: args.state,
+          error: args.error,
+          dependencyBlockedBy: null,
+        }),
+      );
+    }
+    for (const row of rows) {
+      if (
+        row.chainId !== args.record.chainId ||
+        row.sequence <= args.record.sequence ||
+        row.state === "confirmed"
+      )
+        continue;
+      store.put(
+        stored(args.partition, row.id, {
+          ...stripStorage(row),
+          state: "dependency_blocked",
+          dependencyBlockedBy: args.record.id,
+        }),
+      );
+    }
+    await transactionDone(transaction);
+    database.close();
+  }
+
+  /** Retry only the blocker. Descendants stay blocked until it is accepted. */
+  async retryCommand(partition: OfflinePartition, commandId: string): Promise<void> {
+    const database = await openDatabase();
+    const transaction = database.transaction(OUTBOX, "readwrite");
+    const store = transaction.objectStore(OUTBOX);
+    const row = (await requestResult(store.get(recordKey(partition, commandId)))) as
+      Stored<OutboxRecord> | undefined;
+    if (row !== undefined && (row.state === "blocked" || row.state === "rejected")) {
+      store.put(
+        stored(partition, commandId, {
+          ...stripStorage(row),
+          state: "queued",
+          error: null,
+          dependencyBlockedBy: null,
+        }),
+      );
+    }
+    await transactionDone(transaction);
+    database.close();
+  }
+
+  async releaseDependents(partition: OfflinePartition, blockerId: string): Promise<void> {
+    const database = await openDatabase();
+    const transaction = database.transaction(OUTBOX, "readwrite");
+    const store = transaction.objectStore(OUTBOX);
+    const rows = (await requestResult(
+      store.index("partition").getAll(partitionKey(partition)),
+    )) as Stored<OutboxRecord>[];
+    for (const row of rows) {
+      if (row.state !== "dependency_blocked" || row.dependencyBlockedBy !== blockerId) continue;
+      store.put(
+        stored(partition, row.id, {
+          ...stripStorage(row),
+          state: "queued",
+          error: null,
+          dependencyBlockedBy: null,
+        }),
+      );
+    }
     await transactionDone(transaction);
     database.close();
   }
@@ -275,7 +384,32 @@ export class OfflineDatabase {
     database.close();
   }
 
-  async products(partition: OfflinePartition): Promise<readonly CachedProduct[]> {
+  /** Atomically swaps one complete query-scoped product snapshot. */
+  async replaceProducts(
+    partition: OfflinePartition,
+    snapshotKey: string,
+    products: readonly CachedProduct[],
+  ): Promise<void> {
+    const database = await openDatabase();
+    const transaction = database.transaction(PRODUCTS, "readwrite");
+    const store = transaction.objectStore(PRODUCTS);
+    const rows = (await requestResult(
+      store.index("partition").getAll(partitionKey(partition)),
+    )) as Stored<CachedProduct>[];
+    for (const row of rows) {
+      if ((row.snapshotKey ?? DEFAULT_SNAPSHOT) === snapshotKey) store.delete(row.storageKey);
+    }
+    for (const product of products) {
+      store.put(stored(partition, product.productId, product, snapshotKey));
+    }
+    await transactionDone(transaction);
+    database.close();
+  }
+
+  async products(
+    partition: OfflinePartition,
+    snapshotKey = DEFAULT_SNAPSHOT,
+  ): Promise<readonly CachedProduct[]> {
     const database = await openDatabase();
     const rows = await requestResult(
       database
@@ -285,7 +419,9 @@ export class OfflineDatabase {
         .getAll(partitionKey(partition)),
     );
     database.close();
-    return (rows as Stored<CachedProduct>[]).map(stripStorage);
+    return (rows as Stored<CachedProduct>[])
+      .filter((row) => (row.snapshotKey ?? DEFAULT_SNAPSHOT) === snapshotKey)
+      .map(stripStorage);
   }
 
   async cacheQualityGrades(
@@ -300,7 +436,31 @@ export class OfflineDatabase {
     database.close();
   }
 
-  async qualityGrades(partition: OfflinePartition): Promise<readonly CachedQualityGrade[]> {
+  async replaceQualityGrades(
+    partition: OfflinePartition,
+    snapshotKey: string,
+    grades: readonly CachedQualityGrade[],
+  ): Promise<void> {
+    const database = await openDatabase();
+    const transaction = database.transaction(QUALITY_GRADES, "readwrite");
+    const store = transaction.objectStore(QUALITY_GRADES);
+    const rows = (await requestResult(
+      store.index("partition").getAll(partitionKey(partition)),
+    )) as Stored<CachedQualityGrade>[];
+    for (const row of rows) {
+      if ((row.snapshotKey ?? DEFAULT_SNAPSHOT) === snapshotKey) store.delete(row.storageKey);
+    }
+    for (const grade of grades) {
+      store.put(stored(partition, grade.qualityGradeId, grade, snapshotKey));
+    }
+    await transactionDone(transaction);
+    database.close();
+  }
+
+  async qualityGrades(
+    partition: OfflinePartition,
+    snapshotKey = DEFAULT_SNAPSHOT,
+  ): Promise<readonly CachedQualityGrade[]> {
     const database = await openDatabase();
     const rows = await requestResult(
       database
@@ -310,7 +470,9 @@ export class OfflineDatabase {
         .getAll(partitionKey(partition)),
     );
     database.close();
-    return (rows as Stored<CachedQualityGrade>[]).map(stripStorage);
+    return (rows as Stored<CachedQualityGrade>[])
+      .filter((row) => (row.snapshotKey ?? DEFAULT_SNAPSHOT) === snapshotKey)
+      .map(stripStorage);
   }
 
   async lastSuccessfulSync(partition: OfflinePartition): Promise<string | null> {

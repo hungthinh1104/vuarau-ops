@@ -20,6 +20,8 @@ type QuickSaleCatalogProps = {
 
 export function useQuickSaleCatalog(props: QuickSaleCatalogProps) {
   const activeProductQuery = useDebounced(props.pickerProductQuery ?? props.productName, 200);
+  const productSnapshotKey = `quick-sale:${activeProductQuery.trim().toLocaleLowerCase("vi")}`;
+  const qualitySnapshotKey = "quick-sale:quality";
   const [cachedProducts, setCachedProducts] = useState<readonly CachedProduct[]>([]);
   const [cachedQualityGrades, setCachedQualityGrades] = useState<readonly CachedQualityGrade[]>([]);
 
@@ -63,12 +65,12 @@ export function useQuickSaleCatalog(props: QuickSaleCatalogProps) {
       fetchedAt,
     }));
     setCachedQualityGrades(rows);
-    void props.offline.cacheQualityGrades(rows);
+    void props.offline.replaceQualityGrades(qualitySnapshotKey, rows);
   }, [props.offline, qualityGrades.data]);
 
   useEffect(() => {
     if (qualityGrades.data !== undefined) return;
-    void props.offline.cachedQualityGrades().then(setCachedQualityGrades);
+    void props.offline.cachedQualityGrades(qualitySnapshotKey).then(setCachedQualityGrades);
   }, [props.offline, qualityGrades.data]);
 
   useEffect(() => {
@@ -83,13 +85,13 @@ export function useQuickSaleCatalog(props: QuickSaleCatalogProps) {
       fetchedAt,
     }));
     setCachedProducts(rows);
-    void props.offline.cacheProducts(rows);
-  }, [productSuggestions.data, props.offline]);
+    void props.offline.replaceProducts(productSnapshotKey, rows);
+  }, [productSnapshotKey, productSuggestions.data, props.offline]);
 
   useEffect(() => {
     if (productSuggestions.data !== undefined) return;
-    void props.offline.cachedProducts().then(setCachedProducts);
-  }, [productSuggestions.data, props.offline]);
+    void props.offline.cachedProducts(productSnapshotKey).then(setCachedProducts);
+  }, [productSnapshotKey, productSuggestions.data, props.offline]);
 
   const visibleProducts =
     productSuggestions.data?.items ??

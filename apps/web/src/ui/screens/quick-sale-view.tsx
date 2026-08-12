@@ -17,7 +17,7 @@ export function QuickSaleView(props: {
   readonly operationalNotices?: ReactNode;
   readonly productResolution?: ReactNode;
   readonly noteSection: ReactNode;
-  readonly total: Money;
+  readonly total: Money | null;
   readonly balanceSection?: ReactNode;
   readonly outcomes?: ReactNode;
   readonly picker?: ReactNode;
@@ -65,7 +65,7 @@ export function QuickSaleView(props: {
                 className="tabular mt-2 text-display font-semibold tracking-[-0.03em]"
                 data-testid="sale-total"
               >
-                {formatMoney(props.total)}
+                {props.total === null ? "Chưa thể tính tổng" : formatMoney(props.total)}
               </p>
             </section>
             {props.balanceSection}

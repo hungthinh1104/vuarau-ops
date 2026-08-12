@@ -60,6 +60,7 @@ export function buildOfflineSaleChain(args: {
       lastAttemptAt: null,
       result: null,
       error: null,
+      dependencyBlockedBy: null,
     });
   };
 
@@ -132,6 +133,7 @@ export function buildOfflinePaymentCommand(args: {
     lastAttemptAt: null,
     result: null,
     error: null,
+    dependencyBlockedBy: null,
   };
 
   return {

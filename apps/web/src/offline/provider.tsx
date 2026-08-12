@@ -45,10 +45,19 @@ type OfflineContextValue = {
   readonly cacheCustomers: (customers: readonly CachedCustomer[]) => Promise<void>;
   readonly cachedCustomers: () => Promise<readonly CachedCustomer[]>;
   readonly cacheProducts: (products: readonly CachedProduct[]) => Promise<void>;
-  readonly cachedProducts: () => Promise<readonly CachedProduct[]>;
+  readonly replaceProducts: (
+    snapshotKey: string,
+    products: readonly CachedProduct[],
+  ) => Promise<void>;
+  readonly cachedProducts: (snapshotKey?: string) => Promise<readonly CachedProduct[]>;
   readonly cacheQualityGrades: (grades: readonly CachedQualityGrade[]) => Promise<void>;
-  readonly cachedQualityGrades: () => Promise<readonly CachedQualityGrade[]>;
+  readonly replaceQualityGrades: (
+    snapshotKey: string,
+    grades: readonly CachedQualityGrade[],
+  ) => Promise<void>;
+  readonly cachedQualityGrades: (snapshotKey?: string) => Promise<readonly CachedQualityGrade[]>;
   readonly retry: () => Promise<void>;
+  readonly retryBlockedCommand: (commandId: string) => Promise<void>;
 };
 
 const OfflineContext = createContext<OfflineContextValue | null>(null);
@@ -107,6 +116,13 @@ export function OfflineProvider(props: {
     await engine.sync(partition);
     await refresh();
   }, [engine, partition, refresh]);
+  const retryBlockedCommand = useCallback(
+    async (commandId: string) => {
+      await database.retryCommand(partition, commandId);
+      await retry();
+    },
+    [database, partition, retry],
+  );
 
   useEffect(() => {
     void requestPersistentStorage();
@@ -170,13 +186,26 @@ export function OfflineProvider(props: {
     (products: readonly CachedProduct[]) => database.cacheProducts(partition, products),
     [database, partition],
   );
-  const cachedProducts = useCallback(() => database.products(partition), [database, partition]);
+  const cachedProducts = useCallback(
+    (snapshotKey?: string) => database.products(partition, snapshotKey),
+    [database, partition],
+  );
+  const replaceProducts = useCallback(
+    (snapshotKey: string, products: readonly CachedProduct[]) =>
+      database.replaceProducts(partition, snapshotKey, products),
+    [database, partition],
+  );
   const cacheQualityGrades = useCallback(
     (grades: readonly CachedQualityGrade[]) => database.cacheQualityGrades(partition, grades),
     [database, partition],
   );
   const cachedQualityGrades = useCallback(
-    () => database.qualityGrades(partition),
+    (snapshotKey?: string) => database.qualityGrades(partition, snapshotKey),
+    [database, partition],
+  );
+  const replaceQualityGrades = useCallback(
+    (snapshotKey: string, grades: readonly CachedQualityGrade[]) =>
+      database.replaceQualityGrades(partition, snapshotKey, grades),
     [database, partition],
   );
 
@@ -187,8 +216,9 @@ export function OfflineProvider(props: {
       queuedCount: commands.filter((record) =>
         ["queued", "syncing", "retry_wait"].includes(record.state),
       ).length,
-      blockedCount: commands.filter((record) => ["blocked", "rejected"].includes(record.state))
-        .length,
+      blockedCount: commands.filter((record) =>
+        ["blocked", "dependency_blocked", "rejected"].includes(record.state),
+      ).length,
       lastSuccessfulSync,
       queueSale,
       queuePayment,
@@ -198,17 +228,22 @@ export function OfflineProvider(props: {
       cacheCustomers,
       cachedCustomers,
       cacheProducts,
+      replaceProducts,
       cachedProducts,
       cacheQualityGrades,
+      replaceQualityGrades,
       cachedQualityGrades,
       retry,
+      retryBlockedCommand,
     }),
     [
       cacheCustomers,
       cacheProducts,
+      replaceProducts,
       cachedCustomers,
       cachedProducts,
       cacheQualityGrades,
+      replaceQualityGrades,
       cachedQualityGrades,
       commands,
       lastSuccessfulSync,
@@ -218,6 +253,7 @@ export function OfflineProvider(props: {
       queuePayment,
       queueSale,
       retry,
+      retryBlockedCommand,
       saveDraft,
     ],
   );

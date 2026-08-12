@@ -6,7 +6,7 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { ActionDock } from "@/ui/patterns/layout/action-dock.tsx";
 
 export function QuickSaleFooter(props: {
-  readonly total: Money;
+  readonly total: Money | null;
   readonly draftExists: boolean;
   readonly locallyQueued: boolean;
   readonly replacementPending: boolean;
@@ -22,15 +22,17 @@ export function QuickSaleFooter(props: {
     ? "Bạn không có quyền chốt đơn."
     : !props.fulfilmentReady
       ? "Chọn mặt hàng và hạng hàng cho mọi dòng trước khi chốt."
-      : props.replacementPending
-        ? "Đang tải đơn cần thay thế…"
-        : props.locallyQueued
-          ? "Đơn đã được lưu an toàn trên thiết bị."
-          : props.commandLocked
-            ? "Đang gửi…"
-            : props.posted
-              ? "Đã chốt."
-              : null;
+      : props.total === null
+        ? "Chưa thể tính tổng đơn; kiểm tra lại số tiền và số lượng."
+        : props.replacementPending
+          ? "Đang tải đơn cần thay thế…"
+          : props.locallyQueued
+            ? "Đơn đã được lưu an toàn trên thiết bị."
+            : props.commandLocked
+              ? "Đang gửi…"
+              : props.posted
+                ? "Đã chốt."
+                : null;
   const draftDisabledReason = props.locallyQueued
     ? "Đơn đã được lưu an toàn trên thiết bị."
     : props.replacementPending
@@ -44,7 +46,7 @@ export function QuickSaleFooter(props: {
         <div className="min-w-0">
           <p className="text-caption font-medium text-ink-muted">Tổng đơn</p>
           <p className="tabular truncate text-subheading font-semibold text-ink">
-            {formatMoney(props.total)}
+            {props.total === null ? "Chưa thể tính tổng" : formatMoney(props.total)}
           </p>
         </div>
       }

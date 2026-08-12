@@ -4,12 +4,12 @@ import type {
   RecordCustomerPaymentPayload,
 } from "@vuarau/domain-contracts";
 
-export const OFFLINE_DATABASE_VERSION = 4;
+export const OFFLINE_DATABASE_VERSION = 5;
 
 export type OfflineCommandKind =
   "customer.create" | "sale.createDraft" | "sale.post" | "payment.record";
 export type OfflineCommandState =
-  "queued" | "syncing" | "confirmed" | "retry_wait" | "blocked" | "rejected";
+  "queued" | "syncing" | "confirmed" | "retry_wait" | "blocked" | "dependency_blocked" | "rejected";
 
 export type FrozenCommandEnvelope = {
   readonly commandId: string;
@@ -35,6 +35,8 @@ export type OutboxRecord = {
   readonly lastAttemptAt: string | null;
   readonly result: unknown | null;
   readonly error: DomainError | null;
+  /** Parent command that must be retried and accepted before this command runs. */
+  readonly dependencyBlockedBy?: string | null;
 };
 
 export type OfflineSaleDraft = {
