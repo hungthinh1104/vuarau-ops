@@ -18,6 +18,7 @@ import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
 import { exactAdd, exactSubtract } from "./exact-number.ts";
 import { saleFinancialState, salePhysicalState } from "./dashboard-order-state.ts";
+import { boardCounts } from "./dashboard-helpers.ts";
 
 const now = () => new Date().toISOString();
 const money = (amountMinor: number) => ({ amountMinor, currency: "VND" as const });
@@ -126,23 +127,6 @@ function acceptedAfterInspectionFor(store: Store, workspaceId: string): Map<stri
     }
   }
   return accepted;
-}
-
-function boardCounts(rows: readonly OperationsBoardDto["page"]["items"][number][]) {
-  return {
-    all: rows.length,
-    needsReceiving: rows.filter((row) => row.physicalState === "needs_receiving").length,
-    needsDelivery: rows.filter((row) => row.physicalState === "needs_delivery").length,
-    inDelivery: rows.filter((row) => row.physicalState === "in_delivery").length,
-    awaitingPayment: rows.filter((row) => row.financialState === "awaiting_payment").length,
-    overdue: rows.filter((row) => row.financialState === "overdue").length,
-    attention: rows.filter(
-      (row) =>
-        row.commercialState === "attention" ||
-        row.physicalState === "attention" ||
-        row.financialState === "reconciliation_required",
-    ).length,
-  };
 }
 
 export const createDashboardReads = (store: Store): Pick<Repositories, "dashboardReads"> => ({
