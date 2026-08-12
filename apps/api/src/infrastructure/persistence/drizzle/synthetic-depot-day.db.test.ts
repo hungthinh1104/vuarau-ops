@@ -93,7 +93,7 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
   let deps: CommandDeps;
   let sequence = 0;
 
-  const context = (workspaceId = ctx.workspaceId, actorId = ctx.actorId): CommandContext => ({
+  const context = (_workspaceId = ctx.workspaceId, actorId = ctx.actorId): CommandContext => ({
     deps,
     principal: { actorId, subject: ctx.subjectOf(actorId) },
   });
