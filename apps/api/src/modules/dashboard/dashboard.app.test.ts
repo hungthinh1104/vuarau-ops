@@ -4,7 +4,13 @@ import {
   type OperationsBoardInput,
 } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
-import { OTHER_WORKSPACE_ID, WORKSPACE_ID, postedSale, voidedSale } from "@vuarau/test-fixtures";
+import {
+  OTHER_WORKSPACE_ID,
+  WORKSPACE_ID,
+  postedSale,
+  voidedSale,
+  vnd,
+} from "@vuarau/test-fixtures";
 import { createHarness } from "../../testing/command-test-harness.ts";
 import {
   getDashboardSeries,
@@ -34,6 +40,29 @@ describe("dashboard reads", () => {
     if (!result.ok) return;
     expect(result.value.sales.amount).toEqual({ amountMinor: 875_000, currency: "VND" });
     expect(result.value.sales.count).toBe(1);
+  });
+
+  it("counts a valid posted zero-value sale without inventing amount", async () => {
+    const harness = createHarness();
+    harness.db.seedSale({
+      ...postedSale,
+      id: crypto.randomUUID() as typeof postedSale.id,
+      totalAmount: vnd(0),
+      lines: postedSale.lines.map((line) => ({
+        ...line,
+        unitPrice: vnd(0),
+        lineTotal: vnd(0),
+      })),
+    });
+
+    const result = await getDashboardSummary(harness.ctx, WORKSPACE_ID);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.sales).toMatchObject({
+      count: 1,
+      amount: { amountMinor: 0, currency: "VND" },
+    });
   });
 
   it("returns a stable cursor for the next board page without repeating rows", async () => {

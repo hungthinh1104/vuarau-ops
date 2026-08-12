@@ -185,6 +185,13 @@ Business timelines generally order by `transactionTime`; audit answers when the
 system recorded actions and therefore uses recording order where specified by its
 contract.
 
+Operational Board counts describe the complete server-side search scope and are
+independent of the currently selected filter chip. `updatedAt` is the latest
+recorded canonical fact that can change a row's commercial, physical, financial
+or next-action state; it is not merely the original Sale/Purchase timestamp.
+Valid zero-value posted Sales still count as orders. Mobile Board cards expose
+commercial, physical and financial state together.
+
 ## Read performance rules
 
 List pages fetch the facts needed to render a row without per-row browser

@@ -75,7 +75,7 @@ export function OperationsBoardController() {
     }),
   );
   const counts = useQuery(
-    trpc.dashboard.operationsBoardCounts.queryOptions({ workspaceId, filter, search }),
+    trpc.dashboard.operationsBoardCounts.queryOptions({ workspaceId, search }),
   );
   const rows = useMemo(() => {
     const seen = new Set<string>();

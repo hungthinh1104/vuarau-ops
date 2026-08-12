@@ -3,6 +3,7 @@ import {
   customerIdSchema,
   decodeCursor,
   encodeCursor,
+  pageRequestSchema,
   permissionsForRole,
 } from "@vuarau/domain-contracts";
 import type { Cursor, PaymentId, SaleId } from "@vuarau/domain-contracts";
@@ -730,5 +731,14 @@ describe("TC-READ-008 — the cursor itself", () => {
     // it that *would* need to be secret.
     const encoded = encodeCursor({ sortValue: "x", id: uuid(1) });
     expect(decodeCursor(encoded)).toEqual({ sortValue: "x", id: uuid(1) });
+  });
+
+  it("rejects malformed UUID and numeric cursor values without exposing SQL casts", () => {
+    const malformedId = encodeCursor({ sortValue: "NaN", id: "not-a-uuid" });
+    expect(decodeCursor(malformedId)).toBeNull();
+  });
+
+  it("clamps oversized page requests to the documented maximum", () => {
+    expect(pageRequestSchema.parse({ cursor: null, limit: 201 }).limit).toBe(200);
   });
 });

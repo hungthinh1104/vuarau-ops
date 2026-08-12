@@ -277,6 +277,9 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                           <Badge tone={stateTone(row.physicalState)}>
                             {stateLabel(row.physicalState)}
                           </Badge>
+                          <Badge tone={stateTone(row.financialState)}>
+                            {stateLabel(row.financialState)}
+                          </Badge>
                         </span>
                       </MobileRecordCard>
                     </li>

@@ -153,22 +153,8 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       const purchases = [...store.purchases.values()].filter(
         (purchase) => purchase.workspaceId === workspaceId && purchase.status === "confirmed",
       );
-      const activeSales = sales.filter(
-        (sale) =>
-          exactSubtract(
-            sale.totalAmount.amountMinor,
-            sale.voidRecord?.amount.amountMinor ?? 0,
-            "dashboard.sales.amount_minor",
-          ) > 0,
-      );
-      const activePurchases = purchases.filter(
-        (purchase) =>
-          exactSubtract(
-            purchase.totalAmount.amountMinor,
-            purchase.voidRecord?.amount.amountMinor ?? 0,
-            "dashboard.purchases.amount_minor",
-          ) > 0,
-      );
+      const activeSales = sales.filter((sale) => sale.voidRecord === null);
+      const activePurchases = purchases.filter((purchase) => purchase.voidRecord === null);
       const salesAmount = sales.reduce(
         (sum, sale) =>
           exactAdd(
@@ -294,7 +280,12 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         if (point !== undefined) dates.set(date, { ...point, ...patch });
       };
       for (const sale of store.sales.values()) {
-        if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
+        if (
+          sale.workspaceId !== input.workspaceId ||
+          sale.status !== "posted" ||
+          sale.voidRecord !== null
+        )
+          continue;
         const date = vietnamBusinessDateForInstant(
           sale.transactionTime,
           input.businessDayStartMinute,
@@ -305,11 +296,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           sales: money(
             exactAdd(
               point.sales.amountMinor,
-              exactSubtract(
-                sale.totalAmount.amountMinor,
-                sale.voidRecord?.amount.amountMinor ?? 0,
-                "dashboard.series.sales.amount_minor",
-              ),
+              sale.totalAmount.amountMinor,
               "dashboard.series.sales.amount_minor",
             ),
           ),
@@ -458,10 +445,22 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       const rows: Array<OperationsBoardDto["page"]["items"][number]> = [];
       const asOf = input.now;
       const inspectedAccepted = acceptedAfterInspectionFor(store, input.workspaceId);
+      const latest = (values: readonly (string | null | undefined)[], fallback: string) =>
+        values
+          .filter((value): value is string => value !== null && value !== undefined)
+          .reduce((current, value) => (value > current ? value : current), fallback);
       for (const sale of store.sales.values()) {
         if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
         const physical = salePhysicalState(store, input.workspaceId, sale.id);
         const financial = saleFinancialState(store, input.workspaceId, sale.id, asOf);
+        const allocationIds = new Set(
+          store.paymentAllocations
+            .filter(
+              (allocation) =>
+                allocation.workspaceId === input.workspaceId && allocation.saleId === sale.id,
+            )
+            .map((allocation) => allocation.id),
+        );
         rows.push({
           id: sale.id,
           kind: "sale",
@@ -491,7 +490,26 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
                     : financial === "awaiting_payment"
                       ? "Thu tiền"
                       : null,
-          updatedAt: sale.postedAt ?? sale.recordedAt,
+          updatedAt: latest(
+            [
+              sale.recordedAt,
+              sale.postedAt,
+              sale.voidRecord?.recordedAt,
+              ...[...store.deliveries.values()]
+                .filter(
+                  (delivery) =>
+                    delivery.workspaceId === input.workspaceId && delivery.saleId === sale.id,
+                )
+                .map((delivery) => delivery.recordedAt),
+              ...store.paymentAllocations
+                .filter((allocation) => allocationIds.has(allocation.id))
+                .map((allocation) => allocation.recordedAt),
+              ...store.paymentAllocationReversals
+                .filter((reversal) => allocationIds.has(reversal.allocationId))
+                .map((reversal) => reversal.recordedAt),
+            ],
+            sale.recordedAt,
+          ),
           href: `/sales/${sale.id}`,
           deliveryId:
             physical.deliveryId as OperationsBoardDto["page"]["items"][number]["deliveryId"],
@@ -520,6 +538,18 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             exactAdd(got, accepted, "dashboard.received.value_scaled") < line.quantity.valueScaled
           );
         });
+        const purchaseReceiptTimes = [...store.purchaseReceipts.values()]
+          .filter(
+            (receipt) =>
+              receipt.workspaceId === input.workspaceId && receipt.purchaseId === purchase.id,
+          )
+          .flatMap((receipt) => [receipt.recordedAt, receipt.reversal?.recordedAt]);
+        const arrivalTimes = [...store.goodsArrivals.values()]
+          .filter(
+            (arrival) =>
+              arrival.workspaceId === input.workspaceId && arrival.purchaseId === purchase.id,
+          )
+          .map((arrival) => arrival.recordedAt);
         rows.push({
           id: purchase.id,
           kind: "purchase",
@@ -533,19 +563,28 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           financialState: purchase.voidRecord === null ? "payable" : "voided",
           ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(purchase.recordedAt)) / 1000),
           nextAction: purchase.voidRecord !== null || !remaining ? null : "Nhận hàng",
-          updatedAt: purchase.confirmedAt ?? purchase.recordedAt,
+          updatedAt: latest(
+            [
+              purchase.recordedAt,
+              purchase.confirmedAt,
+              purchase.voidRecord?.recordedAt,
+              ...purchaseReceiptTimes,
+              ...arrivalTimes,
+            ],
+            purchase.recordedAt,
+          ),
           href: `/purchases/${purchase.id}`,
           deliveryId: null,
         });
       }
-      const filtered = rows
-        .filter(
-          (row) =>
-            input.search.length === 0 ||
-            `${row.reference} ${row.counterparty}`
-              .toLocaleLowerCase()
-              .includes(input.search.toLocaleLowerCase()),
-        )
+      const searched = rows.filter(
+        (row) =>
+          input.search.length === 0 ||
+          `${row.reference} ${row.counterparty}`
+            .toLocaleLowerCase()
+            .includes(input.search.toLocaleLowerCase()),
+      );
+      const filtered = searched
         .filter(
           (row) =>
             input.filter === "all" ||
@@ -599,7 +638,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       return {
         workspaceId: input.workspaceId,
         asOf,
-        counts: boardCounts(filtered),
+        counts: boardCounts(searched),
         page: {
           items: [...page.rows],
           nextCursor: page.next === null ? null : encodeCursor(page.next),
@@ -612,6 +651,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
     ): Promise<OperationsBoardCountsDto> => {
       const page = await createDashboardReads(store).dashboardReads.operationsBoard({
         ...input,
+        filter: "all",
         sort: "updated_desc",
         cursor: null,
         limit: Number.MAX_SAFE_INTEGER,

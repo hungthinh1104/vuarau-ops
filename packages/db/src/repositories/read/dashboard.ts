@@ -71,14 +71,14 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
   const [sales, purchases, received, stock, outstanding, receivables, payables, cash] =
     await Promise.all([
       tx.execute(sql`
-        select count(*) filter (where s.total_amount_minor - coalesce(sv.amount_minor, 0) > 0)::int as count,
+        select count(*) filter (where sv.id is null)::int as count,
           coalesce(sum(s.total_amount_minor - coalesce(sv.amount_minor, 0)), 0) as amount
         from sales s
         left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
         where s.workspace_id=${workspaceId}::uuid and s.status='posted'
       `),
       tx.execute(sql`
-        select count(*) filter (where p.total_amount_minor - coalesce(pv.amount_minor, 0) > 0)::int as count,
+        select count(*) filter (where pv.id is null)::int as count,
           coalesce(sum(p.total_amount_minor - coalesce(pv.amount_minor, 0)), 0) as amount
         from purchases p
         left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
@@ -167,7 +167,7 @@ async function querySeries(
   const [sales, purchases, received, cash] = await Promise.all([
     tx.execute(sql`
       select (s.transaction_time at time zone 'Asia/Ho_Chi_Minh' - (${input.businessDayStartMinute} || ' minutes')::interval)::date::text as date,
-        count(*)::int as orders,
+        count(*) filter (where sv.id is null)::int as orders,
         coalesce(sum(s.total_amount_minor-coalesce(sv.amount_minor,0)),0) as amount
       from sales s left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
@@ -419,6 +419,44 @@ async function queryRows(
       left join inspected_accepted inspected
         on inspected.workspace_id=pl.workspace_id and inspected.purchase_line_id=pl.id
       where pl.workspace_id=${input.workspaceId}::uuid
+    ), sale_activity as (
+      select s.id,
+        greatest(
+          s.recorded_at,
+          coalesce(s.posted_at, s.recorded_at),
+          coalesce(sv.recorded_at, s.recorded_at),
+          coalesce(max(d.recorded_at), s.recorded_at),
+          coalesce(max(pa.recorded_at), s.recorded_at),
+          coalesce(max(par.recorded_at), s.recorded_at)
+        ) as updated_at
+      from sales s
+      left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
+      left join deliveries d on d.workspace_id=s.workspace_id and d.sale_id=s.id
+      left join payment_allocations pa on pa.workspace_id=s.workspace_id and pa.sale_id=s.id
+      left join payment_allocation_reversals par
+        on par.workspace_id=pa.workspace_id and par.allocation_id=pa.id
+      where s.workspace_id=${input.workspaceId}::uuid
+      group by s.id, s.recorded_at, s.posted_at, sv.recorded_at
+    ), purchase_activity as (
+      select p.id,
+        greatest(
+          p.recorded_at,
+          coalesce(p.confirmed_at, p.recorded_at),
+          coalesce(pv.recorded_at, p.recorded_at),
+          coalesce((select max(pr.recorded_at) from purchase_receipts pr where pr.workspace_id=p.workspace_id and pr.purchase_id=p.id), p.recorded_at),
+          coalesce((select max(prr.recorded_at)
+            from purchase_receipt_reversals prr
+            join purchase_receipts pr on pr.workspace_id=prr.workspace_id and pr.id=prr.receipt_id
+            where prr.workspace_id=p.workspace_id and pr.purchase_id=p.id), p.recorded_at),
+          coalesce((select max(ga.recorded_at) from goods_arrivals ga where ga.workspace_id=p.workspace_id and ga.purchase_id=p.id), p.recorded_at),
+          coalesce((select max(qd.recorded_at)
+            from quality_dispositions qd
+            join goods_arrival_lines gal on gal.workspace_id=qd.workspace_id and gal.id=qd.source_arrival_line_id
+            where qd.workspace_id=p.workspace_id and gal.purchase_id=p.id), p.recorded_at)
+        ) as updated_at
+      from purchases p
+      left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid
     ), purchase_physical as (
       select p.id, case when bool_and(pr.received >= pr.quantity_scaled) then 'received' else 'needs_receiving' end as physical_state
       from purchases p join purchase_received pr on pr.purchase_id=p.id
@@ -435,25 +473,31 @@ async function queryRows(
         when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
         else 'awaiting_payment'
       end as financial_state,
-      extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, s.posted_at as updated_at,
+      extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, sale_activity.updated_at,
       case when sv.id is not null then null when sale_physical.physical_state='attention' then 'Kiểm tra' when sale_physical.physical_state='needs_delivery' then 'Giao hàng' when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán' when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền' else null end as next_action,
       sale_physical.delivery_id, ('/sales/' || s.id::text) as href
     from sales s join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
       join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id left join unallocated_by_customer on unallocated_by_customer.customer_id=s.customer_id
+      join sale_activity on sale_activity.id=s.id
     where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
     union all
     select p.id, 'purchase' as kind, ('PUR-' || upper(substr(p.id::text,1,8))) as reference,
       s.display_name as counterparty, p.total_amount_minor as amount, p.currency,
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
       purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
-      extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, p.confirmed_at as updated_at,
+      extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, purchase_activity.updated_at,
       case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
       null as delivery_id, ('/purchases/' || p.id::text) as href
     from purchases p join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id join purchase_physical on purchase_physical.id=p.id
+      join purchase_activity on purchase_activity.id=p.id
       left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
     where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
-    ), filtered_rows as (
-    select board_rows.*,
+    ), searched_rows as (
+    select board_rows.*
+    from board_rows
+    where ${searchClause}
+    ), counted_rows as (
+    select searched_rows.*,
       count(*) over() as all_count,
       count(*) filter (where physical_state='needs_receiving') over() as needs_receiving_count,
       count(*) filter (where physical_state='needs_delivery') over() as needs_delivery_count,
@@ -477,8 +521,11 @@ async function queryRows(
       count(*) filter (where financial_state='awaiting_payment') over() as financial_awaiting_payment_count,
       count(*) filter (where financial_state='overdue') over() as financial_overdue_count,
       count(*) filter (where financial_state='voided') over() as financial_voided_count
-    from board_rows
-    where ${searchClause} and ${filterClause}
+    from searched_rows
+    ), filtered_rows as (
+    select counted_rows.*
+    from counted_rows
+    where ${filterClause}
     )
     select *
     from filtered_rows
@@ -584,6 +631,10 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
     ): Promise<OperationsBoardCountsDto> {
       const result = await queryRows(tx, {
         ...input,
+        // Counts describe the complete search scope, not the selected chip.
+        // Keep accepting the legacy filter field at the API boundary, but do
+        // not let it narrow the population used for the count strip.
+        filter: "all",
         sort: "updated_desc",
         cursor: null,
         limit: 1,

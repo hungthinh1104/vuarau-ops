@@ -8,7 +8,11 @@ import type {
   DashboardOrderStatusCountsDto,
   OperationsBoardCountsInput,
 } from "@vuarau/domain-contracts";
-import { decodeCursor, defaultWorkspaceOperationalProfile } from "@vuarau/domain-contracts";
+import {
+  decodeCursor,
+  defaultWorkspaceOperationalProfile,
+  operationsBoardCursorPositionSchema,
+} from "@vuarau/domain-contracts";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery } from "../shared/read-pipeline.ts";
 
@@ -102,7 +106,7 @@ export const getOperationsBoard = (ctx: CommandContext, input: OperationsBoardIn
       repos.dashboardReads.operationsBoard({
         ...input,
         page: {
-          after: decodeCursor(input.cursor),
+          after: decodeCursor(input.cursor, operationsBoardCursorPositionSchema(input.sort)),
           limit: input.limit,
         },
         now: ctx.deps.clock.now(),

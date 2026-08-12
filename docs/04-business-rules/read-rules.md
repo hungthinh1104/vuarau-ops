@@ -28,6 +28,11 @@ A cursor that does not decode is treated as the first page rather than as an
 error: cursors travel in URLs, and a 500 on a hand-edited one turns a cosmetic
 problem into a broken screen.
 
+The shared page contract clamps a positive requested limit to the published
+maximum of 200. Endpoint-specific cursor codecs validate the sort value and
+workspace-scoped UUID before a cursor reaches a database predicate; malformed
+sort values and identifiers therefore restart at the first page.
+
 ---
 
 ### BR-READ-002 — A read returns a published DTO, never a database row

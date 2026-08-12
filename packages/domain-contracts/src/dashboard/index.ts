@@ -116,6 +116,14 @@ export const OPERATIONS_BOARD_SORTS = ["updated_desc", "age_desc", "amount_desc"
 export const operationsBoardSortSchema = z.enum(OPERATIONS_BOARD_SORTS);
 export type OperationsBoardSort = z.infer<typeof operationsBoardSortSchema>;
 
+export function operationsBoardCursorPositionSchema(sort: OperationsBoardSort) {
+  const sortValue =
+    sort === "updated_desc"
+      ? isoInstantSchema
+      : z.string().refine((value) => Number.isFinite(Number(value)), "Cursor sort is not numeric.");
+  return z.object({ sortValue, id: z.uuid() });
+}
+
 export const operationsBoardInputSchema = pageRequestSchema.extend({
   workspaceId: workspaceIdSchema,
   filter: operationsBoardFilterSchema.default("all"),

@@ -36,7 +36,11 @@ export const MAX_PAGE_SIZE = 200;
  */
 export const pageRequestSchema = z.object({
   cursor: cursorSchema.nullable().default(null),
-  limit: z.int().positive().max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+  limit: z
+    .int()
+    .positive()
+    .transform((value) => Math.min(value, MAX_PAGE_SIZE))
+    .default(DEFAULT_PAGE_SIZE),
 });
 export type PageRequest = z.infer<typeof pageRequestSchema>;
 
@@ -66,6 +70,11 @@ export type CursorPosition = {
   readonly sortValue: string;
   readonly id: string;
 };
+
+export const cursorPositionSchema = z.object({
+  sortValue: z.string().max(500),
+  id: z.uuid(),
+});
 
 /**
  * base64url over UTF-8, written against `TextEncoder`/`btoa` rather than
@@ -100,21 +109,20 @@ export function encodeCursor(position: CursorPosition): Cursor {
  * URLs get truncated and hand-edited, and a 500 on a bad one turns a cosmetic
  * problem into a broken screen.
  */
-export function decodeCursor(cursor: Cursor | null): CursorPosition | null {
+export function decodeCursor(
+  cursor: Cursor | null,
+  positionSchema: z.ZodType<CursorPosition> = cursorPositionSchema,
+): CursorPosition | null {
   if (cursor === null) {
     return null;
   }
   try {
     const parsed: unknown = JSON.parse(fromBase64Url(cursor));
-    if (
-      !Array.isArray(parsed) ||
-      parsed.length !== 2 ||
-      typeof parsed[0] !== "string" ||
-      typeof parsed[1] !== "string"
-    ) {
+    if (!Array.isArray(parsed) || parsed.length !== 2) {
       return null;
     }
-    return { sortValue: parsed[0], id: parsed[1] };
+    const position = positionSchema.safeParse({ sortValue: parsed[0], id: parsed[1] });
+    return position.success ? position.data : null;
   } catch {
     return null;
   }
