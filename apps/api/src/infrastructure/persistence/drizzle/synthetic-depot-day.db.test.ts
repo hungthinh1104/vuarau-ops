@@ -2,10 +2,18 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createDbTestContext,
   createUnitOfWork,
+  createDatabase,
+  runMigrations,
   skipWithoutDatabase,
+  actors,
+  workspaces,
+  workspaceMembershipRoles,
+  workspaceMemberships,
+  workspaceOperationalProfiles,
   type DbTestContext,
 } from "@vuarau/db";
 import type {
+  ActorId,
   DeliveryId,
   DeliveryLineId,
   DeliveryReturnId,
@@ -20,6 +28,7 @@ import type {
   SaleLineId,
   SupplierId,
   SupplierPaymentId,
+  WorkspaceId,
 } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
@@ -66,18 +75,18 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
   let deps: CommandDeps;
   let sequence = 0;
 
-  const context = (_workspaceId = ctx.workspaceId): CommandContext => ({
+  const context = (workspaceId = ctx.workspaceId, actorId = ctx.actorId): CommandContext => ({
     deps,
-    principal: { actorId: ctx.actorId, subject: ctx.subject },
+    principal: { actorId, subject: ctx.subjectOf(actorId) },
   });
 
-  const command = (label: string, workspaceId = ctx.workspaceId) => {
+  const command = (label: string, workspaceId = ctx.workspaceId, actorId = ctx.actorId) => {
     sequence += 1;
     return {
       commandId: crypto.randomUUID(),
       idempotencyKey: `synthetic-day-${sequence}-${label}`,
       workspaceId,
-      actorId: ctx.actorId,
+      actorId,
       occurredAt: "2026-07-29T12:00:00.000Z",
     };
   };
@@ -428,60 +437,86 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
     expect(backup.ok).toBe(true);
     if (!backup.ok) return;
 
-    /*
-     * Recovery arrangement only: a real empty target database would contain
-     * no canonical rows. Temporarily disabling append-only triggers in this
-     * test transaction models that empty target without adding a production
-     * delete path.
-     */
-    await ctx.database.sql.begin(async (sql) => {
-      await sql`set local session_replication_role = replica`;
-      await sql`delete from customer_account_balances where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from customer_account_entries where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from payment_allocation_reversals where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from payment_allocations where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from payment_reversals where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from payments where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from delivery_return_lines where return_id in (select id from delivery_returns where workspace_id = ${ctx.workspaceId}::uuid)`;
-      await sql`delete from delivery_returns where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from delivery_lines where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from deliveries where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from sale_lines where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from sales where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from inventory_balances where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from inventory_movements where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from purchase_receipt_lines where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from purchase_receipts where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from supplier_account_balances where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from supplier_account_entries where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from supplier_payment_reversals where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from supplier_payments where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from purchase_lines where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from purchases where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from suppliers where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from products where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from quality_grades where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from customers where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from audit_logs where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from workspace_change_feed where workspace_id = ${ctx.workspaceId}::uuid`;
-      await sql`delete from command_receipts where workspace_id = ${ctx.workspaceId}::uuid`;
-    });
-    const restored = await restoreWorkspaceBackup(context(), {
-      ...command("restore"),
-      payload: { backup: backup.value, reason: "Diễn tập phục hồi cùng ngày" },
-    });
-    expect(restored.ok, JSON.stringify(restored)).toBe(true);
-    if (!restored.ok) return;
-    expect(restored.value.integrity.status).toBe("healthy");
-    const targetIntegrity = await getWorkspaceIntegrity(context(), ctx.workspaceId);
-    expect(targetIntegrity.ok && targetIntegrity.value.status).toBe("healthy");
-    expect(
-      (
-        await getAccountReconciliation(context(), {
-          workspaceId: ctx.workspaceId,
-          customerId: ctx.customerId,
+    const sourceUrl = process.env["DATABASE_URL"];
+    expect(sourceUrl).toBeDefined();
+    if (sourceUrl === undefined) return;
+    const source = new URL(sourceUrl);
+    const adminUrl = new URL(source);
+    adminUrl.pathname = "/postgres";
+    const targetName = `vuarau_recovery_${crypto.randomUUID().replaceAll("-", "")}_test`;
+    const targetUrl = new URL(source);
+    targetUrl.pathname = `/${targetName}`;
+    const admin = createDatabase(adminUrl.toString(), { max: 1 });
+    let target: ReturnType<typeof createDatabase> | undefined;
+    try {
+      await admin.sql.unsafe(`create database "${targetName}"`);
+      await runMigrations(targetUrl.toString());
+      target = createDatabase(targetUrl.toString(), { max: 4 });
+      const targetWorkspaceId = crypto.randomUUID() as WorkspaceId;
+      const targetActorId = crypto.randomUUID() as ActorId;
+      const targetSubject = `sub-${targetActorId}`;
+      const sourceActors = await ctx.database.db
+        .select({
+          id: actors.id,
+          supabaseUserId: actors.supabaseUserId,
+          displayName: actors.displayName,
         })
-      ).ok,
-    ).toBe(true);
+        .from(actors);
+      await target.db.insert(workspaces).values({
+        id: targetWorkspaceId,
+        name: "test:synthetic-recovery-target",
+      });
+      await target.db.insert(workspaceOperationalProfiles).values({
+        workspaceId: targetWorkspaceId,
+      });
+      await target.db.insert(actors).values([
+        ...sourceActors,
+        {
+          id: targetActorId,
+          supabaseUserId: targetSubject,
+          displayName: "tester:synthetic-recovery-target",
+        },
+      ]);
+      await target.db.insert(workspaceMemberships).values({
+        workspaceId: targetWorkspaceId,
+        actorId: targetActorId,
+        role: "owner",
+      });
+      await target.db.insert(workspaceMembershipRoles).values({
+        workspaceId: targetWorkspaceId,
+        actorId: targetActorId,
+        role: "owner",
+        assignedBy: targetActorId,
+      });
+      const targetDeps: CommandDeps = {
+        uow: createUnitOfWork(target.db, randomIdGenerator) as CommandDeps["uow"],
+        clock: { now: () => "2026-07-29T12:00:00.000Z" as never },
+      };
+      const targetContext: CommandContext = {
+        deps: targetDeps,
+        principal: { actorId: targetActorId, subject: targetSubject },
+      };
+      const restored = await restoreWorkspaceBackup(targetContext, {
+        ...command("restore", targetWorkspaceId, targetActorId),
+        payload: { backup: backup.value, reason: "Diễn tập phục hồi sang database trống" },
+      });
+      expect(restored.ok, JSON.stringify(restored)).toBe(true);
+      if (!restored.ok) return;
+      expect(restored.value.integrity.status).toBe("healthy");
+      const targetIntegrity = await getWorkspaceIntegrity(targetContext, targetWorkspaceId);
+      expect(targetIntegrity.ok && targetIntegrity.value.status).toBe("healthy");
+      expect(
+        (
+          await getAccountReconciliation(targetContext, {
+            workspaceId: targetWorkspaceId,
+            customerId: ctx.customerId,
+          })
+        ).ok,
+      ).toBe(true);
+    } finally {
+      if (target !== undefined) await target.sql.end();
+      await admin.sql.unsafe(`drop database "${targetName}" with (force)`);
+      await admin.sql.end();
+    }
   });
 });
