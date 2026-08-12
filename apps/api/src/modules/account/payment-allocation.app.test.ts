@@ -20,6 +20,7 @@ import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { reverseCustomerPayment } from "../payment/reverse-payment.handler.ts";
 import { voidSale } from "../sale/void-sale.handler.ts";
 import { getCustomerDebtAging } from "./account.queries.ts";
+import { getOperationsBoard } from "../dashboard/dashboard.queries.ts";
 import { exportWorkspaceBackup } from "../operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../operations/restore-workspace.handler.ts";
 import {
@@ -170,6 +171,69 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
     });
     expect(reversal.ok).toBe(true);
     expect(harness.db.accountEntries()).toHaveLength(2);
+  });
+
+  it("keeps unallocated money visible after the Sale is fully allocated", async () => {
+    const harness = createHarness();
+    await setupManualAllocation(harness);
+
+    const extraPaymentId = crypto.randomUUID();
+    const payment = await recordCustomerPayment(harness.ctx, {
+      ...envelope("allocation-board-extra-payment", LATER_TRANSACTION_TIME),
+      payload: {
+        paymentId: extraPaymentId,
+        customerId: CUSTOMER_ID,
+        amount: { amountMinor: 700_000, currency: "VND" },
+        method: "cash",
+        payerName: null,
+        note: null,
+        evidenceReferences: [],
+      },
+    });
+    expect(payment.ok).toBe(true);
+
+    const allocation = await recordPaymentAllocation(harness.ctx, {
+      ...envelope("allocation-board-extra-allocation", LATER_TRANSACTION_TIME),
+      expectedVersion: 1,
+      payload: {
+        allocationId: crypto.randomUUID(),
+        paymentId: extraPaymentId,
+        saleId: SALE_ID,
+        amount: { amountMinor: 575_000, currency: "VND" },
+        evidenceReferences: [],
+      },
+    });
+    expect(allocation.ok).toBe(true);
+
+    const board = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      filter: "all",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(board.ok).toBe(true);
+    if (!board.ok) return;
+    expect(board.value.page.items).toContainEqual(
+      expect.objectContaining({
+        id: SALE_ID,
+        financialState: "reconciliation_required",
+        nextAction: "Đối soát thanh toán",
+      }),
+    );
+    expect(board.value.counts?.attention).toBe(1);
+
+    const attention = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      filter: "attention",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(attention.ok).toBe(true);
+    if (attention.ok) expect(attention.value.page.items.map((row) => row.id)).toContain(SALE_ID);
   });
 
   it("rejects an allocation that exceeds the payment remaining amount", async () => {

@@ -131,8 +131,8 @@ export async function queryOperationsBoardCounts(
         sp.physical_state,
         case
           when sv.id is not null then 'voided'
-          when coalesce(a.amount,0) >= s.total_amount_minor then 'paid'
           when coalesce(u.amount,0) > 0 then 'reconciliation_required'
+          when coalesce(a.amount,0) >= s.total_amount_minor then 'paid'
           when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
           else 'awaiting_payment'
         end as financial_state
@@ -159,7 +159,7 @@ export async function queryOperationsBoardCounts(
       count(*) filter (where physical_state='in_delivery')::int as in_delivery_count,
       count(*) filter (where financial_state='awaiting_payment')::int as awaiting_payment_count,
       count(*) filter (where financial_state='overdue')::int as overdue_count,
-      count(*) filter (where commercial_state='attention' or physical_state='attention')::int as attention_count,
+      count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required')::int as attention_count,
       count(*) filter (where commercial_state='posted')::int as commercial_posted_count,
       count(*) filter (where commercial_state='confirmed')::int as commercial_confirmed_count,
       count(*) filter (where commercial_state='voided')::int as commercial_voided_count,
@@ -283,8 +283,8 @@ export async function queryOperationsBoardCountsSplit(
           sp.physical_state,
           case
             when sv.id is not null then 'voided'
-            when coalesce(a.amount,0) >= s.total_amount_minor then 'paid'
             when coalesce(u.amount,0) > 0 then 'reconciliation_required'
+            when coalesce(a.amount,0) >= s.total_amount_minor then 'paid'
             when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
             else 'awaiting_payment'
           end as financial_state
@@ -380,7 +380,9 @@ export async function queryOperationsBoardCountsSplit(
       awaitingPayment: value(sale, "awaiting_payment_count"),
       overdue: value(sale, "overdue_count"),
       attention:
-        value(sale, "physical_attention_count") + value(sale, "commercial_attention_count"),
+        value(sale, "physical_attention_count") +
+        value(sale, "commercial_attention_count") +
+        value(sale, "reconciliation_required_count"),
     },
     statusCounts: {
       commercial: [

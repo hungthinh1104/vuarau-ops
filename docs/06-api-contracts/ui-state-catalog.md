@@ -114,6 +114,13 @@ Storybook coverage is a separate repository-readiness gate.
 | `workspace_integrity_healthy`      | workspace integrity read has no current attention condition                        |
 | `workspace_integrity_attention`    | source/reference/projection/digest check requires operator attention               |
 
+The Operations Board treats `financialState=reconciliation_required` as an
+operator attention state when a customer payment still has an unallocated
+amount. This remains true even when the Sale's allocated amount already covers
+the Sale total: money received and money attributed are separate facts. The
+`attention` filter and count include this state, and the row's next action is
+`Đối soát thanh toán`.
+
 ## Rejection mapping rule
 
 A stable backend error code does not automatically become a new UI-state name.

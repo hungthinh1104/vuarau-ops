@@ -137,7 +137,10 @@ function boardCounts(rows: readonly OperationsBoardDto["page"]["items"][number][
     awaitingPayment: rows.filter((row) => row.financialState === "awaiting_payment").length,
     overdue: rows.filter((row) => row.financialState === "overdue").length,
     attention: rows.filter(
-      (row) => row.commercialState === "attention" || row.physicalState === "attention",
+      (row) =>
+        row.commercialState === "attention" ||
+        row.physicalState === "attention" ||
+        row.financialState === "reconciliation_required",
     ).length,
   };
 }
@@ -483,10 +486,10 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
               ? null
               : physical.state === "attention"
                 ? "Kiểm tra"
-                : physical.state === "needs_delivery"
-                  ? "Giao hàng"
-                  : financial === "reconciliation_required"
-                    ? "Đối soát thanh toán"
+                : financial === "reconciliation_required"
+                  ? "Đối soát thanh toán"
+                  : physical.state === "needs_delivery"
+                    ? "Giao hàng"
                     : financial === "awaiting_payment"
                       ? "Thu tiền"
                       : null,
@@ -594,7 +597,9 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             (input.filter === "awaiting_payment" && row.financialState === "awaiting_payment") ||
             (input.filter === "overdue" && row.financialState === "overdue") ||
             (input.filter === "attention" &&
-              (row.commercialState === "attention" || row.physicalState === "attention")),
+              (row.commercialState === "attention" ||
+                row.physicalState === "attention" ||
+                row.financialState === "reconciliation_required")),
         )
         .sort((left, right) =>
           input.sort === "amount_desc"

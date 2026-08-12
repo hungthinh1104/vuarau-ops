@@ -277,13 +277,20 @@ export async function queryFastOperationsBoardPage(
       sale_physical.physical_state,
       case
         when sv.id is not null then 'voided'
-        when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
         when coalesce(unallocated_by_customer.amount,0) > 0 then 'reconciliation_required'
+        when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
         when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
         else 'awaiting_payment'
       end as financial_state,
       cs.age_seconds, cs.updated_at,
-      case when sv.id is not null then null when sale_physical.physical_state='attention' then 'Kiểm tra' when sale_physical.physical_state='needs_delivery' then 'Giao hàng' when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán' when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền' else null end as next_action,
+      case
+        when sv.id is not null then null
+        when sale_physical.physical_state='attention' then 'Kiểm tra'
+        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán'
+        when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
+        when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền'
+        else null
+      end as next_action,
       sale_physical.delivery_id, ('/sales/' || s.id::text) as href
     from candidate_scope cs
     join sales s on s.workspace_id=${input.workspaceId}::uuid and s.id=cs.id and cs.kind='sale'

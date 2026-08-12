@@ -41,7 +41,7 @@ export async function queryRows(
             : input.filter === "overdue"
               ? sql`financial_state = 'overdue'`
               : input.filter === "attention"
-                ? sql`(commercial_state = 'attention' or physical_state = 'attention')`
+                ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
                 : sql`true`;
   const searchClause =
     input.search.length === 0
@@ -201,7 +201,7 @@ export async function queryRows(
         count(*) filter (where physical_state='in_delivery') over() as in_delivery_count,
         count(*) filter (where financial_state='awaiting_payment') over() as awaiting_payment_count,
         count(*) filter (where financial_state='overdue') over() as overdue_count,
-        count(*) filter (where commercial_state='attention' or physical_state='attention') over() as attention_count,
+        count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required') over() as attention_count,
         count(*) filter (where commercial_state='posted') over() as commercial_posted_count,
         count(*) filter (where commercial_state='confirmed') over() as commercial_confirmed_count,
         count(*) filter (where commercial_state='voided') over() as commercial_voided_count,
@@ -372,13 +372,20 @@ export async function queryRows(
       sale_physical.physical_state,
       case
         when sv.id is not null then 'voided'
-        when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
         when coalesce(unallocated_by_customer.amount,0) > 0 then 'reconciliation_required'
+        when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
         when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
         else 'awaiting_payment'
       end as financial_state,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, ${saleUpdatedAt} as updated_at,
-      case when sv.id is not null then null when sale_physical.physical_state='attention' then 'Kiểm tra' when sale_physical.physical_state='needs_delivery' then 'Giao hàng' when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán' when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền' else null end as next_action,
+      case
+        when sv.id is not null then null
+        when sale_physical.physical_state='attention' then 'Kiểm tra'
+        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán'
+        when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
+        when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền'
+        else null
+      end as next_action,
       sale_physical.delivery_id, ('/sales/' || s.id::text) as href
     from sales s ${saleCandidateJoin} join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
       join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id left join unallocated_by_customer on unallocated_by_customer.customer_id=s.customer_id

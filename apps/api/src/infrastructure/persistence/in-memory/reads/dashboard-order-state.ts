@@ -30,12 +30,6 @@ export function saleFinancialState(
         exactAdd(sum, reversal.amount.amountMinor, "dashboard.payment_reversal.amount_minor"),
       0,
     );
-  if (
-    sale !== undefined &&
-    exactSubtract(allocated, reversed, "dashboard.sale_paid.amount_minor") >=
-      sale.totalAmount.amountMinor
-  )
-    return "paid";
   const unallocated = [...store.payments.values()]
     .filter(
       (payment) =>
@@ -88,6 +82,12 @@ export function saleFinancialState(
       return exactAdd(sum, Math.max(0, remaining), "dashboard.unallocated_payment.amount_minor");
     }, 0);
   if (unallocated > 0) return "reconciliation_required";
+  if (
+    sale !== undefined &&
+    exactSubtract(allocated, reversed, "dashboard.sale_paid.amount_minor") >=
+      sale.totalAmount.amountMinor
+  )
+    return "paid";
   if (
     sale?.dueAt !== null &&
     sale?.dueAt !== undefined &&
