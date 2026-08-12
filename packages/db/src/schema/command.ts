@@ -11,6 +11,7 @@ import {
 import { commandReceiptStatusEnum } from "./enums.ts";
 import { actors, workspaces } from "./workspace.ts";
 import { auditActionEnum, auditAggregateTypeEnum, rejectionCodeEnum } from "./audit-enums.ts";
+import { safeBigint } from "./safe-bigint.ts";
 
 /**
  * The mechanism behind BR-COMMAND-001. The unique index on
@@ -32,11 +33,40 @@ export const commandReceipts = pgTable(
     /** The original result, replayed verbatim to a retry. */
     result: jsonb("result"),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    /** Assigned in the same transaction as completion; null while in progress. */
+    revision: safeBigint("revision"),
+    /** Assigned with revision; null only for in-progress or legacy receipts. */
+    topics: jsonb("topics").$type<readonly string[] | null>(),
   },
   (table) => [
     unique("command_receipts_workspace_key_unique").on(table.workspaceId, table.idempotencyKey),
     unique("command_receipts_workspace_command_unique").on(table.workspaceId, table.commandId),
     index("command_receipts_workspace_time_idx").on(table.workspaceId, table.recordedAt),
+  ],
+);
+
+/**
+ * Durable reconciliation feed. LISTEN/NOTIFY wakes clients up, but this table
+ * is the source for catching up after a dropped connection or missed publish.
+ */
+export const workspaceChangeFeed = pgTable(
+  "workspace_change_feed",
+  {
+    commandId: uuid("command_id").primaryKey(),
+    workspaceId: uuid("workspace_id").notNull(),
+    revision: safeBigint("revision").notNull(),
+    commandType: text("command_type").notNull(),
+    topics: jsonb("topics").$type<readonly string[]>().notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique("workspace_change_feed_workspace_revision_unique").on(table.workspaceId, table.revision),
+    index("workspace_change_feed_workspace_revision_idx").on(table.workspaceId, table.revision),
+    foreignKey({
+      columns: [table.workspaceId, table.commandId],
+      foreignColumns: [commandReceipts.workspaceId, commandReceipts.commandId],
+      name: "workspace_change_feed_workspace_command_fk",
+    }),
   ],
 );
 

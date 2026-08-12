@@ -183,12 +183,62 @@ export const operationsBoardDtoSchema = z.object({
 });
 export type OperationsBoardDto = z.infer<typeof operationsBoardDtoSchema>;
 
+export const WORKSPACE_CHANGE_TOPICS = [
+  "account",
+  "cash",
+  "customer",
+  "customerOrder",
+  "dashboard",
+  "delivery",
+  "document",
+  "evidence",
+  "intake",
+  "inventory",
+  "operations",
+  "payment",
+  "policy",
+  "pricing",
+  "product",
+  "purchase",
+  "quality",
+  "receiving",
+  "report",
+  "sale",
+  "session",
+  "supplier",
+  "supplyCommitment",
+  "workspace",
+] as const;
+
+export const workspaceChangeTopicSchema = z.enum(WORKSPACE_CHANGE_TOPICS);
+export type WorkspaceChangeTopic = z.infer<typeof workspaceChangeTopicSchema>;
+
 export const dashboardEventSchema = z.object({
   workspaceId: workspaceIdSchema,
   entityType: z.string().min(1),
   entityId: z.string().min(1).nullable(),
   occurredAt: isoInstantSchema,
+  /** A durable feed position. LISTEN/NOTIFY may omit it for legacy publishers. */
+  revision: z.string().regex(/^\d+$/).optional(),
+  /** Typed read-model roots affected by this accepted command. */
+  topics: z.array(workspaceChangeTopicSchema).min(1).optional(),
 });
 export type DashboardEvent = z.infer<typeof dashboardEventSchema>;
+
+export const workspaceChangeSchema = z.object({
+  revision: z.string().regex(/^\d+$/),
+  commandType: z.string().min(1),
+  topics: z.array(workspaceChangeTopicSchema).min(1),
+  recordedAt: isoInstantSchema,
+});
+export type WorkspaceChange = z.infer<typeof workspaceChangeSchema>;
+
+export const workspaceChangesSinceDtoSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  changes: z.array(workspaceChangeSchema),
+  /** The latest committed position, used as the next since cursor. */
+  nextRevision: z.string().regex(/^\d+$/),
+});
+export type WorkspaceChangesSinceDto = z.infer<typeof workspaceChangesSinceDtoSchema>;
 
 export const dashboardUnitSchema = unitSchema;

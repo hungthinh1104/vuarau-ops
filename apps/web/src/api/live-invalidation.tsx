@@ -1,9 +1,13 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { dashboardEventSchema } from "@vuarau/domain-contracts";
+import {
+  dashboardEventSchema,
+  workspaceChangesSinceDtoSchema,
+  type WorkspaceChangeTopic,
+  type WorkspaceId,
+} from "@vuarau/domain-contracts";
 import { useEffect } from "react";
-import type { WorkspaceId } from "@vuarau/domain-contracts";
 import { browserAccessToken } from "./access-token.ts";
 import { useTRPC } from "./providers.tsx";
 import { setLiveConnectionState } from "@/lib/live-connection.ts";
@@ -14,20 +18,20 @@ type InvalidationSchedulerOptions = {
   readonly windowMs?: number;
 };
 
-/**
- * Coalesces a burst of server signals without changing the refetch source of
- * truth. One slow invalidation cannot be overlapped by another, and events
- * received while it is running schedule one follow-up window.
- */
+type Invalidation = readonly WorkspaceChangeTopic[] | undefined;
+
+/** Coalesces server hints while keeping the canonical read query authoritative. */
 export function createInvalidationScheduler(
-  invalidate: () => Promise<void>,
+  invalidate: (topics?: Invalidation) => Promise<void>,
   { windowMs = 100 }: InvalidationSchedulerOptions = {},
-): { request: () => void; dispose: () => void } {
+): { request: (topics?: Invalidation) => void; dispose: () => void } {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let running = false;
   let queued = false;
+  let fullReconcile = false;
   let disposed = false;
+  const queuedTopics = new Set<WorkspaceChangeTopic>();
 
   const schedule = () => {
     if (disposed || timer !== null || retryTimer !== null || running) return;
@@ -35,11 +39,16 @@ export function createInvalidationScheduler(
       timer = null;
       if (disposed || !queued) return;
       queued = false;
+      const topics = fullReconcile ? undefined : [...queuedTopics];
+      fullReconcile = false;
+      queuedTopics.clear();
       running = true;
-      void invalidate()
+      void invalidate(topics)
         .catch(() => {
           if (!disposed) {
             queued = true;
+            if (topics === undefined) fullReconcile = true;
+            else for (const topic of topics) queuedTopics.add(topic);
             retryTimer = setTimeout(() => {
               retryTimer = null;
               schedule();
@@ -54,9 +63,11 @@ export function createInvalidationScheduler(
   };
 
   return {
-    request: () => {
+    request: (topics) => {
       if (disposed) return;
       queued = true;
+      if (topics === undefined) fullReconcile = true;
+      else for (const topic of topics) queuedTopics.add(topic);
       schedule();
     },
     dispose: () => {
@@ -70,7 +81,84 @@ export function createInvalidationScheduler(
   };
 }
 
-/** Refetches canonical queries after a server invalidation signal. */
+const ALL_TOPICS: readonly WorkspaceChangeTopic[] = [
+  "account",
+  "cash",
+  "customer",
+  "customerOrder",
+  "dashboard",
+  "delivery",
+  "document",
+  "evidence",
+  "intake",
+  "inventory",
+  "operations",
+  "payment",
+  "policy",
+  "pricing",
+  "product",
+  "purchase",
+  "quality",
+  "receiving",
+  "report",
+  "sale",
+  "session",
+  "supplier",
+  "supplyCommitment",
+  "workspace",
+];
+
+function topicPaths(
+  trpc: ReturnType<typeof useTRPC>,
+  topics: Invalidation,
+): readonly (readonly unknown[])[] {
+  const selected = new Set(topics ?? ALL_TOPICS);
+  const paths: (readonly unknown[])[] = [];
+  const add = (topic: WorkspaceChangeTopic, path: readonly unknown[]) => {
+    if (selected.has(topic)) paths.push(path);
+  };
+  add("account", trpc.account.pathKey());
+  add("cash", trpc.cash.pathKey());
+  add("customer", trpc.customer.pathKey());
+  add("customerOrder", trpc.customerOrder.pathKey());
+  add("dashboard", trpc.dashboard.pathKey());
+  add("delivery", trpc.delivery.pathKey());
+  add("document", trpc.document.pathKey());
+  add("evidence", trpc.evidence.pathKey());
+  add("intake", trpc.intake.pathKey());
+  add("inventory", trpc.inventory.pathKey());
+  add("operations", trpc.operations.pathKey());
+  add("payment", trpc.payment.pathKey());
+  add("policy", trpc.policy.pathKey());
+  add("pricing", trpc.pricing.pathKey());
+  add("product", trpc.product.pathKey());
+  add("purchase", trpc.purchase.pathKey());
+  add("quality", trpc.quality.pathKey());
+  add("receiving", trpc.receiving.pathKey());
+  add("report", trpc.report.pathKey());
+  add("sale", trpc.sale.pathKey());
+  add("session", trpc.session.pathKey());
+  add("supplier", trpc.supplier.pathKey());
+  add("supplyCommitment", trpc.supplyCommitment.pathKey());
+  add("workspace", trpc.session.pathKey());
+  return paths;
+}
+
+async function readChanges(workspaceId: WorkspaceId, since: string, signal: AbortSignal) {
+  const token = browserAccessToken();
+  const response = await fetch(
+    `/changes?workspaceId=${encodeURIComponent(workspaceId)}&since=${encodeURIComponent(since)}&limit=200`,
+    {
+      headers: token === null ? {} : { authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal,
+    },
+  );
+  if (!response.ok) throw new Error("changes_unavailable");
+  return workspaceChangesSinceDtoSchema.parse(await response.json());
+}
+
+/** SSE only wakes the tab; this component drains the durable feed and targets active roots. */
 export function LiveInvalidation({ workspaceId }: { readonly workspaceId: WorkspaceId }) {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
@@ -78,38 +166,13 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
   useEffect(() => {
     let stopped = false;
     const abort = new AbortController();
-    const invalidate = async () => {
+    let revision = "0";
+    let drainPromise: Promise<void> | null = null;
+    const invalidate = async (topics?: Invalidation) => {
       try {
-        await Promise.all([
-          // The event intentionally carries a generic command entity rather than
-          // a cache vocabulary. Invalidate every authenticated read-model root so
-          // a second tab cannot leave a customer, payment, cashbook, intake,
-          // evidence or settings screen stale after a committed command.
-          queryClient.invalidateQueries({ queryKey: trpc.account.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.audit.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.cash.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.customer.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.customerOrder.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.dashboard.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.delivery.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.document.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.evidence.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.intake.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.report.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.inventory.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.operations.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.payment.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.policy.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.pricing.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.product.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.sale.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.quality.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.purchase.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.receiving.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.session.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.supplier.pathKey() }),
-          queryClient.invalidateQueries({ queryKey: trpc.supplyCommitment.pathKey() }),
-        ]);
+        await Promise.all(
+          topicPaths(trpc, topics).map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+        );
         setLiveConnectionState("live");
       } catch (error) {
         setLiveConnectionState("stale");
@@ -117,10 +180,29 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
       }
     };
     const scheduler = createInvalidationScheduler(invalidate);
-    // LISTEN/NOTIFY is a hint, not a durable queue. Periodic reconciliation
-    // closes the gap when a post-commit publish was lost or a tab missed an
-    // event while reconnecting.
-    const reconciliation = setInterval(() => scheduler.request(), 60_000);
+    const drainChanges = (): Promise<void> => {
+      if (drainPromise !== null) return drainPromise;
+      drainPromise = (async () => {
+        const topics = new Set<WorkspaceChangeTopic>();
+        let cursor = revision;
+        for (let page = 0; page < 20; page += 1) {
+          const result = await readChanges(workspaceId, cursor, abort.signal);
+          for (const change of result.changes) {
+            cursor = change.revision;
+            for (const topic of change.topics) topics.add(topic);
+          }
+          revision = result.nextRevision;
+          if (result.changes.length === 0 || cursor === result.nextRevision) break;
+        }
+        if (topics.size > 0) scheduler.request([...topics]);
+      })().finally(() => {
+        drainPromise = null;
+      });
+      return drainPromise;
+    };
+    const reconciliation = setInterval(() => {
+      void drainChanges().catch(() => setLiveConnectionState("stale"));
+    }, 60_000);
     let hasConnected = false;
     const disconnected = () => setLiveConnectionState("reconnecting");
     const markStaleAfterReconnectWindow = () => {
@@ -130,13 +212,13 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
 
     const read = async () => {
       let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+      let lastByteAt = Date.now();
       const watchdog = setInterval(() => {
         if (activeReader !== null && Date.now() - lastByteAt > 60_000) {
           setLiveConnectionState("stale");
           void activeReader.cancel();
         }
       }, 10_000);
-      let lastByteAt = Date.now();
       while (!stopped) {
         try {
           const token = browserAccessToken();
@@ -151,16 +233,17 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
           const reader = response.body.getReader();
           activeReader = reader;
           lastByteAt = Date.now();
+          setLiveConnectionState(wasConnected ? "syncing" : "live");
           if (wasConnected) {
-            setLiveConnectionState("stale");
-            try {
-              await invalidate();
-            } catch {
-              // The scheduler retries the canonical refresh while the stream
-              // remains connected; live status is restored only after success.
-              scheduler.request();
-            }
+            // Baseline first, reconcile active queries, then drain commits that
+            // happened after that baseline.
+            const baseline = await readChanges(workspaceId, "0", abort.signal);
+            revision = baseline.nextRevision;
+            await invalidate();
+            await drainChanges();
           } else {
+            const baseline = await readChanges(workspaceId, "0", abort.signal);
+            revision = baseline.nextRevision;
             setLiveConnectionState("live");
           }
           const decoder = new TextDecoder();
@@ -176,7 +259,10 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
               const line = frame.split("\n").find((value) => value.startsWith("data: "));
               if (line === undefined) continue;
               const parsed = dashboardEventSchema.safeParse(JSON.parse(line.slice(6)));
-              if (parsed.success && parsed.data.workspaceId === workspaceId) scheduler.request();
+              if (!parsed.success || parsed.data.workspaceId !== workspaceId) continue;
+              // Ignore the hint's topic payload for correctness; the durable
+              // cursor decides what actually changed and deduplicates bursts.
+              void drainChanges().catch(() => setLiveConnectionState("stale"));
             }
           }
           activeReader = null;
@@ -199,9 +285,6 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
     return () => {
       stopped = true;
       abort.abort();
-      // The watchdog owns the active reader and cancels it when a half-open
-      // connection stops delivering bytes; aborting the fetch handles cleanup
-      // before the first reader exists.
       scheduler.dispose();
       clearInterval(reconciliation);
     };

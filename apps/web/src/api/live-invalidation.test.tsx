@@ -74,17 +74,58 @@ describe("live invalidation scheduler", () => {
     }
   });
 
-  it("connects the SSE stream, schedules canonical invalidation and cleans up", async () => {
+  it("coalesces durable topics without upgrading them to a full-root refresh", async () => {
+    vi.useFakeTimers();
+    try {
+      const invalidate = vi.fn(async () => undefined);
+      const scheduler = createInvalidationScheduler(invalidate, { windowMs: 100 });
+
+      scheduler.request(["sale"]);
+      scheduler.request(["payment", "sale"]);
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(invalidate).toHaveBeenCalledWith(["sale", "payment"]);
+      scheduler.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("uses SSE as a wake-up and drains the durable feed before invalidating", async () => {
     let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
     const stream = new ReadableStream<Uint8Array>({
       start(nextController) {
         controller = nextController;
       },
     });
-    mocks.fetch.mockResolvedValueOnce(new Response(stream, { status: 200 }));
+    mocks.fetch
+      .mockResolvedValueOnce(new Response(stream, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ workspaceId: WORKSPACE_ID, changes: [], nextRevision: "0" }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            workspaceId: WORKSPACE_ID,
+            changes: [
+              {
+                revision: "1",
+                commandType: "PostSale",
+                topics: ["dashboard", "sale"],
+                recordedAt: "2026-08-10T17:00:00.000Z",
+              },
+            ],
+            nextRevision: "1",
+          }),
+          { status: 200 },
+        ),
+      );
 
     const { unmount } = render(<LiveInvalidation workspaceId={WORKSPACE_ID} />);
-    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2));
 
     await act(async () => {
       controller?.enqueue(
@@ -100,7 +141,7 @@ describe("live invalidation scheduler", () => {
       await new Promise((resolve) => setTimeout(resolve, 150));
     });
 
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(24);
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
     unmount();
     controller?.close();
   });

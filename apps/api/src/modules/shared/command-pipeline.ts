@@ -31,9 +31,11 @@ import type {
   UnitOfWork,
   WorkspaceMembership,
 } from "../../infrastructure/persistence/ports.ts";
+import type { CommandCompletion } from "../../infrastructure/persistence/ports.ts";
 import { hashPayload } from "../../infrastructure/hash.ts";
 import { currentRequestId, log } from "../../infrastructure/logging.ts";
 import { authorizeWorkspaceAccess } from "./authorization.ts";
+import { topicsForCommand } from "./change-topics.ts";
 import { CommandIntegrityError } from "./integrity.ts";
 
 /**
@@ -195,6 +197,7 @@ export async function runCommand<
 
   let accepted = false;
   let completedOutcome: "accepted" | "replayed" | null = null;
+  let completion: CommandCompletion | null = null;
   try {
     const result = await deps.uow.transaction(async (repos) => {
       // 4. Identity, membership, and permission — before any business data is
@@ -326,10 +329,11 @@ export async function runCommand<
       }
 
       // 11. Store the result so a retry gets the answer, not "already done".
-      await repos.receipts.complete(
+      completion = await repos.receipts.complete(
         command.workspaceId,
         command.idempotencyKey,
         options.receiptResult === undefined ? result.value : options.receiptResult(result.value),
+        { topics: topicsForCommand(commandType) },
       );
       accepted = true;
       completedOutcome = "accepted";
@@ -349,12 +353,15 @@ export async function runCommand<
             )?.[1]
           : undefined;
       const entityId = typeof candidateEntityId === "string" ? candidateEntityId : null;
+      const completionForEvent = completion as CommandCompletion | null;
       try {
         await deps.publishInvalidation({
           workspaceId: command.workspaceId,
           entityType: commandType,
           entityId,
           occurredAt: recordedAt,
+          revision: completionForEvent === null ? undefined : completionForEvent.revision,
+          topics: completionForEvent === null ? undefined : [...completionForEvent.topics],
         });
       } catch {
         log({

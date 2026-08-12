@@ -18,6 +18,7 @@ import type { CommandDeps } from "./modules/shared/command-pipeline.ts";
 import { createPublicDocumentHandler } from "./modules/document/public-document.ts";
 import { createInvalidationBus } from "./infrastructure/invalidation.ts";
 import { createEventsHandler } from "./infrastructure/events.ts";
+import { createChangesHandler } from "./infrastructure/changes.ts";
 import { createMetricsHandler } from "./infrastructure/metrics-handler.ts";
 import {
   readPilotRuntimeConfig,
@@ -150,6 +151,7 @@ async function startServer(): Promise<void> {
   const publicDocument = createPublicDocumentHandler(deps);
   const trpc = createApiHandler(deps, verifier, config.requestLimits.maxBatchOperations);
   const events = createEventsHandler(deps, verifier, invalidationBus);
+  const changes = createChangesHandler(deps, verifier);
   const metrics = createMetricsHandler(deps, verifier);
   const guard = createRequestGuard(config.requestLimits);
 
@@ -182,6 +184,7 @@ async function startServer(): Promise<void> {
       if (guard(req, res)) return;
       if (await health(req, res)) return;
       if (await events(req, res)) return;
+      if (await changes(req, res)) return;
       if (await metrics(req, res)) return;
       if (await publicDocument(req, res)) return;
       trpc(req, res);

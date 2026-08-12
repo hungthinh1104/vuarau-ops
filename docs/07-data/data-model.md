@@ -132,12 +132,13 @@ linked to the earlier observation.
 
 ### Documents and control
 
-| Table              | Purpose                                                | Mutability                                |
-| ------------------ | ------------------------------------------------------ | ----------------------------------------- |
-| `documents`        | Immutable versioned source snapshots and digest        | append-only                               |
-| `document_shares`  | Hashed capability-token records                        | revocation/expiry lifecycle fields only   |
-| `command_receipts` | Idempotency coordination and committed result identity | insert plus constrained completion update |
-| `audit_logs`       | Attributed business-action history                     | append-only                               |
+| Table                   | Purpose                                                                          | Mutability                                |
+| ----------------------- | -------------------------------------------------------------------------------- | ----------------------------------------- |
+| `documents`             | Immutable versioned source snapshots and digest                                  | append-only                               |
+| `document_shares`       | Hashed capability-token records                                                  | revocation/expiry lifecycle fields only   |
+| `command_receipts`      | Idempotency coordination and committed result identity                           | insert plus constrained completion update |
+| `workspace_change_feed` | Durable post-commit read-model cursor rebuilt from completed receipts on restore | append-only operational metadata          |
+| `audit_logs`            | Attributed business-action history                                               | append-only                               |
 
 ## Cross-cutting conventions
 

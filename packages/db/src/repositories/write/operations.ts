@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { WorkspaceId, WorkspaceBackupV19 } from "@vuarau/domain-contracts";
+import { type WorkspaceId, type WorkspaceBackupV19 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -66,6 +66,7 @@ import {
 import { restoreStocktakes } from "./operations-stocktake-restore.ts";
 import { restoreCloseFacts } from "./operations-close-restore.ts";
 import { backupActorIds } from "./operations-actors.ts";
+import { restoreWorkspaceChangeFeed } from "./operations-change-feed-restore.ts";
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
     async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV19["payload"]) {
@@ -151,6 +152,8 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
             return { ...row, recordedAt: date(row["recordedAt"]) };
           }) as unknown as (typeof commandReceipts.$inferInsert)[],
         );
+        const feedIntegrity = await restoreWorkspaceChangeFeed(tx, workspaceId);
+        if (feedIntegrity !== null) return feedIntegrity;
       }
       if (payload.cashAccounts.length > 0) {
         await tx.insert(cashAccounts).values(

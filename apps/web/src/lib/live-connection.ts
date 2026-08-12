@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export type LiveConnectionState = "live" | "reconnecting" | "stale";
+export type LiveConnectionState = "live" | "syncing" | "reconnecting" | "stale";
 
 let state: LiveConnectionState = "reconnecting";
 const listeners = new Set<() => void>();

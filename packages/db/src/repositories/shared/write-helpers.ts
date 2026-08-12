@@ -255,6 +255,7 @@ export function toReceipt(row: {
   status: "in_progress" | "completed";
   result: unknown;
   recordedAt: Date;
+  revision?: number | null;
 }) {
   return {
     commandId: row.commandId as CommandId,
@@ -265,5 +266,6 @@ export function toReceipt(row: {
     status: row.status,
     result: row.result,
     recordedAt: toIso(row.recordedAt),
+    revision: row.revision === null || row.revision === undefined ? null : String(row.revision),
   };
 }

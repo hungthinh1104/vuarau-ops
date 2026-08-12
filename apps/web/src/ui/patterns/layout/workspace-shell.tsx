@@ -31,7 +31,12 @@ export type WorkspaceShellProps = {
 function LiveStatus() {
   const status = useLiveConnectionState();
   if (status === "live") return null;
-  const message = status === "reconnecting" ? "Đang kết nối lại" : "Dữ liệu có thể chưa mới";
+  const message =
+    status === "syncing"
+      ? "Đang đồng bộ"
+      : status === "reconnecting"
+        ? "Đang kết nối lại"
+        : "Dữ liệu có thể cũ";
   return (
     <span
       className="hidden max-w-[13rem] truncate rounded-input border border-warning/30 bg-warning-soft px-2.5 py-2 text-caption font-semibold text-warning sm:inline"

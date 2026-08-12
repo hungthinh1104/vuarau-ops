@@ -39,6 +39,7 @@ import type {
 import { exactAdd } from "./reads/exact-number.ts";
 import type { IdGenerator } from "../../clock.ts";
 import type { CommandReceipt, WorkspaceMembership } from "../ports.ts";
+import type { WorkspaceChangeTopic } from "@vuarau/domain-contracts";
 import type {
   CustomerAccountBalance,
   CustomerState,
@@ -136,6 +137,17 @@ export type Store = {
   balances: Map<string, CustomerAccountBalance>;
   audit: AuditRecordDto[];
   receipts: Map<string, CommandReceipt>;
+  workspaceRevisions: Map<string, number>;
+  workspaceChanges: Map<
+    string,
+    {
+      readonly workspaceId: WorkspaceId;
+      readonly revision: number;
+      readonly commandType: string;
+      readonly topics: readonly WorkspaceChangeTopic[];
+      readonly recordedAt: IsoInstant;
+    }
+  >;
   cashAccounts: Map<string, CashAccountDto>;
   expenses: Map<string, ExpenseDto>;
   cashTransfers: Map<string, CashTransferDto>;
@@ -208,6 +220,8 @@ export function emptyStore(): Store {
     balances: new Map(),
     audit: [],
     receipts: new Map(),
+    workspaceRevisions: new Map(),
+    workspaceChanges: new Map(),
     cashAccounts: new Map(),
     expenses: new Map(),
     cashTransfers: new Map(),

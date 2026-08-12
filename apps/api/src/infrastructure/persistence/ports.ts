@@ -3,7 +3,6 @@ import type {
   CommandId,
   CustomerId,
   CustomerAccountEntryDto,
-  IdempotencyKey,
   IsoInstant,
   AccountEntrySourceType,
   SaleId,
@@ -43,6 +42,14 @@ import type {
   QualityIssueCodeDto,
   QualityIssueCodeId,
 } from "@vuarau/domain-contracts";
+import type { CommandReceiptRepository } from "./receipt-ports.ts";
+export type {
+  CommandCompletion,
+  CommandReceipt,
+  CommandReceiptRepository,
+  CommandReceiptStatus,
+  WorkspaceChangePage,
+} from "./receipt-ports.ts";
 import type { PaymentAllocationRepository } from "./payment-allocation-ports.ts";
 import type { PaymentRepository } from "./payment-ports.ts";
 import type {
@@ -614,36 +621,6 @@ export type AuditRepository = {
   ): Promise<void>;
 };
 
-export type CommandReceiptStatus = "in_progress" | "completed";
-
-export type CommandReceipt = {
-  readonly commandId: CommandId;
-  readonly workspaceId: WorkspaceId;
-  readonly idempotencyKey: IdempotencyKey;
-  readonly commandType: string;
-  readonly payloadHash: string;
-  readonly status: CommandReceiptStatus;
-  /** The original successful result, replayed verbatim to a retry (ADR-0008). */
-  readonly result: unknown;
-  readonly recordedAt: IsoInstant;
-};
-
-export type CommandReceiptRepository = {
-  find(workspaceId: WorkspaceId, idempotencyKey: IdempotencyKey): Promise<CommandReceipt | null>;
-  /** Detects a `commandId` reused under a different key — `DUPLICATE_COMMAND`. */
-  findByCommandId(workspaceId: WorkspaceId, commandId: CommandId): Promise<CommandReceipt | null>;
-  /**
-   * Claims the key. Returns false if another transaction claimed it first — the
-   * unique index, not the preceding read, is what makes idempotency safe under
-   * concurrency.
-   */
-  claim(receipt: CommandReceipt): Promise<boolean>;
-  complete(
-    workspaceId: WorkspaceId,
-    idempotencyKey: IdempotencyKey,
-    result: unknown,
-  ): Promise<void>;
-};
 export type Repositories = ReadRepositories & {
   readonly workspaces: WorkspaceRepository;
   readonly actors: ActorRepository;

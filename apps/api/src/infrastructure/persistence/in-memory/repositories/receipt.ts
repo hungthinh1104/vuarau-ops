@@ -18,12 +18,50 @@ export const createReceiptRepositories = (store: Store): Pick<Repositories, "rec
       store.receipts.set(receiptKey, receipt);
       return true;
     },
-    complete: async (workspaceId, idempotencyKey, result) => {
+    complete: async (workspaceId, idempotencyKey, result, change) => {
       const receiptKey = key(workspaceId, idempotencyKey);
       const existing = store.receipts.get(receiptKey);
-      if (existing !== undefined) {
-        store.receipts.set(receiptKey, { ...existing, status: "completed", result });
+      if (existing === undefined) throw new Error("Cannot complete an unknown command receipt.");
+      const revision = (store.workspaceRevisions.get(workspaceId) ?? 0) + 1;
+      const topics = change?.topics ?? ["workspace"];
+      store.workspaceRevisions.set(workspaceId, revision);
+      store.workspaceChanges.set(key(workspaceId, String(revision)), {
+        workspaceId,
+        revision,
+        commandType: existing.commandType,
+        topics,
+        recordedAt: existing.recordedAt,
+      });
+      store.receipts.set(receiptKey, {
+        ...existing,
+        status: "completed",
+        result,
+        revision: String(revision),
+      });
+      return { revision: String(revision), topics };
+    },
+    changesSince: async (workspaceId, revision, limit) => {
+      const since = Number(revision);
+      if (!Number.isSafeInteger(since) || since < 0) {
+        return {
+          changes: [],
+          nextRevision: String(store.workspaceRevisions.get(workspaceId) ?? 0),
+        };
       }
+      const changes = [...store.workspaceChanges.values()]
+        .filter((change) => change.workspaceId === workspaceId && change.revision > since)
+        .sort((left, right) => left.revision - right.revision)
+        .slice(0, Math.min(Math.max(limit, 1), 200))
+        .map(({ revision: position, commandType, topics, recordedAt }) => ({
+          revision: String(position),
+          commandType,
+          topics: [...topics],
+          recordedAt,
+        }));
+      return {
+        changes,
+        nextRevision: String(store.workspaceRevisions.get(workspaceId) ?? 0),
+      };
     },
   },
 });
