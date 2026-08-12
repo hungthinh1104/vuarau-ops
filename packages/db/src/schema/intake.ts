@@ -93,6 +93,12 @@ export const goodsArrivals = pgTable(
       table.recordedAt,
       table.id,
     ),
+    index("goods_arrivals_workspace_purchase_time_idx").on(
+      table.workspaceId,
+      table.purchaseId,
+      table.recordedAt,
+      table.id,
+    ),
     workspaceCommandForeignKey(table, "goods_arrivals_workspace_command_fk"),
   ],
 );
@@ -301,6 +307,20 @@ export const qualityDispositions = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    index("quality_dispositions_workspace_source_arrival_idx").on(
+      table.workspaceId,
+      table.sourceType,
+      table.sourceArrivalLineId,
+      table.recordedAt,
+      table.id,
+    ),
+    index("quality_dispositions_workspace_source_quarantine_idx").on(
+      table.workspaceId,
+      table.sourceType,
+      table.sourceQuarantineAllocationId,
+      table.recordedAt,
+      table.id,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.sourceArrivalLineId],
       foreignColumns: [goodsArrivalLines.workspaceId, goodsArrivalLines.id],
@@ -337,6 +357,11 @@ export const qualityDispositionAllocations = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    index("quality_disposition_allocations_workspace_disposition_outcome_idx").on(
+      table.workspaceId,
+      table.dispositionId,
+      table.outcome,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.dispositionId],
       foreignColumns: [qualityDispositions.workspaceId, qualityDispositions.id],
@@ -380,6 +405,12 @@ export const qualityDispositionReversals = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    index("quality_disposition_reversals_workspace_disposition_time_idx").on(
+      table.workspaceId,
+      table.dispositionId,
+      table.recordedAt,
+      table.id,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.dispositionId],
       foreignColumns: [qualityDispositions.workspaceId, qualityDispositions.id],

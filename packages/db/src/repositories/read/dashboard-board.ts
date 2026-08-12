@@ -159,16 +159,12 @@ export async function queryFastOperationsBoardPage(
       where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
       group by p.workspace_id, p.id, p.recorded_at, p.confirmed_at
     ), candidate_rows as (
-      select s.id, 'sale' as kind, sale_activity.updated_at,
-        s.total_amount_minor as amount,
-        extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds
+      select s.id, 'sale' as kind, sale_activity.updated_at
       from sales s
       join sale_activity on sale_activity.workspace_id=s.workspace_id and sale_activity.id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       union all
-      select p.id, 'purchase' as kind, purchase_activity.updated_at,
-        p.total_amount_minor as amount,
-        extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds
+      select p.id, 'purchase' as kind, purchase_activity.updated_at
       from purchases p
       join purchase_activity on purchase_activity.workspace_id=p.workspace_id and purchase_activity.id=p.id
       where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
@@ -335,7 +331,7 @@ export async function queryFastOperationsBoardPage(
         when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
         else 'awaiting_payment'
       end as financial_state,
-      cs.age_seconds, cs.updated_at,
+      extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, cs.updated_at,
       case
         when sv.id is not null then null
         when sale_physical.physical_state='attention' then 'Kiểm tra'
@@ -357,7 +353,7 @@ export async function queryFastOperationsBoardPage(
       s.display_name as counterparty, p.total_amount_minor as amount, p.currency,
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
       purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
-      cs.age_seconds, cs.updated_at,
+      extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, cs.updated_at,
       case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
       null as delivery_id, ('/purchases/' || p.id::text) as href
     from candidate_scope cs

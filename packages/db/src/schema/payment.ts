@@ -99,7 +99,12 @@ export const paymentReversals = pgTable(
       foreignColumns: [payments.workspaceId, payments.id],
       name: "payment_reversals_workspace_payment_fk",
     }),
-    index("payment_reversals_payment_idx").on(table.workspaceId, table.paymentId),
+    index("payment_reversals_payment_idx").on(
+      table.workspaceId,
+      table.paymentId,
+      table.recordedAt,
+      table.id,
+    ),
   ],
 );
 
@@ -206,6 +211,11 @@ export const paymentAllocationReversals = pgTable(
       table.transactionTime,
       table.id,
     ),
-    index("payment_allocation_reversals_allocation_idx").on(table.workspaceId, table.allocationId),
+    index("payment_allocation_reversals_allocation_idx").on(
+      table.workspaceId,
+      table.allocationId,
+      table.recordedAt,
+      table.id,
+    ),
   ],
 );

@@ -178,6 +178,12 @@ export const saleVoids = pgTable(
   (table) => [
     unique("sale_voids_sale_unique").on(table.saleId),
     index("sale_voids_workspace_time_idx").on(table.workspaceId, table.transactionTime),
+    index("sale_voids_workspace_sale_time_idx").on(
+      table.workspaceId,
+      table.saleId,
+      table.recordedAt,
+      table.id,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.saleId],
       foreignColumns: [sales.workspaceId, sales.id],

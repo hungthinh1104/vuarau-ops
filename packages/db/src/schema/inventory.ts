@@ -41,6 +41,8 @@ export const purchaseReceipts = pgTable(
       table.workspaceId,
       table.purchaseId,
       table.transactionTime,
+      table.recordedAt,
+      table.id,
     ),
     foreignKey({
       columns: [table.workspaceId, table.purchaseId],
@@ -110,6 +112,12 @@ export const purchaseReceiptReversals = pgTable(
   },
   (table) => [
     uniqueIndex("purchase_receipt_reversals_receipt_uq").on(table.workspaceId, table.receiptId),
+    index("purchase_receipt_reversals_workspace_receipt_time_idx").on(
+      table.workspaceId,
+      table.receiptId,
+      table.recordedAt,
+      table.id,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.receiptId],
       foreignColumns: [purchaseReceipts.workspaceId, purchaseReceipts.id],

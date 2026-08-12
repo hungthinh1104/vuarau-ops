@@ -115,6 +115,12 @@ export const deliveryReturns = pgTable(
   },
   (table) => [
     uniqueIndex("delivery_returns_workspace_id_id_uq").on(table.workspaceId, table.id),
+    index("delivery_returns_workspace_delivery_time_idx").on(
+      table.workspaceId,
+      table.deliveryId,
+      table.recordedAt,
+      table.id,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.deliveryId],
       foreignColumns: [deliveries.workspaceId, deliveries.id],
@@ -134,6 +140,11 @@ export const deliveryReturnLines = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.returnId, table.deliveryLineId] }),
+    index("delivery_return_lines_workspace_delivery_line_idx").on(
+      table.workspaceId,
+      table.deliveryLineId,
+      table.returnId,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.returnId],
       foreignColumns: [deliveryReturns.workspaceId, deliveryReturns.id],
