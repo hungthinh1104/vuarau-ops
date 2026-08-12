@@ -110,7 +110,9 @@ describe.skipIf(skipWithoutDatabase())("supplier performance against PostgreSQL"
           ...command("observation"),
           payload: {
             supplierObservationId: observationId,
-            kind: "actual_quantity",
+            // The measurement deliberately carries the complete quantity and
+            // timing bundle; `other` is the registry contract for that bundle.
+            kind: "other",
             caseKind: "normal",
             description: "Đối chiếu giao hàng PostgreSQL.",
             participantWording: "Đã nhận đủ thông tin chuyến hàng.",

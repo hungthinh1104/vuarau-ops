@@ -706,6 +706,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       await sql`delete from workspace_policies
         where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from cost_observations where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from workspace_change_feed where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from command_receipts where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from purchase_receipt_reversals where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from purchase_receipt_lines where workspace_id = ${ctx.workspaceId}::uuid`;

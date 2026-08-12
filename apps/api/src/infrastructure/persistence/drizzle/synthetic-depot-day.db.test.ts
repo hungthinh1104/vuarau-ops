@@ -463,6 +463,7 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
       await sql`delete from quality_grades where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from customers where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from audit_logs where workspace_id = ${ctx.workspaceId}::uuid`;
+      await sql`delete from workspace_change_feed where workspace_id = ${ctx.workspaceId}::uuid`;
       await sql`delete from command_receipts where workspace_id = ${ctx.workspaceId}::uuid`;
     });
     const restored = await restoreWorkspaceBackup(context(), {
