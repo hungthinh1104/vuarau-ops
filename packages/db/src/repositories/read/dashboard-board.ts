@@ -75,6 +75,12 @@ export async function queryFastOperationsBoardPage(
       from deliveries d
       where d.workspace_id=${input.workspaceId}::uuid
       union all
+      select d.workspace_id, d.sale_id as id, dr.recorded_at
+      from delivery_returns dr
+      join deliveries d
+        on d.workspace_id=dr.workspace_id and d.id=dr.delivery_id
+      where dr.workspace_id=${input.workspaceId}::uuid
+      union all
       select pa.workspace_id, pa.sale_id as id, pa.recorded_at
       from payment_allocations pa
       where pa.workspace_id=${input.workspaceId}::uuid
@@ -92,6 +98,26 @@ export async function queryFastOperationsBoardPage(
         on events.workspace_id=s.workspace_id and events.id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       group by s.workspace_id, s.id, s.recorded_at, s.posted_at
+    ), purchase_disposition_roots as (
+      select qd.workspace_id, qd.id as disposition_id, gal.purchase_id
+      from quality_dispositions qd
+      join goods_arrival_lines gal
+        on gal.workspace_id=qd.workspace_id and gal.id=qd.source_arrival_line_id
+      where qd.workspace_id=${input.workspaceId}::uuid
+        and qd.source_type='arrival_line'
+        and gal.purchase_id is not null
+      union all
+      select child.workspace_id, child.id, parent.purchase_id
+      from quality_dispositions child
+      join quality_disposition_allocations source_allocation
+        on source_allocation.workspace_id=child.workspace_id
+        and source_allocation.id=child.source_quarantine_allocation_id
+        and source_allocation.outcome='quarantined'
+      join purchase_disposition_roots parent
+        on parent.workspace_id=source_allocation.workspace_id
+        and parent.disposition_id=source_allocation.disposition_id
+      where child.workspace_id=${input.workspaceId}::uuid
+        and child.source_type='quarantine_allocation'
     ), purchase_activity_events as (
       select pv.workspace_id, pv.purchase_id as id, pv.recorded_at
       from purchase_voids pv
@@ -111,11 +137,19 @@ export async function queryFastOperationsBoardPage(
       from goods_arrivals ga
       where ga.workspace_id=${input.workspaceId}::uuid and ga.purchase_id is not null
       union all
-      select gal.workspace_id, gal.purchase_id as id, qd.recorded_at
+      select roots.workspace_id, roots.purchase_id as id, qd.recorded_at
       from quality_dispositions qd
-      join goods_arrival_lines gal
-        on gal.workspace_id=qd.workspace_id and gal.id=qd.source_arrival_line_id
-      where qd.workspace_id=${input.workspaceId}::uuid and gal.purchase_id is not null
+      join purchase_disposition_roots roots
+        on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
+      where qd.workspace_id=${input.workspaceId}::uuid
+      union all
+      select roots.workspace_id, roots.purchase_id as id, qdr.recorded_at
+      from quality_disposition_reversals qdr
+      join quality_dispositions qd
+        on qd.workspace_id=qdr.workspace_id and qd.id=qdr.disposition_id
+      join purchase_disposition_roots roots
+        on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
+      where qdr.workspace_id=${input.workspaceId}::uuid
     ), purchase_activity as (
       select p.workspace_id, p.id,
         greatest(p.recorded_at, coalesce(p.confirmed_at, p.recorded_at), coalesce(max(events.recorded_at), p.recorded_at)) as updated_at

@@ -504,6 +504,15 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
                     delivery.workspaceId === input.workspaceId && delivery.saleId === sale.id,
                 )
                 .map((delivery) => delivery.recordedAt),
+              ...store.deliveryReturns
+                .filter((returned) => returned.workspaceId === input.workspaceId)
+                .filter((returned) => {
+                  const delivery = store.deliveries.get(
+                    key(input.workspaceId, returned.deliveryId),
+                  );
+                  return delivery?.saleId === sale.id;
+                })
+                .map((returned) => returned.recordedAt),
               ...store.paymentAllocations
                 .filter((allocation) => allocationIds.has(allocation.id))
                 .map((allocation) => allocation.recordedAt),
@@ -571,6 +580,14 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
               arrival.workspaceId === input.workspaceId && arrival.purchaseId === purchase.id,
           )
           .map((arrival) => arrival.recordedAt);
+        const dispositionTimes = [...store.qualityDispositions.values()]
+          .filter((disposition) => disposition.workspaceId === input.workspaceId)
+          .filter(
+            (disposition) =>
+              intakeSourceRoot(store, input.workspaceId, disposition.source)?.arrival.purchaseId ===
+              purchase.id,
+          )
+          .flatMap((disposition) => [disposition.recordedAt, disposition.reversal?.recordedAt]);
         rows.push({
           id: purchase.id,
           kind: "purchase",
@@ -591,6 +608,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
               purchase.voidRecord?.recordedAt,
               ...purchaseReceiptTimes,
               ...arrivalTimes,
+              ...dispositionTimes,
             ],
             purchase.recordedAt,
           ),
