@@ -16,8 +16,6 @@ export function decideRecordSupplierObservation(
   correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{ observation: SupplierObservationDto; audit: AuditDraft }> {
   const { payload } = command;
-  const factCheck = validateObservationFacts("supplier", payload.kind, payload.facts);
-  if (!factCheck.ok) return factCheck;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
     return err(
       "SUPPLIER_OBSERVATION_CORRECTION_TARGET_REQUIRED",
@@ -64,6 +62,13 @@ export function decideRecordSupplierObservation(
       "A supplier correction must preserve the supplier, product, grade, source, kind, unit and currency identity.",
     );
   }
+
+  // A correction is first an immutable-lineage operation: the target's kind
+  // and identity cannot be changed. Validate that boundary before the active
+  // fact registry so a cross-group correction cannot be misreported as a
+  // stale/unsupported fact payload.
+  const factCheck = validateObservationFacts("supplier", payload.kind, payload.facts);
+  if (!factCheck.ok) return factCheck;
 
   const observation: SupplierObservationDto = {
     id: payload.supplierObservationId,
