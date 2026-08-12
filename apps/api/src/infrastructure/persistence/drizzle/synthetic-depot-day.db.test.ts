@@ -17,6 +17,8 @@ import type {
   DeliveryId,
   DeliveryLineId,
   DeliveryReturnId,
+  GoodsArrivalId,
+  GoodsArrivalLineId,
   PaymentId,
   PaymentReversalId,
   ProductId,
@@ -24,6 +26,9 @@ import type {
   PurchaseLineId,
   PurchaseReceiptId,
   PurchaseReceiptLineId,
+  QualityDispositionAllocationId,
+  QualityDispositionId,
+  QualityInspectionId,
   SaleId,
   SaleLineId,
   SupplierId,
@@ -43,6 +48,11 @@ import {
 } from "../../../modules/purchase/purchase.handlers.ts";
 import { recordPurchaseReceipt } from "../../../modules/inventory/inventory.handlers.ts";
 import {
+  recordGoodsArrival,
+  recordQualityDisposition,
+  recordQualityInspection,
+} from "../../../modules/intake/intake.handlers.ts";
+import {
   getInventoryReconciliation,
   getProductCoverage,
   getPurchaseReceivingSummary,
@@ -58,6 +68,14 @@ import {
 import { getSaleFulfilment } from "../../../modules/delivery/delivery.queries.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
 import { reverseCustomerPayment } from "../../../modules/payment/reverse-payment.handler.ts";
+import {
+  recordPaymentAllocation,
+  reversePaymentAllocation,
+} from "../../../modules/account/payment-allocation.handlers.ts";
+import {
+  approveWorkspacePolicy,
+  createWorkspacePolicyDraft,
+} from "../../../modules/policy/policy.handlers.ts";
 import {
   getAccountReconciliation,
   getCustomerAccountBalance,
@@ -198,6 +216,178 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
     });
     expect(receiving.ok && receiving.value.lines[0]?.remaining.valueScaled).toBe(0);
 
+    await ctx.database.sql`
+      update workspace_operational_profiles
+      set intake_mode = 'inspected_arrival', weighing_mode = 'gross_tare_net', version = 2
+      where workspace_id = ${ctx.workspaceId}::uuid
+    `;
+    const inspectedSupplierId = crypto.randomUUID() as SupplierId;
+    const inspectedPurchaseId = crypto.randomUUID() as PurchaseId;
+    const inspectedPurchaseLineId = crypto.randomUUID() as PurchaseLineId;
+    const inspectedArrivalId = crypto.randomUUID() as GoodsArrivalId;
+    const inspectedArrivalLineId = crypto.randomUUID() as GoodsArrivalLineId;
+    const inspectedInspectionId = crypto.randomUUID() as QualityInspectionId;
+    const inspectedDispositionId = crypto.randomUUID() as QualityDispositionId;
+    const quarantineAllocationId = crypto.randomUUID() as QualityDispositionAllocationId;
+    expect(
+      (
+        await createSupplier(context(), {
+          ...command("inspected-supplier"),
+          payload: {
+            supplierId: inspectedSupplierId,
+            displayName: "Nhà vườn inspected",
+            phone: null,
+            note: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await createPurchaseDraft(context(), {
+          ...command("inspected-purchase-draft"),
+          payload: {
+            purchaseId: inspectedPurchaseId,
+            supplierId: inspectedSupplierId,
+            currency: "VND",
+            lines: [
+              {
+                lineId: inspectedPurchaseLineId,
+                productId: ctx.productIds[1],
+                productName: "Rau muống",
+                quantity: { valueScaled: 20_000, unit: "kg" },
+                unitPrice: { amountMinor: 12_000, currency: "VND" },
+              },
+            ],
+            note: null,
+            dueAt: null,
+            replacesPurchaseId: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await confirmPurchase(context(), {
+          ...command("inspected-purchase-confirm"),
+          expectedVersion: 1,
+          payload: { purchaseId: inspectedPurchaseId },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await recordGoodsArrival(context(), {
+          ...command("inspected-arrival"),
+          payload: {
+            arrivalId: inspectedArrivalId,
+            supplierId: inspectedSupplierId,
+            purchaseId: inspectedPurchaseId,
+            vehicleReference: "51C-SYNTHETIC",
+            lines: [
+              {
+                arrivalLineId: inspectedArrivalLineId,
+                purchaseLineId: inspectedPurchaseLineId,
+                productId: ctx.productIds[1],
+                productName: "Rau muống",
+                arrivedQuantity: { valueScaled: 20_000, unit: "kg" },
+                weighing: {
+                  containerCount: 2,
+                  grossWeight: { valueScaled: 21_000, unit: "kg" },
+                  tareWeight: { valueScaled: 1_000, unit: "kg" },
+                  netWeight: { valueScaled: 20_000, unit: "kg" },
+                },
+                supplierLotCode: "SYNTH-LOT-001",
+                note: null,
+              },
+            ],
+            note: null,
+            evidenceReferences: ["photo://synthetic-arrival"],
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await recordQualityInspection(context(), {
+          ...command("inspected-quality"),
+          payload: {
+            inspectionId: inspectedInspectionId,
+            arrivalLineId: inspectedArrivalLineId,
+            inspectedQuantity: { valueScaled: 20_000, unit: "kg" },
+            issues: [],
+            note: "Kiểm toàn bộ lô rau.",
+            evidenceReferences: ["photo://synthetic-inspection"],
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await recordQualityDisposition(context(), {
+          ...command("inspected-disposition"),
+          payload: {
+            dispositionId: inspectedDispositionId,
+            source: { type: "arrival_line", arrivalLineId: inspectedArrivalLineId },
+            allocations: [
+              {
+                allocationId: crypto.randomUUID() as QualityDispositionAllocationId,
+                outcome: "accepted",
+                quantity: { valueScaled: 15_000, unit: "kg" },
+                qualityGradeId: ctx.qualityGradeId,
+                qualityGradeName: "Loại 1",
+                note: null,
+              },
+              {
+                allocationId: quarantineAllocationId,
+                outcome: "quarantined",
+                quantity: { valueScaled: 5_000, unit: "kg" },
+                qualityGradeId: null,
+                qualityGradeName: null,
+                note: "Chờ kiểm lại.",
+              },
+            ],
+            note: "Phân loại lô nhập.",
+            evidenceReferences: ["photo://synthetic-disposition"],
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await recordQualityDisposition(context(), {
+          ...command("inspected-quarantine-resolution"),
+          payload: {
+            dispositionId: crypto.randomUUID(),
+            source: { type: "quarantine_allocation", allocationId: quarantineAllocationId },
+            allocations: [
+              {
+                allocationId: crypto.randomUUID() as QualityDispositionAllocationId,
+                outcome: "rejected",
+                quantity: { valueScaled: 5_000, unit: "kg" },
+                qualityGradeId: null,
+                qualityGradeName: null,
+                note: "Không đạt sau kiểm lại.",
+              },
+            ],
+            note: "Trả về kết quả kiểm lại.",
+            evidenceReferences: ["photo://synthetic-rejection"],
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const inspectedCoverage = await getProductCoverage(context(), {
+      workspaceId: ctx.workspaceId,
+      productIds: [ctx.productIds[1]],
+    });
+    expect(inspectedCoverage.ok && inspectedCoverage.value[0]?.quantities).toContainEqual(
+      expect.objectContaining({
+        unit: "kg",
+        qualityGradeId: ctx.qualityGradeId,
+        onHand: { valueScaled: 15_000, unit: "kg" },
+      }),
+    );
+
     expect(
       (
         await createSaleDraft(context(), {
@@ -317,6 +507,65 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
             method: "cash",
             payerName: null,
             note: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const allocationPolicyId = crypto.randomUUID();
+    const allocationPolicy = await createWorkspacePolicyDraft(context(), {
+      ...command("payment-allocation-policy-draft"),
+      payload: {
+        policyVersionId: allocationPolicyId,
+        policyKind: "payment_allocation",
+        version: 1,
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition: { contractVersion: 1, parameters: { strategy: "manual" } },
+        evidenceReferences: [],
+        reason: "Cho phép đối soát khoản thu trong rehearsal.",
+      },
+    });
+    expect(allocationPolicy.ok).toBe(true);
+    if (!allocationPolicy.ok) return;
+    expect(
+      (
+        await approveWorkspacePolicy(context(), {
+          ...command("payment-allocation-policy-approve"),
+          payload: {
+            policyVersionId: allocationPolicy.value.id,
+            evidenceReferences: ["rehearsal://payment-allocation"],
+            reason: "Duyệt policy đối soát khoản thu.",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const allocationId = crypto.randomUUID();
+    expect(
+      (
+        await recordPaymentAllocation(context(), {
+          ...command("payment-allocation"),
+          expectedVersion: 1,
+          payload: {
+            allocationId,
+            paymentId,
+            saleId,
+            amount: { amountMinor: 250_000, currency: "VND" },
+            evidenceReferences: ["rehearsal://payment-allocation"],
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await reversePaymentAllocation(context(), {
+          ...command("payment-allocation-reversal"),
+          expectedVersion: 1,
+          payload: {
+            allocationId,
+            reversalId: crypto.randomUUID(),
+            amount: { amountMinor: 250_000, currency: "VND" },
+            reason: "Hoàn tác phân bổ để kiểm tra vòng bù trừ.",
+            evidenceReferences: ["rehearsal://payment-allocation-reversal"],
           },
         })
       ).ok,
