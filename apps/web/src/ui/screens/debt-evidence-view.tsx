@@ -1,5 +1,6 @@
 "use client";
 
+import { isObservationFactAllowed } from "@vuarau/domain-contracts";
 import type {
   CostObservationCaseKind,
   DebtObservationDto,
@@ -150,6 +151,7 @@ export function DebtEvidenceView(props: {
 
 function DebtObservationForm(props: Parameters<typeof DebtEvidenceView>[0]) {
   const locked = props.command.phase.kind === "sending" || props.command.phase.kind === "unknown";
+  const showFact = (fact: string) => isObservationFactAllowed("debt", props.kind, fact);
   return (
     <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
       <h2 className="text-subheading font-semibold">Quan sát mới</h2>
@@ -180,47 +182,61 @@ function DebtObservationForm(props: Parameters<typeof DebtEvidenceView>[0]) {
         onChange={(event) => props.onParticipantWording(event.target.value)}
       />
       <div className="grid gap-4 sm:grid-cols-3">
-        <MoneyInput
-          label="Số tiền liên quan (₫)"
-          currency="VND"
-          value={props.amount}
-          onChange={(event) => props.onAmount(event.target.value)}
-        />
-        <TextInput
-          label="Ngày hẹn"
-          type="datetime-local"
-          value={props.agreedDueAt}
-          onChange={(event) => props.onAgreedDueAt(event.target.value)}
-        />
-        <TextInput
-          label="Ngày cam kết trả"
-          type="datetime-local"
-          value={props.promiseToPayAt}
-          onChange={(event) => props.onPromiseToPayAt(event.target.value)}
-        />
+        {showFact("amount") ? (
+          <MoneyInput
+            label="Số tiền liên quan (₫)"
+            currency="VND"
+            value={props.amount}
+            onChange={(event) => props.onAmount(event.target.value)}
+          />
+        ) : null}
+        {showFact("agreedDueAt") ? (
+          <TextInput
+            label="Ngày hẹn"
+            type="datetime-local"
+            value={props.agreedDueAt}
+            onChange={(event) => props.onAgreedDueAt(event.target.value)}
+          />
+        ) : null}
+        {showFact("promiseToPayAt") ? (
+          <TextInput
+            label="Ngày cam kết trả"
+            type="datetime-local"
+            value={props.promiseToPayAt}
+            onChange={(event) => props.onPromiseToPayAt(event.target.value)}
+          />
+        ) : null}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextInput
-          label="Mã điều khoản (tuỳ chọn)"
-          value={props.termCode}
-          onChange={(event) => props.onTermCode(event.target.value)}
-        />
-        <TextInput
-          label="Diễn giải điều khoản (tuỳ chọn)"
-          value={props.termText}
-          onChange={(event) => props.onTermText(event.target.value)}
-        />
-        <TextInput
-          label="Tham chiếu thanh toán (tuỳ chọn)"
-          value={props.paymentReference}
-          onChange={(event) => props.onPaymentReference(event.target.value)}
-        />
-        <TextInput
-          label="Đề xuất phân bổ (tuỳ chọn)"
-          value={props.allocationProposal}
-          onChange={(event) => props.onAllocationProposal(event.target.value)}
-          hint="Chỉ lưu đề xuất, không tự phân bổ vào ledger."
-        />
+        {showFact("termCode") ? (
+          <TextInput
+            label="Mã điều khoản (tuỳ chọn)"
+            value={props.termCode}
+            onChange={(event) => props.onTermCode(event.target.value)}
+          />
+        ) : null}
+        {showFact("termText") ? (
+          <TextInput
+            label="Diễn giải điều khoản (tuỳ chọn)"
+            value={props.termText}
+            onChange={(event) => props.onTermText(event.target.value)}
+          />
+        ) : null}
+        {showFact("paymentReference") ? (
+          <TextInput
+            label="Tham chiếu thanh toán (tuỳ chọn)"
+            value={props.paymentReference}
+            onChange={(event) => props.onPaymentReference(event.target.value)}
+          />
+        ) : null}
+        {showFact("allocationProposal") ? (
+          <TextInput
+            label="Đề xuất phân bổ (tuỳ chọn)"
+            value={props.allocationProposal}
+            onChange={(event) => props.onAllocationProposal(event.target.value)}
+            hint="Chỉ lưu đề xuất, không tự phân bổ vào ledger."
+          />
+        ) : null}
       </div>
       <EvidenceReferenceInput
         required

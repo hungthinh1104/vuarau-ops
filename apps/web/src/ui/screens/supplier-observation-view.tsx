@@ -316,7 +316,7 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
             onChange={(event) => props.onTraceabilityLevel(event.target.value)}
           />
         ) : null}
-        {show("quantity") ? (
+        {show("promisedQuantity") ? (
           <QuantityInput
             label="Số lượng đã hứa"
             unit={props.unit}
@@ -325,7 +325,7 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
             onChange={(event) => props.onPromisedQuantity(event.target.value)}
           />
         ) : null}
-        {show("quantity") ? (
+        {show("actualQuantity") ? (
           <QuantityInput
             label="Số lượng thực tế"
             unit={props.unit}
@@ -334,7 +334,7 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
             onChange={(event) => props.onActualQuantity(event.target.value)}
           />
         ) : null}
-        {show("quantity") ? (
+        {show("acceptedQuantity") ? (
           <QuantityInput
             label="Số lượng được nhận"
             unit={props.unit}
@@ -343,7 +343,7 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
             onChange={(event) => props.onAcceptedQuantity(event.target.value)}
           />
         ) : null}
-        {show("quantity") ? (
+        {show("rejectedQuantity") ? (
           <QuantityInput
             label="Số lượng trả nhà cung cấp"
             unit={props.unit}
@@ -352,7 +352,10 @@ function SupplierObservationForm(props: Parameters<typeof SupplierObservationVie
             onChange={(event) => props.onRejectedQuantity(event.target.value)}
           />
         ) : null}
-        {show("quantity") ? (
+        {show("promisedQuantity") ||
+        show("actualQuantity") ||
+        show("acceptedQuantity") ||
+        show("rejectedQuantity") ? (
           <Select
             label="Đơn vị"
             value={props.unit}
@@ -452,16 +455,16 @@ function SupplierObservationCard({
         {!show("transportResponsibility") || item.facts.transportResponsibility === null ? null : (
           <span>Trách nhiệm vận chuyển: {item.facts.transportResponsibility}</span>
         )}
-        {!show("quantity") || item.facts.promisedQuantity === null ? null : (
+        {!show("promisedQuantity") || item.facts.promisedQuantity === null ? null : (
           <span>Đã hứa: {formatQuantity(item.facts.promisedQuantity)}</span>
         )}
-        {!show("quantity") || item.facts.actualQuantity === null ? null : (
+        {!show("actualQuantity") || item.facts.actualQuantity === null ? null : (
           <span>Thực tế: {formatQuantity(item.facts.actualQuantity)}</span>
         )}
-        {!show("quantity") || item.facts.acceptedQuantity === null ? null : (
+        {!show("acceptedQuantity") || item.facts.acceptedQuantity === null ? null : (
           <span>Được nhận: {formatQuantity(item.facts.acceptedQuantity)}</span>
         )}
-        {!show("quantity") || item.facts.rejectedQuantity === null ? null : (
+        {!show("rejectedQuantity") || item.facts.rejectedQuantity === null ? null : (
           <span>Trả nhà cung cấp: {formatQuantity(item.facts.rejectedQuantity)}</span>
         )}
         {!show("price") || item.facts.price === null ? null : (

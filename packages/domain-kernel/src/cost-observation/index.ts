@@ -6,6 +6,7 @@ import type {
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { validateObservationMagnitudes } from "../observation-facts.ts";
 
 export function decideRecordCostObservation(
   command: RecordCostObservationCommand,
@@ -14,6 +15,8 @@ export function decideRecordCostObservation(
   correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{ observation: CostObservationDto; audit: AuditDraft }> {
   const { payload } = command;
+  const magnitudeCheck = validateObservationMagnitudes(payload.facts);
+  if (!magnitudeCheck.ok) return magnitudeCheck;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
     return err(
       "COST_OBSERVATION_CORRECTION_TARGET_REQUIRED",

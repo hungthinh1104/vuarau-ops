@@ -1,6 +1,6 @@
 "use client";
 
-import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
+import { isObservationFactAllowed, UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
 import type {
   CostObservationCaseKind,
   Page,
@@ -137,6 +137,7 @@ export function SupplyCommitmentEvidenceView(props: {
 
 function SupplyCommitmentForm(props: Parameters<typeof SupplyCommitmentEvidenceView>[0]) {
   const locked = props.command.phase.kind === "sending" || props.command.phase.kind === "unknown";
+  const showFact = (fact: string) => isObservationFactAllowed("supply", props.kind, fact);
   return (
     <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
       <h2 className="text-subheading font-semibold">Quan sát mới</h2>
@@ -167,42 +168,54 @@ function SupplyCommitmentForm(props: Parameters<typeof SupplyCommitmentEvidenceV
         onChange={(event) => props.onParticipantWording(event.target.value)}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextInput
-          label="Tên nhà cung cấp / nông hộ / đầu mối"
-          value={props.counterpartyLabel}
-          onChange={(event) => props.onCounterpartyLabel(event.target.value)}
-        />
-        <TextInput
-          label="Thời điểm dự kiến về"
-          type="datetime-local"
-          value={props.expectedArrivalAt}
-          onChange={(event) => props.onExpectedArrivalAt(event.target.value)}
-        />
-        <QuantityInput
-          label="Số lượng được hứa"
-          unit={props.unit}
-          unitLabel={UNIT_LABEL_VI[props.unit]}
-          value={props.promisedQuantity}
-          onChange={(event) => props.onPromisedQuantity(event.target.value)}
-        />
-        <QuantityInput
-          label="Số lượng tối thiểu"
-          unit={props.unit}
-          unitLabel={UNIT_LABEL_VI[props.unit]}
-          value={props.minimumOrder}
-          onChange={(event) => props.onMinimumOrder(event.target.value)}
-        />
-        <Select
-          label="Đơn vị"
-          value={props.unit}
-          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
-          onChange={(event) => props.onUnit(event.target.value as Unit)}
-        />
-        <TextInput
-          label="Mã / tham chiếu cam kết"
-          value={props.commitmentReference}
-          onChange={(event) => props.onCommitmentReference(event.target.value)}
-        />
+        {showFact("counterpartyLabel") ? (
+          <TextInput
+            label="Tên nhà cung cấp / nông hộ / đầu mối"
+            value={props.counterpartyLabel}
+            onChange={(event) => props.onCounterpartyLabel(event.target.value)}
+          />
+        ) : null}
+        {showFact("expectedArrivalAt") ? (
+          <TextInput
+            label="Thời điểm dự kiến về"
+            type="datetime-local"
+            value={props.expectedArrivalAt}
+            onChange={(event) => props.onExpectedArrivalAt(event.target.value)}
+          />
+        ) : null}
+        {showFact("promisedQuantity") ? (
+          <QuantityInput
+            label="Số lượng được hứa"
+            unit={props.unit}
+            unitLabel={UNIT_LABEL_VI[props.unit]}
+            value={props.promisedQuantity}
+            onChange={(event) => props.onPromisedQuantity(event.target.value)}
+          />
+        ) : null}
+        {showFact("minimumOrder") ? (
+          <QuantityInput
+            label="Số lượng tối thiểu"
+            unit={props.unit}
+            unitLabel={UNIT_LABEL_VI[props.unit]}
+            value={props.minimumOrder}
+            onChange={(event) => props.onMinimumOrder(event.target.value)}
+          />
+        ) : null}
+        {showFact("promisedQuantity") || showFact("minimumOrder") ? (
+          <Select
+            label="Đơn vị"
+            value={props.unit}
+            options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
+            onChange={(event) => props.onUnit(event.target.value as Unit)}
+          />
+        ) : null}
+        {showFact("commitmentReference") ? (
+          <TextInput
+            label="Mã / tham chiếu cam kết"
+            value={props.commitmentReference}
+            onChange={(event) => props.onCommitmentReference(event.target.value)}
+          />
+        ) : null}
       </div>
       <EvidenceReferenceInput
         required

@@ -1,5 +1,6 @@
 "use client";
 
+import { isObservationFactAllowed } from "@vuarau/domain-contracts";
 import type {
   CostObservationCaseKind,
   DemandObservationDto,
@@ -147,40 +148,47 @@ export function DemandObservationView(props: {
 
 function DemandObservationForm(props: Parameters<typeof DemandObservationView>[0]) {
   const locked = props.command.phase.kind === "sending" || props.command.phase.kind === "unknown";
+  const showFact = (fact: string) => isObservationFactAllowed("demand", props.kind, fact);
   return (
     <section className="grid gap-4 rounded-card border border-border bg-surface p-4">
       <h2 className="text-subheading font-semibold">Nhu cầu mới</h2>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select
-          label="Khách hàng liên quan"
-          value={props.customerId}
-          options={props.customerOptions}
-          placeholder="Không gắn hồ sơ"
-          searchValue={props.customerSearch}
-          onSearchChange={props.onCustomerSearch}
-          searchPlaceholder="Tên hoặc mã khách hàng"
-          onChange={(event) => props.onCustomerId(event.target.value)}
-        />
-        <Select
-          label="Mặt hàng liên quan"
-          value={props.productId}
-          options={props.productOptions}
-          placeholder="Không gắn hồ sơ"
-          searchValue={props.productSearch}
-          onSearchChange={props.onProductSearch}
-          searchPlaceholder="Tên hoặc mã mặt hàng"
-          onChange={(event) => props.onProductId(event.target.value)}
-        />
-        <Select
-          label="Hạng hàng liên quan"
-          value={props.qualityGradeId}
-          options={props.qualityGradeOptions}
-          placeholder="Không gắn hạng hàng"
-          searchValue={props.qualityGradeSearch}
-          onSearchChange={props.onQualityGradeSearch}
-          searchPlaceholder="Tên hạng hàng"
-          onChange={(event) => props.onQualityGradeId(event.target.value)}
-        />
+        {showFact("customerId") ? (
+          <Select
+            label="Khách hàng liên quan"
+            value={props.customerId}
+            options={props.customerOptions}
+            placeholder="Không gắn hồ sơ"
+            searchValue={props.customerSearch}
+            onSearchChange={props.onCustomerSearch}
+            searchPlaceholder="Tên hoặc mã khách hàng"
+            onChange={(event) => props.onCustomerId(event.target.value)}
+          />
+        ) : null}
+        {showFact("productId") ? (
+          <Select
+            label="Mặt hàng liên quan"
+            value={props.productId}
+            options={props.productOptions}
+            placeholder="Không gắn hồ sơ"
+            searchValue={props.productSearch}
+            onSearchChange={props.onProductSearch}
+            searchPlaceholder="Tên hoặc mã mặt hàng"
+            onChange={(event) => props.onProductId(event.target.value)}
+          />
+        ) : null}
+        {showFact("qualityGradeId") ? (
+          <Select
+            label="Hạng hàng liên quan"
+            value={props.qualityGradeId}
+            options={props.qualityGradeOptions}
+            placeholder="Không gắn hạng hàng"
+            searchValue={props.qualityGradeSearch}
+            onSearchChange={props.onQualityGradeSearch}
+            searchPlaceholder="Tên hạng hàng"
+            onChange={(event) => props.onQualityGradeId(event.target.value)}
+          />
+        ) : null}
         <Select
           label="Loại quan sát"
           value={props.kind}
@@ -207,42 +215,54 @@ function DemandObservationForm(props: Parameters<typeof DemandObservationView>[0
         onChange={(event) => props.onParticipantWording(event.target.value)}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextInput
-          label="Tên khách / đầu mối nếu chưa có hồ sơ"
-          value={props.counterpartyLabel}
-          onChange={(event) => props.onCounterpartyLabel(event.target.value)}
-        />
-        <TextInput
-          label="Thời điểm khách cần hàng"
-          type="datetime-local"
-          value={props.requestedForAt}
-          onChange={(event) => props.onRequestedForAt(event.target.value)}
-        />
-        <QuantityInput
-          label="Số lượng được hỏi / đặt"
-          unit={props.unit}
-          unitLabel={UNIT_LABEL_VI[props.unit]}
-          value={props.requestedQuantity}
-          onChange={(event) => props.onRequestedQuantity(event.target.value)}
-        />
-        <QuantityInput
-          label="Số lượng tối thiểu"
-          unit={props.unit}
-          unitLabel={UNIT_LABEL_VI[props.unit]}
-          value={props.minimumQuantity}
-          onChange={(event) => props.onMinimumQuantity(event.target.value)}
-        />
-        <Select
-          label="Đơn vị"
-          value={props.unit}
-          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
-          onChange={(event) => props.onUnit(event.target.value as Unit)}
-        />
-        <TextInput
-          label="Mã / tham chiếu nhu cầu"
-          value={props.demandReference}
-          onChange={(event) => props.onDemandReference(event.target.value)}
-        />
+        {showFact("counterpartyLabel") ? (
+          <TextInput
+            label="Tên khách / đầu mối nếu chưa có hồ sơ"
+            value={props.counterpartyLabel}
+            onChange={(event) => props.onCounterpartyLabel(event.target.value)}
+          />
+        ) : null}
+        {showFact("requestedForAt") ? (
+          <TextInput
+            label="Thời điểm khách cần hàng"
+            type="datetime-local"
+            value={props.requestedForAt}
+            onChange={(event) => props.onRequestedForAt(event.target.value)}
+          />
+        ) : null}
+        {showFact("requestedQuantity") ? (
+          <QuantityInput
+            label="Số lượng được hỏi / đặt"
+            unit={props.unit}
+            unitLabel={UNIT_LABEL_VI[props.unit]}
+            value={props.requestedQuantity}
+            onChange={(event) => props.onRequestedQuantity(event.target.value)}
+          />
+        ) : null}
+        {showFact("minimumQuantity") ? (
+          <QuantityInput
+            label="Số lượng tối thiểu"
+            unit={props.unit}
+            unitLabel={UNIT_LABEL_VI[props.unit]}
+            value={props.minimumQuantity}
+            onChange={(event) => props.onMinimumQuantity(event.target.value)}
+          />
+        ) : null}
+        {showFact("requestedQuantity") || showFact("minimumQuantity") ? (
+          <Select
+            label="Đơn vị"
+            value={props.unit}
+            options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
+            onChange={(event) => props.onUnit(event.target.value as Unit)}
+          />
+        ) : null}
+        {showFact("demandReference") ? (
+          <TextInput
+            label="Mã / tham chiếu nhu cầu"
+            value={props.demandReference}
+            onChange={(event) => props.onDemandReference(event.target.value)}
+          />
+        ) : null}
       </div>
       <EvidenceReferenceInput
         required

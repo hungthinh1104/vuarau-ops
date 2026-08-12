@@ -6,8 +6,10 @@ import {
   COST_OBSERVATION_CASE_KINDS,
   debtObservationIdSchema,
   debtObservationKindSchema,
+  isObservationFactAllowed,
   recordDebtObservationCommandSchema,
   type CostObservationCaseKind,
+  type CustomerId,
   type DebtObservationId,
   type DebtObservationKind,
 } from "@vuarau/domain-contracts";
@@ -15,8 +17,8 @@ import { useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
-import { parseMoneyText } from "@/ui/domain/numeric-text.ts";
-import { parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
+import { formatMoneyInput, parseMoneyText } from "@/ui/domain/numeric-text.ts";
+import { formatVietnamDateTimeLocal, parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
 import { DebtEvidenceView } from "@/ui/screens/debt-evidence-view.tsx";
 
 export function DebtEvidenceController() {
@@ -37,6 +39,7 @@ export function DebtEvidenceController() {
   const [caseKind, setCaseKind] = useState<CostObservationCaseKind>("normal");
   const [description, setDescription] = useState("");
   const [participantWording, setParticipantWording] = useState("");
+  const [customerId, setCustomerId] = useState<CustomerId | null>(null);
   const [amount, setAmount] = useState("");
   const [agreedDueAt, setAgreedDueAt] = useState("");
   const [promiseToPayAt, setPromiseToPayAt] = useState("");
@@ -51,7 +54,9 @@ export function DebtEvidenceController() {
 
   async function submit(): Promise<void> {
     setFormError(null);
-    const parsedAmount = parseMoneyText(amount, "VND");
+    const parsedAmount = isObservationFactAllowed("debt", kind, "amount")
+      ? parseMoneyText(amount, "VND")
+      : { ok: true as const, value: null };
     if (!parsedAmount.ok) {
       setFormError(parsedAmount.reason);
       return;
@@ -68,12 +73,14 @@ export function DebtEvidenceController() {
       setFormError("Chọn bản ghi cần điều chỉnh trong lịch sử bên dưới.");
       return;
     }
-    const dueAt =
-      agreedDueAt.trim() === ""
+    const dueAt = !isObservationFactAllowed("debt", kind, "agreedDueAt")
+      ? { ok: true as const, value: null }
+      : agreedDueAt.trim() === ""
         ? { ok: true as const, value: null }
         : parseVietnamDateTimeLocal(agreedDueAt, "Hạn thanh toán");
-    const promiseAt =
-      promiseToPayAt.trim() === ""
+    const promiseAt = !isObservationFactAllowed("debt", kind, "promiseToPayAt")
+      ? { ok: true as const, value: null }
+      : promiseToPayAt.trim() === ""
         ? { ok: true as const, value: null }
         : parseVietnamDateTimeLocal(promiseToPayAt, "Hẹn thanh toán");
     if (!dueAt.ok) {
@@ -91,14 +98,14 @@ export function DebtEvidenceController() {
       description,
       participantWording,
       facts: {
-        amount: parsedAmount.value,
-        agreedDueAt: dueAt.value,
-        promiseToPayAt: promiseAt.value,
-        termCode: termCode.trim() || null,
-        termText: termText.trim() || null,
-        paymentReference: paymentReference.trim() || null,
-        allocationProposal: allocationProposal.trim() || null,
-        customerId: null,
+        amount: fact(kind, "amount", parsedAmount.value),
+        agreedDueAt: fact(kind, "agreedDueAt", dueAt.value),
+        promiseToPayAt: fact(kind, "promiseToPayAt", promiseAt.value),
+        termCode: fact(kind, "termCode", termCode.trim() || null),
+        termText: fact(kind, "termText", termText.trim() || null),
+        paymentReference: fact(kind, "paymentReference", paymentReference.trim() || null),
+        allocationProposal: fact(kind, "allocationProposal", allocationProposal.trim() || null),
+        customerId: fact(kind, "customerId", customerId),
       },
       evidenceReferences: references,
       relatedObservationId: relatedObservationId === "" ? null : relatedObservationId,
@@ -107,6 +114,7 @@ export function DebtEvidenceController() {
     observationId.current = crypto.randomUUID() as DebtObservationId;
     setDescription("");
     setParticipantWording("");
+    setCustomerId(null);
     setAmount("");
     setAgreedDueAt("");
     setPromiseToPayAt("");
@@ -153,9 +161,29 @@ export function DebtEvidenceController() {
       onAllocationProposal={setAllocationProposal}
       onEvidenceReferences={setEvidenceReferences}
       onStartCorrection={(id, label) => {
+        const item = observations.data?.items.find((candidate) => candidate.id === id);
+        if (item === undefined) return;
         setCaseKind("correction");
         setRelatedObservationId(debtObservationIdSchema.parse(id));
         setRelatedObservationLabel(label);
+        setKind(item.kind);
+        setDescription(item.description);
+        setParticipantWording(item.participantWording);
+        setCustomerId(item.facts.customerId);
+        setAmount(item.facts.amount === null ? "" : formatMoneyInput(item.facts.amount));
+        setAgreedDueAt(
+          item.facts.agreedDueAt === null ? "" : formatVietnamDateTimeLocal(item.facts.agreedDueAt),
+        );
+        setPromiseToPayAt(
+          item.facts.promiseToPayAt === null
+            ? ""
+            : formatVietnamDateTimeLocal(item.facts.promiseToPayAt),
+        );
+        setTermCode(item.facts.termCode ?? "");
+        setTermText(item.facts.termText ?? "");
+        setPaymentReference(item.facts.paymentReference ?? "");
+        setAllocationProposal(item.facts.allocationProposal ?? "");
+        setEvidenceReferences(item.evidenceReferences.join("\n"));
       }}
       onClearCorrection={() => {
         setRelatedObservationId("");
@@ -172,3 +200,7 @@ export const DEBT_CASE_OPTIONS = COST_OBSERVATION_CASE_KINDS.map((value) => ({
   value,
   label: value,
 }));
+
+function fact<T>(kind: DebtObservationKind, name: string, value: T): T | null {
+  return isObservationFactAllowed("debt", kind, name) ? value : null;
+}

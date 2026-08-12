@@ -6,6 +6,7 @@ import type {
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { validateObservationFacts } from "../observation-facts.ts";
 
 /** Supplier facts remain evidence only until a workspace policy is approved. */
 export function decideRecordSupplierObservation(
@@ -15,6 +16,8 @@ export function decideRecordSupplierObservation(
   correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{ observation: SupplierObservationDto; audit: AuditDraft }> {
   const { payload } = command;
+  const factCheck = validateObservationFacts("supplier", payload.kind, payload.facts);
+  if (!factCheck.ok) return factCheck;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
     return err(
       "SUPPLIER_OBSERVATION_CORRECTION_TARGET_REQUIRED",

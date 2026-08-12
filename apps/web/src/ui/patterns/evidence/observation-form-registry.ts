@@ -6,6 +6,7 @@ import type {
   SupplierObservationKind,
   SupplyCommitmentObservationKind,
 } from "@vuarau/domain-contracts";
+import { isObservationFactAllowed, type ObservationFactFamily } from "@vuarau/domain-contracts";
 
 export type ObservationFactField =
   | "amount"
@@ -233,4 +234,13 @@ export function reconciliationObservationForm(
   kind: ReconciliationObservationKind,
 ): ObservationFormContract {
   return OBSERVATION_FORM_REGISTRY.reconciliation_observation[kind];
+}
+
+/** Exact visibility check shared by the field-observation screens. */
+export function observationFactVisible(
+  family: ObservationFactFamily,
+  kind: string,
+  fact: string,
+): boolean {
+  return isObservationFactAllowed(family, kind, fact);
 }

@@ -108,15 +108,17 @@ export function SupplierObservationController() {
 
   async function submit() {
     setFormError(null);
-    const promised = parseOptionalQuantity(promisedQuantity, unit);
+    const promised = parseQuantityFor("promisedQuantity", promisedQuantity, unit, kind);
     if (!promised.ok) return setFormError(promised.reason);
-    const actual = parseOptionalQuantity(actualQuantity, unit);
+    const actual = parseQuantityFor("actualQuantity", actualQuantity, unit, kind);
     if (!actual.ok) return setFormError(actual.reason);
-    const accepted = parseOptionalQuantity(acceptedQuantity, unit);
+    const accepted = parseQuantityFor("acceptedQuantity", acceptedQuantity, unit, kind);
     if (!accepted.ok) return setFormError(accepted.reason);
-    const rejected = parseOptionalQuantity(rejectedQuantity, unit);
+    const rejected = parseQuantityFor("rejectedQuantity", rejectedQuantity, unit, kind);
     if (!rejected.ok) return setFormError(rejected.reason);
-    const parsedPrice = parseMoneyText(price, "VND");
+    const parsedPrice = supplierObservationHasField(kind, "price")
+      ? parseMoneyText(price, "VND")
+      : { ok: true as const, value: null };
     if (!parsedPrice.ok) return setFormError(parsedPrice.reason);
     const references = evidenceReferences
       .split("\n")
@@ -125,9 +127,13 @@ export function SupplierObservationController() {
     if (references.length === 0) return setFormError("Cần ít nhất một tham chiếu nguồn.");
     if (caseKind === "correction" && relatedObservationId === "")
       return setFormError("Chọn bản ghi cần điều chỉnh trong lịch sử bên dưới.");
-    const parsedExpectedAt = parseOptionalInstant(expectedAt);
+    const parsedExpectedAt = supplierObservationHasField(kind, "expectedAt")
+      ? parseOptionalInstant(expectedAt)
+      : { ok: true as const, value: null };
     if (!parsedExpectedAt.ok) return setFormError(parsedExpectedAt.reason);
-    const parsedActualAt = parseOptionalInstant(actualAt);
+    const parsedActualAt = supplierObservationHasField(kind, "actualAt")
+      ? parseOptionalInstant(actualAt)
+      : { ok: true as const, value: null };
     if (!parsedActualAt.ok) return setFormError(parsedActualAt.reason);
     const fact = <T,>(
       field: Parameters<typeof supplierObservationHasField>[1],
@@ -155,10 +161,10 @@ export function SupplierObservationController() {
         expectedLeadTimeText: fact("leadTime", leadTime.trim() || null),
         paymentArrangement: fact("paymentArrangement", paymentArrangement.trim() || null),
         traceabilityLevel: fact("traceabilityLevel", traceabilityLevel.trim() || null),
-        promisedQuantity: fact("quantity", promised.value),
-        actualQuantity: fact("quantity", actual.value),
-        acceptedQuantity: fact("quantity", accepted.value),
-        rejectedQuantity: fact("quantity", rejected.value),
+        promisedQuantity: fact("promisedQuantity", promised.value),
+        actualQuantity: fact("actualQuantity", actual.value),
+        acceptedQuantity: fact("acceptedQuantity", accepted.value),
+        rejectedQuantity: fact("rejectedQuantity", rejected.value),
         expectedAt: fact("expectedAt", parsedExpectedAt.value),
         actualAt: fact("actualAt", parsedActualAt.value),
         price: fact("price", parsedPrice.value),
@@ -331,6 +337,17 @@ export function SupplierObservationController() {
 function parseOptionalQuantity(raw: string, unit: Unit) {
   if (raw.trim().length === 0) return { ok: true as const, value: null };
   return parseQuantityText(raw, unit);
+}
+
+function parseQuantityFor(
+  field: Parameters<typeof supplierObservationHasField>[1],
+  raw: string,
+  unit: Unit,
+  kind: SupplierObservationKind,
+) {
+  return supplierObservationHasField(kind, field)
+    ? parseOptionalQuantity(raw, unit)
+    : { ok: true as const, value: null };
 }
 
 function parseOptionalInstant(raw: string) {

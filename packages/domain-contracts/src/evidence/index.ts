@@ -516,3 +516,124 @@ export const demandObservationListInputSchema = pageRequestSchema.extend({
 });
 export type DemandObservationListInput = z.infer<typeof demandObservationListInputSchema>;
 export const demandObservationPageSchema = pageOf(demandObservationDtoSchema);
+
+/**
+ * The persisted fact envelope is intentionally wider than every individual
+ * observation kind so old rows can still be read. New commands must only carry
+ * the facts that belong to their selected kind. This registry is the shared
+ * contract for that rule; the API and web form both derive their checks from it.
+ */
+export const OBSERVATION_FACT_KEYS = [
+  "supplierId",
+  "quantity",
+  "expectedAmount",
+  "observedAmount",
+  "expectedQuantity",
+  "observedQuantity",
+  "itemCount",
+  "productId",
+  "qualityGradeId",
+  "supplierObservationGroupId",
+  "role",
+  "sourceArea",
+  "pickupResponsibility",
+  "packingResponsibility",
+  "transportResponsibility",
+  "expectedLeadTimeText",
+  "paymentArrangement",
+  "traceabilityLevel",
+  "promisedQuantity",
+  "actualQuantity",
+  "acceptedQuantity",
+  "rejectedQuantity",
+  "expectedAt",
+  "actualAt",
+  "price",
+  "claimReference",
+  "observationReference",
+  "customerId",
+  "requestedQuantity",
+  "minimumQuantity",
+  "requestedForAt",
+  "counterpartyLabel",
+  "demandReference",
+  "minimumOrder",
+  "expectedArrivalAt",
+  "commitmentReference",
+  "amount",
+  "agreedDueAt",
+  "promiseToPayAt",
+  "termCode",
+  "termText",
+  "paymentReference",
+  "allocationProposal",
+] as const;
+export type ObservationFactKey = (typeof OBSERVATION_FACT_KEYS)[number];
+
+const supplierContext = [
+  "supplierId",
+  "supplierObservationGroupId",
+  "observationReference",
+] as const;
+const supplierProductContext = [...supplierContext, "productId", "qualityGradeId"] as const;
+const demandContext = ["customerId", "counterpartyLabel", "demandReference"] as const;
+const demandProductContext = [...demandContext, "productId", "qualityGradeId"] as const;
+const supplyContext = ["supplierId", "counterpartyLabel", "commitmentReference"] as const;
+const supplyProductContext = [...supplyContext, "productId", "qualityGradeId"] as const;
+const debtContext = ["customerId"] as const;
+
+export const OBSERVATION_FACT_REGISTRY = {
+  supplier: {
+    role: [...supplierContext, "role"],
+    product_supplied: [...supplierProductContext],
+    source_area: [...supplierContext, "sourceArea"],
+    pickup_responsibility: [...supplierContext, "pickupResponsibility"],
+    packing_responsibility: [...supplierContext, "packingResponsibility"],
+    transport_responsibility: [...supplierContext, "transportResponsibility"],
+    expected_lead_time: [...supplierContext, "expectedLeadTimeText"],
+    payment_arrangement: [...supplierContext, "paymentArrangement"],
+    traceability_level: [...supplierContext, "traceabilityLevel"],
+    promised_quantity: [...supplierProductContext, "promisedQuantity"],
+    actual_quantity: [...supplierProductContext, "actualQuantity"],
+    expected_arrival: [...supplierProductContext, "expectedAt"],
+    actual_arrival: [...supplierProductContext, "actualAt"],
+    accepted_quantity: [...supplierProductContext, "acceptedQuantity"],
+    rejected_quantity: [...supplierProductContext, "rejectedQuantity"],
+    claim: [...supplierProductContext, "claimReference"],
+    price: [...supplierProductContext, "price"],
+    other: [...(Object.keys(supplierObservationFactsSchema.shape) as ObservationFactKey[])],
+  } satisfies Record<SupplierObservationKind, readonly ObservationFactKey[]>,
+  demand: {
+    requested_order: [...demandProductContext, "requestedQuantity", "requestedForAt"],
+    expected_delivery: [...demandProductContext, "requestedForAt"],
+    minimum_quantity: [...demandProductContext, "minimumQuantity"],
+    availability_note: [...demandProductContext],
+    other: [...(Object.keys(demandObservationFactsSchema.shape) as ObservationFactKey[])],
+  } satisfies Record<DemandObservationKind, readonly ObservationFactKey[]>,
+  supply: {
+    promised_supply: [...supplyProductContext, "promisedQuantity", "expectedArrivalAt"],
+    expected_arrival: [...supplyProductContext, "expectedArrivalAt"],
+    minimum_order: [...supplyProductContext, "minimumOrder"],
+    availability_note: [...supplyProductContext],
+    other: [...(Object.keys(supplyCommitmentObservationFactsSchema.shape) as ObservationFactKey[])],
+  } satisfies Record<SupplyCommitmentObservationKind, readonly ObservationFactKey[]>,
+  debt: {
+    agreed_due_date: [...debtContext, "agreedDueAt"],
+    payment_term: [...debtContext, "termCode", "termText"],
+    promise_to_pay: [...debtContext, "amount", "promiseToPayAt"],
+    collection_note: [...debtContext, "termText"],
+    payment_reference: [...debtContext, "amount", "paymentReference"],
+    allocation_proposal: [...debtContext, "amount", "allocationProposal"],
+    other: [...(Object.keys(debtObservationFactsSchema.shape) as ObservationFactKey[])],
+  } satisfies Record<DebtObservationKind, readonly ObservationFactKey[]>,
+} as const;
+
+export type ObservationFactFamily = keyof typeof OBSERVATION_FACT_REGISTRY;
+export function isObservationFactAllowed(
+  family: ObservationFactFamily,
+  kind: string,
+  fact: string,
+): boolean {
+  const facts = (OBSERVATION_FACT_REGISTRY[family] as Record<string, readonly string[]>)[kind];
+  return facts?.includes(fact) ?? false;
+}

@@ -7,9 +7,13 @@ import {
   UNIT_LABEL_VI,
   UNITS,
   recordSupplyCommitmentObservationCommandSchema,
+  isObservationFactAllowed,
   supplyCommitmentObservationIdSchema,
   supplyCommitmentObservationKindSchema,
   type CostObservationCaseKind,
+  type ProductId,
+  type QualityGradeId,
+  type SupplierId,
   type SupplyCommitmentObservationId,
   type SupplyCommitmentObservationKind,
   type Unit,
@@ -18,8 +22,8 @@ import { useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
-import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
-import { parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
+import { formatQuantityInput, parseQuantityText } from "@/ui/domain/numeric-text.ts";
+import { formatVietnamDateTimeLocal, parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
 import { SupplyCommitmentEvidenceView } from "@/ui/screens/supply-commitment-evidence-view.tsx";
 
 export function SupplyCommitmentEvidenceController() {
@@ -43,6 +47,9 @@ export function SupplyCommitmentEvidenceController() {
   const [caseKind, setCaseKind] = useState<CostObservationCaseKind>("normal");
   const [description, setDescription] = useState("");
   const [participantWording, setParticipantWording] = useState("");
+  const [supplierId, setSupplierId] = useState<SupplierId | null>(null);
+  const [productId, setProductId] = useState<ProductId | null>(null);
+  const [qualityGradeId, setQualityGradeId] = useState<QualityGradeId | null>(null);
   const [counterpartyLabel, setCounterpartyLabel] = useState("");
   const [promisedQuantity, setPromisedQuantity] = useState("");
   const [minimumOrder, setMinimumOrder] = useState("");
@@ -58,8 +65,8 @@ export function SupplyCommitmentEvidenceController() {
 
   async function submit(): Promise<void> {
     setFormError(null);
-    const promised = parseQuantityText(promisedQuantity, unit);
-    const minimum = parseQuantityText(minimumOrder, unit);
+    const promised = parseQuantityFor("promisedQuantity", promisedQuantity, unit, kind);
+    const minimum = parseQuantityFor("minimumOrder", minimumOrder, unit, kind);
     if (!promised.ok) {
       setFormError(promised.reason);
       return;
@@ -76,7 +83,9 @@ export function SupplyCommitmentEvidenceController() {
       setFormError("Cần ít nhất một tham chiếu nguồn.");
       return;
     }
-    const parsedArrival = parseOptionalInstant(expectedArrivalAt);
+    const parsedArrival = isObservationFactAllowed("supply", kind, "expectedArrivalAt")
+      ? parseOptionalInstant(expectedArrivalAt)
+      : { ok: true as const, value: null };
     if (!parsedArrival.ok) {
       setFormError(parsedArrival.reason);
       return;
@@ -92,14 +101,14 @@ export function SupplyCommitmentEvidenceController() {
       description,
       participantWording,
       facts: {
-        supplierId: null,
-        productId: null,
-        qualityGradeId: null,
-        promisedQuantity: promised.value,
-        minimumOrder: minimum.value,
-        expectedArrivalAt: parsedArrival.value,
-        counterpartyLabel: counterpartyLabel.trim() || null,
-        commitmentReference: commitmentReference.trim() || null,
+        supplierId: fact(kind, "supplierId", supplierId),
+        productId: fact(kind, "productId", productId),
+        qualityGradeId: fact(kind, "qualityGradeId", qualityGradeId),
+        promisedQuantity: fact(kind, "promisedQuantity", promised.value),
+        minimumOrder: fact(kind, "minimumOrder", minimum.value),
+        expectedArrivalAt: fact(kind, "expectedArrivalAt", parsedArrival.value),
+        counterpartyLabel: fact(kind, "counterpartyLabel", counterpartyLabel.trim() || null),
+        commitmentReference: fact(kind, "commitmentReference", commitmentReference.trim() || null),
       },
       evidenceReferences: references,
       relatedObservationId: relatedObservationId === "" ? null : relatedObservationId,
@@ -108,6 +117,9 @@ export function SupplyCommitmentEvidenceController() {
     observationId.current = crypto.randomUUID() as SupplyCommitmentObservationId;
     setDescription("");
     setParticipantWording("");
+    setSupplierId(null);
+    setProductId(null);
+    setQualityGradeId(null);
     setCounterpartyLabel("");
     setPromisedQuantity("");
     setMinimumOrder("");
@@ -150,9 +162,34 @@ export function SupplyCommitmentEvidenceController() {
       onCommitmentReference={setCommitmentReference}
       onEvidenceReferences={setEvidenceReferences}
       onStartCorrection={(id, label) => {
+        const item = observations.data?.items.find((candidate) => candidate.id === id);
+        if (item === undefined) return;
         setCaseKind("correction");
         setRelatedObservationId(supplyCommitmentObservationIdSchema.parse(id));
         setRelatedObservationLabel(label);
+        setKind(item.kind);
+        setDescription(item.description);
+        setParticipantWording(item.participantWording);
+        setSupplierId(item.facts.supplierId);
+        setProductId(item.facts.productId);
+        setQualityGradeId(item.facts.qualityGradeId);
+        setCounterpartyLabel(item.facts.counterpartyLabel ?? "");
+        setPromisedQuantity(
+          item.facts.promisedQuantity === null
+            ? ""
+            : formatQuantityInput(item.facts.promisedQuantity),
+        );
+        setMinimumOrder(
+          item.facts.minimumOrder === null ? "" : formatQuantityInput(item.facts.minimumOrder),
+        );
+        setUnit(item.facts.promisedQuantity?.unit ?? item.facts.minimumOrder?.unit ?? "kg");
+        setExpectedArrivalAt(
+          item.facts.expectedArrivalAt === null
+            ? ""
+            : formatVietnamDateTimeLocal(item.facts.expectedArrivalAt),
+        );
+        setCommitmentReference(item.facts.commitmentReference ?? "");
+        setEvidenceReferences(item.evidenceReferences.join("\n"));
       }}
       onClearCorrection={() => {
         setRelatedObservationId("");
@@ -168,6 +205,23 @@ function parseOptionalInstant(raw: string) {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return { ok: true as const, value: null };
   return parseVietnamDateTimeLocal(trimmed, "Ngày giờ dự kiến");
+}
+
+function parseQuantityFor(
+  factName: string,
+  raw: string,
+  unit: Unit,
+  kind: SupplyCommitmentObservationKind,
+) {
+  if (!isObservationFactAllowed("supply", kind, factName)) {
+    return { ok: true as const, value: null };
+  }
+  if (raw.trim().length === 0) return { ok: true as const, value: null };
+  return parseQuantityText(raw, unit);
+}
+
+function fact<T>(kind: SupplyCommitmentObservationKind, name: string, value: T): T | null {
+  return isObservationFactAllowed("supply", kind, name) ? value : null;
 }
 
 export const SUPPLY_COMMITMENT_KIND_OPTIONS = SUPPLY_COMMITMENT_OBSERVATION_KINDS.map((value) => ({

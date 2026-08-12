@@ -22,11 +22,11 @@ function command(overrides: Record<string, unknown> = {}) {
       description: "Khách hẹn thanh toán sau chuyến giao.",
       participantWording: "Chiều thứ sáu tôi chuyển khoản.",
       facts: {
-        amount: { amountMinor: 250_000, currency: "VND" },
+        amount: null,
         agreedDueAt: "2026-08-07T17:00:00.000Z",
         promiseToPayAt: null,
-        termCode: "FRIDAY",
-        termText: "Thanh toán cuối tuần",
+        termCode: null,
+        termText: null,
         paymentReference: null,
         allocationProposal: null,
         customerId: null,
@@ -43,7 +43,7 @@ it("TC-EVIDENCE-033 preserves debt evidence without a ledger effect", () => {
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.value.observation.facts.agreedDueAt, "2026-08-07T17:00:00.000Z");
-  assert.equal(result.value.observation.facts.termText, "Thanh toán cuối tuần");
+  assert.equal(result.value.observation.facts.termText, null);
   assert.equal(result.value.audit.aggregateType, "debt_observation");
   assert.equal(result.value.audit.action, "debt_observation.recorded");
   assert.equal(result.value.audit.after === null || "overdue" in result.value.audit.after, false);
@@ -91,4 +91,41 @@ it("TC-EVIDENCE-034 requires a same-workspace correction target", () => {
     false,
   );
   assert.equal(linked.ok, true);
+});
+
+it("rejects hidden facts from another debt kind", () => {
+  const result = decideRecordDebtObservation(
+    command({
+      payload: {
+        ...command().payload,
+        facts: { ...command().payload.facts, amount: { amountMinor: 1_000, currency: "VND" } },
+      },
+    }),
+    RECORDED_AT,
+    null,
+    false,
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "OBSERVATION_FACT_NOT_ALLOWED");
+});
+
+it("rejects negative observation magnitude without writing a result", () => {
+  const result = decideRecordDebtObservation(
+    command({
+      payload: {
+        ...command().payload,
+        kind: "promise_to_pay",
+        facts: {
+          ...command().payload.facts,
+          amount: { amountMinor: -1, currency: "VND" },
+          promiseToPayAt: RECORDED_AT,
+        },
+      },
+    }),
+    RECORDED_AT,
+    null,
+    false,
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "OBSERVATION_FACT_NEGATIVE");
 });

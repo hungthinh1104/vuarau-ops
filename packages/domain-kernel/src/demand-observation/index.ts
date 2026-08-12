@@ -6,6 +6,7 @@ import type {
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { validateObservationFacts } from "../observation-facts.ts";
 
 /**
  * Demand observations preserve a request before it becomes a Sale. This
@@ -19,6 +20,8 @@ export function decideRecordDemandObservation(
   correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{ observation: DemandObservationDto; audit: AuditDraft }> {
   const { payload } = command;
+  const factCheck = validateObservationFacts("demand", payload.kind, payload.facts);
+  if (!factCheck.ok) return factCheck;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
     return err(
       "DEMAND_OBSERVATION_CORRECTION_TARGET_REQUIRED",

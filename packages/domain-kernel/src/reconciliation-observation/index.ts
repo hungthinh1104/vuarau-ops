@@ -6,6 +6,7 @@ import type {
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { validateObservationMagnitudes } from "../observation-facts.ts";
 
 export function decideRecordReconciliationObservation(
   command: RecordReconciliationObservationCommand,
@@ -17,6 +18,8 @@ export function decideRecordReconciliationObservation(
   audit: AuditDraft;
 }> {
   const { payload } = command;
+  const magnitudeCheck = validateObservationMagnitudes(payload.facts);
+  if (!magnitudeCheck.ok) return magnitudeCheck;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
     return err(
       "RECONCILIATION_OBSERVATION_CORRECTION_TARGET_REQUIRED",

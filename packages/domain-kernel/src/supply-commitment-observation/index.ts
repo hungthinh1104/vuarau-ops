@@ -6,6 +6,7 @@ import type {
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
+import { validateObservationFacts } from "../observation-facts.ts";
 
 /**
  * Supply commitment observations are source facts only. This decision never
@@ -22,6 +23,8 @@ export function decideRecordSupplyCommitmentObservation(
   audit: AuditDraft;
 }> {
   const { payload } = command;
+  const factCheck = validateObservationFacts("supply", payload.kind, payload.facts);
+  if (!factCheck.ok) return factCheck;
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
     return err(
       "SUPPLY_COMMITMENT_OBSERVATION_CORRECTION_TARGET_REQUIRED",

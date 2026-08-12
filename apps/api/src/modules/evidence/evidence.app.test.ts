@@ -111,11 +111,11 @@ const debtInput = (overrides: Record<string, unknown> = {}) => ({
     description: "Khách hẹn thanh toán sau chuyến giao.",
     participantWording: "Chiều thứ sáu tôi chuyển khoản.",
     facts: {
-      amount: { amountMinor: 250_000, currency: "VND" },
+      amount: null,
       agreedDueAt: "2026-08-07T17:00:00.000Z",
       promiseToPayAt: null,
-      termCode: "FRIDAY",
-      termText: "Thanh toán cuối tuần",
+      termCode: null,
+      termText: null,
       paymentReference: null,
       allocationProposal: null,
       customerId: null,
@@ -143,7 +143,7 @@ const supplyCommitmentInput = (overrides: Record<string, unknown> = {}) => ({
       productId: null,
       qualityGradeId: null,
       promisedQuantity: { valueScaled: 200_000, unit: "kg" },
-      minimumOrder: { valueScaled: 50_000, unit: "kg" },
+      minimumOrder: null,
       expectedArrivalAt: "2026-08-04T02:00:00.000Z",
       counterpartyLabel: "Anh Tư đầu mối chợ sớm",
       commitmentReference: "message://supply/001",
@@ -162,7 +162,7 @@ const supplierObservationInput = (overrides: Record<string, unknown> = {}) => ({
   occurredAt: TRANSACTION_TIME,
   payload: {
     supplierObservationId: uuid<SupplierObservationId>(),
-    kind: "role",
+    kind: "promised_quantity",
     caseKind: "normal",
     description: "Nhà cung cấp tự giao hàng từ vùng sản xuất.",
     participantWording: "Bên tôi đóng gói rồi đưa lên xe.",
@@ -171,20 +171,20 @@ const supplierObservationInput = (overrides: Record<string, unknown> = {}) => ({
       productId: null,
       qualityGradeId: null,
       supplierObservationGroupId: null,
-      role: "hợp tác xã",
-      sourceArea: "Đức Trọng",
-      pickupResponsibility: "nhà cung cấp",
-      packingResponsibility: "nhà cung cấp",
-      transportResponsibility: "nhà cung cấp",
-      expectedLeadTimeText: "mỗi ngày",
-      paymentArrangement: "trao đổi, chưa chốt quy tắc hệ thống",
-      traceabilityLevel: "phiếu lô giấy",
+      role: null,
+      sourceArea: null,
+      pickupResponsibility: null,
+      packingResponsibility: null,
+      transportResponsibility: null,
+      expectedLeadTimeText: null,
+      paymentArrangement: null,
+      traceabilityLevel: null,
       promisedQuantity: { valueScaled: 200_000, unit: "kg" },
-      actualQuantity: { valueScaled: 190_000, unit: "kg" },
+      actualQuantity: null,
       acceptedQuantity: null,
       rejectedQuantity: null,
-      expectedAt: "2026-08-04T02:00:00.000Z",
-      actualAt: "2026-08-04T03:00:00.000Z",
+      expectedAt: null,
+      actualAt: null,
       price: null,
       claimReference: null,
       observationReference: "note://supplier/001",
@@ -406,6 +406,41 @@ describe("supply commitment observation application", () => {
 });
 
 describe("debt observation application", () => {
+  it("rejects stale facts and negative magnitudes before persistence", async () => {
+    const stale = await recordDebtObservation(
+      harness.ctx,
+      debtInput({
+        payload: {
+          ...debtInput().payload,
+          facts: {
+            ...debtInput().payload.facts,
+            amount: { amountMinor: 10_000, currency: "VND" },
+          },
+        },
+      }),
+    );
+    expect(stale.ok).toBe(false);
+    if (!stale.ok) expect(stale.error.code).toBe("OBSERVATION_FACT_NOT_ALLOWED");
+
+    const negative = await recordDebtObservation(
+      harness.ctx,
+      debtInput({
+        payload: {
+          ...debtInput().payload,
+          kind: "promise_to_pay",
+          facts: {
+            ...debtInput().payload.facts,
+            amount: { amountMinor: -1, currency: "VND" },
+            promiseToPayAt: TRANSACTION_TIME,
+          },
+        },
+      }),
+    );
+    expect(negative.ok).toBe(false);
+    if (!negative.ok) expect(negative.error.code).toBe("OBSERVATION_FACT_NEGATIVE");
+    expect(harness.db.auditRecords()).toHaveLength(0);
+  });
+
   it("TC-EVIDENCE-035 — records, lists and retries term evidence without debt effects", async () => {
     const command = debtInput();
     const recorded = await recordDebtObservation(harness.ctx, command);
@@ -464,7 +499,6 @@ describe("supplier observation application", () => {
     expect(recorded.ok).toBe(true);
     expect(retry).toEqual(recorded);
     if (!recorded.ok) return;
-    expect(recorded.value.facts.sourceArea).toBe("Đức Trọng");
     expect(recorded.value.facts.promisedQuantity).toEqual({ valueScaled: 200_000, unit: "kg" });
     expect(recorded.value).not.toHaveProperty("score");
     const listed = await listSupplierObservations(harness.ctx, {
@@ -514,9 +548,12 @@ describe("supplier observation application", () => {
         payload: {
           ...supplierObservationInput().payload,
           supplierObservationId: uuid<SupplierObservationId>(),
-          kind: "actual_quantity",
           caseKind: "correction",
           relatedObservationId: first.value.id,
+          facts: {
+            ...supplierObservationInput().payload.facts,
+            productId: crypto.randomUUID(),
+          },
         },
       }),
     );

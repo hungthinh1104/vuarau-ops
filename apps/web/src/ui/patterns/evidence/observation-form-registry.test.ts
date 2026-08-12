@@ -8,6 +8,7 @@ import {
 } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
 import { OBSERVATION_FORM_REGISTRY, costObservationForm } from "./observation-form-registry.ts";
+import { SUPPLIER_OBSERVATION_FIELDS } from "@/ui/domain/supplier-observation-fields.ts";
 
 describe("observation form registry", () => {
   it("has a contract entry for every supported observation kind", () => {
@@ -34,5 +35,11 @@ describe("observation form registry", () => {
   it("shows only the facts relevant to the selected cost observation", () => {
     expect(costObservationForm("purchase_price").fields).toEqual(["amount"]);
     expect(costObservationForm("accepted_quantity").fields).toContain("quantity");
+  });
+
+  it("derives supplier quantity controls as distinct facts", () => {
+    expect(SUPPLIER_OBSERVATION_FIELDS.promised_quantity).toContain("promisedQuantity");
+    expect(SUPPLIER_OBSERVATION_FIELDS.promised_quantity).not.toContain("actualQuantity");
+    expect(SUPPLIER_OBSERVATION_FIELDS.actual_quantity).toContain("actualQuantity");
   });
 });

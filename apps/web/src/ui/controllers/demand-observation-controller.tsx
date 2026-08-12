@@ -9,6 +9,7 @@ import {
   demandObservationIdSchema,
   demandObservationKindSchema,
   recordDemandObservationCommandSchema,
+  isObservationFactAllowed,
   type CostObservationCaseKind,
   type CustomerId,
   type DemandObservationId,
@@ -22,8 +23,8 @@ import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
 import { useContractCommand } from "@/api/use-command.ts";
 import { useDebounced } from "@/api/use-debounced.ts";
-import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
-import { parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
+import { formatQuantityInput, parseQuantityText } from "@/ui/domain/numeric-text.ts";
+import { formatVietnamDateTimeLocal, parseVietnamDateTimeLocal } from "@/ui/domain/time.ts";
 import { DemandObservationView } from "@/ui/screens/demand-observation-view.tsx";
 
 export function DemandObservationController() {
@@ -93,11 +94,13 @@ export function DemandObservationController() {
 
   async function submit(): Promise<void> {
     setFormError(null);
-    const requested = parseOptionalQuantity(requestedQuantity, unit);
+    const requested = parseQuantityFor("requestedQuantity", requestedQuantity, unit, kind);
     if (!requested.ok) return setFormError(requested.reason);
-    const minimum = parseOptionalQuantity(minimumQuantity, unit);
+    const minimum = parseQuantityFor("minimumQuantity", minimumQuantity, unit, kind);
     if (!minimum.ok) return setFormError(minimum.reason);
-    const parsedRequestedFor = parseOptionalInstant(requestedForAt);
+    const parsedRequestedFor = isObservationFactAllowed("demand", kind, "requestedForAt")
+      ? parseOptionalInstant(requestedForAt)
+      : { ok: true as const, value: null };
     if (!parsedRequestedFor.ok) return setFormError(parsedRequestedFor.reason);
     const references = evidenceReferences
       .split("\n")
@@ -114,14 +117,14 @@ export function DemandObservationController() {
       description,
       participantWording,
       facts: {
-        customerId: customerId === "" ? null : customerId,
-        productId: productId === "" ? null : productId,
-        qualityGradeId: qualityGradeId === "" ? null : qualityGradeId,
-        requestedQuantity: requested.value,
-        minimumQuantity: minimum.value,
-        requestedForAt: parsedRequestedFor.value,
-        counterpartyLabel: counterpartyLabel.trim() || null,
-        demandReference: demandReference.trim() || null,
+        customerId: fact(kind, "customerId", customerId === "" ? null : customerId),
+        productId: fact(kind, "productId", productId === "" ? null : productId),
+        qualityGradeId: fact(kind, "qualityGradeId", qualityGradeId === "" ? null : qualityGradeId),
+        requestedQuantity: fact(kind, "requestedQuantity", requested.value),
+        minimumQuantity: fact(kind, "minimumQuantity", minimum.value),
+        requestedForAt: fact(kind, "requestedForAt", parsedRequestedFor.value),
+        counterpartyLabel: fact(kind, "counterpartyLabel", counterpartyLabel.trim() || null),
+        demandReference: fact(kind, "demandReference", demandReference.trim() || null),
       },
       evidenceReferences: references,
       relatedObservationId: relatedObservationId === "" ? null : relatedObservationId,
@@ -227,9 +230,36 @@ export function DemandObservationController() {
       onDemandReference={setDemandReference}
       onEvidenceReferences={setEvidenceReferences}
       onStartCorrection={(id, label) => {
+        const item = observations.data?.items.find((candidate) => candidate.id === id);
+        if (item === undefined) return;
         setCaseKind("correction");
         setRelatedObservationId(demandObservationIdSchema.parse(id));
         setRelatedObservationLabel(label);
+        setKind(item.kind);
+        setDescription(item.description);
+        setParticipantWording(item.participantWording);
+        setCustomerId(item.facts.customerId ?? "");
+        setProductId(item.facts.productId ?? "");
+        setQualityGradeId(item.facts.qualityGradeId ?? "");
+        setRequestedQuantity(
+          item.facts.requestedQuantity === null
+            ? ""
+            : formatQuantityInput(item.facts.requestedQuantity),
+        );
+        setMinimumQuantity(
+          item.facts.minimumQuantity === null
+            ? ""
+            : formatQuantityInput(item.facts.minimumQuantity),
+        );
+        setUnit(item.facts.requestedQuantity?.unit ?? item.facts.minimumQuantity?.unit ?? "kg");
+        setRequestedForAt(
+          item.facts.requestedForAt === null
+            ? ""
+            : formatVietnamDateTimeLocal(item.facts.requestedForAt),
+        );
+        setCounterpartyLabel(item.facts.counterpartyLabel ?? "");
+        setDemandReference(item.facts.demandReference ?? "");
+        setEvidenceReferences(item.evidenceReferences.join("\n"));
       }}
       onClearCorrection={() => {
         setRelatedObservationId("");
@@ -255,6 +285,16 @@ function withSelectedOption(
 function parseOptionalQuantity(raw: string, unit: Unit) {
   if (raw.trim().length === 0) return { ok: true as const, value: null };
   return parseQuantityText(raw, unit);
+}
+
+function parseQuantityFor(fact: string, raw: string, unit: Unit, kind: DemandObservationKind) {
+  return isObservationFactAllowed("demand", kind, fact)
+    ? parseOptionalQuantity(raw, unit)
+    : { ok: true as const, value: null };
+}
+
+function fact<T>(kind: DemandObservationKind, name: string, value: T): T | null {
+  return isObservationFactAllowed("demand", kind, name) ? value : null;
 }
 
 function parseOptionalInstant(raw: string) {
