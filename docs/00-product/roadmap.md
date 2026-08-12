@@ -268,7 +268,7 @@ The repository-truth and critical-screen Storybook reconciliation is technically
 closed: every critical screen in `docs/08-qa/ui-screen-coverage.md` has a shared
 presentation View and executable Storybook states. The latest synthetic depot-day
 rehearsal reports `PASS` on exact SHA
-`32d2780c73e34377b397405e205f7a44d67b9911`; the latest full release/pilot
+`b5118ccf51b80a826f0ff3b2b47935e7094ec0ec`; the latest full release/pilot
 dry-run evidence is bound to its own recorded SHA. Visual coverage is not product
 completeness, and field/provider gates remain separate.
 

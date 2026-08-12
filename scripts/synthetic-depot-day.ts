@@ -30,6 +30,8 @@ export const SYNTHETIC_DEPOT_DAY_STEPS: readonly EvidenceStep[] = [
     testFile: "apps/api/src/infrastructure/persistence/drizzle/synthetic-depot-day.db.test.ts",
     proves: [
       "one PostgreSQL workspace keeps receiving and fulfilment partials tied to canonical lines",
+      "inspected intake records arrival, inspection, accepted/held/rejected disposition and coverage",
+      "customer payment allocation and its compensation remain separate from the ledger effect",
       "duplicate confirmation and dispatch replay the original result without a second effect",
       "customer payment reversal, supplier payment, coverage, reports and reconciliation remain attributable",
       "the exported day restores into an empty target arrangement and reconciles again",
