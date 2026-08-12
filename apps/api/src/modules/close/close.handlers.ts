@@ -254,6 +254,7 @@ export function recordCashStatementMatch(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.statement.match",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
       await repos.cashStatementMatches.lockMatchIdentity(
@@ -317,6 +318,7 @@ export function reverseCashStatementMatch(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.statement.match",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.cashStatementMatches.findByIdForUpdate(

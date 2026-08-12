@@ -121,6 +121,7 @@ export function createCustomerOrderDraft(
     input,
     ctx,
     requiredPermission: "customer_order.create",
+    businessDayPolicy: "enforce",
     resultSchema: customerOrderDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       if (
@@ -159,6 +160,7 @@ export function updateCustomerOrderDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "customer_order.update",
+    businessDayPolicy: "enforce",
     resultSchema: customerOrderDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.customerOrders.findByIdForUpdate(
@@ -192,6 +194,7 @@ export function confirmCustomerOrder(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "customer_order.confirm",
+    businessDayPolicy: "enforce",
     resultSchema: customerOrderDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.customerOrders.findByIdForUpdate(
@@ -223,6 +226,7 @@ export function cancelCustomerOrder(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "customer_order.cancel",
+    businessDayPolicy: "enforce",
     resultSchema: customerOrderDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.customerOrders.findByIdForUpdate(

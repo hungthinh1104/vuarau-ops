@@ -49,6 +49,7 @@ export function createProduct(
     input,
     ctx,
     requiredPermission: "product.create",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       if (
         (await repos.products.findById(command.workspaceId, command.payload.productId)) !== null
@@ -98,6 +99,7 @@ function mutateProduct<
     input: args.input,
     ctx: args.ctx,
     requiredPermission: args.permission,
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.products.findByIdForUpdate(
         command.workspaceId,

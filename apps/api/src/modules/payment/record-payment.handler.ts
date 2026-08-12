@@ -19,6 +19,7 @@ export function recordCustomerPayment(
     input,
     ctx,
     requiredPermission: "payment.record",
+    businessDayPolicy: "enforce",
     resultSchema: paymentDtoSchema,
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const customer = await repos.customers.findByIdForUpdate(

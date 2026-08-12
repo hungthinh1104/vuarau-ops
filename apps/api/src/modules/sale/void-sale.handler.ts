@@ -35,6 +35,7 @@ export function voidSale(ctx: CommandContext, input: unknown): Promise<DomainRes
     // Not `sale.post`. Somebody who can both create and erase a sale can make a
     // load disappear with nothing missing from the balance (BR-AUTH-004).
     requiredPermission: "sale.void",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       // `FOR UPDATE` on the sale is what serialises two concurrent voids, even
       // though the write lands in a different table (BR-SALE-013).

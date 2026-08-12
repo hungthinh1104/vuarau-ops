@@ -38,6 +38,7 @@ export function recordPriceRule(
     input,
     ctx,
     requiredPermission: "pricing.manage",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       if (
         (await repos.priceRules.findById(command.workspaceId, command.payload.priceRuleId)) !== null

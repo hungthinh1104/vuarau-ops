@@ -56,6 +56,7 @@ export function recordPurchaseReceipt(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "receiving.record",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["purchasing", "inventory", "direct_receiving"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const purchase = await repos.purchases.findByIdForUpdate(
@@ -145,6 +146,7 @@ export function reversePurchaseReceipt(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "receiving.reverse",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const receipt = await repos.purchaseReceipts.findById(
         command.workspaceId,
@@ -222,6 +224,7 @@ export function adjustInventory(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "inventory.adjust",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["inventory"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       if (
@@ -316,6 +319,7 @@ export function reclassifyInventory(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "inventory.reclassify",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["inventory", "quality_grading"],
     execute: async ({ command, repos, recordedAt }) => {
       if (

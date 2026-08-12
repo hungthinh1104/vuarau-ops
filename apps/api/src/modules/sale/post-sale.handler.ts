@@ -39,6 +39,7 @@ export function postSale(ctx: CommandContext, input: unknown): Promise<DomainRes
     // A correction replacement is posted by its void-authorized correcting
     // actor. An ordinary sale still requires the normal sales-post permission.
     requiredPermission: "sale.read",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt, membership, operationalProfile }) => {
       let replacementSource: Awaited<ReturnType<typeof repos.sales.findByIdForUpdate>> = null;
       const sale = await repos.sales.findByIdForUpdate(command.workspaceId, command.payload.saleId);

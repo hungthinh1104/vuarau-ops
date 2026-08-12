@@ -35,6 +35,7 @@ export function createQualityGrade(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "quality.manage",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["quality_grading"],
     execute: async ({ command, repos, recordedAt }) => {
       if (
@@ -87,6 +88,7 @@ function mutate<
     input: args.input,
     ctx: args.ctx,
     requiredPermission: "quality.manage",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["quality_grading"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.qualityGrades.findByIdForUpdate(

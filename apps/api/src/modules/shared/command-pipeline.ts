@@ -118,8 +118,8 @@ export async function runCommand<
   readonly requiredPermission: Permission;
   /** Every listed workflow must be enabled for a new command to execute. */
   readonly requiredWorkflows?: readonly WorkspaceWorkflow[];
-  /** Administrative commands may still manage access/profile after a close. */
-  readonly businessDayPolicy?: "enforce" | "bypass";
+  /** Every command must declare whether the closed-day gate applies. */
+  readonly businessDayPolicy: "enforce" | "bypass";
   /** Normal commands use a shared profile lock; profile transitions use exclusive. */
   readonly profileLock?: "shared" | "exclusive" | "none";
   /** Membership administration locks the owner set first, then rechecks auth. */
@@ -141,7 +141,7 @@ export async function runCommand<
     ctx,
     requiredPermission,
     requiredWorkflows = [],
-    businessDayPolicy = "enforce",
+    businessDayPolicy,
     profileLock = "shared",
     lockAuthorizationMembership = true,
     execute,

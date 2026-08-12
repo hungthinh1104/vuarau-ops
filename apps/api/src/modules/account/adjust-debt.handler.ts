@@ -34,6 +34,7 @@ export function adjustCustomerDebt(
     input,
     ctx,
     requiredPermission: "debt.adjust",
+    businessDayPolicy: "enforce",
     resultSchema: customerAccountBalanceDtoSchema,
     execute: async ({ command, repos, recordedAt, membership }) => {
       const customer = await repos.customers.findByIdForUpdate(

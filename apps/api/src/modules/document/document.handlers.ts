@@ -234,6 +234,7 @@ export function generateDocument(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "document.generate",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       let snapshot: DocumentSnapshot | null;
       try {
@@ -319,6 +320,7 @@ export function createDocumentShare(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "document.share",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const document = await repos.documents.get(command.workspaceId, command.payload.documentId);
       if (document === null) return err("DOCUMENT_NOT_FOUND", "No such Document.");
@@ -369,6 +371,7 @@ export function revokeDocumentShare(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "document.share",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       if (
         !(await repos.documents.revokeShare({

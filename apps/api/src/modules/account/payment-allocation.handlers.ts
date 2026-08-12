@@ -66,6 +66,7 @@ export function recordPaymentAllocation(
     input,
     ctx,
     requiredPermission: "debt.allocate",
+    businessDayPolicy: "enforce",
     resultSchema: paymentAllocationDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const policy = await requireManualAllocationPolicy(
@@ -128,6 +129,7 @@ export function reversePaymentAllocation(
     input,
     ctx,
     requiredPermission: "debt.allocate",
+    businessDayPolicy: "enforce",
     resultSchema: paymentAllocationReversalDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const allocation = await repos.paymentAllocations.findByIdForUpdate(

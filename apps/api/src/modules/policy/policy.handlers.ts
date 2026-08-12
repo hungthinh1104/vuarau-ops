@@ -28,6 +28,7 @@ export function createWorkspacePolicyDraft(ctx: CommandContext, input: unknown) 
     input,
     ctx,
     requiredPermission: "policy.manage",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const version = await repos.workspacePolicies.allocateNextVersion(
         command.workspaceId,
@@ -60,6 +61,7 @@ export function approveWorkspacePolicy(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "policy.manage",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.workspacePolicies.findById(
         command.workspaceId,
@@ -93,6 +95,7 @@ export function retireWorkspacePolicy(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "policy.manage",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.workspacePolicies.findById(
         command.workspaceId,

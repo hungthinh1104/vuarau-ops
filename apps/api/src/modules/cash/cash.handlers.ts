@@ -71,6 +71,7 @@ export function createCashAccount(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.account.manage",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
       const decision = decideCreateCashAccount(command, recordedAt);
@@ -92,6 +93,7 @@ export function updateCashAccount(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.account.manage",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.cashAccounts.findByIdForUpdate(
         command.workspaceId,
@@ -120,6 +122,7 @@ function cashAccountLifecycle(ctx: CommandContext, input: unknown, targetActive:
     input,
     ctx,
     requiredPermission: "cash.account.manage",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.cashAccounts.findByIdForUpdate(
@@ -151,6 +154,7 @@ export function recordExpense(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.expense.record",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
       const account = await repos.cashAccounts.findByIdForUpdate(
@@ -195,6 +199,7 @@ export function reverseExpense(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.expense.reverse",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const expense = await repos.expenses.findByIdForUpdate(
         command.workspaceId,
@@ -250,6 +255,7 @@ export function recordCashTransfer(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.transfer",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
       // A transfer touches two account rows. Always acquire those row locks in
@@ -319,6 +325,7 @@ export function reverseCashTransfer(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.transfer",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const transfer = await repos.cashTransfers.findByIdForUpdate(
         command.workspaceId,
@@ -406,6 +413,7 @@ export function adjustCash(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.adjust",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["cashbook"],
     execute: async ({ command, repos, recordedAt }) => {
       const account = await repos.cashAccounts.findByIdForUpdate(
@@ -468,6 +476,7 @@ export function rebuildCashBalance(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "cash.rebuild",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const reconciliation = await repos.cashReads.reconciliation(
         command.workspaceId,

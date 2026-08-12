@@ -19,6 +19,7 @@ export const rebuildSupplierAccount = (ctx: CommandContext, input: unknown) =>
     input,
     ctx,
     requiredPermission: "supplier.account.rebuild",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       if (
         (await repos.suppliers.findById(command.workspaceId, command.payload.supplierId)) === null

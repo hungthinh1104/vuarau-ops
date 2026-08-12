@@ -118,6 +118,7 @@ export function createSupplyCommitmentDraft(ctx: CommandContext, input: unknown)
     input,
     ctx,
     requiredPermission: "supply_commitment.create",
+    businessDayPolicy: "enforce",
     resultSchema: supplyCommitmentDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       if (
@@ -159,6 +160,7 @@ export function updateSupplyCommitmentDraft(ctx: CommandContext, input: unknown)
     input,
     ctx,
     requiredPermission: "supply_commitment.update",
+    businessDayPolicy: "enforce",
     resultSchema: supplyCommitmentDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.supplyCommitments.findByIdForUpdate(
@@ -195,6 +197,7 @@ export function confirmSupplyCommitment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supply_commitment.confirm",
+    businessDayPolicy: "enforce",
     resultSchema: supplyCommitmentDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.supplyCommitments.findByIdForUpdate(
@@ -229,6 +232,7 @@ export function cancelSupplyCommitment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supply_commitment.cancel",
+    businessDayPolicy: "enforce",
     resultSchema: supplyCommitmentDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.supplyCommitments.findByIdForUpdate(

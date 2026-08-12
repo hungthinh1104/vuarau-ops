@@ -33,6 +33,7 @@ export function reverseCustomerPayment(
     input,
     ctx,
     requiredPermission: "payment.reverse",
+    businessDayPolicy: "enforce",
     resultSchema: paymentDtoSchema,
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const payment = await repos.payments.findByIdForUpdate(

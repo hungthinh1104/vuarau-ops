@@ -565,6 +565,7 @@ export function restoreWorkspaceBackup(
     input,
     ctx,
     requiredPermission: "workspace.manage",
+    businessDayPolicy: "bypass",
     execute: async ({ command, repos, recordedAt }) => {
       const backup = command.payload.backup;
       if (backupDigest(backup.payload) !== backup.digest) {

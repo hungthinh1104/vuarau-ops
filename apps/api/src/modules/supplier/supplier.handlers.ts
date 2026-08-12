@@ -68,6 +68,7 @@ export function createSupplier(
     input,
     ctx,
     requiredPermission: "supplier.create",
+    businessDayPolicy: "enforce",
     resultSchema: supplierDtoSchema,
     requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
@@ -118,6 +119,7 @@ function mutateSupplier<
     input: args.input,
     ctx: args.ctx,
     requiredPermission: args.permission,
+    businessDayPolicy: "enforce",
     resultSchema: supplierDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.suppliers.findByIdForUpdate(
@@ -185,6 +187,7 @@ export function recordSupplierPayment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supplier.payment.record",
+    businessDayPolicy: "enforce",
     resultSchema: supplierPaymentDtoSchema,
     requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
@@ -288,6 +291,7 @@ export function reverseSupplierPayment(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supplier.payment.reverse",
+    businessDayPolicy: "enforce",
     resultSchema: supplierPaymentDtoSchema,
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const current = await repos.supplierPayments.findByIdForUpdate(
@@ -455,6 +459,7 @@ export function adjustSupplierAccount(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "supplier.account.adjust",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       if (

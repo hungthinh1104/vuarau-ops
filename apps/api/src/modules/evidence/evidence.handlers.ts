@@ -47,6 +47,7 @@ export function recordCostObservation(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "evidence.record",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const target =
         command.payload.relatedObservationId === null
@@ -86,6 +87,7 @@ export function recordReconciliationObservation(ctx: CommandContext, input: unkn
     input,
     ctx,
     requiredPermission: "evidence.record",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const target =
         command.payload.relatedObservationId === null
@@ -133,6 +135,7 @@ export function recordDebtObservation(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "evidence.record",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const target =
         command.payload.relatedObservationId === null
@@ -172,6 +175,7 @@ export function recordSupplyCommitmentObservation(ctx: CommandContext, input: un
     input,
     ctx,
     requiredPermission: "evidence.record",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const target =
         command.payload.relatedObservationId === null
@@ -219,6 +223,7 @@ export function recordSupplierObservation(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "evidence.record",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const target =
         command.payload.relatedObservationId === null
@@ -263,6 +268,7 @@ export function recordDemandObservation(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "evidence.record",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const target =
         command.payload.relatedObservationId === null

@@ -110,6 +110,7 @@ export function startStocktake(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "inventory.adjust",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["inventory"],
     execute: async ({ command, repos, recordedAt }) => {
       const policy = await effectiveStocktakePolicy(
@@ -146,6 +147,7 @@ export function recordStocktakeCount(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "inventory.adjust",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["inventory"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const session = await repos.stocktakes.findByIdForUpdate(
@@ -230,6 +232,7 @@ export function approveStocktake(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "inventory.adjust",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["inventory"],
     execute: async ({ command, repos, recordedAt }) => {
       const session = await repos.stocktakes.findByIdForUpdate(
@@ -343,6 +346,7 @@ export function reopenStocktake(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "inventory.adjust",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["inventory"],
     execute: async ({ command, repos, recordedAt }) => {
       const session = await repos.stocktakes.findByIdForUpdate(

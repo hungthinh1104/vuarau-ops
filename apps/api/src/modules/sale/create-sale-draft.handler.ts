@@ -32,6 +32,7 @@ export function createSaleDraft(
     // identify their customer. Their mutation permissions diverge below:
     // `sale.create` for a new sale, `sale.void` for a replacement.
     requiredPermission: "sale.read",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt, membership }) => {
       // The customer must exist *in this workspace*. Knowing the id is not enough.
       const customer = await repos.customers.findById(

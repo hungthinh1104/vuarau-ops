@@ -73,6 +73,7 @@ export function createDeliveryDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.create",
+    businessDayPolicy: "enforce",
     resultSchema: deliveryDtoSchema,
     requiredWorkflows: ["delivery"],
     execute: async ({ command, repos, recordedAt }) => {
@@ -146,6 +147,7 @@ export function updateDeliveryDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.update",
+    businessDayPolicy: "enforce",
     resultSchema: deliveryDtoSchema,
     requiredWorkflows: ["delivery"],
     execute: async ({ command, repos, recordedAt }) => {
@@ -196,6 +198,7 @@ export function cancelDeliveryDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.cancel",
+    businessDayPolicy: "enforce",
     resultSchema: deliveryDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(
@@ -232,6 +235,7 @@ export function dispatchDelivery(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.dispatch",
+    businessDayPolicy: "enforce",
     resultSchema: deliveryDtoSchema,
     requiredWorkflows: ["delivery"],
     execute: async ({ command, repos, recordedAt }) => {
@@ -308,6 +312,7 @@ export function markDeliveryDelivered(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.complete",
+    businessDayPolicy: "enforce",
     resultSchema: deliveryDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(
@@ -344,6 +349,7 @@ export function recordDeliveryReturn(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "delivery.return",
+    businessDayPolicy: "enforce",
     resultSchema: deliveryDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.deliveries.findByIdForUpdate(

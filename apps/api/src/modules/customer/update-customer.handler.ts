@@ -43,6 +43,7 @@ export function updateCustomer(
     input,
     ctx,
     requiredPermission: "customer.update",
+    businessDayPolicy: "enforce",
     resultSchema: customerDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const customer = await repos.customers.findByIdForUpdate(
@@ -93,6 +94,7 @@ export function deactivateCustomer(
     input,
     ctx,
     requiredPermission: "customer.deactivate",
+    businessDayPolicy: "enforce",
     resultSchema: customerDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const customer = await repos.customers.findByIdForUpdate(
@@ -141,6 +143,7 @@ export function reactivateCustomer(
     input,
     ctx,
     requiredPermission: "customer.reactivate",
+    businessDayPolicy: "enforce",
     resultSchema: customerDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const customer = await repos.customers.findByIdForUpdate(

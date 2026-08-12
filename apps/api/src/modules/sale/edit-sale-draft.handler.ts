@@ -36,6 +36,7 @@ export function updateSaleDraft(
     input,
     ctx,
     requiredPermission: "sale.create",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       for (const line of command.payload.lines) {
         if (
@@ -93,6 +94,7 @@ export function discardSaleDraft(
     input,
     ctx,
     requiredPermission: "sale.create",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const sale = await repos.sales.findByIdForUpdate(command.workspaceId, command.payload.saleId);
       if (sale === null) {

@@ -71,6 +71,7 @@ export function createQualityIssueCode(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "quality.issue.manage",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const decision = decideCreateQualityIssueCode(command, recordedAt);
       if (!decision.ok) return decision;
@@ -94,6 +95,7 @@ export function updateQualityIssueCode(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "quality.issue.manage",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.qualityIssueCodes.findByIdForUpdate(
         command.workspaceId,
@@ -125,6 +127,7 @@ function issueCodeLifecycle(ctx: CommandContext, input: unknown, targetActive: b
     input,
     ctx,
     requiredPermission: "quality.issue.manage",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.qualityIssueCodes.findByIdForUpdate(
         command.workspaceId,
@@ -155,6 +158,7 @@ export function recordGoodsArrival(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "intake.record",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["purchasing", "inventory", "inspected_intake"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const supplier = await repos.suppliers.findByIdForUpdate(
@@ -252,6 +256,7 @@ export function reverseGoodsArrival(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "intake.reverse",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.goodsArrivals.findByIdForUpdate(
         command.workspaceId,
@@ -281,6 +286,7 @@ export function recordQualityInspection(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "quality.inspect",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["inspected_intake"],
     execute: async ({ command, repos, recordedAt }) => {
       const found = await repos.goodsArrivals.findLineForUpdate(
@@ -338,6 +344,7 @@ export function reverseQualityInspection(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "quality.inspect.reverse",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const snapshot = await repos.qualityInspections.findById(
         command.workspaceId,
@@ -383,6 +390,7 @@ export function recordQualityDisposition(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "quality.disposition",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["inventory", "inspected_intake"],
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
       const source = await repos.qualityDispositions.sourceSummaryForUpdate(
@@ -496,6 +504,7 @@ export function reverseQualityDisposition(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "quality.disposition.reverse",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const snapshot = await repos.qualityDispositions.findById(
         command.workspaceId,

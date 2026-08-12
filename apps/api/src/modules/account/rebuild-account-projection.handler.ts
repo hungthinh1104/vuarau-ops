@@ -34,6 +34,7 @@ export function rebuildAccountProjection(
     input,
     ctx,
     requiredPermission: "debt.adjust",
+    businessDayPolicy: "enforce",
     resultSchema: rebuildAccountProjectionResultDtoSchema,
     execute: async ({ command, repos, recordedAt, membership }) => {
       const before = await loadAccountReconciliation({

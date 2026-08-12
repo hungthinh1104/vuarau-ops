@@ -17,6 +17,7 @@ export function createCustomer(
     input,
     ctx,
     requiredPermission: "customer.create",
+    businessDayPolicy: "enforce",
     resultSchema: customerDtoSchema,
     execute: async ({ command, repos, recordedAt }) => {
       const decision = decideCreateCustomer({ command, recordedAt });

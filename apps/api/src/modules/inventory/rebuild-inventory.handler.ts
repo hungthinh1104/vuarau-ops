@@ -12,6 +12,7 @@ export const rebuildInventory = (ctx: CommandContext, input: unknown) =>
     input,
     ctx,
     requiredPermission: "inventory.rebuild",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       if ((await repos.products.findById(command.workspaceId, command.payload.productId)) === null)
         return err("PRODUCT_NOT_FOUND", "No such Product.");

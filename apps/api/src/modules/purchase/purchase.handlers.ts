@@ -101,6 +101,7 @@ export function createPurchaseDraft(
     input,
     ctx,
     requiredPermission: "purchase.create",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       if (
@@ -170,6 +171,7 @@ export function updatePurchaseDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "purchase.update",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.purchases.findByIdForUpdate(
@@ -213,6 +215,7 @@ export function discardPurchaseDraft(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "purchase.discard",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.purchases.findByIdForUpdate(
         command.workspaceId,
@@ -249,6 +252,7 @@ export function confirmPurchase(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "purchase.confirm",
+    businessDayPolicy: "enforce",
     requiredWorkflows: ["purchasing"],
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.purchases.findByIdForUpdate(
@@ -308,6 +312,7 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "purchase.void",
+    businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.purchases.findByIdForUpdate(
         command.workspaceId,

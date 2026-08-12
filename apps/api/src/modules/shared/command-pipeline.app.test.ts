@@ -146,6 +146,7 @@ describe("BR-COMMAND-001 / command type binding", () => {
       input,
       ctx: harness.ctx,
       requiredPermission: "customer.read",
+      businessDayPolicy: "enforce",
       resultSchema: z.object({ accepted: z.boolean() }),
       execute: async () => ok({ accepted: true }),
     });
@@ -156,6 +157,7 @@ describe("BR-COMMAND-001 / command type binding", () => {
       input,
       ctx: harness.ctx,
       requiredPermission: "customer.read",
+      businessDayPolicy: "enforce",
       resultSchema: z.object({ accepted: z.boolean() }),
       execute: secondExecution,
     });
@@ -185,6 +187,7 @@ describe("BR-COMMAND-001 / command type binding", () => {
       input,
       ctx: harness.ctx,
       requiredPermission: "customer.read",
+      businessDayPolicy: "enforce",
       requiredWorkflows: ["purchasing"],
       resultSchema: z.object({ accepted: z.boolean() }),
       execute,
@@ -204,6 +207,7 @@ describe("BR-COMMAND-001 / command type binding", () => {
       input: { ...input, commandId: SECOND_COMMAND_ID },
       ctx: harness.ctx,
       requiredPermission: "customer.read",
+      businessDayPolicy: "enforce",
       requiredWorkflows: ["purchasing"],
       resultSchema: z.object({ accepted: z.boolean() }),
       execute,
@@ -231,6 +235,7 @@ describe("BR-COMMAND-001 / command type binding", () => {
       input,
       ctx: harness.ctx,
       requiredPermission: "customer.read",
+      businessDayPolicy: "enforce",
       resultSchema,
       execute: async () => ok({ accepted: true }),
     });
@@ -242,6 +247,7 @@ describe("BR-COMMAND-001 / command type binding", () => {
       input: { ...input, commandId: SECOND_COMMAND_ID },
       ctx: harness.ctx,
       requiredPermission: "customer.read",
+      businessDayPolicy: "enforce",
       resultSchema,
       execute: async () => ok({ accepted: false }),
     });
@@ -328,6 +334,7 @@ describe("BR-COMMAND-005 / TC-COMMAND-004", () => {
         },
         ctx: harness.ctx,
         requiredPermission: "customer.read",
+        businessDayPolicy: "enforce",
         resultSchema: z.object({ accepted: z.boolean() }),
         execute: async () => {
           throw new CommandIntegrityError(
