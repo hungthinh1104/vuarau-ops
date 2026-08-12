@@ -5,6 +5,7 @@ import {
   dashboardEventSchema,
   workspaceChangesSinceDtoSchema,
   type WorkspaceChangeTopic,
+  type WorkspaceChangesSinceDto,
   type WorkspaceId,
 } from "@vuarau/domain-contracts";
 import { useEffect } from "react";
@@ -158,6 +159,28 @@ async function readChanges(workspaceId: WorkspaceId, since: string, signal: Abor
   return workspaceChangesSinceDtoSchema.parse(await response.json());
 }
 
+/**
+ * Drain every page without treating the feed's latest position as the page
+ * cursor. `nextRevision` is a high-water mark; when a page is capped, the
+ * last returned change is the only safe cursor for the next request.
+ */
+export async function drainDurableChanges(
+  read: (since: string) => Promise<WorkspaceChangesSinceDto>,
+  initialRevision: string,
+): Promise<{ readonly revision: string; readonly topics: readonly WorkspaceChangeTopic[] }> {
+  const topics = new Set<WorkspaceChangeTopic>();
+  let cursor = initialRevision;
+  for (let page = 0; page < 20; page += 1) {
+    const result = await read(cursor);
+    for (const change of result.changes) {
+      cursor = change.revision;
+      for (const topic of change.topics) topics.add(topic);
+    }
+    if (result.changes.length === 0 || cursor === result.nextRevision) break;
+  }
+  return { revision: cursor, topics: [...topics] };
+}
+
 /** SSE only wakes the tab; this component drains the durable feed and targets active roots. */
 export function LiveInvalidation({ workspaceId }: { readonly workspaceId: WorkspaceId }) {
   const queryClient = useQueryClient();
@@ -183,18 +206,12 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
     const drainChanges = (): Promise<void> => {
       if (drainPromise !== null) return drainPromise;
       drainPromise = (async () => {
-        const topics = new Set<WorkspaceChangeTopic>();
-        let cursor = revision;
-        for (let page = 0; page < 20; page += 1) {
-          const result = await readChanges(workspaceId, cursor, abort.signal);
-          for (const change of result.changes) {
-            cursor = change.revision;
-            for (const topic of change.topics) topics.add(topic);
-          }
-          revision = result.nextRevision;
-          if (result.changes.length === 0 || cursor === result.nextRevision) break;
-        }
-        if (topics.size > 0) scheduler.request([...topics]);
+        const result = await drainDurableChanges(
+          (since) => readChanges(workspaceId, since, abort.signal),
+          revision,
+        );
+        revision = result.revision;
+        if (result.topics.length > 0) scheduler.request(result.topics);
       })().finally(() => {
         drainPromise = null;
       });

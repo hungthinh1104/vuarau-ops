@@ -2,7 +2,11 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { WorkspaceId } from "@vuarau/domain-contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setLiveConnectionState } from "@/lib/live-connection.ts";
-import { createInvalidationScheduler, LiveInvalidation } from "./live-invalidation.tsx";
+import {
+  createInvalidationScheduler,
+  drainDurableChanges,
+  LiveInvalidation,
+} from "./live-invalidation.tsx";
 
 const WORKSPACE_ID = "00000000-0000-4000-8000-000000000001" as WorkspaceId;
 
@@ -23,6 +27,31 @@ describe("live invalidation scheduler", () => {
     mocks.fetch.mockReset();
     mocks.queryClient.invalidateQueries.mockClear();
     setLiveConnectionState("live");
+  });
+
+  it("drains a capped durable feed without skipping revisions", async () => {
+    const reads: string[] = [];
+    const read = vi.fn(async (since: string) => {
+      reads.push(since);
+      const start = Number(since) + 1;
+      const end = Math.min(start + 199, 201);
+      return {
+        workspaceId: WORKSPACE_ID,
+        changes: Array.from({ length: Math.max(0, end - start + 1) }, (_, offset) => ({
+          revision: String(start + offset),
+          commandType: "PostSale",
+          topics: ["sale" as const],
+          recordedAt: "2026-08-10T17:00:00.000Z",
+        })),
+        nextRevision: "201",
+      };
+    });
+
+    await expect(drainDurableChanges(read, "0")).resolves.toEqual({
+      revision: "201",
+      topics: ["sale"],
+    });
+    expect(reads).toEqual(["0", "200"]);
   });
 
   it("coalesces a sustained 20-events-per-second burst into bounded refetch windows", async () => {
