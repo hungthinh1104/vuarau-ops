@@ -91,4 +91,25 @@ describe("workspace operational profile", () => {
     });
     expect(parsed.success).toBe(false);
   });
+
+  it("does not disable grading while graded stock or related work remains", () => {
+    const result = decideUpdateWorkspaceOperationalProfile({
+      command: command(),
+      current,
+      recordedAt: "2026-08-01T15:00:01.000Z",
+      qualityGradeModeBlockers: {
+        gradedInventory: 1,
+        openStocktakes: 0,
+        openSales: 0,
+        openDeliveries: 0,
+      },
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: "WORKSPACE_PROFILE_QUALITY_GRADE_MODE_LOCKED",
+        details: { gradedInventory: 1 },
+      },
+    });
+  });
 });

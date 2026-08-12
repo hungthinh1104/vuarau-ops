@@ -15,6 +15,7 @@ import {
   WORKSPACE_ID,
   vnd,
 } from "@vuarau/test-fixtures";
+import { defaultWorkspaceOperationalProfile } from "@vuarau/domain-contracts";
 import { createHarness, ledgerBalance, type Harness } from "../../testing/command-test-harness.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { runCommand } from "./command-pipeline.ts";
@@ -165,6 +166,52 @@ describe("BR-COMMAND-001 / command type binding", () => {
       error: { code: "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_COMMAND" },
     });
     expect(secondExecution).not.toHaveBeenCalled();
+  });
+
+  it("replays a completed receipt before a workflow gate changes", async () => {
+    const schema = defineCommand(z.object({ value: z.string() }));
+    const input = {
+      commandId: COMMAND_ID,
+      idempotencyKey: IDEMPOTENCY_KEY,
+      workspaceId: WORKSPACE_ID,
+      actorId: ACTOR_ID,
+      occurredAt: LATER_TRANSACTION_TIME,
+      payload: { value: "replay-before-gates" },
+    };
+    const execute = vi.fn(async () => ok({ accepted: true }));
+    const first = await runCommand({
+      commandType: "SyntheticWorkflowCommand",
+      schema,
+      input,
+      ctx: harness.ctx,
+      requiredPermission: "customer.read",
+      requiredWorkflows: ["purchasing"],
+      resultSchema: z.object({ accepted: z.boolean() }),
+      execute,
+    });
+
+    harness.db.setOperationalProfile({
+      ...defaultWorkspaceOperationalProfile(WORKSPACE_ID),
+      purchasingMode: "disabled",
+      inventoryMode: "disabled",
+      qualityGradeMode: "disabled",
+      deliveryMode: "disabled",
+      version: 2,
+    });
+    const replay = await runCommand({
+      commandType: "SyntheticWorkflowCommand",
+      schema,
+      input: { ...input, commandId: SECOND_COMMAND_ID },
+      ctx: harness.ctx,
+      requiredPermission: "customer.read",
+      requiredWorkflows: ["purchasing"],
+      resultSchema: z.object({ accepted: z.boolean() }),
+      execute,
+    });
+
+    expect(first).toEqual({ ok: true, value: { accepted: true } });
+    expect(replay).toEqual(first);
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a completed receipt whose result no longer matches its response schema", async () => {

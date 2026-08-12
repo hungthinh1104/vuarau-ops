@@ -116,8 +116,10 @@ export async function runCommand<
   readonly requiredPermission: Permission;
   /** Every listed workflow must be enabled for a new command to execute. */
   readonly requiredWorkflows?: readonly WorkspaceWorkflow[];
-  /** Close/reopen commands are the explicit exceptions to the closed-day guard. */
-  readonly allowClosedBusinessDay?: boolean;
+  /** Administrative commands may still manage access/profile after a close. */
+  readonly businessDayPolicy?: "enforce" | "bypass";
+  /** Normal commands use a shared profile lock; profile transitions use exclusive. */
+  readonly profileLock?: "shared" | "exclusive" | "none";
   /** Membership administration locks the owner set first, then rechecks auth. */
   readonly lockAuthorizationMembership?: boolean;
   /** Current response contract used to validate a completed receipt on replay. */
@@ -137,7 +139,8 @@ export async function runCommand<
     ctx,
     requiredPermission,
     requiredWorkflows = [],
-    allowClosedBusinessDay = false,
+    businessDayPolicy = "enforce",
+    profileLock = "shared",
     lockAuthorizationMembership = true,
     execute,
   } = options;
@@ -209,8 +212,33 @@ export async function runCommand<
         throw new RollbackForRejection(authorized);
       }
 
+      // A completed receipt is a durable answer to a previously committed
+      // command. It must be checked before mutable gates such as workflow
+      // enablement, profile changes, close state and pilot scope. Authorization
+      // remains first so a revoked actor cannot use a valid key to read a result.
+      const replay = await checkIdempotency<TResult>({
+        repos,
+        command,
+        commandType,
+        payloadHash,
+        resultSchema: options.resultSchema,
+        receiptSchema: options.receiptSchema,
+        replayReceipt: options.replayReceipt,
+      });
+      if (replay !== null) {
+        completedOutcome = "replayed";
+        return replay;
+      }
+
+      if (profileLock === "shared") {
+        await repos.workspaces.lockOperationalProfileShared(command.workspaceId);
+      } else if (profileLock === "exclusive") {
+        await repos.workspaces.lockOperationalProfileExclusive(command.workspaceId);
+      }
       const operationalProfile =
-        (await repos.workspaces.findOperationalProfileForUpdate(command.workspaceId)) ??
+        (await (profileLock === "exclusive"
+          ? repos.workspaces.findOperationalProfileForUpdate(command.workspaceId)
+          : repos.workspaces.findOperationalProfile(command.workspaceId))) ??
         defaultWorkspaceOperationalProfile(command.workspaceId);
       const disabledWorkflow = requiredWorkflows.find(
         (workflow) => !workspaceWorkflowEnabled(operationalProfile, workflow),
@@ -225,7 +253,7 @@ export async function runCommand<
         );
       }
 
-      if (!allowClosedBusinessDay) {
+      if (businessDayPolicy === "enforce") {
         const businessDate = vietnamBusinessDateForInstant(
           command.occurredAt,
           operationalProfile.businessDayStartMinute,
@@ -234,7 +262,7 @@ export async function runCommand<
         // makes the check and the subsequent mutation one serialized decision;
         // a command cannot pass the read and then commit after a concurrent
         // close has completed.
-        await repos.operationalCloses.lockBusinessDate(command.workspaceId, businessDate);
+        await repos.operationalCloses.lockBusinessDateShared(command.workspaceId, businessDate);
         const close = await repos.operationalCloses.findByBusinessDate(
           command.workspaceId,
           businessDate,
@@ -263,22 +291,7 @@ export async function runCommand<
         );
       }
 
-      // 5. Idempotency (ADR-0008).
-      const replay = await checkIdempotency<TResult>({
-        repos,
-        command,
-        commandType,
-        payloadHash,
-        resultSchema: options.resultSchema,
-        receiptSchema: options.receiptSchema,
-        replayReceipt: options.replayReceipt,
-      });
-      if (replay !== null) {
-        completedOutcome = "replayed";
-        return replay;
-      }
-
-      // 6. Claim the key. The unique index — not the read above — is what makes
+      // Claim the key. The unique index — not the read above — is what makes
       //    two concurrent replays safe; the loser lands here.
       const claimed = await repos.receipts.claim({
         commandId: command.commandId,

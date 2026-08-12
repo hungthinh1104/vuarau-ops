@@ -34,6 +34,7 @@ export function addWorkspaceMember(
     input,
     ctx,
     requiredPermission: "workspace.manage",
+    businessDayPolicy: "bypass",
     execute: async ({ command, repos, recordedAt }) => {
       const actor = await repos.actors.findById(command.payload.actorId);
       if (actor === null) {
@@ -87,6 +88,7 @@ export function changeWorkspaceMemberRole(
     input,
     ctx,
     requiredPermission: "workspace.manage",
+    businessDayPolicy: "bypass",
     lockAuthorizationMembership: false,
     execute: async ({ command, repos, recordedAt }) => {
       const activeOwnerCount = await repos.workspaces.countActiveOwnersForUpdate(
@@ -157,6 +159,7 @@ export function reactivateWorkspaceMember(
     input,
     ctx,
     requiredPermission: "workspace.manage",
+    businessDayPolicy: "bypass",
     execute: async ({ command, repos, recordedAt }) => {
       const membership = await repos.workspaces.findMembershipForUpdate(
         command.workspaceId,

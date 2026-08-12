@@ -12,12 +12,20 @@ export type OperationalProfileDecision = {
   readonly audit: AuditDraft;
 };
 
+export type QualityGradeModeTransitionBlockers = {
+  readonly gradedInventory: number;
+  readonly openStocktakes: number;
+  readonly openSales: number;
+  readonly openDeliveries: number;
+};
+
 export function decideUpdateWorkspaceOperationalProfile(args: {
   command: UpdateWorkspaceOperationalProfileCommand;
   current: WorkspaceOperationalProfileDto;
   recordedAt: IsoInstant;
+  qualityGradeModeBlockers?: QualityGradeModeTransitionBlockers;
 }): DomainResult<OperationalProfileDecision> {
-  const { command, current, recordedAt } = args;
+  const { command, current, recordedAt, qualityGradeModeBlockers } = args;
   if (command.expectedVersion !== current.version) {
     return err("WORKSPACE_PROFILE_VERSION_CONFLICT", "Workspace profile changed on the server.", {
       expectedVersion: command.expectedVersion,
@@ -47,6 +55,18 @@ export function decideUpdateWorkspaceOperationalProfile(args: {
     return err("WORKSPACE_PROFILE_UNCHANGED", "Workspace profile already has these settings.");
   }
   const profile = { ...current, ...nextFields, version: current.version + 1 };
+  if (
+    current.qualityGradeMode === "required" &&
+    profile.qualityGradeMode === "disabled" &&
+    qualityGradeModeBlockers !== undefined &&
+    Object.values(qualityGradeModeBlockers).some((count) => count > 0)
+  ) {
+    return err(
+      "WORKSPACE_PROFILE_QUALITY_GRADE_MODE_LOCKED",
+      "Quality grading cannot be disabled while graded stock or related work remains open.",
+      qualityGradeModeBlockers,
+    );
+  }
   return ok({
     profile,
     audit: {

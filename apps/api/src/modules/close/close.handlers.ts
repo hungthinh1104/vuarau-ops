@@ -133,9 +133,10 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "operations.close",
-    allowClosedBusinessDay: true,
+    businessDayPolicy: "bypass",
+    profileLock: "none",
     execute: async ({ command, repos, recordedAt, operationalProfile }) => {
-      await repos.operationalCloses.lockBusinessDate(
+      await repos.operationalCloses.lockBusinessDateExclusive(
         command.workspaceId,
         command.payload.businessDate,
       );
@@ -200,7 +201,8 @@ export function reopenOperationalClose(ctx: CommandContext, input: unknown) {
     input,
     ctx,
     requiredPermission: "operations.close",
-    allowClosedBusinessDay: true,
+    businessDayPolicy: "bypass",
+    profileLock: "none",
     execute: async ({ command, repos, recordedAt }) => {
       const current = await repos.operationalCloses.findByIdForUpdate(
         command.workspaceId,

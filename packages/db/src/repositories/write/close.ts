@@ -16,7 +16,12 @@ import { toCashStatementMatchDto, toOperationalCloseDto } from "../shared/close-
 
 export const createCloseWriteRepositories = (tx: Tx) => ({
   operationalCloses: {
-    async lockBusinessDate(workspaceId: WorkspaceId, businessDate: string) {
+    async lockBusinessDateShared(workspaceId: WorkspaceId, businessDate: string) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock_shared(hashtextextended(${`operational-close:${workspaceId}:${businessDate}`}, 0))`,
+      );
+    },
+    async lockBusinessDateExclusive(workspaceId: WorkspaceId, businessDate: string) {
       await tx.execute(
         sql`select pg_advisory_xact_lock(hashtextextended(${`operational-close:${workspaceId}:${businessDate}`}, 0))`,
       );

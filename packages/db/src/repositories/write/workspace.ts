@@ -12,6 +12,16 @@ import {
   workspaceMemberships,
   workspaceOperationalProfiles,
   commandReceipts,
+  inventoryMovements,
+  stocktakeSessions,
+  stocktakeCounts,
+  sales,
+  saleLines,
+  saleVoids,
+  deliveries,
+  deliveryLines,
+  deliveryReturns,
+  deliveryReturnLines,
   workspaces,
 } from "../../schema/index.ts";
 import { toIso } from "../row-mappers.ts";
@@ -53,6 +63,18 @@ async function rolesByActor(
 
 export const createWorkspaceWriteRepositories = (tx: Tx) => ({
   workspaces: {
+    async lockOperationalProfileShared(workspaceId: WorkspaceId): Promise<void> {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock_shared(hashtextextended(${`operational-profile:${workspaceId}`}, 0))`,
+      );
+    },
+
+    async lockOperationalProfileExclusive(workspaceId: WorkspaceId): Promise<void> {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`operational-profile:${workspaceId}`}, 0))`,
+      );
+    },
+
     async findName(workspaceId: WorkspaceId): Promise<string | null> {
       const rows = await tx
         .select({ name: workspaces.name })
@@ -97,6 +119,77 @@ export const createWorkspaceWriteRepositories = (tx: Tx) => ({
         )
         .limit(1);
       return rows.length === 1;
+    },
+
+    async findQualityGradeModeTransitionBlockers(workspaceId: WorkspaceId) {
+      const count = async (query: ReturnType<typeof sql>) => {
+        const rows = await tx.execute(query);
+        const value = (rows[0] as { count?: number | string } | undefined)?.count ?? 0;
+        return Number(value);
+      };
+      const gradedInventory = await count(sql`
+        select count(*)::int as count
+        from (
+          select product_id, quality_grade_id, unit
+          from ${inventoryMovements}
+          where workspace_id = ${workspaceId} and quality_grade_id is not null
+          group by product_id, quality_grade_id, unit
+          having sum(quantity_scaled) <> 0
+        ) graded_balances
+      `);
+      const openStocktakes = await count(sql`
+        select count(distinct sessions.id)::int as count
+        from ${stocktakeSessions} sessions
+        join ${stocktakeCounts} counts
+          on counts.workspace_id = sessions.workspace_id
+         and counts.session_id = sessions.id
+        where sessions.workspace_id = ${workspaceId}
+          and sessions.status in ('draft', 'reopened')
+          and counts.quality_grade_id is not null
+      `);
+      const openSales = await count(sql`
+        with ordered as (
+          select s.id, s.status, coalesce(sum(sl.quantity_scaled), 0) as ordered
+          from ${sales} s
+          join ${saleLines} sl on sl.workspace_id = s.workspace_id and sl.sale_id = s.id
+          left join ${saleVoids} sv on sv.workspace_id = s.workspace_id and sv.sale_id = s.id
+          where s.workspace_id = ${workspaceId}
+            and sl.quality_grade_id is not null
+            and sv.id is null
+          group by s.id, s.status
+        ), fulfilled as (
+          select dl.sale_line_id,
+                 sum(dl.quantity_scaled) - coalesce(sum(drl.quantity_scaled), 0) as fulfilled
+          from ${deliveryLines} dl
+          join ${deliveries} d
+            on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
+           and d.status in ('dispatched', 'delivered')
+          left join ${deliveryReturnLines} drl
+            on drl.workspace_id = dl.workspace_id and drl.delivery_line_id = dl.id
+          group by dl.sale_line_id
+        ), sale_fulfilled as (
+          select s.id, coalesce(sum(f.fulfilled), 0) as fulfilled
+          from ${sales} s
+          join ${saleLines} sl on sl.workspace_id = s.workspace_id and sl.sale_id = s.id
+          left join fulfilled f on f.sale_line_id = sl.id
+          where s.workspace_id = ${workspaceId} and sl.quality_grade_id is not null
+          group by s.id
+        )
+        select count(*)::int as count
+        from ordered o
+        left join sale_fulfilled f on f.id = o.id
+        where o.status = 'draft' or o.ordered > coalesce(f.fulfilled, 0)
+      `);
+      const openDeliveries = await count(sql`
+        select count(distinct d.id)::int as count
+        from ${deliveries} d
+        join ${deliveryLines} dl
+          on dl.workspace_id = d.workspace_id and dl.delivery_id = d.id
+        where d.workspace_id = ${workspaceId}
+          and d.status in ('draft', 'dispatched')
+          and dl.quality_grade_id is not null
+      `);
+      return { gradedInventory, openStocktakes, openSales, openDeliveries };
     },
 
     async findOperationalProfileForUpdate(

@@ -6,8 +6,10 @@ import type {
 } from "@vuarau/domain-contracts";
 
 export type OperationalCloseRepository = {
-  /** Serializes root/revision decisions for one workspace business date. */
-  lockBusinessDate(workspaceId: WorkspaceId, businessDate: string): Promise<void>;
+  /** Shared lock used by ordinary commands for the close check. */
+  lockBusinessDateShared(workspaceId: WorkspaceId, businessDate: string): Promise<void>;
+  /** Exclusive lock used by close/reopen lifecycle commands. */
+  lockBusinessDateExclusive(workspaceId: WorkspaceId, businessDate: string): Promise<void>;
   findByIdForUpdate(
     workspaceId: WorkspaceId,
     operationalCloseId: OperationalCloseDto["id"],

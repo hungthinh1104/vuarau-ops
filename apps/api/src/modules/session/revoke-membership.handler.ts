@@ -36,6 +36,7 @@ export function revokeWorkspaceMembership(
     input,
     ctx,
     requiredPermission: "workspace.manage",
+    businessDayPolicy: "bypass",
     lockAuthorizationMembership: false,
     execute: async ({ command, repos, recordedAt }) => {
       // Counted under a lock **before** the decision, so two owners revoking each

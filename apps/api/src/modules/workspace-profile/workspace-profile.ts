@@ -42,14 +42,19 @@ export function updateWorkspaceOperationalProfile(
     input,
     ctx,
     requiredPermission: "workspace.manage",
+    businessDayPolicy: "bypass",
+    profileLock: "exclusive",
     execute: async ({ command, repos, recordedAt }) => {
       const current =
         (await repos.workspaces.findOperationalProfileForUpdate(command.workspaceId)) ??
         defaultWorkspaceOperationalProfile(command.workspaceId);
+      const qualityGradeModeBlockers =
+        await repos.workspaces.findQualityGradeModeTransitionBlockers(command.workspaceId);
       const decision = decideUpdateWorkspaceOperationalProfile({
         command,
         current,
         recordedAt,
+        qualityGradeModeBlockers,
       });
       if (!decision.ok) return decision;
       if (

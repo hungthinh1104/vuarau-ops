@@ -9,6 +9,8 @@ export const createWorkspaceRepositories = (
 ): Pick<Repositories, "workspaces" | "actors"> => ({
   workspaces: {
     findName: async (workspaceId) => store.workspaceNames.get(workspaceId) ?? null,
+    lockOperationalProfileShared: async () => undefined,
+    lockOperationalProfileExclusive: async () => undefined,
     findOperationalProfile: async (workspaceId) =>
       store.operationalProfiles.get(workspaceId) ?? null,
     findOperationalProfileForUpdate: async (workspaceId) =>
@@ -20,6 +22,44 @@ export const createWorkspaceRepositories = (
           receipt.status === "completed" &&
           receipt.commandType !== "UpdateWorkspaceOperationalProfile",
       ),
+    findQualityGradeModeTransitionBlockers: async (workspaceId) => {
+      const gradedInventory = [...store.inventoryBalances.values()].filter(
+        (balance) =>
+          balance.workspaceId === workspaceId &&
+          balance.qualityGradeId !== null &&
+          balance.quantityScaled !== 0,
+      ).length;
+      const openStocktakes = [...store.stocktakeSessions.values()].filter(
+        (session) =>
+          session.workspaceId === workspaceId &&
+          (session.status === "draft" || session.status === "reopened") &&
+          session.counts.some((count) => count.qualityGradeId !== null),
+      ).length;
+      const openSales = [...store.sales.values()].filter(
+        (sale) =>
+          sale.workspaceId === workspaceId &&
+          sale.voidRecord === null &&
+          sale.lines.some((line) => line.qualityGradeId !== null) &&
+          (sale.status === "draft" ||
+            sale.lines.some((line) => {
+              const fulfilled = [...store.deliveries.values()]
+                .filter(
+                  (delivery) => delivery.workspaceId === workspaceId && delivery.saleId === sale.id,
+                )
+                .flatMap((delivery) => delivery.lines)
+                .filter((deliveryLine) => deliveryLine.saleLineId === line.lineId)
+                .reduce((total, deliveryLine) => total + deliveryLine.quantity.valueScaled, 0);
+              return fulfilled < line.quantity.valueScaled;
+            })),
+      ).length;
+      const openDeliveries = [...store.deliveries.values()].filter(
+        (delivery) =>
+          delivery.workspaceId === workspaceId &&
+          (delivery.status === "draft" || delivery.status === "dispatched") &&
+          delivery.lines.some((line) => line.qualityGradeId !== null),
+      ).length;
+      return { gradedInventory, openStocktakes, openSales, openDeliveries };
+    },
     updateOperationalProfile: async (profile, expectedVersion) => {
       const current = store.operationalProfiles.get(profile.workspaceId);
       if (current === undefined) {

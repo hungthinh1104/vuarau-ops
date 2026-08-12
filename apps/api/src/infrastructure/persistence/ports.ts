@@ -94,6 +94,13 @@ export type WorkspaceMembership = {
   readonly isActive: boolean;
 };
 
+export type QualityGradeModeTransitionBlockers = {
+  readonly gradedInventory: number;
+  readonly openStocktakes: number;
+  readonly openSales: number;
+  readonly openDeliveries: number;
+};
+
 export type WorkspaceMember = WorkspaceMembership & {
   readonly displayName: string;
   readonly createdAt: IsoInstant;
@@ -101,11 +108,18 @@ export type WorkspaceMember = WorkspaceMembership & {
 
 export type WorkspaceRepository = {
   findName(workspaceId: WorkspaceId): Promise<string | null>;
+  /** Shared lock used by ordinary commands while reading the operating profile. */
+  lockOperationalProfileShared(workspaceId: WorkspaceId): Promise<void>;
+  /** Exclusive lock used by profile transitions. */
+  lockOperationalProfileExclusive(workspaceId: WorkspaceId): Promise<void>;
   findOperationalProfile(workspaceId: WorkspaceId): Promise<WorkspaceOperationalProfileDto | null>;
   findOperationalProfileForUpdate(
     workspaceId: WorkspaceId,
   ): Promise<WorkspaceOperationalProfileDto | null>;
   hasCanonicalActivity(workspaceId: WorkspaceId): Promise<boolean>;
+  findQualityGradeModeTransitionBlockers(
+    workspaceId: WorkspaceId,
+  ): Promise<QualityGradeModeTransitionBlockers>;
   updateOperationalProfile(
     profile: WorkspaceOperationalProfileDto,
     expectedVersion: number,

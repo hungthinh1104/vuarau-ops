@@ -6,7 +6,8 @@ export const createCloseRepositories = (
   store: Store,
 ): Pick<Repositories, "operationalCloses" | "cashStatementMatches"> => ({
   operationalCloses: {
-    lockBusinessDate: async () => undefined,
+    lockBusinessDateShared: async () => undefined,
+    lockBusinessDateExclusive: async () => undefined,
     findByIdForUpdate: async (workspaceId, operationalCloseId) =>
       store.operationalCloses.get(key(workspaceId, operationalCloseId)) ?? null,
     findByBusinessDate: async (workspaceId, businessDate) =>
