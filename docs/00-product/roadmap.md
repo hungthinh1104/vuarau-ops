@@ -266,9 +266,10 @@ source-backed reports.
 
 The repository-truth and critical-screen Storybook reconciliation is technically
 closed: every critical screen in `docs/08-qa/ui-screen-coverage.md` has a shared
-presentation View and executable Storybook states. The exact-SHA repository
-release, synthetic depot day and pilot dry-run now report `PASS` on
-`0805e46fa601b7417c416fd86c59d85cc05e81e2`; visual coverage is not product
+presentation View and executable Storybook states. The latest synthetic depot-day
+rehearsal reports `PASS` on exact SHA
+`32d2780c73e34377b397405e205f7a44d67b9911`; the latest full release/pilot
+dry-run evidence is bound to its own recorded SHA. Visual coverage is not product
 completeness, and field/provider gates remain separate.
 
 Pilot readiness is **BLOCKED/PENDING** until the real Supabase A→B smoke,
