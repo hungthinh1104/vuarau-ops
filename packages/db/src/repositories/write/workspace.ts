@@ -20,7 +20,6 @@ import {
   saleVoids,
   deliveries,
   deliveryLines,
-  deliveryReturns,
   deliveryReturnLines,
   workspaces,
 } from "../../schema/index.ts";

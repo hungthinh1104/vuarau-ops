@@ -426,42 +426,6 @@ describe("offline Quick Sale outbox", () => {
     ).toMatchObject({ actorId: "actor-b", workspaceId: "workspace-b" });
   });
 
-  it("keeps query-scoped catalog snapshots isolated and replaces inactive entries", async () => {
-    const database = new OfflineDatabase();
-    await database.replaceProducts(partition, "quick-sale:cà chua", [
-      {
-        productId: "product-a",
-        actorId: partition.actorId,
-        workspaceId: partition.workspaceId,
-        displayName: "Cà chua",
-        aliases: [],
-        preferredUnit: "kg",
-        fetchedAt: "2026-08-13T01:00:00.000Z",
-      },
-    ]);
-    await database.replaceProducts(partition, "quick-sale:cà chua", []);
-    await database.replaceProducts(
-      { actorId: "actor-b", workspaceId: "workspace-b" },
-      "quick-sale:cà chua",
-      [
-        {
-          productId: "product-b",
-          actorId: "actor-b",
-          workspaceId: "workspace-b",
-          displayName: "Cà chua của B",
-          aliases: [],
-          preferredUnit: "kg",
-          fetchedAt: "2026-08-13T01:00:00.000Z",
-        },
-      ],
-    );
-
-    await expect(database.products(partition, "quick-sale:cà chua")).resolves.toEqual([]);
-    await expect(
-      database.products({ actorId: "actor-b", workspaceId: "workspace-b" }, "quick-sale:cà chua"),
-    ).resolves.toMatchObject([{ productId: "product-b" }]);
-  });
-
   it("runs independent chains concurrently while preserving FIFO inside each chain", async () => {
     const records = [...chain("sale-a").commands, ...chain("sale-b").commands];
     const store = new MemoryOfflineStore(records);

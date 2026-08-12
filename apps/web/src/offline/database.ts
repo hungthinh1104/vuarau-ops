@@ -7,6 +7,7 @@ import type {
   OfflineSaleDraft,
   OutboxRecord,
 } from "./types.ts";
+import type { DomainError } from "@vuarau/domain-contracts";
 import { OFFLINE_DATABASE_VERSION, partitionKey, recordKey } from "./types.ts";
 
 const DATABASE_NAME = "vuarau-offline";
@@ -264,7 +265,7 @@ export class OfflineDatabase {
     partition: OfflinePartition;
     record: OutboxRecord;
     state: "blocked" | "rejected";
-    error: import("@vuarau/domain-contracts").DomainError | null;
+    error: DomainError | null;
   }): Promise<void> {
     const database = await openDatabase();
     const transaction = database.transaction(OUTBOX, "readwrite");

@@ -19,7 +19,6 @@ import type { CursorPosition } from "@vuarau/domain-contracts";
 import type { Tx } from "../shared/types.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import { exactIntegerSum } from "@vuarau/domain-kernel";
-
 type Row = Record<string, unknown>;
 const numberOf = (row: Row, name: string): number => {
   const raw = row[name] ?? 0;
@@ -33,7 +32,6 @@ const numberOf = (row: Row, name: string): number => {
 const stringOf = (row: Row, name: string): string => String(row[name] ?? "");
 const asMoney = (amountMinor: number) => ({ amountMinor, currency: "VND" as const });
 const asOf = () => new Date().toISOString();
-
 function quantityTotals(rows: readonly Row[]): Quantity[] {
   const totals = new Map<string, number>();
   for (const row of rows) {
@@ -49,7 +47,6 @@ function quantityTotals(rows: readonly Row[]): Quantity[] {
     valueScaled,
   }));
 }
-
 function available(updatedAt: string) {
   return { state: "available" as const, diagnostics: [], updatedAt };
 }
