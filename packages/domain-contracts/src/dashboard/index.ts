@@ -178,7 +178,8 @@ export type OperationsBoardCountsDto = z.infer<typeof operationsBoardCountsDtoSc
 export const operationsBoardDtoSchema = z.object({
   workspaceId: workspaceIdSchema,
   asOf: isoInstantSchema,
-  counts: operationsBoardCountsSchema,
+  /** Counts are fetched by the dedicated counts read so page reads stay bounded. */
+  counts: operationsBoardCountsSchema.optional(),
   page: pageOf(operationsBoardRowSchema),
 });
 export type OperationsBoardDto = z.infer<typeof operationsBoardDtoSchema>;

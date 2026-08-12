@@ -90,4 +90,13 @@ describe("dashboard contracts", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("allows the page read to omit counts owned by the dedicated counts query", () => {
+    const result = operationsBoardDtoSchema.safeParse({
+      workspaceId: "00000000-0000-4000-8000-000000000001",
+      asOf: "2026-08-04T00:00:00.000Z",
+      page: { items: [], nextCursor: null },
+    });
+    expect(result.success).toBe(true);
+  });
 });

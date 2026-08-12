@@ -11,7 +11,6 @@ import {
   type DashboardSeriesInput,
   type DashboardTopProductsInput,
   type Quantity,
-  type DeliveryId,
   vietnamBusinessDateForInstant,
   vietnamBusinessDayRange,
 } from "@vuarau/domain-contracts";
@@ -19,6 +18,12 @@ import type { CursorPosition } from "@vuarau/domain-contracts";
 import type { Tx } from "../shared/types.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import { exactIntegerSum } from "@vuarau/domain-kernel";
+import { queryFastOperationsBoardPage } from "./dashboard-board.ts";
+import {
+  queryOperationsBoardCounts,
+  queryOperationsBoardCountsSplit,
+} from "./dashboard-board-counts.ts";
+import { queryRows } from "./dashboard-rows.ts";
 type Row = Record<string, unknown>;
 const numberOf = (row: Row, name: string): number => {
   const raw = row[name] ?? 0;
@@ -243,358 +248,6 @@ async function querySeries(
   return { workspaceId: input.workspaceId, asOf: timestamp, points: [...points.values()] };
 }
 
-async function queryRows(
-  tx: Tx,
-  input: OperationsBoardInput & {
-    page: { after: CursorPosition | null; limit: number };
-    now: string;
-  },
-) {
-  const filterClause =
-    input.filter === "needs_receiving"
-      ? sql`physical_state = 'needs_receiving'`
-      : input.filter === "needs_delivery"
-        ? sql`physical_state = 'needs_delivery'`
-        : input.filter === "in_delivery"
-          ? sql`physical_state = 'in_delivery'`
-          : input.filter === "awaiting_payment"
-            ? sql`financial_state = 'awaiting_payment'`
-            : input.filter === "overdue"
-              ? sql`financial_state = 'overdue'`
-              : input.filter === "attention"
-                ? sql`(commercial_state = 'attention' or physical_state = 'attention')`
-                : sql`true`;
-  const searchClause =
-    input.search.length === 0
-      ? sql`true`
-      : sql`lower(reference || ' ' || counterparty) like ${`%${input.search.toLocaleLowerCase()}%`}`;
-  const cursorClause = (() => {
-    const after = input.page.after;
-    if (after === null) return sql`true`;
-    if (input.sort === "amount_desc") {
-      const amount = Number(after.sortValue);
-      return sql`(amount < ${amount} or (amount = ${amount} and id < ${after.id}))`;
-    }
-    if (input.sort === "age_desc") {
-      const age = Number(after.sortValue);
-      return sql`(age_seconds < ${age} or (age_seconds = ${age} and id < ${after.id}))`;
-    }
-    return sql`(updated_at < ${after.sortValue}::timestamptz or (updated_at = ${after.sortValue}::timestamptz and id < ${after.id}))`;
-  })();
-  const orderClause =
-    input.sort === "amount_desc"
-      ? sql`amount desc, id desc`
-      : input.sort === "age_desc"
-        ? sql`age_seconds desc, id desc`
-        : sql`updated_at desc, id desc`;
-  const limitClause =
-    input.page.limit === Number.MAX_SAFE_INTEGER ? sql`all` : sql`${input.page.limit + 1}`;
-  const rows = await tx.execute(sql`
-    with recursive delivered as (
-      select dl.sale_line_id,
-        sum(dl.quantity_scaled) as dispatched
-      from delivery_lines dl join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-      where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
-      group by dl.sale_line_id
-    ), latest_delivery as (
-      select distinct on (d.sale_id) d.sale_id, d.id as delivery_id
-      from deliveries d
-      where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
-      order by d.sale_id, d.transaction_time desc, d.recorded_at desc, d.id desc
-    ), returned as (
-      select dl.sale_line_id, sum(drl.quantity_scaled) as returned
-      from delivery_return_lines drl
-      join delivery_lines dl
-        on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
-      join delivery_returns dr
-        on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
-      where dr.workspace_id=${input.workspaceId}::uuid group by dl.sale_line_id
-    ), dispatched_remaining as (
-      select dl.sale_line_id,
-        sum(greatest(dl.quantity_scaled-coalesce(ret.returned,0),0)) as remaining
-      from delivery_lines dl
-      join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-      left join (
-        select drl.delivery_line_id, sum(drl.quantity_scaled) as returned
-        from delivery_return_lines drl
-        join delivery_returns dr on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
-        where dr.workspace_id=${input.workspaceId}::uuid
-        group by drl.delivery_line_id
-      ) ret on ret.delivery_line_id=dl.id
-      where dl.workspace_id=${input.workspaceId}::uuid and d.status='dispatched'
-      group by dl.sale_line_id
-    ), sale_physical as (
-      select s.id,
-        case
-          when bool_or(coalesce(delivered.dispatched,0)-coalesce(returned.returned,0) > sl.quantity_scaled) then 'attention'
-          when coalesce(sum(greatest(sl.quantity_scaled-coalesce(delivered.dispatched,0)+coalesce(returned.returned,0),0)),0)=0 then 'delivered'
-          when coalesce(sum(dispatched_remaining.remaining),0)>0 then 'in_delivery'
-          else 'needs_delivery'
-        end as physical_state,
-        max(latest_delivery.delivery_id::text)::uuid as delivery_id
-      from sales s join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
-      left join delivered on delivered.sale_line_id=sl.id
-      left join returned on returned.sale_line_id=sl.id
-      left join dispatched_remaining on dispatched_remaining.sale_line_id=sl.id
-      left join latest_delivery on latest_delivery.sale_id=s.id
-      where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
-      group by s.id
-    ), allocation_reversals as (
-      select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0) as amount
-      from payment_allocation_reversals par
-      where par.workspace_id=${input.workspaceId}::uuid
-      group by par.workspace_id, par.allocation_id
-    ), allocated as (
-      select pa.sale_id,
-      coalesce(sum(pa.amount_minor - coalesce(ar.amount,0)),0) as amount
-      from payment_allocations pa
-      left join allocation_reversals ar
-        on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
-      where pa.workspace_id=${input.workspaceId}::uuid group by pa.sale_id
-    ), unallocated_by_customer as (
-      select p.customer_id,
-        coalesce(sum(greatest(
-          p.amount_minor-p.reversed_amount_minor-coalesce(allocated_payment.amount,0),
-          0
-        )),0) as amount
-      from payments p
-      left join (
-        select pa.payment_id,
-          coalesce(sum(pa.amount_minor-coalesce(ar.amount,0)),0) as amount
-        from payment_allocations pa
-        left join allocation_reversals ar
-          on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
-        where pa.workspace_id=${input.workspaceId}::uuid
-        group by pa.payment_id
-      ) allocated_payment on allocated_payment.payment_id=p.id
-      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
-      group by p.customer_id
-    ), direct_received as (
-      select prl.workspace_id, prl.purchase_line_id,
-        coalesce(sum(case when prr.id is null then prl.quantity_scaled else -prl.quantity_scaled end),0) as received
-      from purchase_receipt_lines prl
-      join purchase_receipts pr on pr.workspace_id=prl.workspace_id and pr.id=prl.receipt_id
-      left join purchase_receipt_reversals prr on prr.workspace_id=pr.workspace_id and prr.receipt_id=pr.id
-      where prl.workspace_id=${input.workspaceId}::uuid
-      group by prl.workspace_id, prl.purchase_line_id
-    ), disposition_roots as (
-      select qd.workspace_id, qd.id as disposition_id, gal.purchase_line_id
-      from quality_dispositions qd
-      join goods_arrival_lines gal
-        on gal.workspace_id=qd.workspace_id and gal.id=qd.source_arrival_line_id
-      where qd.workspace_id=${input.workspaceId}::uuid and qd.source_type='arrival_line'
-      union all
-      select child.workspace_id, child.id, parent.purchase_line_id
-      from quality_dispositions child
-      join quality_disposition_allocations source_allocation
-        on source_allocation.workspace_id=child.workspace_id
-        and source_allocation.id=child.source_quarantine_allocation_id
-        and source_allocation.outcome='quarantined'
-      join disposition_roots parent
-        on parent.workspace_id=source_allocation.workspace_id
-        and parent.disposition_id=source_allocation.disposition_id
-      where child.workspace_id=${input.workspaceId}::uuid and child.source_type='quarantine_allocation'
-    ), inspected_accepted as (
-      select qda.workspace_id, roots.purchase_line_id,
-        coalesce(sum(qda.value_scaled),0) as accepted
-      from quality_disposition_allocations qda
-      join quality_dispositions qd
-        on qd.workspace_id=qda.workspace_id and qd.id=qda.disposition_id
-      join disposition_roots roots
-        on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
-      left join quality_disposition_reversals qdr
-        on qdr.workspace_id=qd.workspace_id and qdr.disposition_id=qd.id
-      where qda.workspace_id=${input.workspaceId}::uuid
-        and qda.outcome='accepted' and qdr.id is null
-      group by qda.workspace_id, roots.purchase_line_id
-    ), purchase_received as (
-      select pl.purchase_id, pl.id as line_id, pl.quantity_scaled,
-        (coalesce(direct.received,0) + coalesce(inspected.accepted,0)) as received
-      from purchase_lines pl
-      left join direct_received direct
-        on direct.workspace_id=pl.workspace_id and direct.purchase_line_id=pl.id
-      left join inspected_accepted inspected
-        on inspected.workspace_id=pl.workspace_id and inspected.purchase_line_id=pl.id
-      where pl.workspace_id=${input.workspaceId}::uuid
-    ), sale_activity as (
-      select s.id,
-        greatest(
-          s.recorded_at,
-          coalesce(s.posted_at, s.recorded_at),
-          coalesce(sv.recorded_at, s.recorded_at),
-          coalesce(max(d.recorded_at), s.recorded_at),
-          coalesce(max(pa.recorded_at), s.recorded_at),
-          coalesce(max(par.recorded_at), s.recorded_at)
-        ) as updated_at
-      from sales s
-      left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
-      left join deliveries d on d.workspace_id=s.workspace_id and d.sale_id=s.id
-      left join payment_allocations pa on pa.workspace_id=s.workspace_id and pa.sale_id=s.id
-      left join payment_allocation_reversals par
-        on par.workspace_id=pa.workspace_id and par.allocation_id=pa.id
-      where s.workspace_id=${input.workspaceId}::uuid
-      group by s.id, s.recorded_at, s.posted_at, sv.recorded_at
-    ), purchase_activity as (
-      select p.id,
-        greatest(
-          p.recorded_at,
-          coalesce(p.confirmed_at, p.recorded_at),
-          coalesce(pv.recorded_at, p.recorded_at),
-          coalesce((select max(pr.recorded_at) from purchase_receipts pr where pr.workspace_id=p.workspace_id and pr.purchase_id=p.id), p.recorded_at),
-          coalesce((select max(prr.recorded_at)
-            from purchase_receipt_reversals prr
-            join purchase_receipts pr on pr.workspace_id=prr.workspace_id and pr.id=prr.receipt_id
-            where prr.workspace_id=p.workspace_id and pr.purchase_id=p.id), p.recorded_at),
-          coalesce((select max(ga.recorded_at) from goods_arrivals ga where ga.workspace_id=p.workspace_id and ga.purchase_id=p.id), p.recorded_at),
-          coalesce((select max(qd.recorded_at)
-            from quality_dispositions qd
-            join goods_arrival_lines gal on gal.workspace_id=qd.workspace_id and gal.id=qd.source_arrival_line_id
-            where qd.workspace_id=p.workspace_id and gal.purchase_id=p.id), p.recorded_at)
-        ) as updated_at
-      from purchases p
-      left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
-      where p.workspace_id=${input.workspaceId}::uuid
-    ), purchase_physical as (
-      select p.id, case when bool_and(pr.received >= pr.quantity_scaled) then 'received' else 'needs_receiving' end as physical_state
-      from purchases p join purchase_received pr on pr.purchase_id=p.id
-      where p.workspace_id=${input.workspaceId}::uuid group by p.id
-    ), board_rows as (
-    select s.id, 'sale' as kind, ('SALE-' || upper(substr(s.id::text,1,8))) as reference,
-      c.display_name as counterparty, s.total_amount_minor as amount, s.currency,
-      case when sv.id is not null then 'voided' when sale_physical.physical_state='attention' then 'attention' else 'posted' end as commercial_state,
-      sale_physical.physical_state,
-      case
-        when sv.id is not null then 'voided'
-        when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
-        when coalesce(unallocated_by_customer.amount,0) > 0 then 'reconciliation_required'
-        when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
-        else 'awaiting_payment'
-      end as financial_state,
-      extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, sale_activity.updated_at,
-      case when sv.id is not null then null when sale_physical.physical_state='attention' then 'Kiểm tra' when sale_physical.physical_state='needs_delivery' then 'Giao hàng' when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán' when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền' else null end as next_action,
-      sale_physical.delivery_id, ('/sales/' || s.id::text) as href
-    from sales s join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
-      join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id left join unallocated_by_customer on unallocated_by_customer.customer_id=s.customer_id
-      join sale_activity on sale_activity.id=s.id
-    where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
-    union all
-    select p.id, 'purchase' as kind, ('PUR-' || upper(substr(p.id::text,1,8))) as reference,
-      s.display_name as counterparty, p.total_amount_minor as amount, p.currency,
-      case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
-      purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
-      extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, purchase_activity.updated_at,
-      case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
-      null as delivery_id, ('/purchases/' || p.id::text) as href
-    from purchases p join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id join purchase_physical on purchase_physical.id=p.id
-      join purchase_activity on purchase_activity.id=p.id
-      left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
-    where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
-    ), searched_rows as (
-    select board_rows.*
-    from board_rows
-    where ${searchClause}
-    ), counted_rows as (
-    select searched_rows.*,
-      count(*) over() as all_count,
-      count(*) filter (where physical_state='needs_receiving') over() as needs_receiving_count,
-      count(*) filter (where physical_state='needs_delivery') over() as needs_delivery_count,
-      count(*) filter (where physical_state='in_delivery') over() as in_delivery_count,
-      count(*) filter (where financial_state='awaiting_payment') over() as awaiting_payment_count,
-      count(*) filter (where financial_state='overdue') over() as overdue_count,
-      count(*) filter (where commercial_state='attention' or physical_state='attention') over() as attention_count,
-      count(*) filter (where commercial_state='posted') over() as commercial_posted_count,
-      count(*) filter (where commercial_state='confirmed') over() as commercial_confirmed_count,
-      count(*) filter (where commercial_state='voided') over() as commercial_voided_count,
-      count(*) filter (where commercial_state='attention') over() as commercial_attention_count,
-      count(*) filter (where physical_state='needs_receiving') over() as physical_needs_receiving_count,
-      count(*) filter (where physical_state='needs_delivery') over() as physical_needs_delivery_count,
-      count(*) filter (where physical_state='in_delivery') over() as physical_in_delivery_count,
-      count(*) filter (where physical_state='delivered') over() as physical_delivered_count,
-      count(*) filter (where physical_state='received') over() as physical_received_count,
-      count(*) filter (where physical_state='attention') over() as physical_attention_count,
-      count(*) filter (where financial_state='paid') over() as financial_paid_count,
-      count(*) filter (where financial_state='payable') over() as financial_payable_count,
-      count(*) filter (where financial_state='reconciliation_required') over() as financial_reconciliation_required_count,
-      count(*) filter (where financial_state='awaiting_payment') over() as financial_awaiting_payment_count,
-      count(*) filter (where financial_state='overdue') over() as financial_overdue_count,
-      count(*) filter (where financial_state='voided') over() as financial_voided_count
-    from searched_rows
-    ), filtered_rows as (
-    select counted_rows.*
-    from counted_rows
-    where ${filterClause}
-    )
-    select *
-    from filtered_rows
-    where ${cursorClause}
-    order by ${orderClause}
-    limit ${limitClause}
-  `);
-  const rawRows = rows as Row[];
-  const first = rawRows[0];
-  const counts = {
-    all: first === undefined ? 0 : numberOf(first, "all_count"),
-    needsReceiving: first === undefined ? 0 : numberOf(first, "needs_receiving_count"),
-    needsDelivery: first === undefined ? 0 : numberOf(first, "needs_delivery_count"),
-    inDelivery: first === undefined ? 0 : numberOf(first, "in_delivery_count"),
-    awaitingPayment: first === undefined ? 0 : numberOf(first, "awaiting_payment_count"),
-    overdue: first === undefined ? 0 : numberOf(first, "overdue_count"),
-    attention: first === undefined ? 0 : numberOf(first, "attention_count"),
-  };
-  return {
-    counts,
-    statusCounts: {
-      commercial: statusCounts(first, [
-        ["posted", "commercial_posted_count"],
-        ["confirmed", "commercial_confirmed_count"],
-        ["voided", "commercial_voided_count"],
-        ["attention", "commercial_attention_count"],
-      ]),
-      physical: statusCounts(first, [
-        ["needs_receiving", "physical_needs_receiving_count"],
-        ["needs_delivery", "physical_needs_delivery_count"],
-        ["in_delivery", "physical_in_delivery_count"],
-        ["delivered", "physical_delivered_count"],
-        ["received", "physical_received_count"],
-        ["attention", "physical_attention_count"],
-      ]),
-      financial: statusCounts(first, [
-        ["paid", "financial_paid_count"],
-        ["payable", "financial_payable_count"],
-        ["reconciliation_required", "financial_reconciliation_required_count"],
-        ["awaiting_payment", "financial_awaiting_payment_count"],
-        ["overdue", "financial_overdue_count"],
-        ["voided", "financial_voided_count"],
-      ]),
-    },
-    rows: rawRows.map((row) => ({
-      id: stringOf(row, "id"),
-      kind: stringOf(row, "kind") as "sale" | "purchase",
-      reference: stringOf(row, "reference"),
-      counterparty: stringOf(row, "counterparty"),
-      amount: asMoney(numberOf(row, "amount")),
-      commercialState: stringOf(row, "commercial_state"),
-      physicalState: stringOf(row, "physical_state"),
-      financialState: stringOf(row, "financial_state"),
-      ageSeconds: numberOf(row, "age_seconds"),
-      nextAction: row["next_action"] === null ? null : stringOf(row, "next_action"),
-      updatedAt: new Date(String(row["updated_at"])).toISOString(),
-      href: stringOf(row, "href"),
-      deliveryId: row["delivery_id"] === null ? null : (stringOf(row, "delivery_id") as DeliveryId),
-    })),
-  };
-}
-
-function statusCounts(
-  row: Row | undefined,
-  entries: readonly (readonly [string, string])[],
-): { key: string; count: number }[] {
-  if (row === undefined) return [];
-  return entries
-    .map(([key, column]) => ({ key, count: numberOf(row, column) }))
-    .filter((entry) => entry.count > 0);
-}
-
 export const createDashboardReadRepositories = (tx: Tx) => ({
   dashboardReads: {
     summary: (workspaceId: string) => querySummary(tx, workspaceId),
@@ -607,14 +260,10 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
     async orderStatusCounts(
       workspaceId: DashboardOrderStatusCountsDto["workspaceId"],
     ): Promise<DashboardOrderStatusCountsDto> {
-      const result = await queryRows(tx, {
+      const result = await queryOperationsBoardCounts(tx, {
         workspaceId,
         filter: "all",
-        sort: "updated_desc",
         search: "",
-        cursor: null,
-        limit: 1,
-        page: { after: null, limit: 1 },
         now: asOf(),
       });
       return {
@@ -626,17 +275,29 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
     async operationsBoardCounts(
       input: OperationsBoardCountsInput & { readonly now: string },
     ): Promise<OperationsBoardCountsDto> {
-      const result = await queryRows(tx, {
-        ...input,
-        // Counts describe the complete search scope, not the selected chip.
-        // Keep accepting the legacy filter field at the API boundary, but do
-        // not let it narrow the population used for the count strip.
-        filter: "all",
-        sort: "updated_desc",
-        cursor: null,
-        limit: 1,
-        page: { after: null, limit: 1 },
-      });
+      if (input.search.length === 0) {
+        const result = await queryOperationsBoardCountsSplit(tx, input);
+        return {
+          workspaceId: input.workspaceId,
+          asOf: input.now,
+          counts: result.counts,
+        };
+      }
+      const result = await queryRows(
+        tx,
+        {
+          ...input,
+          // Counts describe the complete search scope, not the selected chip.
+          // Keep accepting the legacy filter field at the API boundary, but do
+          // not let it narrow the population used for the count strip.
+          filter: "all",
+          sort: "updated_desc",
+          cursor: null,
+          limit: 1,
+          page: { after: null, limit: 1 },
+        },
+        { includeActivity: false, includeCounts: true },
+      );
       return {
         workspaceId: input.workspaceId,
         asOf: input.now,
@@ -672,7 +333,10 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
         now: string;
       },
     ) {
-      const result = await queryRows(tx, input);
+      const result =
+        input.filter === "all" && input.search.length === 0 && input.sort === "updated_desc"
+          ? await queryFastOperationsBoardPage(tx, input)
+          : await queryRows(tx, input, { includeActivity: true, includeCounts: false });
       const visible = result.rows.slice(0, input.page.limit);
       const last = visible.at(-1);
       const sortValue =
@@ -687,7 +351,6 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
       return {
         workspaceId: input.workspaceId,
         asOf: input.now,
-        counts: result.counts,
         page: {
           items: visible,
           nextCursor:

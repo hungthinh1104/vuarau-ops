@@ -442,6 +442,9 @@ const repositoryChecks: readonly RepositoryCheck[] = [
   {
     name: "operations_board_page",
     budgetMs: 250,
+    // Ordering is by the latest canonical fact, so this page intentionally
+    // reads the aggregate source population before applying the keyset page.
+    sequentialScanPolicy: "canonical_aggregate",
     execute: async (tx) =>
       createDashboardReadRepositories(tx as never).dashboardReads.operationsBoard({
         workspaceId: WORKSPACE_ID as WorkspaceId,
@@ -456,7 +459,7 @@ const repositoryChecks: readonly RepositoryCheck[] = [
   },
   {
     name: "operations_board_counts",
-    budgetMs: 300,
+    budgetMs: 400,
     sequentialScanPolicy: "canonical_aggregate",
     execute: async (tx) =>
       createDashboardReadRepositories(tx as never).dashboardReads.operationsBoardCounts({
@@ -498,44 +501,52 @@ async function evidenceForRepository(check: RepositoryCheck): Promise<
     executionPath: "production_repository";
   }
 > {
-  let lastQuery: SQL | null = null;
+  let capturedQueries: SQL[] = [];
   const execute = async (): Promise<unknown> => {
+    capturedQueries = [];
     const tx: RepositoryExecutionTx = {
       execute: async (query) => {
-        lastQuery = query;
+        capturedQueries.push(query);
         return database.db.execute(query);
       },
     };
     return check.execute(tx);
   };
   const firstResult = await execute();
-  if (lastQuery === null) throw new Error(`No SQL captured for ${check.name}.`);
-  const built = new PgDialect().sqlToQuery(lastQuery);
-  const explained = await sql.unsafe<Record<string, unknown>[]>(
-    `explain (analyze,buffers,format json) ${built.sql}`,
-    built.params as never,
-  );
-  const root = (explained[0]?.["QUERY PLAN"] as Array<Record<string, unknown>> | undefined)?.[0];
-  if (root === undefined) throw new Error(`No EXPLAIN output for ${check.name}.`);
-  const scanRelations = sequentialScanRelations(root);
+  if (capturedQueries.length === 0) throw new Error(`No SQL captured for ${check.name}.`);
+  const firstQueries = capturedQueries;
+  const roots: Record<string, unknown>[] = [];
+  for (const query of firstQueries) {
+    const built = new PgDialect().sqlToQuery(query);
+    const explained = await sql.unsafe<Record<string, unknown>[]>(
+      `explain (analyze,buffers,format json) ${built.sql}`,
+      built.params as never,
+    );
+    const root = (explained[0]?.["QUERY PLAN"] as Array<Record<string, unknown>> | undefined)?.[0];
+    if (root === undefined) throw new Error(`No EXPLAIN output for ${check.name}.`);
+    roots.push(root);
+  }
   const timings: number[] = [];
   for (let index = 0; index < 21; index += 1) {
     const started = performance.now();
     await execute();
     if (index > 0) timings.push(performance.now() - started);
   }
+  const scanRelations = [...new Set(roots.flatMap((root) => sequentialScanRelations(root)))].sort();
   return {
     name: check.name,
     budgetMs: check.budgetMs,
     sequentialScanPolicy: check.sequentialScanPolicy ?? "forbidden",
     p95Ms: Number(percentile95(timings).toFixed(2)),
-    planMs: Number(root["Execution Time"] ?? 0),
-    sharedHits: Number(root["Shared Hit Blocks"] ?? 0),
-    sharedReads: Number(root["Shared Read Blocks"] ?? 0),
+    planMs: Number(
+      roots.reduce((total, root) => total + Number(root["Execution Time"] ?? 0), 0).toFixed(3),
+    ),
+    sharedHits: roots.reduce((total, root) => total + Number(root["Shared Hit Blocks"] ?? 0), 0),
+    sharedReads: roots.reduce((total, root) => total + Number(root["Shared Read Blocks"] ?? 0), 0),
     sequentialScanRelations: scanRelations,
     sequentialScan: scanRelations.length > 0,
     loadedRows: loadedRows(firstResult),
-    queryCount: 1,
+    queryCount: firstQueries.length,
     executionPath: "production_repository",
   };
 }

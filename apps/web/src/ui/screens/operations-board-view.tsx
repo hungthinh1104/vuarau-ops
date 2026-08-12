@@ -25,7 +25,7 @@ import { Select } from "@/ui/primitives/select.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 
 export type OperationsBoardPage = {
-  readonly counts: OperationsBoardCounts;
+  readonly counts?: OperationsBoardCounts | undefined;
   readonly page: {
     readonly items: readonly OperationsBoardRow[];
     readonly nextCursor: string | null;

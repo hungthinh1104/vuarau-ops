@@ -1,0 +1,324 @@
+import { sql } from "drizzle-orm";
+import type { DeliveryId, OperationsBoardInput } from "@vuarau/domain-contracts";
+import type { CursorPosition } from "@vuarau/domain-contracts";
+import type { Tx } from "../shared/types.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
+type Row = Record<string, unknown>;
+const numberOf = (row: Row, name: string): number => {
+  const raw = row[name] ?? 0;
+  if (name === "age_seconds") {
+    const value = Number(raw);
+    if (!Number.isFinite(value)) throw new RangeError("Dashboard age is not finite.");
+    return value;
+  }
+  return persistedBigintToSafeNumber(raw, `dashboard ${name}`);
+};
+const asMoney = (amountMinor: number) => ({ amountMinor, currency: "VND" as const });
+function mapBoardRows(rawRows: readonly Row[]) {
+  return rawRows.map((row) => ({
+    id: String(row["id"] ?? ""),
+    kind: String(row["kind"] ?? "") as "sale" | "purchase",
+    reference: String(row["reference"] ?? ""),
+    counterparty: String(row["counterparty"] ?? ""),
+    amount: asMoney(numberOf(row, "amount")),
+    commercialState: String(row["commercial_state"] ?? ""),
+    physicalState: String(row["physical_state"] ?? ""),
+    financialState: String(row["financial_state"] ?? ""),
+    ageSeconds: numberOf(row, "age_seconds"),
+    nextAction: row["next_action"] === null ? null : String(row["next_action"] ?? ""),
+    updatedAt: new Date(String(row["updated_at"])).toISOString(),
+    href: String(row["href"] ?? ""),
+    deliveryId: row["delivery_id"] === null ? null : (String(row["delivery_id"]) as DeliveryId),
+  }));
+}
+export async function queryFastOperationsBoardPage(
+  tx: Tx,
+  input: OperationsBoardInput & {
+    page: { after: CursorPosition | null; limit: number };
+    now: string;
+  },
+) {
+  const after = input.page.after;
+  const cursorClause =
+    after === null
+      ? sql`true`
+      : sql`(updated_at < ${after.sortValue}::timestamptz or (updated_at = ${after.sortValue}::timestamptz and id < ${after.id}))`;
+  const limitClause =
+    input.page.limit === Number.MAX_SAFE_INTEGER ? sql`all` : sql`${input.page.limit + 1}`;
+  const rows = await tx.execute(sql`
+    with recursive
+    sale_activity_events as (
+      select sv.workspace_id, sv.sale_id as id, sv.recorded_at
+      from sale_voids sv
+      where sv.workspace_id=${input.workspaceId}::uuid
+      union all
+      select d.workspace_id, d.sale_id as id, d.recorded_at
+      from deliveries d
+      where d.workspace_id=${input.workspaceId}::uuid
+      union all
+      select pa.workspace_id, pa.sale_id as id, pa.recorded_at
+      from payment_allocations pa
+      where pa.workspace_id=${input.workspaceId}::uuid
+      union all
+      select pa.workspace_id, pa.sale_id as id, par.recorded_at
+      from payment_allocation_reversals par
+      join payment_allocations pa
+        on pa.workspace_id=par.workspace_id and pa.id=par.allocation_id
+      where par.workspace_id=${input.workspaceId}::uuid
+    ), sale_activity as (
+      select s.workspace_id, s.id,
+        greatest(s.recorded_at, coalesce(s.posted_at, s.recorded_at), coalesce(max(events.recorded_at), s.recorded_at)) as updated_at
+      from sales s
+      left join sale_activity_events events
+        on events.workspace_id=s.workspace_id and events.id=s.id
+      where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
+      group by s.workspace_id, s.id, s.recorded_at, s.posted_at
+    ), purchase_activity_events as (
+      select pv.workspace_id, pv.purchase_id as id, pv.recorded_at
+      from purchase_voids pv
+      where pv.workspace_id=${input.workspaceId}::uuid
+      union all
+      select pr.workspace_id, pr.purchase_id as id, pr.recorded_at
+      from purchase_receipts pr
+      where pr.workspace_id=${input.workspaceId}::uuid
+      union all
+      select pr.workspace_id, pr.purchase_id as id, prr.recorded_at
+      from purchase_receipt_reversals prr
+      join purchase_receipts pr
+        on pr.workspace_id=prr.workspace_id and pr.id=prr.receipt_id
+      where prr.workspace_id=${input.workspaceId}::uuid
+      union all
+      select ga.workspace_id, ga.purchase_id as id, ga.recorded_at
+      from goods_arrivals ga
+      where ga.workspace_id=${input.workspaceId}::uuid and ga.purchase_id is not null
+      union all
+      select gal.workspace_id, gal.purchase_id as id, qd.recorded_at
+      from quality_dispositions qd
+      join goods_arrival_lines gal
+        on gal.workspace_id=qd.workspace_id and gal.id=qd.source_arrival_line_id
+      where qd.workspace_id=${input.workspaceId}::uuid and gal.purchase_id is not null
+    ), purchase_activity as (
+      select p.workspace_id, p.id,
+        greatest(p.recorded_at, coalesce(p.confirmed_at, p.recorded_at), coalesce(max(events.recorded_at), p.recorded_at)) as updated_at
+      from purchases p
+      left join purchase_activity_events events
+        on events.workspace_id=p.workspace_id and events.id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
+      group by p.workspace_id, p.id, p.recorded_at, p.confirmed_at
+    ), candidate_rows as (
+      select s.id, 'sale' as kind, sale_activity.updated_at,
+        s.total_amount_minor as amount,
+        extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds
+      from sales s
+      join sale_activity on sale_activity.workspace_id=s.workspace_id and sale_activity.id=s.id
+      where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
+      union all
+      select p.id, 'purchase' as kind, purchase_activity.updated_at,
+        p.total_amount_minor as amount,
+        extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds
+      from purchases p
+      join purchase_activity on purchase_activity.workspace_id=p.workspace_id and purchase_activity.id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
+    ), candidate_scope as materialized (
+      select candidate_rows.*
+      from candidate_rows
+      where ${cursorClause}
+      order by updated_at desc, id desc
+      limit ${limitClause}
+    ), candidate_sales as (
+      select id from candidate_scope where kind='sale'
+    ), candidate_purchases as (
+      select id from candidate_scope where kind='purchase'
+    ), candidate_customers as (
+      select distinct s.customer_id
+      from sales s join candidate_sales cs on cs.id=s.id
+      where s.workspace_id=${input.workspaceId}::uuid
+    ), delivered as (
+      select sl.id as sale_line_id, sum(dl.quantity_scaled) as dispatched
+      from delivery_lines dl
+      join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
+      join sale_lines sl on sl.workspace_id=dl.workspace_id and sl.id=dl.sale_line_id
+      join candidate_sales cs on cs.id=sl.sale_id
+      where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
+      group by sl.id
+    ), latest_delivery as (
+      select distinct on (d.sale_id) d.sale_id, d.id as delivery_id
+      from deliveries d
+      join candidate_sales cs on cs.id=d.sale_id
+      where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
+      order by d.sale_id, d.transaction_time desc, d.recorded_at desc, d.id desc
+    ), returned as (
+      select sl.id as sale_line_id, sum(drl.quantity_scaled) as returned
+      from delivery_return_lines drl
+      join delivery_lines dl on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
+      join sale_lines sl on sl.workspace_id=dl.workspace_id and sl.id=dl.sale_line_id
+      join candidate_sales cs on cs.id=sl.sale_id
+      join delivery_returns dr on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
+      where dr.workspace_id=${input.workspaceId}::uuid
+      group by sl.id
+    ), dispatched_remaining as (
+      select sl.id as sale_line_id,
+        sum(greatest(dl.quantity_scaled-coalesce(ret.returned,0),0)) as remaining
+      from delivery_lines dl
+      join sale_lines sl on sl.workspace_id=dl.workspace_id and sl.id=dl.sale_line_id
+      join candidate_sales cs on cs.id=sl.sale_id
+      join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
+      left join (
+        select drl.delivery_line_id, sum(drl.quantity_scaled) as returned
+        from delivery_return_lines drl
+        join delivery_returns dr on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
+        where dr.workspace_id=${input.workspaceId}::uuid
+        group by drl.delivery_line_id
+      ) ret on ret.delivery_line_id=dl.id
+      where dl.workspace_id=${input.workspaceId}::uuid and d.status='dispatched'
+      group by sl.id
+    ), sale_physical as (
+      select s.id,
+        case
+          when bool_or(coalesce(delivered.dispatched,0)-coalesce(returned.returned,0) > sl.quantity_scaled) then 'attention'
+          when coalesce(sum(greatest(sl.quantity_scaled-coalesce(delivered.dispatched,0)+coalesce(returned.returned,0),0)),0)=0 then 'delivered'
+          when coalesce(sum(dispatched_remaining.remaining),0)>0 then 'in_delivery'
+          else 'needs_delivery'
+        end as physical_state,
+        max(latest_delivery.delivery_id::text)::uuid as delivery_id
+      from sales s
+      join candidate_sales cs on cs.id=s.id
+      join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
+      left join delivered on delivered.sale_line_id=sl.id
+      left join returned on returned.sale_line_id=sl.id
+      left join dispatched_remaining on dispatched_remaining.sale_line_id=sl.id
+      left join latest_delivery on latest_delivery.sale_id=s.id
+      where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
+      group by s.id
+    ), allocation_reversals as (
+      select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0) as amount
+      from payment_allocation_reversals par
+      join payment_allocations pa on pa.workspace_id=par.workspace_id and pa.id=par.allocation_id
+      join candidate_sales cs on cs.id=pa.sale_id
+      where par.workspace_id=${input.workspaceId}::uuid
+      group by par.workspace_id, par.allocation_id
+    ), allocated as (
+      select pa.sale_id,
+        coalesce(sum(pa.amount_minor-coalesce(ar.amount,0)),0) as amount
+      from payment_allocations pa
+      join candidate_sales cs on cs.id=pa.sale_id
+      left join allocation_reversals ar on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
+      where pa.workspace_id=${input.workspaceId}::uuid
+      group by pa.sale_id
+    ), unallocated_by_customer as (
+      select p.customer_id,
+        coalesce(sum(greatest(p.amount_minor-p.reversed_amount_minor-coalesce(allocated_payment.amount,0),0)),0) as amount
+      from payments p
+      join candidate_customers cc on cc.customer_id=p.customer_id
+      left join (
+        select pa.payment_id,
+          coalesce(sum(pa.amount_minor-coalesce(ar.amount,0)),0) as amount
+        from payment_allocations pa
+        left join allocation_reversals ar on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
+        where pa.workspace_id=${input.workspaceId}::uuid
+        group by pa.payment_id
+      ) allocated_payment on allocated_payment.payment_id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
+      group by p.customer_id
+    ), direct_received as (
+      select prl.workspace_id, prl.purchase_line_id,
+        coalesce(sum(case when prr.id is null then prl.quantity_scaled else -prl.quantity_scaled end),0) as received
+      from purchase_receipt_lines prl
+      join purchase_receipts pr on pr.workspace_id=prl.workspace_id and pr.id=prl.receipt_id
+      join purchase_lines pl on pl.workspace_id=prl.workspace_id and pl.id=prl.purchase_line_id
+      join candidate_purchases cp on cp.id=pl.purchase_id
+      left join purchase_receipt_reversals prr on prr.workspace_id=pr.workspace_id and prr.receipt_id=pr.id
+      where prl.workspace_id=${input.workspaceId}::uuid
+      group by prl.workspace_id, prl.purchase_line_id
+    ), disposition_roots as (
+      select qd.workspace_id, qd.id as disposition_id, gal.purchase_line_id
+      from quality_dispositions qd
+      join goods_arrival_lines gal on gal.workspace_id=qd.workspace_id and gal.id=qd.source_arrival_line_id
+      join purchase_lines pl on pl.workspace_id=gal.workspace_id and pl.id=gal.purchase_line_id
+      join candidate_purchases cp on cp.id=pl.purchase_id
+      where qd.workspace_id=${input.workspaceId}::uuid and qd.source_type='arrival_line'
+      union all
+      select child.workspace_id, child.id, parent.purchase_line_id
+      from quality_dispositions child
+      join quality_disposition_allocations source_allocation
+        on source_allocation.workspace_id=child.workspace_id
+        and source_allocation.id=child.source_quarantine_allocation_id
+        and source_allocation.outcome='quarantined'
+      join disposition_roots parent
+        on parent.workspace_id=source_allocation.workspace_id and parent.disposition_id=source_allocation.disposition_id
+      where child.workspace_id=${input.workspaceId}::uuid and child.source_type='quarantine_allocation'
+    ), inspected_accepted as (
+      select qda.workspace_id, roots.purchase_line_id, coalesce(sum(qda.value_scaled),0) as accepted
+      from quality_disposition_allocations qda
+      join quality_dispositions qd on qd.workspace_id=qda.workspace_id and qd.id=qda.disposition_id
+      join disposition_roots roots on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
+      left join quality_disposition_reversals qdr on qdr.workspace_id=qd.workspace_id and qdr.disposition_id=qd.id
+      where qda.workspace_id=${input.workspaceId}::uuid and qda.outcome='accepted' and qdr.id is null
+      group by qda.workspace_id, roots.purchase_line_id
+    ), purchase_received as (
+      select pl.purchase_id, pl.id as line_id, pl.quantity_scaled,
+        coalesce(direct.received,0)+coalesce(inspected.accepted,0) as received
+      from purchase_lines pl
+      join candidate_purchases cp on cp.id=pl.purchase_id
+      left join direct_received direct on direct.workspace_id=pl.workspace_id and direct.purchase_line_id=pl.id
+      left join inspected_accepted inspected on inspected.workspace_id=pl.workspace_id and inspected.purchase_line_id=pl.id
+      where pl.workspace_id=${input.workspaceId}::uuid
+    ), purchase_physical as (
+      select p.id, case when bool_and(pr.received >= pr.quantity_scaled) then 'received' else 'needs_receiving' end as physical_state
+      from purchases p
+      join candidate_purchases cp on cp.id=p.id
+      join purchase_received pr on pr.purchase_id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid
+      group by p.id
+    )
+    select s.id, 'sale' as kind, ('SALE-' || upper(substr(s.id::text,1,8))) as reference,
+      c.display_name as counterparty, s.total_amount_minor as amount, s.currency,
+      case when sv.id is not null then 'voided' when sale_physical.physical_state='attention' then 'attention' else 'posted' end as commercial_state,
+      sale_physical.physical_state,
+      case
+        when sv.id is not null then 'voided'
+        when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
+        when coalesce(unallocated_by_customer.amount,0) > 0 then 'reconciliation_required'
+        when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
+        else 'awaiting_payment'
+      end as financial_state,
+      cs.age_seconds, cs.updated_at,
+      case when sv.id is not null then null when sale_physical.physical_state='attention' then 'Kiểm tra' when sale_physical.physical_state='needs_delivery' then 'Giao hàng' when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán' when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền' else null end as next_action,
+      sale_physical.delivery_id, ('/sales/' || s.id::text) as href
+    from candidate_scope cs
+    join sales s on s.workspace_id=${input.workspaceId}::uuid and s.id=cs.id and cs.kind='sale'
+    join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
+    join sale_physical on sale_physical.id=s.id
+    left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
+    left join allocated on allocated.sale_id=s.id
+    left join unallocated_by_customer on unallocated_by_customer.customer_id=s.customer_id
+    union all
+    select p.id, 'purchase' as kind, ('PUR-' || upper(substr(p.id::text,1,8))) as reference,
+      s.display_name as counterparty, p.total_amount_minor as amount, p.currency,
+      case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
+      purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
+      cs.age_seconds, cs.updated_at,
+      case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
+      null as delivery_id, ('/purchases/' || p.id::text) as href
+    from candidate_scope cs
+    join purchases p on p.workspace_id=${input.workspaceId}::uuid and p.id=cs.id and cs.kind='purchase'
+    join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id
+    join purchase_physical on purchase_physical.id=p.id
+    left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
+    order by updated_at desc, id desc
+    limit ${limitClause}
+  `);
+  return {
+    counts: {
+      all: 0,
+      needsReceiving: 0,
+      needsDelivery: 0,
+      inDelivery: 0,
+      awaitingPayment: 0,
+      overdue: 0,
+      attention: 0,
+    },
+    statusCounts: { commercial: [], physical: [], financial: [] },
+    rows: mapBoardRows(rows as Row[]),
+  };
+}

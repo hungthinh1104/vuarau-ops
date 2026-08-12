@@ -657,7 +657,11 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         limit: Number.MAX_SAFE_INTEGER,
         page: { after: null, limit: Number.MAX_SAFE_INTEGER },
       });
-      return { workspaceId: input.workspaceId, asOf: input.now, counts: page.counts };
+      return {
+        workspaceId: input.workspaceId,
+        asOf: input.now,
+        counts: page.counts ?? boardCounts(page.page.items),
+      };
     },
   },
 });

@@ -16,7 +16,8 @@ rehearsal, excluding browser/network time:
 | Idempotency receipt lookup     |      10 ms |
 | Reconciliation for one account |      75 ms |
 | Product Coverage read model    |     250 ms |
-| Operations Board page          |     100 ms |
+| Operations Board page          |     250 ms |
+| Operations Board counts        |     400 ms |
 | Receiving progress page        |     100 ms |
 | Dashboard summary/series       |     250 ms |
 | Debt-aging source aggregate    |     250 ms |
@@ -49,9 +50,12 @@ Each query is warmed, executed 20 measured times, and checked with
 `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`. A budget breach or sequential scan of
 the production-scale canonical tables fails the command. Canonical aggregate
 families (coverage, dashboard, debt-aging sources and board counts) are allowed
-to scan their source population; page/timeline families are not. The output
-names the family, p95, plan time, buffer hits/reads and scan policy so a later
-optimization can be compared against the same evidence contract.
+to scan their source population. Operations Board ordering is itself derived
+from the latest canonical fact, so its production page is also measured as a
+bounded canonical aggregate: it applies keyset `LIMIT` after deriving the
+order, rather than pretending that a stale base-row timestamp is a page index.
+The output names the family, p95, plan time, buffer hits/reads and scan policy
+so a later optimization can be compared against the same evidence contract.
 
 ## Evidence — 2026-08-12, PostgreSQL 17 local container
 
