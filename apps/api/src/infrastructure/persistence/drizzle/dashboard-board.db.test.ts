@@ -120,6 +120,10 @@ describe.skipIf(skipWithoutDatabase())(
       ).toBe(true);
 
       const paymentId = crypto.randomUUID();
+      deps = {
+        ...deps,
+        clock: { now: () => "2026-07-29T12:01:00.000Z" as never },
+      };
       const payment = await recordCustomerPayment(context(), {
         ...command("payment"),
         payload: {
@@ -161,6 +165,7 @@ describe.skipIf(skipWithoutDatabase())(
             id: saleId,
             financialState: "reconciliation_required",
             nextAction: "Đối soát thanh toán",
+            updatedAt: "2026-07-29T12:01:00.000Z",
           }),
         );
       }

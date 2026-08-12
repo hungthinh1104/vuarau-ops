@@ -47,10 +47,29 @@ export async function queryFastOperationsBoardPage(
     input.page.limit === Number.MAX_SAFE_INTEGER ? sql`all` : sql`${input.page.limit + 1}`;
   const rows = await tx.execute(sql`
     with recursive
-    sale_activity_events as (
+    customer_payment_activity as (
+      select payment_events.workspace_id, payment_events.customer_id, max(payment_events.recorded_at) as recorded_at
+      from (
+        select p.workspace_id, p.customer_id, p.recorded_at
+        from payments p
+        where p.workspace_id=${input.workspaceId}::uuid
+        union all
+        select p.workspace_id, p.customer_id, pr.recorded_at
+        from payment_reversals pr
+        join payments p
+          on p.workspace_id=pr.workspace_id and p.id=pr.payment_id
+        where pr.workspace_id=${input.workspaceId}::uuid
+      ) payment_events
+      group by payment_events.workspace_id, payment_events.customer_id
+    ), sale_activity_events as (
       select sv.workspace_id, sv.sale_id as id, sv.recorded_at
       from sale_voids sv
       where sv.workspace_id=${input.workspaceId}::uuid
+      union all
+      select s.workspace_id, s.id, cpa.recorded_at
+      from customer_payment_activity cpa
+      join sales s
+        on s.workspace_id=cpa.workspace_id and s.customer_id=cpa.customer_id
       union all
       select d.workspace_id, d.sale_id as id, d.recorded_at
       from deliveries d

@@ -510,6 +510,24 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
               ...store.paymentAllocationReversals
                 .filter((reversal) => allocationIds.has(reversal.allocationId))
                 .map((reversal) => reversal.recordedAt),
+              ...[...store.payments.values()]
+                .filter(
+                  (payment) =>
+                    payment.workspaceId === input.workspaceId &&
+                    payment.customerId === sale.customerId,
+                )
+                .map((payment) => payment.recordedAt),
+              ...store.reversals
+                .filter((reversal) => reversal.workspaceId === input.workspaceId)
+                .filter((reversal) =>
+                  [...store.payments.values()].some(
+                    (payment) =>
+                      payment.workspaceId === input.workspaceId &&
+                      payment.id === reversal.paymentId &&
+                      payment.customerId === sale.customerId,
+                  ),
+                )
+                .map((reversal) => reversal.recordedAt),
             ],
             sale.recordedAt,
           ),
