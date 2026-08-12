@@ -588,15 +588,14 @@ describe("UC-SALE-003 / TC-READ-009 — the published read surface", () => {
   it("clamps an oversized limit instead of refusing the read", async () => {
     // A client asking for too much has made a judgement error, not a business
     // one, and failing the whole read over it helps nobody.
-    await expect(
-      caller.customer.search({
-        workspaceId: WORKSPACE_ID,
-        query: "",
-        isActive: null,
-        cursor: null,
-        limit: 10_000,
-      }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    const page = await caller.customer.search({
+      workspaceId: WORKSPACE_ID,
+      query: "",
+      isActive: null,
+      cursor: null,
+      limit: 10_000,
+    });
+    expect(page.items.length).toBeLessThanOrEqual(200);
   });
 
   it("refuses every read without a token", async () => {
