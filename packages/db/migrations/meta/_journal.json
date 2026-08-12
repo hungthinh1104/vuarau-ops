@@ -519,6 +519,13 @@
       "when": 1786561581208,
       "tag": "0073_daffy_harry_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1786563368165,
+      "tag": "0074_curved_genesis",
+      "breakpoints": true
     }
   ]
 }

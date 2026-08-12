@@ -1,10 +1,31 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { IsoInstant, ProductId, QualityGradeId, WorkspaceId } from "@vuarau/domain-contracts";
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
 import { PersistedNumberOutOfRangeError } from "../../errors.ts";
+import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import { inventoryMovements, inventoryBalances } from "../../schema/index.ts";
 import { fromIso, fromIsoOrNull, toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Tx, IdMinter } from "../shared/types.ts";
+
+const toMovement = (row: typeof inventoryMovements.$inferSelect): InventoryMovementState =>
+  ({
+    id: row.id,
+    workspaceId: row.workspaceId,
+    productId: row.productId,
+    qualityGradeId: row.qualityGradeId,
+    qualityGradeName: row.qualityGradeName,
+    quantity: { valueScaled: row.quantityScaled, unit: row.unit },
+    sourceType: row.sourceType,
+    sourceId: row.sourceId,
+    sourceLineId: row.sourceLineId,
+    reversalOfMovementId: row.reversalOfMovementId,
+    reasonCode: row.reasonCode,
+    reason: row.reason,
+    transactionTime: toIso(row.transactionTime),
+    recordedAt: toIso(row.recordedAt),
+    actorId: row.actorId,
+    commandId: row.commandId,
+  }) as InventoryMovementState;
 
 export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
   inventoryMovements: {
@@ -126,6 +147,109 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         actorId: row.actorId,
         commandId: row.commandId,
       })) as unknown as readonly InventoryMovementState[];
+    },
+    async listBySource(
+      workspaceId: WorkspaceId,
+      sourceType: InventoryMovementState["sourceType"],
+      sourceId: string,
+    ) {
+      const rows = await tx
+        .select()
+        .from(inventoryMovements)
+        .where(
+          and(
+            eq(inventoryMovements.workspaceId, workspaceId),
+            eq(inventoryMovements.sourceType, sourceType),
+            eq(inventoryMovements.sourceId, sourceId),
+          ),
+        )
+        .orderBy(asc(inventoryMovements.sourceLineId), asc(inventoryMovements.id));
+      return rows.map(toMovement);
+    },
+    async listByIds(
+      workspaceId: WorkspaceId,
+      movementIds: readonly InventoryMovementState["id"][],
+    ) {
+      if (movementIds.length === 0) return [];
+      const rows = await tx
+        .select()
+        .from(inventoryMovements)
+        .where(
+          and(
+            eq(inventoryMovements.workspaceId, workspaceId),
+            inArray(inventoryMovements.id, [...movementIds]),
+          ),
+        )
+        .orderBy(asc(inventoryMovements.id));
+      return rows.map(toMovement);
+    },
+    async aggregateByScopesAsOf(
+      workspaceId: WorkspaceId,
+      scopes: readonly {
+        productId: ProductId;
+        qualityGradeId: QualityGradeId | null;
+        unit: InventoryMovementState["quantity"]["unit"];
+      }[],
+      asOf: IsoInstant,
+    ) {
+      if (scopes.length === 0) return [];
+      const uniqueScopes = [
+        ...new Map(
+          scopes.map((scope) => [
+            `${scope.productId}:${scope.qualityGradeId ?? "ungraded"}:${scope.unit}`,
+            scope,
+          ]),
+        ).values(),
+      ];
+      const scopeWhere = uniqueScopes.map((scope) =>
+        and(
+          eq(inventoryMovements.productId, scope.productId),
+          scope.qualityGradeId === null
+            ? isNull(inventoryMovements.qualityGradeId)
+            : eq(inventoryMovements.qualityGradeId, scope.qualityGradeId),
+          eq(inventoryMovements.unit, scope.unit),
+        ),
+      );
+      const rows = await tx
+        .select({
+          productId: inventoryMovements.productId,
+          qualityGradeId: inventoryMovements.qualityGradeId,
+          unit: inventoryMovements.unit,
+          // Keep the aggregate outside the global int8 parser so an unsafe
+          // sum can become a controlled null instead of being rounded first.
+          quantityScaled: sql<string>`coalesce(sum(${inventoryMovements.quantityScaled}), 0)::text`,
+        })
+        .from(inventoryMovements)
+        .where(
+          and(
+            eq(inventoryMovements.workspaceId, workspaceId),
+            lte(inventoryMovements.transactionTime, fromIso(asOf)),
+            or(...scopeWhere),
+          ),
+        )
+        .groupBy(
+          inventoryMovements.productId,
+          inventoryMovements.qualityGradeId,
+          inventoryMovements.unit,
+        );
+      return rows.map((row) => {
+        let quantityScaled: number | null;
+        try {
+          quantityScaled = persistedBigintToSafeNumber(
+            row.quantityScaled,
+            "inventory_movements.quantity_scaled.aggregate",
+          );
+        } catch (error) {
+          if (error instanceof PersistedNumberOutOfRangeError) quantityScaled = null;
+          else throw error;
+        }
+        return {
+          productId: row.productId as ProductId,
+          qualityGradeId: row.qualityGradeId as QualityGradeId | null,
+          unit: row.unit,
+          quantityScaled,
+        };
+      });
     },
     async hasByProductQualityGrade(
       workspaceId: WorkspaceId,

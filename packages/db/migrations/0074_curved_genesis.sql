@@ -1,0 +1,1 @@
+CREATE INDEX "inventory_movements_source_line_idx" ON "inventory_movements" USING btree ("workspace_id","source_type","source_id","source_line_id");

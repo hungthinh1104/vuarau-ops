@@ -1,6 +1,6 @@
 import type { Repositories } from "../../ports.ts";
 import { PersistedNumberOutOfRangeError } from "@vuarau/db";
-import type { InventoryMovementState } from "@vuarau/domain-kernel";
+import { sumExactIntegers, type InventoryMovementState } from "@vuarau/domain-kernel";
 import type { IdGenerator } from "../../../clock.ts";
 import type { Store } from "../store.ts";
 
@@ -58,6 +58,61 @@ export const createInventoryRepositories = (
               ? a.recordedAt.localeCompare(b.recordedAt)
               : a.id.localeCompare(b.id),
         ),
+    listBySource: async (workspaceId, sourceType, sourceId) =>
+      store.inventoryMovements
+        .filter(
+          (movement) =>
+            movement.workspaceId === workspaceId &&
+            movement.sourceType === sourceType &&
+            movement.sourceId === sourceId,
+        )
+        .sort(
+          (a, b) =>
+            (a.sourceLineId ?? "").localeCompare(b.sourceLineId ?? "") || a.id.localeCompare(b.id),
+        ),
+    listByIds: async (workspaceId, movementIds) => {
+      const ids = new Set(movementIds);
+      return store.inventoryMovements
+        .filter((movement) => movement.workspaceId === workspaceId && ids.has(movement.id))
+        .sort((a, b) => a.id.localeCompare(b.id));
+    },
+    aggregateByScopesAsOf: async (workspaceId, scopes, asOf) => {
+      const uniqueScopes = [
+        ...new Map(
+          scopes.map((scope) => [
+            `${scope.productId}:${scope.qualityGradeId ?? "ungraded"}:${scope.unit}`,
+            scope,
+          ]),
+        ).values(),
+      ];
+      return uniqueScopes.map((scope) => {
+        let total = 0;
+        let outOfRange = false;
+        for (const movement of store.inventoryMovements) {
+          if (
+            movement.workspaceId !== workspaceId ||
+            movement.productId !== scope.productId ||
+            movement.qualityGradeId !== scope.qualityGradeId ||
+            movement.quantity.unit !== scope.unit ||
+            Date.parse(movement.transactionTime) > Date.parse(asOf)
+          ) {
+            continue;
+          }
+          const next = sumExactIntegers([total, movement.quantity.valueScaled]);
+          if (next === null) {
+            outOfRange = true;
+            break;
+          }
+          total = next;
+        }
+        return {
+          productId: scope.productId,
+          qualityGradeId: scope.qualityGradeId,
+          unit: scope.unit,
+          quantityScaled: outOfRange ? null : total,
+        };
+      });
+    },
     hasByProductQualityGrade: async (workspaceId, productId, qualityGradeId, unit) =>
       store.inventoryMovements.some(
         (movement) =>

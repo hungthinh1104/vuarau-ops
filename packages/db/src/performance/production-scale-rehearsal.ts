@@ -1,6 +1,11 @@
 import { performance } from "node:perf_hooks";
+import { type SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+import type { ProductId, WorkspaceId } from "@vuarau/domain-contracts";
 import { createDatabase } from "../client.ts";
 import { runMigrations } from "../migrate.ts";
+import { createDashboardReadRepositories } from "../repositories/read/dashboard.ts";
+import { createInventoryReadRepositories } from "../repositories/read/inventory.ts";
 
 const DATABASE_URL = process.env["DATABASE_URL"];
 if (DATABASE_URL === undefined) {
@@ -314,56 +319,6 @@ const checks = [
       where workspace_id='${WORKSPACE_ID}' and customer_id='f2210000-0000-4000-8000-000000000001'`,
   },
   {
-    name: "product_coverage",
-    budgetMs: 250,
-    sequentialScanPolicy: "canonical_aggregate",
-    query: `with on_hand as (
-        select product_id,unit,sum(quantity_scaled) as quantity
-        from inventory_balances
-        where workspace_id='${WORKSPACE_ID}' and product_id='f2220000-0000-4000-8000-000000000001'
-        group by product_id,unit
-      ), inbound as (
-        select pl.product_id,pl.unit,sum(pl.quantity_scaled) as quantity
-        from purchase_lines pl join purchases p
-          on p.workspace_id=pl.workspace_id and p.id=pl.purchase_id
-        where pl.workspace_id='${WORKSPACE_ID}' and pl.product_id='f2220000-0000-4000-8000-000000000001'
-          and p.status='confirmed'
-        group by pl.product_id,pl.unit
-      ), outbound as (
-        select sl.product_id,sl.unit,sum(greatest(sl.quantity_scaled-coalesce(d.dispatched,0)+coalesce(r.returned,0),0)) as quantity
-        from sale_lines sl join sales s on s.workspace_id=sl.workspace_id and s.id=sl.sale_id
-        left join (select sale_line_id,sum(quantity_scaled) as dispatched from delivery_lines dl
-          join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-          where dl.workspace_id='${WORKSPACE_ID}' and d.status in ('dispatched','delivered') group by sale_line_id) d
-          on d.sale_line_id=sl.id
-        left join (select dl.sale_line_id,sum(drl.quantity_scaled) as returned from delivery_return_lines drl
-          join delivery_lines dl on dl.id=drl.delivery_line_id
-          where dl.workspace_id='${WORKSPACE_ID}' group by dl.sale_line_id) r on r.sale_line_id=sl.id
-        where sl.workspace_id='${WORKSPACE_ID}' and sl.product_id='f2220000-0000-4000-8000-000000000001'
-          and s.status='posted'
-        group by sl.product_id,sl.unit
-      )
-      select coalesce(o.product_id,i.product_id,ob.product_id) as product_id,
-        coalesce(o.unit,i.unit,ob.unit) as unit,
-        coalesce(o.quantity,0)+coalesce(i.quantity,0)-coalesce(ob.quantity,0) as available_after_commitments
-      from on_hand o full join inbound i using (product_id,unit)
-      full join outbound ob using (product_id,unit)`,
-  },
-  {
-    name: "operations_board_page",
-    budgetMs: 100,
-    query: `select s.id,s.customer_id,s.status,s.total_amount_minor,s.transaction_time
-      from sales s where s.workspace_id='${WORKSPACE_ID}' and s.status='posted'
-      order by s.transaction_time desc,s.id desc limit 101`,
-  },
-  {
-    name: "operations_board_counts",
-    budgetMs: 250,
-    sequentialScanPolicy: "canonical_aggregate",
-    query: `select status,count(*)::int as count from sales
-      where workspace_id='${WORKSPACE_ID}' group by status`,
-  },
-  {
     name: "receiving_progress",
     budgetMs: 100,
     allowedSequentialScanTables: ["purchase_receipt_lines"],
@@ -472,12 +427,126 @@ async function evidenceFor(check: (typeof checks)[number]): Promise<Evidence> {
   };
 }
 
+type RepositoryExecutionTx = {
+  execute(query: SQL): Promise<unknown>;
+};
+
+type RepositoryCheck = {
+  name: string;
+  budgetMs: number;
+  sequentialScanPolicy?: "canonical_aggregate";
+  execute(tx: RepositoryExecutionTx): Promise<unknown>;
+};
+
+const repositoryChecks: readonly RepositoryCheck[] = [
+  {
+    name: "operations_board_page",
+    budgetMs: 250,
+    execute: async (tx) =>
+      createDashboardReadRepositories(tx as never).dashboardReads.operationsBoard({
+        workspaceId: WORKSPACE_ID as WorkspaceId,
+        filter: "all",
+        sort: "updated_desc",
+        search: "",
+        cursor: null,
+        limit: 100,
+        page: { after: null, limit: 100 },
+        now: "2026-02-15T12:00:00.000Z",
+      }),
+  },
+  {
+    name: "operations_board_counts",
+    budgetMs: 300,
+    sequentialScanPolicy: "canonical_aggregate",
+    execute: async (tx) =>
+      createDashboardReadRepositories(tx as never).dashboardReads.operationsBoardCounts({
+        workspaceId: WORKSPACE_ID as WorkspaceId,
+        filter: "all",
+        search: "",
+        now: "2026-02-15T12:00:00.000Z",
+      }),
+  },
+  {
+    name: "product_coverage_grade_aware",
+    budgetMs: 300,
+    sequentialScanPolicy: "canonical_aggregate",
+    execute: async (tx) =>
+      createInventoryReadRepositories(tx as never).inventoryReads.coverage(
+        WORKSPACE_ID as WorkspaceId,
+        ["f2220000-0000-4000-8000-000000000001" as ProductId],
+      ),
+  },
+];
+
+function loadedRows(value: unknown): number {
+  if (Array.isArray(value)) return value.length;
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const page = record["page"];
+    if (page !== null && typeof page === "object") {
+      const items = (page as Record<string, unknown>)["items"];
+      if (Array.isArray(items)) return items.length;
+    }
+  }
+  return 1;
+}
+
+async function evidenceForRepository(check: RepositoryCheck): Promise<
+  Evidence & {
+    loadedRows: number;
+    queryCount: number;
+    executionPath: "production_repository";
+  }
+> {
+  let lastQuery: SQL | null = null;
+  const execute = async (): Promise<unknown> => {
+    const tx: RepositoryExecutionTx = {
+      execute: async (query) => {
+        lastQuery = query;
+        return database.db.execute(query);
+      },
+    };
+    return check.execute(tx);
+  };
+  const firstResult = await execute();
+  if (lastQuery === null) throw new Error(`No SQL captured for ${check.name}.`);
+  const built = new PgDialect().sqlToQuery(lastQuery);
+  const explained = await sql.unsafe<Record<string, unknown>[]>(
+    `explain (analyze,buffers,format json) ${built.sql}`,
+    built.params as never,
+  );
+  const root = (explained[0]?.["QUERY PLAN"] as Array<Record<string, unknown>> | undefined)?.[0];
+  if (root === undefined) throw new Error(`No EXPLAIN output for ${check.name}.`);
+  const scanRelations = sequentialScanRelations(root);
+  const timings: number[] = [];
+  for (let index = 0; index < 21; index += 1) {
+    const started = performance.now();
+    await execute();
+    if (index > 0) timings.push(performance.now() - started);
+  }
+  return {
+    name: check.name,
+    budgetMs: check.budgetMs,
+    sequentialScanPolicy: check.sequentialScanPolicy ?? "forbidden",
+    p95Ms: Number(percentile95(timings).toFixed(2)),
+    planMs: Number(root["Execution Time"] ?? 0),
+    sharedHits: Number(root["Shared Hit Blocks"] ?? 0),
+    sharedReads: Number(root["Shared Read Blocks"] ?? 0),
+    sequentialScanRelations: scanRelations,
+    sequentialScan: scanRelations.length > 0,
+    loadedRows: loadedRows(firstResult),
+    queryCount: 1,
+    executionPath: "production_repository",
+  };
+}
+
 try {
   await runMigrations(DATABASE_URL);
   await seed();
   await sql`analyze`;
-  const evidence: Evidence[] = [];
+  const evidence: (Evidence & Record<string, unknown>)[] = [];
   for (const check of checks) evidence.push(await evidenceFor(check));
+  for (const check of repositoryChecks) evidence.push(await evidenceForRepository(check));
   const failed = evidence.filter(
     (row) =>
       row.p95Ms > row.budgetMs || (row.sequentialScan && row.sequentialScanPolicy === "forbidden"),

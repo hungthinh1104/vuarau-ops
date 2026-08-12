@@ -18,7 +18,6 @@ import {
 } from "@vuarau/domain-contracts";
 import {
   activeStocktakeCounts,
-  calculateStocktakeExpectedQuantity,
   decideApproveStocktake,
   decideRecordStocktakeCount,
   decideReopenStocktake,
@@ -60,6 +59,14 @@ async function effectiveStocktakePolicy(
     return err("STOCKTAKE_POLICY_UNAVAILABLE", "The effective stocktake policy is invalid.");
   }
   return ok({ policy, definition: definition.data });
+}
+
+function inventoryScopeKey(scope: {
+  readonly productId: string;
+  readonly qualityGradeId: string | null;
+  readonly unit: string;
+}): string {
+  return `${scope.productId}:${scope.qualityGradeId ?? "ungraded"}:${scope.unit}`;
 }
 
 async function policyByVersion(
@@ -239,24 +246,27 @@ export function approveStocktake(ctx: CommandContext, input: unknown) {
       if (!decision.ok) return decision;
       const drafts: Array<Parameters<typeof applyInventoryMovements>[1][number]> = [];
       const activeCounts = activeStocktakeCounts(session.counts);
-      const movements = await repos.inventoryMovements.listByProducts(command.workspaceId, [
-        ...new Set(activeCounts.map((count) => count.productId)),
-      ]);
-      const movementsByProduct = new Map<string, InventoryMovementState[]>();
-      for (const movement of movements) {
-        const rows = movementsByProduct.get(movement.productId) ?? [];
-        rows.push(movement);
-        movementsByProduct.set(movement.productId, rows);
-      }
+      const aggregates = await repos.inventoryMovements.aggregateByScopesAsOf(
+        command.workspaceId,
+        activeCounts.map((count) => ({
+          productId: count.productId,
+          qualityGradeId: count.qualityGradeId,
+          unit: count.quantity.unit,
+        })),
+        session.asOf,
+      );
+      const aggregateByScope = new Map(
+        aggregates.map((aggregate) => [inventoryScopeKey(aggregate), aggregate.quantityScaled]),
+      );
       for (const count of activeCounts) {
-        const expected = calculateStocktakeExpectedQuantity({
-          movements: (movementsByProduct.get(count.productId) ?? []).filter(
-            (movement) =>
-              movement.quantity.unit === count.quantity.unit &&
-              movement.qualityGradeId === count.qualityGradeId,
-          ),
-          asOf: session.asOf,
-        });
+        const aggregate = aggregateByScope.get(
+          inventoryScopeKey({
+            productId: count.productId,
+            qualityGradeId: count.qualityGradeId,
+            unit: count.quantity.unit,
+          }),
+        );
+        const expected = aggregate === undefined ? 0 : aggregate;
         if (expected === null) {
           return err(
             "STOCKTAKE_COUNT_INVALID",
@@ -352,36 +362,19 @@ export function reopenStocktake(ctx: CommandContext, input: unknown) {
       });
       if (!decision.ok) return decision;
       const candidates: InventoryMovementState[] = [];
-      const knownMovementIds = new Set<string>();
-      const activeCounts = activeStocktakeCounts(session.counts);
-      const movements = await repos.inventoryMovements.listByProducts(command.workspaceId, [
-        ...new Set(activeCounts.map((count) => count.productId)),
-      ]);
-      const movementsByProduct = new Map<string, InventoryMovementState[]>();
-      for (const movement of movements) {
-        const rows = movementsByProduct.get(movement.productId) ?? [];
-        rows.push(movement);
-        movementsByProduct.set(movement.productId, rows);
-      }
-      for (const count of activeCounts) {
-        const productMovements = (movementsByProduct.get(count.productId) ?? []).filter(
-          (movement) => movement.quantity.unit === count.quantity.unit,
-        );
-        for (const movement of productMovements) knownMovementIds.add(movement.id);
-        for (const movement of productMovements) {
-          if (
-            movement.sourceType === "stocktake_variance" &&
-            session.varianceMovementIds.includes(movement.id)
-          ) {
-            candidates.push(movement);
-          }
-        }
-      }
-      if (session.varianceMovementIds.some((movementId) => !knownMovementIds.has(movementId))) {
+      const knownMovementIds = session.varianceMovementIds;
+      const movements = await repos.inventoryMovements.listByIds(
+        command.workspaceId,
+        knownMovementIds,
+      );
+      if (movements.length !== new Set(knownMovementIds).size) {
         return err(
           "STOCKTAKE_LINEAGE_MISSING",
           "The stocktake variance lineage is incomplete; no reversal was written.",
         );
+      }
+      for (const movement of movements) {
+        if (movement.sourceType === "stocktake_variance") candidates.push(movement);
       }
       const reversedIds = new Set(
         candidates

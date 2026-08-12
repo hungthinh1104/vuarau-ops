@@ -155,9 +155,11 @@ export function reversePurchaseReceipt(ctx: CommandContext, input: unknown) {
       if (!decision.ok) return decision;
       if (!(await repos.purchaseReceipts.insertReversal(decision.value)))
         return err("RECEIPT_ALREADY_REVERSED", "Receipt is already reversed.");
-      const movements = await repos.inventoryMovements.listByProducts(command.workspaceId, [
-        ...new Set(receipt.lines.map((line) => line.productId)),
-      ]);
+      const movements = await repos.inventoryMovements.listBySource(
+        command.workspaceId,
+        "purchase_receipt",
+        receipt.id,
+      );
       const originals = receipt.lines.map(
         (line) =>
           movements.find(

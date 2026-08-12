@@ -162,6 +162,12 @@ export const inventoryMovements = pgTable(
       table.recordedAt,
       table.id,
     ),
+    index("inventory_movements_source_line_idx").on(
+      table.workspaceId,
+      table.sourceType,
+      table.sourceId,
+      table.sourceLineId,
+    ),
     foreignKey({
       columns: [table.workspaceId, table.qualityGradeId],
       foreignColumns: [qualityGrades.workspaceId, qualityGrades.id],
