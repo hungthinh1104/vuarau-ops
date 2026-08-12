@@ -18,7 +18,7 @@ export function LoadMoreFooter({
   readonly onRetry?: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pb-28 pt-4 lg:pb-0">
       <p className="tabular text-caption text-ink-muted">
         Đang hiện {visibleCount} {noun}.
       </p>
@@ -28,7 +28,7 @@ export function LoadMoreFooter({
             Thử lại
           </Button>
         )}
-        <Button tone="secondary" onClick={onLoadMore} disabled={loading}>
+        <Button tone="secondary" onClick={onLoadMore} disabled={loading} className="scroll-mb-32">
           {loading ? "Đang tải…" : "Tải thêm"}
         </Button>
       </div>

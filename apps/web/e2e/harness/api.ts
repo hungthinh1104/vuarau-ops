@@ -107,6 +107,53 @@ export const api = {
     return profile.qualityGradeMode;
   },
 
+  /**
+   * Profile-transition fixture only. The E2E wrapper owns a disposable database;
+   * clear its prior command history before a scenario that deliberately changes
+   * the depot from graded to ungraded operation. Production never exposes this
+   * path, and the profile guard remains the authority under test.
+   */
+  async resetOperationalHistoryForProfileFixture(): Promise<void> {
+    const database = createDatabase(requiredDatabaseUrl(), { max: 1 });
+    try {
+      await database.sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx.unsafe(`
+          do $$
+          declare
+            target_table record;
+          begin
+            for target_table in
+              select table_schema, table_name
+              from information_schema.columns
+              where table_schema = 'public'
+                and column_name = 'workspace_id'
+              group by table_schema, table_name
+              having table_name not in (
+                'customers',
+                'products',
+                'quality_grades',
+                'quality_issue_codes',
+                'suppliers',
+                'workspace_memberships',
+                'workspace_membership_roles',
+                'workspace_operational_profiles'
+              )
+            loop
+              execute format(
+                'delete from %I.%I where workspace_id = $1',
+                target_table.table_schema,
+                target_table.table_name
+              ) using '${E2E_WORKSPACE_ID}'::uuid;
+            end loop;
+          end $$;
+        `);
+      });
+    } finally {
+      await database.sql.end();
+    }
+  },
+
   async resetQualityGradeFixture(): Promise<void> {
     const database = createDatabase(requiredDatabaseUrl(), { max: 1 });
     try {

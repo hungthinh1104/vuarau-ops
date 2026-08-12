@@ -38,6 +38,7 @@ test.describe("Workflow hardening (TC-E2E-WORKFLOW-HARDENING)", () => {
     page,
   }) => {
     await signIn(page, "owner");
+    await api.resetOperationalHistoryForProfileFixture();
     const previousQualityGradeMode = await api.setQualityGradeMode("disabled");
     const suffix = Date.now();
     const productName = `Cải workflow ${suffix}`;

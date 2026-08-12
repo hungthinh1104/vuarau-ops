@@ -39,6 +39,7 @@ export function useQuickSaleFormInteractions(model: QuickSaleFormModel) {
     if (
       line === undefined ||
       model.resolved[index]?.total === null ||
+      Object.keys(model.resolved[index]?.issues ?? {}).length > 0 ||
       line.productId === null ||
       line.productId === undefined ||
       (model.qualityGradeRequired &&

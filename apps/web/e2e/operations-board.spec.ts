@@ -11,6 +11,7 @@ test.describe("Operations board production pagination", () => {
     await signIn(page, "owner");
     const suffix = Date.now();
     const productName = `Mặt hàng board ${suffix}`;
+    await api.resetOperationalHistoryForProfileFixture();
     const previousQualityGradeMode = await api.setQualityGradeMode("disabled");
 
     try {

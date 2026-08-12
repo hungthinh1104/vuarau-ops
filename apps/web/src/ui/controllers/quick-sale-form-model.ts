@@ -223,7 +223,10 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
 
   const resolved = lines.map(resolveLine);
 
-  const allValid = resolved.every((line) => line.total !== null);
+  const allValid = resolved.every(
+    (line) => Object.keys(line.issues).length === 0 && line.total !== null,
+  );
+  const totalsReady = resolved.every((line) => line.total !== null);
   const fulfilmentReady =
     operationalProfile.isSuccess &&
     lines.every(
@@ -392,7 +395,11 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   async function post(): Promise<void> {
     if (replacementPending) return;
     setSubmitted(true);
-    if (!allValid || !fulfilmentReady) {
+    if (!totalsReady || !fulfilmentReady) {
+      metrics.count("validation_error_count");
+      return;
+    }
+    if (!allValid && (!navigator.onLine || pendingCustomerCreate !== null)) {
       metrics.count("validation_error_count");
       return;
     }

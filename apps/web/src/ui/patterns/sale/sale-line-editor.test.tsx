@@ -185,6 +185,12 @@ describe("TC-WEB-021 — resolving a sale line", () => {
     );
   });
 
+  it("keeps an exact zero total available for the server rejection path", () => {
+    const resolved = resolveLine(line({ quantityText: "0" }));
+    expect(resolved.issues.quantity).toBe("Số lượng phải lớn hơn 0 kg.");
+    expect(resolved.total).toEqual({ amountMinor: 0, currency: "VND" });
+  });
+
   it("allows a zero price, because depots give things away", () => {
     const resolved = resolveLine(line({ unitPriceText: "0" }));
     expect(resolved.issues.unitPrice).toBeUndefined();

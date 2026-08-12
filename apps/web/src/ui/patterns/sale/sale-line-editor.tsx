@@ -117,10 +117,13 @@ export function resolveLine(line: SaleLineDraft): ResolvedLine {
 
   const resolvedQuantity = quantity.ok ? quantity.value : null;
   const resolvedPrice = price.ok ? price.value : null;
-  const resolvable =
-    Object.keys(issues).length === 0 && resolvedQuantity !== null && resolvedPrice !== null;
-  const total = resolvable ? safeLineTotal(resolvedQuantity, resolvedPrice) : null;
-  if (resolvable && total === null) {
+  // Keep arithmetic separate from semantic validation. A zero quantity still
+  // has an exact total (0), so the confirmation step can send it to the server
+  // and surface the canonical row-level rejection. Unparseable or overflowing
+  // numbers remain fail-closed and cannot be posted.
+  const arithmeticReady = resolvedQuantity !== null && resolvedPrice !== null;
+  const total = arithmeticReady ? safeLineTotal(resolvedQuantity, resolvedPrice) : null;
+  if (arithmeticReady && total === null) {
     issues.unitPrice = "Tổng dòng quá lớn để tính chính xác.";
   }
 
@@ -204,6 +207,7 @@ export function SaleLineEditor({
   const rowRef = useRef<HTMLLIElement>(null);
 
   const isFulfilmentReady =
+    Object.keys(resolveLine(line).issues).length === 0 &&
     line.productId !== null &&
     line.productId !== undefined &&
     (!qualityGradeRequired ||
