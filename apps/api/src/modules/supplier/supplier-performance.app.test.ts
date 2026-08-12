@@ -69,7 +69,10 @@ async function recordObservation(id: SupplierObservationId) {
     ...envelope(`supplier-performance-observation-${id}`),
     payload: {
       supplierObservationId: id,
-      kind: "actual_quantity",
+      // This fixture intentionally carries the complete measurement bundle;
+      // the registry's `other` contract is the only kind that permits all
+      // quantity/timing facts in one persisted observation.
+      kind: "other",
       caseKind: "normal",
       description: "Đối chiếu chuyến giao ngày 22/07.",
       participantWording: "Nhà vườn xác nhận số lượng giao và nhận.",
