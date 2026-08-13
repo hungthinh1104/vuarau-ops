@@ -14,6 +14,8 @@ const numberOf = (row: Row, name: string): number => {
   return persistedBigintToSafeNumber(raw, `dashboard ${name}`);
 };
 const asMoney = (amountMinor: number) => ({ amountMinor, currency: "VND" as const });
+const nullableMoney = (row: Row, name: string) =>
+  row[name] === null || row[name] === undefined ? null : asMoney(numberOf(row, name));
 function mapBoardRows(rawRows: readonly Row[]) {
   return rawRows.map((row) => ({
     id: String(row["id"] ?? ""),
@@ -25,6 +27,8 @@ function mapBoardRows(rawRows: readonly Row[]) {
     physicalState: String(row["physical_state"] ?? ""),
     financialState: String(row["financial_state"] ?? ""),
     returnedFulfilment: Boolean(row["returned_fulfilment"]),
+    unallocatedPayment: Boolean(row["unallocated_payment"]),
+    unallocatedPaymentAmount: nullableMoney(row, "unallocated_payment_amount"),
     ageSeconds: numberOf(row, "age_seconds"),
     nextAction: row["next_action"] === null ? null : String(row["next_action"] ?? ""),
     updatedAt: new Date(String(row["updated_at"])).toISOString(),
@@ -337,12 +341,14 @@ export async function queryFastOperationsBoardPage(
         else 'awaiting_payment'
       end as financial_state,
       sale_physical.returned_fulfilment,
+      (coalesce(unallocated_by_customer.amount,0) > 0) as unallocated_payment,
+      case when coalesce(unallocated_by_customer.amount,0) > 0 then unallocated_by_customer.amount else null end as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, cs.updated_at,
       case
         when sv.id is not null then null
         when sale_physical.physical_state='attention' then 'Kiểm tra'
         when sale_physical.returned_fulfilment then 'Xử lý hàng trả'
-        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán'
+        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Phân bổ hoặc giữ thành tín dụng'
         when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
         when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền'
         else null
@@ -361,6 +367,8 @@ export async function queryFastOperationsBoardPage(
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
       purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
       false as returned_fulfilment,
+      false as unallocated_payment,
+      null as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, cs.updated_at,
       case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
       null as delivery_id, ('/purchases/' || p.id::text) as href
@@ -379,6 +387,7 @@ export async function queryFastOperationsBoardPage(
       needsDelivery: 0,
       inDelivery: 0,
       returnedFulfilment: 0,
+      unallocatedPayment: 0,
       awaitingPayment: 0,
       overdue: 0,
       attention: 0,

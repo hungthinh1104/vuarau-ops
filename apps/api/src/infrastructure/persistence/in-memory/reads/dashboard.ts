@@ -17,7 +17,7 @@ import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
 import { exactAdd, exactSubtract } from "./exact-number.ts";
-import { saleFinancialState, salePhysicalState } from "./dashboard-order-state.ts";
+import { saleFinancialFacts, saleNextAction, salePhysicalState } from "./dashboard-order-state.ts";
 import { boardCounts } from "./dashboard-helpers.ts";
 
 const now = () => new Date().toISOString();
@@ -439,7 +439,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       for (const sale of store.sales.values()) {
         if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
         const physical = salePhysicalState(store, input.workspaceId, sale.id);
-        const financial = saleFinancialState(store, input.workspaceId, sale.id, asOf);
+        const financial = saleFinancialFacts(store, input.workspaceId, sale.id, asOf);
         const allocationIds = new Set(
           store.paymentAllocations
             .filter(
@@ -463,23 +463,21 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
                 ? "attention"
                 : "posted",
           physicalState: physical.state,
-          financialState: financial,
+          financialState: financial.state,
           returnedFulfilment: physical.returnedFulfilment,
+          unallocatedPayment: financial.unallocatedPaymentAmountMinor > 0,
+          unallocatedPaymentAmount:
+            financial.unallocatedPaymentAmountMinor > 0
+              ? money(financial.unallocatedPaymentAmountMinor)
+              : null,
           ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(sale.recordedAt)) / 1000),
-          nextAction:
-            sale.voidRecord !== null
-              ? null
-              : physical.state === "attention"
-                ? "Kiểm tra"
-                : physical.returnedFulfilment
-                  ? "Xử lý hàng trả"
-                  : financial === "reconciliation_required"
-                    ? "Đối soát thanh toán"
-                    : physical.state === "needs_delivery"
-                      ? "Giao hàng"
-                      : financial === "awaiting_payment"
-                        ? "Thu tiền"
-                        : null,
+          nextAction: saleNextAction({
+            voided: sale.voidRecord !== null,
+            physicalState: physical.state,
+            returnedFulfilment: physical.returnedFulfilment,
+            unallocatedPayment: financial.unallocatedPaymentAmountMinor > 0,
+            financialState: financial.state,
+          }),
           updatedAt: latest(
             [
               sale.recordedAt,
@@ -587,6 +585,8 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           physicalState: remaining ? "needs_receiving" : "received",
           financialState: purchase.voidRecord === null ? "payable" : "voided",
           returnedFulfilment: false,
+          unallocatedPayment: false,
+          unallocatedPaymentAmount: null,
           ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(purchase.recordedAt)) / 1000),
           nextAction: purchase.voidRecord !== null || !remaining ? null : "Nhận hàng",
           updatedAt: latest(
@@ -619,6 +619,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             (input.filter === "needs_delivery" && row.physicalState === "needs_delivery") ||
             (input.filter === "in_delivery" && row.physicalState === "in_delivery") ||
             (input.filter === "returned_fulfilment" && row.returnedFulfilment) ||
+            (input.filter === "unallocated_payment" && row.unallocatedPayment) ||
             (input.filter === "awaiting_payment" && row.financialState === "awaiting_payment") ||
             (input.filter === "overdue" && row.financialState === "overdue") ||
             (input.filter === "attention" &&

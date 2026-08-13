@@ -117,9 +117,11 @@ Storybook coverage is a separate repository-readiness gate.
 The Operations Board treats `financialState=reconciliation_required` as an
 operator attention state when a customer payment still has an unallocated
 amount. This remains true even when the Sale's allocated amount already covers
-the Sale total: money received and money attributed are separate facts. The
-`attention` filter and count include this state, and the row's next action is
-`Đối soát thanh toán`.
+the Sale total: money received and money attributed are separate facts. The row
+also exposes `unallocatedPayment=true` and the exact
+`unallocatedPaymentAmount`, the dedicated `unallocated_payment` filter and count,
+and the next action `Phân bổ hoặc giữ thành tín dụng`. The broader `attention`
+filter and count continue to include this state.
 
 The Board also exposes a dedicated `returned_fulfilment` filter and count. It is
 derived when a canonical Delivery Return reopens net fulfilment; desktop and

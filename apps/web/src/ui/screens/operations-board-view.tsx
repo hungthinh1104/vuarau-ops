@@ -54,6 +54,7 @@ const FILTERS: readonly { value: OperationsBoardFilter; label: string }[] = [
   { value: "needs_delivery", label: "Cần giao" },
   { value: "in_delivery", label: "Đang giao" },
   { value: "returned_fulfilment", label: "Hàng trả" },
+  { value: "unallocated_payment", label: "Tiền chưa phân bổ" },
   { value: "awaiting_payment", label: "Chờ thanh toán" },
   { value: "overdue", label: "Quá hạn" },
   { value: "attention", label: "Cần kiểm tra" },
@@ -111,6 +112,12 @@ function ageLabel(ageSeconds: number): string {
   return "< 1 giờ";
 }
 
+function unallocatedPaymentLabel(row: OperationsBoardRow): string {
+  return row.unallocatedPaymentAmount === null
+    ? "Tiền chưa phân bổ"
+    : `Tiền chưa phân bổ: ${formatMoney(row.unallocatedPaymentAmount)}`;
+}
+
 const columnHelper = createColumnHelper<OperationsBoardRow>();
 
 function columns() {
@@ -151,6 +158,9 @@ function columns() {
           {info.row.original.returnedFulfilment ? (
             <Badge tone="warning">Hàng trả cần xử lý</Badge>
           ) : null}
+          {info.row.original.unallocatedPayment ? (
+            <Badge tone="warning">{unallocatedPaymentLabel(info.row.original)}</Badge>
+          ) : null}
         </div>
       ),
     }),
@@ -189,6 +199,7 @@ function CountStrip({
     needs_delivery: counts.needsDelivery,
     in_delivery: counts.inDelivery,
     returned_fulfilment: counts.returnedFulfilment,
+    unallocated_payment: counts.unallocatedPayment,
     awaiting_payment: counts.awaitingPayment,
     overdue: counts.overdue,
     attention: counts.attention,
@@ -286,6 +297,9 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                           </Badge>
                           {row.returnedFulfilment ? (
                             <Badge tone="warning">Hàng trả cần xử lý</Badge>
+                          ) : null}
+                          {row.unallocatedPayment ? (
+                            <Badge tone="warning">{unallocatedPaymentLabel(row)}</Badge>
                           ) : null}
                           <Badge tone={stateTone(row.financialState)}>
                             {stateLabel(row.financialState)}

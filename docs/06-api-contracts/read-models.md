@@ -195,6 +195,11 @@ commercial, physical and financial state together. A row with
 fulfilment remaining; it appears in the dedicated `returned_fulfilment` filter
 and its next action is `Xử lý hàng trả`. This is a physical work-queue signal
 only: it never infers a credit, refund, exchange or customer-debt effect.
+Similarly, `unallocatedPayment=true` exposes the exact
+`unallocatedPaymentAmount` derived from active Payment, reversal and allocation
+facts. It appears in the dedicated `unallocated_payment` filter and its next
+action is `Phân bổ hoặc giữ thành tín dụng`; it is never reported as a missing
+customer payment or silently converted into a ledger adjustment.
 
 ## Read performance rules
 

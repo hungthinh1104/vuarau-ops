@@ -13,6 +13,8 @@ const row: OperationsBoardRow = {
   physicalState: "needs_delivery",
   financialState: "awaiting_payment",
   returnedFulfilment: false,
+  unallocatedPayment: false,
+  unallocatedPaymentAmount: null,
   ageSeconds: 7_200,
   nextAction: "Giao hàng",
   updatedAt: "2026-08-04T00:00:00.000Z",
@@ -31,6 +33,7 @@ const query = {
       needsDelivery: 1,
       inDelivery: 0,
       returnedFulfilment: 0,
+      unallocatedPayment: 0,
       awaitingPayment: 1,
       overdue: 0,
       attention: 0,
@@ -95,5 +98,37 @@ describe("OperationsBoardView", () => {
     );
     expect(screen.getAllByText("Hàng trả cần xử lý").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Xử lý hàng trả").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("keeps unallocated customer money visible with its exact amount", () => {
+    const unallocatedRow = {
+      ...row,
+      unallocatedPayment: true,
+      unallocatedPaymentAmount: { amountMinor: 300_000, currency: "VND" as const },
+      nextAction: "Phân bổ hoặc giữ thành tín dụng",
+    };
+    render(
+      <OperationsBoardView
+        query={{
+          ...query,
+          data: {
+            ...query.data,
+            counts: { ...query.data.counts, unallocatedPayment: 1 },
+            page: { items: [unallocatedRow], nextCursor: null },
+          },
+        }}
+        rows={[unallocatedRow]}
+        filter="unallocated_payment"
+        sort="updated_desc"
+        search=""
+        onFilterChange={() => undefined}
+        onSortChange={() => undefined}
+        onSearchChange={() => undefined}
+        onRetry={() => undefined}
+        onLoadMore={() => undefined}
+      />,
+    );
+    expect(screen.getAllByText("Tiền chưa phân bổ: 300.000 ₫").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Phân bổ hoặc giữ thành tín dụng").length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -20,7 +20,7 @@ import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import { reverseCustomerPayment } from "../payment/reverse-payment.handler.ts";
 import { voidSale } from "../sale/void-sale.handler.ts";
 import { getCustomerDebtAging } from "./account.queries.ts";
-import { getOperationsBoard } from "../dashboard/dashboard.queries.ts";
+import { getOperationsBoard, getOperationsBoardCounts } from "../dashboard/dashboard.queries.ts";
 import { exportWorkspaceBackup } from "../operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../operations/restore-workspace.handler.ts";
 import {
@@ -173,7 +173,7 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
     expect(harness.db.accountEntries()).toHaveLength(2);
   });
 
-  it("keeps unallocated money visible after the Sale is fully allocated", async () => {
+  it("TC-OPS-024 — keeps unallocated money explicit after the Sale is fully allocated", async () => {
     const harness = createHarness();
     await setupManualAllocation(harness);
 
@@ -219,7 +219,9 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
       expect.objectContaining({
         id: SALE_ID,
         financialState: "reconciliation_required",
-        nextAction: "Đối soát thanh toán",
+        unallocatedPayment: true,
+        unallocatedPaymentAmount: { amountMinor: 625_000, currency: "VND" },
+        nextAction: "Phân bổ hoặc giữ thành tín dụng",
       }),
     );
     expect(board.value.counts?.attention).toBe(1);
@@ -234,6 +236,33 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
     });
     expect(attention.ok).toBe(true);
     if (attention.ok) expect(attention.value.page.items.map((row) => row.id)).toContain(SALE_ID);
+
+    const unallocated = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      filter: "unallocated_payment",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(unallocated.ok).toBe(true);
+    if (unallocated.ok) {
+      expect(unallocated.value.page.items).toContainEqual(
+        expect.objectContaining({
+          id: SALE_ID,
+          unallocatedPayment: true,
+          unallocatedPaymentAmount: { amountMinor: 625_000, currency: "VND" },
+          nextAction: "Phân bổ hoặc giữ thành tín dụng",
+        }),
+      );
+    }
+    const unallocatedCounts = await getOperationsBoardCounts(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      filter: "all",
+      search: "",
+    });
+    expect(unallocatedCounts.ok).toBe(true);
+    if (unallocatedCounts.ok) expect(unallocatedCounts.value.counts.unallocatedPayment).toBe(1);
   });
 
   it("rejects an allocation that exceeds the payment remaining amount", async () => {

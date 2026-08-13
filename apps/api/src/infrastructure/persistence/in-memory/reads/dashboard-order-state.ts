@@ -3,14 +3,15 @@ import type { Store } from "../store.ts";
 import { key } from "../store.ts";
 import { exactAdd, exactSubtract } from "./exact-number.ts";
 
-export function saleFinancialState(
+export function saleFinancialFacts(
   store: Store,
   workspaceId: string,
   saleId: string,
   asOf: string,
-): string {
+): { state: string; unallocatedPaymentAmountMinor: number } {
   const sale = store.sales.get(key(workspaceId, saleId));
-  if (sale?.voidRecord !== null && sale?.voidRecord !== undefined) return "voided";
+  if (sale?.voidRecord !== null && sale?.voidRecord !== undefined)
+    return { state: "voided", unallocatedPaymentAmountMinor: 0 };
   const allocated = store.paymentAllocations
     .filter((allocation) => allocation.workspaceId === workspaceId && allocation.saleId === saleId)
     .reduce(
@@ -81,20 +82,36 @@ export function saleFinancialState(
       );
       return exactAdd(sum, Math.max(0, remaining), "dashboard.unallocated_payment.amount_minor");
     }, 0);
-  if (unallocated > 0) return "reconciliation_required";
+  if (unallocated > 0)
+    return { state: "reconciliation_required", unallocatedPaymentAmountMinor: unallocated };
   if (
     sale !== undefined &&
     exactSubtract(allocated, reversed, "dashboard.sale_paid.amount_minor") >=
       sale.totalAmount.amountMinor
   )
-    return "paid";
+    return { state: "paid", unallocatedPaymentAmountMinor: 0 };
   if (
     sale?.dueAt !== null &&
     sale?.dueAt !== undefined &&
     Date.parse(sale.dueAt) < Date.parse(asOf)
   )
-    return "overdue";
-  return "awaiting_payment";
+    return { state: "overdue", unallocatedPaymentAmountMinor: 0 };
+  return { state: "awaiting_payment", unallocatedPaymentAmountMinor: 0 };
+}
+
+export function saleNextAction(input: {
+  readonly voided: boolean;
+  readonly physicalState: string;
+  readonly returnedFulfilment: boolean;
+  readonly unallocatedPayment: boolean;
+  readonly financialState: string;
+}): string | null {
+  if (input.voided) return null;
+  if (input.physicalState === "attention") return "Kiểm tra";
+  if (input.returnedFulfilment) return "Xử lý hàng trả";
+  if (input.unallocatedPayment) return "Phân bổ hoặc giữ thành tín dụng";
+  if (input.physicalState === "needs_delivery") return "Giao hàng";
+  return input.financialState === "awaiting_payment" ? "Thu tiền" : null;
 }
 
 export function salePhysicalState(

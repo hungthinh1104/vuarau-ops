@@ -164,7 +164,9 @@ describe.skipIf(skipWithoutDatabase())(
           expect.objectContaining({
             id: saleId,
             financialState: "reconciliation_required",
-            nextAction: "Đối soát thanh toán",
+            unallocatedPayment: true,
+            unallocatedPaymentAmount: { amountMinor: 325_000, currency: "VND" },
+            nextAction: "Phân bổ hoặc giữ thành tín dụng",
             updatedAt: "2026-07-29T12:01:00.000Z",
           }),
         );
@@ -176,7 +178,10 @@ describe.skipIf(skipWithoutDatabase())(
         search: "",
       });
       expect(counts.ok).toBe(true);
-      if (counts.ok) expect(counts.value.counts.attention).toBe(1);
+      if (counts.ok) {
+        expect(counts.value.counts.attention).toBe(1);
+        expect(counts.value.counts.unallocatedPayment).toBe(1);
+      }
 
       const attention = await getOperationsBoard(context(), {
         workspaceId: ctx.workspaceId,
@@ -188,6 +193,25 @@ describe.skipIf(skipWithoutDatabase())(
       });
       expect(attention.ok).toBe(true);
       if (attention.ok) expect(attention.value.page.items.map((row) => row.id)).toContain(saleId);
+
+      const unallocated = await getOperationsBoard(context(), {
+        workspaceId: ctx.workspaceId,
+        filter: "unallocated_payment",
+        sort: "updated_desc",
+        search: "",
+        cursor: null,
+        limit: 20,
+      });
+      expect(unallocated.ok).toBe(true);
+      if (unallocated.ok) {
+        expect(unallocated.value.page.items).toContainEqual(
+          expect.objectContaining({
+            id: saleId,
+            unallocatedPayment: true,
+            unallocatedPaymentAmount: { amountMinor: 325_000, currency: "VND" },
+          }),
+        );
+      }
     });
   },
 );

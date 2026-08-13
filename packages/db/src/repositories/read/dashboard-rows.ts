@@ -38,13 +38,15 @@ export async function queryRows(
           ? sql`physical_state = 'in_delivery'`
           : input.filter === "returned_fulfilment"
             ? sql`returned_fulfilment`
-            : input.filter === "awaiting_payment"
-              ? sql`financial_state = 'awaiting_payment'`
-              : input.filter === "overdue"
-                ? sql`financial_state = 'overdue'`
-                : input.filter === "attention"
-                  ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
-                  : sql`true`;
+            : input.filter === "unallocated_payment"
+              ? sql`unallocated_payment`
+              : input.filter === "awaiting_payment"
+                ? sql`financial_state = 'awaiting_payment'`
+                : input.filter === "overdue"
+                  ? sql`financial_state = 'overdue'`
+                  : input.filter === "attention"
+                    ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
+                    : sql`true`;
   const searchClause =
     input.search.length === 0
       ? sql`true`
@@ -255,6 +257,7 @@ export async function queryRows(
         count(*) filter (where physical_state='needs_delivery') over() as needs_delivery_count,
         count(*) filter (where physical_state='in_delivery') over() as in_delivery_count,
         count(*) filter (where returned_fulfilment) over() as returned_fulfilment_count,
+        count(*) filter (where unallocated_payment) over() as unallocated_payment_count,
         count(*) filter (where financial_state='awaiting_payment') over() as awaiting_payment_count,
         count(*) filter (where financial_state='overdue') over() as overdue_count,
         count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required') over() as attention_count,
@@ -438,12 +441,14 @@ export async function queryRows(
         else 'awaiting_payment'
       end as financial_state,
       sale_physical.returned_fulfilment,
+      (coalesce(unallocated_by_customer.amount,0) > 0) as unallocated_payment,
+      case when coalesce(unallocated_by_customer.amount,0) > 0 then unallocated_by_customer.amount else null end as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, ${saleUpdatedAt} as updated_at,
       case
         when sv.id is not null then null
         when sale_physical.physical_state='attention' then 'Kiểm tra'
         when sale_physical.returned_fulfilment then 'Xử lý hàng trả'
-        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán'
+        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Phân bổ hoặc giữ thành tín dụng'
         when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
         when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền'
         else null
@@ -459,6 +464,8 @@ export async function queryRows(
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
       purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
       false as returned_fulfilment,
+      false as unallocated_payment,
+      null as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, ${purchaseUpdatedAt} as updated_at,
       case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
       null as delivery_id, ('/purchases/' || p.id::text) as href
@@ -481,6 +488,7 @@ export async function queryRows(
     needsDelivery: first === undefined ? 0 : numberOf(first, "needs_delivery_count"),
     inDelivery: first === undefined ? 0 : numberOf(first, "in_delivery_count"),
     returnedFulfilment: first === undefined ? 0 : numberOf(first, "returned_fulfilment_count"),
+    unallocatedPayment: first === undefined ? 0 : numberOf(first, "unallocated_payment_count"),
     awaitingPayment: first === undefined ? 0 : numberOf(first, "awaiting_payment_count"),
     overdue: first === undefined ? 0 : numberOf(first, "overdue_count"),
     attention: first === undefined ? 0 : numberOf(first, "attention_count"),
@@ -521,6 +529,12 @@ export async function queryRows(
       physicalState: stringOf(row, "physical_state"),
       financialState: stringOf(row, "financial_state"),
       returnedFulfilment: Boolean(row["returned_fulfilment"]),
+      unallocatedPayment: Boolean(row["unallocated_payment"]),
+      unallocatedPaymentAmount:
+        row["unallocated_payment_amount"] === null ||
+        row["unallocated_payment_amount"] === undefined
+          ? null
+          : asMoney(numberOf(row, "unallocated_payment_amount")),
       ageSeconds: numberOf(row, "age_seconds"),
       nextAction: row["next_action"] === null ? null : stringOf(row, "next_action"),
       updatedAt: new Date(String(row["updated_at"])).toISOString(),

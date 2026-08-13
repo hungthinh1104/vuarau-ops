@@ -99,6 +99,25 @@ Computed by exactly one function. No command sets `status` directly. See
 
 ---
 
+### BR-PAYMENT-009 — Unallocated customer payment remains an explicit exception
+
+**Risk:** P1 · **Tests:** TC-OPS-024
+
+For a customer, the unresolved payment amount is the exact sum of each active
+Payment's remaining amount after effective allocations and allocation reversals:
+
+```
+unallocated = max(payment − reversed − effective allocations, 0)
+```
+
+The amount remains a canonical payment fact; it is not silently treated as
+`awaiting_payment`, a Sale payment, or a new credit adjustment. The Operations
+Board exposes the exception and amount separately, with allocation or intentional
+customer-credit preservation as the operator decision. The exception resolves
+only when the canonical payment is allocated or reversed to zero remaining amount.
+
+---
+
 ## Explicitly permitted, not an error
 
 | Situation                            | Rule                                                                          | Reference                                 |

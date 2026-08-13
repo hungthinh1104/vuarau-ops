@@ -608,6 +608,7 @@ use_cases:
     rules:
       - BR-AGING-002
       - BR-AGING-004
+      - BR-PAYMENT-009
       - BR-COMMAND-001
       - BR-COMMAND-002
       - BR-AUTH-001
@@ -2459,6 +2460,20 @@ business_rules:
     tests: [TC-PAYMENT-010]
     implementation: [packages/domain-kernel/src/payment/payment-status.ts]
 
+  BR-PAYMENT-009:
+    title: Unallocated customer payment remains an explicit Operations Board exception
+    risk: P1
+    doc: docs/04-business-rules/payment-rules.md
+    cases: [CASE-PAYMENT-005]
+    tests: [TC-OPS-024]
+    implementation:
+      - packages/domain-contracts/src/dashboard/index.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/dashboard-order-state.ts
+      - packages/db/src/repositories/read/dashboard-board.ts
+      - packages/db/src/repositories/read/dashboard-board-counts.ts
+      - packages/db/src/repositories/read/dashboard-rows.ts
+      - apps/web/src/ui/screens/operations-board-view.tsx
+
   # --- customer account ---------------------------------------------------------
   BR-ACCOUNT-001:
     title: The balance equals the sum of the customer's account entries
@@ -4148,6 +4163,9 @@ contract_tests:
   TC-OPS-023:
     title: Operations Board separates returned fulfilment from ordinary outstanding delivery
     file: apps/api/src/modules/dashboard/dashboard.app.test.ts
+  TC-OPS-024:
+    title: Operations Board exposes exact unallocated customer payment and its action
+    file: apps/api/src/modules/account/payment-allocation.app.test.ts
   TC-DOCUMENT-002:
     title: PostgreSQL proves append-only documents, digest validation, secure sharing and backup
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts

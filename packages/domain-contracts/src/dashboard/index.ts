@@ -106,6 +106,7 @@ export const OPERATIONS_BOARD_FILTERS = [
   "needs_delivery",
   "in_delivery",
   "returned_fulfilment",
+  "unallocated_payment",
   "awaiting_payment",
   "overdue",
   "attention",
@@ -144,6 +145,9 @@ export const operationsBoardRowSchema = z.object({
   financialState: z.string().min(1),
   /** A return reopened net fulfilment and needs an operator decision/action. */
   returnedFulfilment: z.boolean(),
+  /** Customer money remains canonical but is not allocated to a Sale. */
+  unallocatedPayment: z.boolean(),
+  unallocatedPaymentAmount: moneySchema.nullable(),
   ageSeconds: z.number().nonnegative(),
   /** Null means the record remains visible for context but has no operational action. */
   nextAction: z.string().min(1).nullable(),
@@ -159,6 +163,7 @@ export const operationsBoardCountsSchema = z.object({
   needsDelivery: z.int().nonnegative(),
   inDelivery: z.int().nonnegative(),
   returnedFulfilment: z.int().nonnegative(),
+  unallocatedPayment: z.int().nonnegative(),
   awaitingPayment: z.int().nonnegative(),
   overdue: z.int().nonnegative(),
   attention: z.int().nonnegative(),

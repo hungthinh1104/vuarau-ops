@@ -134,6 +134,7 @@ export async function queryOperationsBoardCounts(
           when sp.physical_state='attention' then 'attention' else 'posted' end as commercial_state,
         sp.physical_state,
         sp.returned_fulfilment,
+        coalesce(u.amount,0) > 0 as unallocated_payment,
         case
           when sv.id is not null then 'voided'
           when coalesce(u.amount,0) > 0 then 'reconciliation_required'
@@ -152,6 +153,7 @@ export async function queryOperationsBoardCounts(
         case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
         pp.physical_state,
         false as returned_fulfilment,
+        false as unallocated_payment,
         case when pv.id is null then 'payable' else 'voided' end as financial_state
       from purchases p
       join purchase_physical pp on pp.id=p.id
@@ -164,6 +166,7 @@ export async function queryOperationsBoardCounts(
       count(*) filter (where physical_state='needs_delivery')::int as needs_delivery_count,
       count(*) filter (where physical_state='in_delivery')::int as in_delivery_count,
       count(*) filter (where returned_fulfilment)::int as returned_fulfilment_count,
+      count(*) filter (where unallocated_payment)::int as unallocated_payment_count,
       count(*) filter (where financial_state='awaiting_payment')::int as awaiting_payment_count,
       count(*) filter (where financial_state='overdue')::int as overdue_count,
       count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required')::int as attention_count,
@@ -194,6 +197,7 @@ export async function queryOperationsBoardCounts(
       needsDelivery: count("needs_delivery_count"),
       inDelivery: count("in_delivery_count"),
       returnedFulfilment: count("returned_fulfilment_count"),
+      unallocatedPayment: count("unallocated_payment_count"),
       awaitingPayment: count("awaiting_payment_count"),
       overdue: count("overdue_count"),
       attention: count("attention_count"),
@@ -294,6 +298,7 @@ export async function queryOperationsBoardCountsSplit(
             when sp.physical_state='attention' then 'attention' else 'posted' end as commercial_state,
           sp.physical_state,
           sp.returned_fulfilment,
+          coalesce(u.amount,0) > 0 as unallocated_payment,
           case
             when sv.id is not null then 'voided'
             when coalesce(u.amount,0) > 0 then 'reconciliation_required'
@@ -313,6 +318,7 @@ export async function queryOperationsBoardCountsSplit(
         count(*) filter (where physical_state='needs_delivery')::int as needs_delivery_count,
         count(*) filter (where physical_state='in_delivery')::int as in_delivery_count,
         count(*) filter (where returned_fulfilment)::int as returned_fulfilment_count,
+        count(*) filter (where unallocated_payment)::int as unallocated_payment_count,
         count(*) filter (where physical_state='delivered')::int as delivered_count,
         count(*) filter (where physical_state='attention')::int as physical_attention_count,
         count(*) filter (where financial_state='paid')::int as paid_count,
@@ -392,6 +398,7 @@ export async function queryOperationsBoardCountsSplit(
       needsDelivery: value(sale, "needs_delivery_count"),
       inDelivery: value(sale, "in_delivery_count"),
       returnedFulfilment: value(sale, "returned_fulfilment_count"),
+      unallocatedPayment: value(sale, "unallocated_payment_count"),
       awaitingPayment: value(sale, "awaiting_payment_count"),
       overdue: value(sale, "overdue_count"),
       attention:
