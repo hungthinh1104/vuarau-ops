@@ -16,8 +16,8 @@ rehearsal, excluding browser/network time:
 | Idempotency receipt lookup     |      10 ms |
 | Reconciliation for one account |      75 ms |
 | Product Coverage read model    |     250 ms |
-| Operations Board page          |     250 ms |
-| Operations Board counts        |     400 ms |
+| Operations Board page          |     150 ms |
+| Operations Board counts        |     250 ms |
 | Receiving progress page        |     100 ms |
 | Dashboard summary/series       |     250 ms |
 | Debt-aging source aggregate    |     250 ms |
@@ -57,30 +57,34 @@ order, rather than pretending that a stale base-row timestamp is a page index.
 The output names the family, p95, plan time, buffer hits/reads and scan policy
 so a later optimization can be compared against the same evidence contract.
 
-## Evidence — 2026-08-13, PostgreSQL 17 local container
+## Evidence — 2026-08-14, PostgreSQL 17 local container
 
-Exact rehearsal SHA: `32d2780c73e34377b397405e205f7a44d67b9911`.
+Exact rehearsal SHA: `0856647d3db7ff67919d3dc5d83de77bb2c573ac`.
 
-| Query                   | Measured p95 | EXPLAIN execution | Sequential scan         |
-| ----------------------- | -----------: | ----------------: | ----------------------- |
-| customer timeline       |      0.62 ms |          0.457 ms | no                      |
-| supplier timeline       |      0.63 ms |          0.643 ms | no                      |
-| inventory movements     |      0.48 ms |          0.574 ms | no                      |
-| delivery fulfilment     |      0.56 ms |          0.083 ms | no                      |
-| operational report page |      0.66 ms |          0.678 ms | no                      |
-| customer report total   |     18.80 ms |        423.960 ms | explained               |
-| inventory report total  |     36.21 ms |        566.014 ms | explained               |
-| document read           |      0.29 ms |          0.047 ms | no                      |
-| idempotency replay      |      0.23 ms |          0.045 ms | no                      |
-| customer reconciliation |      0.28 ms |          0.212 ms | no                      |
-| product coverage        |     17.75 ms |         11.076 ms | explained               |
-| operations board page   |    223.34 ms |       3060.004 ms | explained               |
-| operations board counts |    336.97 ms |       7217.083 ms | explained               |
-| receiving progress      |      0.55 ms |          0.186 ms | allowed empty-side scan |
-| dashboard summary       |     17.48 ms |        653.857 ms | explained               |
-| dashboard series        |     42.82 ms |        628.162 ms | explained               |
-| debt-aging sources      |     54.37 ms |        677.672 ms | explained               |
-| supplier reconciliation |      9.67 ms |        302.384 ms | explained               |
+| Query                   | Measured p95 | EXPLAIN execution | Sequential scan |
+| ----------------------- | -----------: | ----------------: | --------------- |
+| customer timeline       |      0.69 ms |          0.320 ms | no              |
+| supplier timeline       |      0.59 ms |          0.637 ms | no              |
+| inventory movements     |      0.58 ms |          0.807 ms | no              |
+| delivery fulfilment     |      0.61 ms |          0.101 ms | no              |
+| operational report page |      0.69 ms |          0.690 ms | no              |
+| customer report total   |     17.99 ms |        419.965 ms | explained       |
+| inventory report total  |     31.85 ms |        561.809 ms | explained       |
+| document read           |      0.33 ms |          0.071 ms | no              |
+| idempotency replay      |      0.28 ms |          0.038 ms | no              |
+| customer reconciliation |      0.29 ms |          0.214 ms | no              |
+| product coverage        |     16.26 ms |          8.899 ms | explained       |
+| operations board page   |    101.07 ms |       2228.363 ms | explained       |
+| operations board counts |    184.23 ms |       7416.065 ms | explained       |
+| receiving progress      |      0.56 ms |          0.199 ms | no              |
+| dashboard summary       |     15.23 ms |        651.738 ms | explained       |
+| dashboard series        |     41.15 ms |        622.714 ms | explained       |
+| debt-aging sources      |     49.61 ms |        674.766 ms | explained       |
+| supplier reconciliation |      7.97 ms |        312.198 ms | explained       |
+
+The Board page returned 25 rows through one repository query; Board counts
+returned one scalar row through three concurrent canonical queries. Both stayed
+within their strict p95 budgets on the clean schema rehearsal.
 
 The first report plan exposed a 400,000-row parallel sequential scan and measured
 443.778 ms. Migration `0020_white_black_crow.sql` adds cursor-compatible
