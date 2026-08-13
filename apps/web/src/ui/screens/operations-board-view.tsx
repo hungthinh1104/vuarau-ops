@@ -205,7 +205,10 @@ function CountStrip({
     attention: counts.attention,
   };
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Bộ lọc trạng thái vận hành">
+    <div
+      className="min-w-0 flex gap-2 overflow-x-auto pb-1"
+      aria-label="Bộ lọc trạng thái vận hành"
+    >
       {FILTERS.map((item) => (
         <Button
           key={item.value}
@@ -235,7 +238,7 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
   const counts = props.query.data?.counts;
   return (
     <PageFrame size="wide">
-      <div className="grid gap-5">
+      <div className="min-w-0 grid gap-5">
         <PageHeader
           title="Bảng điều hành"
           description="Theo dõi đơn, hàng hóa và thanh toán của các đơn mua và đơn bán."
@@ -274,9 +277,12 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
               <>
                 <ul className="grid gap-2 lg:hidden" aria-label="Việc cần xử lý">
                   {props.rows.map((row) => (
-                    <li key={row.id} className="rounded-card border border-border bg-surface">
+                    <li
+                      key={row.id}
+                      className="min-w-0 rounded-card border border-border bg-surface"
+                    >
                       <MobileRecordCard href={row.href}>
-                        <span className="min-w-0">
+                        <span className="min-w-0 flex-1">
                           <strong className="block truncate">{row.reference}</strong>
                           <span className="block truncate text-caption text-ink-muted">
                             {row.counterparty} · {formatMoney(row.amount)}

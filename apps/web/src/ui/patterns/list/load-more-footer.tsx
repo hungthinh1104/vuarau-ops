@@ -18,7 +18,7 @@ export function LoadMoreFooter({
   readonly onRetry?: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pb-28 pt-4 lg:pb-0">
+    <div className="min-w-0 flex flex-wrap items-center justify-between gap-3 border-t border-border pb-28 pt-4 lg:pb-0">
       <p className="tabular text-caption text-ink-muted">
         Đang hiện {visibleCount} {noun}.
       </p>

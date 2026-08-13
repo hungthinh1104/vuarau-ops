@@ -20,7 +20,7 @@ export function PageFrame({
   readonly size?: PageFrameSize;
   readonly children: ReactNode;
 }) {
-  return <div className={`mx-auto w-full ${PAGE_FRAME_CLASS[size]}`}>{children}</div>;
+  return <div className={`mx-auto min-w-0 w-full ${PAGE_FRAME_CLASS[size]}`}>{children}</div>;
 }
 
 export function DetailLayout({
@@ -90,7 +90,7 @@ export function MobileRecordCard({
   return (
     <Link
       href={href}
-      className="flex min-h-[64px] items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+      className="flex min-h-[64px] min-w-0 items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
     >
       {children}
     </Link>
