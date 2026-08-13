@@ -33,5 +33,19 @@ export const createReconciliationObservationReads = (
         id: observation.id,
       }));
     },
+    listForPeriod: async ({ workspaceId, kinds, start, end }) =>
+      [...store.reconciliationObservations.values()]
+        .filter((observation) => observation.workspaceId === workspaceId)
+        .filter((observation) => kinds.includes(observation.kind))
+        .filter(
+          (observation) =>
+            observation.transactionTime >= start && observation.transactionTime < end,
+        )
+        .sort(
+          (left, right) =>
+            right.transactionTime.localeCompare(left.transactionTime) ||
+            right.recordedAt.localeCompare(left.recordedAt) ||
+            right.id.localeCompare(left.id),
+        ),
   },
 });

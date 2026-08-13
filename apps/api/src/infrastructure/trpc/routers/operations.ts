@@ -15,6 +15,7 @@ import {
 import { restoreWorkspaceBackup } from "../../../modules/operations/restore-workspace.handler.ts";
 import {
   getOperationalClose,
+  getOperationalCloseReadiness,
   listOperationalCloses,
 } from "../../../modules/close/close.queries.ts";
 import {
@@ -22,6 +23,7 @@ import {
   reopenOperationalCloseCommandSchema,
   operationalCloseGetInputSchema,
   operationalCloseListInputSchema,
+  operationalCloseReadinessInputSchema,
 } from "@vuarau/domain-contracts";
 import {
   recordOperationalClose,
@@ -55,6 +57,9 @@ export const operationsRouter = router({
   listCloses: authenticatedProcedure
     .input(operationalCloseListInputSchema)
     .query(async ({ ctx, input }) => unwrap(await listOperationalCloses(ctx, input))),
+  closeReadiness: authenticatedProcedure
+    .input(operationalCloseReadinessInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getOperationalCloseReadiness(ctx, input))),
 });
 
 export const auditRouter = router({

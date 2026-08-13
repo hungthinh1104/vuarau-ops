@@ -29,7 +29,7 @@ current procedure catalog without duplicating every DTO field.
 | `document`         | `get`, `listForSource`                                                                                                                                                                                                                                                                                                                     |
 | `report`           | `definitions`, `metrics`, `intelligence`, `operational`, `csv`                                                                                                                                                                                                                                                                             |
 | `dashboard`        | `summary`, `salesSeries`, `orderStatusCounts`, `topProducts`, `operationsBoard`, `operationsBoardCounts`                                                                                                                                                                                                                                   |
-| `operations`       | `integrity`, `validateBackup`, `getClose`, `listCloses`                                                                                                                                                                                                                                                                                    |
+| `operations`       | `integrity`, `validateBackup`, `getClose`, `listCloses`, `closeReadiness`                                                                                                                                                                                                                                                                  |
 | `cash`             | `searchAccounts`, `getAccount`, `timeline`, `getExpense`, `getTransfer`, `reconciliation`, `statementMatches`, `getStatementMatch`                                                                                                                                                                                                         |
 | `intake`           | `searchIssueCodes`, `getArrival`, `listArrivals`, `getInspection`, `getDisposition`, `dispositionSourceSummary`, `arrivalLineHistory`                                                                                                                                                                                                      |
 | `pricing`          | `list`, `resolve`                                                                                                                                                                                                                                                                                                                          |
@@ -200,6 +200,15 @@ Similarly, `unallocatedPayment=true` exposes the exact
 facts. It appears in the dedicated `unallocated_payment` filter and its next
 action is `Phân bổ hoặc giữ thành tín dụng`; it is never reported as a missing
 customer payment or silently converted into a ledger adjustment.
+
+`operations.closeReadiness` is the server-authored close gate read. It derives
+the Vietnam business period from the workspace operational profile unless an
+explicit business date is supplied for historical review. It returns `ready` or
+`blocked` with stable blockers for missing/invalid policy, missing measurable
+observation kinds in the period, or an already closed revision. It includes the
+policy version, period, available/missing kinds and current close revision. It
+does not calculate a variance or choose observations for `RecordOperationalClose`;
+that command remains authoritative.
 
 ## Read performance rules
 

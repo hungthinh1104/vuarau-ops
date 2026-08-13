@@ -26,6 +26,7 @@ export function OperationsController() {
   const [fileError, setFileError] = useState<string | null>(null);
 
   const integrity = useQuery(trpc.operations.integrity.queryOptions({ workspaceId }));
+  const closeReadiness = useQuery(trpc.operations.closeReadiness.queryOptions({ workspaceId }));
   const operationalCloses = useQuery(
     trpc.operations.listCloses.queryOptions({ workspaceId, cursor: null, limit: 10 }),
   );
@@ -102,6 +103,11 @@ export function OperationsController() {
       lastSuccessfulSync={offline.lastSuccessfulSync}
       integrityState={integrity.isPending ? "loading" : integrity.isError ? "error" : "ready"}
       integrity={integrity.data ?? null}
+      closeReadinessState={
+        closeReadiness.isPending ? "loading" : closeReadiness.isError ? "error" : "ready"
+      }
+      closeReadiness={closeReadiness.data ?? null}
+      onRetryCloseReadiness={() => void closeReadiness.refetch()}
       operationalCloses={operationalCloses.data?.items ?? ([] as OperationalCloseDto[])}
       statementMatches={statementMatches.data?.items ?? ([] as CashStatementMatchDto[])}
       reconciliationState={

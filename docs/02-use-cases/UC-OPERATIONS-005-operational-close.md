@@ -34,5 +34,7 @@ canonical close transition is written.
 ## UI states
 
 Operations shows only server-returned close state, period, observation count,
-policy version and reopen state. Loading/error is explicit; the UI never infers a
-close from a healthy projection.
+policy version and reopen state. It also shows an explicit `ready` or `blocked`
+readiness result for the current or selected business date, including missing
+observation kinds and links to the policy or observation capture surface.
+Loading/error is explicit; the UI never infers a close from a healthy projection.

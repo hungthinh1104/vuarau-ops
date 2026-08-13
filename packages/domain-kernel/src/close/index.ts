@@ -33,22 +33,25 @@ function requiredObservationSet(
       "A close is missing one or more required reconciliation observations.",
     );
   }
-  if (
-    observations.some(
-      (observation) =>
-        observation.facts.expectedAmount === null &&
-        observation.facts.observedAmount === null &&
-        observation.facts.expectedQuantity === null &&
-        observation.facts.observedQuantity === null &&
-        observation.facts.itemCount === null,
-    )
-  ) {
+  if (observations.some((observation) => !isMeasurableReconciliationObservation(observation))) {
     return err(
       "OPERATIONAL_CLOSE_OBSERVATIONS_INVALID",
       "Every close observation must carry a measurable expected or observed fact.",
     );
   }
   return ok(undefined);
+}
+
+export function isMeasurableReconciliationObservation(
+  observation: Pick<ReconciliationObservationDto, "facts">,
+): boolean {
+  return (
+    observation.facts.expectedAmount !== null ||
+    observation.facts.observedAmount !== null ||
+    observation.facts.expectedQuantity !== null ||
+    observation.facts.observedQuantity !== null ||
+    observation.facts.itemCount !== null
+  );
 }
 
 export function decideRecordOperationalClose(

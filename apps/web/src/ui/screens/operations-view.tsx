@@ -3,9 +3,11 @@
 import type {
   CashStatementMatchDto,
   OperationalCloseDto,
+  OperationalCloseReadiness,
   WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { formatMoney } from "@/ui/format.ts";
 import { PageFrame, PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
@@ -19,6 +21,9 @@ export function OperationsView(props: {
   readonly lastSuccessfulSync: string | null;
   readonly integrityState: "loading" | "ready" | "error";
   readonly integrity: WorkspaceIntegrityDto | null;
+  readonly closeReadinessState?: "loading" | "ready" | "error";
+  readonly closeReadiness?: OperationalCloseReadiness | null;
+  readonly onRetryCloseReadiness?: () => void;
   readonly operationalCloses?: readonly OperationalCloseDto[];
   readonly statementMatches?: readonly CashStatementMatchDto[];
   readonly reconciliationState?: "loading" | "ready" | "error";
@@ -76,6 +81,14 @@ export function OperationsView(props: {
           integrity={props.integrity}
           onRetry={props.onRetryIntegrity}
         />
+
+        {props.closeReadinessState === undefined ? null : (
+          <CloseReadinessPanel
+            state={props.closeReadinessState}
+            readiness={props.closeReadiness ?? null}
+            onRetry={props.onRetryCloseReadiness ?? (() => undefined)}
+          />
+        )}
 
         <ReconciliationPanel
           state={reconciliationState}
@@ -158,6 +171,87 @@ export function OperationsView(props: {
         </section>
       </div>
     </PageFrame>
+  );
+}
+
+const OBSERVATION_COPY: Readonly<Record<string, string>> = {
+  cash_count: "Đếm tiền thực tế",
+  inventory_count: "Đếm hàng thực tế",
+  order_outstanding: "Đơn còn lại",
+  delivery_outstanding: "Giao hàng còn lại",
+  return_outstanding: "Hàng trả còn lại",
+  claim_outstanding: "Khiếu nại còn lại",
+  packing_discrepancy: "Sai khác đóng gói",
+  bank_statement_match: "Đối chiếu sao kê",
+  other: "Quan sát đối soát khác",
+};
+
+function CloseReadinessPanel(props: {
+  readonly state: "loading" | "ready" | "error";
+  readonly readiness: OperationalCloseReadiness | null;
+  readonly onRetry: () => void;
+}) {
+  if (props.state === "loading") {
+    return (
+      <section className="rounded-card border border-border bg-surface p-4">
+        <h2 className="text-subheading font-semibold">Điều kiện chốt ngày</h2>
+        <p className="text-body-sm text-ink-muted">Đang xác định điều kiện chốt…</p>
+      </section>
+    );
+  }
+  if (props.state === "error" || props.readiness === null) {
+    return (
+      <section role="alert" className="rounded-card border border-danger/30 bg-surface p-4">
+        <h2 className="text-subheading font-semibold">Chưa xác định được điều kiện chốt</h2>
+        <p className="text-body-sm">
+          Không được coi ngày vận hành là sẵn sàng khi dữ liệu chưa trả lời.
+        </p>
+        <Button className="mt-3" tone="secondary" onClick={props.onRetry}>
+          Thử lại
+        </Button>
+      </section>
+    );
+  }
+  const readiness = props.readiness;
+  if (readiness.state === "ready") {
+    return (
+      <section className="rounded-card border border-border bg-surface p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-subheading font-semibold">Điều kiện chốt ngày</h2>
+          <Badge tone="positive">Đủ điều kiện</Badge>
+        </div>
+        <p className="mt-2 text-body-sm">
+          {readiness.businessDate}: đã có quy tắc chốt và quan sát đo được cho từng phạm vi yêu cầu.
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section role="alert" className="rounded-card border border-warning/40 bg-warning-soft p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-subheading font-semibold">Điều kiện chốt ngày</h2>
+        <Badge tone="warning">Đang bị chặn</Badge>
+      </div>
+      <p className="mt-2 text-body-sm">Ngày {readiness.businessDate} chưa thể chốt.</p>
+      <ul className="mt-3 grid gap-2 text-body-sm">
+        {readiness.blockers.includes("policy_unavailable") ? (
+          <li>
+            Chưa có quy tắc chốt vận hành hợp lệ.{" "}
+            <Link href="/workspace/policies">Mở quy tắc chốt</Link>
+          </li>
+        ) : null}
+        {readiness.blockers.includes("missing_observation") ? (
+          <li>
+            Thiếu quan sát:{" "}
+            {readiness.missingObservationKinds.map((kind) => OBSERVATION_COPY[kind]).join(", ")}.{" "}
+            <Link href="/evidence/reconciliation">Ghi nhận quan sát</Link>
+          </li>
+        ) : null}
+        {readiness.blockers.includes("already_closed") ? (
+          <li>Ngày này đã có lần chốt hiện hành; cần mở lại theo quy trình được cấp quyền.</li>
+        ) : null}
+      </ul>
+    </section>
   );
 }
 

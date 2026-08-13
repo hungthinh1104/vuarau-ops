@@ -18,7 +18,11 @@ import {
   recordCashStatementMatch,
   reverseCashStatementMatch,
 } from "./close.handlers.ts";
-import { getOperationalClose, getCashStatementMatch } from "./close.queries.ts";
+import {
+  getOperationalClose,
+  getOperationalCloseReadiness,
+  getCashStatementMatch,
+} from "./close.queries.ts";
 
 let harness: Harness;
 let sequence = 0;
@@ -120,6 +124,70 @@ beforeEach(() => {
 
 // TC-CLOSE-002 TC-CLOSE-003
 describe("operational close", () => {
+  it("TC-CLOSE-008 — reports server-authored blockers before an operational close can be recorded", async () => {
+    const noPolicy = await getOperationalCloseReadiness(harness.ctx, { workspaceId: WORKSPACE_ID });
+    expect(noPolicy).toMatchObject({
+      ok: true,
+      value: { state: "blocked", blockers: ["policy_unavailable"] },
+    });
+
+    harness.clock.set("2026-07-20T12:00:00.000+07:00");
+    await approvePolicy("operating_cycle_reconciliation", {
+      contractVersion: 1,
+      parameters: {
+        strategy: "observation_signoff",
+        requiredObservationKinds: ["cash_count", "inventory_count"],
+        allowReopen: true,
+      },
+    });
+    const noObservations = await getOperationalCloseReadiness(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+    });
+    expect(noObservations).toMatchObject({
+      ok: true,
+      value: {
+        state: "blocked",
+        blockers: ["missing_observation"],
+        missingObservationKinds: ["cash_count", "inventory_count"],
+      },
+    });
+
+    const cashObservationId = await recordObservation("cash_count");
+    const missingInventory = await getOperationalCloseReadiness(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+    });
+    expect(missingInventory).toMatchObject({
+      ok: true,
+      value: { state: "blocked", missingObservationKinds: ["inventory_count"] },
+    });
+
+    const inventoryObservationId = await recordObservation("inventory_count");
+    const ready = await getOperationalCloseReadiness(harness.ctx, { workspaceId: WORKSPACE_ID });
+    expect(ready).toMatchObject({
+      ok: true,
+      value: { state: "ready", blockers: [], missingObservationKinds: [] },
+    });
+
+    const closed = await recordOperationalClose(harness.ctx, {
+      ...envelope("readiness-close"),
+      payload: {
+        operationalCloseId: uuid(),
+        businessDate: "2026-07-20",
+        observationIds: [cashObservationId, inventoryObservationId],
+        evidenceReferences: ["review://close/readiness"],
+        reason: "Đã đủ dữ liệu để chốt.",
+      },
+    });
+    expect(closed.ok).toBe(true);
+    const alreadyClosed = await getOperationalCloseReadiness(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+    });
+    expect(alreadyClosed).toMatchObject({
+      ok: true,
+      value: { state: "blocked", blockers: ["already_closed"] },
+    });
+  });
+
   it("fails closed without an approved policy and requires the configured observations", async () => {
     const noPolicy = await recordOperationalClose(harness.ctx, {
       ...envelope("no-policy"),

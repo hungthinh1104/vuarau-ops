@@ -1,5 +1,8 @@
 import { z } from "zod";
-import type { ReconciliationObservationKind } from "../evidence/index.ts";
+import {
+  reconciliationObservationKindSchema,
+  type ReconciliationObservationKind,
+} from "../evidence/index.ts";
 import { cashMovementSourceTypeSchema, type CashMovementDto } from "../cash/index.ts";
 import {
   actorIdSchema,
@@ -96,6 +99,40 @@ export const operationalCloseListInputSchema = pageRequestSchema.extend({
 });
 export type OperationalCloseListInput = z.infer<typeof operationalCloseListInputSchema>;
 export const operationalClosePageSchema = pageOf(operationalCloseDtoSchema);
+
+export const operationalCloseReadinessInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  businessDate: z.iso.date().nullable().default(null),
+});
+export type OperationalCloseReadinessInput = {
+  workspaceId: z.infer<typeof workspaceIdSchema>;
+  businessDate?: string | null;
+};
+export const OPERATIONAL_CLOSE_READINESS_BLOCKERS = [
+  "policy_unavailable",
+  "missing_observation",
+  "already_closed",
+] as const;
+export const operationalCloseReadinessBlockerSchema = z.enum(OPERATIONAL_CLOSE_READINESS_BLOCKERS);
+export type OperationalCloseReadinessBlocker = z.infer<
+  typeof operationalCloseReadinessBlockerSchema
+>;
+export const operationalCloseReadinessSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  businessDate: z.iso.date(),
+  period: closePeriodSchema,
+  asOf: isoInstantSchema,
+  state: z.enum(["ready", "blocked"]),
+  blockers: z.array(operationalCloseReadinessBlockerSchema),
+  policyVersionId: workspacePolicyVersionIdSchema.nullable(),
+  requiredObservationKinds: z.array(reconciliationObservationKindSchema),
+  availableObservationKinds: z.array(reconciliationObservationKindSchema),
+  missingObservationKinds: z.array(reconciliationObservationKindSchema),
+  existingCloseId: operationalCloseIdSchema.nullable(),
+  existingCloseState: operationalCloseStateSchema.nullable(),
+  existingCloseVersion: z.int().positive().nullable(),
+});
+export type OperationalCloseReadiness = z.infer<typeof operationalCloseReadinessSchema>;
 
 const cashStatementMatchPayloadSchema = z.object({
   cashStatementMatchId: cashStatementMatchIdSchema,

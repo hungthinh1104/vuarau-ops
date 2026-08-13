@@ -121,6 +121,11 @@ reconnect window. Neither state authorizes the client to infer new business fact
 or silently resend a command. The signal remains visible in the compact mobile
 header as well as the desktop header.
 
+Operations close readiness is a server-authored `ready` or `blocked` condition.
+When blocked, the screen names the policy, observation or existing-close reason;
+it never treats a healthy projection or a failed read as proof that closing is
+allowed.
+
 The Operations Board treats `financialState=reconciliation_required` as an
 operator attention state when a customer payment still has an unallocated
 amount. This remains true even when the Sale's allocated amount already covers

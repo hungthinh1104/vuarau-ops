@@ -3,7 +3,21 @@ import type {
   CashStatementMatchListInput,
   OperationalCloseGetInput,
   OperationalCloseListInput,
+  OperationalCloseReadinessInput,
+  ReconciliationObservationKind,
+  WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
+import {
+  defaultWorkspaceOperationalProfile,
+  operationalClosePolicyDefinitionSchema,
+  operationalCloseReadinessSchema,
+  vietnamBusinessDateForInstant,
+  vietnamBusinessDayRange,
+} from "@vuarau/domain-contracts";
+import {
+  isMeasurableReconciliationObservation,
+  resolvePolicyForDecision,
+} from "@vuarau/domain-kernel";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 
@@ -32,6 +46,89 @@ export function listOperationalCloses(ctx: CommandContext, input: OperationalClo
         }),
         (row) => row,
       ),
+  });
+}
+
+export function getOperationalCloseReadiness(
+  ctx: CommandContext,
+  input: OperationalCloseReadinessInput,
+) {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "operations.close",
+    execute: async ({ repos, asOf }) => {
+      const profile =
+        (await repos.workspaces.findOperationalProfile(input.workspaceId)) ??
+        defaultWorkspaceOperationalProfile(input.workspaceId);
+      const businessDate =
+        input.businessDate ?? vietnamBusinessDateForInstant(asOf, profile.businessDayStartMinute);
+      const period = vietnamBusinessDayRange(businessDate, profile.businessDayStartMinute);
+      const [policies, closePage] = await Promise.all([
+        repos.workspacePolicyReads.listAll(input.workspaceId),
+        repos.operationalCloseReads.list({
+          workspaceId: input.workspaceId,
+          fromBusinessDate: businessDate,
+          toBusinessDate: businessDate,
+          page: { after: null, limit: 1 },
+        }),
+      ]);
+      const currentClose = closePage.rows[0] ?? null;
+      const policy = resolvePolicyForDecision(
+        policies,
+        "operating_cycle_reconciliation",
+        asOf,
+        asOf,
+      );
+      let requiredObservationKinds: ReconciliationObservationKind[] = [];
+      let policyVersionId: WorkspacePolicyVersionId | null = null;
+      const blockers: ("policy_unavailable" | "missing_observation" | "already_closed")[] = [];
+      if (policy === null) {
+        blockers.push("policy_unavailable");
+      } else {
+        const definition = operationalClosePolicyDefinitionSchema.safeParse(policy.definition);
+        if (!definition.success) blockers.push("policy_unavailable");
+        else {
+          requiredObservationKinds = [...definition.data.parameters.requiredObservationKinds];
+          policyVersionId = policy.id;
+        }
+      }
+      const observations =
+        requiredObservationKinds.length === 0
+          ? []
+          : await repos.reconciliationObservationReads.listForPeriod({
+              workspaceId: input.workspaceId,
+              kinds: requiredObservationKinds,
+              start: period.start,
+              end: period.end,
+            });
+      const availableObservationKinds = requiredObservationKinds.filter((kind) =>
+        observations.some(
+          (observation) =>
+            observation.kind === kind && isMeasurableReconciliationObservation(observation),
+        ),
+      );
+      const missingObservationKinds = requiredObservationKinds.filter(
+        (kind) => !availableObservationKinds.includes(kind),
+      );
+      if (missingObservationKinds.length > 0) blockers.push("missing_observation");
+      if (currentClose?.state === "closed") blockers.push("already_closed");
+      return operationalCloseReadinessSchema.parse({
+        workspaceId: input.workspaceId,
+        businessDate,
+        period,
+        asOf,
+        state: blockers.length === 0 ? "ready" : "blocked",
+        blockers,
+        policyVersionId,
+        requiredObservationKinds,
+        availableObservationKinds,
+        missingObservationKinds,
+        existingCloseId: currentClose?.id ?? null,
+        existingCloseState: currentClose?.state ?? null,
+        existingCloseVersion: currentClose?.version ?? null,
+      });
+    },
   });
 }
 

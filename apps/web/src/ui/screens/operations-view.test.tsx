@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import type {
   CashStatementMatchDto,
   OperationalCloseDto,
+  OperationalCloseReadiness,
   WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
@@ -66,6 +67,33 @@ describe("OperationsView", () => {
   it("surfaces blocked offline intent before a worker creates replacement intent", () => {
     renderView({ queuedCount: 2, blockedCount: 1 });
     expect(screen.getByRole("alert")).toHaveTextContent("Không tạo giao dịch thay thế");
+  });
+
+  it("shows the server-authored close blocker and its recovery path", () => {
+    renderView({
+      closeReadinessState: "ready",
+      closeReadiness: {
+        workspaceId: WORKSPACE_ID,
+        businessDate: "2026-08-03",
+        period: { start: "2026-08-02T17:00:00.000Z", end: "2026-08-03T17:00:00.000Z" },
+        asOf: "2026-08-03T10:00:00.000Z",
+        state: "blocked",
+        blockers: ["missing_observation"],
+        policyVersionId: null,
+        requiredObservationKinds: ["cash_count", "inventory_count"],
+        availableObservationKinds: ["cash_count"],
+        missingObservationKinds: ["inventory_count"],
+        existingCloseId: null,
+        existingCloseState: null,
+        existingCloseVersion: null,
+      } as OperationalCloseReadiness,
+    });
+    expect(screen.getByText("Đang bị chặn")).toBeInTheDocument();
+    expect(screen.getByText(/Thiếu quan sát: Đếm hàng thực tế/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ghi nhận quan sát" })).toHaveAttribute(
+      "href",
+      "/evidence/reconciliation",
+    );
   });
 
   it("requires an explicit new export intent after a completed export", () => {

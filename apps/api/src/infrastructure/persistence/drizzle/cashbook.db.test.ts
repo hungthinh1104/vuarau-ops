@@ -52,6 +52,7 @@ import {
   recordOperationalClose,
   reverseCashStatementMatch,
 } from "../../../modules/close/close.handlers.ts";
+import { getOperationalCloseReadiness } from "../../../modules/close/close.queries.ts";
 import { recordReconciliationObservation } from "../../../modules/evidence/evidence.handlers.ts";
 
 // TC-CLOSE-005 TC-CLOSE-007
@@ -524,6 +525,15 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
       ).ok,
     ).toBe(true);
 
+    const blocked = await getOperationalCloseReadiness(context(), {
+      workspaceId: ctx.workspaceId,
+      businessDate: "2026-07-29",
+    });
+    expect(blocked).toMatchObject({
+      ok: true,
+      value: { state: "blocked", blockers: ["missing_observation"] },
+    });
+
     const observationIds = await Promise.all(
       (["cash_count", "inventory_count"] as const).map(async (kind) => {
         const id = crypto.randomUUID() as ReconciliationObservationId;
@@ -578,8 +588,24 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
         reason: "Đã đối chiếu cuối ngày trên PostgreSQL.",
       },
     };
+    const ready = await getOperationalCloseReadiness(context(), {
+      workspaceId: ctx.workspaceId,
+      businessDate: "2026-07-29",
+    });
+    expect(ready).toMatchObject({
+      ok: true,
+      value: { state: "ready", blockers: [], missingObservationKinds: [] },
+    });
     const closed = await recordOperationalClose(context(), closeCommand);
     expect(closed).toMatchObject({ ok: true, value: { state: "closed", version: 1 } });
+    const alreadyClosed = await getOperationalCloseReadiness(context(), {
+      workspaceId: ctx.workspaceId,
+      businessDate: "2026-07-29",
+    });
+    expect(alreadyClosed).toMatchObject({
+      ok: true,
+      value: { state: "blocked", blockers: ["already_closed"] },
+    });
     const replay = await recordOperationalClose(context(), closeCommand);
     expect(replay).toEqual(closed);
   });

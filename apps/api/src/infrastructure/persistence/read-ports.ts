@@ -588,6 +588,12 @@ export type ReconciliationObservationReadRepository = {
     kind: ReconciliationObservationKind | null;
     page: PageQuery;
   }): Promise<PageResult<ReconciliationObservationDto>>;
+  listForPeriod(args: {
+    workspaceId: WorkspaceId;
+    kinds: readonly ReconciliationObservationKind[];
+    start: IsoInstant;
+    end: IsoInstant;
+  }): Promise<readonly ReconciliationObservationDto[]>;
 };
 
 export type DebtObservationReadRepository = {

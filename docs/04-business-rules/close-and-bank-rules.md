@@ -30,6 +30,17 @@ current close, while the supersedes unique constraint prevents two concurrent
 revisions of the same reopened state. A closed latest revision still blocks
 another close for that date.
 
+### BR-CLOSE-004 — Close readiness is an explicit fail-closed read
+
+The Operations read derives the current Vietnam business date from the workspace
+profile, or accepts an explicit business date for historical review. It reports
+`blocked` when the effective close policy is missing/invalid, when a required
+observation kind has no measurable observation inside that business period, or
+when a closed revision already exists. A reopened revision is not itself a
+blocker. The read exposes the policy lineage, period, available and missing
+observation kinds, and current close revision; it does not calculate a variance,
+select observations for a command, or replace the final close decision.
+
 ### BR-CASH-012 — Statement match is exact and financial-neutral
 
 `RecordCashStatementMatch` matches one existing CashMovement by workspace, account,

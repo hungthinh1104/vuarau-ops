@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { ReconciliationObservationKind } from "@vuarau/domain-contracts";
 import { reconciliationObservations } from "../../schema/index.ts";
 import { paged, fetchLimit } from "../shared/read-helpers.ts";
@@ -47,6 +47,36 @@ export const createReconciliationObservationReadRepositories = (tx: Tx) => ({
         sortValue: row.recordedAt,
         id: row.id,
       }));
+    },
+    async listForPeriod({
+      workspaceId,
+      kinds,
+      start,
+      end,
+    }: {
+      workspaceId: string;
+      kinds: readonly ReconciliationObservationKind[];
+      start: string;
+      end: string;
+    }) {
+      if (kinds.length === 0) return [];
+      const rows = await tx
+        .select()
+        .from(reconciliationObservations)
+        .where(
+          and(
+            eq(reconciliationObservations.workspaceId, workspaceId),
+            inArray(reconciliationObservations.kind, [...kinds]),
+            gte(reconciliationObservations.transactionTime, new Date(start)),
+            lt(reconciliationObservations.transactionTime, new Date(end)),
+          ),
+        )
+        .orderBy(
+          desc(reconciliationObservations.transactionTime),
+          desc(reconciliationObservations.recordedAt),
+          desc(reconciliationObservations.id),
+        );
+      return rows.map(toReconciliationObservationDto);
     },
   },
 });

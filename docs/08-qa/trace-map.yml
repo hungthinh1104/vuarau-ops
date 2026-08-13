@@ -1598,7 +1598,7 @@ use_cases:
     title: Sign off, reopen and reclose an operational business day
     risk: P0
     doc: docs/02-use-cases/UC-OPERATIONS-005-operational-close.md
-    rules: [BR-CLOSE-001, BR-CLOSE-002, BR-CLOSE-003, BR-CASH-014]
+    rules: [BR-CLOSE-001, BR-CLOSE-002, BR-CLOSE-003, BR-CLOSE-004, BR-CASH-014]
     cases: []
     tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-003, TC-CLOSE-004]
     implementation:
@@ -3513,6 +3513,23 @@ business_rules:
       - packages/domain-kernel/src/close/index.ts
       - packages/db/src/schema/close.ts
 
+  BR-CLOSE-004:
+    title: Operational close readiness exposes policy, observation and existing-close blockers
+    risk: P1
+    doc: docs/04-business-rules/close-and-bank-rules.md
+    cases: []
+    tests: [TC-CLOSE-008, TC-CLOSE-DB-002]
+    implementation:
+      - packages/domain-contracts/src/close/index.ts
+      - packages/domain-kernel/src/close/index.ts
+      - apps/api/src/infrastructure/persistence/read-ports.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/reconciliation-observation.ts
+      - packages/db/src/repositories/read/reconciliation-observation.ts
+      - apps/api/src/modules/close/close.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/operations.ts
+      - apps/web/src/ui/controllers/operations-controller.tsx
+      - apps/web/src/ui/screens/operations-view.tsx
+
   BR-CASH-012:
     title: Statement match uses exact source identity and does not change financial truth
     risk: P0
@@ -4724,6 +4741,9 @@ contract_tests:
   TC-CLOSE-007:
     title: Reversing a statement match frees its movement and reference for rematching
     file: apps/api/src/infrastructure/persistence/drizzle/cashbook.db.test.ts
+  TC-CLOSE-008:
+    title: Close readiness names policy, missing observation and existing-close blockers
+    file: apps/api/src/modules/close/close.app.test.ts
   TC-CLOSE-006:
     title: Close accepts observed-only facts and rejects observations outside the business period
     file: packages/domain-kernel/src/close/close.test.ts
