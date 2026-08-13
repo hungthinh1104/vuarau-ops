@@ -39,7 +39,7 @@ function LiveStatus() {
         : "Dữ liệu có thể cũ";
   return (
     <span
-      className="hidden max-w-[13rem] truncate rounded-input border border-warning/30 bg-warning-soft px-2.5 py-2 text-caption font-semibold text-warning sm:inline"
+      className="max-w-[9rem] truncate rounded-input border border-warning/30 bg-warning-soft px-2.5 py-2 text-caption font-semibold text-warning sm:max-w-[13rem]"
       role="status"
     >
       {message}

@@ -221,9 +221,14 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
       void drainChanges().catch(() => setLiveConnectionState("stale"));
     }, 60_000);
     let hasConnected = false;
-    const disconnected = () => setLiveConnectionState("reconnecting");
+    let staleAfterReconnectWindow = false;
+    const disconnected = () => {
+      if (!staleAfterReconnectWindow) setLiveConnectionState("reconnecting");
+    };
     const markStaleAfterReconnectWindow = () => {
-      if (hasConnected && !stopped) setLiveConnectionState("stale");
+      if (stopped) return;
+      staleAfterReconnectWindow = true;
+      setLiveConnectionState("stale");
     };
     setLiveConnectionState("reconnecting");
 
@@ -247,6 +252,7 @@ export function LiveInvalidation({ workspaceId }: { readonly workspaceId: Worksp
           if (!response.ok || response.body === null) throw new Error("events_unavailable");
           const wasConnected = hasConnected;
           hasConnected = true;
+          staleAfterReconnectWindow = false;
           const reader = response.body.getReader();
           activeReader = reader;
           lastByteAt = Date.now();

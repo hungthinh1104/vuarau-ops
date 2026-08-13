@@ -114,6 +114,13 @@ Storybook coverage is a separate repository-readiness gate.
 | `workspace_integrity_healthy`      | workspace integrity read has no current attention condition                        |
 | `workspace_integrity_attention`    | source/reference/projection/digest check requires operator attention               |
 
+The workspace live connection is a separate operational freshness signal. A
+`reconnecting` state means the browser is retrying; `stale` means no successful
+live connection or durable-feed reconciliation has completed within the bounded
+reconnect window. Neither state authorizes the client to infer new business facts
+or silently resend a command. The signal remains visible in the compact mobile
+header as well as the desktop header.
+
 The Operations Board treats `financialState=reconciliation_required` as an
 operator attention state when a customer payment still has an unallocated
 amount. This remains true even when the Sale's allocated amount already covers

@@ -94,6 +94,22 @@ describe("Goods Truth workspace navigation", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Đang kết nối lại");
   });
 
+  it("keeps stale live state visible in the compact mobile header", () => {
+    render(
+      <WorkspaceShell
+        workspaceName={WORKSPACE_NAME}
+        session={salesSession}
+        userLabel="sales@example.com"
+      >
+        <p>Nội dung</p>
+      </WorkspaceShell>,
+    );
+    act(() => setLiveConnectionState("stale"));
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Dữ liệu có thể cũ");
+    expect(status).not.toHaveClass("hidden");
+  });
+
   it("gives the wide shell enough room for the sidebar and identifies the current destination", () => {
     render(
       <WorkspaceShell

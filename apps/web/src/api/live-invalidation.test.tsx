@@ -1,7 +1,7 @@
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import type { WorkspaceId } from "@vuarau/domain-contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { setLiveConnectionState } from "@/lib/live-connection.ts";
+import { setLiveConnectionState, useLiveConnectionState } from "@/lib/live-connection.ts";
 import {
   createInvalidationScheduler,
   drainDurableChanges,
@@ -9,6 +9,10 @@ import {
 } from "./live-invalidation.tsx";
 
 const WORKSPACE_ID = "00000000-0000-4000-8000-000000000001" as WorkspaceId;
+
+function LiveStateProbe() {
+  return <output data-testid="live-state">{useLiveConnectionState()}</output>;
+}
 
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
@@ -189,6 +193,28 @@ describe("live invalidation scheduler", () => {
         await vi.advanceTimersByTimeAsync(3_000);
       });
       expect(mocks.fetch).toHaveBeenCalledTimes(2);
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("marks an initially unavailable stream stale after the reconnect window", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.fetch.mockResolvedValue(new Response(null, { status: 503 }));
+      const { unmount } = render(
+        <>
+          <LiveInvalidation workspaceId={WORKSPACE_ID} />
+          <LiveStateProbe />
+        </>,
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+        await vi.advanceTimersByTimeAsync(3_000);
+      });
+      expect(screen.getByTestId("live-state")).toHaveTextContent("stale");
       unmount();
     } finally {
       vi.useRealTimers();
