@@ -45,6 +45,13 @@ const ACTIONS: readonly TodayAction[] = [
     area: "work",
   },
   {
+    label: "Bảng điều hành",
+    description: "Mở các việc còn vướng theo đơn, hàng hóa và thanh toán.",
+    href: "/operations-board",
+    permission: "report.read",
+    area: "work",
+  },
+  {
     label: "Kiểm tra vận hành",
     description: "Kiểm tra dữ liệu vận hành và khôi phục khi cần.",
     href: "/workspace/operations",
@@ -68,7 +75,7 @@ const ACTIONS: readonly TodayAction[] = [
 ];
 
 const PRIMARY_BY_ROLE: Readonly<Record<WorkspaceRole, string>> = {
-  owner: "/workspace/operations",
+  owner: "/operations-board",
   accountant: "/customers",
   sales: "/sales/new",
   warehouse: "/purchases",

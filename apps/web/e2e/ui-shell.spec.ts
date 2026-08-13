@@ -63,6 +63,23 @@ test.describe("operational shell and action dock", () => {
     if (isMobile(page)) await expect(mobileNav).toBeHidden();
   });
 
+  test("keeps the operational queue reachable from Today on mobile", async ({ page }) => {
+    await signIn(page, "owner");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/today");
+    await expect(page.getByRole("heading", { name: "Hôm nay" })).toBeVisible();
+    const boardLink = page.getByRole("link", { name: "Bảng điều hành" }).first();
+    await expect(boardLink).toBeVisible();
+    const box = await boardLink.boundingBox();
+    expect(box).not.toBeNull();
+    await expectNoHorizontalOverflow(page);
+
+    await boardLink.click();
+    await expect(page.getByRole("heading", { name: "Bảng điều hành" })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Việc cần xử lý" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("keeps account actions behind the account menu", async ({ page }) => {
     await signIn(page, "owner");
     await page.goto("/products");

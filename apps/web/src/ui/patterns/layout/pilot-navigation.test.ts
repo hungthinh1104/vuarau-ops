@@ -53,6 +53,9 @@ describe("TC-WEB-029 — role-aware pilot navigation", () => {
   });
 
   it("builds Today work from permissions rather than role names", () => {
+    const owner = todayActionsFor(permissionsForRole("owner"), "owner");
+    expect(owner.find((action) => action.href === "/operations-board")?.area).toBe("primary");
+
     const sales = todayActionsFor(permissionsForRole("sales")).map((action) => action.label);
     expect(sales).toContain("Ghi đơn nhanh");
     expect(sales).toContain("Thanh toán và công nợ");
