@@ -471,7 +471,7 @@ const repositoryChecks: readonly RepositoryCheck[] = [
   },
   {
     name: "product_coverage_grade_aware",
-    budgetMs: 300,
+    budgetMs: 250,
     sequentialScanPolicy: "canonical_aggregate",
     execute: async (tx) =>
       createInventoryReadRepositories(tx as never).inventoryReads.coverage(
