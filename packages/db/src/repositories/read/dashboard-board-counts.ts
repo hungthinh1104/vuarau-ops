@@ -233,7 +233,7 @@ export async function queryOperationsBoardCountsSplit(
   tx: Tx,
   input: OperationsBoardCountsInput & { readonly now: string },
 ) {
-  const [saleRows, purchaseRows] = await Promise.all([
+  const [saleRows, financialRows, purchaseRows] = await Promise.all([
     tx.execute(sql`
       with delivery_line_returns as (
         select drl.delivery_line_id, coalesce(sum(drl.quantity_scaled),0) as returned
@@ -241,34 +241,49 @@ export async function queryOperationsBoardCountsSplit(
         join delivery_returns dr on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
         where dr.workspace_id=${input.workspaceId}::uuid
         group by drl.delivery_line_id
-      ), sale_line_facts as (
-        select dl.sale_line_id,
-          coalesce(sum(case when d.status in ('dispatched','delivered') then dl.quantity_scaled else 0 end),0) as dispatched,
-          coalesce(sum(case when d.status='dispatched' then greatest(dl.quantity_scaled-coalesce(dlr.returned,0),0) else 0 end),0) as in_delivery,
-          coalesce(sum(dlr.returned),0) as returned
-        from delivery_lines dl
-        join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-        left join delivery_line_returns dlr on dlr.delivery_line_id=dl.id
-        where dl.workspace_id=${input.workspaceId}::uuid
-        group by dl.sale_line_id
       ), sale_physical as (
-        select s.id,
+        select sl.sale_id as id,
           case
             when bool_or(coalesce(slf.dispatched,0)-coalesce(slf.returned,0) > sl.quantity_scaled) then 'attention'
             when coalesce(sum(greatest(sl.quantity_scaled-coalesce(slf.dispatched,0)+coalesce(slf.returned,0),0)),0)=0 then 'delivered'
-            when coalesce(sum(slf.in_delivery),0)>0 then 'in_delivery'
+            when coalesce(bool_or(slf.in_delivery > 0),false) then 'in_delivery'
             else 'needs_delivery'
-          end as physical_state
-          ,bool_or(
+          end as physical_state,
+          bool_or(
             coalesce(slf.returned, 0) > 0
             and sl.quantity_scaled > coalesce(slf.dispatched, 0) - coalesce(slf.returned, 0)
           ) as returned_fulfilment
-        from sales s
-        join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
-        left join sale_line_facts slf on slf.sale_line_id=sl.id
-        where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
-        group by s.id
-      ), allocation_reversals as (
+        from sale_lines sl
+        left join (
+          select dl.sale_line_id,
+            coalesce(sum(case when d.status in ('dispatched','delivered') then dl.quantity_scaled else 0 end),0) as dispatched,
+            coalesce(sum(case when d.status='dispatched' then greatest(dl.quantity_scaled-coalesce(dlr.returned,0),0) else 0 end),0) as in_delivery,
+            coalesce(sum(dlr.returned),0) as returned
+          from delivery_lines dl
+          join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
+          left join delivery_line_returns dlr on dlr.delivery_line_id=dl.id
+          where dl.workspace_id=${input.workspaceId}::uuid
+          group by dl.sale_line_id
+        ) slf on slf.sale_line_id=sl.id
+        where sl.workspace_id=${input.workspaceId}::uuid
+        group by sl.sale_id
+      )
+      select
+        count(*)::int as all_count,
+        count(*) filter (where physical_state='needs_delivery')::int as needs_delivery_count,
+        count(*) filter (where physical_state='in_delivery')::int as in_delivery_count,
+        count(*) filter (where returned_fulfilment)::int as returned_fulfilment_count,
+        count(*) filter (where physical_state='delivered')::int as delivered_count,
+        count(*) filter (where physical_state='attention')::int as physical_attention_count,
+        count(*) filter (where sv.id is not null)::int as voided_count,
+        count(*) filter (where physical_state='attention' and sv.id is null)::int as commercial_attention_count
+      from sale_physical
+      join sales s on s.workspace_id=${input.workspaceId}::uuid and s.id=sale_physical.id
+      left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
+      where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
+    `),
+    tx.execute(sql`
+      with allocation_reversals as (
         select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0) as amount
         from payment_allocation_reversals par
         where par.workspace_id=${input.workspaceId}::uuid
@@ -292,44 +307,18 @@ export async function queryOperationsBoardCountsSplit(
         left join allocated_payment ap on ap.payment_id=p.id
         where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
         group by p.customer_id
-      ), classified as (
-        select s.id,
-          case when sv.id is not null then 'voided'
-            when sp.physical_state='attention' then 'attention' else 'posted' end as commercial_state,
-          sp.physical_state,
-          sp.returned_fulfilment,
-          coalesce(u.amount,0) > 0 as unallocated_payment,
-          case
-            when sv.id is not null then 'voided'
-            when coalesce(u.amount,0) > 0 then 'reconciliation_required'
-            when coalesce(a.amount,0) >= s.total_amount_minor then 'paid'
-            when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
-            else 'awaiting_payment'
-          end as financial_state
-        from sales s
-        join sale_physical sp on sp.id=s.id
-        left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
-        left join allocated a on a.sale_id=s.id
-        left join unallocated_by_customer u on u.customer_id=s.customer_id
-        where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       )
       select
-        count(*)::int as all_count,
-        count(*) filter (where physical_state='needs_delivery')::int as needs_delivery_count,
-        count(*) filter (where physical_state='in_delivery')::int as in_delivery_count,
-        count(*) filter (where returned_fulfilment)::int as returned_fulfilment_count,
-        count(*) filter (where unallocated_payment)::int as unallocated_payment_count,
-        count(*) filter (where physical_state='delivered')::int as delivered_count,
-        count(*) filter (where physical_state='attention')::int as physical_attention_count,
-        count(*) filter (where financial_state='paid')::int as paid_count,
-        count(*) filter (where financial_state='reconciliation_required')::int as reconciliation_required_count,
-        count(*) filter (where financial_state='awaiting_payment')::int as awaiting_payment_count,
-        count(*) filter (where financial_state='overdue')::int as overdue_count,
-        count(*) filter (where financial_state='voided')::int as financial_voided_count,
-        count(*) filter (where commercial_state='posted')::int as posted_count,
-        count(*) filter (where commercial_state='voided')::int as commercial_voided_count,
-        count(*) filter (where commercial_state='attention')::int as commercial_attention_count
-      from classified
+        count(*) filter (where coalesce(u.amount,0) > 0)::int as unallocated_payment_count,
+        count(*) filter (where sv.id is null and coalesce(u.amount,0) > 0)::int as reconciliation_required_count,
+        count(*) filter (where sv.id is null and coalesce(u.amount,0) = 0 and coalesce(a.amount,0) >= s.total_amount_minor)::int as paid_count,
+        count(*) filter (where sv.id is null and coalesce(u.amount,0) = 0 and coalesce(a.amount,0) < s.total_amount_minor and s.due_at is not null and s.due_at < ${input.now}::timestamptz)::int as overdue_count,
+        count(*) filter (where sv.id is null and coalesce(u.amount,0) = 0 and coalesce(a.amount,0) < s.total_amount_minor and (s.due_at is null or s.due_at >= ${input.now}::timestamptz))::int as awaiting_payment_count
+      from sales s
+      left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
+      left join allocated a on a.sale_id=s.id
+      left join unallocated_by_customer u on u.customer_id=s.customer_id
+      where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
     `),
     tx.execute(sql`
       with recursive direct_received as (
@@ -387,6 +376,7 @@ export async function queryOperationsBoardCountsSplit(
     `),
   ]);
   const sale = (saleRows[0] ?? {}) as Row;
+  const financial = (financialRows[0] ?? {}) as Row;
   const purchase = (purchaseRows[0] ?? {}) as Row;
   const value = (row: Row, name: string) => numberOf(row, name);
   const saleAll = value(sale, "all_count");
@@ -398,21 +388,24 @@ export async function queryOperationsBoardCountsSplit(
       needsDelivery: value(sale, "needs_delivery_count"),
       inDelivery: value(sale, "in_delivery_count"),
       returnedFulfilment: value(sale, "returned_fulfilment_count"),
-      unallocatedPayment: value(sale, "unallocated_payment_count"),
-      awaitingPayment: value(sale, "awaiting_payment_count"),
-      overdue: value(sale, "overdue_count"),
+      unallocatedPayment: value(financial, "unallocated_payment_count"),
+      awaitingPayment: value(financial, "awaiting_payment_count"),
+      overdue: value(financial, "overdue_count"),
       attention:
         value(sale, "physical_attention_count") +
         value(sale, "commercial_attention_count") +
-        value(sale, "reconciliation_required_count"),
+        value(financial, "reconciliation_required_count"),
     },
     statusCounts: {
       commercial: [
-        { key: "posted", count: value(sale, "posted_count") },
+        {
+          key: "posted",
+          count: saleAll - value(sale, "voided_count") - value(sale, "commercial_attention_count"),
+        },
         { key: "confirmed", count: value(purchase, "confirmed_count") },
         {
           key: "voided",
-          count: value(sale, "commercial_voided_count") + value(purchase, "voided_count"),
+          count: value(sale, "voided_count") + value(purchase, "voided_count"),
         },
         { key: "attention", count: value(sale, "commercial_attention_count") },
       ].filter((entry) => entry.count > 0),
@@ -425,14 +418,17 @@ export async function queryOperationsBoardCountsSplit(
         { key: "attention", count: value(sale, "physical_attention_count") },
       ].filter((entry) => entry.count > 0),
       financial: [
-        { key: "paid", count: value(sale, "paid_count") },
+        { key: "paid", count: value(financial, "paid_count") },
         { key: "payable", count: purchaseAll - value(purchase, "voided_count") },
-        { key: "reconciliation_required", count: value(sale, "reconciliation_required_count") },
-        { key: "awaiting_payment", count: value(sale, "awaiting_payment_count") },
-        { key: "overdue", count: value(sale, "overdue_count") },
+        {
+          key: "reconciliation_required",
+          count: value(financial, "reconciliation_required_count"),
+        },
+        { key: "awaiting_payment", count: value(financial, "awaiting_payment_count") },
+        { key: "overdue", count: value(financial, "overdue_count") },
         {
           key: "voided",
-          count: value(sale, "financial_voided_count") + value(purchase, "voided_count"),
+          count: value(sale, "voided_count") + value(purchase, "voided_count"),
         },
       ].filter((entry) => entry.count > 0),
     },

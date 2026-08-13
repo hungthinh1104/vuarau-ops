@@ -441,7 +441,7 @@ type RepositoryCheck = {
 const repositoryChecks: readonly RepositoryCheck[] = [
   {
     name: "operations_board_page",
-    budgetMs: 250,
+    budgetMs: 150,
     // Ordering is by the latest canonical fact, so this page intentionally
     // reads the aggregate source population before applying the keyset page.
     sequentialScanPolicy: "canonical_aggregate",
@@ -452,14 +452,14 @@ const repositoryChecks: readonly RepositoryCheck[] = [
         sort: "updated_desc",
         search: "",
         cursor: null,
-        limit: 100,
-        page: { after: null, limit: 100 },
+        limit: 25,
+        page: { after: null, limit: 25 },
         now: "2026-02-15T12:00:00.000Z",
       }),
   },
   {
     name: "operations_board_counts",
-    budgetMs: 400,
+    budgetMs: 250,
     sequentialScanPolicy: "canonical_aggregate",
     execute: async (tx) =>
       createDashboardReadRepositories(tx as never).dashboardReads.operationsBoardCounts({

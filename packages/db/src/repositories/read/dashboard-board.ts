@@ -67,42 +67,45 @@ export async function queryFastOperationsBoardPage(
       ) payment_events
       group by payment_events.workspace_id, payment_events.customer_id
     ), sale_activity_events as (
-      select sv.workspace_id, sv.sale_id as id, sv.recorded_at
-      from sale_voids sv
-      where sv.workspace_id=${input.workspaceId}::uuid
-      union all
-      select s.workspace_id, s.id, cpa.recorded_at
-      from customer_payment_activity cpa
-      join sales s
-        on s.workspace_id=cpa.workspace_id and s.customer_id=cpa.customer_id
-      union all
-      select d.workspace_id, d.sale_id as id, d.recorded_at
-      from deliveries d
-      where d.workspace_id=${input.workspaceId}::uuid
-      union all
-      select d.workspace_id, d.sale_id as id, dr.recorded_at
-      from delivery_returns dr
-      join deliveries d
-        on d.workspace_id=dr.workspace_id and d.id=dr.delivery_id
-      where dr.workspace_id=${input.workspaceId}::uuid
-      union all
-      select pa.workspace_id, pa.sale_id as id, pa.recorded_at
-      from payment_allocations pa
-      where pa.workspace_id=${input.workspaceId}::uuid
-      union all
-      select pa.workspace_id, pa.sale_id as id, par.recorded_at
-      from payment_allocation_reversals par
-      join payment_allocations pa
-        on pa.workspace_id=par.workspace_id and pa.id=par.allocation_id
-      where par.workspace_id=${input.workspaceId}::uuid
+      select events.workspace_id, events.id, max(events.recorded_at) as recorded_at
+      from (
+        select sv.workspace_id, sv.sale_id as id, sv.recorded_at
+        from sale_voids sv
+        where sv.workspace_id=${input.workspaceId}::uuid
+        union all
+        select s.workspace_id, s.id, cpa.recorded_at
+        from customer_payment_activity cpa
+        join sales s
+          on s.workspace_id=cpa.workspace_id and s.customer_id=cpa.customer_id
+        union all
+        select d.workspace_id, d.sale_id as id, d.recorded_at
+        from deliveries d
+        where d.workspace_id=${input.workspaceId}::uuid
+        union all
+        select d.workspace_id, d.sale_id as id, dr.recorded_at
+        from delivery_returns dr
+        join deliveries d
+          on d.workspace_id=dr.workspace_id and d.id=dr.delivery_id
+        where dr.workspace_id=${input.workspaceId}::uuid
+        union all
+        select pa.workspace_id, pa.sale_id as id, pa.recorded_at
+        from payment_allocations pa
+        where pa.workspace_id=${input.workspaceId}::uuid
+        union all
+        select pa.workspace_id, pa.sale_id as id, par.recorded_at
+        from payment_allocation_reversals par
+        join payment_allocations pa
+          on pa.workspace_id=par.workspace_id and pa.id=par.allocation_id
+        where par.workspace_id=${input.workspaceId}::uuid
+      ) events
+      group by events.workspace_id, events.id
     ), sale_activity as (
       select s.workspace_id, s.id,
-        greatest(s.recorded_at, coalesce(s.posted_at, s.recorded_at), coalesce(max(events.recorded_at), s.recorded_at)) as updated_at
+        greatest(s.recorded_at, coalesce(s.posted_at, s.recorded_at), coalesce(events.recorded_at, s.recorded_at)) as updated_at
       from sales s
       left join sale_activity_events events
         on events.workspace_id=s.workspace_id and events.id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
-      group by s.workspace_id, s.id, s.recorded_at, s.posted_at
     ), purchase_disposition_roots as (
       select qd.workspace_id, qd.id as disposition_id, gal.purchase_id
       from quality_dispositions qd
@@ -124,55 +127,54 @@ export async function queryFastOperationsBoardPage(
       where child.workspace_id=${input.workspaceId}::uuid
         and child.source_type='quarantine_allocation'
     ), purchase_activity_events as (
-      select pv.workspace_id, pv.purchase_id as id, pv.recorded_at
-      from purchase_voids pv
-      where pv.workspace_id=${input.workspaceId}::uuid
-      union all
-      select pr.workspace_id, pr.purchase_id as id, pr.recorded_at
-      from purchase_receipts pr
-      where pr.workspace_id=${input.workspaceId}::uuid
-      union all
-      select pr.workspace_id, pr.purchase_id as id, prr.recorded_at
-      from purchase_receipt_reversals prr
-      join purchase_receipts pr
-        on pr.workspace_id=prr.workspace_id and pr.id=prr.receipt_id
-      where prr.workspace_id=${input.workspaceId}::uuid
-      union all
-      select ga.workspace_id, ga.purchase_id as id, ga.recorded_at
-      from goods_arrivals ga
-      where ga.workspace_id=${input.workspaceId}::uuid and ga.purchase_id is not null
-      union all
-      select roots.workspace_id, roots.purchase_id as id, qd.recorded_at
-      from quality_dispositions qd
-      join purchase_disposition_roots roots
-        on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
-      where qd.workspace_id=${input.workspaceId}::uuid
-      union all
-      select roots.workspace_id, roots.purchase_id as id, qdr.recorded_at
-      from quality_disposition_reversals qdr
-      join quality_dispositions qd
-        on qd.workspace_id=qdr.workspace_id and qd.id=qdr.disposition_id
-      join purchase_disposition_roots roots
-        on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
-      where qdr.workspace_id=${input.workspaceId}::uuid
+      select events.workspace_id, events.id, max(events.recorded_at) as recorded_at
+      from (
+        select pv.workspace_id, pv.purchase_id as id, pv.recorded_at
+        from purchase_voids pv
+        where pv.workspace_id=${input.workspaceId}::uuid
+        union all
+        select pr.workspace_id, pr.purchase_id as id, pr.recorded_at
+        from purchase_receipts pr
+        where pr.workspace_id=${input.workspaceId}::uuid
+        union all
+        select pr.workspace_id, pr.purchase_id as id, prr.recorded_at
+        from purchase_receipt_reversals prr
+        join purchase_receipts pr
+          on pr.workspace_id=prr.workspace_id and pr.id=prr.receipt_id
+        where prr.workspace_id=${input.workspaceId}::uuid
+        union all
+        select ga.workspace_id, ga.purchase_id as id, ga.recorded_at
+        from goods_arrivals ga
+        where ga.workspace_id=${input.workspaceId}::uuid and ga.purchase_id is not null
+        union all
+        select roots.workspace_id, roots.purchase_id as id, qd.recorded_at
+        from quality_dispositions qd
+        join purchase_disposition_roots roots
+          on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
+        where qd.workspace_id=${input.workspaceId}::uuid
+        union all
+        select roots.workspace_id, roots.purchase_id as id, qdr.recorded_at
+        from quality_disposition_reversals qdr
+        join quality_dispositions qd
+          on qd.workspace_id=qdr.workspace_id and qd.id=qdr.disposition_id
+        join purchase_disposition_roots roots
+          on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
+        where qdr.workspace_id=${input.workspaceId}::uuid
+      ) events
+      group by events.workspace_id, events.id
     ), purchase_activity as (
       select p.workspace_id, p.id,
-        greatest(p.recorded_at, coalesce(p.confirmed_at, p.recorded_at), coalesce(max(events.recorded_at), p.recorded_at)) as updated_at
+        greatest(p.recorded_at, coalesce(p.confirmed_at, p.recorded_at), coalesce(events.recorded_at, p.recorded_at)) as updated_at
       from purchases p
       left join purchase_activity_events events
         on events.workspace_id=p.workspace_id and events.id=p.id
       where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
-      group by p.workspace_id, p.id, p.recorded_at, p.confirmed_at
     ), candidate_rows as (
-      select s.id, 'sale' as kind, sale_activity.updated_at
-      from sales s
-      join sale_activity on sale_activity.workspace_id=s.workspace_id and sale_activity.id=s.id
-      where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
+      select sale_activity.id, 'sale' as kind, sale_activity.updated_at
+      from sale_activity
       union all
-      select p.id, 'purchase' as kind, purchase_activity.updated_at
-      from purchases p
-      join purchase_activity on purchase_activity.workspace_id=p.workspace_id and purchase_activity.id=p.id
-      where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
+      select purchase_activity.id, 'purchase' as kind, purchase_activity.updated_at
+      from purchase_activity
     ), candidate_scope as materialized (
       select candidate_rows.*
       from candidate_rows
