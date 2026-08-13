@@ -7,6 +7,23 @@ Operational Control and includes mistakes, partial work and unknown outcomes.
 A step marked **STOP** is not permission to invent a workaround. It names a policy
 or model gap that must be resolved before M23.17 can execute the whole day.
 
+## Executable PostgreSQL closure
+
+`TC-OPS-021` is the real-stack rehearsal for the canonical depot-day closure. It
+keeps one isolated workspace across Supplier → Purchase → partial Receiving →
+inspected Intake → accepted/quarantined/rejected disposition → Inventory → Sale →
+partial Delivery → completion → Return → Customer Payment → Allocation → allocation
+correction → Supplier Payment → reports → Operations Board → reconciliation →
+Operational Close → logical Backup → restore into a clean database → customer,
+Supplier and Inventory reconciliation again.
+
+The rehearsal also proves a committed-command retry, stale-version refusal, a
+concurrent version conflict and a recoverable over-allocation refusal. Close
+readiness is asserted as blocked for missing measurable observations, ready after
+those observations are recorded, and blocked again after the day is closed. It is
+repository evidence only; it does not replace owner/provider recovery gates or
+phone smoke.
+
 ## Participants
 
 - **Owner:** policy, roles, exceptional corrections, integrity/recovery.

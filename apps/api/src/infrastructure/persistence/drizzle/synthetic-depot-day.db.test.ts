@@ -29,6 +29,7 @@ import type {
   QualityDispositionAllocationId,
   QualityDispositionId,
   QualityInspectionId,
+  ReconciliationObservationId,
   SaleId,
   SaleLineId,
   SupplierId,
@@ -72,6 +73,7 @@ import {
   recordPaymentAllocation,
   reversePaymentAllocation,
 } from "../../../modules/account/payment-allocation.handlers.ts";
+import { recordReconciliationObservation } from "../../../modules/evidence/evidence.handlers.ts";
 import {
   approveWorkspacePolicy,
   createWorkspacePolicyDraft,
@@ -82,6 +84,8 @@ import {
 } from "../../../modules/account/account.queries.ts";
 import { getOperationalReport } from "../../../modules/report/report.queries.ts";
 import { getOperationsBoard } from "../../../modules/dashboard/dashboard.queries.ts";
+import { recordOperationalClose } from "../../../modules/close/close.handlers.ts";
+import { getOperationalCloseReadiness } from "../../../modules/close/close.queries.ts";
 import {
   exportWorkspaceBackup,
   getWorkspaceIntegrity,
@@ -463,18 +467,31 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
         expectedVersion: 1,
         payload: { deliveryId: delivery.id },
       };
+      if (index === 0) {
+        const staleDispatch = await dispatchDelivery(context(), {
+          ...command("delivery-dispatch-stale"),
+          expectedVersion: 99,
+          payload: { deliveryId: delivery.id },
+        });
+        expect(staleDispatch.ok).toBe(false);
+      }
       const dispatched = await dispatchDelivery(context(), dispatch);
       expect(dispatched.ok).toBe(true);
       if (index === 0) expect(await dispatchDelivery(context(), dispatch)).toEqual(dispatched);
-      expect(
-        (
-          await markDeliveryDelivered(context(), {
-            ...command(`delivery-delivered-${index}`),
-            expectedVersion: 2,
-            payload: { deliveryId: delivery.id },
-          })
-        ).ok,
-      ).toBe(true);
+      const delivered = {
+        ...command(`delivery-delivered-${index}`),
+        expectedVersion: 2,
+        payload: { deliveryId: delivery.id },
+      };
+      expect((await markDeliveryDelivered(context(), delivered)).ok).toBe(true);
+      if (index === 0) {
+        const concurrentDelivery = await markDeliveryDelivered(context(), {
+          ...command("delivery-delivered-conflict"),
+          expectedVersion: 2,
+          payload: { deliveryId: delivery.id },
+        });
+        expect(concurrentDelivery.ok).toBe(false);
+      }
     }
     expect(
       (
@@ -540,6 +557,18 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
       ).ok,
     ).toBe(true);
     const allocationId = crypto.randomUUID();
+    const rejectedAllocation = await recordPaymentAllocation(context(), {
+      ...command("payment-allocation-recoverable-failure"),
+      expectedVersion: 1,
+      payload: {
+        allocationId: crypto.randomUUID(),
+        paymentId,
+        saleId,
+        amount: { amountMinor: 400_000, currency: "VND" },
+        evidenceReferences: ["rehearsal://payment-allocation-rejected"],
+      },
+    });
+    expect(rejectedAllocation.ok).toBe(false);
     expect(
       (
         await recordPaymentAllocation(context(), {
@@ -679,6 +708,124 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
     });
     expect(board.ok && board.value.page.items.some((row) => row.id === saleId)).toBe(true);
 
+    const closePolicyId = crypto.randomUUID();
+    expect(
+      (
+        await createWorkspacePolicyDraft(context(), {
+          ...command("operational-close-policy-draft"),
+          payload: {
+            policyVersionId: closePolicyId,
+            policyKind: "operating_cycle_reconciliation",
+            version: 1,
+            effectiveFrom: "2026-07-01T00:00:00.000Z",
+            effectiveTo: null,
+            definition: {
+              contractVersion: 1,
+              parameters: {
+                strategy: "observation_signoff",
+                requiredObservationKinds: ["cash_count", "inventory_count"],
+                allowReopen: true,
+              },
+            },
+            evidenceReferences: ["rehearsal://operational-close-policy"],
+            reason: "Thiết lập policy chốt cho ngày synthetic.",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await approveWorkspacePolicy(context(), {
+          ...command("operational-close-policy-approve"),
+          payload: {
+            policyVersionId: closePolicyId,
+            evidenceReferences: ["rehearsal://operational-close-policy-approval"],
+            reason: "Phê duyệt policy chốt cho ngày synthetic.",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const missingCloseEvidence = await getOperationalCloseReadiness(context(), {
+      workspaceId: ctx.workspaceId,
+      businessDate: "2026-07-29",
+    });
+    expect(missingCloseEvidence.ok && missingCloseEvidence.value).toMatchObject({
+      state: "blocked",
+      blockers: ["missing_observation"],
+      missingObservationKinds: ["cash_count", "inventory_count"],
+    });
+    const cashObservationId = crypto.randomUUID() as ReconciliationObservationId;
+    const inventoryObservationId = crypto.randomUUID() as ReconciliationObservationId;
+    const recordCloseObservation = (
+      id: ReconciliationObservationId,
+      kind: "cash_count" | "inventory_count",
+    ) =>
+      recordReconciliationObservation(context(), {
+        ...command(`operational-close-observation-${kind}`),
+        payload: {
+          reconciliationObservationId: id,
+          kind,
+          caseKind: "normal",
+          description: `Đối chiếu ${kind} cho ngày synthetic.`,
+          participantWording: "Đã kiểm tra và ghi nhận số liệu.",
+          facts:
+            kind === "cash_count"
+              ? {
+                  expectedAmount: { amountMinor: 250_000, currency: "VND" },
+                  observedAmount: { amountMinor: 250_000, currency: "VND" },
+                  expectedQuantity: null,
+                  observedQuantity: null,
+                  itemCount: 1,
+                  productId: null,
+                  qualityGradeId: null,
+                  scopeReference: "cash://synthetic-day",
+                }
+              : {
+                  expectedAmount: null,
+                  observedAmount: null,
+                  expectedQuantity: { valueScaled: 75_000, unit: "kg" },
+                  observedQuantity: { valueScaled: 75_000, unit: "kg" },
+                  itemCount: 1,
+                  productId,
+                  qualityGradeId: ctx.qualityGradeId,
+                  scopeReference: "warehouse://synthetic-day",
+                },
+          evidenceReferences: [`rehearsal://operational-close/${kind}`],
+          relatedObservationId: null,
+        },
+      });
+    expect((await recordCloseObservation(cashObservationId, "cash_count")).ok).toBe(true);
+    expect((await recordCloseObservation(inventoryObservationId, "inventory_count")).ok).toBe(true);
+    const closeReady = await getOperationalCloseReadiness(context(), {
+      workspaceId: ctx.workspaceId,
+      businessDate: "2026-07-29",
+    });
+    expect(closeReady.ok && closeReady.value).toMatchObject({
+      state: "ready",
+      blockers: [],
+      missingObservationKinds: [],
+    });
+    const operationalCloseId = crypto.randomUUID();
+    const closed = await recordOperationalClose(context(), {
+      ...command("operational-close"),
+      payload: {
+        operationalCloseId,
+        businessDate: "2026-07-29",
+        observationIds: [cashObservationId, inventoryObservationId],
+        evidenceReferences: ["rehearsal://operational-close"],
+        reason: "Đã đủ dữ liệu để chốt ngày synthetic.",
+      },
+    });
+    expect(closed.ok).toBe(true);
+    const closedReadiness = await getOperationalCloseReadiness(context(), {
+      workspaceId: ctx.workspaceId,
+      businessDate: "2026-07-29",
+    });
+    expect(closedReadiness.ok && closedReadiness.value).toMatchObject({
+      state: "blocked",
+      blockers: ["already_closed"],
+    });
+
     const backup = await exportWorkspaceBackup(context(), {
       ...command("backup"),
       payload: {},
@@ -762,6 +909,20 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
           })
         ).ok,
       ).toBe(true);
+      const restoredSupplierReconciliation = await getSupplierReconciliation(targetContext, {
+        workspaceId: targetWorkspaceId,
+        supplierId,
+      });
+      expect(restoredSupplierReconciliation.ok && restoredSupplierReconciliation.value.status).toBe(
+        "consistent",
+      );
+      const restoredInventoryReconciliation = await getInventoryReconciliation(targetContext, {
+        workspaceId: targetWorkspaceId,
+        productId,
+        qualityGradeId: ctx.qualityGradeId,
+        unit: "kg",
+      });
+      expect(restoredInventoryReconciliation.ok).toBe(true);
     } finally {
       if (target !== undefined) await target.sql.end();
       await admin.sql.unsafe(`drop database "${targetName}" with (force)`);
