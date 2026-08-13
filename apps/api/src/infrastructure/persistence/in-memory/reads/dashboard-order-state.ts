@@ -111,7 +111,8 @@ export function saleNextAction(input: {
   if (input.returnedFulfilment) return "Xử lý hàng trả";
   if (input.unallocatedPayment) return "Phân bổ hoặc giữ thành tín dụng";
   if (input.physicalState === "needs_delivery") return "Giao hàng";
-  return input.financialState === "awaiting_payment" ? "Thu tiền" : null;
+  if (input.physicalState === "in_delivery") return "Theo dõi giao hàng";
+  return ["awaiting_payment", "overdue"].includes(input.financialState) ? "Thu tiền" : null;
 }
 
 export function salePhysicalState(

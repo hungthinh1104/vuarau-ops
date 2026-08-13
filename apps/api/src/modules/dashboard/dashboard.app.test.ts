@@ -156,6 +156,22 @@ describe("dashboard reads", () => {
         })
       ).ok,
     ).toBe(true);
+
+    const inFlight = await getOperationsBoard(harness.ctx, {
+      ...boardInput(WORKSPACE_ID),
+      filter: "in_delivery",
+      limit: 10,
+    });
+    expect(inFlight.ok).toBe(true);
+    if (!inFlight.ok) return;
+    expect(inFlight.value.page.items).toContainEqual(
+      expect.objectContaining({
+        id: saleId,
+        physicalState: "in_delivery",
+        nextAction: "Theo dõi giao hàng",
+      }),
+    );
+
     expect(
       (
         await markDeliveryDelivered(harness.ctx, {

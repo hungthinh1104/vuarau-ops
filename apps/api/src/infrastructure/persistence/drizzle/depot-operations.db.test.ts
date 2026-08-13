@@ -242,6 +242,25 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       };
       const dispatched = await dispatchDelivery(context(), dispatchInput);
       expect(dispatched.ok).toBe(true);
+      if (index === 0) {
+        const inFlight = await getOperationsBoard(context(), {
+          workspaceId: ctx.workspaceId,
+          filter: "in_delivery",
+          sort: "updated_desc",
+          search: "",
+          cursor: null,
+          limit: 20,
+        });
+        expect(inFlight.ok).toBe(true);
+        if (inFlight.ok)
+          expect(inFlight.value.page.items).toContainEqual(
+            expect.objectContaining({
+              id: saleId,
+              physicalState: "in_delivery",
+              nextAction: "Theo dõi giao hàng",
+            }),
+          );
+      }
       if (index === 1) expect(await dispatchDelivery(context(), dispatchInput)).toEqual(dispatched);
       expect(
         (

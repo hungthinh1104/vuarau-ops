@@ -450,6 +450,7 @@ export async function queryRows(
         when sale_physical.returned_fulfilment then 'Xử lý hàng trả'
         when coalesce(unallocated_by_customer.amount,0) > 0 then 'Phân bổ hoặc giữ thành tín dụng'
         when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
+        when sale_physical.physical_state='in_delivery' then 'Theo dõi giao hàng'
         when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền'
         else null
       end as next_action,
