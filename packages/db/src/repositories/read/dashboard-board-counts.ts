@@ -267,6 +267,25 @@ export async function queryOperationsBoardCountsSplit(
         ) slf on slf.sale_line_id=sl.id
         where sl.workspace_id=${input.workspaceId}::uuid
         group by sl.sale_id
+      ), allocation_reversals as (
+        select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0) as amount
+        from payment_allocation_reversals par
+        where par.workspace_id=${input.workspaceId}::uuid
+        group by par.workspace_id, par.allocation_id
+      ), allocation_facts as (
+        select pa.payment_id, coalesce(sum(pa.amount_minor-coalesce(ar.amount,0)),0) as amount
+        from payment_allocations pa
+        left join allocation_reversals ar
+          on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
+        where pa.workspace_id=${input.workspaceId}::uuid
+        group by pa.payment_id
+      ), unallocated_by_customer as (
+        select p.customer_id,
+          coalesce(sum(greatest(p.amount_minor-p.reversed_amount_minor-coalesce(af.amount,0),0)),0) as amount
+        from payments p
+        left join allocation_facts af on af.payment_id=p.id
+        where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
+        group by p.customer_id
       )
       select
         count(*)::int as all_count,
@@ -276,10 +295,12 @@ export async function queryOperationsBoardCountsSplit(
         count(*) filter (where physical_state='delivered')::int as delivered_count,
         count(*) filter (where physical_state='attention')::int as physical_attention_count,
         count(*) filter (where sv.id is not null)::int as voided_count,
+        count(*) filter (where physical_state='attention' or (sv.id is null and coalesce(u.amount,0) > 0))::int as attention_count,
         count(*) filter (where physical_state='attention' and sv.id is null)::int as commercial_attention_count
       from sale_physical
       join sales s on s.workspace_id=${input.workspaceId}::uuid and s.id=sale_physical.id
       left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
+      left join unallocated_by_customer u on u.customer_id=s.customer_id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
     `),
     tx.execute(sql`
@@ -391,10 +412,7 @@ export async function queryOperationsBoardCountsSplit(
       unallocatedPayment: value(financial, "unallocated_payment_count"),
       awaitingPayment: value(financial, "awaiting_payment_count"),
       overdue: value(financial, "overdue_count"),
-      attention:
-        value(sale, "physical_attention_count") +
-        value(sale, "commercial_attention_count") +
-        value(financial, "reconciliation_required_count"),
+      attention: value(sale, "attention_count"),
     },
     statusCounts: {
       commercial: [
