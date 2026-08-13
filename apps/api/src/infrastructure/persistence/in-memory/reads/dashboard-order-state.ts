@@ -104,10 +104,12 @@ export function salePhysicalState(
 ): {
   state: string;
   deliveryId: string | null;
+  returnedFulfilment: boolean;
 } {
   const sale = store.sales.get(key(workspaceId, saleId));
-  if (sale === undefined) return { state: "unknown", deliveryId: null };
+  if (sale === undefined) return { state: "unknown", deliveryId: null, returnedFulfilment: false };
   const fulfilled = new Map<string, number>();
+  const returnedByLine = new Map<string, number>();
   const activeDispatchRemaining = new Map<string, number>();
   let latestDelivery: DeliveryState | null = null;
   for (const delivery of store.deliveries.values()) {
@@ -162,6 +164,14 @@ export function salePhysicalState(
           "dashboard.sale_fulfilled.value_scaled",
         ),
       );
+      returnedByLine.set(
+        deliveryLine.saleLineId,
+        exactAdd(
+          returnedByLine.get(deliveryLine.saleLineId) ?? 0,
+          line.quantity.valueScaled,
+          "dashboard.sale_returned.value_scaled",
+        ),
+      );
       if (delivery.status === "dispatched")
         activeDispatchRemaining.set(
           line.deliveryLineId,
@@ -174,16 +184,22 @@ export function salePhysicalState(
     }
   }
   const deliveryId = latestDelivery?.id ?? null;
+  const returnedFulfilment = sale.lines.some(
+    (line) =>
+      (returnedByLine.get(line.lineId) ?? 0) > 0 &&
+      (fulfilled.get(line.lineId) ?? 0) < line.quantity.valueScaled,
+  );
   if (sale.lines.some((line) => (fulfilled.get(line.lineId) ?? 0) > line.quantity.valueScaled))
-    return { state: "attention", deliveryId };
+    return { state: "attention", deliveryId, returnedFulfilment: false };
   const hasRemaining = sale.lines.some(
     (line) => line.quantity.valueScaled > (fulfilled.get(line.lineId) ?? 0),
   );
-  if (!hasRemaining) return { state: "delivered", deliveryId };
+  if (!hasRemaining) return { state: "delivered", deliveryId, returnedFulfilment: false };
   return {
     state: [...activeDispatchRemaining.values()].some((value) => value > 0)
       ? "in_delivery"
       : "needs_delivery",
     deliveryId,
+    returnedFulfilment,
   };
 }

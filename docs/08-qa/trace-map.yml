@@ -1076,7 +1076,7 @@ use_cases:
     title: Inspect Sale fulfilment
     risk: P0
     doc: docs/02-use-cases/depot-operations-use-cases.md
-    rules: [BR-DELIVERY-001, BR-DELIVERY-002, BR-DELIVERY-006, BR-DELIVERY-007]
+    rules: [BR-DELIVERY-001, BR-DELIVERY-002, BR-DELIVERY-006, BR-DELIVERY-007, BR-DELIVERY-008]
     cases: []
     tests: [TC-DELIVERY-001, TC-DELIVERY-003, TC-E2E-030, TC-E2E-032]
     implementation:
@@ -2939,6 +2939,18 @@ business_rules:
     implementation:
       - apps/api/src/modules/delivery/delivery.queries.ts
       - packages/db/src/repositories/read/delivery.ts
+  BR-DELIVERY-008:
+    title: Returned fulfilment is an explicit physical Operations Board exception without debt inference
+    risk: P1
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-OPS-023]
+    implementation:
+      - packages/domain-contracts/src/dashboard/index.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/dashboard-order-state.ts
+      - packages/db/src/repositories/read/dashboard-board.ts
+      - packages/db/src/repositories/read/dashboard-board-counts.ts
+      - packages/db/src/repositories/read/dashboard-rows.ts
+      - apps/web/src/ui/screens/operations-board-view.tsx
   BR-DOCUMENT-001:
     title: Document generations are immutable source snapshots and versions
     risk: P0
@@ -4133,6 +4145,9 @@ contract_tests:
   TC-OPS-022:
     title: PostgreSQL Operations Board does not multiply an allocation with multiple reversals
     file: apps/api/src/infrastructure/persistence/drizzle/operations-restore-payment-lineage.db.test.ts
+  TC-OPS-023:
+    title: Operations Board separates returned fulfilment from ordinary outstanding delivery
+    file: apps/api/src/modules/dashboard/dashboard.app.test.ts
   TC-DOCUMENT-002:
     title: PostgreSQL proves append-only documents, digest validation, secure sharing and backup
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts

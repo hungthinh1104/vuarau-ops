@@ -121,6 +121,12 @@ the Sale total: money received and money attributed are separate facts. The
 `attention` filter and count include this state, and the row's next action is
 `Đối soát thanh toán`.
 
+The Board also exposes a dedicated `returned_fulfilment` filter and count. It is
+derived when a canonical Delivery Return reopens net fulfilment; desktop and
+mobile show `Hàng trả cần xử lý` while retaining the row's Sale link and
+Delivery context. This state is physical work only and does not imply a
+financial correction.
+
 ## Rejection mapping rule
 
 A stable backend error code does not automatically become a new UI-state name.

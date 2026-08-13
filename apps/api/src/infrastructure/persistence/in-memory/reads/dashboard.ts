@@ -464,19 +464,22 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
                 : "posted",
           physicalState: physical.state,
           financialState: financial,
+          returnedFulfilment: physical.returnedFulfilment,
           ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(sale.recordedAt)) / 1000),
           nextAction:
             sale.voidRecord !== null
               ? null
               : physical.state === "attention"
                 ? "Kiểm tra"
-                : financial === "reconciliation_required"
-                  ? "Đối soát thanh toán"
-                  : physical.state === "needs_delivery"
-                    ? "Giao hàng"
-                    : financial === "awaiting_payment"
-                      ? "Thu tiền"
-                      : null,
+                : physical.returnedFulfilment
+                  ? "Xử lý hàng trả"
+                  : financial === "reconciliation_required"
+                    ? "Đối soát thanh toán"
+                    : physical.state === "needs_delivery"
+                      ? "Giao hàng"
+                      : financial === "awaiting_payment"
+                        ? "Thu tiền"
+                        : null,
           updatedAt: latest(
             [
               sale.recordedAt,
@@ -583,6 +586,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           commercialState: purchase.voidRecord === null ? "confirmed" : "voided",
           physicalState: remaining ? "needs_receiving" : "received",
           financialState: purchase.voidRecord === null ? "payable" : "voided",
+          returnedFulfilment: false,
           ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(purchase.recordedAt)) / 1000),
           nextAction: purchase.voidRecord !== null || !remaining ? null : "Nhận hàng",
           updatedAt: latest(
@@ -614,6 +618,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             (input.filter === "needs_receiving" && row.physicalState === "needs_receiving") ||
             (input.filter === "needs_delivery" && row.physicalState === "needs_delivery") ||
             (input.filter === "in_delivery" && row.physicalState === "in_delivery") ||
+            (input.filter === "returned_fulfilment" && row.returnedFulfilment) ||
             (input.filter === "awaiting_payment" && row.financialState === "awaiting_payment") ||
             (input.filter === "overdue" && row.financialState === "overdue") ||
             (input.filter === "attention" &&

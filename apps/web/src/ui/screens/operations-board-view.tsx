@@ -53,6 +53,7 @@ const FILTERS: readonly { value: OperationsBoardFilter; label: string }[] = [
   { value: "needs_receiving", label: "Cần nhận" },
   { value: "needs_delivery", label: "Cần giao" },
   { value: "in_delivery", label: "Đang giao" },
+  { value: "returned_fulfilment", label: "Hàng trả" },
   { value: "awaiting_payment", label: "Chờ thanh toán" },
   { value: "overdue", label: "Quá hạn" },
   { value: "attention", label: "Cần kiểm tra" },
@@ -145,7 +146,12 @@ function columns() {
     columnHelper.accessor("physicalState", {
       header: "Hàng hóa",
       cell: (info) => (
-        <Badge tone={stateTone(info.getValue())}>{stateLabel(info.getValue())}</Badge>
+        <div className="grid gap-1">
+          <Badge tone={stateTone(info.getValue())}>{stateLabel(info.getValue())}</Badge>
+          {info.row.original.returnedFulfilment ? (
+            <Badge tone="warning">Hàng trả cần xử lý</Badge>
+          ) : null}
+        </div>
       ),
     }),
     columnHelper.accessor("financialState", {
@@ -182,6 +188,7 @@ function CountStrip({
     needs_receiving: counts.needsReceiving,
     needs_delivery: counts.needsDelivery,
     in_delivery: counts.inDelivery,
+    returned_fulfilment: counts.returnedFulfilment,
     awaiting_payment: counts.awaitingPayment,
     overdue: counts.overdue,
     attention: counts.attention,
@@ -277,6 +284,9 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                           <Badge tone={stateTone(row.physicalState)}>
                             {stateLabel(row.physicalState)}
                           </Badge>
+                          {row.returnedFulfilment ? (
+                            <Badge tone="warning">Hàng trả cần xử lý</Badge>
+                          ) : null}
                           <Badge tone={stateTone(row.financialState)}>
                             {stateLabel(row.financialState)}
                           </Badge>

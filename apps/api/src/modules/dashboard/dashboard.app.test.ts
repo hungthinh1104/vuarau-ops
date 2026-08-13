@@ -11,7 +11,14 @@ import {
   voidedSale,
   vnd,
 } from "@vuarau/test-fixtures";
+import type { DeliveryId, DeliveryLineId, DeliveryReturnId } from "@vuarau/domain-contracts";
 import { createHarness } from "../../testing/command-test-harness.ts";
+import {
+  createDeliveryDraft,
+  dispatchDelivery,
+  markDeliveryDelivered,
+  recordDeliveryReturn,
+} from "../delivery/delivery.handlers.ts";
 import {
   getDashboardSeries,
   getDashboardSummary,
@@ -104,6 +111,98 @@ describe("dashboard reads", () => {
         nextAction: null,
       }),
     );
+  });
+
+  it("TC-OPS-023 — separates returned fulfilment from ordinary outstanding delivery", async () => {
+    const harness = createHarness();
+    const saleId = crypto.randomUUID() as typeof postedSale.id;
+    const saleLine = postedSale.lines[0]!;
+    const deliveryId = crypto.randomUUID() as DeliveryId;
+    const deliveryLineId = crypto.randomUUID() as DeliveryLineId;
+    const returnId = crypto.randomUUID() as DeliveryReturnId;
+    harness.db.seedSale({ ...postedSale, id: saleId });
+
+    const command = (label: string) => ({
+      commandId: crypto.randomUUID(),
+      idempotencyKey: `dashboard-return-${label}-${crypto.randomUUID()}`,
+      workspaceId: WORKSPACE_ID,
+      actorId: harness.ctx.principal.actorId,
+      occurredAt: postedSale.recordedAt,
+    });
+    const created = await createDeliveryDraft(harness.ctx, {
+      ...command("draft"),
+      payload: {
+        deliveryId,
+        saleId,
+        lines: [
+          {
+            deliveryLineId,
+            saleLineId: saleLine.lineId,
+            productId: saleLine.productId!,
+            qualityGradeId: saleLine.qualityGradeId,
+            quantity: { valueScaled: 10_000, unit: saleLine.quantity.unit },
+          },
+        ],
+        note: null,
+      },
+    });
+    expect(created.ok).toBe(true);
+    expect(
+      (
+        await dispatchDelivery(harness.ctx, {
+          ...command("dispatch"),
+          expectedVersion: 1,
+          payload: { deliveryId },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await markDeliveryDelivered(harness.ctx, {
+          ...command("delivered"),
+          expectedVersion: 2,
+          payload: { deliveryId },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await recordDeliveryReturn(harness.ctx, {
+          ...command("return"),
+          payload: {
+            returnId,
+            deliveryId,
+            lines: [{ deliveryLineId, quantity: { valueScaled: 2_000, unit: "kg" } }],
+            reason: "Hàng trả lại cần xử lý",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+
+    const board = await getOperationsBoard(harness.ctx, {
+      ...boardInput(WORKSPACE_ID),
+      filter: "returned_fulfilment",
+      limit: 10,
+    });
+    expect(board.ok).toBe(true);
+    if (!board.ok) return;
+    expect(board.value.page.items).toContainEqual(
+      expect.objectContaining({
+        id: saleId,
+        returnedFulfilment: true,
+        nextAction: "Xử lý hàng trả",
+      }),
+    );
+
+    const counts = await harness.ctx.deps.uow.transaction((repos) =>
+      repos.dashboardReads.operationsBoardCounts({
+        workspaceId: WORKSPACE_ID,
+        filter: "all",
+        search: "",
+        now: harness.clock.now(),
+      }),
+    );
+    expect(counts.counts.returnedFulfilment).toBe(1);
   });
 
   it("uses the workspace business-day start for dashboard series", async () => {

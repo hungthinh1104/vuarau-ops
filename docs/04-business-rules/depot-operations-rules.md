@@ -27,6 +27,13 @@ not real-worker adoption.
   net fulfilled and remaining quantities using
   `remaining = ordered - dispatched + returned`. Invalid negative/over-fulfilled
   histories are not clamped; they return `attention`.
+- **BR-DELIVERY-008** — The Operations Board derives a returned-fulfilment
+  exception when a canonical Delivery Return exists and the Sale still has net
+  fulfilment remaining. The row keeps its commercial, physical and financial
+  states, exposes `returnedFulfilment=true`, and offers `Xử lý hàng trả` as the
+  next action. The exception resolves only when later canonical fulfilment
+  closes the remaining quantity or an integrity condition replaces it; it never
+  infers a credit, refund, exchange or customer-debt effect.
 
 ## Documents
 

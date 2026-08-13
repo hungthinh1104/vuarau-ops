@@ -12,6 +12,7 @@ const row: OperationsBoardRow = {
   commercialState: "posted",
   physicalState: "needs_delivery",
   financialState: "awaiting_payment",
+  returnedFulfilment: false,
   ageSeconds: 7_200,
   nextAction: "Giao hàng",
   updatedAt: "2026-08-04T00:00:00.000Z",
@@ -29,6 +30,7 @@ const query = {
       needsReceiving: 0,
       needsDelivery: 1,
       inDelivery: 0,
+      returnedFulfilment: 0,
       awaitingPayment: 1,
       overdue: 0,
       attention: 0,
@@ -62,5 +64,36 @@ describe("OperationsBoardView", () => {
     expect(within(dataRow).getByText("Đã chốt")).toBeInTheDocument();
     expect(screen.getAllByText("Cần giao").length).toBeGreaterThanOrEqual(2);
     expect(within(dataRow).getByText("Chờ thanh toán")).toBeInTheDocument();
+  });
+
+  it("keeps returned fulfilment visible on desktop and mobile", () => {
+    const returnedRow = {
+      ...row,
+      returnedFulfilment: true,
+      nextAction: "Xử lý hàng trả",
+    };
+    render(
+      <OperationsBoardView
+        query={{
+          ...query,
+          data: {
+            ...query.data,
+            counts: { ...query.data.counts, returnedFulfilment: 1 },
+            page: { items: [returnedRow], nextCursor: null },
+          },
+        }}
+        rows={[returnedRow]}
+        filter="returned_fulfilment"
+        sort="updated_desc"
+        search=""
+        onFilterChange={() => undefined}
+        onSortChange={() => undefined}
+        onSearchChange={() => undefined}
+        onRetry={() => undefined}
+        onLoadMore={() => undefined}
+      />,
+    );
+    expect(screen.getAllByText("Hàng trả cần xử lý").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Xử lý hàng trả").length).toBeGreaterThanOrEqual(2);
   });
 });

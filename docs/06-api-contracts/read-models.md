@@ -190,7 +190,11 @@ independent of the currently selected filter chip. `updatedAt` is the latest
 recorded canonical fact that can change a row's commercial, physical, financial
 or next-action state; it is not merely the original Sale/Purchase timestamp.
 Valid zero-value posted Sales still count as orders. Mobile Board cards expose
-commercial, physical and financial state together.
+commercial, physical and financial state together. A row with
+`returnedFulfilment=true` has a canonical Delivery Return and still has net
+fulfilment remaining; it appears in the dedicated `returned_fulfilment` filter
+and its next action is `Xử lý hàng trả`. This is a physical work-queue signal
+only: it never infers a credit, refund, exchange or customer-debt effect.
 
 ## Read performance rules
 

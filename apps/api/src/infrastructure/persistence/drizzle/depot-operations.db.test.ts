@@ -56,6 +56,7 @@ import {
 import {
   getDashboardOrderStatusCounts,
   getOperationsBoard,
+  getOperationsBoardCounts,
 } from "../../../modules/dashboard/dashboard.queries.ts";
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
 
@@ -302,6 +303,29 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       saleId,
     });
     expect(fulfilment.ok && fulfilment.value.lines[0]?.remaining.valueScaled).toBe(10_000);
+    const returnedBoard = await getOperationsBoard(context(), {
+      workspaceId: ctx.workspaceId,
+      filter: "returned_fulfilment",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(returnedBoard.ok).toBe(true);
+    if (returnedBoard.ok)
+      expect(returnedBoard.value.page.items).toContainEqual(
+        expect.objectContaining({
+          id: saleId,
+          returnedFulfilment: true,
+          nextAction: "Xử lý hàng trả",
+        }),
+      );
+    const boardCounts = await getOperationsBoardCounts(context(), {
+      workspaceId: ctx.workspaceId,
+      filter: "all",
+      search: "",
+    });
+    expect(boardCounts.ok && boardCounts.value.counts.returnedFulfilment).toBe(1);
 
     const saleDocument = await generateDocument(context(), {
       ...envelope("sale-document", "2026-07-29T07:00:00.000Z"),
@@ -429,7 +453,8 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       expect(board.value.page.items).toContainEqual(
         expect.objectContaining({
           id: saleId,
-          nextAction: "Giao hàng",
+          nextAction: "Xử lý hàng trả",
+          returnedFulfilment: true,
           updatedAt: "2026-07-29T12:02:00.000Z",
         }),
       );

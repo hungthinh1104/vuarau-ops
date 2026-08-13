@@ -24,6 +24,7 @@ function mapBoardRows(rawRows: readonly Row[]) {
     commercialState: String(row["commercial_state"] ?? ""),
     physicalState: String(row["physical_state"] ?? ""),
     financialState: String(row["financial_state"] ?? ""),
+    returnedFulfilment: Boolean(row["returned_fulfilment"]),
     ageSeconds: numberOf(row, "age_seconds"),
     nextAction: row["next_action"] === null ? null : String(row["next_action"] ?? ""),
     updatedAt: new Date(String(row["updated_at"])).toISOString(),
@@ -229,6 +230,10 @@ export async function queryFastOperationsBoardPage(
           when coalesce(sum(dispatched_remaining.remaining),0)>0 then 'in_delivery'
           else 'needs_delivery'
         end as physical_state,
+        bool_or(
+          coalesce(returned.returned, 0) > 0
+          and sl.quantity_scaled > coalesce(delivered.dispatched, 0) - coalesce(returned.returned, 0)
+        ) as returned_fulfilment,
         max(latest_delivery.delivery_id::text)::uuid as delivery_id
       from sales s
       join candidate_sales cs on cs.id=s.id
@@ -331,10 +336,12 @@ export async function queryFastOperationsBoardPage(
         when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
         else 'awaiting_payment'
       end as financial_state,
+      sale_physical.returned_fulfilment,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, cs.updated_at,
       case
         when sv.id is not null then null
         when sale_physical.physical_state='attention' then 'Kiểm tra'
+        when sale_physical.returned_fulfilment then 'Xử lý hàng trả'
         when coalesce(unallocated_by_customer.amount,0) > 0 then 'Đối soát thanh toán'
         when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
         when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền'
@@ -353,6 +360,7 @@ export async function queryFastOperationsBoardPage(
       s.display_name as counterparty, p.total_amount_minor as amount, p.currency,
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
       purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
+      false as returned_fulfilment,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, cs.updated_at,
       case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
       null as delivery_id, ('/purchases/' || p.id::text) as href
@@ -370,6 +378,7 @@ export async function queryFastOperationsBoardPage(
       needsReceiving: 0,
       needsDelivery: 0,
       inDelivery: 0,
+      returnedFulfilment: 0,
       awaitingPayment: 0,
       overdue: 0,
       attention: 0,
