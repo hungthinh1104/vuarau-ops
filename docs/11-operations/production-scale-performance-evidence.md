@@ -59,28 +59,28 @@ so a later optimization can be compared against the same evidence contract.
 
 ## Evidence — 2026-08-14, PostgreSQL 17 local container
 
-Exact rehearsal SHA: `b77f195be475791d347369f692530b55354fb2dc`.
+Exact rehearsal SHA: `7498056a5be7a924d4b86c0a29ba1dfa2cf4c44e`.
 
 | Query                   | Measured p95 | EXPLAIN execution | Sequential scan |
 | ----------------------- | -----------: | ----------------: | --------------- |
-| customer timeline       |      0.61 ms |          0.428 ms | no              |
-| supplier timeline       |      0.58 ms |          0.682 ms | no              |
-| inventory movements     |      0.51 ms |          0.591 ms | no              |
-| delivery fulfilment     |      0.64 ms |          0.077 ms | no              |
-| operational report page |      0.60 ms |          0.673 ms | no              |
-| customer report total   |     19.25 ms |        428.481 ms | explained       |
-| inventory report total  |     36.50 ms |        569.049 ms | explained       |
-| document read           |      0.42 ms |          0.049 ms | no              |
+| customer timeline       |      0.55 ms |          0.418 ms | no              |
+| supplier timeline       |      0.58 ms |          0.652 ms | no              |
+| inventory movements     |      0.45 ms |          0.579 ms | no              |
+| delivery fulfilment     |      0.56 ms |          0.078 ms | no              |
+| operational report page |      0.57 ms |          0.677 ms | no              |
+| customer report total   |     18.69 ms |        425.155 ms | explained       |
+| inventory report total  |     36.18 ms |        567.221 ms | explained       |
+| document read           |      0.35 ms |          0.048 ms | no              |
 | idempotency replay      |      0.26 ms |          0.046 ms | no              |
-| customer reconciliation |      0.31 ms |          0.213 ms | no              |
-| product coverage        |     18.11 ms |         10.993 ms | explained       |
-| operations board page   |    106.37 ms |       2229.709 ms | explained       |
-| operations board counts |    190.74 ms |       7383.809 ms | explained       |
-| receiving progress      |      0.56 ms |          0.204 ms | no              |
-| dashboard summary       |     17.39 ms |        645.253 ms | explained       |
-| dashboard series        |     44.03 ms |        627.865 ms | explained       |
-| debt-aging sources      |     51.57 ms |        679.616 ms | explained       |
-| supplier reconciliation |     10.87 ms |        301.414 ms | explained       |
+| customer reconciliation |      0.28 ms |          0.211 ms | no              |
+| product coverage        |     17.56 ms |         10.857 ms | explained       |
+| operations board page   |    104.09 ms |       2231.161 ms | explained       |
+| operations board counts |    195.04 ms |       7377.156 ms | explained       |
+| receiving progress      |      0.55 ms |          0.189 ms | no              |
+| dashboard summary       |     17.30 ms |        655.310 ms | explained       |
+| dashboard series        |     43.74 ms |        628.101 ms | explained       |
+| debt-aging sources      |     54.72 ms |        679.956 ms | explained       |
+| supplier reconciliation |      9.58 ms |        300.280 ms | explained       |
 
 The Board page returned 25 rows through one repository query; Board counts
 returned one scalar row through three concurrent canonical queries. Both stayed
