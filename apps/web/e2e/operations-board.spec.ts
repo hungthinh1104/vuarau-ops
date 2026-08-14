@@ -101,7 +101,7 @@ test.describe("Operations board production pagination", () => {
         .first();
       await explanation.getByText("Vì sao cần xử lý?").click();
       await expect(explanation.getByText("Điều chưa biết")).toBeVisible();
-      await expect(explanation.getByText("Phân bổ vào Sale")).toBeVisible();
+      await expect(explanation.getByText("Phân bổ vào Sale", { exact: true })).toBeVisible();
       await expect(explanation.getByText("Tiền chưa phân bổ (đơn vị nhỏ nhất)")).toBeVisible();
 
       // The Board's source link identifies the Sale; the allocation command is
