@@ -95,7 +95,10 @@ test.describe("Operations board production pagination", () => {
       await expect(
         mobileBoard.getByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng."),
       ).toBeVisible();
-      const explanation = mobileBoard.locator("details").first();
+      const explanation = mobileBoard
+        .locator("details")
+        .filter({ hasText: "Đã nhận tiền nhưng chưa biết khoản tiền thuộc Sale hay tín dụng nào." })
+        .first();
       await explanation.getByText("Vì sao cần xử lý?").click();
       await expect(explanation.getByText("Điều chưa biết")).toBeVisible();
       await expect(explanation.getByText("Phân bổ vào Sale")).toBeVisible();
