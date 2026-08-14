@@ -99,13 +99,10 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
     closeImpact: "blocking",
     explanation: "Fact quan sát và sổ chuẩn đang khác nhau, nguyên nhân chưa được xác định.",
     unknown: "Nguồn nào là sai và cần correction nào để giải thích phần chênh lệch.",
-    resolutionOptions: [
-      { code: "record_correction", label: "Ghi nhận correction có nguồn" },
-      { code: "record_matching_observation", label: "Ghi nhận đối soát" },
-    ],
-    nextAction: "Mở đối soát để ghi nhận nguồn và correction.",
+    resolutionOptions: [{ code: "policy_blocked", label: "Chờ chính sách correction" }],
+    nextAction: "Chờ chính sách reconciliation được phê duyệt.",
     resolutionCondition:
-      "Chênh lệch được giải thích bằng fact/correction append-only và kiểm tra trả về nhất quán.",
+      "V1 chưa có command correction hoặc matching làm thay đổi comparison này; giữ exception cho đến khi policy và command được phê duyệt.",
   },
 } as const satisfies Record<OperationsExceptionKind, OperationsExceptionDefinition>;
 

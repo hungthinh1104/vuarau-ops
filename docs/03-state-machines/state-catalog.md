@@ -100,15 +100,15 @@ These are bounded read-time conditions over canonical facts, not a second mutabl
 exception state machine. The shared Operations deriver may emit only these four
 V1 conditions:
 
-| Condition                         | Source fact required                                                                                    | Unknown consequence                                                                  | Resolution fact                                                     |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `UNALLOCATED_PAYMENT`             | active Payment amount minus reversal, effective allocation and active `customer_credit_preserved` facts | which Sale receives the money, or whether it remains customer credit                 | allocation, reversal, or exact customer-credit fact                 |
-| `FULFILMENT_REMAINDER_UNRESOLVED` | an explicit `opened` remainder source fact; ordinary `needs_delivery`/`in_delivery` is insufficient     | deliver, commercially correct, cancel, or create a new Sale                          | append-only fulfilment/commercial decision or correction            |
-| `RETURN_SETTLEMENT_UNRESOLVED`    | canonical Delivery Return                                                                               | refund, credit, replacement, goods-only handling, or another approved policy outcome | append-only return settlement decision                              |
-| `RECONCILIATION_VARIANCE`         | canonical comparison/integrity source reports a mismatch                                                | which source or correction explains the difference                                   | append-only correction or matching observation plus a healthy check |
+| Condition                         | Source fact required                                                                                    | Unknown consequence                                                                  | Resolution fact                                                                        |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `UNALLOCATED_PAYMENT`             | active Payment amount minus reversal, effective allocation and active `customer_credit_preserved` facts | which Sale receives the money, or whether it remains customer credit                 | allocation, reversal, or exact customer-credit fact                                    |
+| `FULFILMENT_REMAINDER_UNRESOLVED` | an explicit `opened` remainder source fact; ordinary `needs_delivery`/`in_delivery` is insufficient     | deliver, commercially correct, cancel, or create a new Sale                          | append-only fulfilment/commercial decision or correction                               |
+| `RETURN_SETTLEMENT_UNRESOLVED`    | canonical Delivery Return                                                                               | refund, credit, replacement, goods-only handling, or another approved policy outcome | append-only return settlement decision                                                 |
+| `RECONCILIATION_VARIANCE`         | canonical comparison/integrity source reports a mismatch                                                | which source or correction explains the difference                                   | policy-blocked in V1; retain the exception until an approved correction command exists |
 
-Each condition carries its source facts, explanation, approved resolution options
-and next action. Goods facts never create a money effect. A close read consumes the
+Each condition carries its source facts, explanation, available resolution path and
+next action. Goods facts never create a money effect. A close read consumes the
 same server-authored conditions and classifies them as blocking, acknowledgeable
 or informational under policy; an acknowledgement is not a balance, inventory or
 fulfilment mutation.

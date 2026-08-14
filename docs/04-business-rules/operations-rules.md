@@ -236,7 +236,7 @@ exceptions without the source fact that makes the consequence unknown.
 
 The condition is derived from canonical facts, not stored as a mutable task or
 exception row. Its read contract includes the source facts, the unknown
-consequence, approved resolution options, the next action and the resolution
+consequence, available resolution path, the next action and the resolution
 condition. Money is resolved only by a money-bearing source fact: goods, delivery
 or return quantity never implies a refund, credit, debt change or allocation.
 
@@ -244,7 +244,10 @@ or return quantity never implies a refund, credit, debt change or allocation.
 explicit canonical comparison fact. In the current Delivery path that fact is
 the exact dispatched-minus-returned quantity exceeding the ordered Sale line;
 `financialState = reconciliation_required` by itself is not enough. The browser
-does not infer this exception from a workflow enum.
+does not infer this exception from a workflow enum. V1 has no command that
+corrects or matches this comparison, so the Board exposes a policy-blocked path
+and retains the exception; it must not advertise raw reconciliation evidence as
+if that evidence made the canonical comparison healthy.
 
 The first implemented vertical slices preserve an unallocated customer Payment
 until an authorized allocation or explicit credit/reversal decision appends the

@@ -92,5 +92,11 @@ describe("operations unresolved-state derivation", () => {
       reconciliationVariance: true,
     });
     expect(variance.map((exception) => exception.kind)).toEqual(["reconciliation_variance"]);
+    expect(variance[0]).toMatchObject({
+      resolutionOptions: [{ code: "policy_blocked", label: "Chờ chính sách correction" }],
+      nextAction: {
+        label: "Chờ chính sách reconciliation được phê duyệt.",
+      },
+    });
   });
 });
