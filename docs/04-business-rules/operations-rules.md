@@ -261,8 +261,9 @@ resolving fact. A returned Delivery remains unresolved until an authorized
 `goods_only` settlement fact is appended; that fact has no money effect, and
 other return outcomes remain policy-blocked. PostgreSQL page rows, filters and counts use the same condition
 vocabulary as the in-memory read and shared domain deriver. Close readiness
-consumes the resulting server-authored summary and blocks only conditions whose
-policy classification is `blocking`; acknowledgeable and informational conditions
+consumes the resulting server-authored summary and exposes the
+`operational_close_blocked` control exception whenever it is blocked. It blocks
+only conditions whose policy classification is `blocking`; acknowledgeable and informational conditions
 do not alter balances, inventory or fulfilment.
 
 ## Related

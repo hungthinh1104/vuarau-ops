@@ -253,6 +253,14 @@ function CloseReadinessPanel(props: {
       </div>
       <p className="mt-2 text-body-sm">Ngày {readiness.businessDate} chưa thể chốt.</p>
       <ul className="mt-3 grid gap-2 text-body-sm">
+        {readiness.controlException === null || readiness.controlException === undefined ? null : (
+          <li>
+            {readiness.controlException.explanation} {readiness.controlException.nextAction.label}{" "}
+            <Link href={readiness.controlException.nextAction.href ?? "/workspace/operations"}>
+              Xem điều kiện chốt
+            </Link>
+          </li>
+        )}
         {readiness.blockers.includes("policy_unavailable") ? (
           <li>
             Chưa có quy tắc chốt vận hành hợp lệ.{" "}

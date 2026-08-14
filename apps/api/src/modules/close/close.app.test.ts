@@ -373,6 +373,13 @@ describe("operational close", () => {
       value: {
         state: "blocked",
         blockers: ["missing_observation"],
+        controlException: {
+          kind: "operational_close_blocked",
+          sourceFacts: expect.arrayContaining([
+            { key: "business_date", value: "2026-07-20" },
+            { key: "blockers", value: "missing_observation" },
+          ]),
+        },
         missingObservationKinds: ["cash_count", "inventory_count"],
       },
     });

@@ -164,3 +164,75 @@ export function operationsExceptionDefinition(
 ): OperationsExceptionDefinition {
   return OPERATIONS_EXCEPTION_DEFINITIONS[kind];
 }
+
+export const OPERATIONS_CONTROL_EXCEPTION_KINDS = [
+  "stale_realtime",
+  "operational_close_blocked",
+] as const;
+export const operationsControlExceptionKindSchema = z.enum(OPERATIONS_CONTROL_EXCEPTION_KINDS);
+export type OperationsControlExceptionKind = z.infer<typeof operationsControlExceptionKindSchema>;
+
+export const operationsControlExceptionDefinitionSchema = z.object({
+  severity: operationsExceptionSeveritySchema,
+  explanation: z.string().min(1),
+  unknown: z.string().min(1),
+  resolutionOptions: z.array(operationsExceptionResolutionOptionSchema).min(1),
+  nextAction: z.string().min(1),
+  resolutionCondition: z.string().min(1),
+});
+export type OperationsControlExceptionDefinition = z.infer<
+  typeof operationsControlExceptionDefinitionSchema
+>;
+
+export const OPERATIONS_CONTROL_EXCEPTION_DEFINITIONS = {
+  stale_realtime: {
+    severity: "high",
+    explanation: "Kênh cập nhật realtime đã cũ hoặc không truy cập được.",
+    unknown: "Có thay đổi nào đã commit nhưng chưa được đọc lại từ durable change feed.",
+    resolutionOptions: [
+      { code: "reconnect_and_reconcile", label: "Kết nối lại và tải lại dữ liệu" },
+    ],
+    nextAction: "Kết nối lại realtime và tải lại dữ liệu nếu trạng thái chưa trở về live.",
+    resolutionCondition: "Kênh realtime ở trạng thái live và durable change feed đã được drain.",
+  },
+  operational_close_blocked: {
+    severity: "critical",
+    explanation: "Ngày vận hành chưa đủ điều kiện để chốt.",
+    unknown: "Blocker nào còn thiếu và cần nguồn chứng minh hoặc xử lý nào để chốt ngày.",
+    resolutionOptions: [{ code: "resolve_close_blockers", label: "Xử lý điều kiện chốt ngày" }],
+    nextAction: "Mở Điều kiện chốt ngày để xử lý từng blocker.",
+    resolutionCondition: "Readiness của ngày vận hành chuyển sang ready.",
+  },
+} as const satisfies Record<OperationsControlExceptionKind, OperationsControlExceptionDefinition>;
+
+export const operationsControlExceptionSchema = z.object({
+  kind: operationsControlExceptionKindSchema,
+  severity: operationsExceptionSeveritySchema,
+  source: operationsExceptionSourceSchema,
+  sourceFacts: z.array(operationsExceptionFactSchema).min(1),
+  explanation: z.string().min(1),
+  unknown: z.string().min(1),
+  resolutionOptions: z.array(operationsExceptionResolutionOptionSchema).min(1),
+  nextAction: z.object({
+    label: z.string().min(1),
+    href: z.string().min(1).nullable(),
+  }),
+  resolutionCondition: z.string().min(1),
+});
+export type OperationsControlException = z.infer<typeof operationsControlExceptionSchema>;
+
+export function operationsControlException(
+  kind: OperationsControlExceptionKind,
+  source: OperationsExceptionSource,
+  sourceFacts: readonly OperationsExceptionFact[],
+  href: string | null = null,
+): OperationsControlException {
+  const definition = OPERATIONS_CONTROL_EXCEPTION_DEFINITIONS[kind];
+  return {
+    kind,
+    ...definition,
+    source,
+    sourceFacts: [...sourceFacts],
+    nextAction: { label: definition.nextAction, href },
+  };
+}

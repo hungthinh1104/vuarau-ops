@@ -114,15 +114,18 @@ Storybook coverage is a separate repository-readiness gate.
 | `workspace_integrity_healthy`      | workspace integrity read has no current attention condition                        |
 | `workspace_integrity_attention`    | source/reference/projection/digest check requires operator attention               |
 
-The workspace live connection is a separate operational freshness signal. A
+The workspace live connection is a separate operational control exception
+(`stale_realtime`). A
 `reconnecting` state means the browser is retrying; `stale` means no successful
 live connection or durable-feed reconciliation has completed within the bounded
 reconnect window. Neither state authorizes the client to infer new business facts
-or silently resend a command. The signal remains visible in the compact mobile
-header as well as the desktop header.
+or silently resend a command. The control exception carries the connection-state
+source fact, explanation, retry action and the resolution condition; it remains
+visible in the compact mobile header as well as the desktop header.
 
 Operations close readiness is a server-authored `ready` or `blocked` condition.
-When blocked, the screen names the policy, observation, blocking exception,
+When blocked, the screen names the `operational_close_blocked` control exception,
+policy, observation, blocking exception,
 unacknowledged exception or existing-close reason; it never treats a healthy
 projection or a failed read as proof that closing is allowed. An acknowledgement
 is a source-linked review fact and does not remove the Board exception.

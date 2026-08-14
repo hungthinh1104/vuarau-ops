@@ -1,6 +1,10 @@
 "use client";
 
-import type { SessionDto } from "@vuarau/domain-contracts";
+import {
+  operationsControlException,
+  type SessionDto,
+  type WorkspaceId,
+} from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { CloudAlert, CloudUpload } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -28,9 +32,18 @@ export type WorkspaceShellProps = {
   readonly children: ReactNode;
 };
 
-function LiveStatus() {
+function LiveStatus({ workspaceId }: { readonly workspaceId: WorkspaceId }) {
   const status = useLiveConnectionState();
   if (status === "live") return null;
+  const exception = operationsControlException(
+    "stale_realtime",
+    {
+      kind: "workspace",
+      reference: `WORKSPACE-${workspaceId.slice(0, 8).toUpperCase()}`,
+      id: workspaceId,
+    },
+    [{ key: "connection_state", value: status }],
+  );
   const message =
     status === "syncing"
       ? "Đang đồng bộ"
@@ -38,12 +51,21 @@ function LiveStatus() {
         ? "Đang kết nối lại"
         : "Dữ liệu có thể cũ";
   return (
-    <span
-      className="max-w-[9rem] truncate rounded-input border border-warning/30 bg-warning-soft px-2.5 py-2 text-caption font-semibold text-warning sm:max-w-[13rem]"
+    <div
+      className="flex max-w-[15rem] items-center gap-1.5 rounded-input border border-warning/30 bg-warning-soft px-2.5 py-1.5 text-caption font-semibold text-warning"
       role="status"
+      aria-label={`${exception.explanation} ${exception.nextAction.label}`}
+      title={`${exception.explanation} ${exception.nextAction.label} ${exception.resolutionCondition}`}
     >
-      {message}
-    </span>
+      <span className="max-w-[9rem] truncate sm:max-w-[10rem]">{message}</span>
+      <Button
+        tone="secondary"
+        onClick={() => window.location.reload()}
+        className="min-h-8 shrink-0 rounded-input border-warning/30 px-2 text-caption font-semibold text-warning"
+      >
+        Tải lại
+      </Button>
+    </div>
   );
 }
 
@@ -141,7 +163,7 @@ export function WorkspaceShellView({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <LiveStatus />
+            <LiveStatus workspaceId={session.workspaceId} />
             {sync === undefined ? null : <SyncStatus sync={sync} />}
             <AccountMenu
               session={session}

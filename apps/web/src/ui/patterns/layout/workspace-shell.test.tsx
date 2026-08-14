@@ -92,6 +92,7 @@ describe("Goods Truth workspace navigation", () => {
     );
     act(() => setLiveConnectionState("reconnecting"));
     expect(screen.getByRole("status")).toHaveTextContent("Đang kết nối lại");
+    expect(screen.getByRole("button", { name: "Tải lại" })).toBeVisible();
   });
 
   it("keeps stale live state visible in the compact mobile header", () => {
@@ -108,6 +109,7 @@ describe("Goods Truth workspace navigation", () => {
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent("Dữ liệu có thể cũ");
     expect(status).not.toHaveClass("hidden");
+    expect(screen.getByRole("button", { name: "Tải lại" })).toBeVisible();
   });
 
   it("gives the wide shell enough room for the sidebar and identifies the current destination", () => {

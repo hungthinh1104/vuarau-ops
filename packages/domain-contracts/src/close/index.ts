@@ -29,6 +29,7 @@ import {
   operationsExceptionKindSchema,
   operationsExceptionSeveritySchema,
   operationsExceptionSourceSchema,
+  operationsControlExceptionSchema,
 } from "../operations/exceptions.ts";
 
 export const OPERATIONAL_CLOSE_STATES = ["closed", "reopened"] as const;
@@ -186,6 +187,7 @@ export const operationalCloseReadinessSchema = z.object({
   asOf: isoInstantSchema,
   state: z.enum(["ready", "blocked"]),
   blockers: z.array(operationalCloseReadinessBlockerSchema),
+  controlException: operationsControlExceptionSchema.nullable(),
   exceptionSummary: z.array(operationalCloseExceptionSummarySchema),
   acknowledgements: z.array(operationalCloseExceptionAcknowledgementDtoSchema),
   policyVersionId: workspacePolicyVersionIdSchema.nullable(),

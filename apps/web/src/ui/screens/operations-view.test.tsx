@@ -5,6 +5,7 @@ import type {
   OperationalCloseReadiness,
   WorkspaceIntegrityDto,
 } from "@vuarau/domain-contracts";
+import { operationsControlException } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
 import { WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
 import { OperationsView } from "./operations-view.tsx";
@@ -86,10 +87,24 @@ describe("OperationsView", () => {
         existingCloseId: null,
         existingCloseState: null,
         existingCloseVersion: null,
+        controlException: operationsControlException(
+          "operational_close_blocked",
+          { kind: "workspace", reference: "CLOSE-2026-08-03", id: WORKSPACE_ID },
+          [
+            { key: "business_date", value: "2026-08-03" },
+            { key: "blockers", value: "missing_observation" },
+          ],
+          "/workspace/operations",
+        ),
       } as OperationalCloseReadiness,
     });
     expect(screen.getByText("Đang bị chặn")).toBeInTheDocument();
     expect(screen.getByText(/Thiếu quan sát: Đếm hàng thực tế/)).toBeInTheDocument();
+    expect(screen.getByText(/Ngày vận hành chưa đủ điều kiện để chốt/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Xem điều kiện chốt" })).toHaveAttribute(
+      "href",
+      "/workspace/operations",
+    );
     expect(screen.getByRole("link", { name: "Ghi nhận quan sát" })).toHaveAttribute(
       "href",
       "/evidence/reconciliation",

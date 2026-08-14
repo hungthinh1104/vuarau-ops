@@ -13,6 +13,7 @@ import {
   operationalCloseReadinessSchema,
   OPERATIONS_EXCEPTION_KINDS,
   operationsExceptionDefinition,
+  operationsControlException,
   vietnamBusinessDateForInstant,
   vietnamBusinessDayRange,
 } from "@vuarau/domain-contracts";
@@ -158,6 +159,22 @@ export function getOperationalCloseReadiness(
         )
       )
         blockers.push("unacknowledged_exception");
+      const controlException =
+        blockers.length === 0
+          ? null
+          : operationsControlException(
+              "operational_close_blocked",
+              {
+                kind: "workspace",
+                reference: `CLOSE-${businessDate}`,
+                id: input.workspaceId,
+              },
+              [
+                { key: "business_date", value: businessDate },
+                { key: "blockers", value: blockers.join(",") },
+              ],
+              "/workspace/operations",
+            );
       return operationalCloseReadinessSchema.parse({
         workspaceId: input.workspaceId,
         businessDate,
@@ -165,6 +182,7 @@ export function getOperationalCloseReadiness(
         asOf,
         state: blockers.length === 0 ? "ready" : "blocked",
         blockers,
+        controlException,
         exceptionSummary,
         acknowledgements,
         policyVersionId,

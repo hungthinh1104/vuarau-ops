@@ -215,8 +215,11 @@ is the source-backed delivery work condition and `incomplete_receiving` is the
 source-backed Purchase receiving condition. `overdue_receivable` is emitted from
 the canonical Sale due date and overdue financial state; awaiting payment remains
 useful server-authored workflow state, not an exception.
-Realtime freshness and close readiness are separate
-workspace signals, not synthetic Board rows.
+Realtime freshness and close readiness are separate workspace control exceptions,
+not synthetic Board rows. `stale_realtime` is client-authored from the connection
+state and durable-feed reconciliation; `operational_close_blocked` is returned by
+`operations.closeReadiness.controlException` whenever readiness is `blocked`.
+Both carry source facts, explanation, next action and resolution condition.
 
 | Exception                         | Source facts and detection                                                                                   | Operator explanation and approved resolution options                                            | Resolution condition                                                                 |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -241,7 +244,8 @@ the Vietnam business period from the workspace operational profile unless an
 explicit business date is supplied for historical review. It returns `ready` or
 `blocked` with stable blockers for missing/invalid policy, missing measurable
 observation kinds in the period, an already closed revision, a blocking exception,
-or an unacknowledged acknowledgeable exception. Each exception summary includes
+or an unacknowledged acknowledgeable exception. A blocked read also carries the
+source-backed `operational_close_blocked` control exception. Each exception summary includes
 `acknowledgedCount`; the `acknowledgements` list contains the source-linked,
 append-only facts for that business date. An acknowledgement is evidence that
 the operator reviewed an unresolved condition, not a resolution: the Board row,
