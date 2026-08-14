@@ -12,6 +12,7 @@ import type {
   DeliveryId,
   DeliveryLineId,
   DeliveryReturnId,
+  DeliveryReturnSettlementId,
   DocumentId,
   DocumentShareId,
   PurchaseId,
@@ -38,6 +39,7 @@ import {
   dispatchDelivery,
   markDeliveryDelivered,
   recordDeliveryReturn,
+  recordDeliveryReturnSettlement,
   updateDeliveryDraft,
 } from "../../../modules/delivery/delivery.handlers.ts";
 import { voidSale } from "../../../modules/sale/void-sale.handler.ts";
@@ -56,7 +58,6 @@ import {
 import {
   getDashboardOrderStatusCounts,
   getOperationsBoard,
-  getOperationsBoardCounts,
 } from "../../../modules/dashboard/dashboard.queries.ts";
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
 
@@ -276,12 +277,13 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       ...deps,
       clock: { now: () => "2026-07-29T12:02:00.000Z" as never },
     };
+    const returnId = crypto.randomUUID() as DeliveryReturnId;
     expect(
       (
         await recordDeliveryReturn(context(), {
           ...envelope("return", "2026-07-29T06:00:00.000Z"),
           payload: {
-            returnId: crypto.randomUUID() as DeliveryReturnId,
+            returnId,
             deliveryId: deliveries[0]!.id,
             lines: [
               {
@@ -339,13 +341,31 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
           nextAction: "Xử lý hàng trả",
         }),
       );
-    const boardCounts = await getOperationsBoardCounts(context(), {
+    const settlementInput = {
+      ...envelope("return-settlement", "2026-07-29T06:10:00.000Z"),
+      payload: {
+        settlementId: crypto.randomUUID() as DeliveryReturnSettlementId,
+        returnId,
+        caseKind: "decision" as const,
+        outcome: "goods_only" as const,
+        reason: "Đã nhận lại 10 kg, không phát sinh tiền.",
+        relatedSettlementId: null,
+        evidenceReferences: ["return-sheet://001"],
+      },
+    };
+    const settled = await recordDeliveryReturnSettlement(context(), settlementInput);
+    expect(settled.ok).toBe(true);
+    expect(await recordDeliveryReturnSettlement(context(), settlementInput)).toEqual(settled);
+    expect(await ctx.accountEntryRows()).toEqual(debtBeforeDelivery);
+    const resolvedBoard = await getOperationsBoard(context(), {
       workspaceId: ctx.workspaceId,
-      filter: "all",
+      filter: "return_settlement_unresolved",
+      sort: "updated_desc",
       search: "",
+      cursor: null,
+      limit: 20,
     });
-    expect(boardCounts.ok && boardCounts.value.counts.returnedFulfilment).toBe(1);
-
+    expect(resolvedBoard.ok && resolvedBoard.value.page.items).toEqual([]);
     const saleDocument = await generateDocument(context(), {
       ...envelope("sale-document", "2026-07-29T07:00:00.000Z"),
       payload: {
@@ -472,7 +492,7 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       expect(board.value.page.items).toContainEqual(
         expect.objectContaining({
           id: saleId,
-          nextAction: "Xử lý hàng trả",
+          nextAction: "Giao hàng",
           returnedFulfilment: true,
           updatedAt: "2026-07-29T12:02:00.000Z",
         }),
@@ -517,12 +537,13 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       payload: {},
     });
     expect(backup.ok && backup.value).toMatchObject({
-      version: 19,
-      schemaCompatibility: "m35-close-bank-reconciliation",
+      version: 20,
+      schemaCompatibility: "m36-return-settlement",
     });
     if (backup.ok) {
       expect(backup.value.payload.deliveries).toHaveLength(2);
       expect(backup.value.payload.deliveryReturns).toHaveLength(1);
+      expect(backup.value.payload.deliveryReturnSettlements).toHaveLength(1);
       expect(backup.value.payload.documents).toHaveLength(4);
       expect(backup.value.payload.documentShares).toHaveLength(1);
     }

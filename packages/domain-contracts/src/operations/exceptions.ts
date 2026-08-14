@@ -90,15 +90,9 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
     closeImpact: "acknowledgeable",
     explanation: "Hàng đã trả nhưng hệ quả công nợ hoặc thay thế chưa được quyết định.",
     unknown: "Hàng trả sẽ tạo hoàn tiền, tín dụng, thay thế hay chỉ là hàng nhận lại.",
-    resolutionOptions: [
-      { code: "refund", label: "Hoàn tiền" },
-      { code: "customer_credit", label: "Ghi nhận tín dụng" },
-      { code: "replacement", label: "Thay thế hàng" },
-      { code: "goods_only", label: "Chỉ nhận lại hàng" },
-    ],
+    resolutionOptions: [{ code: "goods_only", label: "Xác nhận chỉ nhận lại hàng" }],
     nextAction: "Mở phiếu trả để ghi nhận quyết định xử lý.",
-    resolutionCondition:
-      "Quyết định xử lý hàng trả được ghi nhận; goods fact không tự phát sinh money effect.",
+    resolutionCondition: "Một fact goods_only append-only xác nhận không phát sinh money effect.",
   },
   reconciliation_variance: {
     severity: "critical",

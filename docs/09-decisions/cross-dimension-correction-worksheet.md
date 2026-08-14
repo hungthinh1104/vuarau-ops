@@ -52,8 +52,12 @@ Use a real example: customer returns 5 kg from a delivered 20 kg line.
 4. Who is allowed to approve that financial consequence?
 5. Can several returns occur against one Delivery/Sale?
 
-**Stop condition:** `RecordDeliveryReturn` currently changes inventory only. Do not
-silently infer customer money from returned quantity.
+**Current software boundary:** `RecordDeliveryReturn` changes inventory only.
+`RecordDeliveryReturnSettlement(goods_only)` may then append an explicit
+no-money-effect resolution so the unresolved Board exception closes without
+changing inventory, debt or cash. Refund, customer credit and replacement are
+still blocked until this worksheet records the field-validated ASM-037 policy.
+Never infer customer money from returned quantity.
 
 ## ASM-038 — Supplier return after accepted Receiving
 

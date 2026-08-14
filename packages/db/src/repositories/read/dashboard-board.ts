@@ -27,6 +27,7 @@ function mapBoardRows(rawRows: readonly Row[]) {
     const physicalState = String(row["physical_state"] ?? "");
     const financialState = String(row["financial_state"] ?? "");
     const returnedFulfilment = Boolean(row["returned_fulfilment"]);
+    const returnSettlementResolved = Boolean(row["return_settlement_resolved"]);
     const unallocatedPayment = Boolean(row["unallocated_payment"]);
     const unallocatedPaymentAmount = nullableMoney(row, "unallocated_payment_amount");
     const href = String(row["href"] ?? "");
@@ -59,6 +60,7 @@ function mapBoardRows(rawRows: readonly Row[]) {
         unallocatedPayment,
         unallocatedPaymentAmountMinor: unallocatedPaymentAmount?.amountMinor ?? null,
         fulfilmentRemainderUnresolved: false,
+        returnSettlementResolved,
         deliveryId,
       }),
       updatedAt: new Date(String(row["updated_at"])).toISOString(),
@@ -118,6 +120,14 @@ export async function queryFastOperationsBoardPage(
         join deliveries d
           on d.workspace_id=dr.workspace_id and d.id=dr.delivery_id
         where dr.workspace_id=${input.workspaceId}::uuid
+        union all
+        select d.workspace_id, d.sale_id as id, drs.recorded_at
+        from delivery_return_settlements drs
+        join delivery_returns dr
+          on dr.workspace_id=drs.workspace_id and dr.id=drs.return_id
+        join deliveries d
+          on d.workspace_id=dr.workspace_id and d.id=dr.delivery_id
+        where drs.workspace_id=${input.workspaceId}::uuid
         union all
         select pa.workspace_id, pa.sale_id as id, pa.recorded_at
         from payment_allocations pa
@@ -243,6 +253,18 @@ export async function queryFastOperationsBoardPage(
       join delivery_returns dr on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
       where dr.workspace_id=${input.workspaceId}::uuid
       group by sl.id
+    ), return_settlement_status as (
+      select d.sale_id,
+        bool_and(settled.return_id is not null) as all_resolved
+      from delivery_returns dr
+      join deliveries d on d.workspace_id=dr.workspace_id and d.id=dr.delivery_id
+      left join (
+        select distinct workspace_id, return_id
+        from delivery_return_settlements
+        where workspace_id=${input.workspaceId}::uuid
+      ) settled on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
+      where dr.workspace_id=${input.workspaceId}::uuid
+      group by d.sale_id
     ), dispatched_remaining as (
       select sl.id as sale_line_id,
         sum(greatest(dl.quantity_scaled-coalesce(ret.returned,0),0)) as remaining
@@ -271,7 +293,8 @@ export async function queryFastOperationsBoardPage(
           coalesce(returned.returned, 0) > 0
           and sl.quantity_scaled > coalesce(delivered.dispatched, 0) - coalesce(returned.returned, 0)
         ) as returned_fulfilment,
-        max(latest_delivery.delivery_id::text)::uuid as delivery_id
+        max(latest_delivery.delivery_id::text)::uuid as delivery_id,
+        coalesce(bool_or(return_settlement_status.all_resolved), false) as return_settlement_resolved
       from sales s
       join candidate_sales cs on cs.id=s.id
       join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
@@ -279,6 +302,7 @@ export async function queryFastOperationsBoardPage(
       left join returned on returned.sale_line_id=sl.id
       left join dispatched_remaining on dispatched_remaining.sale_line_id=sl.id
       left join latest_delivery on latest_delivery.sale_id=s.id
+      left join return_settlement_status on return_settlement_status.sale_id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       group by s.id
     ), allocation_reversals as (
@@ -374,13 +398,14 @@ export async function queryFastOperationsBoardPage(
         else 'awaiting_payment'
       end as financial_state,
       sale_physical.returned_fulfilment,
+      sale_physical.return_settlement_resolved,
       (coalesce(unallocated_by_customer.amount,0) > 0) as unallocated_payment,
       case when coalesce(unallocated_by_customer.amount,0) > 0 then unallocated_by_customer.amount else null end as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, cs.updated_at,
       case
         when sv.id is not null then null
         when sale_physical.physical_state='attention' then 'Kiểm tra'
-        when sale_physical.returned_fulfilment then 'Xử lý hàng trả'
+        when sale_physical.returned_fulfilment and not sale_physical.return_settlement_resolved then 'Xử lý hàng trả'
         when coalesce(unallocated_by_customer.amount,0) > 0 then 'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.'
         when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
         when sale_physical.physical_state='in_delivery' then 'Theo dõi giao hàng'
@@ -401,6 +426,7 @@ export async function queryFastOperationsBoardPage(
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
       purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
       false as returned_fulfilment,
+      false as return_settlement_resolved,
       false as unallocated_payment,
       null as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, cs.updated_at,

@@ -154,6 +154,13 @@ export const deliveryStatusEnum = pgEnum("delivery_status", [
   "dispatched",
   "delivered",
 ]);
+export const deliveryReturnSettlementCaseKindEnum = pgEnum("delivery_return_settlement_case_kind", [
+  "decision",
+  "correction",
+]);
+export const deliveryReturnSettlementOutcomeEnum = pgEnum("delivery_return_settlement_outcome", [
+  "goods_only",
+]);
 export const documentTypeEnum = pgEnum("document_type", [
   "sale_receipt",
   "customer_statement",

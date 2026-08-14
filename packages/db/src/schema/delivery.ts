@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   foreignKey,
   index,
@@ -8,11 +9,17 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  check,
 } from "drizzle-orm/pg-core";
 import { actors } from "./workspace.ts";
 import { products } from "./customer.ts";
 import { sales, saleLines } from "./sale.ts";
-import { deliveryStatusEnum, unitEnum } from "./enums.ts";
+import {
+  deliveryReturnSettlementCaseKindEnum,
+  deliveryReturnSettlementOutcomeEnum,
+  deliveryStatusEnum,
+  unitEnum,
+} from "./enums.ts";
 import { qualityGrades } from "./quality.ts";
 import { safeBigint as bigint } from "./safe-bigint.ts";
 
@@ -155,5 +162,54 @@ export const deliveryReturnLines = pgTable(
       foreignColumns: [deliveryLines.workspaceId, deliveryLines.id],
       name: "delivery_return_lines_workspace_delivery_line_fk",
     }),
+  ],
+);
+
+/**
+ * Append-only operator decision for the unresolved consequence of a Return.
+ * `goods_only` is deliberately the only outcome until ASM-037 authorizes a
+ * refund, customer credit or replacement relationship.
+ */
+export const deliveryReturnSettlements = pgTable(
+  "delivery_return_settlements",
+  {
+    id: uuid("id").notNull(),
+    workspaceId: uuid("workspace_id").notNull(),
+    returnId: uuid("return_id").notNull(),
+    caseKind: deliveryReturnSettlementCaseKindEnum("case_kind").notNull(),
+    outcome: deliveryReturnSettlementOutcomeEnum("outcome").notNull(),
+    reason: text("reason").notNull(),
+    relatedSettlementId: uuid("related_settlement_id"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
+    transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    index("delivery_return_settlements_workspace_return_time_idx").on(
+      table.workspaceId,
+      table.returnId,
+      table.recordedAt,
+      table.id,
+    ),
+    foreignKey({
+      columns: [table.workspaceId, table.returnId],
+      foreignColumns: [deliveryReturns.workspaceId, deliveryReturns.id],
+      name: "delivery_return_settlements_workspace_return_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.relatedSettlementId],
+      foreignColumns: [table.workspaceId, table.id],
+      name: "delivery_return_settlements_workspace_related_fk",
+    }),
+    check(
+      "delivery_return_settlements_case_link_ck",
+      sql`(${table.caseKind} = 'correction' and ${table.relatedSettlementId} is not null)
+        or (${table.caseKind} = 'decision' and ${table.relatedSettlementId} is null)`,
+    ),
   ],
 );

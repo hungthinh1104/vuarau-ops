@@ -67,12 +67,13 @@ Drizzle definitions and database constraints.
 
 ### Delivery
 
-| Table                   | Purpose                                                                | Mutability                                                 |
-| ----------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `deliveries`            | Sale-linked fulfilment lifecycle with source references                | draft/status/version only                                  |
-| `delivery_lines`        | Exact Sale-line Product/grade/unit quantities to fulfil                | mutable only with draft workflow; preserved after dispatch |
-| `delivery_returns`      | Return source facts against dispatched Delivery with source references | append-only                                                |
-| `delivery_return_lines` | Exact returned physical quantities                                     | append-only                                                |
+| Table                         | Purpose                                                                                     | Mutability                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `deliveries`                  | Sale-linked fulfilment lifecycle with source references                                     | draft/status/version only                                  |
+| `delivery_lines`              | Exact Sale-line Product/grade/unit quantities to fulfil                                     | mutable only with draft workflow; preserved after dispatch |
+| `delivery_returns`            | Return source facts against dispatched Delivery with source references                      | append-only                                                |
+| `delivery_return_lines`       | Exact returned physical quantities                                                          | append-only                                                |
+| `delivery_return_settlements` | Append-only operator decision for a return consequence; V1 `goods_only` has no money effect | append-only                                                |
 
 ### Cashbook
 

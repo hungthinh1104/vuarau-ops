@@ -13,6 +13,7 @@ import type {
   DeliveryId,
   DeliveryLineId,
   DeliveryReturnId,
+  DeliveryReturnSettlementId,
   SaleId,
   SaleLineId,
 } from "@vuarau/domain-contracts";
@@ -25,9 +26,11 @@ import {
   dispatchDelivery,
   markDeliveryDelivered,
   recordDeliveryReturn,
+  recordDeliveryReturnSettlement,
 } from "./delivery.handlers.ts";
 import { getSaleFulfilment } from "./delivery.queries.ts";
 import { getOperationalReport } from "../report/report.queries.ts";
+import { getOperationsBoard } from "../dashboard/dashboard.queries.ts";
 
 let harness: Harness;
 const saleId = "00000000-0000-4000-8000-000000000d01" as SaleId;
@@ -232,6 +235,46 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
       -60_000, 10_000,
     ]);
     expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toHaveLength(debtBefore);
+    const settlementInput = {
+      ...base("d16"),
+      payload: {
+        settlementId: "00000000-0000-4000-8000-000000000d16" as DeliveryReturnSettlementId,
+        returnId: returnInput.payload.returnId,
+        caseKind: "decision" as const,
+        outcome: "goods_only" as const,
+        reason: "Đã nhận lại hàng, không phát sinh tiền.",
+        relatedSettlementId: null,
+        evidenceReferences: ["return-sheet://001"],
+      },
+    };
+    const settled = await recordDeliveryReturnSettlement(harness.ctx, settlementInput);
+    expect(settled.ok).toBe(true);
+    expect(await recordDeliveryReturnSettlement(harness.ctx, settlementInput)).toEqual(settled);
+    const duplicateSettlement = await recordDeliveryReturnSettlement(harness.ctx, {
+      ...settlementInput,
+      commandId: "00000000-0000-4000-8000-000000000d17",
+      idempotencyKey: "return-settlement-duplicate",
+      payload: {
+        ...settlementInput.payload,
+        settlementId: "00000000-0000-4000-8000-000000000d18" as DeliveryReturnSettlementId,
+      },
+    });
+    expect(duplicateSettlement).toMatchObject({
+      ok: false,
+      error: { code: "DELIVERY_RETURN_SETTLEMENT_ALREADY_RECORDED" },
+    });
+    expect(harness.db.inventoryMovementRecords().map((row) => row.quantity.valueScaled)).toEqual([
+      -60_000, 10_000,
+    ]);
+    const board = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      cursor: null,
+      limit: 20,
+      filter: "return_settlement_unresolved",
+      sort: "updated_desc",
+      search: "",
+    });
+    expect(board.ok && board.value.page.items).toEqual([]);
     const fulfilment = await getSaleFulfilment(harness.ctx, { workspaceId: WORKSPACE_ID, saleId });
     expect(fulfilment.ok && fulfilment.value.lines[0]).toMatchObject({
       dispatched: { valueScaled: 60_000, unit: "kg" },

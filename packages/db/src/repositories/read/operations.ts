@@ -53,6 +53,7 @@ import {
   deliveryLines,
   deliveryReturns,
   deliveryReturnLines,
+  deliveryReturnSettlements,
   documents,
   documentShares,
   saleLines,
@@ -429,6 +430,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         deliveryLineRows,
         deliveryReturnRows,
         deliveryReturnLineRows,
+        deliveryReturnSettlementRows,
         documentRows,
         documentShareRows,
         costObservationRows,
@@ -565,6 +567,10 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
           .from(deliveryReturnLines)
           .innerJoin(deliveryReturns, eq(deliveryReturns.id, deliveryReturnLines.returnId))
           .where(eq(deliveryReturns.workspaceId, workspaceId)),
+        tx
+          .select()
+          .from(deliveryReturnSettlements)
+          .where(eq(deliveryReturnSettlements.workspaceId, workspaceId)),
         tx.select().from(documents).where(eq(documents.workspaceId, workspaceId)),
         tx.select().from(documentShares).where(eq(documentShares.workspaceId, workspaceId)),
         tx.select().from(costObservations).where(eq(costObservations.workspaceId, workspaceId)),
@@ -669,6 +675,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         deliveryLines: list(deliveryLineRows),
         deliveryReturns: list(deliveryReturnRows),
         deliveryReturnLines: list(deliveryReturnLineRows.map((row) => row.line)),
+        deliveryReturnSettlements: list(deliveryReturnSettlementRows),
         documents: list(documentRows),
         documentShares: list(documentShareRows),
         costObservations: list(costObservationRows),

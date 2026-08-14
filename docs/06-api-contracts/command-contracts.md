@@ -60,7 +60,7 @@ command changes, update its schema and tests first, then keep this catalog align
 | `purchase`         | `createDraft`, `updateDraft`, `discardDraft`, `confirm`, `void`                                                                                                                                                    |
 | `receiving`        | `record`, `reverse`                                                                                                                                                                                                |
 | `inventory`        | `adjust`, `reclassify`, `stocktakeStart`, `stocktakeCount`, `stocktakeApprove`, `stocktakeReopen`, `rebuild`                                                                                                       |
-| `delivery`         | `createDraft`, `updateDraft`, `cancelDraft`, `dispatch`, `markDelivered`, `recordReturn`                                                                                                                           |
+| `delivery`         | `createDraft`, `updateDraft`, `cancelDraft`, `dispatch`, `markDelivered`, `recordReturn`, `recordReturnSettlement`                                                                                                 |
 | `document`         | `generate`, `share`, `revokeShare`                                                                                                                                                                                 |
 | `operations`       | `exportBackup`, `restoreBackup`, `recordClose`, `reopenClose`                                                                                                                                                      |
 | `cash`             | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`, `recordStatementMatch`, `reverseStatementMatch` |
@@ -227,7 +227,10 @@ Delivery draft creation/update and customer-return commands also accept
 return's references. These links preserve loading, handover or return evidence;
 they do not create inventory movements, customer credit, refunds or other money
 effects. Dispatch and return movement semantics remain owned by the canonical
-Delivery commands.
+Delivery commands. `recordReturnSettlement` appends the unresolved return
+consequence; V1 accepts only `outcome=goods_only`, explicitly recording no money
+effect. A correction must link the prior settlement. Refund, customer-credit and
+replacement outcomes are rejected until ASM-037 is closed.
 
 Goods-arrival, quality-disposition and direct purchase-receipt commands also accept
 `evidenceReferences`; their reversal commands preserve a separate reference list.

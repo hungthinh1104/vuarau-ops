@@ -1,7 +1,7 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV19,
+  WorkspaceBackupV20,
 } from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
@@ -21,7 +21,7 @@ import { paymentReferenceValidator } from "./restore-payment-validation.ts";
 import { validWorkspacePolicyCollection } from "./restore-policy-validation.ts";
 
 function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
-  const payload = v19Payload(command);
+  const payload = v20Payload(command);
   const source = command.payload.backup.sourceWorkspaceId;
   const rows = Object.entries(payload).flatMap(([, value]) =>
     Array.isArray(value) ? value : [value],
@@ -476,7 +476,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
 }
 
-function v19Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV19["payload"] {
+function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV20["payload"] {
   const payload = command.payload.backup.payload;
   const operationalProfile =
     "operationalProfile" in payload
@@ -510,6 +510,8 @@ function v19Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV19[
     deliveryLines: "deliveryLines" in payload ? payload.deliveryLines : [],
     deliveryReturns: "deliveryReturns" in payload ? payload.deliveryReturns : [],
     deliveryReturnLines: "deliveryReturnLines" in payload ? payload.deliveryReturnLines : [],
+    deliveryReturnSettlements:
+      "deliveryReturnSettlements" in payload ? payload.deliveryReturnSettlements : [],
     documents: "documents" in payload ? payload.documents : [],
     documentShares: "documentShares" in payload ? payload.documentShares : [],
     qualityIssueCodes: "qualityIssueCodes" in payload ? payload.qualityIssueCodes : [],
@@ -582,7 +584,7 @@ export function restoreWorkspaceBackup(
       }
       const restored = await repos.operations.restoreBackup(
         command.workspaceId,
-        v19Payload(command),
+        v20Payload(command),
       );
       if (restored.kind === "unsafe_target") {
         return err("BACKUP_UNSAFE_TARGET", "Restore requires an empty recovery workspace.", {
@@ -602,7 +604,7 @@ export function restoreWorkspaceBackup(
       }
       const supplierDiagnostics = (
         await Promise.all(
-          v19Payload(command).suppliers.map((row) =>
+          v20Payload(command).suppliers.map((row) =>
             repos.supplierAccountReads.integrity(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.supplierAccountReads.integrity>[1],
@@ -614,7 +616,7 @@ export function restoreWorkspaceBackup(
         string,
         { productId: string; qualityGradeId: string | null; unit: string }
       >();
-      for (const movement of v19Payload(command).inventoryMovements) {
+      for (const movement of v20Payload(command).inventoryMovements) {
         const qualityGradeId =
           movement["qualityGradeId"] === null || movement["qualityGradeId"] === undefined
             ? null
@@ -642,7 +644,7 @@ export function restoreWorkspaceBackup(
       ).flat();
       const cashDiagnostics = (
         await Promise.all(
-          v19Payload(command).cashAccounts.map((row) =>
+          v20Payload(command).cashAccounts.map((row) =>
             repos.cashReads.reconciliation(
               command.workspaceId,
               String(row["id"]) as Parameters<typeof repos.cashReads.reconciliation>[1],

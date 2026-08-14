@@ -20,6 +20,7 @@ import type {
   SupplyCommitmentObservationDto,
   SupplierObservationDto,
   DemandObservationDto,
+  DeliveryReturnSettlementDto,
 } from "@vuarau/domain-contracts";
 import { hasOverlappingWorkspacePolicyEffectiveWindow, money } from "@vuarau/domain-kernel";
 import { parseWorkspacePolicyDto } from "@vuarau/domain-contracts";
@@ -84,6 +85,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.suppliers.values(),
           ...store.purchases.values(),
           ...store.deliveries.values(),
+          ...store.deliveryReturnSettlements.values(),
           ...store.documents.values(),
           ...store.customerOrders.values(),
           ...store.supplyCommitments.values(),
@@ -487,6 +489,10 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
               evidenceReferences: raw["evidenceReferences"] ?? [],
             }) as unknown as DeliveryReturnState,
           );
+        for (const raw of payload.deliveryReturnSettlements) {
+          const row = remap(raw) as unknown as DeliveryReturnSettlementDto;
+          store.deliveryReturnSettlements.set(key(workspaceId, row.id), row);
+        }
         for (const raw of payload.documents) {
           const row = remap(raw) as unknown as DocumentDto;
           store.documents.set(key(workspaceId, row.id), row);

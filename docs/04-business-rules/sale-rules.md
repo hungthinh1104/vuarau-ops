@@ -347,8 +347,11 @@ Free text is stored verbatim and never parsed.
 `goods_returned` is a full-sale commercial correction, not a price calculator for
 a partial physical Return. The command is rejected with
 `SALE_GOODS_RETURN_INCOMPLETE` while any canonical Delivery quantity remains net
-fulfilled. A partial Return changes Goods Truth only until ASM-037 defines its
-financial consequence.
+fulfilled. A partial Return changes Goods Truth first. The unresolved commercial
+consequence is visible on the Operations Board until an explicit settlement fact
+is recorded. V1 supports only the append-only `goods_only` settlement, which has
+no money effect; refund, customer credit and replacement remain blocked until
+ASM-037 defines and validates those policies.
 
 ---
 

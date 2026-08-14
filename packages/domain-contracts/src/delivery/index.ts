@@ -2,9 +2,11 @@ import { z } from "zod";
 import { defineCommand, defineVersionedCommand } from "../shared/command.ts";
 import {
   actorIdSchema,
+  commandIdSchema,
   deliveryIdSchema,
   deliveryLineIdSchema,
   deliveryReturnIdSchema,
+  deliveryReturnSettlementIdSchema,
   productIdSchema,
   qualityGradeIdSchema,
   saleIdSchema,
@@ -81,6 +83,48 @@ export const recordDeliveryReturnCommandSchema = defineCommand(
   }),
 );
 export type RecordDeliveryReturnCommand = z.infer<typeof recordDeliveryReturnCommandSchema>;
+
+/**
+ * The only currently approved partial-return settlement is an explicit
+ * acknowledgement that the depot received goods back without changing money.
+ * Refund, credit and replacement remain policy-blocked until ASM-037 closes.
+ */
+export const RETURN_SETTLEMENT_OUTCOMES = ["goods_only"] as const;
+export const returnSettlementOutcomeSchema = z.enum(RETURN_SETTLEMENT_OUTCOMES);
+export type ReturnSettlementOutcome = z.infer<typeof returnSettlementOutcomeSchema>;
+export const RETURN_SETTLEMENT_CASE_KINDS = ["decision", "correction"] as const;
+export const returnSettlementCaseKindSchema = z.enum(RETURN_SETTLEMENT_CASE_KINDS);
+export type ReturnSettlementCaseKind = z.infer<typeof returnSettlementCaseKindSchema>;
+export const recordDeliveryReturnSettlementCommandSchema = defineCommand(
+  z.object({
+    settlementId: deliveryReturnSettlementIdSchema,
+    returnId: deliveryReturnIdSchema,
+    caseKind: returnSettlementCaseKindSchema,
+    outcome: returnSettlementOutcomeSchema,
+    reason: z.string().trim().min(1).max(500),
+    relatedSettlementId: deliveryReturnSettlementIdSchema.nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
+  }),
+);
+export type RecordDeliveryReturnSettlementCommand = z.infer<
+  typeof recordDeliveryReturnSettlementCommandSchema
+>;
+
+export const deliveryReturnSettlementDtoSchema = z.object({
+  id: deliveryReturnSettlementIdSchema,
+  workspaceId: workspaceIdSchema,
+  returnId: deliveryReturnIdSchema,
+  caseKind: returnSettlementCaseKindSchema,
+  outcome: returnSettlementOutcomeSchema,
+  reason: z.string(),
+  relatedSettlementId: deliveryReturnSettlementIdSchema.nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+});
+export type DeliveryReturnSettlementDto = z.infer<typeof deliveryReturnSettlementDtoSchema>;
 
 export const deliveryReturnDtoSchema = z.object({
   id: deliveryReturnIdSchema,

@@ -102,6 +102,7 @@ the caller's membership, using the static table in
 | `DispatchDelivery`                    | `delivery.dispatch`                                        | owner, warehouse                              | implemented                       |
 | `MarkDeliveryDelivered`               | `delivery.complete`                                        | owner, delivery                               | implemented                       |
 | `RecordDeliveryReturn`                | `delivery.return`                                          | owner, warehouse, delivery                    | implemented                       |
+| `RecordDeliveryReturnSettlement`      | `delivery.return`                                          | owner, warehouse, delivery                    | implemented (`goods_only` only)   |
 | Document read/generate                | `document.read/generate`                                   | operational roles                             | implemented                       |
 | Document share/revoke                 | `document.share`                                           | owner, accountant, sales                      | implemented                       |
 | Operational reports                   | `report.read`                                              | all operational roles                         | implemented                       |

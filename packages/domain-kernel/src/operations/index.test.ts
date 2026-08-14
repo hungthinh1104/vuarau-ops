@@ -14,6 +14,7 @@ const saleFacts = {
   unallocatedPayment: true,
   unallocatedPaymentAmountMinor: 300_000,
   fulfilmentRemainderUnresolved: false,
+  returnSettlementResolved: false,
   deliveryId: "delivery-1",
 };
 

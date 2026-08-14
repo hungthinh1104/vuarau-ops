@@ -18,6 +18,8 @@ export type OperationsBoardExceptionFacts = {
   readonly unallocatedPaymentAmountMinor: number | null;
   /** A separate source fact; ordinary needs_delivery/in_delivery is not enough. */
   readonly fulfilmentRemainderUnresolved: boolean;
+  /** A return settlement fact exists; goods-only resolution does not change money. */
+  readonly returnSettlementResolved: boolean;
   readonly deliveryId: string | null;
   readonly reconciliationHref?: string;
 };
@@ -63,7 +65,7 @@ export function deriveOperationsBoardExceptions(
   input: OperationsBoardExceptionFacts,
 ): OperationsException[] {
   const result: OperationsException[] = [];
-  if (input.kind === "sale" && input.returnedFulfilment) {
+  if (input.kind === "sale" && input.returnedFulfilment && !input.returnSettlementResolved) {
     result.push(
       exception(
         input,

@@ -158,7 +158,9 @@ function columns() {
       cell: (info) => (
         <div className="grid gap-1">
           <Badge tone={stateTone(info.getValue())}>{stateLabel(info.getValue())}</Badge>
-          {info.row.original.returnedFulfilment ? (
+          {info.row.original.exceptions.some(
+            (exception) => exception.kind === "return_settlement_unresolved",
+          ) ? (
             <Badge tone="warning">Hàng trả cần xử lý</Badge>
           ) : null}
           {info.row.original.unallocatedPayment ? (
@@ -309,7 +311,9 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                           <Badge tone={stateTone(row.physicalState)}>
                             {stateLabel(row.physicalState)}
                           </Badge>
-                          {row.returnedFulfilment ? (
+                          {row.exceptions.some(
+                            (exception) => exception.kind === "return_settlement_unresolved",
+                          ) ? (
                             <Badge tone="warning">Hàng trả cần xử lý</Badge>
                           ) : null}
                           {row.unallocatedPayment ? (

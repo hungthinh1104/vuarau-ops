@@ -25,6 +25,8 @@ import {
   matchesOperationsBoardFilter,
   operationsBoardCursorOf,
 } from "./dashboard-helpers.ts";
+import { saleReturnSettlementStatus } from "./dashboard-return-settlement.ts";
+import { saleOperationsUpdatedAt } from "./dashboard-sale-timestamp.ts";
 import { deriveOperationsBoardExceptions } from "@vuarau/domain-kernel";
 
 const now = () => new Date().toISOString();
@@ -440,6 +442,13 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
         const physical = salePhysicalState(store, input.workspaceId, sale.id);
         const financial = saleFinancialFacts(store, input.workspaceId, sale.id, input.now);
+        const { saleReturnIds, returnSettlementResolved, returnSettlementUnresolved } =
+          saleReturnSettlementStatus(
+            store,
+            input.workspaceId,
+            sale.id,
+            physical.returnedFulfilment,
+          );
         const allocationIds = new Set(
           store.paymentAllocations
             .filter(
@@ -474,7 +483,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           nextAction: saleNextAction({
             voided: sale.voidRecord !== null,
             physicalState: physical.state,
-            returnedFulfilment: physical.returnedFulfilment,
+            returnedFulfilment: returnSettlementUnresolved,
             unallocatedPayment: financial.unallocatedPaymentAmountMinor > 0,
             financialState: financial.state,
           }),
@@ -496,54 +505,15 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             unallocatedPayment: financial.unallocatedPaymentAmountMinor > 0,
             unallocatedPaymentAmountMinor: financial.unallocatedPaymentAmountMinor,
             fulfilmentRemainderUnresolved: false,
+            returnSettlementResolved,
             deliveryId: physical.deliveryId,
           }),
-          updatedAt: latestTimestamp(
-            [
-              sale.recordedAt,
-              sale.postedAt,
-              sale.voidRecord?.recordedAt,
-              ...[...store.deliveries.values()]
-                .filter(
-                  (delivery) =>
-                    delivery.workspaceId === input.workspaceId && delivery.saleId === sale.id,
-                )
-                .map((delivery) => delivery.recordedAt),
-              ...store.deliveryReturns
-                .filter((returned) => returned.workspaceId === input.workspaceId)
-                .filter((returned) => {
-                  const delivery = store.deliveries.get(
-                    key(input.workspaceId, returned.deliveryId),
-                  );
-                  return delivery?.saleId === sale.id;
-                })
-                .map((returned) => returned.recordedAt),
-              ...store.paymentAllocations
-                .filter((allocation) => allocationIds.has(allocation.id))
-                .map((allocation) => allocation.recordedAt),
-              ...store.paymentAllocationReversals
-                .filter((reversal) => allocationIds.has(reversal.allocationId))
-                .map((reversal) => reversal.recordedAt),
-              ...[...store.payments.values()]
-                .filter(
-                  (payment) =>
-                    payment.workspaceId === input.workspaceId &&
-                    payment.customerId === sale.customerId,
-                )
-                .map((payment) => payment.recordedAt),
-              ...store.reversals
-                .filter((reversal) => reversal.workspaceId === input.workspaceId)
-                .filter((reversal) =>
-                  [...store.payments.values()].some(
-                    (payment) =>
-                      payment.workspaceId === input.workspaceId &&
-                      payment.id === reversal.paymentId &&
-                      payment.customerId === sale.customerId,
-                  ),
-                )
-                .map((reversal) => reversal.recordedAt),
-            ],
-            sale.recordedAt,
+          updatedAt: saleOperationsUpdatedAt(
+            store,
+            input.workspaceId,
+            sale,
+            saleReturnIds,
+            allocationIds,
           ),
           href: `/sales/${sale.id}`,
           deliveryId:
@@ -622,6 +592,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             unallocatedPayment: false,
             unallocatedPaymentAmountMinor: null,
             fulfilmentRemainderUnresolved: false,
+            returnSettlementResolved: false,
             deliveryId: null,
           }),
           updatedAt: latestTimestamp(

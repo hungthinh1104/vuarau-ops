@@ -39,6 +39,10 @@ export const createDeliveryRepositories = (store: Store): Pick<Repositories, "de
         });
       return true;
     },
+    findReturnByIdForUpdate: async (workspaceId, returnId) =>
+      store.deliveryReturns.find(
+        (candidate) => candidate.workspaceId === workspaceId && candidate.id === returnId,
+      ) ?? null,
     netFulfilledBySaleLine: async (workspaceId, saleId, excludeDeliveryId) => {
       const totals = new Map<string, number>();
       for (const delivery of store.deliveries.values()) {

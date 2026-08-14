@@ -91,6 +91,7 @@ import type {
 import type { WorkspacePolicyRepository } from "./policy-ports.ts";
 import type { CashStatementMatchRepository, OperationalCloseRepository } from "./close-ports.ts";
 import type { OperationsRepository } from "./operations-ports.ts";
+import type { DeliveryReturnSettlementRepository } from "./delivery-return-settlement-ports.ts";
 
 /** Every method takes `workspaceId` as a required argument (BR-CUSTOMER-002). */
 export type WorkspaceMembership = {
@@ -360,6 +361,10 @@ export type DeliveryRepository = {
   insert(delivery: DeliveryState): Promise<boolean>;
   update(delivery: DeliveryState, expectedVersion: number, replaceLines: boolean): Promise<boolean>;
   insertReturn(record: DeliveryReturnState): Promise<boolean>;
+  findReturnByIdForUpdate(
+    workspaceId: WorkspaceId,
+    returnId: DeliveryReturnState["id"],
+  ): Promise<DeliveryReturnState | null>;
   netFulfilledBySaleLine(
     workspaceId: WorkspaceId,
     saleId: SaleId,
@@ -640,6 +645,7 @@ export type Repositories = ReadRepositories & {
   readonly inventoryBalances: InventoryBalanceRepository;
   readonly stocktakes: StocktakeRepository;
   readonly deliveries: DeliveryRepository;
+  readonly deliveryReturnSettlements: DeliveryReturnSettlementRepository;
   readonly documents: DocumentRepository;
   readonly operations: OperationsRepository;
   readonly cashAccounts: CashAccountRepository;

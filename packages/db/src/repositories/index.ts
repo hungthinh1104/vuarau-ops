@@ -9,6 +9,7 @@ import { createSupplierWriteRepositories } from "./write/supplier.ts";
 import { createPurchaseWriteRepositories } from "./write/purchase.ts";
 import { createInventoryWriteRepositories } from "./write/inventory.ts";
 import { createDeliveryWriteRepositories } from "./write/delivery.ts";
+import { createDeliveryReturnSettlementWriteRepositories } from "./write/delivery-return-settlement.ts";
 import { createDocumentWriteRepositories } from "./write/document.ts";
 import { createOperationsWriteRepositories } from "./write/operations.ts";
 import { createSaleWriteRepositories } from "./write/sale.ts";
@@ -52,6 +53,7 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     ...createPurchaseWriteRepositories(tx),
     ...createInventoryWriteRepositories(tx, ids),
     ...createDeliveryWriteRepositories(tx),
+    ...createDeliveryReturnSettlementWriteRepositories(tx),
     ...createDocumentWriteRepositories(tx),
     ...createOperationsWriteRepositories(tx),
     ...createSaleWriteRepositories(tx),

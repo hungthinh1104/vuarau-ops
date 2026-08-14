@@ -27,13 +27,14 @@ not real-worker adoption.
   net fulfilled and remaining quantities using
   `remaining = ordered - dispatched + returned`. Invalid negative/over-fulfilled
   histories are not clamped; they return `attention`.
-- **BR-DELIVERY-008** — The Operations Board derives a returned-fulfilment
-  exception when a canonical Delivery Return exists and the Sale still has net
-  fulfilment remaining. The row keeps its commercial, physical and financial
-  states, exposes `returnedFulfilment=true`, and offers `Xử lý hàng trả` as the
-  next action. The exception resolves only when later canonical fulfilment
-  closes the remaining quantity or an integrity condition replaces it; it never
-  infers a credit, refund, exchange or customer-debt effect.
+- **BR-DELIVERY-008** — The Operations Board derives a
+  `return_settlement_unresolved` exception when a canonical Delivery Return
+  exists without an append-only settlement fact. The row keeps its commercial,
+  physical and financial states and names the return consequence as unknown;
+  ordinary returned-fulfilment workflow remains a separate physical signal.
+  V1 supports only `RecordDeliveryReturnSettlement(goods_only)`, which records
+  that the returned goods have no money effect. Refund, customer credit and
+  replacement outcomes remain policy-blocked until ASM-037 is field-validated.
 
 ## Documents
 

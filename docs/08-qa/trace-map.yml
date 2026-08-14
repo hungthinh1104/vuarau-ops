@@ -2978,11 +2978,17 @@ business_rules:
       - apps/api/src/modules/delivery/delivery.queries.ts
       - packages/db/src/repositories/read/delivery.ts
   BR-DELIVERY-008:
-    title: Returned fulfilment is an explicit physical Operations Board exception without debt inference
+    title: Return settlement is explicit and goods-only resolution has no money effect
     risk: P1
     doc: docs/04-business-rules/depot-operations-rules.md
-    tests: [TC-OPS-023]
+    tests: [TC-DELIVERY-002, TC-DELIVERY-003]
     implementation:
+      - packages/domain-contracts/src/delivery/index.ts
+      - packages/domain-kernel/src/delivery/return-settlement.ts
+      - apps/api/src/modules/delivery/delivery.handlers.ts
+      - apps/api/src/infrastructure/trpc/routers/delivery.ts
+      - packages/db/src/schema/delivery.ts
+      - packages/db/src/repositories/write/delivery-return-settlement.ts
       - packages/domain-contracts/src/dashboard/index.ts
       - apps/api/src/infrastructure/persistence/in-memory/reads/dashboard-order-state.ts
       - packages/db/src/repositories/read/dashboard-board.ts

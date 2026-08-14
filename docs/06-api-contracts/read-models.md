@@ -191,10 +191,12 @@ recorded canonical fact that can change a row's commercial, physical, financial
 or next-action state; it is not merely the original Sale/Purchase timestamp.
 Valid zero-value posted Sales still count as orders. Mobile Board cards expose
 commercial, physical and financial state together. A row with
-`returnedFulfilment=true` has a canonical Delivery Return and still has net
-fulfilment remaining; it appears in the dedicated `returned_fulfilment` filter
-and its next action is `Xử lý hàng trả`. This is a physical work-queue signal
-only: it never infers a credit, refund, exchange or customer-debt effect.
+`returnedFulfilment=true` has a canonical Delivery Return and remains a physical
+work-queue signal in the dedicated `returned_fulfilment` filter. A separate
+`return_settlement_unresolved` exception appears while any Return on the Sale
+lacks a settlement fact; its next action is to record the return consequence.
+V1's only supported resolution is `goods_only`, which explicitly has no money
+effect. Neither signal infers a credit, refund, exchange or customer-debt effect.
 Similarly, `unallocatedPayment=true` exposes the exact
 `unallocatedPaymentAmount` derived from active Payment, reversal and allocation
 facts. It appears in the dedicated `unallocated_payment` filter and its next
@@ -208,12 +210,12 @@ awaiting payment remain useful server-authored state but do not claim that a
 consequence is unknown. Realtime freshness and close readiness are separate
 workspace signals, not synthetic Board rows.
 
-| Exception                         | Source facts and detection                                                                               | Operator explanation and approved resolution options                                         | Resolution condition                                                                 |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `unallocated_payment`             | Active Payment minus reversal and effective allocation is greater than zero                              | Money was received but attribution is unknown; allocate to Sale or retain as customer credit | Allocation, reversal or explicit customer-credit fact reaches zero unresolved amount |
-| `fulfilment_remainder_unresolved` | An explicit remainder-decision source fact; `needs_delivery`/`in_delivery` alone is insufficient         | Delivery, commercial correction, cancellation or a new Sale must be chosen                   | Append-only fulfilment or commercial decision                                        |
-| `return_settlement_unresolved`    | Canonical Delivery Return exists and its refund/credit/replacement/goods-only consequence is not decided | Resolve the return under the approved option; goods do not imply money                       | Append-only return settlement fact                                                   |
-| `reconciliation_variance`         | Canonical comparison or integrity source reports a mismatch                                              | Record a source correction or matching observation after investigating the mismatch          | Append-only correction/observation and healthy check                                 |
+| Exception                         | Source facts and detection                                                                       | Operator explanation and approved resolution options                                         | Resolution condition                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `unallocated_payment`             | Active Payment minus reversal and effective allocation is greater than zero                      | Money was received but attribution is unknown; allocate to Sale or retain as customer credit | Allocation, reversal or explicit customer-credit fact reaches zero unresolved amount |
+| `fulfilment_remainder_unresolved` | An explicit remainder-decision source fact; `needs_delivery`/`in_delivery` alone is insufficient | Delivery, commercial correction, cancellation or a new Sale must be chosen                   | Append-only fulfilment or commercial decision                                        |
+| `return_settlement_unresolved`    | Canonical Delivery Return exists without a settlement fact                                       | Record the return consequence; V1 supports only `goods_only` with no money effect            | Append-only return settlement fact                                                   |
+| `reconciliation_variance`         | Canonical comparison or integrity source reports a mismatch                                      | Record a source correction or matching observation after investigating the mismatch          | Append-only correction/observation and healthy check                                 |
 
 Every `row.exceptions` item carries `sourceFacts`, `unknown`,
 `resolutionOptions`, `nextAction` and `resolutionCondition`. `counts.exceptionCounts`

@@ -5,6 +5,8 @@ import type {
   DispatchDeliveryCommand,
   MarkDeliveryDeliveredCommand,
   RecordDeliveryReturnCommand,
+  DeliveryReturnSettlementDto,
+  RecordDeliveryReturnSettlementCommand,
   UpdateDeliveryDraftCommand,
 } from "@vuarau/domain-contracts";
 import {
@@ -13,6 +15,8 @@ import {
   dispatchDeliveryCommandSchema,
   markDeliveryDeliveredCommandSchema,
   recordDeliveryReturnCommandSchema,
+  recordDeliveryReturnSettlementCommandSchema,
+  deliveryReturnSettlementDtoSchema,
   updateDeliveryDraftCommandSchema,
   deliveryDtoSchema,
 } from "@vuarau/domain-contracts";
@@ -22,6 +26,7 @@ import {
   decideDispatchDelivery,
   decideMarkDeliveryDelivered,
   decideRecordDeliveryReturn,
+  decideRecordDeliveryReturnSettlement,
   decideUpdateDeliveryDraft,
   err,
   exactIntegerSum,
@@ -420,6 +425,72 @@ export function recordDeliveryReturn(ctx: CommandContext, input: unknown) {
         reason: decision.value.reason,
       });
       return ok(dto({ ...current, returns: [...current.returns, decision.value] }));
+    },
+  });
+}
+
+export function recordDeliveryReturnSettlement(ctx: CommandContext, input: unknown) {
+  return runCommand<RecordDeliveryReturnSettlementCommand, DeliveryReturnSettlementDto>({
+    commandType: "RecordDeliveryReturnSettlement",
+    schema: recordDeliveryReturnSettlementCommandSchema,
+    resultSchema: deliveryReturnSettlementDtoSchema,
+    input,
+    ctx,
+    requiredPermission: "delivery.return",
+    businessDayPolicy: "enforce",
+    execute: async ({ command, repos, recordedAt }) => {
+      const returnFact = await repos.deliveries.findReturnByIdForUpdate(
+        command.workspaceId,
+        command.payload.returnId,
+      );
+      if (returnFact === null)
+        return err("DELIVERY_RETURN_SETTLEMENT_NOT_FOUND", "No Delivery Return.");
+      if (
+        command.payload.caseKind === "decision" &&
+        (await repos.deliveryReturnSettlements.existsForReturn(
+          command.workspaceId,
+          command.payload.returnId,
+        ))
+      ) {
+        return err(
+          "DELIVERY_RETURN_SETTLEMENT_ALREADY_RECORDED",
+          "This Delivery Return already has a settlement fact; record a correction instead.",
+        );
+      }
+      const target =
+        command.payload.relatedSettlementId === null
+          ? null
+          : await repos.deliveryReturnSettlements.findByIdForUpdate(
+              command.workspaceId,
+              command.payload.relatedSettlementId,
+            );
+      const successor =
+        target === null
+          ? null
+          : await repos.deliveryReturnSettlements.findCorrectionByTarget(
+              command.workspaceId,
+              target.id,
+            );
+      const decision = decideRecordDeliveryReturnSettlement(
+        command,
+        recordedAt,
+        target,
+        successor !== null,
+      );
+      if (!decision.ok) return decision;
+      if (!(await repos.deliveryReturnSettlements.insert(decision.value.settlement))) {
+        return err(
+          "DELIVERY_RETURN_SETTLEMENT_ALREADY_RECORDED",
+          "Return settlement identity already exists.",
+        );
+      }
+      await repos.audit.append({
+        ...decision.value.audit,
+        workspaceId: command.workspaceId,
+        actorId: command.actorId,
+        commandId: command.commandId,
+      });
+      return ok(decision.value.settlement);
     },
   });
 }

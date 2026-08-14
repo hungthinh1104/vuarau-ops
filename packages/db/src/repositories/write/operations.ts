@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { type WorkspaceId, type WorkspaceBackupV19 } from "@vuarau/domain-contracts";
+import { type WorkspaceId, type WorkspaceBackupV20 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -40,6 +40,7 @@ import {
   deliveryLines,
   deliveryReturns,
   deliveryReturnLines,
+  deliveryReturnSettlements,
   documents,
   documentShares,
   workspaceOperationalProfiles,
@@ -69,7 +70,7 @@ import { backupActorIds } from "./operations-actors.ts";
 import { restoreWorkspaceChangeFeed } from "./operations-change-feed-restore.ts";
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV19["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV20["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -340,6 +341,26 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
               scoped,
             ) as unknown as (typeof deliveryReturnLines.$inferInsert)[],
           );
+      if (payload.deliveryReturnSettlements.length > 0) {
+        const settlementRows = [...payload.deliveryReturnSettlements]
+          .sort(
+            (left, right) =>
+              (left["caseKind"] === "decision" ? 0 : 1) -
+              (right["caseKind"] === "decision" ? 0 : 1),
+          )
+          .map((raw) => {
+            const row = scoped(raw);
+            return {
+              ...row,
+              evidenceReferences: row["evidenceReferences"] ?? [],
+              transactionTime: date(row["transactionTime"]),
+              recordedAt: date(row["recordedAt"]),
+            };
+          });
+        await tx
+          .insert(deliveryReturnSettlements)
+          .values(settlementRows as unknown as (typeof deliveryReturnSettlements.$inferInsert)[]);
+      }
       if (payload.purchases.length > 0) {
         await tx.insert(purchases).values(
           payload.purchases.map((raw) => {

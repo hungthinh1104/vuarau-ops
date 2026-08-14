@@ -84,6 +84,23 @@ describe("OperationsBoardView", () => {
       ...row,
       returnedFulfilment: true,
       nextAction: "Xử lý hàng trả",
+      exceptions: [
+        {
+          kind: "return_settlement_unresolved" as const,
+          severity: "high" as const,
+          closeImpact: "acknowledgeable" as const,
+          source: { kind: "sale" as const, reference: "SALE-1", id: "sale-1" },
+          sourceFacts: [{ key: "return_id", value: "return-1" }],
+          explanation: "Hàng đã trả nhưng hệ quả chưa được quyết định.",
+          unknown: "Hàng trả sẽ được xử lý thế nào.",
+          resolutionOptions: [{ code: "goods_only", label: "Xác nhận chỉ nhận lại hàng" }],
+          nextAction: {
+            label: "Mở phiếu trả để ghi nhận quyết định xử lý.",
+            href: "/sales/sale-1",
+          },
+          resolutionCondition: "Fact goods_only append-only xác nhận không phát sinh money effect.",
+        },
+      ],
     };
     render(
       <OperationsBoardView

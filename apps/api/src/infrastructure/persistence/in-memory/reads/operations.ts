@@ -472,6 +472,7 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
         deliveryReturnLines: rows(store.deliveryReturns).flatMap((record) =>
           record.lines.map((line) => ({ ...line, returnId: record.id })),
         ),
+        deliveryReturnSettlements: rows(store.deliveryReturnSettlements.values()),
         documents: rows(store.documents.values()),
         documentShares: rows(store.documentShares.values()),
         customerOrders: rows(store.customerOrders.values()).map(({ lines: _lines, ...order }) => ({

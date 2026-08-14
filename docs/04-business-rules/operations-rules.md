@@ -161,6 +161,9 @@ from `customer_account_entries` and then runs the workspace integrity read. A
 non-healthy result is a failure, not a warning. Retrying the same restore command
 returns its original receipt and does not insert another copy.
 
+Backup V20 also carries append-only delivery-return-settlement facts, so recovery
+does not reopen a return that was explicitly resolved as `goods_only`.
+
 This is application-level logical recovery. Physical database restore and PITR
 remain deployment infrastructure.
 
@@ -236,9 +239,11 @@ consequence, approved resolution options, the next action and the resolution
 condition. Money is resolved only by a money-bearing source fact: goods, delivery
 or return quantity never implies a refund, credit, debt change or allocation.
 
-The first implemented vertical slice preserves an unallocated customer Payment
+The first implemented vertical slices preserve an unallocated customer Payment
 until an authorized allocation or explicit credit/reversal decision appends the
-resolving fact. PostgreSQL page rows, filters and counts use the same condition
+resolving fact. A returned Delivery remains unresolved until an authorized
+`goods_only` settlement fact is appended; that fact has no money effect, and
+other return outcomes remain policy-blocked. PostgreSQL page rows, filters and counts use the same condition
 vocabulary as the in-memory read and shared domain deriver. Close readiness
 consumes the resulting server-authored summary and blocks only conditions whose
 policy classification is `blocking`; acknowledgeable and informational conditions

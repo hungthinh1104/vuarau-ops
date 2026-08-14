@@ -64,7 +64,8 @@ them without creating a cash movement or ledger entry.
 
 ### BR-CASH-014 — Backup and restore preserve reconciliation lineage
 
-Backup V19 carries close, reopen, statement-match and statement-reversal rows.
+Backup V20 carries close, reopen, statement-match, statement-reversal and
+delivery-return-settlement rows.
 Restore validates every workspace, policy, observation, cash-account and movement
 reference before inserting the rows into an empty target, then rechecks canonical
 projections.

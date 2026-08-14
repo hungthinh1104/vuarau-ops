@@ -34,6 +34,18 @@ export async function queryOperationsBoardCounts(
       left join delivery_line_returns dlr on dlr.delivery_line_id=dl.id
       where dl.workspace_id=${input.workspaceId}::uuid
       group by dl.sale_line_id
+    ), return_settlement_status as (
+      select d.sale_id,
+        bool_and(settled.return_id is not null) as all_resolved
+      from delivery_returns dr
+      join deliveries d on d.workspace_id=dr.workspace_id and d.id=dr.delivery_id
+      left join (
+        select distinct workspace_id, return_id
+        from delivery_return_settlements
+        where workspace_id=${input.workspaceId}::uuid
+      ) settled on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
+      where dr.workspace_id=${input.workspaceId}::uuid
+      group by d.sale_id
     ), sale_physical as (
       select s.id,
         case
@@ -46,9 +58,11 @@ export async function queryOperationsBoardCounts(
           coalesce(sdf.returned, 0) > 0
           and sl.quantity_scaled > coalesce(sdf.dispatched, 0) - coalesce(sdf.returned, 0)
         ) as returned_fulfilment
+        ,coalesce(bool_or(return_settlement_status.all_resolved), false) as return_settlement_resolved
       from sales s
       join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
       left join sale_delivery_facts sdf on sdf.sale_line_id=sl.id
+      left join return_settlement_status on return_settlement_status.sale_id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       group by s.id
     ), allocation_reversals as (
@@ -134,6 +148,7 @@ export async function queryOperationsBoardCounts(
           when sp.physical_state='attention' then 'attention' else 'posted' end as commercial_state,
         sp.physical_state,
         sp.returned_fulfilment,
+        sp.return_settlement_resolved,
         coalesce(u.amount,0) > 0 as unallocated_payment,
         case
           when sv.id is not null then 'voided'
@@ -153,6 +168,7 @@ export async function queryOperationsBoardCounts(
         case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
         pp.physical_state,
         false as returned_fulfilment,
+        false as return_settlement_resolved,
         false as unallocated_payment,
         case when pv.id is null then 'payable' else 'voided' end as financial_state
       from purchases p
@@ -171,7 +187,7 @@ export async function queryOperationsBoardCounts(
       count(*) filter (where financial_state='overdue')::int as overdue_count,
       count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required')::int as attention_count,
       0::int as fulfilment_remainder_unresolved_count,
-      count(*) filter (where returned_fulfilment)::int as return_settlement_unresolved_count,
+      count(*) filter (where returned_fulfilment and not return_settlement_resolved)::int as return_settlement_unresolved_count,
       count(*) filter (where commercial_state='attention' or physical_state='attention' or (financial_state='reconciliation_required' and not unallocated_payment))::int as reconciliation_variance_count,
       count(*) filter (where commercial_state='posted')::int as commercial_posted_count,
       count(*) filter (where commercial_state='confirmed')::int as commercial_confirmed_count,
@@ -253,6 +269,18 @@ export async function queryOperationsBoardCountsSplit(
         join delivery_returns dr on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
         where dr.workspace_id=${input.workspaceId}::uuid
         group by drl.delivery_line_id
+      ), return_settlement_status as (
+        select d.sale_id,
+          bool_and(settled.return_id is not null) as all_resolved
+        from delivery_returns dr
+        join deliveries d on d.workspace_id=dr.workspace_id and d.id=dr.delivery_id
+        left join (
+          select distinct workspace_id, return_id
+          from delivery_return_settlements
+          where workspace_id=${input.workspaceId}::uuid
+        ) settled on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
+        where dr.workspace_id=${input.workspaceId}::uuid
+        group by d.sale_id
       ), sale_physical as (
         select sl.sale_id as id,
           case
@@ -265,7 +293,9 @@ export async function queryOperationsBoardCountsSplit(
             coalesce(slf.returned, 0) > 0
             and sl.quantity_scaled > coalesce(slf.dispatched, 0) - coalesce(slf.returned, 0)
           ) as returned_fulfilment
+          ,coalesce(bool_or(return_settlement_status.all_resolved), false) as return_settlement_resolved
         from sale_lines sl
+        left join return_settlement_status on return_settlement_status.sale_id=sl.sale_id
         left join (
           select dl.sale_line_id,
             coalesce(sum(case when d.status in ('dispatched','delivered') then dl.quantity_scaled else 0 end),0) as dispatched,
@@ -309,7 +339,7 @@ export async function queryOperationsBoardCountsSplit(
         count(*) filter (where physical_state='attention')::int as physical_attention_count,
         count(*) filter (where sv.id is not null)::int as voided_count,
         count(*) filter (where physical_state='attention' or (sv.id is null and coalesce(u.amount,0) > 0))::int as attention_count,
-        count(*) filter (where returned_fulfilment)::int as return_settlement_unresolved_count,
+        count(*) filter (where returned_fulfilment and not return_settlement_resolved)::int as return_settlement_unresolved_count,
         count(*) filter (where physical_state='attention')::int as reconciliation_variance_count,
         count(*) filter (where physical_state='attention' and sv.id is null)::int as commercial_attention_count
       from sale_physical

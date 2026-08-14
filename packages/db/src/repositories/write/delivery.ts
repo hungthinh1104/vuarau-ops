@@ -137,6 +137,39 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
       );
       return true;
     },
+    async findReturnByIdForUpdate(workspaceId: WorkspaceId, returnId: string) {
+      const rows = await tx
+        .select()
+        .from(deliveryReturns)
+        .where(and(eq(deliveryReturns.workspaceId, workspaceId), eq(deliveryReturns.id, returnId)))
+        .limit(1)
+        .for("update");
+      if (rows[0] === undefined) return null;
+      const lineRows = await tx
+        .select()
+        .from(deliveryReturnLines)
+        .where(
+          and(
+            eq(deliveryReturnLines.workspaceId, workspaceId),
+            eq(deliveryReturnLines.returnId, returnId),
+          ),
+        );
+      return {
+        id: rows[0].id as DeliveryReturnState["id"],
+        workspaceId: rows[0].workspaceId as DeliveryReturnState["workspaceId"],
+        deliveryId: rows[0].deliveryId as DeliveryReturnState["deliveryId"],
+        reason: rows[0].reason,
+        evidenceReferences: [...rows[0].evidenceReferences],
+        transactionTime: rows[0].transactionTime.toISOString(),
+        recordedAt: rows[0].recordedAt.toISOString(),
+        actorId: rows[0].actorId as DeliveryReturnState["actorId"],
+        lines: lineRows.map((line) => ({
+          deliveryLineId:
+            line.deliveryLineId as DeliveryReturnState["lines"][number]["deliveryLineId"],
+          quantity: { valueScaled: line.quantityScaled, unit: line.unit },
+        })),
+      } satisfies DeliveryReturnState;
+    },
     async netFulfilledBySaleLine(
       workspaceId: WorkspaceId,
       saleId: SaleId,
