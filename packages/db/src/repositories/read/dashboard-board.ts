@@ -30,6 +30,10 @@ function mapBoardRows(rawRows: readonly Row[]) {
     const commercialState = String(row["commercial_state"] ?? "");
     const physicalState = String(row["physical_state"] ?? "");
     const financialState = String(row["financial_state"] ?? "");
+    const dueAt =
+      row["due_at"] === null || row["due_at"] === undefined
+        ? null
+        : new Date(String(row["due_at"])).toISOString();
     const returnedFulfilment = Boolean(row["returned_fulfilment"]);
     const fulfilmentRemainderUnresolved = Boolean(row["fulfilment_remainder_unresolved"]);
     const fulfilmentRemainderOutcome =
@@ -65,6 +69,7 @@ function mapBoardRows(rawRows: readonly Row[]) {
         reference,
         href,
         amountMinor,
+        dueAt,
         commercialState,
         physicalState,
         financialState,
@@ -438,6 +443,7 @@ export async function queryFastOperationsBoardPage(
         when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
         else 'awaiting_payment'
       end as financial_state,
+      s.due_at as due_at,
       sale_physical.returned_fulfilment,
       sale_physical.return_settlement_resolved,
       sale_physical.fulfilment_remainder_unresolved,
@@ -471,6 +477,7 @@ export async function queryFastOperationsBoardPage(
       s.display_name as counterparty, p.total_amount_minor as amount, p.currency,
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
       purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
+      null as due_at,
       false as returned_fulfilment,
       false as return_settlement_resolved,
       false as fulfilment_remainder_unresolved,
@@ -501,6 +508,7 @@ export async function queryFastOperationsBoardPage(
       unallocatedPayment: 0,
       awaitingPayment: 0,
       overdue: 0,
+      overdueReceivable: 0,
       attention: 0,
       fulfilmentRemainderUnresolved: 0,
       returnSettlementUnresolved: 0,
@@ -509,6 +517,7 @@ export async function queryFastOperationsBoardPage(
         outstanding_delivery: 0,
         incomplete_receiving: 0,
         unallocated_payment: 0,
+        overdue_receivable: 0,
         fulfilment_remainder_unresolved: 0,
         return_settlement_unresolved: 0,
         reconciliation_variance: 0,

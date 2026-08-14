@@ -34,6 +34,8 @@ export function matchesOperationsBoardFilter(
   if (filter === "unallocated_payment") return row.unallocatedPayment;
   if (filter === "awaiting_payment") return row.financialState === "awaiting_payment";
   if (filter === "overdue") return row.financialState === "overdue";
+  if (filter === "overdue_receivable")
+    return row.exceptions.some((exception) => exception.kind === "overdue_receivable");
   if (filter === "attention") {
     return (
       row.commercialState === "attention" ||
@@ -92,6 +94,7 @@ export function boardCounts(rows: readonly OperationsBoardDto["page"]["items"][n
     unallocatedPayment: rows.filter((row) => row.unallocatedPayment).length,
     awaitingPayment: rows.filter((row) => row.financialState === "awaiting_payment").length,
     overdue: rows.filter((row) => row.financialState === "overdue").length,
+    overdueReceivable: exceptionCounts.overdue_receivable,
     fulfilmentRemainderUnresolved: exceptionCounts.fulfilment_remainder_unresolved,
     returnSettlementUnresolved: exceptionCounts.return_settlement_unresolved,
     reconciliationVariance: exceptionCounts.reconciliation_variance,

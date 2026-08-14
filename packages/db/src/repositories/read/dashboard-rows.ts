@@ -49,7 +49,7 @@ export async function queryRows(
                 ? sql`unallocated_payment`
                 : input.filter === "awaiting_payment"
                   ? sql`financial_state = 'awaiting_payment'`
-                  : input.filter === "overdue"
+                  : input.filter === "overdue" || input.filter === "overdue_receivable"
                     ? sql`financial_state = 'overdue'`
                     : input.filter === "attention"
                       ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
@@ -522,9 +522,7 @@ export async function queryRows(
         when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
         when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
         else 'awaiting_payment'
-      end as financial_state,
-      sale_physical.returned_fulfilment,
-      coalesce(sale_physical.return_settlement_resolved, false) as return_settlement_resolved,
+      end as financial_state, s.due_at as due_at, sale_physical.returned_fulfilment, coalesce(sale_physical.return_settlement_resolved, false) as return_settlement_resolved,
       coalesce(sale_physical.fulfilment_remainder_unresolved, false) as fulfilment_remainder_unresolved,
       sale_physical.fulfilment_remainder_outcome,
       (sale_physical.physical_state='attention') as reconciliation_variance,
@@ -552,8 +550,7 @@ export async function queryRows(
     select p.id, 'purchase' as kind, ('PUR-' || upper(substr(p.id::text,1,8))) as reference,
       s.display_name as counterparty, p.total_amount_minor as amount, p.currency,
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
-      purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
-      false as returned_fulfilment,
+      purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state, null as due_at, false as returned_fulfilment,
       false as return_settlement_resolved,
       false as fulfilment_remainder_unresolved,
       null as fulfilment_remainder_outcome,
@@ -585,6 +582,7 @@ export async function queryRows(
     unallocatedPayment: first === undefined ? 0 : numberOf(first, "unallocated_payment_count"),
     awaitingPayment: first === undefined ? 0 : numberOf(first, "awaiting_payment_count"),
     overdue: first === undefined ? 0 : numberOf(first, "overdue_count"),
+    overdueReceivable: first === undefined ? 0 : numberOf(first, "financial_overdue_count"),
     outstandingDelivery: first === undefined ? 0 : numberOf(first, "outstanding_delivery_count"),
     incompleteReceiving: first === undefined ? 0 : numberOf(first, "needs_receiving_count"),
     attention: first === undefined ? 0 : numberOf(first, "attention_count"),
@@ -598,6 +596,7 @@ export async function queryRows(
       outstanding_delivery: first === undefined ? 0 : numberOf(first, "outstanding_delivery_count"),
       incomplete_receiving: first === undefined ? 0 : numberOf(first, "needs_receiving_count"),
       unallocated_payment: first === undefined ? 0 : numberOf(first, "unallocated_payment_count"),
+      overdue_receivable: first === undefined ? 0 : numberOf(first, "financial_overdue_count"),
       fulfilment_remainder_unresolved:
         first === undefined ? 0 : numberOf(first, "fulfilment_remainder_unresolved_count"),
       return_settlement_unresolved:
@@ -678,6 +677,7 @@ export async function queryRows(
           reference,
           href,
           amountMinor,
+          dueAt: row["due_at"] ? new Date(String(row["due_at"])).toISOString() : null,
           commercialState,
           physicalState,
           financialState,

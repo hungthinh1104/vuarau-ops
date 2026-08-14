@@ -210,6 +210,7 @@ export async function queryOperationsBoardCounts(
       count(*) filter (where unallocated_payment)::int as unallocated_payment_count,
       count(*) filter (where financial_state='awaiting_payment')::int as awaiting_payment_count,
       count(*) filter (where financial_state='overdue')::int as overdue_count,
+      count(*) filter (where financial_state='overdue')::int as overdue_receivable_count,
       count(*) filter (where physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved)::int as outstanding_delivery_count,
       count(*) filter (where physical_state='needs_receiving')::int as incomplete_receiving_count,
       count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required')::int as attention_count,
@@ -246,6 +247,7 @@ export async function queryOperationsBoardCounts(
       unallocatedPayment: count("unallocated_payment_count"),
       awaitingPayment: count("awaiting_payment_count"),
       overdue: count("overdue_count"),
+      overdueReceivable: count("overdue_receivable_count"),
       outstandingDelivery: count("outstanding_delivery_count"),
       incompleteReceiving: count("incomplete_receiving_count"),
       attention: count("attention_count"),
@@ -256,6 +258,7 @@ export async function queryOperationsBoardCounts(
         outstanding_delivery: count("outstanding_delivery_count"),
         incomplete_receiving: count("incomplete_receiving_count"),
         unallocated_payment: count("unallocated_payment_count"),
+        overdue_receivable: count("overdue_receivable_count"),
         fulfilment_remainder_unresolved: count("fulfilment_remainder_unresolved_count"),
         return_settlement_unresolved: count("return_settlement_unresolved_count"),
         reconciliation_variance: count("reconciliation_variance_count"),
@@ -442,7 +445,8 @@ export async function queryOperationsBoardCountsSplit(
         count(*) filter (where coalesce(u.amount,0) > 0)::int as unallocated_payment_count,
         count(*) filter (where sv.id is null and coalesce(u.amount,0) > 0)::int as reconciliation_required_count,
         count(*) filter (where sv.id is null and coalesce(u.amount,0) = 0 and coalesce(a.amount,0) >= s.total_amount_minor)::int as paid_count,
-        count(*) filter (where sv.id is null and coalesce(u.amount,0) = 0 and coalesce(a.amount,0) < s.total_amount_minor and s.due_at is not null and s.due_at < ${input.now}::timestamptz)::int as overdue_count,
+      count(*) filter (where sv.id is null and coalesce(u.amount,0) = 0 and coalesce(a.amount,0) < s.total_amount_minor and s.due_at is not null and s.due_at < ${input.now}::timestamptz)::int as overdue_count,
+        count(*) filter (where sv.id is null and coalesce(u.amount,0) = 0 and coalesce(a.amount,0) < s.total_amount_minor and s.due_at is not null and s.due_at < ${input.now}::timestamptz)::int as overdue_receivable_count,
         count(*) filter (where sv.id is null and coalesce(u.amount,0) = 0 and coalesce(a.amount,0) < s.total_amount_minor and (s.due_at is null or s.due_at >= ${input.now}::timestamptz))::int as awaiting_payment_count
       from sales s
       left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
@@ -523,6 +527,7 @@ export async function queryOperationsBoardCountsSplit(
       unallocatedPayment: value(financial, "unallocated_payment_count"),
       awaitingPayment: value(financial, "awaiting_payment_count"),
       overdue: value(financial, "overdue_count"),
+      overdueReceivable: value(financial, "overdue_receivable_count"),
       attention: value(sale, "attention_count"),
       fulfilmentRemainderUnresolved: value(sale, "fulfilment_remainder_unresolved_count"),
       returnSettlementUnresolved: value(sale, "return_settlement_unresolved_count"),
@@ -533,6 +538,7 @@ export async function queryOperationsBoardCountsSplit(
         outstanding_delivery: value(sale, "outstanding_delivery_count"),
         incomplete_receiving: value(purchase, "needs_receiving_count"),
         unallocated_payment: value(financial, "unallocated_payment_count"),
+        overdue_receivable: value(financial, "overdue_receivable_count"),
         fulfilment_remainder_unresolved: value(sale, "fulfilment_remainder_unresolved_count"),
         return_settlement_unresolved: value(sale, "return_settlement_unresolved_count"),
         reconciliation_variance:

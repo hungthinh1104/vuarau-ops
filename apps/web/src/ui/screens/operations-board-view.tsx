@@ -59,6 +59,7 @@ const FILTERS: readonly { value: OperationsBoardFilter; label: string }[] = [
   { value: "unallocated_payment", label: "Tiền chưa phân bổ" },
   { value: "awaiting_payment", label: "Chờ thanh toán" },
   { value: "overdue", label: "Quá hạn" },
+  { value: "overdue_receivable", label: "Phải thu quá hạn" },
   { value: "attention", label: "Cần kiểm tra" },
   { value: "fulfilment_remainder_unresolved", label: "Còn lại chưa quyết định" },
   { value: "return_settlement_unresolved", label: "Hàng trả chưa quyết định" },
@@ -85,6 +86,7 @@ function stateLabel(value: string): string {
     paid: "Đã thanh toán",
     payable: "Phải trả",
     overdue: "Quá hạn",
+    overdue_receivable: "Phải thu quá hạn",
     reconciliation_required: "Cần đối soát",
     attention: "Cần kiểm tra",
   };
@@ -100,6 +102,7 @@ function stateTone(value: string): "info" | "warning" | "positive" | "neutral" {
       "awaiting_payment",
       "payable",
       "overdue",
+      "overdue_receivable",
       "reconciliation_required",
     ].includes(value)
   )
@@ -211,6 +214,7 @@ function CountStrip({
     unallocated_payment: counts.unallocatedPayment,
     awaiting_payment: counts.awaitingPayment,
     overdue: counts.overdue,
+    overdue_receivable: counts.overdueReceivable,
     attention: counts.attention,
     fulfilment_remainder_unresolved: counts.fulfilmentRemainderUnresolved,
     return_settlement_unresolved: counts.returnSettlementUnresolved,

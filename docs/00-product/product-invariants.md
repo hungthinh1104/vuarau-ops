@@ -42,12 +42,12 @@ rules refine them but may not weaken them.
 10. **Operational uncertainty is explicit and bounded.** The system separates
     known state, known next action and unresolved consequence. The current V1
     exception contract includes `OUTSTANDING_DELIVERY`, `INCOMPLETE_RECEIVING`,
-    `UNALLOCATED_PAYMENT`,
+    `UNALLOCATED_PAYMENT`, `OVERDUE_RECEIVABLE`,
     `FULFILMENT_REMAINDER_UNRESOLVED`, `RETURN_SETTLEMENT_UNRESOLVED` and
     `RECONCILIATION_VARIANCE`; each is derived from source facts and carries an
     explicit next action. The `needs_receiving` workflow state remains visible
-    alongside its source-backed incomplete-receiving exception; overdue and
-    payment workflow states remain known state until their own producers exist. No UI,
+    alongside its source-backed incomplete-receiving exception; overdue receivables
+    carry their due-date source fact, while awaiting-payment remains known state. No UI,
     report or AI suggestion may invent a missing money, goods or settlement fact.
 
 ## Evidence vocabulary

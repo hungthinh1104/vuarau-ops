@@ -14,6 +14,7 @@ export type OperationsBoardExceptionFacts = {
   readonly physicalState: string;
   readonly commercialState: string;
   readonly financialState: string;
+  readonly dueAt: string | null;
   readonly returnedFulfilment: boolean;
   readonly unallocatedPayment: boolean;
   readonly unallocatedPaymentAmountMinor: number | null;
@@ -110,6 +111,14 @@ export function deriveOperationsBoardExceptions(
           key: "unallocated_payment_amount_minor",
           value: String(input.unallocatedPaymentAmountMinor ?? 0),
         },
+      ]),
+    );
+  }
+  if (input.kind === "sale" && input.financialState === "overdue") {
+    result.push(
+      exception(input, "overdue_receivable", [
+        { key: "due_at", value: input.dueAt ?? "none" },
+        { key: "overdue_status", value: "overdue" },
       ]),
     );
   }

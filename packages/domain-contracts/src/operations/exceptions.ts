@@ -4,6 +4,7 @@ export const OPERATIONS_EXCEPTION_KINDS = [
   "outstanding_delivery",
   "incomplete_receiving",
   "unallocated_payment",
+  "overdue_receivable",
   "fulfilment_remainder_unresolved",
   "return_settlement_unresolved",
   "reconciliation_variance",
@@ -96,6 +97,15 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
     ],
     nextAction: "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.",
     resolutionCondition: "Số tiền chưa phân bổ bằng không hoặc được ghi nhận thành credit hợp lệ.",
+  },
+  overdue_receivable: {
+    severity: "high",
+    closeImpact: "acknowledgeable",
+    explanation: "Khoản phải thu đã quá hạn nhưng chưa được thu đủ.",
+    unknown: "Khoản phải thu sẽ được thu vào thời điểm nào và còn cần xử lý thương mại nào không.",
+    resolutionOptions: [{ code: "record_payment", label: "Ghi nhận thanh toán" }],
+    nextAction: "Mở Sale để thu hồi khoản phải thu quá hạn.",
+    resolutionCondition: "Số dư phải thu quá hạn bằng không hoặc được xử lý bằng fact được phép.",
   },
   fulfilment_remainder_unresolved: {
     severity: "high",

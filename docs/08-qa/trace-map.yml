@@ -4259,7 +4259,7 @@ contract_tests:
     title: Operations Board exposes exact unallocated customer payment and its action
     file: apps/api/src/modules/account/payment-allocation.app.test.ts
   TC-OPS-025:
-    title: Shared Operations deriver emits outstanding delivery and preserves source-backed conditions
+    title: Shared Operations deriver emits operational exceptions with source-backed conditions
     file: packages/domain-kernel/src/operations/index.test.ts
   TC-OPS-026:
     title: PostgreSQL Operations Board counts preserve canonical exception parity

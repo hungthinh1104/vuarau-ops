@@ -131,12 +131,12 @@ The Operations Board separates ordinary workflow state from unresolved
 consequence. `needs_delivery` and `in_delivery` are shown as the server-authored
 `outstanding_delivery` condition when no returned fulfilment or opened remainder
 supersedes them. `needs_receiving` is shown alongside the server-authored
-`incomplete_receiving` condition. `awaiting_payment` and `overdue` may be shown as
-known state and next action, but remain non-exception states until their own
-source-backed producers exist.
+`incomplete_receiving` condition. `awaiting_payment` remains known state and next
+action. A posted Sale in `overdue` state also carries the source-backed
+`overdue_receivable` exception and due-date fact.
 
 The current V1 exception states are `outstanding_delivery`, `incomplete_receiving`,
-`unallocated_payment`, `fulfilment_remainder_unresolved`,
+`unallocated_payment`, `overdue_receivable`, `fulfilment_remainder_unresolved`,
 `return_settlement_unresolved` and `reconciliation_variance`. The row receives server-authored source facts,
 unknown consequence, approved resolution options and next action. In particular,
 an active Payment with a remaining unallocated amount shows the exact

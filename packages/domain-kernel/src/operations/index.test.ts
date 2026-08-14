@@ -7,6 +7,7 @@ const saleFacts = {
   reference: "SALE-1",
   href: "/sales/sale-1",
   amountMinor: 1_000_000,
+  dueAt: null,
   physicalState: "needs_delivery",
   commercialState: "posted",
   financialState: "reconciliation_required",
@@ -150,5 +151,33 @@ describe("operations unresolved-state derivation", () => {
         label: "Chờ chính sách reconciliation được phê duyệt.",
       },
     });
+  });
+
+  it("TC-OPS-025 — exposes an overdue receivable with its due-date source fact", () => {
+    const exceptions = deriveOperationsBoardExceptions({
+      ...saleFacts,
+      financialState: "overdue",
+      dueAt: "2026-07-20T00:00:00.000Z",
+      physicalState: "delivered",
+      returnedFulfilment: false,
+      unallocatedPayment: false,
+      unallocatedPaymentAmountMinor: null,
+    });
+
+    expect(exceptions).toEqual([
+      expect.objectContaining({
+        kind: "overdue_receivable",
+        severity: "high",
+        closeImpact: "acknowledgeable",
+        sourceFacts: expect.arrayContaining([
+          { key: "due_at", value: "2026-07-20T00:00:00.000Z" },
+          { key: "overdue_status", value: "overdue" },
+        ]),
+        nextAction: {
+          label: "Mở Sale để thu hồi khoản phải thu quá hạn.",
+          href: "/sales/sale-1",
+        },
+      }),
+    ]);
   });
 });

@@ -498,6 +498,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             reference: `SALE-${sale.id.slice(0, 8).toUpperCase()}`,
             href: `/sales/${sale.id}`,
             amountMinor: sale.totalAmount.amountMinor,
+            dueAt: sale.dueAt,
             physicalState: physical.state,
             commercialState:
               sale.voidRecord !== null
@@ -593,6 +594,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             reference: `PUR-${purchase.id.slice(0, 8).toUpperCase()}`,
             href: `/purchases/${purchase.id}`,
             amountMinor: purchase.totalAmount.amountMinor,
+            dueAt: null,
             physicalState: remaining ? "needs_receiving" : "received",
             commercialState: purchase.voidRecord === null ? "confirmed" : "voided",
             financialState: purchase.voidRecord === null ? "payable" : "voided",

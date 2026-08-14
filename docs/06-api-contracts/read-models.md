@@ -209,11 +209,12 @@ facts. It appears in the dedicated `unallocated_payment` filter and its next
 action is `Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.`; it is never reported as a missing
 customer payment or silently converted into a ledger adjustment.
 
-The V1 operational exception catalog is deliberately bounded. The six conditions
+The V1 operational exception catalog is deliberately bounded. The seven conditions
 below are unresolved exceptions derived from canonical facts. `outstanding_delivery`
 is the source-backed delivery work condition and `incomplete_receiving` is the
-source-backed Purchase receiving condition; overdue and awaiting payment remain
-useful server-authored workflow state until their own exception producers exist.
+source-backed Purchase receiving condition. `overdue_receivable` is emitted from
+the canonical Sale due date and overdue financial state; awaiting payment remains
+useful server-authored workflow state, not an exception.
 Realtime freshness and close readiness are separate
 workspace signals, not synthetic Board rows.
 
@@ -222,13 +223,14 @@ workspace signals, not synthetic Board rows.
 | `outstanding_delivery`            | Sale physical state is `needs_delivery` or `in_delivery`, without returned fulfilment or an opened remainder | Create the remaining Delivery or finish the active Delivery                                     | Remaining Sale quantity is delivered or Sale is validly removed                      |
 | `incomplete_receiving`            | Purchase physical state is `needs_receiving`                                                                 | Record the missing Receipt or complete its inspection                                           | Valid received quantity reaches the Purchase quantity                                |
 | `unallocated_payment`             | Active Payment minus reversal and effective allocation is greater than zero                                  | Money was received but attribution is unknown; allocate to Sale or retain as customer credit    | Allocation, reversal or explicit customer-credit fact reaches zero unresolved amount |
+| `overdue_receivable`              | Posted Sale is unpaid, has a due date before the read clock, and has no unallocated customer payment         | Open the Sale and record the collection action or payment                                       | Overdue receivable balance reaches zero or an allowed fact resolves it               |
 | `fulfilment_remainder_unresolved` | An explicit remainder-decision source fact; `needs_delivery`/`in_delivery` alone is insufficient             | Delivery, commercial correction, cancellation or a new Sale must be chosen                      | Append-only fulfilment or commercial decision                                        |
 | `return_settlement_unresolved`    | Canonical Delivery Return exists without a settlement fact                                                   | Record the return consequence; V1 supports only `goods_only` with no money effect               | Append-only return settlement fact                                                   |
 | `reconciliation_variance`         | Canonical comparison or integrity source reports a mismatch                                                  | Wait for approved reconciliation/correction policy; raw observation does not clear the mismatch | V1 policy-blocked; retain until an approved correction command exists                |
 
 Every `row.exceptions` item carries `sourceFacts`, `unknown`,
 `resolutionOptions`, `nextAction` and `resolutionCondition`. `counts.exceptionCounts`
-uses the same six keys. PostgreSQL page rows, filters and counts must remain
+uses the same seven keys. PostgreSQL page rows, filters and counts must remain
 workspace-scoped and parity-compatible with the shared deriver; the browser does
 not infer an exception outside the server-owned source condition. A close read may classify these
 conditions as blocking, acknowledgeable or informational, but an acknowledgement

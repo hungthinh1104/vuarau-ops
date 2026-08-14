@@ -100,11 +100,11 @@ describe.skipIf(skipWithoutDatabase())(
                   qualityGradeId: ctx.qualityGradeId,
                   qualityGradeName: "Loại 1",
                   quantity: { valueScaled: 1_000, unit: "kg" },
-                  unitPrice: { amountMinor: 875_000, currency: "VND" },
+                  unitPrice: { amountMinor: 1_000_000, currency: "VND" },
                 },
               ],
               note: null,
-              dueAt: null,
+              dueAt: "2026-07-20T12:00:00.000Z",
               replacesSaleId: null,
             },
           })
@@ -261,6 +261,43 @@ describe.skipIf(skipWithoutDatabase())(
       });
       expect(resolved.ok).toBe(true);
       if (resolved.ok) expect(resolved.value.page.items).toHaveLength(0);
+
+      const overdue = await getOperationsBoard(context(), {
+        workspaceId: ctx.workspaceId,
+        filter: "overdue_receivable",
+        sort: "updated_desc",
+        search: "",
+        cursor: null,
+        limit: 20,
+      });
+      expect(overdue.ok).toBe(true);
+      if (overdue.ok)
+        expect(overdue.value.page.items).toContainEqual(
+          expect.objectContaining({
+            id: saleId,
+            financialState: "overdue",
+            nextAction: "Giao hàng",
+            exceptions: expect.arrayContaining([
+              expect.objectContaining({
+                kind: "overdue_receivable",
+                sourceFacts: expect.arrayContaining([
+                  { key: "due_at", value: "2026-07-20T12:00:00.000Z" },
+                ]),
+              }),
+            ]),
+          }),
+        );
+
+      const overdueCounts = await getOperationsBoardCounts(context(), {
+        workspaceId: ctx.workspaceId,
+        filter: "overdue_receivable",
+        search: "",
+      });
+      expect(overdueCounts.ok).toBe(true);
+      if (overdueCounts.ok) {
+        expect(overdueCounts.value.counts.overdueReceivable).toBe(1);
+        expect(overdueCounts.value.counts.exceptionCounts.overdue_receivable).toBe(1);
+      }
 
       const resolvedCounts = await getOperationsBoardCounts(context(), {
         workspaceId: ctx.workspaceId,
