@@ -23,6 +23,7 @@ import type { CommandContext } from "../shared/command-pipeline.ts";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { CommandIntegrityError } from "../shared/integrity.ts";
+import { activeCustomerCreditAmount } from "./customer-credit.ts";
 
 async function requireManualAllocationPolicy(
   workspaceId: RecordPaymentAllocationCommand["workspaceId"],
@@ -96,9 +97,25 @@ export function recordPaymentAllocation(
         command.workspaceId,
         payment.customerId,
       );
+      const preservedCredit = activeCustomerCreditAmount(
+        await repos.debtObservations.listByPayment(command.workspaceId, payment.id),
+      );
+      if (preservedCredit === null) {
+        return err(
+          "PERSISTED_NUMBER_OUT_OF_RANGE",
+          "Persisted monetary data is outside the supported exact range.",
+          { field: "payment.customer_credit_preserved.amount_minor" },
+        );
+      }
       const decision = decideRecordPaymentAllocation(
         command,
-        { payment, sale, allocation: null, ...existing },
+        {
+          payment,
+          sale,
+          allocation: null,
+          ...existing,
+          reservedCustomerCreditAmount: preservedCredit,
+        },
         recordedAt,
       );
       if (!decision.ok) return decision;

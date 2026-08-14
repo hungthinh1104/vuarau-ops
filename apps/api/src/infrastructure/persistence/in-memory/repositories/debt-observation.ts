@@ -16,6 +16,13 @@ export const createDebtObservationRepositories = (
           observation.workspaceId === workspaceId &&
           observation.relatedObservationId === observationId,
       ) ?? null,
+    listByPayment: async (workspaceId, paymentReference) =>
+      [...store.debtObservations.values()].filter(
+        (observation) =>
+          observation.workspaceId === workspaceId &&
+          observation.kind === "customer_credit_preserved" &&
+          observation.facts.paymentReference === paymentReference,
+      ),
     insert: async (observation) => {
       const observationKey = key(observation.workspaceId, observation.id);
       if (store.debtObservations.has(observationKey)) return false;

@@ -17,6 +17,8 @@ export type PaymentAllocationContext = {
   readonly allocation: PaymentAllocationDto | null;
   readonly allocations: readonly PaymentAllocationDto[];
   readonly reversals: readonly PaymentAllocationReversalDto[];
+  /** Amount already reserved by an explicit customer-credit fact. */
+  readonly reservedCustomerCreditAmount?: number;
 };
 
 export type PaymentAllocationDecision<T> = {
@@ -114,7 +116,10 @@ export function decideRecordPaymentAllocation(
   const remainingPayment =
     allocatedPayment === null || effectivePayment === null
       ? null
-      : subtractExactIntegers(effectivePayment, allocatedPayment);
+      : subtractExactIntegers(
+          subtractExactIntegers(effectivePayment, allocatedPayment) ?? 0,
+          context.reservedCustomerCreditAmount ?? 0,
+        );
   const remainingSale =
     allocatedSale === null
       ? null
@@ -124,7 +129,9 @@ export function decideRecordPaymentAllocation(
   }
   if (command.payload.amount.amountMinor > remainingPayment) {
     return err(
-      "PAYMENT_ALLOCATION_EXCEEDS_PAYMENT",
+      context.reservedCustomerCreditAmount !== undefined && context.reservedCustomerCreditAmount > 0
+        ? "PAYMENT_ALLOCATION_WOULD_EXCEED_CUSTOMER_CREDIT"
+        : "PAYMENT_ALLOCATION_EXCEEDS_PAYMENT",
       "Allocation exceeds the payment remaining amount.",
       {
         remainingAmountMinor: remainingPayment,

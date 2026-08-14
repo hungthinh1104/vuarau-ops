@@ -13,6 +13,7 @@ import {
   type DebtObservationId,
   type DebtObservationKind,
 } from "@vuarau/domain-contracts";
+import { useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 import { useTRPC } from "@/api/providers.tsx";
 import { useSession } from "@/api/session-gate.tsx";
@@ -24,6 +25,7 @@ import { DebtEvidenceView } from "@/ui/screens/debt-evidence-view.tsx";
 export function DebtEvidenceController() {
   const { workspaceId, session } = useSession();
   const trpc = useTRPC();
+  const searchParams = useSearchParams();
   const observations = useQuery(
     trpc.evidence.listDebtObservations.queryOptions({
       workspaceId,
@@ -35,17 +37,25 @@ export function DebtEvidenceController() {
   const mutation = useMutation(trpc.evidence.recordDebtObservation.mutationOptions());
   const command = useContractCommand(recordDebtObservationCommandSchema, mutation.mutateAsync);
   const observationId = useRef(crypto.randomUUID() as DebtObservationId);
-  const [kind, setKind] = useState<DebtObservationKind>("agreed_due_date");
+  const [kind, setKind] = useState<DebtObservationKind>(() => {
+    const parsed = debtObservationKindSchema.safeParse(searchParams.get("kind"));
+    return parsed.success ? parsed.data : "agreed_due_date";
+  });
   const [caseKind, setCaseKind] = useState<CostObservationCaseKind>("normal");
   const [description, setDescription] = useState("");
   const [participantWording, setParticipantWording] = useState("");
-  const [customerId, setCustomerId] = useState<CustomerId | null>(null);
+  const [customerId, setCustomerId] = useState<CustomerId | null>(() => {
+    const raw = searchParams.get("customerId");
+    return raw === null ? null : (raw as CustomerId);
+  });
   const [amount, setAmount] = useState("");
   const [agreedDueAt, setAgreedDueAt] = useState("");
   const [promiseToPayAt, setPromiseToPayAt] = useState("");
   const [termCode, setTermCode] = useState("");
   const [termText, setTermText] = useState("");
-  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentReference, setPaymentReference] = useState(
+    () => searchParams.get("paymentReference") ?? "",
+  );
   const [allocationProposal, setAllocationProposal] = useState("");
   const [evidenceReferences, setEvidenceReferences] = useState("");
   const [relatedObservationId, setRelatedObservationId] = useState<DebtObservationId | "">("");
@@ -137,6 +147,7 @@ export function DebtEvidenceController() {
       caseKind={caseKind}
       description={description}
       participantWording={participantWording}
+      customerId={customerId}
       amount={amount}
       agreedDueAt={agreedDueAt}
       promiseToPayAt={promiseToPayAt}
@@ -152,6 +163,9 @@ export function DebtEvidenceController() {
       onCaseKind={setCaseKind}
       onDescription={setDescription}
       onParticipantWording={setParticipantWording}
+      onCustomerId={(value) =>
+        setCustomerId(value.trim() === "" ? null : (value.trim() as CustomerId))
+      }
       onAmount={setAmount}
       onAgreedDueAt={setAgreedDueAt}
       onPromiseToPayAt={setPromiseToPayAt}

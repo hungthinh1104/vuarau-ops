@@ -95,11 +95,22 @@ export async function queryOperationsBoardCounts(
       select payment_id, coalesce(sum(amount),0) as amount
       from allocation_facts
       group by payment_id
+    ), preserved_credit_by_payment as (
+      select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
+      from debt_observations dc
+      where dc.workspace_id=${input.workspaceId}::uuid
+        and dc.kind='customer_credit_preserved'
+        and not exists (
+          select 1 from debt_observations successor
+          where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
+        )
+      group by dc.payment_reference
     ), unallocated_by_customer as (
       select p.customer_id,
-        coalesce(sum(greatest(p.amount_minor-p.reversed_amount_minor-coalesce(allocated_payment.amount,0),0)),0) as amount
+        coalesce(sum(greatest(p.amount_minor-p.reversed_amount_minor-coalesce(allocated_payment.amount,0)-coalesce(preserved_credit.amount,0),0)),0) as amount
       from payments p
       left join allocated_payment on allocated_payment.payment_id=p.id
+      left join preserved_credit_by_payment preserved_credit on preserved_credit.payment_id=p.id::text
       where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
       group by p.customer_id
     ), direct_received as (
@@ -335,11 +346,22 @@ export async function queryOperationsBoardCountsSplit(
           on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
         where pa.workspace_id=${input.workspaceId}::uuid
         group by pa.payment_id
+      ), preserved_credit_by_payment as (
+        select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
+        from debt_observations dc
+        where dc.workspace_id=${input.workspaceId}::uuid
+          and dc.kind='customer_credit_preserved'
+          and not exists (
+            select 1 from debt_observations successor
+            where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
+          )
+        group by dc.payment_reference
       ), unallocated_by_customer as (
         select p.customer_id,
-          coalesce(sum(greatest(p.amount_minor-p.reversed_amount_minor-coalesce(af.amount,0),0)),0) as amount
+          coalesce(sum(greatest(p.amount_minor-p.reversed_amount_minor-coalesce(af.amount,0)-coalesce(preserved_credit.amount,0),0)),0) as amount
         from payments p
         left join allocation_facts af on af.payment_id=p.id
+        left join preserved_credit_by_payment preserved_credit on preserved_credit.payment_id=p.id::text
         where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
         group by p.customer_id
       )
@@ -380,11 +402,22 @@ export async function queryOperationsBoardCountsSplit(
       ), allocated_payment as (
         select payment_id, coalesce(sum(amount),0) as amount
         from allocation_facts group by payment_id
+      ), preserved_credit_by_payment as (
+        select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
+        from debt_observations dc
+        where dc.workspace_id=${input.workspaceId}::uuid
+          and dc.kind='customer_credit_preserved'
+          and not exists (
+            select 1 from debt_observations successor
+            where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
+          )
+        group by dc.payment_reference
       ), unallocated_by_customer as (
         select p.customer_id,
-          coalesce(sum(greatest(p.amount_minor-p.reversed_amount_minor-coalesce(ap.amount,0),0)),0) as amount
+          coalesce(sum(greatest(p.amount_minor-p.reversed_amount_minor-coalesce(ap.amount,0)-coalesce(preserved_credit.amount,0),0)),0) as amount
         from payments p
         left join allocated_payment ap on ap.payment_id=p.id
+        left join preserved_credit_by_payment preserved_credit on preserved_credit.payment_id=p.id::text
         where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
         group by p.customer_id
       )

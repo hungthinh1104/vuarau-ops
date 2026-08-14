@@ -68,6 +68,25 @@ export function saleFinancialFacts(
             exactAdd(total, reversal.amount.amountMinor, "dashboard.payment_reversal.amount_minor"),
           0,
         );
+      const preservedCredit = [...store.debtObservations.values()]
+        .filter(
+          (observation) =>
+            observation.workspaceId === workspaceId &&
+            observation.kind === "customer_credit_preserved" &&
+            observation.facts.paymentReference === payment.id &&
+            ![...store.debtObservations.values()].some(
+              (successor) => successor.relatedObservationId === observation.id,
+            ),
+        )
+        .reduce(
+          (total, observation) =>
+            exactAdd(
+              total,
+              observation.facts.amount?.amountMinor ?? 0,
+              "dashboard.customer_credit_preserved.amount_minor",
+            ),
+          0,
+        );
       const remaining = exactAdd(
         exactSubtract(
           exactSubtract(
@@ -78,7 +97,11 @@ export function saleFinancialFacts(
           allocatedToPayment,
           "dashboard.payment_remaining.amount_minor",
         ),
-        reversedAllocations,
+        exactSubtract(
+          reversedAllocations,
+          preservedCredit,
+          "dashboard.payment_remaining.amount_minor",
+        ),
         "dashboard.payment_remaining.amount_minor",
       );
       return exactAdd(sum, Math.max(0, remaining), "dashboard.unallocated_payment.amount_minor");

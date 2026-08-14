@@ -15,6 +15,7 @@ import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
 import { recordPaymentAllocation } from "../../../modules/account/payment-allocation.handlers.ts";
+import { recordDebtObservation } from "../../../modules/evidence/evidence.handlers.ts";
 import {
   getOperationsBoard,
   getOperationsBoardCounts,
@@ -211,6 +212,51 @@ describe.skipIf(skipWithoutDatabase())(
             unallocatedPaymentAmount: { amountMinor: 325_000, currency: "VND" },
           }),
         );
+      }
+
+      const preserved = await recordDebtObservation(context(), {
+        ...command("credit-preserved"),
+        payload: {
+          debtObservationId: crypto.randomUUID(),
+          kind: "customer_credit_preserved",
+          caseKind: "normal",
+          description: "Khách xác nhận giữ lại phần tiền chưa phân bổ.",
+          participantWording: "Khách hàng xác nhận.",
+          facts: {
+            amount: { amountMinor: 325_000, currency: "VND" },
+            agreedDueAt: null,
+            promiseToPayAt: null,
+            termCode: null,
+            termText: null,
+            paymentReference: paymentId,
+            allocationProposal: null,
+            customerId: ctx.customerId,
+          },
+          evidenceReferences: ["test://board-money/credit"],
+          relatedObservationId: null,
+        },
+      });
+      expect(preserved, JSON.stringify(preserved)).toMatchObject({ ok: true });
+
+      const resolved = await getOperationsBoard(context(), {
+        workspaceId: ctx.workspaceId,
+        filter: "unallocated_payment",
+        sort: "updated_desc",
+        search: "",
+        cursor: null,
+        limit: 20,
+      });
+      expect(resolved.ok).toBe(true);
+      if (resolved.ok) expect(resolved.value.page.items).toHaveLength(0);
+
+      const resolvedCounts = await getOperationsBoardCounts(context(), {
+        workspaceId: ctx.workspaceId,
+        filter: "all",
+        search: "",
+      });
+      expect(resolvedCounts.ok).toBe(true);
+      if (resolvedCounts.ok) {
+        expect(resolvedCounts.value.counts.unallocatedPayment).toBe(0);
       }
     });
   },

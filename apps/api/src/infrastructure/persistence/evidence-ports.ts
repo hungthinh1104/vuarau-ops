@@ -59,6 +59,10 @@ export type DebtObservationRepository = {
     workspaceId: WorkspaceId,
     observationId: DebtObservationId,
   ): Promise<DebtObservationDto | null>;
+  listByPayment(
+    workspaceId: WorkspaceId,
+    paymentReference: string,
+  ): Promise<readonly DebtObservationDto[]>;
   insert(observation: DebtObservationDto): Promise<boolean>;
 };
 

@@ -113,8 +113,12 @@ unallocated = max(payment − reversed − effective allocations, 0)
 The amount remains a canonical payment fact; it is not silently treated as
 `awaiting_payment`, a Sale payment, or a new credit adjustment. The Operations
 Board exposes the exception and amount separately, with allocation or intentional
-customer-credit preservation as the operator decision. The exception resolves
-only when the canonical payment is allocated or reversed to zero remaining amount.
+customer-credit preservation as the operator decision. Preservation is the
+`customer_credit_preserved` debt-observation fact: it must name the exact Payment,
+customer and amount still unallocated. It changes no account ledger entry and
+cannot be combined with a later allocation or reversal that would exceed the
+remaining payment. The exception resolves only when the canonical payment is
+allocated/reversed or the exact remaining amount is covered by that fact.
 
 ---
 

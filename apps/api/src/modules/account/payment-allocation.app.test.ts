@@ -23,6 +23,7 @@ import { getCustomerDebtAging } from "./account.queries.ts";
 import { getOperationsBoard, getOperationsBoardCounts } from "../dashboard/dashboard.queries.ts";
 import { exportWorkspaceBackup } from "../operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../operations/restore-workspace.handler.ts";
+import { recordDebtObservation } from "../evidence/evidence.handlers.ts";
 import {
   recordPaymentAllocation,
   reversePaymentAllocation,
@@ -263,6 +264,111 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
     });
     expect(unallocatedCounts.ok).toBe(true);
     if (unallocatedCounts.ok) expect(unallocatedCounts.value.counts.unallocatedPayment).toBe(1);
+  });
+
+  it("records customer-credit preservation without adding a ledger entry", async () => {
+    const harness = createHarness();
+    await setupManualAllocation(harness);
+
+    const beforeEntries = harness.db.accountEntries();
+    const preserved = await recordDebtObservation(harness.ctx, {
+      ...envelope("allocation-board-credit-preserved", LATEST_TRANSACTION_TIME),
+      payload: {
+        debtObservationId: crypto.randomUUID(),
+        kind: "customer_credit_preserved",
+        caseKind: "normal",
+        description: "Khách xác nhận giữ lại khoản trả dư cho giao dịch sau.",
+        participantWording: "Khách hàng xác nhận.",
+        facts: {
+          amount: { amountMinor: 500_000, currency: "VND" },
+          agreedDueAt: null,
+          promiseToPayAt: null,
+          termCode: null,
+          termText: null,
+          paymentReference: PAYMENT_ID,
+          allocationProposal: null,
+          customerId: CUSTOMER_ID,
+        },
+        evidenceReferences: ["receipt://customer-credit/001"],
+        relatedObservationId: null,
+      },
+    });
+    expect(preserved.ok).toBe(true);
+    expect(harness.db.accountEntries()).toEqual(beforeEntries);
+
+    const blockedAllocation = await recordPaymentAllocation(harness.ctx, {
+      ...envelope("allocation-board-credit-allocation-blocked", LATEST_TRANSACTION_TIME),
+      expectedVersion: 1,
+      payload: {
+        allocationId: crypto.randomUUID(),
+        paymentId: PAYMENT_ID,
+        saleId: SALE_ID,
+        amount: { amountMinor: 1, currency: "VND" },
+        evidenceReferences: [],
+      },
+    });
+    expect(blockedAllocation).toMatchObject({
+      ok: false,
+      error: { code: "PAYMENT_ALLOCATION_WOULD_EXCEED_CUSTOMER_CREDIT" },
+    });
+
+    const blockedReversal = await reverseCustomerPayment(harness.ctx, {
+      ...envelope("allocation-board-credit-reversal-blocked", LATEST_TRANSACTION_TIME),
+      expectedVersion: 1,
+      payload: {
+        paymentId: PAYMENT_ID,
+        reversalId: crypto.randomUUID(),
+        amount: { amountMinor: 1, currency: "VND" },
+        reason: "Không được đảo khi credit đang được giữ.",
+        evidenceReferences: [],
+      },
+    });
+    expect(blockedReversal).toMatchObject({
+      ok: false,
+      error: { code: "PAYMENT_REVERSAL_WOULD_EXCEED_CUSTOMER_CREDIT" },
+    });
+
+    const board = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      filter: "unallocated_payment",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(board.ok).toBe(true);
+    if (board.ok) expect(board.value.page.items).toHaveLength(0);
+  });
+
+  it("refuses customer-credit preservation beyond the payment remainder", async () => {
+    const harness = createHarness();
+    await setupManualAllocation(harness);
+    const result = await recordDebtObservation(harness.ctx, {
+      ...envelope("allocation-board-credit-too-large", LATEST_TRANSACTION_TIME),
+      payload: {
+        debtObservationId: crypto.randomUUID(),
+        kind: "customer_credit_preserved",
+        caseKind: "normal",
+        description: "Số tiền vượt khoản thu thực tế.",
+        participantWording: "Không có.",
+        facts: {
+          amount: { amountMinor: 500_001, currency: "VND" },
+          agreedDueAt: null,
+          promiseToPayAt: null,
+          termCode: null,
+          termText: null,
+          paymentReference: PAYMENT_ID,
+          allocationProposal: null,
+          customerId: CUSTOMER_ID,
+        },
+        evidenceReferences: ["receipt://customer-credit/invalid"],
+        relatedObservationId: null,
+      },
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "CUSTOMER_CREDIT_PRESERVATION_EXCEEDS_UNALLOCATED" },
+    });
   });
 
   it("rejects an allocation that exceeds the payment remaining amount", async () => {

@@ -1,0 +1,4 @@
+ALTER TYPE "public"."debt_observation_kind" ADD VALUE 'customer_credit_preserved' BEFORE 'other';--> statement-breakpoint
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'CUSTOMER_CREDIT_PRESERVATION_PAYMENT_INVALID' BEFORE 'DEBT_ADJUSTMENT_REASON_REQUIRED';--> statement-breakpoint
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'CUSTOMER_CREDIT_PRESERVATION_CUSTOMER_MISMATCH' BEFORE 'DEBT_ADJUSTMENT_REASON_REQUIRED';--> statement-breakpoint
+ALTER TYPE "public"."domain_rejection_code" ADD VALUE 'CUSTOMER_CREDIT_PRESERVATION_EXCEEDS_UNALLOCATED' BEFORE 'DEBT_ADJUSTMENT_REASON_REQUIRED';

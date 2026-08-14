@@ -17,6 +17,7 @@ import { applyAccountEffects } from "../shared/account-effects.ts";
 import { applyCashMovements } from "../cash/cash-effects.ts";
 import { toPaymentDto } from "../shared/mappers.ts";
 import { currentRequestId } from "../../infrastructure/logging.ts";
+import { activeCustomerCreditAmount } from "../account/customer-credit.ts";
 
 /**
  * UC-PAYMENT-002. Undoes a payment's financial effect while preserving the fact
@@ -168,6 +169,30 @@ export function reverseCustomerPayment(
           "Reverse the active payment allocations before reversing this payment amount.",
           {
             activeAllocatedAmount,
+            effectivePaymentAfterReversal,
+            paymentId: payment.id,
+          },
+        );
+      }
+      const preservedCreditAmount = activeCustomerCreditAmount(
+        await repos.debtObservations.listByPayment(command.workspaceId, payment.id),
+      );
+      if (preservedCreditAmount === null) {
+        return err(
+          "PERSISTED_NUMBER_OUT_OF_RANGE",
+          "Persisted monetary data is outside the supported exact range.",
+          {
+            field: "payment.customer_credit_preserved.amount_minor",
+            requestId: currentRequestId(),
+          },
+        );
+      }
+      if (preservedCreditAmount > effectivePaymentAfterReversal) {
+        return err(
+          "PAYMENT_REVERSAL_WOULD_EXCEED_CUSTOMER_CREDIT",
+          "Correct the preserved customer-credit fact before reversing this payment amount.",
+          {
+            preservedCreditAmount,
             effectivePaymentAfterReversal,
             paymentId: payment.id,
           },

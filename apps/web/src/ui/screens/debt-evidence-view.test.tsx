@@ -59,6 +59,7 @@ describe("DebtEvidenceView", () => {
         caseKind="normal"
         description=""
         participantWording=""
+        customerId={null}
         amount=""
         agreedDueAt=""
         promiseToPayAt=""
@@ -74,6 +75,7 @@ describe("DebtEvidenceView", () => {
         onCaseKind={() => undefined}
         onDescription={() => undefined}
         onParticipantWording={() => undefined}
+        onCustomerId={() => undefined}
         onAmount={() => undefined}
         onAgreedDueAt={() => undefined}
         onPromiseToPayAt={() => undefined}

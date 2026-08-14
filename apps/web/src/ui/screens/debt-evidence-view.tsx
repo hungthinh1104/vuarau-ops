@@ -3,6 +3,7 @@
 import { isObservationFactAllowed } from "@vuarau/domain-contracts";
 import type {
   CostObservationCaseKind,
+  CustomerId,
   DebtObservationDto,
   DebtObservationKind,
   Page,
@@ -32,6 +33,7 @@ const KIND_COPY: Readonly<Record<DebtObservationKind, string>> = {
   collection_note: "Ghi chú thu hồi",
   payment_reference: "Tham chiếu thanh toán",
   allocation_proposal: "Đề xuất phân bổ",
+  customer_credit_preserved: "Xác nhận tín dụng khách hàng",
   other: "Quan sát công nợ khác",
 };
 const CASE_COPY: Readonly<Record<CostObservationCaseKind, string>> = {
@@ -48,6 +50,7 @@ export function DebtEvidenceView(props: {
   readonly caseKind: CostObservationCaseKind;
   readonly description: string;
   readonly participantWording: string;
+  readonly customerId: CustomerId | null;
   readonly amount: string;
   readonly agreedDueAt: string;
   readonly promiseToPayAt: string;
@@ -63,6 +66,7 @@ export function DebtEvidenceView(props: {
   readonly onCaseKind: (value: CostObservationCaseKind) => void;
   readonly onDescription: (value: string) => void;
   readonly onParticipantWording: (value: string) => void;
+  readonly onCustomerId: (value: string) => void;
   readonly onAmount: (value: string) => void;
   readonly onAgreedDueAt: (value: string) => void;
   readonly onPromiseToPayAt: (value: string) => void;
@@ -80,7 +84,7 @@ export function DebtEvidenceView(props: {
     <div className="flex max-w-5xl flex-col gap-6">
       <PageHeader
         title="Ảnh hoặc phiếu công nợ"
-        description="Lưu điều khoản, ngày hẹn và tham chiếu thu hồi từ hiện trường. Bản ghi không tự tạo overdue, phân bổ thanh toán hay thay đổi sổ công nợ."
+        description="Lưu điều khoản, ngày hẹn và tham chiếu thu hồi từ hiện trường. Bản ghi không tự tạo overdue, phân bổ thanh toán hay thay đổi sổ công nợ; xác nhận tín dụng khách hàng chỉ giải quyết phần Payment đã ghi nhận."
         actions={
           <>
             <Link
@@ -208,6 +212,15 @@ function DebtObservationForm(props: Parameters<typeof DebtEvidenceView>[0]) {
         ) : null}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
+        {showFact("customerId") ? (
+          <TextInput
+            label="Khách hàng ID"
+            required
+            value={props.customerId ?? ""}
+            onChange={(event) => props.onCustomerId(event.target.value)}
+            hint="Đối chiếu với khách hàng của Payment trước khi lưu."
+          />
+        ) : null}
         {showFact("termCode") ? (
           <TextInput
             label="Mã điều khoản (tuỳ chọn)"
@@ -302,7 +315,9 @@ function DebtObservationCard({
         )}
       </div>
       <p className="mt-3 text-caption text-ink-muted">
-        Chưa kết luận overdue hoặc thay đổi ledger.
+        {item.kind === "customer_credit_preserved"
+          ? "Fact này chỉ xác nhận phần Payment giữ lại là tín dụng khách hàng; không tạo thêm ledger entry."
+          : "Chưa kết luận overdue hoặc thay đổi ledger."}
       </p>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (
