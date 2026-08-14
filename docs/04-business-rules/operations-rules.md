@@ -247,7 +247,10 @@ condition. The Operations Board presents these fields in an expandable explanati
 on both its desktop table and mobile cards, so a worker can inspect why a row is
 present and what fact closes it without opening a second screen. The options are
 descriptive contract guidance, not browser-created mutation controls; only an
-authorized command can append a resolving fact. Money is resolved only by a money-bearing source fact: goods, delivery
+authorized command can append a resolving fact. When the exception contract
+supplies `nextAction.href`, the explanation exposes that exact source-specific
+link as the next step; when it is absent, the UI says that no destination is
+available instead of guessing a route. Money is resolved only by a money-bearing source fact: goods, delivery
 or return quantity never implies a refund, credit, debt change or allocation.
 
 `reconciliation_variance` is emitted only when the read adapter passes an

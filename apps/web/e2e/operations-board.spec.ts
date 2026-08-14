@@ -103,6 +103,10 @@ test.describe("Operations board production pagination", () => {
       await expect(explanation.getByText("Điều chưa biết")).toBeVisible();
       await expect(explanation.getByText("Phân bổ vào Sale", { exact: true })).toBeVisible();
       await expect(explanation.getByText("Tiền chưa phân bổ (đơn vị nhỏ nhất)")).toBeVisible();
+      await expect(explanation.getByRole("link", { name: "Mở bước xử lý" })).toHaveAttribute(
+        "href",
+        new RegExp(`/sales/${saleId}`),
+      );
 
       // The Board's source link identifies the Sale; the allocation command is
       // the explicit resolution fact and never changes the goods quantity.

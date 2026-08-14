@@ -186,6 +186,22 @@ function OperationsExceptionDetails({ exception }: { readonly exception: Operati
           <p className="mt-1">{exception.resolutionCondition}</p>
         </div>
         <div>
+          <p className="text-caption font-semibold text-ink-muted">Bước tiếp theo</p>
+          <p className="mt-1">{exception.nextAction.label}</p>
+          {exception.nextAction.href === null ? (
+            <p className="mt-1 text-caption text-ink-muted">
+              Contract chưa cung cấp đường dẫn thao tác; không tự suy đoán đích đến.
+            </p>
+          ) : (
+            <Link
+              href={exception.nextAction.href}
+              className="mt-2 inline-flex font-semibold text-info hover:underline"
+            >
+              Mở bước xử lý
+            </Link>
+          )}
+        </div>
+        <div>
           <p className="text-caption font-semibold text-ink-muted">
             Fact nguồn · {exception.source.reference}
           </p>

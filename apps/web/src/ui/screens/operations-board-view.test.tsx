@@ -195,6 +195,10 @@ describe("OperationsBoardView", () => {
       screen.getAllByText("Tiền chưa phân bổ (đơn vị nhỏ nhất)").length,
     ).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("300000").length).toBeGreaterThanOrEqual(1);
+    const actionLink = within(details[0] as HTMLElement).getByRole("link", {
+      name: "Mở bước xử lý",
+    });
+    expect(actionLink).toHaveAttribute("href", "/sales/sale-1");
   });
 
   it("keeps unallocated customer money visible with its exact amount", () => {
@@ -229,5 +233,56 @@ describe("OperationsBoardView", () => {
     expect(
       screen.getAllByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.").length,
     ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("does not invent a destination when the exception contract has no href", () => {
+    const noDestinationRow = {
+      ...row,
+      exceptions: [
+        {
+          kind: "reconciliation_variance" as const,
+          category: "integrity" as const,
+          severity: "critical" as const,
+          closeImpact: "blocking" as const,
+          source: { kind: "sale" as const, reference: "SALE-1", id: "sale-1" },
+          sourceFacts: [{ key: "reconciliation_status", value: "variance" }],
+          explanation: "Nguồn quan sát và sổ chuẩn đang khác nhau.",
+          unknown: "Chưa biết nguồn nào là sai.",
+          resolutionOptions: [{ code: "policy_blocked", label: "Chờ chính sách correction" }],
+          nextAction: {
+            label: "Chờ chính sách reconciliation được phê duyệt.",
+            href: null,
+          },
+          resolutionCondition: "Giữ exception cho đến khi có policy và command.",
+        },
+      ],
+    };
+    render(
+      <OperationsBoardView
+        query={{
+          ...query,
+          data: { ...query.data, page: { items: [noDestinationRow], nextCursor: null } },
+        }}
+        rows={[noDestinationRow]}
+        filter="reconciliation_variance"
+        sort="updated_desc"
+        search=""
+        onFilterChange={() => undefined}
+        onSortChange={() => undefined}
+        onSearchChange={() => undefined}
+        onRetry={() => undefined}
+        onLoadMore={() => undefined}
+      />,
+    );
+
+    const disclosure = screen.getAllByText("Vì sao cần xử lý?")[0]!;
+    fireEvent.click(disclosure);
+    const details = disclosure.closest("details") as HTMLElement;
+    expect(within(details).queryByRole("link", { name: "Mở bước xử lý" })).not.toBeInTheDocument();
+    expect(
+      within(details).getByText(
+        "Contract chưa cung cấp đường dẫn thao tác; không tự suy đoán đích đến.",
+      ),
+    ).toBeInTheDocument();
   });
 });

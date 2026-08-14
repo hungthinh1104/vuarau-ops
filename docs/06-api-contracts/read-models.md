@@ -232,7 +232,10 @@ Both carry source facts, explanation, next action and resolution condition.
 | `reconciliation_variance`         | Canonical comparison or integrity source reports a mismatch                                                  | Wait for approved reconciliation/correction policy; raw observation does not clear the mismatch | V1 policy-blocked; retain until an approved correction command exists                |
 
 Every `row.exceptions` item carries `sourceFacts`, `unknown`,
-`resolutionOptions`, `nextAction` and `resolutionCondition`. `counts.exceptionCounts`
+`resolutionOptions`, `nextAction` (including the nullable source-specific `href`)
+and `resolutionCondition`. The Board exposes that href as the next-step link when
+present and explicitly shows when the contract supplies no destination; the
+browser never derives a route from an exception kind or label. `counts.exceptionCounts`
 uses the same seven keys. PostgreSQL page rows, filters and counts must remain
 workspace-scoped and parity-compatible with the shared deriver; the browser does
 not infer an exception outside the server-owned source condition. A close read may classify these
