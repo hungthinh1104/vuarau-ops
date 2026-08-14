@@ -88,17 +88,20 @@ test.describe("Operations board production pagination", () => {
       await page.getByRole("link", { name: "Bảng điều hành" }).first().click();
       await expect(page.getByRole("heading", { name: "Bảng điều hành" })).toBeVisible();
       await page.getByRole("button", { name: /Tiền chưa phân bổ/ }).click();
+      const mobileBoard = page.getByRole("list", { name: "Việc cần xử lý" });
       await expect(
-        page.getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") }),
+        mobileBoard.getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") }),
       ).toBeVisible();
       await expect(
-        page.getByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.").first(),
+        mobileBoard.getByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng."),
       ).toBeVisible();
 
       // The Board's source link identifies the Sale; the allocation command is
       // the explicit resolution fact and never changes the goods quantity.
       await expect(
-        page.getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") }).first(),
+        mobileBoard
+          .getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") })
+          .first(),
       ).toHaveAttribute("href", `/sales/${saleId}`);
       await api.approvePaymentAllocationPolicy();
       await api.allocatePayment({ paymentId: paymentId!, saleId, amountMinor: 500_000 });

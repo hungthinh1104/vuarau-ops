@@ -294,7 +294,9 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                             {row.counterparty} · {formatMoney(row.amount)}
                           </span>
                           <span className="mt-1 block text-body-sm font-medium">
-                            {row.nextAction ?? "Không cần xử lý"}
+                            {row.nextAction ??
+                              row.exceptions[0]?.nextAction.label ??
+                              "Không cần xử lý"}
                           </span>
                           <span className="mt-1 block text-caption text-ink-muted">
                             {ageLabel(row.ageSeconds)} · {formatInstant(row.updatedAt)}
@@ -313,11 +315,6 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                           {row.unallocatedPayment ? (
                             <Badge tone="warning">{unallocatedPaymentLabel(row)}</Badge>
                           ) : null}
-                          {row.exceptions.map((exception) => (
-                            <Badge key={exception.kind} tone="warning">
-                              {exception.nextAction.label}
-                            </Badge>
-                          ))}
                           <Badge tone={stateTone(row.financialState)}>
                             {stateLabel(row.financialState)}
                           </Badge>
