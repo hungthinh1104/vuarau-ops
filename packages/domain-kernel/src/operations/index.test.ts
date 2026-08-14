@@ -80,6 +80,49 @@ describe("operations unresolved-state derivation", () => {
     ]);
   });
 
+  it("TC-OPS-025 — exposes incomplete receiving only for a purchase with a remaining quantity", () => {
+    const exceptions = deriveOperationsBoardExceptions({
+      ...saleFacts,
+      id: "purchase-1",
+      kind: "purchase",
+      reference: "PUR-1",
+      href: "/purchases/purchase-1",
+      physicalState: "needs_receiving",
+      commercialState: "confirmed",
+      financialState: "payable",
+      returnedFulfilment: false,
+      unallocatedPayment: false,
+      unallocatedPaymentAmountMinor: null,
+      deliveryId: null,
+    });
+    expect(exceptions).toEqual([
+      expect.objectContaining({
+        kind: "incomplete_receiving",
+        closeImpact: "acknowledgeable",
+        source: { kind: "purchase", reference: "PUR-1", id: "purchase-1" },
+        sourceFacts: expect.arrayContaining([
+          { key: "receiving_status", value: "needs_receiving" },
+        ]),
+        nextAction: {
+          label: "Mở Purchase để tiếp tục nhận và kiểm tra hàng.",
+          href: "/purchases/purchase-1",
+        },
+      }),
+    ]);
+    expect(
+      deriveOperationsBoardExceptions({
+        ...saleFacts,
+        id: "purchase-1",
+        kind: "purchase",
+        physicalState: "received",
+        returnedFulfilment: false,
+        unallocatedPayment: false,
+        unallocatedPaymentAmountMinor: null,
+        deliveryId: null,
+      }),
+    ).toEqual([]);
+  });
+
   it("TC-OPS-025 — keeps reconciliation variance distinct from an unallocated payment", () => {
     const stateOnly = deriveOperationsBoardExceptions({
       ...saleFacts,

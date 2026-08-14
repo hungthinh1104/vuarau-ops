@@ -97,12 +97,13 @@ classifications. They are not silently clamped or rejected.
 ## Unresolved operational conditions
 
 These are bounded read-time conditions over canonical facts, not a second mutable
-exception state machine. The shared Operations deriver currently emits these five
+exception state machine. The shared Operations deriver currently emits these six
 V1 conditions:
 
 | Condition                         | Source fact required                                                                                        | Unknown consequence                                                                  | Resolution fact                                                                        |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | `OUTSTANDING_DELIVERY`            | Sale physical state is `needs_delivery` or `in_delivery`, without a returned fulfilment or opened remainder | which Delivery will complete the remaining Sale quantity and when                    | complete the active Delivery or create the remaining Delivery                          |
+| `INCOMPLETE_RECEIVING`            | Purchase physical state is `needs_receiving`                                                                | which Receipt or inspection will complete the remaining Purchase quantity and when   | valid receipt/inspection facts reach the Purchase quantity                             |
 | `UNALLOCATED_PAYMENT`             | active Payment amount minus reversal, effective allocation and active `customer_credit_preserved` facts     | which Sale receives the money, or whether it remains customer credit                 | allocation, reversal, or exact customer-credit fact                                    |
 | `FULFILMENT_REMAINDER_UNRESOLVED` | an explicit `opened` remainder source fact; ordinary `needs_delivery`/`in_delivery` is insufficient         | deliver, commercially correct, cancel, or create a new Sale                          | append-only fulfilment/commercial decision or correction                               |
 | `RETURN_SETTLEMENT_UNRESOLVED`    | canonical Delivery Return                                                                                   | refund, credit, replacement, goods-only handling, or another approved policy outcome | append-only return settlement decision                                                 |

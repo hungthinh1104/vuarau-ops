@@ -155,7 +155,7 @@ export const operationalCloseExceptionAcknowledgements = pgTable(
     }),
     check(
       "operational_close_exception_ack_kind_ck",
-      sql`${table.exceptionKind} in ('unallocated_payment', 'fulfilment_remainder_unresolved', 'return_settlement_unresolved', 'reconciliation_variance')`,
+      sql`${table.exceptionKind} in ('incomplete_receiving', 'unallocated_payment', 'fulfilment_remainder_unresolved', 'return_settlement_unresolved', 'reconciliation_variance')`,
     ),
     check(
       "operational_close_exception_ack_source_kind_ck",

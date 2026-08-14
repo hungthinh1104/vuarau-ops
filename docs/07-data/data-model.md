@@ -78,20 +78,21 @@ Drizzle definitions and database constraints.
 
 ### Cashbook
 
-| Table                            | Purpose                                                  | Mutability                |
-| -------------------------------- | -------------------------------------------------------- | ------------------------- |
-| `cash_accounts`                  | Named drawer/bank/wallet/employee-held money location    | mutable lifecycle         |
-| `expenses`                       | Operating-expense source facts                           | append-only               |
-| `expense_reversals`              | Expense compensation facts                               | append-only               |
-| `cash_transfers`                 | Internal money-location transfer source                  | append-only               |
-| `cash_transfer_reversals`        | Transfer compensation facts                              | append-only               |
-| `cash_adjustments`               | Explained source facts without a better source type      | append-only               |
-| `cash_movements`                 | Canonical signed money-location ledger                   | append-only               |
-| `cash_balances`                  | Rebuildable per-account projection                       | recomputable              |
-| `cash_statement_matches`         | Exact external-statement link to a CashMovement          | append-only               |
-| `cash_statement_match_reversals` | Compensation for a statement match                       | append-only               |
-| `operational_closes`             | Policy-linked business-day close and observation signoff | append-only state history |
-| `operational_close_reopens`      | Explicit close reopen fact and reason                    | append-only               |
+| Table                                          | Purpose                                                             | Mutability                |
+| ---------------------------------------------- | ------------------------------------------------------------------- | ------------------------- |
+| `cash_accounts`                                | Named drawer/bank/wallet/employee-held money location               | mutable lifecycle         |
+| `expenses`                                     | Operating-expense source facts                                      | append-only               |
+| `expense_reversals`                            | Expense compensation facts                                          | append-only               |
+| `cash_transfers`                               | Internal money-location transfer source                             | append-only               |
+| `cash_transfer_reversals`                      | Transfer compensation facts                                         | append-only               |
+| `cash_adjustments`                             | Explained source facts without a better source type                 | append-only               |
+| `cash_movements`                               | Canonical signed money-location ledger                              | append-only               |
+| `cash_balances`                                | Rebuildable per-account projection                                  | recomputable              |
+| `cash_statement_matches`                       | Exact external-statement link to a CashMovement                     | append-only               |
+| `cash_statement_match_reversals`               | Compensation for a statement match                                  | append-only               |
+| `operational_closes`                           | Policy-linked business-day close and observation signoff            | append-only state history |
+| `operational_close_exception_acknowledgements` | Source-linked operator review of an acknowledgeable close exception | append-only               |
+| `operational_close_reopens`                    | Explicit close reopen fact and reason                               | append-only               |
 
 ### Source-linked operational evidence
 

@@ -108,6 +108,7 @@ export type DashboardTopProductsDto = z.infer<typeof dashboardTopProductsDtoSche
 export const OPERATIONS_BOARD_FILTERS = [
   "all",
   "outstanding_delivery",
+  "incomplete_receiving",
   "needs_receiving",
   "needs_delivery",
   "in_delivery",
@@ -184,6 +185,7 @@ export type OperationsExceptionCountMap = Record<OperationsExceptionKind, number
 export const operationsBoardCountsSchema = z.object({
   all: z.int().nonnegative(),
   outstandingDelivery: z.int().nonnegative(),
+  incompleteReceiving: z.int().nonnegative(),
   needsReceiving: z.int().nonnegative(),
   needsDelivery: z.int().nonnegative(),
   inDelivery: z.int().nonnegative(),

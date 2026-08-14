@@ -526,13 +526,6 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
           .where(
             and(
               eq(commandReceipts.workspaceId, workspaceId),
-              /*
-               * An export receipt contains the exported document as its
-               * idempotent result. Including it in the next export recursively
-               * embeds the previous backup and makes every generation larger.
-               * The audit row remains part of the logical backup; only this
-               * transport receipt is excluded.
-               */
               ne(commandReceipts.commandType, "ExportWorkspaceBackup"),
             ),
           ),

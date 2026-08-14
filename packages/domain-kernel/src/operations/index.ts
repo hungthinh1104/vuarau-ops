@@ -83,6 +83,13 @@ export function deriveOperationsBoardExceptions(
       ),
     );
   }
+  if (input.kind === "purchase" && input.physicalState === "needs_receiving") {
+    result.push(
+      exception(input, "incomplete_receiving", [
+        { key: "receiving_status", value: input.physicalState },
+      ]),
+    );
+  }
   if (input.kind === "sale" && input.returnedFulfilment && !input.returnSettlementResolved) {
     result.push(
       exception(

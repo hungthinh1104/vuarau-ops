@@ -1,13 +1,11 @@
-import type {
-  RestoreWorkspaceBackupCommand,
-  WorkspaceRestoreResultDto,
-  WorkspaceBackupV22,
-} from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
   restoreWorkspaceBackupCommandSchema,
   workspaceOperationalProfileDtoSchema,
   workspaceRestoreResultDtoSchema,
+  type RestoreWorkspaceBackupCommand,
+  type WorkspaceBackupV22,
+  type WorkspaceRestoreResultDto,
 } from "@vuarau/domain-contracts";
 import { err, ok, type DomainResult } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -19,7 +17,6 @@ import { validDocumentAndCashReferences } from "./restore-document-validation.ts
 import { purchaseReferenceValidator } from "./restore-purchase-validation.ts";
 import { paymentReferenceValidator } from "./restore-payment-validation.ts";
 import { validWorkspacePolicyCollection } from "./restore-policy-validation.ts";
-
 function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const payload = v20Payload(command);
   const source = command.payload.backup.sourceWorkspaceId;

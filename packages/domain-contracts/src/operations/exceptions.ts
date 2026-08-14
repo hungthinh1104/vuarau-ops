@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const OPERATIONS_EXCEPTION_KINDS = [
   "outstanding_delivery",
+  "incomplete_receiving",
   "unallocated_payment",
   "fulfilment_remainder_unresolved",
   "return_settlement_unresolved",
@@ -71,6 +72,18 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
     ],
     nextAction: "Mở Sale hoặc Delivery để tiếp tục giao phần còn lại.",
     resolutionCondition: "Số lượng còn phải giao bằng không hoặc Sale được loại bỏ hợp lệ.",
+  },
+  incomplete_receiving: {
+    severity: "normal",
+    closeImpact: "acknowledgeable",
+    explanation: "Purchase vẫn còn số lượng chưa được nhận đủ.",
+    unknown: "Phần hàng còn thiếu sẽ được nhận qua Receipt nào và khi nào hoàn tất.",
+    resolutionOptions: [
+      { code: "record_receipt", label: "Ghi nhận Receipt còn thiếu" },
+      { code: "complete_inspection", label: "Hoàn tất kiểm tra hàng nhận" },
+    ],
+    nextAction: "Mở Purchase để tiếp tục nhận và kiểm tra hàng.",
+    resolutionCondition: "Số lượng được nhận hợp lệ đạt đủ số lượng Purchase.",
   },
   unallocated_payment: {
     severity: "critical",

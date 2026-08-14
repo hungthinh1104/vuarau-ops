@@ -1,0 +1,2 @@
+ALTER TABLE "operational_close_exception_acknowledgements" DROP CONSTRAINT "operational_close_exception_ack_kind_ck";--> statement-breakpoint
+ALTER TABLE "operational_close_exception_acknowledgements" ADD CONSTRAINT "operational_close_exception_ack_kind_ck" CHECK ("operational_close_exception_acknowledgements"."exception_kind" in ('incomplete_receiving', 'unallocated_payment', 'fulfilment_remainder_unresolved', 'return_settlement_unresolved', 'reconciliation_variance'));

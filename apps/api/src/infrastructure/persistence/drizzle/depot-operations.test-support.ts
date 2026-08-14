@@ -2,10 +2,14 @@ import { expect } from "vitest";
 import type {
   ActorId,
   FulfilmentRemainderCaseId,
+  PurchaseId,
   SaleId,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
-import { getOperationsBoard } from "../../../modules/dashboard/dashboard.queries.ts";
+import {
+  getOperationsBoard,
+  getOperationsBoardCounts,
+} from "../../../modules/dashboard/dashboard.queries.ts";
 import { recordFulfilmentRemainderCase } from "../../../modules/delivery/delivery.handlers.ts";
 import type { CommandContext as PipelineCommandContext } from "../../../modules/shared/command-pipeline.ts";
 
@@ -96,4 +100,49 @@ export async function assertInFlightDeliveryBoard(args: {
         nextAction: "Theo dõi giao hàng",
       }),
     );
+}
+
+export async function assertIncompleteReceivingBoard(args: {
+  context: () => PipelineCommandContext;
+  workspaceId: WorkspaceId;
+  purchaseId: PurchaseId;
+}): Promise<void> {
+  const board = await getOperationsBoard(args.context(), {
+    workspaceId: args.workspaceId,
+    filter: "incomplete_receiving",
+    sort: "updated_desc",
+    search: "",
+    cursor: null,
+    limit: 20,
+  });
+  expect(board.ok).toBe(true);
+  if (board.ok)
+    expect(board.value.page.items).toContainEqual(
+      expect.objectContaining({
+        id: args.purchaseId,
+        physicalState: "needs_receiving",
+        nextAction: "Nhận hàng",
+        exceptions: expect.arrayContaining([
+          expect.objectContaining({
+            kind: "incomplete_receiving",
+            closeImpact: "acknowledgeable",
+            source: expect.objectContaining({ kind: "purchase", id: args.purchaseId }),
+            nextAction: {
+              label: "Mở Purchase để tiếp tục nhận và kiểm tra hàng.",
+              href: `/purchases/${args.purchaseId}`,
+            },
+          }),
+        ]),
+      }),
+    );
+  const counts = await getOperationsBoardCounts(args.context(), {
+    workspaceId: args.workspaceId,
+    filter: "all",
+    search: "",
+  });
+  expect(counts.ok).toBe(true);
+  if (counts.ok) {
+    expect(counts.value.counts.incompleteReceiving).toBe(1);
+    expect(counts.value.counts.exceptionCounts.incomplete_receiving).toBe(1);
+  }
 }

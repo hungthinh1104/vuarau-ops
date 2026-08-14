@@ -229,12 +229,13 @@ command transaction rolls back before the diagnostic crosses the API boundary.
 **Risk:** P0 · **Tests:** TC-OPS-024, TC-OPS-025, TC-E2E-034
 
 The Operations Board distinguishes known workflow state, known next action and an
-unresolved consequence. The current V1 exception contract has five conditions:
-`outstanding_delivery`, `unallocated_payment`, `fulfilment_remainder_unresolved`,
+unresolved consequence. The current V1 exception contract has six conditions:
+`outstanding_delivery`, `incomplete_receiving`, `unallocated_payment`, `fulfilment_remainder_unresolved`,
 `return_settlement_unresolved` and `reconciliation_variance`. `outstanding_delivery`
 is emitted for a Sale in `needs_delivery` or `in_delivery` when it has neither a
-returned fulfilment nor an explicit opened remainder. `overdue`,
-`awaiting_payment` and `needs_receiving` remain visible workflow facts until
+returned fulfilment nor an explicit opened remainder. `incomplete_receiving` is
+emitted for a Purchase in `needs_receiving`. `overdue` and
+`awaiting_payment` remain visible workflow facts until
 their own source-backed exception producers exist.
 
 The condition is derived from canonical facts, not stored as a mutable task or

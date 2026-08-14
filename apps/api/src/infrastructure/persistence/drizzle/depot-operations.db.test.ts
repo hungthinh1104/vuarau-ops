@@ -63,8 +63,8 @@ import { exportWorkspaceBackup } from "../../../modules/operations/operations.qu
 import {
   assertFulfilmentRemainderDecision,
   assertInFlightDeliveryBoard,
+  assertIncompleteReceivingBoard,
 } from "./depot-operations.test-support.ts";
-
 // TC-DELIVERY-003, TC-DOCUMENT-002, TC-REPORT-001
 describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", () => {
   let ctx: DbTestContext;
@@ -141,6 +141,11 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
         })
       ).ok,
     ).toBe(true);
+    await assertIncompleteReceivingBoard({
+      context,
+      workspaceId: ctx.workspaceId,
+      purchaseId,
+    });
     expect(
       (
         await recordPurchaseReceipt(context(), {
@@ -1073,7 +1078,6 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     await expect(
       ctx.database.sql`delete from documents where id = ${generated.value.id}::uuid`,
     ).rejects.toThrow(/append-only/i);
-
     const corruptedId = crypto.randomUUID() as DocumentId;
     await ctx.database.sql`
       insert into documents (

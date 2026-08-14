@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm";
 import type {
+  CursorPosition,
   DeliveryId,
   FulfilmentRemainderOutcome,
   OperationsBoardInput,
 } from "@vuarau/domain-contracts";
-import type { CursorPosition } from "@vuarau/domain-contracts";
 import type { Tx } from "../shared/types.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import { deriveOperationsBoardExceptions } from "@vuarau/domain-kernel";
@@ -37,7 +37,7 @@ export async function queryRows(
   const filterClause =
     input.filter === "outstanding_delivery"
       ? sql`physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved`
-      : input.filter === "needs_receiving"
+      : input.filter === "incomplete_receiving" || input.filter === "needs_receiving"
         ? sql`physical_state = 'needs_receiving'`
         : input.filter === "needs_delivery"
           ? sql`physical_state = 'needs_delivery'`
@@ -60,11 +60,11 @@ export async function queryRows(
                           : input.filter === "reconciliation_variance"
                             ? sql`reconciliation_variance`
                             : sql`true`;
-  const searchPattern = `%${input.search.toLocaleLowerCase()}%`;
-  const searchClause =
-    input.search.length === 0
-      ? sql`true`
-      : sql`lower(reference || ' ' || counterparty) like ${searchPattern}`;
+  const searchPattern = `%${input.search.toLocaleLowerCase()}%`,
+    searchClause =
+      input.search.length === 0
+        ? sql`true`
+        : sql`lower(reference || ' ' || counterparty) like ${searchPattern}`;
   const searchCtes =
     input.search.length === 0
       ? sql``
@@ -574,8 +574,8 @@ export async function queryRows(
     order by ${orderClause}
     limit ${limitClause}
   `);
-  const rawRows = rows as Row[];
-  const first = rawRows[0];
+  const rawRows = rows as Row[],
+    first = rawRows[0];
   const counts = {
     all: first === undefined ? 0 : numberOf(first, "all_count"),
     needsReceiving: first === undefined ? 0 : numberOf(first, "needs_receiving_count"),
@@ -586,6 +586,7 @@ export async function queryRows(
     awaitingPayment: first === undefined ? 0 : numberOf(first, "awaiting_payment_count"),
     overdue: first === undefined ? 0 : numberOf(first, "overdue_count"),
     outstandingDelivery: first === undefined ? 0 : numberOf(first, "outstanding_delivery_count"),
+    incompleteReceiving: first === undefined ? 0 : numberOf(first, "needs_receiving_count"),
     attention: first === undefined ? 0 : numberOf(first, "attention_count"),
     fulfilmentRemainderUnresolved:
       first === undefined ? 0 : numberOf(first, "fulfilment_remainder_unresolved_count"),
@@ -595,6 +596,7 @@ export async function queryRows(
       first === undefined ? 0 : numberOf(first, "reconciliation_variance_count"),
     exceptionCounts: {
       outstanding_delivery: first === undefined ? 0 : numberOf(first, "outstanding_delivery_count"),
+      incomplete_receiving: first === undefined ? 0 : numberOf(first, "needs_receiving_count"),
       unallocated_payment: first === undefined ? 0 : numberOf(first, "unallocated_payment_count"),
       fulfilment_remainder_unresolved:
         first === undefined ? 0 : numberOf(first, "fulfilment_remainder_unresolved_count"),

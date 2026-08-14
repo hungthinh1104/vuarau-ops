@@ -793,6 +793,36 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
         ).toMatchObject({ ok: true });
       }
     }
+    const incompleteReceiving = await getOperationsBoard(context(), {
+      workspaceId: ctx.workspaceId,
+      filter: "incomplete_receiving",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(incompleteReceiving.ok).toBe(true);
+    if (incompleteReceiving.ok) {
+      const source = incompleteReceiving.value.page.items[0]?.exceptions.find(
+        (exception) => exception.kind === "incomplete_receiving",
+      )?.source;
+      expect(source).toBeDefined();
+      if (source?.id !== null && source !== undefined) {
+        expect(
+          await recordOperationalCloseExceptionAcknowledgement(context(), {
+            ...command("incomplete-receiving-close-ack"),
+            payload: {
+              operationalCloseExceptionAcknowledgementId: crypto.randomUUID(),
+              businessDate: "2026-07-29",
+              exceptionKind: "incomplete_receiving",
+              source: { ...source, id: source.id },
+              evidenceReferences: ["rehearsal://incomplete-receiving-close-ack"],
+              reason: "Đã ghi nhận phần hàng bị loại sau kiểm tra và đã rà soát phần nhận thiếu.",
+            },
+          }),
+        ).toMatchObject({ ok: true });
+      }
+    }
     const missingCloseEvidence = await getOperationalCloseReadiness(context(), {
       workspaceId: ctx.workspaceId,
       businessDate: "2026-07-29",

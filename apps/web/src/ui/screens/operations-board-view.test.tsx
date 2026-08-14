@@ -32,6 +32,7 @@ const query = {
     counts: {
       all: 1,
       outstandingDelivery: 1,
+      incompleteReceiving: 0,
       needsReceiving: 0,
       needsDelivery: 1,
       inDelivery: 0,
@@ -45,6 +46,7 @@ const query = {
       reconciliationVariance: 0,
       exceptionCounts: {
         outstanding_delivery: 0,
+        incomplete_receiving: 0,
         unallocated_payment: 0,
         fulfilment_remainder_unresolved: 0,
         return_settlement_unresolved: 0,
