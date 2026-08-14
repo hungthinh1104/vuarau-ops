@@ -258,6 +258,17 @@ describe("operational close", () => {
       ok: true,
       value: { state: "blocked", blockers: ["unacknowledged_exception"] },
     });
+    expect(before.ok && before.value.exceptionSummary).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "fulfilment_remainder_unresolved",
+          nextAction: {
+            label: "Mở Sale để quyết định phần còn lại.",
+            href: "/operations-board?filter=fulfilment_remainder_unresolved",
+          },
+        }),
+      ]),
+    );
 
     const acknowledgementInput = {
       ...envelope("ack-remainder"),

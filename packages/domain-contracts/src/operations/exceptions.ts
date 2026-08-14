@@ -61,6 +61,12 @@ export type OperationsExceptionResolutionOption = z.infer<
   typeof operationsExceptionResolutionOptionSchema
 >;
 
+export const operationsExceptionNextActionSchema = z.object({
+  label: z.string().min(1),
+  href: z.string().min(1).nullable(),
+});
+export type OperationsExceptionNextAction = z.infer<typeof operationsExceptionNextActionSchema>;
+
 export const operationsExceptionDefinitionSchema = z.object({
   category: z.enum(["work", "uncertainty", "integrity"]),
   severity: operationsExceptionSeveritySchema,
@@ -175,10 +181,7 @@ export const operationsExceptionSchema = z.object({
   explanation: z.string().min(1),
   unknown: z.string().min(1),
   resolutionOptions: z.array(operationsExceptionResolutionOptionSchema).min(1),
-  nextAction: z.object({
-    label: z.string().min(1),
-    href: z.string().min(1).nullable(),
-  }),
+  nextAction: operationsExceptionNextActionSchema,
   resolutionCondition: z.string().min(1),
 });
 export type OperationsException = z.infer<typeof operationsExceptionSchema>;
@@ -241,10 +244,7 @@ export const operationsControlExceptionSchema = z.object({
   explanation: z.string().min(1),
   unknown: z.string().min(1),
   resolutionOptions: z.array(operationsExceptionResolutionOptionSchema).min(1),
-  nextAction: z.object({
-    label: z.string().min(1),
-    href: z.string().min(1).nullable(),
-  }),
+  nextAction: operationsExceptionNextActionSchema,
   resolutionCondition: z.string().min(1),
 });
 export type OperationsControlException = z.infer<typeof operationsControlExceptionSchema>;

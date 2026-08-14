@@ -271,7 +271,10 @@ vocabulary as the in-memory read and shared domain deriver. Close readiness
 consumes the resulting server-authored summary and exposes the
 `operational_close_blocked` control exception whenever it is blocked. It blocks
 only conditions whose policy classification is `blocking`; acknowledgeable and informational conditions
-do not alter balances, inventory or fulfilment.
+do not alter balances, inventory or fulfilment. Close exception summaries carry
+the server-authored next-action label and nullable destination; the operations
+screen links to the matching Board filter only when the API supplies a valid
+destination and otherwise states that no destination is available.
 
 #### Semantic classification
 

@@ -255,7 +255,12 @@ the operator reviewed an unresolved condition, not a resolution: the Board row,
 source facts and canonical projections remain unchanged. It includes the policy
 version, period, available/missing kinds and current close revision. It does not
 calculate a variance or choose observations for `RecordOperationalClose`; that
-command remains authoritative.
+command remains authoritative. Each exception summary carries a server-authored
+`nextAction` object with a label and nullable `href`; when the matching Board
+filter is a valid destination, the API supplies that filter link. The Operations
+screen renders the link only when present and states explicitly when no
+destination is available; it never derives a route from the exception kind in
+the browser.
 
 ## Read performance rules
 

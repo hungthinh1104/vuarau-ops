@@ -27,6 +27,7 @@ import {
   operationsExceptionCloseImpactSchema,
   operationsExceptionDefinitionSchema,
   operationsExceptionKindSchema,
+  operationsExceptionNextActionSchema,
   operationsExceptionSeveritySchema,
   operationsExceptionSourceSchema,
   operationsSemanticCategorySchema,
@@ -175,7 +176,7 @@ export const operationalCloseExceptionSummarySchema = z.object({
   severity: operationsExceptionSeveritySchema,
   closeImpact: operationsExceptionCloseImpactSchema,
   explanation: operationsExceptionDefinitionSchema.shape.explanation,
-  nextAction: operationsExceptionDefinitionSchema.shape.nextAction,
+  nextAction: operationsExceptionNextActionSchema,
   resolutionCondition: operationsExceptionDefinitionSchema.shape.resolutionCondition,
   acknowledgedCount: z.int().nonnegative(),
 });

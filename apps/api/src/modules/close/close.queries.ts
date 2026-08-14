@@ -145,8 +145,22 @@ export function getOperationalCloseReadiness(
         const acknowledgedCount = acknowledgements.filter(
           (acknowledgement) => acknowledgement.exceptionKind === kind,
         ).length;
+        const definition = operationsExceptionDefinition(kind);
+        const boardCount = boardCounts.counts.exceptionCounts[kind];
+        const nextActionHref =
+          kind === "reconciliation_variance" && boardCount === 0 && integrity.status === "attention"
+            ? null
+            : `/operations-board?filter=${kind}`;
         return count > 0
-          ? [{ kind, count, acknowledgedCount, ...operationsExceptionDefinition(kind) }]
+          ? [
+              {
+                kind,
+                count,
+                acknowledgedCount,
+                ...definition,
+                nextAction: { label: definition.nextAction, href: nextActionHref },
+              },
+            ]
           : [];
       });
       if (exceptionSummary.some((exception) => exception.closeImpact === "blocking"))

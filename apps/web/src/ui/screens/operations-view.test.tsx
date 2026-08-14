@@ -53,6 +53,29 @@ function renderView(overrides: Partial<React.ComponentProps<typeof OperationsVie
   );
 }
 
+function blockedReadiness(
+  controlException: OperationalCloseReadiness["controlException"],
+): OperationalCloseReadiness {
+  return {
+    workspaceId: WORKSPACE_ID,
+    businessDate: "2026-08-03",
+    period: { start: "2026-08-02T17:00:00.000Z", end: "2026-08-03T17:00:00.000Z" },
+    asOf: "2026-08-03T10:00:00.000Z",
+    state: "blocked",
+    blockers: ["missing_observation"],
+    policyVersionId: null,
+    requiredObservationKinds: ["cash_count", "inventory_count"],
+    availableObservationKinds: ["cash_count"],
+    missingObservationKinds: ["inventory_count"],
+    existingCloseId: null,
+    existingCloseState: null,
+    existingCloseVersion: null,
+    controlException,
+    exceptionSummary: [],
+    acknowledgements: [],
+  };
+}
+
 // TC-CLOSE-004
 describe("OperationsView", () => {
   it("does not equate a failed integrity read with healthy", () => {
@@ -73,21 +96,8 @@ describe("OperationsView", () => {
   it("shows the server-authored close blocker and its recovery path", () => {
     renderView({
       closeReadinessState: "ready",
-      closeReadiness: {
-        workspaceId: WORKSPACE_ID,
-        businessDate: "2026-08-03",
-        period: { start: "2026-08-02T17:00:00.000Z", end: "2026-08-03T17:00:00.000Z" },
-        asOf: "2026-08-03T10:00:00.000Z",
-        state: "blocked",
-        blockers: ["missing_observation"],
-        policyVersionId: null,
-        requiredObservationKinds: ["cash_count", "inventory_count"],
-        availableObservationKinds: ["cash_count"],
-        missingObservationKinds: ["inventory_count"],
-        existingCloseId: null,
-        existingCloseState: null,
-        existingCloseVersion: null,
-        controlException: operationsControlException(
+      closeReadiness: blockedReadiness(
+        operationsControlException(
           "operational_close_blocked",
           { kind: "workspace", reference: "CLOSE-2026-08-03", id: WORKSPACE_ID },
           [
@@ -96,7 +106,7 @@ describe("OperationsView", () => {
           ],
           "/workspace/operations",
         ),
-      } as OperationalCloseReadiness,
+      ),
     });
     expect(screen.getByText("Đang bị chặn")).toBeInTheDocument();
     expect(screen.getByText(/Thiếu quan sát: Đếm hàng thực tế/)).toBeInTheDocument();
@@ -109,6 +119,24 @@ describe("OperationsView", () => {
       "href",
       "/evidence/reconciliation",
     );
+  });
+
+  it("does not invent a close destination when the control contract omits href", () => {
+    renderView({
+      closeReadinessState: "ready",
+      closeReadiness: blockedReadiness(
+        operationsControlException(
+          "operational_close_blocked",
+          { kind: "workspace", reference: "CLOSE-2026-08-03", id: WORKSPACE_ID },
+          [{ key: "blockers", value: "policy_unavailable" }],
+        ),
+      ),
+    });
+
+    expect(screen.queryByRole("link", { name: "Xem điều kiện chốt" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Không có đường dẫn thao tác; không tự suy đoán đích đến."),
+    ).toBeInTheDocument();
   });
 
   it("requires an explicit new export intent after a completed export", () => {

@@ -265,9 +265,10 @@ function CloseReadinessPanel(props: {
           <li>
             {SEMANTIC_CATEGORY_LABELS[readiness.controlException.category]}:{" "}
             {readiness.controlException.explanation} {readiness.controlException.nextAction.label}{" "}
-            <Link href={readiness.controlException.nextAction.href ?? "/workspace/operations"}>
-              Xem điều kiện chốt
-            </Link>
+            <NextActionDestination
+              action={readiness.controlException.nextAction}
+              linkLabel="Xem điều kiện chốt"
+            />
           </li>
         )}
         {readiness.blockers.includes("policy_unavailable") ? (
@@ -293,7 +294,8 @@ function CloseReadinessPanel(props: {
                 <li key={exception.kind}>
                   {exception.count} việc chưa giải quyết ·{" "}
                   {SEMANTIC_CATEGORY_LABELS[exception.category]}: {exception.explanation}{" "}
-                  {exception.nextAction}
+                  {exception.nextAction.label}{" "}
+                  <NextActionDestination action={exception.nextAction} linkLabel="Mở bảng việc" />
                 </li>
               ))
           : null}
@@ -308,12 +310,23 @@ function CloseReadinessPanel(props: {
                 <li key={exception.kind}>
                   {exception.count - exception.acknowledgedCount} việc còn mở cần được ghi nhận
                   trước khi chốt.{" "}
-                  <Link href={`/operations-board?filter=${exception.kind}`}>Mở bảng việc</Link>
+                  <NextActionDestination action={exception.nextAction} linkLabel="Mở bảng việc" />
                 </li>
               ))
           : null}
       </ul>
     </section>
+  );
+}
+
+function NextActionDestination(props: {
+  readonly action: { readonly label: string; readonly href: string | null };
+  readonly linkLabel: string;
+}) {
+  return props.action.href === null ? (
+    <span>Không có đường dẫn thao tác; không tự suy đoán đích đến.</span>
+  ) : (
+    <Link href={props.action.href}>{props.linkLabel}</Link>
   );
 }
 
