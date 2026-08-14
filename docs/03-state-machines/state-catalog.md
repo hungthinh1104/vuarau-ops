@@ -97,12 +97,11 @@ classifications. They are not silently clamped or rejected.
 ## Unresolved operational conditions
 
 These are bounded read-time conditions over canonical facts, not a second mutable
-exception state machine. The current shared Operations deriver emits these five
-Board conditions:
+exception state machine. The shared Operations deriver may emit only these four
+V1 conditions:
 
 | Condition                         | Source fact required                                                                           | Unknown consequence                                                                  | Resolution fact                                                     |
 | --------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `OUTSTANDING_DELIVERY`            | posted Sale with canonical remaining fulfilment in `needs_delivery` or `in_delivery`           | when and through which Delivery the remaining quantity will be completed             | remaining Delivery completion or valid Sale removal                 |
 | `UNALLOCATED_PAYMENT`             | active Payment amount minus reversal and effective allocation                                  | which Sale receives the money, or whether it remains customer credit                 | allocation, reversal, or explicit customer-credit fact              |
 | `FULFILMENT_REMAINDER_UNRESOLVED` | an explicit remainder decision source; ordinary `needs_delivery`/`in_delivery` is insufficient | deliver, commercially correct, cancel, or create a new Sale                          | append-only fulfilment/commercial decision                          |
 | `RETURN_SETTLEMENT_UNRESOLVED`    | canonical Delivery Return                                                                      | refund, credit, replacement, goods-only handling, or another approved policy outcome | append-only return settlement decision                              |
@@ -113,10 +112,6 @@ and next action. Goods facts never create a money effect. A close read consumes 
 same server-authored conditions and classifies them as blocking, acknowledgeable
 or informational under policy; an acknowledgement is not a balance, inventory or
 fulfilment mutation.
-
-Incomplete receiving, overdue receivable, stale/unavailable realtime state and
-operational-close blocking are still required operational classes, but their
-producer and resolution contracts are not yet delivered in the current slice.
 
 ## Internal persisted state
 

@@ -60,7 +60,6 @@ describe("dashboard contracts", () => {
       asOf: "2026-08-04T00:00:00.000Z",
       counts: {
         all: 1,
-        outstandingDelivery: 1,
         needsReceiving: 0,
         needsDelivery: 1,
         inDelivery: 0,
@@ -73,7 +72,6 @@ describe("dashboard contracts", () => {
         returnSettlementUnresolved: 0,
         reconciliationVariance: 0,
         exceptionCounts: {
-          outstanding_delivery: 0,
           unallocated_payment: 0,
           fulfilment_remainder_unresolved: 0,
           return_settlement_unresolved: 0,

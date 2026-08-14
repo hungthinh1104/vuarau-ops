@@ -169,23 +169,8 @@ describe("dashboard reads", () => {
         id: saleId,
         physicalState: "in_delivery",
         nextAction: "Theo dõi giao hàng",
-        exceptions: expect.arrayContaining([
-          expect.objectContaining({
-            kind: "outstanding_delivery",
-            nextAction: expect.objectContaining({ href: `/deliveries/${deliveryId}` }),
-          }),
-        ]),
       }),
     );
-
-    const outstanding = await getOperationsBoard(harness.ctx, {
-      ...boardInput(WORKSPACE_ID),
-      filter: "outstanding_delivery",
-      limit: 10,
-    });
-    expect(outstanding.ok).toBe(true);
-    if (!outstanding.ok) return;
-    expect(outstanding.value.page.items).toHaveLength(1);
 
     expect(
       (
@@ -234,7 +219,6 @@ describe("dashboard reads", () => {
       }),
     );
     expect(counts.counts.returnedFulfilment).toBe(1);
-    expect(counts.counts.outstandingDelivery).toBe(0);
   });
 
   it("uses the workspace business-day start for dashboard series", async () => {

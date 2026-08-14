@@ -30,7 +30,6 @@ const query = {
   data: {
     counts: {
       all: 1,
-      outstandingDelivery: 1,
       needsReceiving: 0,
       needsDelivery: 1,
       inDelivery: 0,
@@ -43,7 +42,6 @@ const query = {
       returnSettlementUnresolved: 0,
       reconciliationVariance: 0,
       exceptionCounts: {
-        outstanding_delivery: 0,
         unallocated_payment: 0,
         fulfilment_remainder_unresolved: 0,
         return_settlement_unresolved: 0,

@@ -17,10 +17,6 @@ import { randomIdGenerator } from "../../clock.ts";
 import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 import {
-  createDeliveryDraft,
-  dispatchDelivery,
-} from "../../../modules/delivery/delivery.handlers.ts";
-import {
   getOperationsBoard,
   getOperationsBoardCounts,
 } from "../../../modules/dashboard/dashboard.queries.ts";
@@ -168,7 +164,6 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
       expect(counts.value.counts.unallocatedPayment).toBe(1);
       expect(counts.value.counts.reconciliationVariance).toBe(1);
       expect(counts.value.counts.exceptionCounts).toMatchObject({
-        outstanding_delivery: 0,
         unallocated_payment: 1,
         reconciliation_variance: 1,
       });
@@ -198,110 +193,6 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
         expect(filteredPage.value.page.items).toHaveLength(1);
         expect(filteredCounts.value.counts[countKey]).toBe(1);
       }
-    }
-  });
-
-  it("TC-OPS-026 — derives outstanding delivery from partial dispatch facts", async () => {
-    const productId = ctx.productIds[0];
-    const saleId = crypto.randomUUID() as SaleId;
-    const saleLineId = crypto.randomUUID() as SaleLineId;
-    const deliveryId = crypto.randomUUID() as DeliveryId;
-    const deliveryLineId = crypto.randomUUID() as DeliveryLineId;
-    expect(
-      (
-        await createSaleDraft(context(), {
-          ...envelope("outstanding-sale", "2026-07-29T02:00:00.000Z"),
-          payload: {
-            saleId,
-            customerId: ctx.customerId,
-            currency: "VND",
-            lines: [
-              {
-                lineId: saleLineId,
-                productId,
-                productName: "Cà chua",
-                qualityGradeId: ctx.qualityGradeId,
-                qualityGradeName: "Loại 1",
-                quantity: { valueScaled: 100_000, unit: "kg" },
-                unitPrice: { amountMinor: 20_000, currency: "VND" },
-              },
-            ],
-            note: null,
-            dueAt: null,
-            replacesSaleId: null,
-          },
-        })
-      ).ok,
-    ).toBe(true);
-    expect(
-      (
-        await postSale(context(), {
-          ...envelope("outstanding-post", "2026-07-29T02:01:00.000Z"),
-          expectedVersion: 1,
-          payload: { saleId },
-        })
-      ).ok,
-    ).toBe(true);
-    expect(
-      (
-        await createDeliveryDraft(context(), {
-          ...envelope("outstanding-delivery", "2026-07-29T03:00:00.000Z"),
-          payload: {
-            deliveryId,
-            saleId,
-            lines: [
-              {
-                deliveryLineId,
-                saleLineId,
-                productId,
-                qualityGradeId: ctx.qualityGradeId,
-                quantity: { valueScaled: 30_000, unit: "kg" },
-              },
-            ],
-            note: null,
-          },
-        })
-      ).ok,
-    ).toBe(true);
-    expect(
-      (
-        await dispatchDelivery(context(), {
-          ...envelope("outstanding-dispatch", "2026-07-29T03:01:00.000Z"),
-          expectedVersion: 1,
-          payload: { deliveryId },
-        })
-      ).ok,
-    ).toBe(true);
-
-    const board = await getOperationsBoard(context(), {
-      workspaceId: ctx.workspaceId,
-      filter: "outstanding_delivery",
-      sort: "updated_desc",
-      search: "",
-      cursor: null,
-      limit: 20,
-    });
-    expect(board.ok).toBe(true);
-    if (board.ok)
-      expect(board.value.page.items).toContainEqual(
-        expect.objectContaining({
-          id: saleId,
-          physicalState: "in_delivery",
-          exceptions: expect.arrayContaining([
-            expect.objectContaining({ kind: "outstanding_delivery" }),
-          ]),
-        }),
-      );
-
-    const counts = await getOperationsBoardCounts(context(), {
-      workspaceId: ctx.workspaceId,
-      filter: "all",
-      search: "",
-    });
-    expect(counts.ok).toBe(true);
-    if (counts.ok) {
-      expect(counts.value.counts.outstandingDelivery).toBe(1);
-      expect(counts.value.counts.exceptionCounts.outstanding_delivery).toBe(1);
     }
   });
 });

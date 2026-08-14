@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const OPERATIONS_EXCEPTION_KINDS = [
-  "outstanding_delivery",
   "unallocated_payment",
   "fulfilment_remainder_unresolved",
   "return_settlement_unresolved",
@@ -60,18 +59,6 @@ export type OperationsExceptionDefinition = z.infer<typeof operationsExceptionDe
  * exceptions. Read models contribute facts; they do not redefine this map.
  */
 export const OPERATIONS_EXCEPTION_DEFINITIONS = {
-  outstanding_delivery: {
-    severity: "normal",
-    closeImpact: "informational",
-    explanation: "Sale vẫn còn số lượng chưa được giao.",
-    unknown: "Phần còn lại sẽ được giao qua Delivery nào và khi nào hoàn tất.",
-    resolutionOptions: [
-      { code: "dispatch_remaining", label: "Tạo phiếu giao phần còn lại" },
-      { code: "complete_active_delivery", label: "Hoàn tất Delivery đang giao" },
-    ],
-    nextAction: "Mở Sale hoặc Delivery để tiếp tục giao phần còn lại.",
-    resolutionCondition: "Số lượng còn phải giao bằng không hoặc Sale được loại bỏ hợp lệ.",
-  },
   unallocated_payment: {
     severity: "critical",
     closeImpact: "blocking",
