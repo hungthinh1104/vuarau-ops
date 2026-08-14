@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { RELEASE_STEPS, requireReleaseEnvironment } from "./verify-release.ts";
 
-test("release gate includes schema drift, performance, recovery and production E2E", () => {
+test("release gate includes schema drift, performance, recovery, E2E and rehearsals", () => {
   assert.deepEqual(
     RELEASE_STEPS.map((step) => step.args[0]),
     [
@@ -17,6 +17,8 @@ test("release gate includes schema drift, performance, recovery and production E
       "web:storybook",
       "web:e2e:build",
       "web:e2e",
+      "synthetic:depot-day",
+      "pilot:dry-run",
     ],
   );
   assert.equal(RELEASE_STEPS[3]?.env, "release-performance");
@@ -49,16 +51,14 @@ test("release gate requires a separate performance database", () => {
   );
 });
 
-test("CI runs the repository-owned synthetic and pilot rehearsals", () => {
+test("CI invokes the canonical release gate", () => {
   const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 
-  assert.match(workflow, /- name: Static checks\s+run: pnpm check:static/);
-  assert.match(workflow, /- name: Synthetic depot day\s+run: pnpm synthetic:depot-day/);
-  assert.match(workflow, /- name: Pilot dry-run\s+run: pnpm pilot:dry-run/);
-
-  const browserGate = workflow.indexOf("- name: End-to-end tests");
-  const syntheticGate = workflow.indexOf("- name: Synthetic depot day");
-  const pilotGate = workflow.indexOf("- name: Pilot dry-run");
-  assert.ok(browserGate >= 0 && browserGate < syntheticGate);
-  assert.ok(syntheticGate < pilotGate);
+  assert.match(workflow, /- name: Canonical release gate\s+run: pnpm verify:release/);
+  assert.match(
+    workflow,
+    /RELEASE_PERF_DATABASE_URL:\s*postgres:\/\/postgres:postgres@localhost:5432\/vuarau_perf/,
+  );
+  assert.doesNotMatch(workflow, /- name: Synthetic depot day\s+run: pnpm synthetic:depot-day/);
+  assert.doesNotMatch(workflow, /- name: Pilot dry-run\s+run: pnpm pilot:dry-run/);
 });

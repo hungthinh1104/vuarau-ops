@@ -77,17 +77,17 @@ spec files include `apps/web/e2e/offline-quick-sale.spec.ts` and
 
 The repository checks are split by feedback speed:
 
-| Command                                                   | Scope                                                                                                                                      |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm test:fast`                                          | domain, application, contract and web Vitest projects                                                                                      |
-| `pnpm test:architecture`                                  | E2E synchronization checks, test-file budgets and style-contract/behavioral classification                                                 |
-| `pnpm coverage:report`                                    | global branch/function coverage report only; no repository-wide percentage gate                                                            |
-| `pnpm coverage:changed`                                   | coverage report plus strict coverage for changed executable production lines                                                               |
-| `pnpm check:static`                                       | format, lint, typecheck, boundaries, source, UI/docs/governance/command-registry/truth checks, context, trace and security-surface checks  |
-| `pnpm verify`                                             | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                                                 |
-| `pnpm verify:release`                                     | canonical release gate: static checks, migration drift, isolated production-scale performance, recovery, builds and production-runtime E2E |
-| `pnpm context <query>`                                    | targeted docs/tests/implementation retrieval for an agent                                                                                  |
-| `pnpm perf:production-scale` / `pnpm rehearse:migrations` | disposable production-shape performance and fresh/idempotent migration evidence; both run as separate CI gates                             |
+| Command                                                   | Scope                                                                                                                                                                          |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test:fast`                                          | domain, application, contract and web Vitest projects                                                                                                                          |
+| `pnpm test:architecture`                                  | E2E synchronization checks, test-file budgets and style-contract/behavioral classification                                                                                     |
+| `pnpm coverage:report`                                    | global branch/function coverage report only; no repository-wide percentage gate                                                                                                |
+| `pnpm coverage:changed`                                   | coverage report plus strict coverage for changed executable production lines                                                                                                   |
+| `pnpm check:static`                                       | format, lint, typecheck, boundaries, source, UI/docs/governance/command-registry/truth checks, context, trace and security-surface checks                                      |
+| `pnpm verify`                                             | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                                                                                     |
+| `pnpm verify:release`                                     | canonical release gate: static checks, migration drift, isolated production-scale performance, recovery, builds, production-runtime E2E, synthetic depot day and pilot dry-run |
+| `pnpm context <query>`                                    | targeted docs/tests/implementation retrieval for an agent                                                                                                                      |
+| `pnpm perf:production-scale` / `pnpm rehearse:migrations` | disposable production-shape performance and fresh/idempotent migration evidence; both run as separate CI gates                                                                 |
 
 `pnpm context <folder>` is exhaustive for that active tracked folder by default;
 ID and free-text queries use the normal result limits unless `--all` is passed.
@@ -104,10 +104,11 @@ and its checker. Mutation ownership and transition aliases are owned by
 `scripts/command-registry-check.ts`. These are governance registries, not a second
 module index, and fail closed when a command or document is added without an
 identity/owner.
-The GitHub CI workflow additionally runs `pnpm synthetic:depot-day` and
+The canonical release gate runs `pnpm synthetic:depot-day` and
 `pnpm pilot:dry-run` after production E2E on the same clean checkout. Their
 reports are repository evidence only and keep field validation explicitly
-`NOT_RUN_BY_AUTOMATION`.
+`NOT_RUN_BY_AUTOMATION`; CI invokes this same command rather than maintaining a
+second ordered release list.
 Policy queries resolve the versioned registry implementation and its disabled
 availability tests; they do not imply that policy-sensitive metrics are active.
 Operational directory search is implemented in the read-side contracts and

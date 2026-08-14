@@ -29,6 +29,8 @@ export const RELEASE_STEPS: readonly ReleaseStep[] = [
   { name: "Storybook build", args: ["web:storybook"] },
   { name: "production E2E build", args: ["web:e2e:build"] },
   { name: "production E2E", args: ["web:e2e"] },
+  { name: "synthetic depot day", args: ["synthetic:depot-day"] },
+  { name: "pilot dry-run", args: ["pilot:dry-run"] },
 ];
 
 export function requireReleaseEnvironment(environment: {

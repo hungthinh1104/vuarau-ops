@@ -40,6 +40,9 @@ jobs:
       # from scratch on every build, which is the only way "the migrations apply
       # to an empty database" stays true.
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/vuarau_test
+      # The release gate refuses to run production-shape data against the
+      # functional test database.
+      RELEASE_PERF_DATABASE_URL: postgres://postgres:postgres@localhost:5432/vuarau_perf
 
     steps:
       - uses: actions/checkout@v4
@@ -56,124 +59,35 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # --- canonical static gate ----------------------------------------------
-      # Keep the static list in package.json. This includes context:test and
-      # docs:check:test, so CI cannot silently omit agent-retrieval regressions.
-      - name: Static checks
-        run: pnpm check:static
-
-      # --- schema --------------------------------------------------------------
-      - name: Apply migrations from scratch
-        run: pnpm db:migrate
-
-      # A schema change committed without its migration applies cleanly here and
-      # diverges in production, silently, until something reads the missing
-      # column. `db:generate` is deterministic, so any output means somebody
-      # edited `src/schema/` and did not generate.
-      - name: Migrations match the schema
-        run: |
-          pnpm db:generate
-          # `git status --porcelain`, not `git diff`: a new migration is an
-          # **untracked** file, and `git diff` does not see those — a drift check
-          # that missed the exact case it exists for.
-          drift="$(git status --porcelain -- packages/db/migrations)"
-          if [ -n "$drift" ]; then
-            echo "::error::packages/db/src/schema changed without a migration."
-            echo "Run 'pnpm db:generate' and commit what it produces."
-            echo "$drift"
-            exit 1
-          fi
-
-      # --- production-shape release evidence ----------------------------------
-      # Keep the million-row rehearsal out of the functional-test database. The
-      # performance script owns its fixed seed workspace and this database is
-      # disposable by construction.
+      # The canonical gate owns migration, performance, tests, builds, browser
+      # E2E and both repository-owned rehearsals. Create its separate database
+      # before invoking the gate and remove it even when a later step fails.
       - name: Create production-scale rehearsal database
         run: createdb --host=localhost --port=5432 --username=postgres vuarau_perf
         env:
           PGPASSWORD: postgres
 
-      - name: Production-scale performance budgets
-        run: pnpm perf:production-scale
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/vuarau_perf
+      - name: Install Playwright browsers
+        run: pnpm --filter @vuarau/web exec playwright install --with-deps chromium
 
-      - name: Fresh migration and idempotent reapply rehearsal
-        run: pnpm rehearse:migrations
+      # --- one canonical release gate ------------------------------------------
+      # The executable order is owned by scripts/verify-release.ts. Do not
+      # maintain a second ordered release list in this workflow.
+      - name: Canonical release gate
+        run: pnpm verify:release
+
+      # Coverage is an additional changed-code quality report; it is not a
+      # replacement for the canonical release gate.
+      - name: Changed-code coverage report
+        run: pnpm coverage:changed
+        env:
+          COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
 
       - name: Drop production-scale rehearsal database
         if: always()
         run: dropdb --if-exists --host=localhost --port=5432 --username=postgres vuarau_perf
         env:
           PGPASSWORD: postgres
-
-      # --- every Vitest project ------------------------------------------------
-      # Run separately rather than as `pnpm test`, so a red build names which
-      # layer broke before anybody opens the log.
-      - name: Domain tests
-        run: pnpm test:domain
-
-      - name: Application tests
-        run: pnpm test:application
-
-      - name: Contract tests
-        run: pnpm test:contract
-
-      # Fails rather than skips without DATABASE_URL — `CI` is set here, and
-      # `skipWithoutDatabase()` throws when both are true. A green build that
-      # asserted nothing about Postgres is worse than a red one.
-      - name: Database tests
-        run: pnpm test:db
-
-      - name: Web component tests
-        run: pnpm test:web
-
-      # Coverage is deliberately report-only for the repository total. The
-      # changed-code check is strict: every changed executable statement must be
-      # exercised, while low legacy branch/function coverage is visible without
-      # making unrelated refactors impossible.
-      - name: Changed-code coverage report
-        run: pnpm coverage:changed
-        env:
-          COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-      # --- the artefacts a browser actually loads -------------------------------
-      - name: Next production build
-        run: pnpm web:build
-
-      - name: Storybook build
-        run: pnpm web:storybook
-
-      # E2E uses a separate production artifact with the test-only token bridge
-      # compiled in. The ordinary production build above remains bridge-free.
-      - name: Next production E2E build
-        run: pnpm web:e2e:build
-
-      # --- the whole stack, through a browser ----------------------------------
-      - name: Install Playwright browsers
-        run: pnpm --filter @vuarau/web exec playwright install --with-deps chromium
-
-      # The root wrapper creates a disposable target inside the Postgres service,
-      # then starts a real API process and a real Next server against that target.
-      # It drives them with a real browser. This is the only thing in
-      # the repository that would have caught the three defects Milestone 5
-      # found — a duplicate payment, a mis-rendered retry, and a foreign key that
-      # made posting impossible — every one of which passed 400 unit tests.
-      #
-      # It also fails rather than skips without DATABASE_URL: `endToEndDisabled()`
-      # throws while Playwright loads its config, before a spec is collected.
-      - name: End-to-end tests
-        run: pnpm web:e2e
-
-      # These are repository-owned release rehearsals, not field validation.
-      # Keep them after the browser gate so the exact checked-out tree and the
-      # same disposable PostgreSQL service are used for the emitted evidence;
-      # each rehearsal owns its own target database.
-      - name: Synthetic depot day
-        run: pnpm synthetic:depot-day
-
-      - name: Pilot dry-run
-        run: pnpm pilot:dry-run
 
       - name: Upload Playwright report
         if: failure()
