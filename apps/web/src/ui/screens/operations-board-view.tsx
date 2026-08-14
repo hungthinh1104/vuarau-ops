@@ -50,6 +50,7 @@ export type OperationsBoardViewProps = {
 
 const FILTERS: readonly { value: OperationsBoardFilter; label: string }[] = [
   { value: "all", label: "Tất cả" },
+  { value: "outstanding_delivery", label: "Giao còn lại" },
   { value: "needs_receiving", label: "Cần nhận" },
   { value: "needs_delivery", label: "Cần giao" },
   { value: "in_delivery", label: "Đang giao" },
@@ -200,6 +201,7 @@ function CountStrip({
 }) {
   const values: Record<OperationsBoardFilter, number> = {
     all: counts.all,
+    outstanding_delivery: counts.outstandingDelivery,
     needs_receiving: counts.needsReceiving,
     needs_delivery: counts.needsDelivery,
     in_delivery: counts.inDelivery,

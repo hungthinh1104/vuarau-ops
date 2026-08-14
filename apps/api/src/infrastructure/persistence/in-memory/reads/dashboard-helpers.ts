@@ -23,6 +23,8 @@ export function matchesOperationsBoardFilter(
   filter: OperationsBoardFilter,
 ): boolean {
   if (filter === "all") return true;
+  if (filter === "outstanding_delivery")
+    return row.exceptions.some((exception) => exception.kind === "outstanding_delivery");
   if (filter === "needs_receiving") return row.physicalState === "needs_receiving";
   if (filter === "needs_delivery") return row.physicalState === "needs_delivery";
   if (filter === "in_delivery") return row.physicalState === "in_delivery";
@@ -79,6 +81,7 @@ export function boardCounts(rows: readonly OperationsBoardDto["page"]["items"][n
   ) as Record<OperationsExceptionKind, number>;
   return {
     all: rows.length,
+    outstandingDelivery: exceptionCounts.outstanding_delivery,
     needsReceiving: rows.filter((row) => row.physicalState === "needs_receiving").length,
     needsDelivery: rows.filter((row) => row.physicalState === "needs_delivery").length,
     inDelivery: rows.filter((row) => row.physicalState === "in_delivery").length,

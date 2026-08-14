@@ -163,7 +163,9 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
       expect(counts.value.counts.attention).toBe(1);
       expect(counts.value.counts.unallocatedPayment).toBe(1);
       expect(counts.value.counts.reconciliationVariance).toBe(1);
+      expect(counts.value.counts.outstandingDelivery).toBe(0);
       expect(counts.value.counts.exceptionCounts).toMatchObject({
+        outstanding_delivery: 0,
         unallocated_payment: 1,
         reconciliation_variance: 1,
       });

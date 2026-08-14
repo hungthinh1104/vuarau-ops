@@ -35,29 +35,31 @@ export async function queryRows(
   options: { readonly includeActivity: boolean; readonly includeCounts: boolean },
 ) {
   const filterClause =
-    input.filter === "needs_receiving"
-      ? sql`physical_state = 'needs_receiving'`
-      : input.filter === "needs_delivery"
-        ? sql`physical_state = 'needs_delivery'`
-        : input.filter === "in_delivery"
-          ? sql`physical_state = 'in_delivery'`
-          : input.filter === "returned_fulfilment"
-            ? sql`returned_fulfilment`
-            : input.filter === "unallocated_payment"
-              ? sql`unallocated_payment`
-              : input.filter === "awaiting_payment"
-                ? sql`financial_state = 'awaiting_payment'`
-                : input.filter === "overdue"
-                  ? sql`financial_state = 'overdue'`
-                  : input.filter === "attention"
-                    ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
-                    : input.filter === "fulfilment_remainder_unresolved"
-                      ? sql`fulfilment_remainder_unresolved`
-                      : input.filter === "return_settlement_unresolved"
-                        ? sql`returned_fulfilment and not return_settlement_resolved`
-                        : input.filter === "reconciliation_variance"
-                          ? sql`reconciliation_variance`
-                          : sql`true`;
+    input.filter === "outstanding_delivery"
+      ? sql`physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved`
+      : input.filter === "needs_receiving"
+        ? sql`physical_state = 'needs_receiving'`
+        : input.filter === "needs_delivery"
+          ? sql`physical_state = 'needs_delivery'`
+          : input.filter === "in_delivery"
+            ? sql`physical_state = 'in_delivery'`
+            : input.filter === "returned_fulfilment"
+              ? sql`returned_fulfilment`
+              : input.filter === "unallocated_payment"
+                ? sql`unallocated_payment`
+                : input.filter === "awaiting_payment"
+                  ? sql`financial_state = 'awaiting_payment'`
+                  : input.filter === "overdue"
+                    ? sql`financial_state = 'overdue'`
+                    : input.filter === "attention"
+                      ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
+                      : input.filter === "fulfilment_remainder_unresolved"
+                        ? sql`fulfilment_remainder_unresolved`
+                        : input.filter === "return_settlement_unresolved"
+                          ? sql`returned_fulfilment and not return_settlement_resolved`
+                          : input.filter === "reconciliation_variance"
+                            ? sql`reconciliation_variance`
+                            : sql`true`;
   const searchPattern = `%${input.search.toLocaleLowerCase()}%`;
   const searchClause =
     input.search.length === 0
@@ -301,6 +303,7 @@ export async function queryRows(
         count(*) filter (where unallocated_payment) over() as unallocated_payment_count,
         count(*) filter (where financial_state='awaiting_payment') over() as awaiting_payment_count,
         count(*) filter (where financial_state='overdue') over() as overdue_count,
+        count(*) filter (where physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved) over() as outstanding_delivery_count,
         count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required') over() as attention_count,
         count(*) filter (where fulfilment_remainder_unresolved) over() as fulfilment_remainder_unresolved_count,
         count(*) filter (where returned_fulfilment and not return_settlement_resolved) over() as return_settlement_unresolved_count,
@@ -582,6 +585,7 @@ export async function queryRows(
     unallocatedPayment: first === undefined ? 0 : numberOf(first, "unallocated_payment_count"),
     awaitingPayment: first === undefined ? 0 : numberOf(first, "awaiting_payment_count"),
     overdue: first === undefined ? 0 : numberOf(first, "overdue_count"),
+    outstandingDelivery: first === undefined ? 0 : numberOf(first, "outstanding_delivery_count"),
     attention: first === undefined ? 0 : numberOf(first, "attention_count"),
     fulfilmentRemainderUnresolved:
       first === undefined ? 0 : numberOf(first, "fulfilment_remainder_unresolved_count"),
@@ -590,6 +594,7 @@ export async function queryRows(
     reconciliationVariance:
       first === undefined ? 0 : numberOf(first, "reconciliation_variance_count"),
     exceptionCounts: {
+      outstanding_delivery: first === undefined ? 0 : numberOf(first, "outstanding_delivery_count"),
       unallocated_payment: first === undefined ? 0 : numberOf(first, "unallocated_payment_count"),
       fulfilment_remainder_unresolved:
         first === undefined ? 0 : numberOf(first, "fulfilment_remainder_unresolved_count"),

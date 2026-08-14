@@ -210,6 +210,7 @@ export async function queryOperationsBoardCounts(
       count(*) filter (where unallocated_payment)::int as unallocated_payment_count,
       count(*) filter (where financial_state='awaiting_payment')::int as awaiting_payment_count,
       count(*) filter (where financial_state='overdue')::int as overdue_count,
+      count(*) filter (where physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved)::int as outstanding_delivery_count,
       count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required')::int as attention_count,
       count(*) filter (where fulfilment_remainder_unresolved)::int as fulfilment_remainder_unresolved_count,
       count(*) filter (where returned_fulfilment and not return_settlement_resolved)::int as return_settlement_unresolved_count,
@@ -244,11 +245,13 @@ export async function queryOperationsBoardCounts(
       unallocatedPayment: count("unallocated_payment_count"),
       awaitingPayment: count("awaiting_payment_count"),
       overdue: count("overdue_count"),
+      outstandingDelivery: count("outstanding_delivery_count"),
       attention: count("attention_count"),
       fulfilmentRemainderUnresolved: count("fulfilment_remainder_unresolved_count"),
       returnSettlementUnresolved: count("return_settlement_unresolved_count"),
       reconciliationVariance: count("reconciliation_variance_count"),
       exceptionCounts: {
+        outstanding_delivery: count("outstanding_delivery_count"),
         unallocated_payment: count("unallocated_payment_count"),
         fulfilment_remainder_unresolved: count("fulfilment_remainder_unresolved_count"),
         return_settlement_unresolved: count("return_settlement_unresolved_count"),
@@ -306,6 +309,13 @@ export async function queryOperationsBoardCountsSplit(
         ) settled on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
         where dr.workspace_id=${input.workspaceId}::uuid
         group by d.sale_id
+      ), fulfilment_remainder_status as (
+        select distinct on (frc.sale_id)
+          frc.sale_id,
+          frc.case_kind
+        from fulfilment_remainder_cases frc
+        where frc.workspace_id=${input.workspaceId}::uuid
+        order by frc.sale_id, frc.transaction_time desc, frc.recorded_at desc, frc.id desc
       ), sale_physical as (
         select sl.sale_id as id,
           case
@@ -319,8 +329,10 @@ export async function queryOperationsBoardCountsSplit(
             and sl.quantity_scaled > coalesce(slf.dispatched, 0) - coalesce(slf.returned, 0)
           ) as returned_fulfilment
           ,coalesce(bool_or(return_settlement_status.all_resolved), false) as return_settlement_resolved
+          ,coalesce(bool_or(fulfilment_remainder_status.case_kind = 'opened'), false) as fulfilment_remainder_unresolved
         from sale_lines sl
         left join return_settlement_status on return_settlement_status.sale_id=sl.sale_id
+        left join fulfilment_remainder_status on fulfilment_remainder_status.sale_id=sl.sale_id
         left join (
           select dl.sale_line_id,
             coalesce(sum(case when d.status in ('dispatched','delivered') then dl.quantity_scaled else 0 end),0) as dispatched,
@@ -369,6 +381,7 @@ export async function queryOperationsBoardCountsSplit(
         count(*)::int as all_count,
         count(*) filter (where physical_state='needs_delivery')::int as needs_delivery_count,
         count(*) filter (where physical_state='in_delivery')::int as in_delivery_count,
+        count(*) filter (where physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved)::int as outstanding_delivery_count,
         count(*) filter (where returned_fulfilment)::int as returned_fulfilment_count,
         0::int as fulfilment_remainder_unresolved_count,
         count(*) filter (where physical_state='delivered')::int as delivered_count,
@@ -500,6 +513,7 @@ export async function queryOperationsBoardCountsSplit(
       needsReceiving: value(purchase, "needs_receiving_count"),
       needsDelivery: value(sale, "needs_delivery_count"),
       inDelivery: value(sale, "in_delivery_count"),
+      outstandingDelivery: value(sale, "outstanding_delivery_count"),
       returnedFulfilment: value(sale, "returned_fulfilment_count"),
       unallocatedPayment: value(financial, "unallocated_payment_count"),
       awaitingPayment: value(financial, "awaiting_payment_count"),
@@ -512,6 +526,7 @@ export async function queryOperationsBoardCountsSplit(
         value(sale, "reconciliation_variance_count") +
         value(financial, "reconciliation_variance_count"),
       exceptionCounts: {
+        outstanding_delivery: value(sale, "outstanding_delivery_count"),
         unallocated_payment: value(financial, "unallocated_payment_count"),
         fulfilment_remainder_unresolved: value(sale, "fulfilment_remainder_unresolved_count"),
         return_settlement_unresolved: value(sale, "return_settlement_unresolved_count"),

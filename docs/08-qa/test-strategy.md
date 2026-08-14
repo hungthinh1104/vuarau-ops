@@ -159,10 +159,10 @@ should fail every time.
 tolerance-based comparison anywhere, because there is no floating point anywhere.
 
 **Unresolved-state parity.** The Operations Board tests the shared deriver against
-ordinary workflow facts (which must not create an exception), each canonical
+ordinary workflow facts, the outstanding-delivery source condition, each canonical
 unresolved source fact, and the exact integer amount/options exposed to the worker.
 Repository tests must prove that PostgreSQL page rows, filters and counts use the
-same four exception keys; application tests must prove that resolving an
+same five exception keys; application tests must prove that resolving an
 unallocated Payment removes the condition without a goods-side effect. Browser E2E
 must cover the real loop: record Payment, observe a blocking close summary and
 Board exception, allocate through the authorized command, then observe the

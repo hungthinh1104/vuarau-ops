@@ -97,15 +97,16 @@ classifications. They are not silently clamped or rejected.
 ## Unresolved operational conditions
 
 These are bounded read-time conditions over canonical facts, not a second mutable
-exception state machine. The shared Operations deriver may emit only these four
+exception state machine. The shared Operations deriver currently emits these five
 V1 conditions:
 
-| Condition                         | Source fact required                                                                                    | Unknown consequence                                                                  | Resolution fact                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| `UNALLOCATED_PAYMENT`             | active Payment amount minus reversal, effective allocation and active `customer_credit_preserved` facts | which Sale receives the money, or whether it remains customer credit                 | allocation, reversal, or exact customer-credit fact                                    |
-| `FULFILMENT_REMAINDER_UNRESOLVED` | an explicit `opened` remainder source fact; ordinary `needs_delivery`/`in_delivery` is insufficient     | deliver, commercially correct, cancel, or create a new Sale                          | append-only fulfilment/commercial decision or correction                               |
-| `RETURN_SETTLEMENT_UNRESOLVED`    | canonical Delivery Return                                                                               | refund, credit, replacement, goods-only handling, or another approved policy outcome | append-only return settlement decision                                                 |
-| `RECONCILIATION_VARIANCE`         | canonical comparison/integrity source reports a mismatch                                                | which source or correction explains the difference                                   | policy-blocked in V1; retain the exception until an approved correction command exists |
+| Condition                         | Source fact required                                                                                        | Unknown consequence                                                                  | Resolution fact                                                                        |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `OUTSTANDING_DELIVERY`            | Sale physical state is `needs_delivery` or `in_delivery`, without a returned fulfilment or opened remainder | which Delivery will complete the remaining Sale quantity and when                    | complete the active Delivery or create the remaining Delivery                          |
+| `UNALLOCATED_PAYMENT`             | active Payment amount minus reversal, effective allocation and active `customer_credit_preserved` facts     | which Sale receives the money, or whether it remains customer credit                 | allocation, reversal, or exact customer-credit fact                                    |
+| `FULFILMENT_REMAINDER_UNRESOLVED` | an explicit `opened` remainder source fact; ordinary `needs_delivery`/`in_delivery` is insufficient         | deliver, commercially correct, cancel, or create a new Sale                          | append-only fulfilment/commercial decision or correction                               |
+| `RETURN_SETTLEMENT_UNRESOLVED`    | canonical Delivery Return                                                                                   | refund, credit, replacement, goods-only handling, or another approved policy outcome | append-only return settlement decision                                                 |
+| `RECONCILIATION_VARIANCE`         | canonical comparison/integrity source reports a mismatch                                                    | which source or correction explains the difference                                   | policy-blocked in V1; retain the exception until an approved correction command exists |
 
 Each condition carries its source facts, explanation, available resolution path and
 next action. Goods facts never create a money effect. A close read consumes the
@@ -131,7 +132,7 @@ uncommitted command or one atomic committed receipt and result.
 | has-debt Customer                   | Derived from canonical account entries                                                                        |
 | synced/pending-upload server status | Offline queue state belongs to the client                                                                     |
 | report total                        | A disposable view that must resolve to canonical sources                                                      |
-| `needs_delivery` / `in_delivery`    | Ordinary fulfilment workflow states; they are not unresolved without an explicit remainder decision fact      |
+| `needs_delivery` / `in_delivery`    | Sale fulfilment workflow states also surfaced as the source-backed `OUTSTANDING_DELIVERY` Board condition     |
 | unresolved exception                | A derived condition over canonical facts, never a mutable operator note or hidden task list                   |
 
 ## Cross-context boundary

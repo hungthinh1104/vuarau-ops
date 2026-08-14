@@ -20,7 +20,7 @@ const saleFacts = {
 };
 
 describe("operations unresolved-state derivation", () => {
-  it("TC-OPS-025 — keeps ordinary delivery state out and exposes source-backed uncertainty", () => {
+  it("TC-OPS-025 — exposes returned and unallocated source-backed exceptions", () => {
     const exceptions = deriveOperationsBoardExceptions(saleFacts);
 
     expect(exceptions.map((exception) => exception.kind)).toEqual([
@@ -50,7 +50,7 @@ describe("operations unresolved-state derivation", () => {
     );
   });
 
-  it("TC-OPS-025 — requires an explicit remainder fact instead of treating in_delivery as uncertainty", () => {
+  it("TC-OPS-025 — exposes outstanding delivery and preserves explicit remainder precedence", () => {
     const ordinary = deriveOperationsBoardExceptions({
       ...saleFacts,
       returnedFulfilment: false,
@@ -58,7 +58,14 @@ describe("operations unresolved-state derivation", () => {
       unallocatedPaymentAmountMinor: null,
       financialState: "awaiting_payment",
     });
-    expect(ordinary).toEqual([]);
+    expect(ordinary.map((exception) => exception.kind)).toEqual(["outstanding_delivery"]);
+    expect(ordinary[0]).toMatchObject({
+      sourceFacts: expect.arrayContaining([{ key: "delivery_status", value: "needs_delivery" }]),
+      nextAction: {
+        label: "Mở Sale hoặc Delivery để tiếp tục giao phần còn lại.",
+        href: "/deliveries/delivery-1",
+      },
+    });
 
     const unresolved = deriveOperationsBoardExceptions({
       ...saleFacts,
@@ -80,6 +87,7 @@ describe("operations unresolved-state derivation", () => {
       unallocatedPayment: false,
       unallocatedPaymentAmountMinor: null,
       financialState: "reconciliation_required",
+      physicalState: "delivered",
     });
     expect(stateOnly).toEqual([]);
 
@@ -89,6 +97,7 @@ describe("operations unresolved-state derivation", () => {
       unallocatedPayment: false,
       unallocatedPaymentAmountMinor: null,
       financialState: "reconciliation_required",
+      physicalState: "delivered",
       reconciliationVariance: true,
     });
     expect(variance.map((exception) => exception.kind)).toEqual(["reconciliation_variance"]);

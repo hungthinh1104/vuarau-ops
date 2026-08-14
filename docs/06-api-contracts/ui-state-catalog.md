@@ -128,13 +128,15 @@ projection or a failed read as proof that closing is allowed. An acknowledgement
 is a source-linked review fact and does not remove the Board exception.
 
 The Operations Board separates ordinary workflow state from unresolved
-consequence. `needs_delivery`, `in_delivery`, `needs_receiving`, `awaiting_payment`
-and `overdue` may be shown as known state and next action, but they are not
-exceptions by themselves.
+consequence. `needs_delivery` and `in_delivery` are shown as the server-authored
+`outstanding_delivery` condition when no returned fulfilment or opened remainder
+supersedes them. `needs_receiving`, `awaiting_payment` and `overdue` may be shown
+as known state and next action, but remain non-exception states until their own
+source-backed producers exist.
 
-The only V1 exception states are `unallocated_payment`,
-`fulfilment_remainder_unresolved`, `return_settlement_unresolved` and
-`reconciliation_variance`. The row receives server-authored source facts,
+The current V1 exception states are `outstanding_delivery`,
+`unallocated_payment`, `fulfilment_remainder_unresolved`,
+`return_settlement_unresolved` and `reconciliation_variance`. The row receives server-authored source facts,
 unknown consequence, approved resolution options and next action. In particular,
 an active Payment with a remaining unallocated amount shows the exact
 `unallocatedPaymentAmount` and `Mở khoản thanh toán để phân bổ hoặc ghi nhận tín

@@ -182,6 +182,7 @@ describe.skipIf(skipWithoutDatabase())(
       if (counts.ok) {
         expect(counts.value.counts.attention).toBe(1);
         expect(counts.value.counts.unallocatedPayment).toBe(1);
+        expect(counts.value.counts.outstandingDelivery).toBe(1);
       }
 
       const attention = await getOperationsBoard(context(), {
@@ -213,6 +214,18 @@ describe.skipIf(skipWithoutDatabase())(
           }),
         );
       }
+
+      const outstanding = await getOperationsBoard(context(), {
+        workspaceId: ctx.workspaceId,
+        filter: "outstanding_delivery",
+        sort: "updated_desc",
+        search: "",
+        cursor: null,
+        limit: 20,
+      });
+      expect(outstanding.ok).toBe(true);
+      if (outstanding.ok)
+        expect(outstanding.value.page.items.map((row) => row.id)).toContain(saleId);
 
       const preserved = await recordDebtObservation(context(), {
         ...command("credit-preserved"),
