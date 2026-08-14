@@ -11,6 +11,7 @@ import type {
   OperationsBoardFilter,
   OperationsBoardRow,
   OperationsBoardSort,
+  OperationsException,
   OperationsSemanticCategory,
 } from "@vuarau/domain-contracts";
 import Link from "next/link";
@@ -138,6 +139,92 @@ function exceptionCategories(row: OperationsBoardRow): OperationsSemanticCategor
   return [...new Set(row.exceptions.map((exception) => exception.category))];
 }
 
+const SOURCE_FACT_LABELS: Readonly<Record<string, string>> = {
+  reference: "Mã nguồn",
+  commercial_state: "Trạng thái đơn",
+  physical_state: "Trạng thái hàng",
+  financial_state: "Trạng thái thanh toán",
+  amount_minor: "Giá trị nguồn (đơn vị nhỏ nhất)",
+  delivery_status: "Trạng thái giao",
+  delivery_id: "Mã Delivery",
+  receiving_status: "Trạng thái nhận hàng",
+  returned_fulfilment: "Đã trả phần fulfilment",
+  unallocated_payment_amount_minor: "Tiền chưa phân bổ (đơn vị nhỏ nhất)",
+  due_at: "Hạn thanh toán",
+  overdue_status: "Trạng thái quá hạn",
+  remainder_status: "Trạng thái phần còn lại",
+  reconciliation_status: "Trạng thái đối soát",
+};
+
+function sourceFactLabel(key: string): string {
+  return SOURCE_FACT_LABELS[key] ?? key.replaceAll("_", " ");
+}
+
+function OperationsExceptionDetails({ exception }: { readonly exception: OperationsException }) {
+  return (
+    <details className="rounded-card border border-border bg-canvas p-3">
+      <summary className="cursor-pointer text-caption font-semibold">Vì sao cần xử lý?</summary>
+      <div className="mt-3 grid gap-3 text-body-sm">
+        <div>
+          <p className="text-caption font-semibold text-ink-muted">Điều đã biết</p>
+          <p className="mt-1">{exception.explanation}</p>
+        </div>
+        <div>
+          <p className="text-caption font-semibold text-ink-muted">Điều chưa biết</p>
+          <p className="mt-1">{exception.unknown}</p>
+        </div>
+        <div>
+          <p className="text-caption font-semibold text-ink-muted">Hướng xử lý được phép</p>
+          <ul className="mt-1 grid list-disc gap-1 pl-4">
+            {exception.resolutionOptions.map((option) => (
+              <li key={option.code}>{option.label}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="text-caption font-semibold text-ink-muted">Điều kiện kết thúc</p>
+          <p className="mt-1">{exception.resolutionCondition}</p>
+        </div>
+        <div>
+          <p className="text-caption font-semibold text-ink-muted">
+            Fact nguồn · {exception.source.reference}
+          </p>
+          <dl className="mt-1 grid gap-1 sm:grid-cols-2">
+            {exception.sourceFacts.map((fact) => (
+              <div key={`${fact.key}:${fact.value}`}>
+                <dt className="text-caption text-ink-muted">{sourceFactLabel(fact.key)}</dt>
+                <dd className="break-words">{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <p className="border-t border-border pt-2 text-caption text-ink-muted">
+          Các hướng trên là thông tin từ contract vận hành. Chỉ thao tác có command và quyền tương
+          ứng mới làm thay đổi dữ liệu.
+        </p>
+      </div>
+    </details>
+  );
+}
+
+function OperationsExceptionDetailsList({
+  exceptions,
+}: {
+  readonly exceptions: readonly OperationsException[];
+}) {
+  if (exceptions.length === 0) return null;
+  return (
+    <div className="mt-2 grid gap-2" aria-label="Giải thích việc cần xử lý">
+      {exceptions.map((exception) => (
+        <OperationsExceptionDetails
+          key={`${exception.kind}:${exception.source.id ?? exception.source.reference}`}
+          exception={exception}
+        />
+      ))}
+    </div>
+  );
+}
+
 const columnHelper = createColumnHelper<OperationsBoardRow>();
 
 function columns() {
@@ -205,6 +292,7 @@ function columns() {
           <span className="text-caption text-ink-muted">
             {ageLabel(info.row.original.ageSeconds)} · {formatInstant(info.getValue())}
           </span>
+          <OperationsExceptionDetailsList exceptions={info.row.original.exceptions} />
         </div>
       ),
     }),
@@ -354,6 +442,9 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                           </Badge>
                         </span>
                       </MobileRecordCard>
+                      <div className="px-4 pb-3">
+                        <OperationsExceptionDetailsList exceptions={row.exceptions} />
+                      </div>
                     </li>
                   ))}
                 </ul>

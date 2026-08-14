@@ -95,6 +95,11 @@ test.describe("Operations board production pagination", () => {
       await expect(
         mobileBoard.getByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng."),
       ).toBeVisible();
+      const explanation = mobileBoard.locator("details").first();
+      await explanation.getByText("Vì sao cần xử lý?").click();
+      await expect(explanation.getByText("Điều chưa biết")).toBeVisible();
+      await expect(explanation.getByText("Phân bổ vào Sale")).toBeVisible();
+      await expect(explanation.getByText("Tiền chưa phân bổ (đơn vị nhỏ nhất)")).toBeVisible();
 
       // The Board's source link identifies the Sale; the allocation command is
       // the explicit resolution fact and never changes the goods quantity.

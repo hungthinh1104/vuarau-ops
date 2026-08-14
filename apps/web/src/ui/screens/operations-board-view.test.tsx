@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { OperationsBoardRow } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
 import { OperationsBoardView } from "./operations-board-view.tsx";
@@ -133,6 +133,68 @@ describe("OperationsBoardView", () => {
     );
     expect(screen.getAllByText("Hàng trả cần xử lý").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Xử lý hàng trả").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("exposes the server-authored explanation, unknown consequence, options and source facts", () => {
+    const unresolvedRow = {
+      ...row,
+      exceptions: [
+        {
+          kind: "unallocated_payment" as const,
+          category: "uncertainty" as const,
+          severity: "critical" as const,
+          closeImpact: "blocking" as const,
+          source: { kind: "sale" as const, reference: "SALE-1", id: "sale-1" },
+          sourceFacts: [
+            { key: "reference", value: "SALE-1" },
+            { key: "unallocated_payment_amount_minor", value: "300000" },
+          ],
+          explanation: "Đã nhận tiền nhưng chưa biết khoản tiền thuộc Sale hay tín dụng nào.",
+          unknown: "Khoản tiền này sẽ được phân bổ vào Sale nào hoặc giữ thành tín dụng.",
+          resolutionOptions: [
+            { code: "allocate_to_sale", label: "Phân bổ vào Sale" },
+            { code: "retain_customer_credit", label: "Ghi nhận tín dụng khách hàng" },
+          ],
+          nextAction: {
+            label: "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.",
+            href: "/sales/sale-1",
+          },
+          resolutionCondition:
+            "Số tiền chưa phân bổ bằng không hoặc được ghi nhận thành credit hợp lệ.",
+        },
+      ],
+    };
+    render(
+      <OperationsBoardView
+        query={{
+          ...query,
+          data: { ...query.data, page: { items: [unresolvedRow], nextCursor: null } },
+        }}
+        rows={[unresolvedRow]}
+        filter="unallocated_payment"
+        sort="updated_desc"
+        search=""
+        onFilterChange={() => undefined}
+        onSortChange={() => undefined}
+        onSearchChange={() => undefined}
+        onRetry={() => undefined}
+        onLoadMore={() => undefined}
+      />,
+    );
+
+    const disclosures = screen.getAllByText("Vì sao cần xử lý?");
+    expect(disclosures.length).toBeGreaterThanOrEqual(2);
+    const details = disclosures.map((disclosure) => disclosure.closest("details"));
+    expect(details.every((detail) => detail?.open === false)).toBe(true);
+    fireEvent.click(disclosures[0]!);
+    expect(details[0]?.open).toBe(true);
+    expect(screen.getAllByText("Điều chưa biết").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Phân bổ vào Sale").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Ghi nhận tín dụng khách hàng").length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText("Tiền chưa phân bổ (đơn vị nhỏ nhất)").length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("300000").length).toBeGreaterThanOrEqual(1);
   });
 
   it("keeps unallocated customer money visible with its exact amount", () => {

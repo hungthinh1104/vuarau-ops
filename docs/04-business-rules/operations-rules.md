@@ -243,7 +243,11 @@ an exception.
 The condition is derived from canonical facts, not stored as a mutable task or
 exception row. Its read contract includes the source facts, the unknown
 consequence, available resolution path, the next action and the resolution
-condition. Money is resolved only by a money-bearing source fact: goods, delivery
+condition. The Operations Board presents these fields in an expandable explanation
+on both its desktop table and mobile cards, so a worker can inspect why a row is
+present and what fact closes it without opening a second screen. The options are
+descriptive contract guidance, not browser-created mutation controls; only an
+authorized command can append a resolving fact. Money is resolved only by a money-bearing source fact: goods, delivery
 or return quantity never implies a refund, credit, debt change or allocation.
 
 `reconciliation_variance` is emitted only when the read adapter passes an
