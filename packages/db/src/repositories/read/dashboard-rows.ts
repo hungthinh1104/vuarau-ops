@@ -54,10 +54,40 @@ export async function queryRows(
                         : input.filter === "reconciliation_variance"
                           ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
                           : sql`true`;
+  const searchPattern = `%${input.search.toLocaleLowerCase()}%`;
   const searchClause =
     input.search.length === 0
       ? sql`true`
-      : sql`lower(reference || ' ' || counterparty) like ${`%${input.search.toLocaleLowerCase()}%`}`;
+      : sql`lower(reference || ' ' || counterparty) like ${searchPattern}`;
+  const searchCtes =
+    input.search.length === 0
+      ? sql``
+      : sql`
+    search_candidates as (
+      select s.id, 'sale' as kind
+      from sales s
+      join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
+      where s.workspace_id=${input.workspaceId}::uuid
+        and lower(('SALE-' || upper(substr(s.id::text,1,8))) || ' ' || c.display_name) like ${searchPattern}
+      union all
+      select p.id, 'purchase' as kind
+      from purchases p
+      join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id
+      where p.workspace_id=${input.workspaceId}::uuid
+        and lower(('PUR-' || upper(substr(p.id::text,1,8))) || ' ' || s.display_name) like ${searchPattern}
+    ),`;
+  const saleSearchJoin =
+    input.search.length === 0
+      ? sql``
+      : sql`
+      join search_candidates search_sale
+        on search_sale.kind='sale' and search_sale.id=s.id`;
+  const purchaseSearchJoin =
+    input.search.length === 0
+      ? sql``
+      : sql`
+      join search_candidates search_purchase
+        on search_purchase.kind='purchase' and search_purchase.id=p.id`;
   const cursorClause = (() => {
     const after = input.page.after;
     if (after === null) return sql`true`;
@@ -132,7 +162,7 @@ export async function queryRows(
     ), sale_activity as (
       select s.workspace_id, s.id,
         greatest(s.recorded_at, coalesce(s.posted_at, s.recorded_at), coalesce(events.recorded_at, s.recorded_at)) as updated_at
-      from sales s
+      from sales s ${saleSearchJoin}
       left join (
         select workspace_id, id, max(recorded_at) as recorded_at
         from sale_activity_events
@@ -194,7 +224,7 @@ export async function queryRows(
     ), purchase_activity as (
       select p.workspace_id, p.id,
         greatest(p.recorded_at, coalesce(p.confirmed_at, p.recorded_at), coalesce(events.recorded_at, p.recorded_at)) as updated_at
-      from purchases p
+      from purchases p ${purchaseSearchJoin}
       left join (
         select workspace_id, id, max(recorded_at) as recorded_at
         from purchase_activity_events
@@ -304,7 +334,7 @@ export async function queryRows(
       where ${filterClause}
     )`;
   const rows = await tx.execute(sql`
-    with recursive delivered as (
+    with recursive ${searchCtes} delivered as (
       select dl.sale_line_id,
         sum(dl.quantity_scaled) as dispatched
       from delivery_lines dl join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
@@ -350,7 +380,7 @@ export async function queryRows(
           and sl.quantity_scaled > coalesce(delivered.dispatched, 0) - coalesce(returned.returned, 0)
         ) as returned_fulfilment,
         max(latest_delivery.delivery_id::text)::uuid as delivery_id
-      from sales s ${saleCandidateJoin} join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
+      from sales s ${saleSearchJoin} ${saleCandidateJoin} join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
       left join delivered on delivered.sale_line_id=sl.id
       left join returned on returned.sale_line_id=sl.id
       left join dispatched_remaining on dispatched_remaining.sale_line_id=sl.id
@@ -436,7 +466,7 @@ export async function queryRows(
       where pl.workspace_id=${input.workspaceId}::uuid
     ), ${activityCtes} ${candidateCtes} purchase_physical as (
       select p.id, case when bool_and(pr.received >= pr.quantity_scaled) then 'received' else 'needs_receiving' end as physical_state
-      from purchases p ${purchaseCandidateJoin} join purchase_received pr on pr.purchase_id=p.id
+      from purchases p ${purchaseSearchJoin} ${purchaseCandidateJoin} join purchase_received pr on pr.purchase_id=p.id
       where p.workspace_id=${input.workspaceId}::uuid group by p.id
     ), board_rows as (
     select s.id, 'sale' as kind, ('SALE-' || upper(substr(s.id::text,1,8))) as reference,
@@ -465,7 +495,7 @@ export async function queryRows(
         else null
       end as next_action,
       sale_physical.delivery_id, ('/sales/' || s.id::text) as href
-    from sales s ${saleCandidateJoin} join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
+    from sales s ${saleSearchJoin} ${saleCandidateJoin} join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
       join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id left join unallocated_by_customer on unallocated_by_customer.customer_id=s.customer_id
       ${saleActivityJoin}
     where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
@@ -480,7 +510,7 @@ export async function queryRows(
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, ${purchaseUpdatedAt} as updated_at,
       case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
       null as delivery_id, ('/purchases/' || p.id::text) as href
-    from purchases p ${purchaseCandidateJoin} join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id join purchase_physical on purchase_physical.id=p.id
+    from purchases p ${purchaseSearchJoin} ${purchaseCandidateJoin} join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id join purchase_physical on purchase_physical.id=p.id
       ${purchaseActivityJoin}
       left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
     where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
