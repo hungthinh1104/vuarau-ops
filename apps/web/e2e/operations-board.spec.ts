@@ -92,13 +92,15 @@ test.describe("Operations board production pagination", () => {
       await expect(
         mobileBoard.getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") }),
       ).toBeVisible();
-      await expect(
-        mobileBoard.getByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng."),
-      ).toBeVisible();
       const explanation = mobileBoard
         .locator("details")
         .filter({ hasText: "Đã nhận tiền nhưng chưa biết khoản tiền thuộc Sale hay tín dụng nào." })
         .first();
+      await expect(
+        explanation.getByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.", {
+          exact: true,
+        }),
+      ).toBeVisible();
       await explanation.getByText("Vì sao cần xử lý?").click();
       await expect(explanation.getByText("Điều chưa biết")).toBeVisible();
       await expect(explanation.getByText("Phân bổ vào Sale", { exact: true })).toBeVisible();
