@@ -1,0 +1,68 @@
+version: 1
+
+# This file is the machine-readable identity of the active documentation tree.
+# It is a governance registry, not a replacement for normative documents or a
+# second module index. Directory defaults are resolved by the checker and may be
+# narrowed by an explicit override.
+roles:
+  - normative
+  - contract-mirror
+  - evidence
+  - status
+  - process
+
+statuses:
+  - active
+  - historical
+  - superseded
+
+defaults:
+  status: active
+  supersedes: none
+  verified_against_sha: not-applicable
+
+authority:
+  normative_truth:
+    - approved product invariant
+    - accepted ADR or business decision
+    - business rule or use case
+  descriptive_truth:
+    - schema and migration
+    - domain contract and executable business rule
+    - runtime read/write implementation
+  rule: "A runtime defect does not rewrite an approved invariant; fix the runtime or record a new decision."
+
+directory_defaults:
+  docs/00-product: { role: normative, source_of_truth: "decision:product" }
+  docs/01-domain: { role: normative, source_of_truth: "decision:domain" }
+  docs/02-use-cases: { role: normative, source_of_truth: "decision:use-cases" }
+  docs/03-state-machines: { role: normative, source_of_truth: "decision:state-machines" }
+  docs/04-business-rules: { role: normative, source_of_truth: "decision:business-rules" }
+  docs/05-casebook: { role: evidence, source_of_truth: "evidence:casebook" }
+  docs/06-api-contracts: { role: contract-mirror, source_of_truth: "runtime:contracts" }
+  docs/07-data: { role: contract-mirror, source_of_truth: "runtime:schema" }
+  docs/08-qa: { role: evidence, source_of_truth: "process:trace-and-tests" }
+  docs/09-decisions: { role: normative, source_of_truth: "decision:adr-and-backlog" }
+  docs/10-ai-coding: { role: process, source_of_truth: "process:repository-governance" }
+  docs/11-operations: { role: process, source_of_truth: "process:operations" }
+  docs: { role: process, source_of_truth: "process:documentation-governance" }
+
+overrides:
+  docs/README.md: { role: process, source_of_truth: "process:documentation-governance" }
+  docs/design.md: { role: normative, source_of_truth: "decision:ui-policy" }
+  docs/00-product/scope.md: { role: status, source_of_truth: "status:release-manifest" }
+  docs/00-product/roadmap.md: { role: status, source_of_truth: "status:release-manifest" }
+  docs/00-product/validation-plan.md: { role: process, source_of_truth: "process:field-protocol" }
+  docs/00-product/field-validation-protocol.md:
+    { role: process, source_of_truth: "process:field-protocol" }
+  docs/11-operations/deployment-recovery-evidence.md:
+    { role: evidence, source_of_truth: "evidence:release-manifest", evidence_kind: run }
+  docs/11-operations/production-scale-performance-evidence.md:
+    { role: evidence, source_of_truth: "evidence:release-manifest", evidence_kind: run }
+
+# A run record is immutable evidence. It may be superseded by a later record,
+# but its SHA and outcome are never rewritten to make a new release look green.
+evidence_rules:
+  run_requires_exact_sha: true
+  current_head_is_unverified_until_rerun: true
+  latest_pass_requires_mechanical_sha_check: true

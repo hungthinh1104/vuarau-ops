@@ -122,11 +122,11 @@ export function checkRoutingContracts(sources: RoutingContractSources): string[]
   const authorityPath = "docs/README.md";
   const authority = read(authorityPath);
   const authorityMarkers = [
-    "**Runtime and persistence facts**",
     "**Recorded business decisions**",
     "**Normative business documentation**",
     "**Published interface contracts**",
     "**UI policy**",
+    "**Runtime and persistence facts**",
     "**Evidence and release status**",
   ];
   let previous = -1;
@@ -186,8 +186,8 @@ export function checkRoutingContracts(sources: RoutingContractSources): string[]
   );
   requireText(
     changePath,
-    "runtime and persistence facts outrank every document",
-    "must preserve runtime-first authority",
+    "accepted decisions/invariants own normative meaning",
+    "must preserve the split normative/descriptive authority model",
   );
   if (
     /The docs are the\s+specification, not a description written afterwards/.test(read(changePath))

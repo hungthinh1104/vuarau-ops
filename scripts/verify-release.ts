@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { currentReleaseManifest, requireCleanReleaseManifest } from "./release-manifest.ts";
 
 type ReleaseStep = {
   readonly name: string;
@@ -67,6 +68,9 @@ function run(step: ReleaseStep, environment: NodeJS.ProcessEnv): void {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  const manifest = currentReleaseManifest();
+  requireCleanReleaseManifest(manifest);
+  console.log(`verify:release exact SHA ${manifest.releaseSha}`);
   requireReleaseEnvironment({
     ...(process.env["DATABASE_URL"] ? { databaseUrl: process.env["DATABASE_URL"] } : {}),
     ...(process.env["RELEASE_PERF_DATABASE_URL"]

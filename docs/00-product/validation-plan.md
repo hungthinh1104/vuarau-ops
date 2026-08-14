@@ -11,6 +11,10 @@ H3 — a warehouse worker records Receiving accurately
 H4 — warehouse and delivery workers record Dispatch and Return safely
 H5 — an owner explains customer, supplier and inventory totals
 H6 — an owner exports and restores without developer assistance
+H7 — an operator can identify unexplained money or goods without a guessed effect
+H8 — the exception Board does not miss or falsely resolve a known operational issue
+H9 — an operator can understand the current truth without unsafe external memory
+H10 — an operator can understand and resolve the next action within an observed time
 ```
 
 The hypotheses need different evidence, and conflating them is the failure this
@@ -22,7 +26,8 @@ M23 freezes the observation fields, assistance labels, independent-reference rul
 and pass criteria in
 [field-validation-protocol.md](field-validation-protocol.md). Do not edit
 those criteria after the first observation; a changed release SHA starts a new
-evidence series.
+evidence series. Protocol V2 adds H7–H10 metrics without changing the frozen
+H2–H6 readiness gate or rewriting existing packets.
 
 > **H2 was reworded on 2026-07-27.** It previously read _"a worker can record a
 > real multi-line sale **faster than the current paper/memory process**"_. That

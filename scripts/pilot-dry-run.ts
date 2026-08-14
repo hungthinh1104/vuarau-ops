@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { currentReleaseManifest } from "./release-manifest.ts";
 
 type EvidenceStep = {
   readonly name: string;
@@ -182,14 +183,8 @@ function run(): void {
     return;
   }
 
-  const release = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" });
-  if (release.status !== 0) {
-    console.error(release.stderr);
-    process.exitCode = 2;
-    return;
-  }
-  const tree = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
-  if (tree.status !== 0 || tree.stdout.trim().length > 0) {
+  const manifest = currentReleaseManifest();
+  if (!manifest.diffCheckPassed || !manifest.treeClean) {
     console.error(
       "M23 dry-run requires a clean committed tree; otherwise the reported release SHA " +
         "does not identify the code under test.",
@@ -204,7 +199,7 @@ function run(): void {
     process.exitCode = 2;
     return;
   }
-  const database = createDisposablePilotDatabase(sourceUrl, release.stdout.trim());
+  const database = createDisposablePilotDatabase(sourceUrl, manifest.releaseSha);
   if (database === null) return;
 
   const evidence: Array<{
@@ -247,7 +242,7 @@ function run(): void {
         : "FAIL";
     const report = {
       kind: "M23_DISPOSABLE_DRY_RUN",
-      releaseSha: release.stdout.trim(),
+      releaseSha: manifest.releaseSha,
       database: "disposable-postgresql",
       generatedAt: new Date().toISOString(),
       evidence,

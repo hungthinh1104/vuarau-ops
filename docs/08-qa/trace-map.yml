@@ -1082,25 +1082,54 @@ use_cases:
     title: Inspect Sale fulfilment
     risk: P0
     doc: docs/02-use-cases/depot-operations-use-cases.md
-    rules:
-      [
-        BR-DELIVERY-001,
-        BR-DELIVERY-002,
-        BR-DELIVERY-006,
-        BR-DELIVERY-007,
-        BR-DELIVERY-008,
-        BR-DELIVERY-009,
-      ]
+    rules: [BR-DELIVERY-001, BR-DELIVERY-002, BR-DELIVERY-006, BR-DELIVERY-007]
     cases: []
-    tests:
-      [TC-DELIVERY-001, TC-DELIVERY-003, TC-DELIVERY-009, TC-DELIVERY-010, TC-E2E-030, TC-E2E-032]
+    tests: [TC-DELIVERY-001, TC-DELIVERY-003, TC-E2E-030, TC-E2E-032]
     implementation:
       - apps/api/src/modules/delivery/delivery.queries.ts
+      - apps/api/src/infrastructure/trpc/routers/delivery.ts
+      - packages/db/src/repositories/read/delivery.ts
+
+  UC-DELIVERY-006:
+    title: Record a fulfilment-remainder decision
+    risk: P0
+    doc: docs/02-use-cases/UC-DELIVERY-006-record-fulfilment-remainder.md
+    rules: [BR-DELIVERY-009]
+    cases: []
+    tests: [TC-DELIVERY-009, TC-DELIVERY-010]
+    implementation:
+      - packages/domain-contracts/src/delivery/index.ts
+      - packages/domain-contracts/src/shared/rejection-codes.ts
+      - packages/domain-kernel/src/delivery/fulfilment-remainder.ts
       - apps/api/src/modules/delivery/delivery.handlers.ts
       - apps/api/src/infrastructure/trpc/routers/delivery.ts
-      - packages/domain-kernel/src/delivery/fulfilment-remainder.ts
+      - packages/db/src/schema/delivery.ts
       - packages/db/src/repositories/write/fulfilment-remainder.ts
-      - packages/db/src/repositories/read/delivery.ts
+      - packages/db/src/repositories/read/dashboard-board.ts
+      - packages/db/src/repositories/read/dashboard-board-counts.ts
+      - packages/db/src/repositories/read/dashboard-rows.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/dashboard.ts
+      - apps/api/src/modules/delivery/delivery.app.test.ts
+      - apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
+
+  UC-DELIVERY-007:
+    title: Settle the consequence of a physical return
+    risk: P1
+    doc: docs/02-use-cases/UC-DELIVERY-007-record-return-settlement.md
+    rules: [BR-DELIVERY-008]
+    cases: []
+    tests: [TC-DELIVERY-009, TC-DELIVERY-010]
+    implementation:
+      - packages/domain-contracts/src/delivery/index.ts
+      - packages/domain-kernel/src/delivery/return-settlement.ts
+      - apps/api/src/modules/delivery/delivery.handlers.ts
+      - apps/api/src/infrastructure/trpc/routers/delivery.ts
+      - packages/db/src/schema/delivery.ts
+      - packages/db/src/repositories/write/delivery-return-settlement.ts
+      - packages/db/src/repositories/read/dashboard-board.ts
+      - packages/db/src/repositories/read/dashboard-board-counts.ts
+      - packages/db/src/repositories/read/dashboard-rows.ts
+      - apps/web/src/ui/screens/operations-board-view.tsx
 
   UC-DOCUMENT-001:
     title: Generate immutable source snapshot

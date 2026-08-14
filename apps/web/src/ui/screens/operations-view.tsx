@@ -14,6 +14,13 @@ import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
 import { TextInput } from "@/ui/primitives/text-input.tsx";
 
+const SEMANTIC_CATEGORY_LABELS = {
+  work: "Việc chưa xong",
+  uncertainty: "Hệ quả chưa quyết định",
+  integrity: "Sai khác cần giải thích",
+  control: "Điều kiện kiểm soát",
+} as const;
+
 export function OperationsView(props: {
   readonly canManage: boolean;
   readonly queuedCount: number;
@@ -236,7 +243,8 @@ function CloseReadinessPanel(props: {
             <ul className="mt-2 grid gap-2 text-body-sm">
               {acknowledged.map((exception) => (
                 <li key={exception.kind}>
-                  {exception.count} việc: {exception.explanation} Đã lưu lý do và nguồn kiểm tra.
+                  {exception.count} việc · {SEMANTIC_CATEGORY_LABELS[exception.category]}:{" "}
+                  {exception.explanation} Đã lưu lý do và nguồn kiểm tra.
                 </li>
               ))}
             </ul>
@@ -255,6 +263,7 @@ function CloseReadinessPanel(props: {
       <ul className="mt-3 grid gap-2 text-body-sm">
         {readiness.controlException === null || readiness.controlException === undefined ? null : (
           <li>
+            {SEMANTIC_CATEGORY_LABELS[readiness.controlException.category]}:{" "}
             {readiness.controlException.explanation} {readiness.controlException.nextAction.label}{" "}
             <Link href={readiness.controlException.nextAction.href ?? "/workspace/operations"}>
               Xem điều kiện chốt
@@ -282,7 +291,8 @@ function CloseReadinessPanel(props: {
               .filter((exception) => exception.closeImpact === "blocking")
               .map((exception) => (
                 <li key={exception.kind}>
-                  {exception.count} việc chưa giải quyết: {exception.explanation}{" "}
+                  {exception.count} việc chưa giải quyết ·{" "}
+                  {SEMANTIC_CATEGORY_LABELS[exception.category]}: {exception.explanation}{" "}
                   {exception.nextAction}
                 </li>
               ))

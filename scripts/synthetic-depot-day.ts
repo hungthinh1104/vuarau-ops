@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { currentReleaseManifest } from "./release-manifest.ts";
 
 type EvidenceStep = {
   readonly name: string;
@@ -109,15 +110,14 @@ function run(): void {
     return;
   }
 
-  const sha = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" });
-  const tree = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
-  if (sha.status !== 0 || tree.status !== 0 || tree.stdout.trim().length > 0) {
+  const manifest = currentReleaseManifest();
+  if (!manifest.diffCheckPassed || !manifest.treeClean) {
     console.error("synthetic:depot-day requires a clean committed tree.");
     process.exitCode = 2;
     return;
   }
 
-  const target = createSyntheticDatabase(sourceUrl, sha.stdout.trim());
+  const target = createSyntheticDatabase(sourceUrl, manifest.releaseSha);
   if (target === null) return;
 
   const startedAt = new Date().toISOString();
@@ -161,7 +161,7 @@ function run(): void {
   }));
   const report = {
     kind: "SYNTHETIC_DEPOT_DAY",
-    releaseSha: sha.stdout.trim(),
+    releaseSha: manifest.releaseSha,
     database: "disposable-postgresql",
     cleanup: cleanupStatus === 0 ? "PASS" : "FAIL",
     startedAt,

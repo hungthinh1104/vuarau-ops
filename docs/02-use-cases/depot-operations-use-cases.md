@@ -72,6 +72,11 @@ dispatched, returned, effectively fulfilled and still remaining.
   return `attention`; quantities are never guessed/clamped.
 - **Correction boundary:** replacement Sale after prior fulfilment is ASM-035. Until
   resolved, do not manufacture physical movement to make replacement fulfilment look complete.
+- **Ownership boundary:** this read does not own the append-only
+  `RecordFulfilmentRemainderCase` or `RecordDeliveryReturnSettlement` commands.
+  They are separate actor goals with different uncertainty, authority and
+  correction boundaries: [UC-DELIVERY-006](UC-DELIVERY-006-record-fulfilment-remainder.md)
+  and [UC-DELIVERY-007](UC-DELIVERY-007-record-return-settlement.md).
 - **Rules/tests:** BR-DELIVERY-001/002/006/007 · TC-DELIVERY-001/003 · TC-E2E-030/032.
 
 ## UC-DOCUMENT-001 — Generate immutable source snapshot

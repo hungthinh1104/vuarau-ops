@@ -5,23 +5,33 @@ contracts, UI design, QA, and operations. They do not all have the same authorit
 When two documents disagree, use the order below instead of choosing the newer or
 more convenient prose.
 
-## Authority order
+## Authority model
 
-1. **Runtime and persistence facts** — database schema/migrations, domain contracts,
-   domain kernel and executable authorization/business rules describe what the
-   software actually accepts and persists.
-2. **Recorded business decisions** — accepted ADRs, decision-backlog entries and
+Normative and descriptive truth are different axes. When they diverge, do not
+rewrite an approved invariant to match a runtime bug: fix the runtime or record a
+new accepted decision.
+
+### Normative authority order
+
+1. **Recorded business decisions** — accepted ADRs, decision-backlog entries and
    product invariants describe intentional policy. An unresolved operational action,
    deferred decision or policy-blocked capability must not be rewritten as settled
    depot policy.
-3. **Normative business documentation** — business rules, use cases and state/
-   transition catalogs explain the accepted behavior and must match levels 1–2.
-4. **Published interface contracts** — command contracts, read models, capabilities
-   and error/UI-state catalogs mirror the executable contract. They are not allowed
-   to preserve an obsolete vertical-slice description after the contract grows.
-5. **UI policy** — `design.md` governs interaction and presentation. It may name
+2. **Normative business documentation** — business rules, use cases and state/
+   transition catalogs explain the accepted behavior and must match the decisions.
+3. **Published interface contracts** — command contracts, read models, capabilities
+   and error/UI-state catalogs publish the accepted contract and must not preserve
+   an obsolete vertical-slice description after the contract grows.
+4. **UI policy** — `design.md` governs interaction and presentation. It may name
    future desired states, but those states are not delivered until backed by a
    current contract, fixture/story where applicable, and evidence.
+
+### Descriptive authority order
+
+5. **Runtime and persistence facts** — database schema/migrations, domain contracts,
+   domain kernel and executable authorization/business rules describe what the
+   software actually accepts and persists. They outrank descriptive prose, but a
+   defect is not a product decision.
 6. **Evidence and release status** — QA traceability, scope and roadmap describe what
    is implemented/proven. They must not promote repository or pilot readiness beyond
    the evidence actually present.
@@ -46,6 +56,17 @@ more convenient prose.
 | `11-operations/`                   | Deployment/recovery/pilot procedures      | operational contract  |
 | `design.md`                        | UI design and state policy                | normative UI policy   |
 
+The machine-readable identity of every active document is resolved from
+[documentation-governance.yml](10-ai-coding/documentation-governance.yml):
+`status`, `role`, `source_of_truth`, `supersedes` and `verified_against_sha`.
+Directory defaults are the single registry; archive files are historical and are
+not part of the active authority graph. Run evidence is immutable and must carry
+an exact release SHA; a current HEAD is unverified until the release gate is run
+again.
+The exact-SHA contract used by release, rehearsal and evidence wrappers is
+[release-manifest.yml](10-ai-coding/release-manifest.yml), produced at runtime by
+`scripts/release-manifest.ts`.
+
 ## Drift rule
 
 A document that mirrors code must say so and point to its executable source of
@@ -55,11 +76,15 @@ describe an earlier model only when it explicitly says a later milestone superse
 that detail.
 
 Automated checks can prove structure and selected consistency invariants; they do
-not prove that prose is semantically true. `pnpm truth:check` protects the mirrors
-that can be compared mechanically: router procedure catalogs, schema-table catalog,
-navigation routes, selected stale-contract claims, ASM identifier continuity and
-the critical screen Storybook checklist. Review still compares normative docs to
-the executable contracts before a readiness claim is promoted.
+not prove that prose is semantically true. `pnpm docs:governance` protects document
+identity, status and SHA-bound evidence. `pnpm command-registry:check` performs the
+reverse runtime → documentation check: every mutation procedure has a mutation
+classification and owning actor-goal UC, and every transition-catalog command
+resolves to a runtime procedure. `pnpm truth:check` protects the other mirrors:
+router procedure catalogs, schema-table catalog, navigation routes, selected
+stale-contract claims, ASM identifier continuity and the critical screen Storybook
+checklist. Review still compares normative docs to executable contracts before a
+readiness claim is promoted.
 
 ## Agent retrieval
 

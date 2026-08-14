@@ -83,7 +83,7 @@ The repository checks are split by feedback speed:
 | `pnpm test:architecture`                                  | E2E synchronization checks, test-file budgets and style-contract/behavioral classification                                                 |
 | `pnpm coverage:report`                                    | global branch/function coverage report only; no repository-wide percentage gate                                                            |
 | `pnpm coverage:changed`                                   | coverage report plus strict coverage for changed executable production lines                                                               |
-| `pnpm check:static`                                       | format, lint, typecheck, boundaries, source, UI/docs/truth checks, context, trace and security-surface checks                              |
+| `pnpm check:static`                                       | format, lint, typecheck, boundaries, source, UI/docs/governance/command-registry/truth checks, context, trace and security-surface checks  |
 | `pnpm verify`                                             | static checks, all Vitest projects, Next build, Storybook build and production-runtime E2E                                                 |
 | `pnpm verify:release`                                     | canonical release gate: static checks, migration drift, isolated production-scale performance, recovery, builds and production-runtime E2E |
 | `pnpm context <query>`                                    | targeted docs/tests/implementation retrieval for an agent                                                                                  |
@@ -97,6 +97,13 @@ exclusions.
 different `RELEASE_PERF_DATABASE_URL` for the disposable production-scale
 performance rehearsal; it refuses to run the performance workload against the
 functional database.
+
+Documentation governance is owned by `docs/10-ai-coding/documentation-governance.yml`
+and its checker. Mutation ownership and transition aliases are owned by
+`docs/10-ai-coding/command-registry.yml`; the runtime router is enumerated by
+`scripts/command-registry-check.ts`. These are governance registries, not a second
+module index, and fail closed when a command or document is added without an
+identity/owner.
 The GitHub CI workflow additionally runs `pnpm synthetic:depot-day` and
 `pnpm pilot:dry-run` after production E2E on the same clean checkout. Their
 reports are repository evidence only and keep field validation explicitly

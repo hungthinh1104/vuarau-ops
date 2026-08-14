@@ -1,0 +1,178 @@
+version: 1
+
+# Runtime router procedure names are discovered from the executable router and
+# must match this list exactly. The registry owns mutation classification and
+# actor-goal ownership; payload shape remains owned by domain contracts.
+commands:
+  - { id: cash.createAccount, owner: UC-CASH-001, classification: master_data }
+  - { id: cash.updateAccount, owner: UC-CASH-001, classification: master_data }
+  - { id: cash.deactivateAccount, owner: UC-CASH-001, classification: lifecycle }
+  - { id: cash.reactivateAccount, owner: UC-CASH-001, classification: lifecycle }
+  - { id: cash.recordExpense, owner: UC-CASH-002, classification: append_only }
+  - { id: cash.reverseExpense, owner: UC-CASH-002, classification: append_only }
+  - { id: cash.transfer, owner: UC-CASH-003, classification: append_only }
+  - { id: cash.reverseTransfer, owner: UC-CASH-003, classification: append_only }
+  - { id: cash.adjust, owner: UC-CASH-004, classification: append_only }
+  - { id: cash.rebuild, owner: UC-CASH-005, classification: projection }
+  - { id: cash.recordStatementMatch, owner: UC-CASH-006, classification: append_only }
+  - { id: cash.reverseStatementMatch, owner: UC-CASH-006, classification: append_only }
+  - { id: customerOrder.createDraft, owner: UC-CUSTOMER-ORDER-001, classification: lifecycle }
+  - { id: customerOrder.updateDraft, owner: UC-CUSTOMER-ORDER-001, classification: lifecycle }
+  - { id: customerOrder.confirm, owner: UC-CUSTOMER-ORDER-002, classification: lifecycle }
+  - { id: customerOrder.cancel, owner: UC-CUSTOMER-ORDER-003, classification: lifecycle }
+  - { id: customer.create, owner: UC-CUSTOMER-001, classification: lifecycle }
+  - { id: customer.update, owner: UC-CUSTOMER-004, classification: lifecycle }
+  - { id: customer.deactivate, owner: UC-CUSTOMER-005, classification: lifecycle }
+  - { id: customer.reactivate, owner: UC-CUSTOMER-006, classification: lifecycle }
+  - { id: account.rebuildProjection, owner: UC-ACCOUNT-003, classification: projection }
+  - { id: debt.adjust, owner: UC-ACCOUNT-002, classification: append_only }
+  - { id: debt.allocate, owner: UC-ACCOUNT-005, classification: append_only }
+  - { id: debt.reverseAllocation, owner: UC-ACCOUNT-005, classification: append_only }
+  - { id: delivery.createDraft, owner: UC-DELIVERY-001, classification: lifecycle }
+  - { id: delivery.updateDraft, owner: UC-DELIVERY-001, classification: lifecycle }
+  - { id: delivery.cancelDraft, owner: UC-DELIVERY-001, classification: lifecycle }
+  - { id: delivery.dispatch, owner: UC-DELIVERY-002, classification: append_only }
+  - { id: delivery.markDelivered, owner: UC-DELIVERY-003, classification: lifecycle }
+  - { id: delivery.recordReturn, owner: UC-DELIVERY-004, classification: append_only }
+  - { id: delivery.recordReturnSettlement, owner: UC-DELIVERY-007, classification: append_only }
+  - {
+      id: delivery.recordFulfilmentRemainderCase,
+      owner: UC-DELIVERY-006,
+      classification: append_only,
+    }
+  - { id: document.generate, owner: UC-DOCUMENT-001, classification: append_only }
+  - { id: document.share, owner: UC-DOCUMENT-002, classification: lifecycle }
+  - { id: document.revokeShare, owner: UC-DOCUMENT-002, classification: lifecycle }
+  - { id: evidence.recordCostObservation, owner: UC-EVIDENCE-001, classification: evidence }
+  - {
+      id: evidence.recordReconciliationObservation,
+      owner: UC-EVIDENCE-002,
+      classification: evidence,
+    }
+  - { id: evidence.recordDebtObservation, owner: UC-EVIDENCE-003, classification: evidence }
+  - {
+      id: evidence.recordSupplyCommitmentObservation,
+      owner: UC-EVIDENCE-004,
+      classification: evidence,
+    }
+  - { id: evidence.recordSupplierObservation, owner: UC-EVIDENCE-005, classification: evidence }
+  - { id: evidence.recordDemandObservation, owner: UC-EVIDENCE-006, classification: evidence }
+  - { id: intake.createIssueCode, owner: UC-INTAKE-001, classification: master_data }
+  - { id: intake.updateIssueCode, owner: UC-INTAKE-001, classification: master_data }
+  - { id: intake.deactivateIssueCode, owner: UC-INTAKE-001, classification: lifecycle }
+  - { id: intake.reactivateIssueCode, owner: UC-INTAKE-001, classification: lifecycle }
+  - { id: intake.recordArrival, owner: UC-INTAKE-002, classification: append_only }
+  - { id: intake.reverseArrival, owner: UC-INTAKE-002, classification: append_only }
+  - { id: intake.recordInspection, owner: UC-INTAKE-003, classification: append_only }
+  - { id: intake.reverseInspection, owner: UC-INTAKE-003, classification: append_only }
+  - { id: intake.recordDisposition, owner: UC-INTAKE-004, classification: append_only }
+  - { id: intake.reverseDisposition, owner: UC-INTAKE-005, classification: append_only }
+  - { id: receiving.record, owner: UC-RECEIVING-001, classification: append_only }
+  - { id: receiving.reverse, owner: UC-RECEIVING-002, classification: append_only }
+  - { id: inventory.adjust, owner: UC-INVENTORY-002, classification: append_only }
+  - { id: inventory.reclassify, owner: UC-INVENTORY-003, classification: append_only }
+  - { id: inventory.stocktakeStart, owner: UC-INVENTORY-007, classification: lifecycle }
+  - { id: inventory.stocktakeCount, owner: UC-INVENTORY-007, classification: append_only }
+  - { id: inventory.stocktakeApprove, owner: UC-INVENTORY-007, classification: append_only }
+  - { id: inventory.stocktakeReopen, owner: UC-INVENTORY-007, classification: append_only }
+  - { id: inventory.rebuild, owner: UC-INVENTORY-004, classification: projection }
+  - { id: operations.exportBackup, owner: UC-OPERATIONS-002, classification: recovery }
+  - { id: operations.restoreBackup, owner: UC-OPERATIONS-002, classification: recovery }
+  - { id: operations.recordClose, owner: UC-OPERATIONS-005, classification: control }
+  - { id: operations.acknowledgeCloseException, owner: UC-OPERATIONS-005, classification: control }
+  - { id: operations.reopenClose, owner: UC-OPERATIONS-005, classification: control }
+  - { id: payment.record, owner: UC-PAYMENT-001, classification: append_only }
+  - { id: payment.reverse, owner: UC-PAYMENT-002, classification: append_only }
+  - { id: policy.createDraft, owner: UC-POLICY-001, classification: policy }
+  - { id: policy.approve, owner: UC-POLICY-001, classification: policy }
+  - { id: policy.retire, owner: UC-POLICY-001, classification: policy }
+  - { id: pricing.record, owner: UC-PRICING-001, classification: append_only }
+  - { id: product.create, owner: UC-PRODUCT-001, classification: lifecycle }
+  - { id: product.update, owner: UC-PRODUCT-001, classification: master_data }
+  - { id: product.deactivate, owner: UC-PRODUCT-001, classification: lifecycle }
+  - { id: product.reactivate, owner: UC-PRODUCT-001, classification: lifecycle }
+  - { id: purchase.createDraft, owner: UC-PURCHASE-001, classification: lifecycle }
+  - { id: purchase.updateDraft, owner: UC-PURCHASE-001, classification: lifecycle }
+  - { id: purchase.discardDraft, owner: UC-PURCHASE-001, classification: lifecycle }
+  - { id: purchase.confirm, owner: UC-PURCHASE-002, classification: lifecycle }
+  - { id: purchase.void, owner: UC-PURCHASE-004, classification: append_only }
+  - { id: quality.create, owner: UC-QUALITY-001, classification: master_data }
+  - { id: quality.update, owner: UC-QUALITY-001, classification: master_data }
+  - { id: quality.deactivate, owner: UC-QUALITY-001, classification: lifecycle }
+  - { id: quality.reactivate, owner: UC-QUALITY-001, classification: lifecycle }
+  - { id: sale.createDraft, owner: UC-SALE-001, classification: lifecycle }
+  - { id: sale.updateDraft, owner: UC-SALE-001, classification: lifecycle }
+  - { id: sale.discardDraft, owner: UC-SALE-001, classification: lifecycle }
+  - { id: sale.post, owner: UC-SALE-002, classification: lifecycle }
+  - { id: sale.void, owner: UC-SALE-004, classification: append_only }
+  - { id: session.revokeMembership, owner: UC-AUTH-002, classification: lifecycle }
+  - { id: session.addMember, owner: UC-AUTH-005, classification: lifecycle }
+  - { id: session.changeMemberRole, owner: UC-AUTH-005, classification: lifecycle }
+  - { id: session.updateOperationalProfile, owner: UC-AUTH-005, classification: policy }
+  - { id: session.reactivateMember, owner: UC-AUTH-005, classification: lifecycle }
+  - { id: supplier.create, owner: UC-SUPPLIER-001, classification: lifecycle }
+  - { id: supplier.update, owner: UC-SUPPLIER-001, classification: master_data }
+  - { id: supplier.deactivate, owner: UC-SUPPLIER-001, classification: lifecycle }
+  - { id: supplier.reactivate, owner: UC-SUPPLIER-001, classification: lifecycle }
+  - { id: supplier.recordPayment, owner: UC-SUPPLIER-002, classification: append_only }
+  - { id: supplier.reversePayment, owner: UC-SUPPLIER-002, classification: append_only }
+  - { id: supplier.adjustAccount, owner: UC-SUPPLIER-003, classification: append_only }
+  - { id: supplier.rebuildAccount, owner: UC-SUPPLIER-004, classification: projection }
+  - { id: supplyCommitment.createDraft, owner: UC-SUPPLY-COMMITMENT-001, classification: lifecycle }
+  - { id: supplyCommitment.updateDraft, owner: UC-SUPPLY-COMMITMENT-001, classification: lifecycle }
+  - { id: supplyCommitment.confirm, owner: UC-SUPPLY-COMMITMENT-002, classification: lifecycle }
+  - { id: supplyCommitment.cancel, owner: UC-SUPPLY-COMMITMENT-003, classification: lifecycle }
+
+# The transition catalog uses business command names while the router uses
+# namespace.procedure. Every catalog row must resolve through this alias map.
+catalog_aliases:
+  CreateCustomer: customer.create
+  UpdateCustomer: customer.update
+  DeactivateCustomer: customer.deactivate
+  ReactivateCustomer: customer.reactivate
+  CreateProduct: product.create
+  UpdateProduct: product.update
+  DeactivateProduct: product.deactivate
+  ReactivateProduct: product.reactivate
+  CreateSupplier: supplier.create
+  UpdateSupplier: supplier.update
+  DeactivateSupplier: supplier.deactivate
+  ReactivateSupplier: supplier.reactivate
+  CreateSaleDraft: sale.createDraft
+  UpdateSaleDraft: sale.updateDraft
+  PostSale: sale.post
+  DiscardSaleDraft: sale.discardDraft
+  RecordCustomerPayment: payment.record
+  ReverseCustomerPayment: payment.reverse
+  RecordSupplierPayment: supplier.recordPayment
+  ReverseSupplierPayment: supplier.reversePayment
+  CreatePurchaseDraft: purchase.createDraft
+  UpdatePurchaseDraft: purchase.updateDraft
+  ConfirmPurchase: purchase.confirm
+  DiscardPurchaseDraft: purchase.discardDraft
+  CreateDeliveryDraft: delivery.createDraft
+  UpdateDeliveryDraft: delivery.updateDraft
+  CancelDeliveryDraft: delivery.cancelDraft
+  DispatchDelivery: delivery.dispatch
+  MarkDeliveryDelivered: delivery.markDelivered
+  AddWorkspaceMember: session.addMember
+  ChangeWorkspaceMemberRole: session.changeMemberRole
+  RevokeWorkspaceMembership: session.revokeMembership
+  ReactivateWorkspaceMembership: session.reactivateMember
+  CreateDocumentShare: document.share
+  RevokeDocumentShare: document.revokeShare
+  VoidSale: sale.void
+  AdjustCustomerDebt: debt.adjust
+  VoidPurchase: purchase.void
+  AdjustSupplierAccount: supplier.adjustAccount
+  RecordPurchaseReceipt: receiving.record
+  ReversePurchaseReceipt: receiving.reverse
+  AdjustInventory: inventory.adjust
+  ReclassifyInventory: inventory.reclassify
+  RecordDeliveryReturn: delivery.recordReturn
+  GenerateDocument: document.generate
+  RebuildAccountProjection: account.rebuildProjection
+  RebuildSupplierAccountProjection: supplier.rebuildAccount
+  RebuildInventoryProjection: inventory.rebuild
+  ExportWorkspaceBackup: operations.exportBackup
+  RestoreWorkspaceBackup: operations.restoreBackup

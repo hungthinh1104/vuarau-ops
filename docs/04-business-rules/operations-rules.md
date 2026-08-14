@@ -266,6 +266,24 @@ consumes the resulting server-authored summary and exposes the
 only conditions whose policy classification is `blocking`; acknowledgeable and informational conditions
 do not alter balances, inventory or fulfilment.
 
+#### Semantic classification
+
+Every server-authored Operations exception carries exactly one semantic category;
+the Board DTO, close-readiness summary and UI render the same value:
+
+| Category      | Meaning                                                | Current kinds                                                                            |
+| ------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `work`        | a known workflow is not complete                       | `outstanding_delivery`, `incomplete_receiving`, `overdue_receivable`                     |
+| `uncertainty` | the physical/commercial consequence is not yet decided | `unallocated_payment`, `fulfilment_remainder_unresolved`, `return_settlement_unresolved` |
+| `integrity`   | source facts disagree or cannot be explained safely    | `reconciliation_variance`                                                                |
+| `control`     | a system or operational gate prevents trusted action   | `stale_realtime`, `operational_close_blocked`                                            |
+
+This classification is part of the domain contract, not a browser heuristic.
+`work` may have a normal next action; `uncertainty` must preserve the unknown
+consequence; `integrity` remains visible until a source-backed explanation or
+approved correction exists; `control` describes why the operator cannot trust or
+close the current view. A close-ready result never hides an unresolved category.
+
 ## Related
 
 - [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — what an environment must satisfy

@@ -24,7 +24,7 @@ test("current routing documents satisfy the canonical contracts", () => {
 test("authority order is owned by docs/README.md", () => {
   const fixture = sources();
   fixture["docs/README.md"] = fixture["docs/README.md"]!.replace(
-    "**Runtime and persistence facts**",
+    "**Recorded business decisions**",
     "**Evidence and release status**",
   );
   assert.ok(checkRoutingContracts(fixture).some((failure) => failure.includes("authority-order")));

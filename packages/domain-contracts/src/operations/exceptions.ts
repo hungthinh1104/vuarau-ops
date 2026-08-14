@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+/**
+ * One semantic model is shared by the Board, close readiness and UI. WORK is a
+ * known unfinished business workflow; UNCERTAINTY is an unresolved consequence;
+ * INTEGRITY is a source/projection comparison that cannot be explained; CONTROL
+ * is a system or operational gate. These categories are not inferred by clients.
+ */
+export const OPERATIONS_SEMANTIC_CATEGORIES = [
+  "work",
+  "uncertainty",
+  "integrity",
+  "control",
+] as const;
+export const operationsSemanticCategorySchema = z.enum(OPERATIONS_SEMANTIC_CATEGORIES);
+export type OperationsSemanticCategory = z.infer<typeof operationsSemanticCategorySchema>;
+
 export const OPERATIONS_EXCEPTION_KINDS = [
   "outstanding_delivery",
   "incomplete_receiving",
@@ -47,6 +62,7 @@ export type OperationsExceptionResolutionOption = z.infer<
 >;
 
 export const operationsExceptionDefinitionSchema = z.object({
+  category: z.enum(["work", "uncertainty", "integrity"]),
   severity: operationsExceptionSeveritySchema,
   closeImpact: operationsExceptionCloseImpactSchema,
   explanation: z.string().min(1),
@@ -63,6 +79,7 @@ export type OperationsExceptionDefinition = z.infer<typeof operationsExceptionDe
  */
 export const OPERATIONS_EXCEPTION_DEFINITIONS = {
   outstanding_delivery: {
+    category: "work",
     severity: "normal",
     closeImpact: "informational",
     explanation: "Sale vẫn còn số lượng chưa được giao.",
@@ -75,6 +92,7 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
     resolutionCondition: "Số lượng còn phải giao bằng không hoặc Sale được loại bỏ hợp lệ.",
   },
   incomplete_receiving: {
+    category: "work",
     severity: "normal",
     closeImpact: "acknowledgeable",
     explanation: "Purchase vẫn còn số lượng chưa được nhận đủ.",
@@ -87,6 +105,7 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
     resolutionCondition: "Số lượng được nhận hợp lệ đạt đủ số lượng Purchase.",
   },
   unallocated_payment: {
+    category: "uncertainty",
     severity: "critical",
     closeImpact: "blocking",
     explanation: "Đã nhận tiền nhưng chưa biết khoản tiền thuộc Sale hay tín dụng nào.",
@@ -99,6 +118,7 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
     resolutionCondition: "Số tiền chưa phân bổ bằng không hoặc được ghi nhận thành credit hợp lệ.",
   },
   overdue_receivable: {
+    category: "work",
     severity: "high",
     closeImpact: "acknowledgeable",
     explanation: "Khoản phải thu đã quá hạn nhưng chưa được thu đủ.",
@@ -108,6 +128,7 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
     resolutionCondition: "Số dư phải thu quá hạn bằng không hoặc được xử lý bằng fact được phép.",
   },
   fulfilment_remainder_unresolved: {
+    category: "uncertainty",
     severity: "high",
     closeImpact: "acknowledgeable",
     explanation: "Sale đã fulfil một phần nhưng cách xử lý phần còn lại chưa được quyết định.",
@@ -122,6 +143,7 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
       "Một quyết định fulfilment hoặc thương mại được ghi nhận bằng fact append-only.",
   },
   return_settlement_unresolved: {
+    category: "uncertainty",
     severity: "high",
     closeImpact: "acknowledgeable",
     explanation: "Hàng đã trả nhưng hệ quả công nợ hoặc thay thế chưa được quyết định.",
@@ -131,6 +153,7 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
     resolutionCondition: "Một fact goods_only append-only xác nhận không phát sinh money effect.",
   },
   reconciliation_variance: {
+    category: "integrity",
     severity: "critical",
     closeImpact: "blocking",
     explanation: "Fact quan sát và sổ chuẩn đang khác nhau, nguyên nhân chưa được xác định.",
@@ -144,6 +167,7 @@ export const OPERATIONS_EXCEPTION_DEFINITIONS = {
 
 export const operationsExceptionSchema = z.object({
   kind: operationsExceptionKindSchema,
+  category: z.enum(["work", "uncertainty", "integrity"]),
   severity: operationsExceptionSeveritySchema,
   closeImpact: operationsExceptionCloseImpactSchema,
   source: operationsExceptionSourceSchema,
@@ -173,6 +197,7 @@ export const operationsControlExceptionKindSchema = z.enum(OPERATIONS_CONTROL_EX
 export type OperationsControlExceptionKind = z.infer<typeof operationsControlExceptionKindSchema>;
 
 export const operationsControlExceptionDefinitionSchema = z.object({
+  category: z.literal("control"),
   severity: operationsExceptionSeveritySchema,
   explanation: z.string().min(1),
   unknown: z.string().min(1),
@@ -186,6 +211,7 @@ export type OperationsControlExceptionDefinition = z.infer<
 
 export const OPERATIONS_CONTROL_EXCEPTION_DEFINITIONS = {
   stale_realtime: {
+    category: "control",
     severity: "high",
     explanation: "Kênh cập nhật realtime đã cũ hoặc không truy cập được.",
     unknown: "Có thay đổi nào đã commit nhưng chưa được đọc lại từ durable change feed.",
@@ -196,6 +222,7 @@ export const OPERATIONS_CONTROL_EXCEPTION_DEFINITIONS = {
     resolutionCondition: "Kênh realtime ở trạng thái live và durable change feed đã được drain.",
   },
   operational_close_blocked: {
+    category: "control",
     severity: "critical",
     explanation: "Ngày vận hành chưa đủ điều kiện để chốt.",
     unknown: "Blocker nào còn thiếu và cần nguồn chứng minh hoặc xử lý nào để chốt ngày.",
@@ -207,6 +234,7 @@ export const OPERATIONS_CONTROL_EXCEPTION_DEFINITIONS = {
 
 export const operationsControlExceptionSchema = z.object({
   kind: operationsControlExceptionKindSchema,
+  category: z.literal("control"),
   severity: operationsExceptionSeveritySchema,
   source: operationsExceptionSourceSchema,
   sourceFacts: z.array(operationsExceptionFactSchema).min(1),

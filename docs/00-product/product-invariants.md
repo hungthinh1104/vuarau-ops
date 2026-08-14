@@ -50,6 +50,12 @@ rules refine them but may not weaken them.
     carry their due-date source fact, while awaiting-payment remains known state. No UI,
     report or AI suggestion may invent a missing money, goods or settlement fact.
 
+11. **Operational semantics have one category owner.** Every Board/close exception
+    is classified as `work`, `uncertainty`, `integrity` or `control` in the shared
+    domain contract. Derivers, Board DTOs, close readiness, UI and tests carry that
+    classification through; the frontend never derives a category from a label,
+    workflow enum or missing row.
+
 ## Evidence vocabulary
 
 - **Technically proven:** an automated or inspected artifact demonstrates the

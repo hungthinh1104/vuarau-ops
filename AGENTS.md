@@ -11,9 +11,12 @@ Read only the context needed for the task.
 5. Treat `docs/archive/` as historical context only. It is excluded from context
    retrieval unless `--include-archive` is explicit.
 
-Runtime, schema, contracts, and executable business rules outrank prose. Do not
-read every document by default. Do not add another manually maintained module
-index; update the existing routing sources when authority changes.
+Runtime, schema, contracts, and executable business rules are descriptive authority
+for what the system currently accepts and persists. Accepted invariants, ADRs and
+business decisions are normative authority for what the product is intended to
+mean; a runtime defect must be fixed or formally decided, not used to rewrite the
+invariant. Do not read every document by default. Do not add another manually
+maintained module index; update the existing routing sources when authority changes.
 
 Use `pnpm context --json <query>` for machine-readable output. Fast validation:
 `pnpm typecheck`, focused test tier, `pnpm docs:check`,

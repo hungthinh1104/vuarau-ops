@@ -11,6 +11,7 @@ describe("operations control exceptions", () => {
 
     expect(operationsControlExceptionSchema.parse(exception)).toMatchObject({
       kind: "stale_realtime",
+      category: "control",
       severity: "high",
       sourceFacts: [{ key: "connection_state", value: "stale" }],
       nextAction: {
@@ -33,6 +34,7 @@ describe("operations control exceptions", () => {
 
     expect(exception).toMatchObject({
       kind: "operational_close_blocked",
+      category: "control",
       severity: "critical",
       source: { kind: "workspace", reference: "CLOSE-2026-08-14" },
       nextAction: {

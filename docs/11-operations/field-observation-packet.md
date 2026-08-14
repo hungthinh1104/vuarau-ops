@@ -39,8 +39,10 @@ validation, policy approval or production acceptance. Keep completed packets in
 the approved external evidence store; never commit real names, amounts, photos,
 tokens or customer data to this repository.
 
-For the frozen H2–H6 protocol, require every observation to carry the complete
-task record and bind the packet to the deployed release before the session:
+For the frozen H2–H6 protocol, require every readiness-gate observation to carry
+the complete task record and bind the packet to the deployed release before the
+session. Protocol V2 also accepts supplemental H7–H10 records with their
+structured metrics; those records do not replace the H2–H6 pilot gate:
 
 ```bash
 pnpm field:observation --config field-observations.json \
@@ -50,7 +52,9 @@ pnpm field:observation --config field-observations.json \
 This mode checks the fields that must be recorded for each task: hypothesis,
 actor/persona, canonical transaction reference, start/end time, independent
 accuracy reference, assistance, mistakes, terminology, recovery, final
-canonical state, incident severity and ASM-035–038 disposition. It only proves
+canonical state, incident severity and ASM-035–038 disposition. H7–H10 additionally
+require unexplained money/goods, exception outcome, external-memory and
+time-to-understand/resolve metrics. It only proves
 that the record is complete and attached to the expected SHA; a human still has
 to observe the task, compare the independent reference and sign off the result.
 

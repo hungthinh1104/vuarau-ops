@@ -147,7 +147,7 @@ test("field validation requires a frozen release and a complete task record", ()
   assert.equal(missingEvidence.ok, false);
   if (!missingEvidence.ok) {
     assert.match(missingEvidence.problems.join("\n"), /releaseSha/);
-    assert.match(missingEvidence.problems.join("\n"), /complete H2-H6 task record/);
+    assert.match(missingEvidence.problems.join("\n"), /complete H2-H10 task record/);
   }
 
   const packet = validFieldValidationPacket();
@@ -179,4 +179,18 @@ test("field validation remains bound to the exact release SHA", () => {
   const result = readFieldValidationPacket(JSON.stringify(packet), "b".repeat(40));
   assert.equal(result.ok, false);
   if (!result.ok) assert.match(result.problems.join("\n"), /expected frozen release/);
+});
+
+test("Validation Protocol V2 accepts supplemental H7-H10 metrics without changing H2-H6", () => {
+  const packet = validFieldValidationPacket();
+  packet.observations[0]!.fieldEvidence!.hypothesis = "H7";
+  packet.observations[0]!.fieldEvidence!.v2Metrics = {
+    unexplainedMoneyGoods: "unexplained-money",
+    exceptionOutcome: "not-applicable",
+    externalMemory: "paper",
+    timeToUnderstandSeconds: 18,
+    timeToResolveSeconds: 42,
+  };
+  const result = readFieldValidationPacket(JSON.stringify(packet), packet.releaseSha);
+  assert.equal(result.ok, true);
 });

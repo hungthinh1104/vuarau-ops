@@ -35,7 +35,12 @@ export const FIELD_OBSERVATION_CASE_KINDS = [
   "correction",
 ] as const;
 
-export const FIELD_VALIDATION_HYPOTHESES = ["H2", "H3", "H4", "H5", "H6"] as const;
+export const FIELD_VALIDATION_CORE_HYPOTHESES = ["H2", "H3", "H4", "H5", "H6"] as const;
+export const FIELD_VALIDATION_V2_HYPOTHESES = ["H7", "H8", "H9", "H10"] as const;
+export const FIELD_VALIDATION_HYPOTHESES = [
+  ...FIELD_VALIDATION_CORE_HYPOTHESES,
+  ...FIELD_VALIDATION_V2_HYPOTHESES,
+] as const;
 export const FIELD_VALIDATION_ASSISTANCE = ["none", "prompted", "taken_over"] as const;
 export const FIELD_VALIDATION_INCIDENT_SEVERITIES = ["none", "P0", "P1", "P2", "P3"] as const;
 export const FIELD_VALIDATION_SCENARIO_GATES = [
@@ -64,6 +69,20 @@ const participantSchema = z.object({
   name: z.string().trim().min(1),
 });
 
+export const fieldValidationV2MetricsSchema = z.object({
+  unexplainedMoneyGoods: z.enum([
+    "not-applicable",
+    "none",
+    "unexplained-money",
+    "unexplained-goods",
+    "unexplained-money-and-goods",
+  ]),
+  exceptionOutcome: z.enum(["not-applicable", "correct", "missed", "false-resolved"]),
+  externalMemory: z.enum(["not-applicable", "none", "paper", "person", "paper-and-person"]),
+  timeToUnderstandSeconds: z.number().nonnegative().nullable(),
+  timeToResolveSeconds: z.number().nonnegative().nullable(),
+});
+
 const fieldValidationEvidenceSchema = z
   .object({
     hypothesis: z.enum(FIELD_VALIDATION_HYPOTHESES),
@@ -82,8 +101,20 @@ const fieldValidationEvidenceSchema = z
     scenarioGate: z.enum(FIELD_VALIDATION_SCENARIO_GATES),
     scenarioDisposition: z.enum(FIELD_VALIDATION_SCENARIO_DISPOSITIONS),
     observer: participantSchema,
+    /** Required for the non-gating H7-H10 supplemental protocol. */
+    v2Metrics: fieldValidationV2MetricsSchema.optional(),
   })
   .superRefine((evidence, ctx) => {
+    if (
+      (FIELD_VALIDATION_V2_HYPOTHESES as readonly string[]).includes(evidence.hypothesis) &&
+      evidence.v2Metrics === undefined
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["v2Metrics"],
+        message: "H7-H10 supplemental observations require the Validation Protocol V2 metrics",
+      });
+    }
     if (Date.parse(evidence.endedAt) < Date.parse(evidence.startedAt)) {
       ctx.addIssue({
         code: "custom",
@@ -197,7 +228,7 @@ export const fieldValidationPacketSchema = fieldObservationPacketSchema.superRef
         ctx.addIssue({
           code: "custom",
           path: ["observations", index, "fieldEvidence"],
-          message: "field validation requires the complete H2-H6 task record",
+          message: "field validation requires the complete H2-H10 task record",
         });
       }
     }

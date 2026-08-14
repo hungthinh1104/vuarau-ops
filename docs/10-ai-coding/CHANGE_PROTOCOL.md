@@ -38,11 +38,12 @@ Use [TASK_TEMPLATE.md](TASK_TEMPLATE.md).
 
 ## 3. Order of work
 
-The repository authority order is defined only by [docs/README.md](../README.md):
-runtime and persistence facts outrank every document. "Documentation-first"
-means update the applicable normative document or published contract before the
-implementation so the intended change is reviewable; it never means prose can
-override the schema, executable rule, or persisted result.
+The repository authority model is defined only by [docs/README.md](../README.md):
+accepted decisions/invariants own normative meaning, while runtime and persistence
+facts own descriptive current behavior. "Documentation-first" means update the
+applicable normative document or published contract before the implementation so
+the intended change is reviewable; it never means prose can describe runtime
+behavior that the executable system does not provide.
 
 1. Update the **applicable documentation** for the rule, state, or contract first.
    Keep it consistent with the runtime facts and authority order above
@@ -53,6 +54,23 @@ override the schema, executable rule, or persisted result.
    a typo or an unresolved import.
 5. Write the minimum code to pass.
 6. Run the validation tier appropriate to the current stage.
+
+For a documentation refactor, “applicable documentation” starts with the system
+registry, not with prose cleanup. Update
+[documentation-governance.yml](documentation-governance.yml) and, when a mutation
+surface is involved, [command-registry.yml](command-registry.yml). Then reconcile
+the coherent contract slice: domain contract/deriver → read DTO → close/readiness
+→ UI → tests → normative mirrors. A new mutation without an owning UC or a
+transition without a runtime alias is incomplete even if all markdown links work.
+
+The reverse checks are mandatory for this class of change:
+
+```bash
+pnpm docs:governance
+pnpm command-registry:check
+pnpm truth:check
+pnpm trace:check
+```
 
 ### During implementation
 

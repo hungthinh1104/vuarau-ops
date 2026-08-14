@@ -1,4 +1,8 @@
-# Frozen H2–H6 field-validation protocol
+# Field-validation protocol V2
+
+Protocol version: `2`. The H2–H6 criteria below remain frozen and are not
+rewritten when V2 is introduced. Existing packets keep their original protocol
+version, release SHA and interpretation.
 
 Freeze the pass/fail criteria and exact pilot release SHA before the first
 observation. Do not change either after observations begin. A new build starts a
@@ -67,6 +71,25 @@ resolution remains advisory and the worker must confirm the final Sale price.
 H2 is not a claim that software is faster than paper unless the paper process is
 separately measured under a predeclared comparison. H6 cannot pass from a local
 integration test or written procedure.
+
+## V2 supplemental hypotheses (not a replacement readiness gate)
+
+H7–H10 extend observation vocabulary without changing the H2–H6 pilot gate or
+rewriting old evidence. Each supplemental record uses the same frozen release SHA,
+actor/observer and independent-reference rules, plus the following structured
+metrics:
+
+| Hypothesis | Question                                                                       | Required metric                                                        |
+| ---------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| H7         | Can the operator explain money/goods that the system still leaves unexplained? | `unexplained-money`, `unexplained-goods`, both, none or not-applicable |
+| H8         | Did the Board miss an exception or mark one resolved without sufficient fact?  | `missed`, `false-resolved`, `correct` or not-applicable                |
+| H9         | Does the operator rely on external memory to understand the current truth?     | none, paper, person, both or not-applicable                            |
+| H10        | How long does it take to understand and resolve the next action?               | `timeToUnderstandSeconds` and `timeToResolveSeconds`                   |
+
+V2 metrics describe observation; they do not authorize a new money/goods effect,
+turn a raw observation into policy, or promote pilot readiness. H7–H10 records are
+accepted by `pnpm field:observation` only when the V2 metrics are complete, and
+remain external evidence requiring human review.
 
 ## Stop and evidence rules
 

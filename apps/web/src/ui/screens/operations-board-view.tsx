@@ -11,6 +11,7 @@ import type {
   OperationsBoardFilter,
   OperationsBoardRow,
   OperationsBoardSort,
+  OperationsSemanticCategory,
 } from "@vuarau/domain-contracts";
 import Link from "next/link";
 import { formatInstant, formatMoney } from "@/ui/format.ts";
@@ -126,6 +127,17 @@ function unallocatedPaymentLabel(row: OperationsBoardRow): string {
     : `Tiền chưa phân bổ: ${formatMoney(row.unallocatedPaymentAmount)}`;
 }
 
+const SEMANTIC_CATEGORY_LABELS: Readonly<Record<OperationsSemanticCategory, string>> = {
+  work: "Việc chưa xong",
+  uncertainty: "Hệ quả chưa quyết định",
+  integrity: "Sai khác cần giải thích",
+  control: "Điều kiện kiểm soát",
+};
+
+function exceptionCategories(row: OperationsBoardRow): OperationsSemanticCategory[] {
+  return [...new Set(row.exceptions.map((exception) => exception.category))];
+}
+
 const columnHelper = createColumnHelper<OperationsBoardRow>();
 
 function columns() {
@@ -163,6 +175,11 @@ function columns() {
       cell: (info) => (
         <div className="grid gap-1">
           <Badge tone={stateTone(info.getValue())}>{stateLabel(info.getValue())}</Badge>
+          {exceptionCategories(info.row.original).map((category) => (
+            <Badge key={category} tone="warning">
+              {SEMANTIC_CATEGORY_LABELS[category]}
+            </Badge>
+          ))}
           {info.row.original.exceptions.some(
             (exception) => exception.kind === "return_settlement_unresolved",
           ) ? (
@@ -319,6 +336,11 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                           <Badge tone={stateTone(row.physicalState)}>
                             {stateLabel(row.physicalState)}
                           </Badge>
+                          {exceptionCategories(row).map((category) => (
+                            <Badge key={category} tone="warning">
+                              {SEMANTIC_CATEGORY_LABELS[category]}
+                            </Badge>
+                          ))}
                           {row.exceptions.some(
                             (exception) => exception.kind === "return_settlement_unresolved",
                           ) ? (

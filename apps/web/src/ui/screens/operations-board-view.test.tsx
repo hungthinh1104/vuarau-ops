@@ -94,6 +94,7 @@ describe("OperationsBoardView", () => {
       exceptions: [
         {
           kind: "return_settlement_unresolved" as const,
+          category: "uncertainty" as const,
           severity: "high" as const,
           closeImpact: "acknowledgeable" as const,
           source: { kind: "sale" as const, reference: "SALE-1", id: "sale-1" },

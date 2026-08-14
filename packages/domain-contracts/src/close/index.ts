@@ -29,6 +29,7 @@ import {
   operationsExceptionKindSchema,
   operationsExceptionSeveritySchema,
   operationsExceptionSourceSchema,
+  operationsSemanticCategorySchema,
   operationsControlExceptionSchema,
 } from "../operations/exceptions.ts";
 
@@ -169,6 +170,7 @@ export type OperationalCloseReadinessBlocker = z.infer<
 >;
 export const operationalCloseExceptionSummarySchema = z.object({
   kind: operationsExceptionKindSchema,
+  category: operationsSemanticCategorySchema,
   count: z.int().positive(),
   severity: operationsExceptionSeveritySchema,
   closeImpact: operationsExceptionCloseImpactSchema,

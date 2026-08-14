@@ -1,0 +1,15 @@
+version: 1
+
+# Contract for the generated release identity. This file is not a run result and
+# must never be edited to make a failed release look current.
+producer: scripts/release-manifest.ts
+fields:
+  - releaseSha
+  - diffCheckPassed
+  - treeClean
+consumers:
+  - scripts/verify-release.ts
+  - scripts/synthetic-depot-day.ts
+  - scripts/pilot-dry-run.ts
+  - external evidence packets
+rule: "A release SHA is evidence only for gates actually rerun on that exact SHA."
