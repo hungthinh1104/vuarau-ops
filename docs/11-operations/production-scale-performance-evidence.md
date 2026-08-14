@@ -59,32 +59,40 @@ so a later optimization can be compared against the same evidence contract.
 
 ## Evidence — 2026-08-14, PostgreSQL 17 local container
 
-Exact rehearsal SHA: `0a5d7ad26451db394fa928cd6ffd22dada7ef671`.
+Exact rehearsal SHA: `0603914dba56f4a09bed5f7dfcd892a007e39457`.
 
-| Query                   | Measured p95 | EXPLAIN execution | Sequential scan |
-| ----------------------- | -----------: | ----------------: | --------------- |
-| customer timeline       |      0.63 ms |          0.416 ms | no              |
-| supplier timeline       |      0.65 ms |          0.647 ms | no              |
-| inventory movements     |      0.48 ms |          0.580 ms | no              |
-| delivery fulfilment     |      0.57 ms |          0.086 ms | no              |
-| operational report page |      0.67 ms |          0.680 ms | no              |
-| customer report total   |     18.93 ms |        425.860 ms | explained       |
-| inventory report total  |     36.42 ms |        569.473 ms | explained       |
-| document read           |      0.37 ms |          0.048 ms | no              |
-| idempotency replay      |      0.26 ms |          0.050 ms | no              |
-| customer reconciliation |      0.30 ms |          0.223 ms | no              |
-| product coverage        |     17.77 ms |         11.020 ms | explained       |
-| operations board page   |    104.68 ms |       2230.379 ms | explained       |
-| operations board counts |    199.84 ms |       7128.600 ms | explained       |
-| receiving progress      |      0.57 ms |          0.195 ms | no              |
-| dashboard summary       |     17.26 ms |        646.536 ms | explained       |
-| dashboard series        |     42.68 ms |        624.848 ms | explained       |
-| debt-aging sources      |     53.80 ms |        679.673 ms | explained       |
-| supplier reconciliation |     10.07 ms |        299.959 ms | explained       |
+| Query                          | Measured p95 | EXPLAIN execution | Sequential scan |
+| ------------------------------ | -----------: | ----------------: | --------------- |
+| customer timeline              |      0.53 ms |          0.493 ms | no              |
+| supplier timeline              |      0.56 ms |          0.687 ms | no              |
+| inventory movements            |      0.51 ms |          0.633 ms | no              |
+| delivery fulfilment            |      0.57 ms |          0.088 ms | no              |
+| operational report page        |      0.57 ms |          0.711 ms | no              |
+| customer report total          |     19.00 ms |        423.600 ms | explained       |
+| inventory report total         |     36.53 ms |        566.976 ms | explained       |
+| document read                  |      0.34 ms |          0.047 ms | no              |
+| idempotency replay             |      0.25 ms |          0.048 ms | no              |
+| customer reconciliation        |      0.32 ms |          0.209 ms | no              |
+| product coverage               |     17.22 ms |         11.005 ms | explained       |
+| operations board page          |    104.67 ms |       2228.537 ms | explained       |
+| operations board counts        |    199.57 ms |       7115.551 ms | explained       |
+| operations board search        |    147.14 ms |       1547.550 ms | explained       |
+| operations board filter        |     35.28 ms |        339.245 ms | explained       |
+| operations board search counts |    126.53 ms |       1203.178 ms | explained       |
+| receiving progress             |      0.56 ms |          0.196 ms | no              |
+| dashboard summary              |     18.55 ms |        650.413 ms | explained       |
+| dashboard series               |     43.38 ms |        626.196 ms | explained       |
+| debt-aging sources             |     52.23 ms |        681.325 ms | explained       |
+| supplier reconciliation        |      9.39 ms |        303.263 ms | explained       |
 
 The Board page returned 25 rows through one repository query; Board counts
-returned one scalar row through three concurrent canonical queries. Both stayed
-within their strict p95 budgets on the clean schema rehearsal.
+returned one scalar row through three concurrent canonical queries. Search
+returned 10 rows through one repository query, and search counts returned one
+scalar row. All Board paths stayed within their strict p95 budgets on the clean
+schema rehearsal. Search candidates are narrowed by the canonical Sale/Purchase
+reference and counterparty before the physical, financial and activity CTEs are
+derived, preserving the same truth while avoiding a full-workspace derivation
+for a narrow search.
 
 The first report plan exposed a 400,000-row parallel sequential scan and measured
 443.778 ms. Migration `0020_white_black_crow.sql` adds cursor-compatible
