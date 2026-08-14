@@ -35,11 +35,15 @@ another close for that date.
 The Operations read derives the current Vietnam business date from the workspace
 profile, or accepts an explicit business date for historical review. It reports
 `blocked` when the effective close policy is missing/invalid, when a required
-observation kind has no measurable observation inside that business period, or
-when a closed revision already exists. A reopened revision is not itself a
-blocker. The read exposes the policy lineage, period, available and missing
-observation kinds, and current close revision; it does not calculate a variance,
-select observations for a command, or replace the final close decision.
+observation kind has no measurable observation inside that business period, when
+a closed revision already exists, or when the Operations Board exposes a
+server-authored unresolved condition whose policy classification is `blocking`.
+A reopened revision is not itself a blocker. The read exposes the policy lineage,
+period, available and missing observation kinds, current close revision and the
+canonical exception summary. Acknowledgeable or informational conditions are
+reported for review and do not change balance, inventory or fulfilment truth; the
+read does not calculate a variance, select observations for a command, or replace
+the final close decision.
 
 ### BR-CASH-012 — Statement match is exact and financial-neutral
 

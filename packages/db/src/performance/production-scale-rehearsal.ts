@@ -470,6 +470,50 @@ const repositoryChecks: readonly RepositoryCheck[] = [
       }),
   },
   {
+    name: "operations_board_search",
+    budgetMs: 300,
+    sequentialScanPolicy: "canonical_aggregate",
+    execute: async (tx) =>
+      createDashboardReadRepositories(tx as never).dashboardReads.operationsBoard({
+        workspaceId: WORKSPACE_ID as WorkspaceId,
+        filter: "all",
+        sort: "updated_desc",
+        search: "Scale customer 9999",
+        cursor: null,
+        limit: 25,
+        page: { after: null, limit: 25 },
+        now: "2026-02-15T12:00:00.000Z",
+      }),
+  },
+  {
+    name: "operations_board_filter",
+    budgetMs: 300,
+    sequentialScanPolicy: "canonical_aggregate",
+    execute: async (tx) =>
+      createDashboardReadRepositories(tx as never).dashboardReads.operationsBoard({
+        workspaceId: WORKSPACE_ID as WorkspaceId,
+        filter: "unallocated_payment",
+        sort: "updated_desc",
+        search: "",
+        cursor: null,
+        limit: 25,
+        page: { after: null, limit: 25 },
+        now: "2026-02-15T12:00:00.000Z",
+      }),
+  },
+  {
+    name: "operations_board_search_counts",
+    budgetMs: 350,
+    sequentialScanPolicy: "canonical_aggregate",
+    execute: async (tx) =>
+      createDashboardReadRepositories(tx as never).dashboardReads.operationsBoardCounts({
+        workspaceId: WORKSPACE_ID as WorkspaceId,
+        filter: "all",
+        search: "Scale customer 9999",
+        now: "2026-02-15T12:00:00.000Z",
+      }),
+  },
+  {
     name: "product_coverage_grade_aware",
     budgetMs: 250,
     sequentialScanPolicy: "canonical_aggregate",

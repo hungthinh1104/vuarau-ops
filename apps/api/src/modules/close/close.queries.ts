@@ -11,6 +11,8 @@ import {
   defaultWorkspaceOperationalProfile,
   operationalClosePolicyDefinitionSchema,
   operationalCloseReadinessSchema,
+  OPERATIONS_EXCEPTION_KINDS,
+  operationsExceptionDefinition,
   vietnamBusinessDateForInstant,
   vietnamBusinessDayRange,
 } from "@vuarau/domain-contracts";
@@ -64,7 +66,7 @@ export function getOperationalCloseReadiness(
       const businessDate =
         input.businessDate ?? vietnamBusinessDateForInstant(asOf, profile.businessDayStartMinute);
       const period = vietnamBusinessDayRange(businessDate, profile.businessDayStartMinute);
-      const [policies, closePage] = await Promise.all([
+      const [policies, closePage, boardCounts, integrity] = await Promise.all([
         repos.workspacePolicyReads.listAll(input.workspaceId),
         repos.operationalCloseReads.list({
           workspaceId: input.workspaceId,
@@ -72,6 +74,13 @@ export function getOperationalCloseReadiness(
           toBusinessDate: businessDate,
           page: { after: null, limit: 1 },
         }),
+        repos.dashboardReads.operationsBoardCounts({
+          workspaceId: input.workspaceId,
+          filter: "all",
+          search: "",
+          now: asOf,
+        }),
+        repos.operationsReads.integrity(input.workspaceId),
       ]);
       const currentClose = closePage.rows[0] ?? null;
       const policy = resolvePolicyForDecision(
@@ -82,7 +91,9 @@ export function getOperationalCloseReadiness(
       );
       let requiredObservationKinds: ReconciliationObservationKind[] = [];
       let policyVersionId: WorkspacePolicyVersionId | null = null;
-      const blockers: ("policy_unavailable" | "missing_observation" | "already_closed")[] = [];
+      const blockers: (
+        "policy_unavailable" | "missing_observation" | "already_closed" | "blocking_exception"
+      )[] = [];
       if (policy === null) {
         blockers.push("policy_unavailable");
       } else {
@@ -113,6 +124,19 @@ export function getOperationalCloseReadiness(
       );
       if (missingObservationKinds.length > 0) blockers.push("missing_observation");
       if (currentClose?.state === "closed") blockers.push("already_closed");
+      const exceptionCounts = {
+        ...boardCounts.counts.exceptionCounts,
+        reconciliation_variance: Math.max(
+          boardCounts.counts.exceptionCounts.reconciliation_variance,
+          integrity.status === "attention" ? 1 : 0,
+        ),
+      };
+      const exceptionSummary = OPERATIONS_EXCEPTION_KINDS.flatMap((kind) => {
+        const count = exceptionCounts[kind];
+        return count > 0 ? [{ kind, count, ...operationsExceptionDefinition(kind) }] : [];
+      });
+      if (exceptionSummary.some((exception) => exception.closeImpact === "blocking"))
+        blockers.push("blocking_exception");
       return operationalCloseReadinessSchema.parse({
         workspaceId: input.workspaceId,
         businessDate,
@@ -120,6 +144,7 @@ export function getOperationalCloseReadiness(
         asOf,
         state: blockers.length === 0 ? "ready" : "blocked",
         blockers,
+        exceptionSummary,
         policyVersionId,
         requiredObservationKinds,
         availableObservationKinds,

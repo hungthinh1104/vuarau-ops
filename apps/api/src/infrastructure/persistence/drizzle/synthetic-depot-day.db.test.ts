@@ -614,6 +614,21 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
         })
       ).ok,
     ).toBe(true);
+    expect(
+      (
+        await recordPaymentAllocation(context(), {
+          ...command("payment-allocation-resolution"),
+          expectedVersion: 2,
+          payload: {
+            allocationId: crypto.randomUUID(),
+            paymentId,
+            saleId,
+            amount: { amountMinor: 250_000, currency: "VND" },
+            evidenceReferences: ["rehearsal://payment-allocation-resolution"],
+          },
+        })
+      ).ok,
+    ).toBe(true);
     const supplierPaymentId = crypto.randomUUID() as SupplierPaymentId;
     expect(
       (

@@ -68,6 +68,15 @@ describe("dashboard contracts", () => {
         awaitingPayment: 1,
         overdue: 0,
         attention: 0,
+        fulfilmentRemainderUnresolved: 0,
+        returnSettlementUnresolved: 0,
+        reconciliationVariance: 0,
+        exceptionCounts: {
+          unallocated_payment: 0,
+          fulfilment_remainder_unresolved: 0,
+          return_settlement_unresolved: 0,
+          reconciliation_variance: 0,
+        },
       },
       page: {
         items: [
@@ -85,6 +94,7 @@ describe("dashboard contracts", () => {
             unallocatedPaymentAmount: null,
             ageSeconds: 60,
             nextAction: "Giao hàng",
+            exceptions: [],
             updatedAt: "2026-08-04T00:00:00.000Z",
             href: "/sales/sale-1",
             deliveryId: null,

@@ -51,7 +51,7 @@ describe.skipIf(skipWithoutDatabase())(
       if (ctx) await ctx.close();
     });
 
-    it("keeps unallocated money visible when the Sale itself is fully allocated", async () => {
+    it("TC-OPS-024 — keeps unallocated money visible when the Sale itself is fully allocated", async () => {
       const paymentPolicy = await createWorkspacePolicyDraft(context(), {
         ...command("policy-draft"),
         payload: {
@@ -166,7 +166,7 @@ describe.skipIf(skipWithoutDatabase())(
             financialState: "reconciliation_required",
             unallocatedPayment: true,
             unallocatedPaymentAmount: { amountMinor: 325_000, currency: "VND" },
-            nextAction: "Phân bổ hoặc giữ thành tín dụng",
+            nextAction: "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.",
             updatedAt: "2026-07-29T12:01:00.000Z",
           }),
         );

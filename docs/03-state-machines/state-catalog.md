@@ -94,6 +94,25 @@ These are read-time views of canonical facts, never independent truth.
 Negative customer, supplier or inventory values are retained facts with explicit
 classifications. They are not silently clamped or rejected.
 
+## Unresolved operational conditions
+
+These are bounded read-time conditions over canonical facts, not a second mutable
+exception state machine. The shared Operations deriver may emit only these four
+V1 conditions:
+
+| Condition                         | Source fact required                                                                           | Unknown consequence                                                                  | Resolution fact                                                     |
+| --------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `UNALLOCATED_PAYMENT`             | active Payment amount minus reversal and effective allocation                                  | which Sale receives the money, or whether it remains customer credit                 | allocation, reversal, or explicit customer-credit fact              |
+| `FULFILMENT_REMAINDER_UNRESOLVED` | an explicit remainder decision source; ordinary `needs_delivery`/`in_delivery` is insufficient | deliver, commercially correct, cancel, or create a new Sale                          | append-only fulfilment/commercial decision                          |
+| `RETURN_SETTLEMENT_UNRESOLVED`    | canonical Delivery Return                                                                      | refund, credit, replacement, goods-only handling, or another approved policy outcome | append-only return settlement decision                              |
+| `RECONCILIATION_VARIANCE`         | canonical comparison/integrity source reports a mismatch                                       | which source or correction explains the difference                                   | append-only correction or matching observation plus a healthy check |
+
+Each condition carries its source facts, explanation, approved resolution options
+and next action. Goods facts never create a money effect. A close read consumes the
+same server-authored conditions and classifies them as blocking, acknowledgeable
+or informational under policy; an acknowledgement is not a balance, inventory or
+fulfilment mutation.
+
 ## Internal persisted state
 
 `command_receipts` use `in_progress` and `completed` to coordinate idempotent
@@ -112,6 +131,8 @@ uncommitted command or one atomic committed receipt and result.
 | has-debt Customer                   | Derived from canonical account entries                                                                        |
 | synced/pending-upload server status | Offline queue state belongs to the client                                                                     |
 | report total                        | A disposable view that must resolve to canonical sources                                                      |
+| `needs_delivery` / `in_delivery`    | Ordinary fulfilment workflow states; they are not unresolved without an explicit remainder decision fact      |
+| unresolved exception                | A derived condition over canonical facts, never a mutable operator note or hidden task list                   |
 
 ## Cross-context boundary
 

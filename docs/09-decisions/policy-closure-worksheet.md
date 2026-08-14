@@ -113,6 +113,10 @@ How are cash transfers, bank deposits and payment evidence matched? Define the
 external statement input, matching key, settlement time, unresolved-item state,
 variance authority and correction path. Reconciliation must not rewrite Customer
 debt, Supplier payable or Cashbook source facts.
+The technical V1 vocabulary is bounded to `UNALLOCATED_PAYMENT`,
+`FULFILMENT_REMAINDER_UNRESOLVED`, `RETURN_SETTLEMENT_UNRESOLVED` and
+`RECONCILIATION_VARIANCE`; field policy must still decide which options are
+approved and which may block close.
 
 ## ASM-047 — Supplier catalogue and commercial relationship
 

@@ -49,7 +49,7 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
 
   afterEach(async () => ctx.close());
 
-  it("counts overlapping physical and money attention causes once", async () => {
+  it("TC-OPS-026 — counts overlapping physical and money attention causes once", async () => {
     const productId = ctx.productIds[0];
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
@@ -146,6 +146,10 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
           physicalState: "attention",
           financialState: "reconciliation_required",
           nextAction: "Kiểm tra",
+          exceptions: expect.arrayContaining([
+            expect.objectContaining({ kind: "unallocated_payment", closeImpact: "blocking" }),
+            expect.objectContaining({ kind: "reconciliation_variance", closeImpact: "blocking" }),
+          ]),
         }),
       );
 
@@ -158,6 +162,37 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
     if (counts.ok) {
       expect(counts.value.counts.attention).toBe(1);
       expect(counts.value.counts.unallocatedPayment).toBe(1);
+      expect(counts.value.counts.reconciliationVariance).toBe(1);
+      expect(counts.value.counts.exceptionCounts).toMatchObject({
+        unallocated_payment: 1,
+        reconciliation_variance: 1,
+      });
+    }
+
+    const canonicalFilters = [
+      ["unallocated_payment", "unallocatedPayment"],
+      ["reconciliation_variance", "reconciliationVariance"],
+    ] as const;
+    for (const [filter, countKey] of canonicalFilters) {
+      const filteredPage = await getOperationsBoard(context(), {
+        workspaceId: ctx.workspaceId,
+        filter,
+        sort: "updated_desc",
+        search: "SALE",
+        cursor: null,
+        limit: 20,
+      });
+      const filteredCounts = await getOperationsBoardCounts(context(), {
+        workspaceId: ctx.workspaceId,
+        filter,
+        search: "SALE",
+      });
+      expect(filteredPage.ok).toBe(true);
+      expect(filteredCounts.ok).toBe(true);
+      if (filteredPage.ok && filteredCounts.ok) {
+        expect(filteredPage.value.page.items).toHaveLength(1);
+        expect(filteredCounts.value.counts[countKey]).toBe(1);
+      }
     }
   });
 });

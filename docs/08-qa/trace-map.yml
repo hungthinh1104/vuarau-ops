@@ -609,6 +609,7 @@ use_cases:
       - BR-AGING-002
       - BR-AGING-004
       - BR-PAYMENT-009
+      - BR-OPS-010
       - BR-COMMAND-001
       - BR-COMMAND-002
       - BR-AUTH-001
@@ -617,6 +618,10 @@ use_cases:
     cases: []
     tests:
       - TC-AGING-004
+      - TC-OPS-024
+      - TC-OPS-025
+      - TC-OPS-026
+      - TC-E2E-034
     implementation:
       - packages/domain-contracts/src/debt/index.ts
       - packages/domain-kernel/src/debt/payment-allocation.ts
@@ -1598,9 +1603,9 @@ use_cases:
     title: Sign off, reopen and reclose an operational business day
     risk: P0
     doc: docs/02-use-cases/UC-OPERATIONS-005-operational-close.md
-    rules: [BR-CLOSE-001, BR-CLOSE-002, BR-CLOSE-003, BR-CLOSE-004, BR-CASH-014]
+    rules: [BR-CLOSE-001, BR-CLOSE-002, BR-CLOSE-003, BR-CLOSE-004, BR-CASH-014, BR-OPS-010]
     cases: []
-    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-003, TC-CLOSE-004]
+    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-003, TC-CLOSE-004, TC-OPS-026, TC-E2E-034]
     implementation:
       - packages/domain-contracts/src/close/index.ts
       - packages/domain-kernel/src/close/index.ts
@@ -2388,6 +2393,24 @@ business_rules:
       - packages/db/src/client.ts
       - apps/api/src/modules/shared/command-pipeline.ts
       - apps/api/src/modules/shared/read-pipeline.ts
+
+  BR-OPS-010:
+    title: Unresolved operational consequences are explicit and source-backed
+    risk: P0
+    doc: docs/04-business-rules/operations-rules.md
+    cases: [CASE-PAYMENT-005]
+    tests: [TC-OPS-024, TC-OPS-025, TC-OPS-026, TC-E2E-034]
+    implementation:
+      - packages/domain-contracts/src/operations/exceptions.ts
+      - packages/domain-contracts/src/dashboard/index.ts
+      - packages/domain-kernel/src/operations/index.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/dashboard.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/dashboard-helpers.ts
+      - packages/db/src/repositories/read/dashboard-board.ts
+      - packages/db/src/repositories/read/dashboard-board-counts.ts
+      - packages/db/src/repositories/read/dashboard-rows.ts
+      - apps/api/src/modules/close/close.queries.ts
+      - apps/web/src/ui/screens/operations-board-view.tsx
 
   # --- payment ------------------------------------------------------------------
   BR-PAYMENT-001:
@@ -4183,6 +4206,12 @@ contract_tests:
   TC-OPS-024:
     title: Operations Board exposes exact unallocated customer payment and its action
     file: apps/api/src/modules/account/payment-allocation.app.test.ts
+  TC-OPS-025:
+    title: Shared Operations deriver excludes ordinary workflow states and preserves four unresolved conditions
+    file: packages/domain-kernel/src/operations/index.test.ts
+  TC-OPS-026:
+    title: PostgreSQL Operations Board counts preserve canonical exception parity
+    file: apps/api/src/infrastructure/persistence/drizzle/dashboard-board-counts.db.test.ts
   TC-DOCUMENT-002:
     title: PostgreSQL proves append-only documents, digest validation, secure sharing and backup
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
@@ -4204,6 +4233,9 @@ contract_tests:
   TC-E2E-030:
     title: Browser API and PostgreSQL prove partial delivery completion and explicit return
     file: apps/web/e2e/depot-operations.spec.ts
+  TC-E2E-034:
+    title: Browser API and PostgreSQL preserve an unallocated payment until authorized resolution
+    file: apps/web/e2e/operations-board.spec.ts
   TC-E2E-032:
     title: Browser API and PostgreSQL prove split-grade receipt through Sale Delivery Return regrade spoilage and reconciliation
     file: apps/web/e2e/operational-correctness.spec.ts

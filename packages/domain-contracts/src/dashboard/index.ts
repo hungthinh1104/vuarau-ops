@@ -4,6 +4,11 @@ import { moneySchema } from "../shared/money.ts";
 import { pageOf, pageRequestSchema } from "../shared/pagination.ts";
 import { quantitySchema, unitSchema } from "../shared/quantity.ts";
 import { isoInstantSchema } from "../shared/time.ts";
+import {
+  operationsExceptionKindSchema,
+  operationsExceptionSchema,
+  type OperationsExceptionKind,
+} from "../operations/exceptions.ts";
 
 const isoDateSchema = z.iso.date();
 
@@ -110,6 +115,9 @@ export const OPERATIONS_BOARD_FILTERS = [
   "awaiting_payment",
   "overdue",
   "attention",
+  "fulfilment_remainder_unresolved",
+  "return_settlement_unresolved",
+  "reconciliation_variance",
 ] as const;
 export const operationsBoardFilterSchema = z.enum(OPERATIONS_BOARD_FILTERS);
 export type OperationsBoardFilter = z.infer<typeof operationsBoardFilterSchema>;
@@ -151,11 +159,24 @@ export const operationsBoardRowSchema = z.object({
   ageSeconds: z.number().nonnegative(),
   /** Null means the record remains visible for context but has no operational action. */
   nextAction: z.string().min(1).nullable(),
+  exceptions: z.array(operationsExceptionSchema),
   updatedAt: isoInstantSchema,
   href: z.string().min(1),
   deliveryId: deliveryIdSchema.nullable(),
 });
 export type OperationsBoardRow = z.infer<typeof operationsBoardRowSchema>;
+
+export const operationsExceptionCountSchema = z.object({
+  kind: operationsExceptionKindSchema,
+  count: z.int().nonnegative(),
+});
+export type OperationsExceptionCount = z.infer<typeof operationsExceptionCountSchema>;
+
+export const operationsExceptionCountMapSchema = z.record(
+  operationsExceptionKindSchema,
+  z.int().nonnegative(),
+);
+export type OperationsExceptionCountMap = Record<OperationsExceptionKind, number>;
 
 export const operationsBoardCountsSchema = z.object({
   all: z.int().nonnegative(),
@@ -167,6 +188,10 @@ export const operationsBoardCountsSchema = z.object({
   awaitingPayment: z.int().nonnegative(),
   overdue: z.int().nonnegative(),
   attention: z.int().nonnegative(),
+  fulfilmentRemainderUnresolved: z.int().nonnegative(),
+  returnSettlementUnresolved: z.int().nonnegative(),
+  reconciliationVariance: z.int().nonnegative(),
+  exceptionCounts: operationsExceptionCountMapSchema,
 });
 export type OperationsBoardCounts = z.infer<typeof operationsBoardCountsSchema>;
 

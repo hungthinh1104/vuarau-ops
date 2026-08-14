@@ -218,6 +218,32 @@ returned as a raw database value. The read or command returns a controlled,
 non-retryable diagnostic containing only the affected field and request id; a
 command transaction rolls back before the diagnostic crosses the API boundary.
 
+### BR-OPS-010 — Unresolved operational consequences are explicit and source-backed
+
+**Risk:** P0 · **Tests:** TC-OPS-024, TC-OPS-025, TC-E2E-034
+
+The Operations Board distinguishes known workflow state, known next action and an
+unresolved consequence. V1 has exactly four unresolved conditions:
+`unallocated_payment`, `fulfilment_remainder_unresolved`,
+`return_settlement_unresolved` and `reconciliation_variance`. Ordinary
+`needs_delivery`, `in_delivery`, `overdue`, `awaiting_payment` and
+`needs_receiving` states remain visible workflow facts; they do not become
+exceptions without the source fact that makes the consequence unknown.
+
+The condition is derived from canonical facts, not stored as a mutable task or
+exception row. Its read contract includes the source facts, the unknown
+consequence, approved resolution options, the next action and the resolution
+condition. Money is resolved only by a money-bearing source fact: goods, delivery
+or return quantity never implies a refund, credit, debt change or allocation.
+
+The first implemented vertical slice preserves an unallocated customer Payment
+until an authorized allocation or explicit credit/reversal decision appends the
+resolving fact. PostgreSQL page rows, filters and counts use the same condition
+vocabulary as the in-memory read and shared domain deriver. Close readiness
+consumes the resulting server-authored summary and blocks only conditions whose
+policy classification is `blocking`; acknowledgeable and informational conditions
+do not alter balances, inventory or fulfilment.
+
 ## Related
 
 - [../11-operations/deployment-contract.md](../11-operations/deployment-contract.md) — what an environment must satisfy

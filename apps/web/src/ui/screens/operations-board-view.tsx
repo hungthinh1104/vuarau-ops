@@ -58,6 +58,9 @@ const FILTERS: readonly { value: OperationsBoardFilter; label: string }[] = [
   { value: "awaiting_payment", label: "Chờ thanh toán" },
   { value: "overdue", label: "Quá hạn" },
   { value: "attention", label: "Cần kiểm tra" },
+  { value: "fulfilment_remainder_unresolved", label: "Còn lại chưa quyết định" },
+  { value: "return_settlement_unresolved", label: "Hàng trả chưa quyết định" },
+  { value: "reconciliation_variance", label: "Sai khác chưa giải thích" },
 ];
 
 const SORTS: readonly { value: OperationsBoardSort; label: string }[] = [
@@ -203,6 +206,9 @@ function CountStrip({
     awaiting_payment: counts.awaitingPayment,
     overdue: counts.overdue,
     attention: counts.attention,
+    fulfilment_remainder_unresolved: counts.fulfilmentRemainderUnresolved,
+    return_settlement_unresolved: counts.returnSettlementUnresolved,
+    reconciliation_variance: counts.reconciliationVariance,
   };
   return (
     <div
@@ -307,6 +313,11 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                           {row.unallocatedPayment ? (
                             <Badge tone="warning">{unallocatedPaymentLabel(row)}</Badge>
                           ) : null}
+                          {row.exceptions.map((exception) => (
+                            <Badge key={exception.kind} tone="warning">
+                              {exception.nextAction.label}
+                            </Badge>
+                          ))}
                           <Badge tone={stateTone(row.financialState)}>
                             {stateLabel(row.financialState)}
                           </Badge>

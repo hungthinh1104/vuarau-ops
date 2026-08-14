@@ -99,6 +99,15 @@ A UI that tells the worker to “try again” with a fresh identity fails this c
    compensating amount; the original payment remains visible.
 4. Customer detail and report source links explain the resulting balance.
 
+### D4-X — payment received before attribution is decided
+
+If the depot records 500,000 VND but has not yet decided which Sale receives it,
+the active Payment remains an explicit `UNALLOCATED_PAYMENT` condition. The Board
+shows the exact remaining amount, the source Payment and the next action to
+allocate it or record customer credit. It is not an unpaid Sale, an overdue claim
+or a hidden operator note. Allocation, reversal or an explicit credit decision is
+the append-only resolution fact; no Delivery or other goods fact can resolve it.
+
 ## D5 — Sale correction after Delivery
 
 After D1/D2 already moved goods, the depot discovers S1 has the wrong commercial
@@ -120,9 +129,11 @@ Customer physically returns 5 kg from a delivered line.
 2. It deliberately changes no customer money.
 
 **STOP before applying any financial/commercial consequence while ASM-037 is
-unresolved.** Do not infer refund/debt reduction from quantity. Record the physical
-fact only if that is itself operationally correct, then stop the synthetic day at
-the unresolved business decision.
+unresolved.** Do not infer refund/debt reduction from quantity. The canonical
+Return may be surfaced as `RETURN_SETTLEMENT_UNRESOLVED` with approved options,
+but the physical fact alone creates no money effect. Record the physical fact only
+if that is itself operationally correct, then stop the synthetic day at the
+unresolved business decision.
 
 ## D7 — Purchase correction after Receiving
 

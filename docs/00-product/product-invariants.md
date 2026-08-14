@@ -39,6 +39,13 @@ rules refine them but may not weaken them.
    appends a conserving movement pair and never rewrites history. Condition,
    Defect and disposition/inspection workflows are distinct concepts and are not
    implemented merely by calling them grades.
+10. **Operational uncertainty is explicit and bounded.** The system separates
+    known state, known next action and unresolved consequence. V1 unresolved
+    conditions are exactly `UNALLOCATED_PAYMENT`,
+    `FULFILMENT_REMAINDER_UNRESOLVED`, `RETURN_SETTLEMENT_UNRESOLVED` and
+    `RECONCILIATION_VARIANCE`; ordinary delivery, receiving, overdue and payment
+    workflow states do not become exceptions by themselves. No UI, report or AI
+    suggestion may invent a missing money, goods or settlement fact.
 
 ## Evidence vocabulary
 

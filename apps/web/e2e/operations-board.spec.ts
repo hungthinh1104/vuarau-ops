@@ -43,4 +43,80 @@ test.describe("Operations board production pagination", () => {
       await api.setQualityGradeMode(previousQualityGradeMode);
     }
   });
+
+  test("TC-E2E-034 — preserves an unallocated payment until the operator resolves it", async ({
+    page,
+  }) => {
+    await signIn(page, "owner");
+    const suffix = Date.now();
+    const productName = `Mặt hàng unresolved ${suffix}`;
+    await api.resetOperationalHistoryForProfileFixture();
+    const previousQualityGradeMode = await api.setQualityGradeMode("disabled");
+
+    try {
+      await page.goto("/products/new");
+      await page.getByLabel("Tên mặt hàng").fill(productName);
+      await chooseUnit(page);
+      await page.getByRole("button", { name: "Tạo mặt hàng" }).click();
+      await page.waitForURL(/\/products\/[0-9a-f-]+$/);
+      const productId = new URL(page.url()).pathname.split("/").at(-1)!;
+
+      const customerId = await api.createCustomer(`Khách unresolved ${suffix}`);
+      const { saleId } = await api.createPostedSale({
+        customerId,
+        productId,
+        productName,
+        quantityScaled: 50_000,
+        qualityGradeId: null,
+      });
+
+      await page.goto(`/customers/${customerId}/payments/new`);
+      await page.getByLabel("Số tiền khách trả").fill("500.000");
+      await page.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
+      await expect(page).toHaveURL(/\/payments\/[0-9a-f-]+$/);
+      const payment = await api.payments(customerId);
+      const paymentId = payment.items.at(-1)?.id;
+      expect(paymentId).toBeDefined();
+
+      const before = await api.closeReadiness();
+      expect(before.blockers).toContain("blocking_exception");
+      expect(before.exceptionSummary).toContainEqual(
+        expect.objectContaining({ kind: "unallocated_payment", count: 1 }),
+      );
+
+      await page.goto("/today");
+      await page.getByRole("link", { name: "Bảng điều hành" }).first().click();
+      await expect(page.getByRole("heading", { name: "Bảng điều hành" })).toBeVisible();
+      await page.getByRole("button", { name: /Tiền chưa phân bổ/ }).click();
+      await expect(
+        page.getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") }),
+      ).toBeVisible();
+      await expect(
+        page.getByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.").first(),
+      ).toBeVisible();
+
+      // The Board's source link identifies the Sale; the allocation command is
+      // the explicit resolution fact and never changes the goods quantity.
+      await expect(
+        page.getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") }).first(),
+      ).toHaveAttribute("href", `/sales/${saleId}`);
+      await api.approvePaymentAllocationPolicy();
+      await api.allocatePayment({ paymentId: paymentId!, saleId, amountMinor: 500_000 });
+
+      await page.goto("/operations-board?filter=unallocated_payment");
+      await expect(page.getByRole("button", { name: /Tiền chưa phân bổ/ })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      await expect(page.getByText("Không có đơn trong bộ lọc")).toBeVisible();
+
+      const after = await api.closeReadiness();
+      expect(after.blockers).not.toContain("blocking_exception");
+      expect(after.exceptionSummary).not.toContainEqual(
+        expect.objectContaining({ kind: "unallocated_payment" }),
+      );
+    } finally {
+      await api.setQualityGradeMode(previousQualityGradeMode);
+    }
+  });
 });

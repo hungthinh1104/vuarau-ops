@@ -17,6 +17,7 @@ const row: OperationsBoardRow = {
   unallocatedPaymentAmount: null,
   ageSeconds: 7_200,
   nextAction: "Giao hàng",
+  exceptions: [],
   updatedAt: "2026-08-04T00:00:00.000Z",
   href: "/sales/sale-1",
   deliveryId: null,
@@ -37,6 +38,15 @@ const query = {
       awaitingPayment: 1,
       overdue: 0,
       attention: 0,
+      fulfilmentRemainderUnresolved: 0,
+      returnSettlementUnresolved: 0,
+      reconciliationVariance: 0,
+      exceptionCounts: {
+        unallocated_payment: 0,
+        fulfilment_remainder_unresolved: 0,
+        return_settlement_unresolved: 0,
+        reconciliation_variance: 0,
+      },
     },
     page: { items: [row], nextCursor: null },
   },
@@ -105,7 +115,7 @@ describe("OperationsBoardView", () => {
       ...row,
       unallocatedPayment: true,
       unallocatedPaymentAmount: { amountMinor: 300_000, currency: "VND" as const },
-      nextAction: "Phân bổ hoặc giữ thành tín dụng",
+      nextAction: "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.",
     };
     render(
       <OperationsBoardView
@@ -129,6 +139,8 @@ describe("OperationsBoardView", () => {
       />,
     );
     expect(screen.getAllByText("Tiền chưa phân bổ: 300.000 ₫").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("Phân bổ hoặc giữ thành tín dụng").length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.").length,
+    ).toBeGreaterThanOrEqual(2);
   });
 });

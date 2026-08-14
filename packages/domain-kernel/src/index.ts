@@ -30,3 +30,4 @@ export * from "./debt/index.ts";
 export * from "./debt/payment-allocation.ts";
 export * from "./close/index.ts";
 export * from "./extension/index.ts";
+export * from "./operations/index.ts";

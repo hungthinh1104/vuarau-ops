@@ -109,7 +109,7 @@ export function saleNextAction(input: {
   if (input.voided) return null;
   if (input.physicalState === "attention") return "Kiểm tra";
   if (input.returnedFulfilment) return "Xử lý hàng trả";
-  if (input.unallocatedPayment) return "Phân bổ hoặc giữ thành tín dụng";
+  if (input.unallocatedPayment) return "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.";
   if (input.physicalState === "needs_delivery") return "Giao hàng";
   if (input.physicalState === "in_delivery") return "Theo dõi giao hàng";
   return ["awaiting_payment", "overdue"].includes(input.financialState) ? "Thu tiền" : null;

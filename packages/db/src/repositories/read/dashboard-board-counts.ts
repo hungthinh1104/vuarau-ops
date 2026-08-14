@@ -129,7 +129,7 @@ export async function queryOperationsBoardCounts(
       where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
       group by p.id
     ), classified as (
-      select s.id,
+      select s.id, 'sale' as kind,
         case when sv.id is not null then 'voided'
           when sp.physical_state='attention' then 'attention' else 'posted' end as commercial_state,
         sp.physical_state,
@@ -149,7 +149,7 @@ export async function queryOperationsBoardCounts(
       left join unallocated_by_customer u on u.customer_id=s.customer_id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       union all
-      select p.id,
+      select p.id, 'purchase' as kind,
         case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
         pp.physical_state,
         false as returned_fulfilment,
@@ -170,6 +170,9 @@ export async function queryOperationsBoardCounts(
       count(*) filter (where financial_state='awaiting_payment')::int as awaiting_payment_count,
       count(*) filter (where financial_state='overdue')::int as overdue_count,
       count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required')::int as attention_count,
+      0::int as fulfilment_remainder_unresolved_count,
+      count(*) filter (where returned_fulfilment)::int as return_settlement_unresolved_count,
+      count(*) filter (where commercial_state='attention' or physical_state='attention' or (financial_state='reconciliation_required' and not unallocated_payment))::int as reconciliation_variance_count,
       count(*) filter (where commercial_state='posted')::int as commercial_posted_count,
       count(*) filter (where commercial_state='confirmed')::int as commercial_confirmed_count,
       count(*) filter (where commercial_state='voided')::int as commercial_voided_count,
@@ -201,6 +204,15 @@ export async function queryOperationsBoardCounts(
       awaitingPayment: count("awaiting_payment_count"),
       overdue: count("overdue_count"),
       attention: count("attention_count"),
+      fulfilmentRemainderUnresolved: count("fulfilment_remainder_unresolved_count"),
+      returnSettlementUnresolved: count("return_settlement_unresolved_count"),
+      reconciliationVariance: count("reconciliation_variance_count"),
+      exceptionCounts: {
+        unallocated_payment: count("unallocated_payment_count"),
+        fulfilment_remainder_unresolved: count("fulfilment_remainder_unresolved_count"),
+        return_settlement_unresolved: count("return_settlement_unresolved_count"),
+        reconciliation_variance: count("reconciliation_variance_count"),
+      },
     },
     statusCounts: {
       commercial: statusCounts(row, [
@@ -292,10 +304,13 @@ export async function queryOperationsBoardCountsSplit(
         count(*) filter (where physical_state='needs_delivery')::int as needs_delivery_count,
         count(*) filter (where physical_state='in_delivery')::int as in_delivery_count,
         count(*) filter (where returned_fulfilment)::int as returned_fulfilment_count,
+        0::int as fulfilment_remainder_unresolved_count,
         count(*) filter (where physical_state='delivered')::int as delivered_count,
         count(*) filter (where physical_state='attention')::int as physical_attention_count,
         count(*) filter (where sv.id is not null)::int as voided_count,
         count(*) filter (where physical_state='attention' or (sv.id is null and coalesce(u.amount,0) > 0))::int as attention_count,
+        count(*) filter (where returned_fulfilment)::int as return_settlement_unresolved_count,
+        count(*) filter (where physical_state='attention')::int as reconciliation_variance_count,
         count(*) filter (where physical_state='attention' and sv.id is null)::int as commercial_attention_count
       from sale_physical
       join sales s on s.workspace_id=${input.workspaceId}::uuid and s.id=sale_physical.id
@@ -413,6 +428,20 @@ export async function queryOperationsBoardCountsSplit(
       awaitingPayment: value(financial, "awaiting_payment_count"),
       overdue: value(financial, "overdue_count"),
       attention: value(sale, "attention_count"),
+      incompleteReceiving: value(purchase, "needs_receiving_count"),
+      fulfilmentRemainderUnresolved: value(sale, "fulfilment_remainder_unresolved_count"),
+      returnSettlementUnresolved: value(sale, "return_settlement_unresolved_count"),
+      reconciliationVariance:
+        value(sale, "reconciliation_variance_count") +
+        value(financial, "reconciliation_variance_count"),
+      exceptionCounts: {
+        unallocated_payment: value(financial, "unallocated_payment_count"),
+        fulfilment_remainder_unresolved: value(sale, "fulfilment_remainder_unresolved_count"),
+        return_settlement_unresolved: value(sale, "return_settlement_unresolved_count"),
+        reconciliation_variance:
+          value(sale, "reconciliation_variance_count") +
+          value(financial, "reconciliation_variance_count"),
+      },
     },
     statusCounts: {
       commercial: [

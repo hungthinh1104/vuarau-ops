@@ -126,20 +126,24 @@ When blocked, the screen names the policy, observation or existing-close reason;
 it never treats a healthy projection or a failed read as proof that closing is
 allowed.
 
-The Operations Board treats `financialState=reconciliation_required` as an
-operator attention state when a customer payment still has an unallocated
-amount. This remains true even when the Sale's allocated amount already covers
-the Sale total: money received and money attributed are separate facts. The row
-also exposes `unallocatedPayment=true` and the exact
-`unallocatedPaymentAmount`, the dedicated `unallocated_payment` filter and count,
-and the next action `Phân bổ hoặc giữ thành tín dụng`. The broader `attention`
-filter and count continue to include this state.
+The Operations Board separates ordinary workflow state from unresolved
+consequence. `needs_delivery`, `in_delivery`, `needs_receiving`, `awaiting_payment`
+and `overdue` may be shown as known state and next action, but they are not
+exceptions by themselves.
 
-The Board also exposes a dedicated `returned_fulfilment` filter and count. It is
-derived when a canonical Delivery Return reopens net fulfilment; desktop and
-mobile show `Hàng trả cần xử lý` while retaining the row's Sale link and
-Delivery context. This state is physical work only and does not imply a
-financial correction.
+The only V1 exception states are `unallocated_payment`,
+`fulfilment_remainder_unresolved`, `return_settlement_unresolved` and
+`reconciliation_variance`. The row receives server-authored source facts,
+unknown consequence, approved resolution options and next action. In particular,
+an active Payment with a remaining unallocated amount shows the exact
+`unallocatedPaymentAmount` and `Mở khoản thanh toán để phân bổ hoặc ghi nhận tín
+dụng.`; after allocation or explicit customer-credit resolution the exception
+disappears on the next read. A Return remains physical truth until an explicit
+settlement fact exists; it never implies a refund, credit or debt movement.
+
+The compact mobile card and desktop row use the same DTO. They must show explicit
+loading, stale/offline and unknown-network outcomes, never a guessed empty list or
+zero amount. IDs remain navigation targets rather than primary labels.
 
 ## Rejection mapping rule
 

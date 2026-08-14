@@ -3,6 +3,7 @@ import type { DeliveryId, OperationsBoardInput } from "@vuarau/domain-contracts"
 import type { CursorPosition } from "@vuarau/domain-contracts";
 import type { Tx } from "../shared/types.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
+import { deriveOperationsBoardExceptions } from "@vuarau/domain-kernel";
 type Row = Record<string, unknown>;
 const numberOf = (row: Row, name: string): number => {
   const raw = row[name] ?? 0;
@@ -46,7 +47,13 @@ export async function queryRows(
                   ? sql`financial_state = 'overdue'`
                   : input.filter === "attention"
                     ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
-                    : sql`true`;
+                    : input.filter === "fulfilment_remainder_unresolved"
+                      ? sql`false`
+                      : input.filter === "return_settlement_unresolved"
+                        ? sql`returned_fulfilment`
+                        : input.filter === "reconciliation_variance"
+                          ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
+                          : sql`true`;
   const searchClause =
     input.search.length === 0
       ? sql`true`
@@ -261,6 +268,9 @@ export async function queryRows(
         count(*) filter (where financial_state='awaiting_payment') over() as awaiting_payment_count,
         count(*) filter (where financial_state='overdue') over() as overdue_count,
         count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required') over() as attention_count,
+        count(*) filter (where false) over() as fulfilment_remainder_unresolved_count,
+        count(*) filter (where returned_fulfilment) over() as return_settlement_unresolved_count,
+        count(*) filter (where commercial_state='attention' or physical_state='attention' or (financial_state='reconciliation_required' and not unallocated_payment)) over() as reconciliation_variance_count,
         count(*) filter (where commercial_state='posted') over() as commercial_posted_count,
         count(*) filter (where commercial_state='confirmed') over() as commercial_confirmed_count,
         count(*) filter (where commercial_state='voided') over() as commercial_voided_count,
@@ -448,7 +458,7 @@ export async function queryRows(
         when sv.id is not null then null
         when sale_physical.physical_state='attention' then 'Kiểm tra'
         when sale_physical.returned_fulfilment then 'Xử lý hàng trả'
-        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Phân bổ hoặc giữ thành tín dụng'
+        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.'
         when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
         when sale_physical.physical_state='in_delivery' then 'Theo dõi giao hàng'
         when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền'
@@ -493,6 +503,21 @@ export async function queryRows(
     awaitingPayment: first === undefined ? 0 : numberOf(first, "awaiting_payment_count"),
     overdue: first === undefined ? 0 : numberOf(first, "overdue_count"),
     attention: first === undefined ? 0 : numberOf(first, "attention_count"),
+    fulfilmentRemainderUnresolved:
+      first === undefined ? 0 : numberOf(first, "fulfilment_remainder_unresolved_count"),
+    returnSettlementUnresolved:
+      first === undefined ? 0 : numberOf(first, "return_settlement_unresolved_count"),
+    reconciliationVariance:
+      first === undefined ? 0 : numberOf(first, "reconciliation_variance_count"),
+    exceptionCounts: {
+      unallocated_payment: first === undefined ? 0 : numberOf(first, "unallocated_payment_count"),
+      fulfilment_remainder_unresolved:
+        first === undefined ? 0 : numberOf(first, "fulfilment_remainder_unresolved_count"),
+      return_settlement_unresolved:
+        first === undefined ? 0 : numberOf(first, "return_settlement_unresolved_count"),
+      reconciliation_variance:
+        first === undefined ? 0 : numberOf(first, "reconciliation_variance_count"),
+    },
   };
   return {
     counts,
@@ -520,27 +545,57 @@ export async function queryRows(
         ["voided", "financial_voided_count"],
       ]),
     },
-    rows: rawRows.map((row) => ({
-      id: stringOf(row, "id"),
-      kind: stringOf(row, "kind") as "sale" | "purchase",
-      reference: stringOf(row, "reference"),
-      counterparty: stringOf(row, "counterparty"),
-      amount: asMoney(numberOf(row, "amount")),
-      commercialState: stringOf(row, "commercial_state"),
-      physicalState: stringOf(row, "physical_state"),
-      financialState: stringOf(row, "financial_state"),
-      returnedFulfilment: Boolean(row["returned_fulfilment"]),
-      unallocatedPayment: Boolean(row["unallocated_payment"]),
-      unallocatedPaymentAmount:
+    rows: rawRows.map((row) => {
+      const id = stringOf(row, "id");
+      const kind = stringOf(row, "kind") as "sale" | "purchase";
+      const reference = stringOf(row, "reference");
+      const amountMinor = numberOf(row, "amount");
+      const commercialState = stringOf(row, "commercial_state");
+      const physicalState = stringOf(row, "physical_state");
+      const financialState = stringOf(row, "financial_state");
+      const returnedFulfilment = Boolean(row["returned_fulfilment"]);
+      const unallocatedPayment = Boolean(row["unallocated_payment"]);
+      const unallocatedPaymentAmount =
         row["unallocated_payment_amount"] === null ||
         row["unallocated_payment_amount"] === undefined
           ? null
-          : asMoney(numberOf(row, "unallocated_payment_amount")),
-      ageSeconds: numberOf(row, "age_seconds"),
-      nextAction: row["next_action"] === null ? null : stringOf(row, "next_action"),
-      updatedAt: new Date(String(row["updated_at"])).toISOString(),
-      href: stringOf(row, "href"),
-      deliveryId: row["delivery_id"] === null ? null : (stringOf(row, "delivery_id") as DeliveryId),
-    })),
+          : asMoney(numberOf(row, "unallocated_payment_amount"));
+      const href = stringOf(row, "href");
+      const deliveryId =
+        row["delivery_id"] === null ? null : (stringOf(row, "delivery_id") as DeliveryId);
+      return {
+        id,
+        kind,
+        reference,
+        counterparty: stringOf(row, "counterparty"),
+        amount: asMoney(amountMinor),
+        commercialState,
+        physicalState,
+        financialState,
+        returnedFulfilment,
+        unallocatedPayment,
+        unallocatedPaymentAmount,
+        ageSeconds: numberOf(row, "age_seconds"),
+        nextAction: row["next_action"] === null ? null : stringOf(row, "next_action"),
+        exceptions: deriveOperationsBoardExceptions({
+          id,
+          kind,
+          reference,
+          href,
+          amountMinor,
+          commercialState,
+          physicalState,
+          financialState,
+          returnedFulfilment,
+          unallocatedPayment,
+          unallocatedPaymentAmountMinor: unallocatedPaymentAmount?.amountMinor ?? null,
+          fulfilmentRemainderUnresolved: false,
+          deliveryId,
+        }),
+        updatedAt: new Date(String(row["updated_at"])).toISOString(),
+        href,
+        deliveryId,
+      };
+    }),
   };
 }

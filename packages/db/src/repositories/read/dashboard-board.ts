@@ -3,6 +3,7 @@ import type { DeliveryId, OperationsBoardInput } from "@vuarau/domain-contracts"
 import type { CursorPosition } from "@vuarau/domain-contracts";
 import type { Tx } from "../shared/types.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
+import { deriveOperationsBoardExceptions } from "@vuarau/domain-kernel";
 type Row = Record<string, unknown>;
 const numberOf = (row: Row, name: string): number => {
   const raw = row[name] ?? 0;
@@ -17,24 +18,54 @@ const asMoney = (amountMinor: number) => ({ amountMinor, currency: "VND" as cons
 const nullableMoney = (row: Row, name: string) =>
   row[name] === null || row[name] === undefined ? null : asMoney(numberOf(row, name));
 function mapBoardRows(rawRows: readonly Row[]) {
-  return rawRows.map((row) => ({
-    id: String(row["id"] ?? ""),
-    kind: String(row["kind"] ?? "") as "sale" | "purchase",
-    reference: String(row["reference"] ?? ""),
-    counterparty: String(row["counterparty"] ?? ""),
-    amount: asMoney(numberOf(row, "amount")),
-    commercialState: String(row["commercial_state"] ?? ""),
-    physicalState: String(row["physical_state"] ?? ""),
-    financialState: String(row["financial_state"] ?? ""),
-    returnedFulfilment: Boolean(row["returned_fulfilment"]),
-    unallocatedPayment: Boolean(row["unallocated_payment"]),
-    unallocatedPaymentAmount: nullableMoney(row, "unallocated_payment_amount"),
-    ageSeconds: numberOf(row, "age_seconds"),
-    nextAction: row["next_action"] === null ? null : String(row["next_action"] ?? ""),
-    updatedAt: new Date(String(row["updated_at"])).toISOString(),
-    href: String(row["href"] ?? ""),
-    deliveryId: row["delivery_id"] === null ? null : (String(row["delivery_id"]) as DeliveryId),
-  }));
+  return rawRows.map((row) => {
+    const id = String(row["id"] ?? "");
+    const kind = String(row["kind"] ?? "") as "sale" | "purchase";
+    const reference = String(row["reference"] ?? "");
+    const amountMinor = numberOf(row, "amount");
+    const commercialState = String(row["commercial_state"] ?? "");
+    const physicalState = String(row["physical_state"] ?? "");
+    const financialState = String(row["financial_state"] ?? "");
+    const returnedFulfilment = Boolean(row["returned_fulfilment"]);
+    const unallocatedPayment = Boolean(row["unallocated_payment"]);
+    const unallocatedPaymentAmount = nullableMoney(row, "unallocated_payment_amount");
+    const href = String(row["href"] ?? "");
+    const deliveryId =
+      row["delivery_id"] === null ? null : (String(row["delivery_id"]) as DeliveryId);
+    return {
+      id,
+      kind,
+      reference,
+      counterparty: String(row["counterparty"] ?? ""),
+      amount: asMoney(amountMinor),
+      commercialState,
+      physicalState,
+      financialState,
+      returnedFulfilment,
+      unallocatedPayment,
+      unallocatedPaymentAmount,
+      ageSeconds: numberOf(row, "age_seconds"),
+      nextAction: row["next_action"] === null ? null : String(row["next_action"] ?? ""),
+      exceptions: deriveOperationsBoardExceptions({
+        id,
+        kind,
+        reference,
+        href,
+        amountMinor,
+        commercialState,
+        physicalState,
+        financialState,
+        returnedFulfilment,
+        unallocatedPayment,
+        unallocatedPaymentAmountMinor: unallocatedPaymentAmount?.amountMinor ?? null,
+        fulfilmentRemainderUnresolved: false,
+        deliveryId,
+      }),
+      updatedAt: new Date(String(row["updated_at"])).toISOString(),
+      href,
+      deliveryId,
+    };
+  });
 }
 export async function queryFastOperationsBoardPage(
   tx: Tx,
@@ -350,7 +381,7 @@ export async function queryFastOperationsBoardPage(
         when sv.id is not null then null
         when sale_physical.physical_state='attention' then 'Kiểm tra'
         when sale_physical.returned_fulfilment then 'Xử lý hàng trả'
-        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Phân bổ hoặc giữ thành tín dụng'
+        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.'
         when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
         when sale_physical.physical_state='in_delivery' then 'Theo dõi giao hàng'
         when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền'
@@ -394,6 +425,15 @@ export async function queryFastOperationsBoardPage(
       awaitingPayment: 0,
       overdue: 0,
       attention: 0,
+      fulfilmentRemainderUnresolved: 0,
+      returnSettlementUnresolved: 0,
+      reconciliationVariance: 0,
+      exceptionCounts: {
+        unallocated_payment: 0,
+        fulfilment_remainder_unresolved: 0,
+        return_settlement_unresolved: 0,
+        reconciliation_variance: 0,
+      },
     },
     statusCounts: { commercial: [], physical: [], financial: [] },
     rows: mapBoardRows(rows as Row[]),

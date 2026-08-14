@@ -269,6 +269,79 @@ export const api = {
     return policyVersionId;
   },
 
+  async approvePaymentAllocationPolicy(): Promise<string> {
+    const policyVersionId = crypto.randomUUID();
+    await call(
+      "policy.createDraft",
+      "mutation",
+      {
+        ...envelope({ actorId: actorFor("owner") }),
+        payload: {
+          policyVersionId,
+          policyKind: "payment_allocation",
+          version: Date.now() % 2_000_000_000,
+          effectiveFrom: new Date().toISOString(),
+          effectiveTo: null,
+          definition: { contractVersion: 1, parameters: { strategy: "manual" } },
+          evidenceReferences: [],
+          reason: "E2E policy: phân bổ tiền thủ công từ Board.",
+        },
+      },
+      "owner",
+    );
+    await call(
+      "policy.approve",
+      "mutation",
+      {
+        ...envelope({ actorId: actorFor("owner") }),
+        payload: {
+          policyVersionId,
+          evidenceReferences: ["e2e://payment-allocation-policy"],
+          reason: "E2E policy đã được phê duyệt.",
+        },
+      },
+      "owner",
+    );
+    return policyVersionId;
+  },
+
+  async allocatePayment(input: {
+    paymentId: string;
+    saleId: string;
+    amountMinor: number;
+  }): Promise<void> {
+    await call(
+      "debt.allocate",
+      "mutation",
+      {
+        ...envelope({ actorId: actorFor("owner"), expectedVersion: 1 }),
+        payload: {
+          allocationId: crypto.randomUUID(),
+          paymentId: input.paymentId,
+          saleId: input.saleId,
+          amount: { amountMinor: input.amountMinor, currency: "VND" },
+          evidenceReferences: ["e2e://board-resolution"],
+        },
+      },
+      "owner",
+    );
+  },
+
+  async closeReadiness(): Promise<{
+    blockers: readonly string[];
+    exceptionSummary: readonly { kind: string; count: number }[];
+  }> {
+    return (await call(
+      "operations.closeReadiness",
+      "query",
+      { workspaceId: E2E_WORKSPACE_ID, businessDate: null },
+      "owner",
+    )) as {
+      blockers: readonly string[];
+      exceptionSummary: readonly { kind: string; count: number }[];
+    };
+  },
+
   async customerOrder(orderId: string): Promise<{
     id: string;
     status: string;

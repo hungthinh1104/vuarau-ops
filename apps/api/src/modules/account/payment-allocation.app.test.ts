@@ -221,7 +221,7 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
         financialState: "reconciliation_required",
         unallocatedPayment: true,
         unallocatedPaymentAmount: { amountMinor: 625_000, currency: "VND" },
-        nextAction: "Phân bổ hoặc giữ thành tín dụng",
+        nextAction: "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.",
       }),
     );
     expect(board.value.counts?.attention).toBe(1);
@@ -252,7 +252,7 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
           id: SALE_ID,
           unallocatedPayment: true,
           unallocatedPaymentAmount: { amountMinor: 625_000, currency: "VND" },
-          nextAction: "Phân bổ hoặc giữ thành tín dụng",
+          nextAction: "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.",
         }),
       );
     }

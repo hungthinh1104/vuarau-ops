@@ -3,6 +3,8 @@ import { workspaceIdSchema } from "../shared/ids.ts";
 import { isoInstantSchema } from "../shared/time.ts";
 import { defineCommand } from "../shared/command.ts";
 
+export * from "./exceptions.ts";
+
 export const workspaceIntegrityInputSchema = z.object({ workspaceId: workspaceIdSchema });
 export const workspaceIntegrityDtoSchema = z.object({
   workspaceId: workspaceIdSchema,

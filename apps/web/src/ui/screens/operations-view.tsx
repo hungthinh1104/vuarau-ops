@@ -214,6 +214,9 @@ function CloseReadinessPanel(props: {
   }
   const readiness = props.readiness;
   if (readiness.state === "ready") {
+    const acknowledged = readiness.exceptionSummary.filter(
+      (exception) => exception.closeImpact !== "informational",
+    );
     return (
       <section className="rounded-card border border-border bg-surface p-4">
         <div className="flex items-center justify-between gap-3">
@@ -223,6 +226,18 @@ function CloseReadinessPanel(props: {
         <p className="mt-2 text-body-sm">
           {readiness.businessDate}: đã có quy tắc chốt và quan sát đo được cho từng phạm vi yêu cầu.
         </p>
+        {acknowledged.length > 0 ? (
+          <div className="mt-3 rounded-card border border-warning/30 bg-warning-soft p-3">
+            <p className="text-body-sm font-medium">Có ngoại lệ cần ghi nhận trước khi chốt:</p>
+            <ul className="mt-2 grid gap-2 text-body-sm">
+              {acknowledged.map((exception) => (
+                <li key={exception.kind}>
+                  {exception.count} việc: {exception.explanation} {exception.nextAction}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
     );
   }
@@ -250,6 +265,16 @@ function CloseReadinessPanel(props: {
         {readiness.blockers.includes("already_closed") ? (
           <li>Ngày này đã có lần chốt hiện hành; cần mở lại theo quy trình được cấp quyền.</li>
         ) : null}
+        {readiness.blockers.includes("blocking_exception")
+          ? readiness.exceptionSummary
+              .filter((exception) => exception.closeImpact === "blocking")
+              .map((exception) => (
+                <li key={exception.kind}>
+                  {exception.count} việc chưa giải quyết: {exception.explanation}{" "}
+                  {exception.nextAction}
+                </li>
+              ))
+          : null}
       </ul>
     </section>
   );

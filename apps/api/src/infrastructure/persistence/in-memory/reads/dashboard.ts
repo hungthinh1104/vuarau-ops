@@ -18,7 +18,14 @@ import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
 import { exactAdd, exactSubtract } from "./exact-number.ts";
 import { saleFinancialFacts, saleNextAction, salePhysicalState } from "./dashboard-order-state.ts";
-import { boardCounts } from "./dashboard-helpers.ts";
+import {
+  boardCounts,
+  isAfterOperationsBoardCursor,
+  latestTimestamp,
+  matchesOperationsBoardFilter,
+  operationsBoardCursorOf,
+} from "./dashboard-helpers.ts";
+import { deriveOperationsBoardExceptions } from "@vuarau/domain-kernel";
 
 const now = () => new Date().toISOString();
 const money = (amountMinor: number) => ({ amountMinor, currency: "VND" as const });
@@ -370,7 +377,6 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         financial: count("financialState"),
       };
     },
-
     topProducts: async (input: DashboardTopProductsInput): Promise<DashboardTopProductsDto> => {
       const grouped = new Map<
         string,
@@ -427,19 +433,13 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           })),
       };
     },
-
     operationsBoard: async (input): Promise<OperationsBoardDto> => {
       const rows: Array<OperationsBoardDto["page"]["items"][number]> = [];
-      const asOf = input.now;
       const inspectedAccepted = acceptedAfterInspectionFor(store, input.workspaceId);
-      const latest = (values: readonly (string | null | undefined)[], fallback: string) =>
-        values
-          .filter((value): value is string => value !== null && value !== undefined)
-          .reduce((current, value) => (value > current ? value : current), fallback);
       for (const sale of store.sales.values()) {
         if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
         const physical = salePhysicalState(store, input.workspaceId, sale.id);
-        const financial = saleFinancialFacts(store, input.workspaceId, sale.id, asOf);
+        const financial = saleFinancialFacts(store, input.workspaceId, sale.id, input.now);
         const allocationIds = new Set(
           store.paymentAllocations
             .filter(
@@ -470,7 +470,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             financial.unallocatedPaymentAmountMinor > 0
               ? money(financial.unallocatedPaymentAmountMinor)
               : null,
-          ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(sale.recordedAt)) / 1000),
+          ageSeconds: Math.max(0, (Date.parse(input.now) - Date.parse(sale.recordedAt)) / 1000),
           nextAction: saleNextAction({
             voided: sale.voidRecord !== null,
             physicalState: physical.state,
@@ -478,7 +478,27 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             unallocatedPayment: financial.unallocatedPaymentAmountMinor > 0,
             financialState: financial.state,
           }),
-          updatedAt: latest(
+          exceptions: deriveOperationsBoardExceptions({
+            id: sale.id,
+            kind: "sale",
+            reference: `SALE-${sale.id.slice(0, 8).toUpperCase()}`,
+            href: `/sales/${sale.id}`,
+            amountMinor: sale.totalAmount.amountMinor,
+            physicalState: physical.state,
+            commercialState:
+              sale.voidRecord !== null
+                ? "voided"
+                : physical.state === "attention"
+                  ? "attention"
+                  : "posted",
+            financialState: financial.state,
+            returnedFulfilment: physical.returnedFulfilment,
+            unallocatedPayment: financial.unallocatedPaymentAmountMinor > 0,
+            unallocatedPaymentAmountMinor: financial.unallocatedPaymentAmountMinor,
+            fulfilmentRemainderUnresolved: false,
+            deliveryId: physical.deliveryId,
+          }),
+          updatedAt: latestTimestamp(
             [
               sale.recordedAt,
               sale.postedAt,
@@ -587,9 +607,24 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           returnedFulfilment: false,
           unallocatedPayment: false,
           unallocatedPaymentAmount: null,
-          ageSeconds: Math.max(0, (Date.parse(asOf) - Date.parse(purchase.recordedAt)) / 1000),
+          ageSeconds: Math.max(0, (Date.parse(input.now) - Date.parse(purchase.recordedAt)) / 1000),
           nextAction: purchase.voidRecord !== null || !remaining ? null : "Nhận hàng",
-          updatedAt: latest(
+          exceptions: deriveOperationsBoardExceptions({
+            id: purchase.id,
+            kind: "purchase",
+            reference: `PUR-${purchase.id.slice(0, 8).toUpperCase()}`,
+            href: `/purchases/${purchase.id}`,
+            amountMinor: purchase.totalAmount.amountMinor,
+            physicalState: remaining ? "needs_receiving" : "received",
+            commercialState: purchase.voidRecord === null ? "confirmed" : "voided",
+            financialState: purchase.voidRecord === null ? "payable" : "voided",
+            returnedFulfilment: false,
+            unallocatedPayment: false,
+            unallocatedPaymentAmountMinor: null,
+            fulfilmentRemainderUnresolved: false,
+            deliveryId: null,
+          }),
+          updatedAt: latestTimestamp(
             [
               purchase.recordedAt,
               purchase.confirmedAt,
@@ -612,21 +647,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             .includes(input.search.toLocaleLowerCase()),
       );
       const filtered = searched
-        .filter(
-          (row) =>
-            input.filter === "all" ||
-            (input.filter === "needs_receiving" && row.physicalState === "needs_receiving") ||
-            (input.filter === "needs_delivery" && row.physicalState === "needs_delivery") ||
-            (input.filter === "in_delivery" && row.physicalState === "in_delivery") ||
-            (input.filter === "returned_fulfilment" && row.returnedFulfilment) ||
-            (input.filter === "unallocated_payment" && row.unallocatedPayment) ||
-            (input.filter === "awaiting_payment" && row.financialState === "awaiting_payment") ||
-            (input.filter === "overdue" && row.financialState === "overdue") ||
-            (input.filter === "attention" &&
-              (row.commercialState === "attention" ||
-                row.physicalState === "attention" ||
-                row.financialState === "reconciliation_required")),
-        )
+        .filter((row) => matchesOperationsBoardFilter(row, input.filter))
         .sort((left, right) =>
           input.sort === "amount_desc"
             ? right.amount.amountMinor === left.amount.amountMinor
@@ -638,37 +659,17 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
               ? right.ageSeconds - left.ageSeconds || right.id.localeCompare(left.id)
               : right.updatedAt.localeCompare(left.updatedAt) || right.id.localeCompare(left.id),
         );
-      const cursorOf = (row: OperationsBoardDto["page"]["items"][number]) =>
-        input.sort === "amount_desc"
-          ? { sortValue: String(row.amount.amountMinor), id: row.id }
-          : input.sort === "age_desc"
-            ? { sortValue: String(row.ageSeconds), id: row.id }
-            : { sortValue: row.updatedAt, id: row.id };
       const after = input.page.after;
       const afterRows =
         after === null
           ? filtered
-          : filtered.filter((row) => {
-              if (input.sort === "amount_desc") {
-                const amount = Number(after.sortValue);
-                return (
-                  row.amount.amountMinor < amount ||
-                  (row.amount.amountMinor === amount && row.id < after.id)
-                );
-              }
-              if (input.sort === "age_desc") {
-                const age = Number(after.sortValue);
-                return row.ageSeconds < age || (row.ageSeconds === age && row.id < after.id);
-              }
-              return (
-                row.updatedAt < after.sortValue ||
-                (row.updatedAt === after.sortValue && row.id < after.id)
-              );
-            });
-      const page = takePage(afterRows, input.page, cursorOf);
+          : filtered.filter((row) => isAfterOperationsBoardCursor(row, input.sort, after));
+      const page = takePage(afterRows, input.page, (row) =>
+        operationsBoardCursorOf(row, input.sort),
+      );
       return {
         workspaceId: input.workspaceId,
-        asOf,
+        asOf: input.now,
         counts: boardCounts(searched),
         page: {
           items: [...page.rows],
