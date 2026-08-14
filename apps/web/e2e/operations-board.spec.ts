@@ -96,12 +96,12 @@ test.describe("Operations board production pagination", () => {
         .locator("details")
         .filter({ hasText: "Đã nhận tiền nhưng chưa biết khoản tiền thuộc Sale hay tín dụng nào." })
         .first();
+      await explanation.getByText("Vì sao cần xử lý?").click();
       await expect(
         explanation.getByText("Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.", {
           exact: true,
         }),
       ).toBeVisible();
-      await explanation.getByText("Vì sao cần xử lý?").click();
       await expect(explanation.getByText("Điều chưa biết")).toBeVisible();
       await expect(explanation.getByText("Phân bổ vào Sale", { exact: true })).toBeVisible();
       await expect(explanation.getByText("Tiền chưa phân bổ (đơn vị nhỏ nhất)")).toBeVisible();
