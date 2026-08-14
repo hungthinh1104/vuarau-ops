@@ -180,6 +180,12 @@ export const operationalCloseIdSchema = z.uuid().brand<"OperationalCloseId">();
 export type OperationalCloseId = z.infer<typeof operationalCloseIdSchema>;
 export const operationalCloseReopenIdSchema = z.uuid().brand<"OperationalCloseReopenId">();
 export type OperationalCloseReopenId = z.infer<typeof operationalCloseReopenIdSchema>;
+export const operationalCloseExceptionAcknowledgementIdSchema = z
+  .uuid()
+  .brand<"OperationalCloseExceptionAcknowledgementId">();
+export type OperationalCloseExceptionAcknowledgementId = z.infer<
+  typeof operationalCloseExceptionAcknowledgementIdSchema
+>;
 export const cashStatementMatchIdSchema = z.uuid().brand<"CashStatementMatchId">();
 export type CashStatementMatchId = z.infer<typeof cashStatementMatchIdSchema>;
 export const cashStatementMatchReversalIdSchema = z.uuid().brand<"CashStatementMatchReversalId">();

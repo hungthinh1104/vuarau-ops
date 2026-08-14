@@ -20,6 +20,7 @@ import {
 } from "../../../modules/close/close.queries.ts";
 import {
   recordOperationalCloseCommandSchema,
+  recordOperationalCloseExceptionAcknowledgementCommandSchema,
   reopenOperationalCloseCommandSchema,
   operationalCloseGetInputSchema,
   operationalCloseListInputSchema,
@@ -27,6 +28,7 @@ import {
 } from "@vuarau/domain-contracts";
 import {
   recordOperationalClose,
+  recordOperationalCloseExceptionAcknowledgement,
   reopenOperationalClose,
 } from "../../../modules/close/close.handlers.ts";
 
@@ -48,6 +50,11 @@ export const operationsRouter = router({
   recordClose: commandProcedure
     .input(recordOperationalCloseCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await recordOperationalClose(ctx, input))),
+  acknowledgeCloseException: commandProcedure
+    .input(recordOperationalCloseExceptionAcknowledgementCommandSchema)
+    .mutation(async ({ ctx, input }) =>
+      unwrap(await recordOperationalCloseExceptionAcknowledgement(ctx, input)),
+    ),
   reopenClose: commandProcedure
     .input(reopenOperationalCloseCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await reopenOperationalClose(ctx, input))),

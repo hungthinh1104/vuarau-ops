@@ -4,14 +4,17 @@ import type {
   CashStatementMatchDto,
   IsoInstant,
   OperationalCloseDto,
+  OperationalCloseExceptionAcknowledgementDto,
   OperationalClosePolicyDefinition,
   RecordCashStatementMatchCommand,
+  RecordOperationalCloseExceptionAcknowledgementCommand,
   RecordOperationalCloseCommand,
   ReconciliationObservationDto,
   ReopenOperationalCloseCommand,
   ReverseCashStatementMatchCommand,
   WorkspacePolicyVersionId,
 } from "@vuarau/domain-contracts";
+import { operationsExceptionDefinition } from "@vuarau/domain-contracts";
 import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
@@ -172,6 +175,62 @@ export function decideReopenOperationalClose(
       before: { state: current.state, version: current.version },
       after: { state: "reopened", version: current.version + 1, reopenId: reopen.id },
       reason: reopen.reason,
+    },
+  });
+}
+
+export function decideRecordOperationalCloseExceptionAcknowledgement(
+  command: RecordOperationalCloseExceptionAcknowledgementCommand,
+  policyVersionId: WorkspacePolicyVersionId,
+  sourceExists: boolean,
+  recordedAt: IsoInstant,
+): DomainResult<{
+  acknowledgement: OperationalCloseExceptionAcknowledgementDto;
+  audit: AuditDraft;
+}> {
+  const definition = operationsExceptionDefinition(command.payload.exceptionKind);
+  if (definition.closeImpact !== "acknowledgeable") {
+    return err(
+      "OPERATIONAL_CLOSE_EXCEPTION_ACKNOWLEDGEMENT_NOT_ALLOWED",
+      "This exception must be resolved by its own command or remains blocked by policy.",
+    );
+  }
+  if (!sourceExists) {
+    return err(
+      "OPERATIONAL_CLOSE_EXCEPTION_ACKNOWLEDGEMENT_SOURCE_NOT_FOUND",
+      "The unresolved source is no longer present in the server-authored Operations Board.",
+    );
+  }
+  const acknowledgement: OperationalCloseExceptionAcknowledgementDto = {
+    id: command.payload.operationalCloseExceptionAcknowledgementId,
+    workspaceId: command.workspaceId,
+    businessDate: command.payload.businessDate,
+    exceptionKind: command.payload.exceptionKind,
+    source: command.payload.source,
+    evidenceReferences: [...command.payload.evidenceReferences],
+    policyVersionId,
+    transactionTime: command.occurredAt,
+    recordedAt,
+    actorId: command.actorId,
+    commandId: command.commandId,
+    reason: command.payload.reason,
+  };
+  return ok({
+    acknowledgement,
+    audit: {
+      aggregateType: "operational_close_exception_acknowledgement",
+      aggregateId: acknowledgement.id,
+      action: "operational_close.exception_acknowledged",
+      transactionTime: acknowledgement.transactionTime,
+      recordedAt,
+      before: null,
+      after: {
+        businessDate: acknowledgement.businessDate,
+        exceptionKind: acknowledgement.exceptionKind,
+        source: acknowledgement.source,
+        policyVersionId: acknowledgement.policyVersionId,
+      },
+      reason: acknowledgement.reason,
     },
   });
 }

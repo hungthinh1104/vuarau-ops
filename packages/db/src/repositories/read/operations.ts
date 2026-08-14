@@ -691,6 +691,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         stocktakeCounts: list(stocktakeCountRows),
         operationalCloses: closeBackup.operationalCloses,
         operationalCloseReopens: closeBackup.operationalCloseReopens,
+        operationalCloseExceptionAcknowledgements:
+          closeBackup.operationalCloseExceptionAcknowledgements,
         cashStatementMatches: closeBackup.cashStatementMatches,
         cashStatementMatchReversals: closeBackup.cashStatementMatchReversals,
       };

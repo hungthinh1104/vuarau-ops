@@ -541,6 +541,9 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
             ? []
             : [{ ...close.reopen, workspaceId, operationalCloseId: close.id }],
         ),
+        operationalCloseExceptionAcknowledgements: rows(
+          store.operationalCloseExceptionAcknowledgements.values(),
+        ),
         cashStatementMatches: rows(store.cashStatementMatches.values()).map(
           ({ reversal: _reversal, ...match }) => match,
         ),

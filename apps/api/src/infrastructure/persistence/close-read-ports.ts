@@ -1,5 +1,6 @@
 import type {
   CashStatementMatchDto,
+  OperationalCloseExceptionAcknowledgementDto,
   OperationalCloseDto,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
@@ -18,6 +19,13 @@ export type OperationalCloseReadRepository = {
   }): Promise<PageResult<OperationalCloseDto>>;
 };
 
+export type OperationalCloseExceptionAcknowledgementReadRepository = {
+  listForBusinessDate(
+    workspaceId: WorkspaceId,
+    businessDate: string,
+  ): Promise<readonly OperationalCloseExceptionAcknowledgementDto[]>;
+};
+
 export type CashStatementMatchReadRepository = {
   get(
     workspaceId: WorkspaceId,
@@ -33,5 +41,6 @@ export type CashStatementMatchReadRepository = {
 
 export type CloseReadRepositories = {
   readonly operationalCloseReads: OperationalCloseReadRepository;
+  readonly operationalCloseExceptionAcknowledgementReads: OperationalCloseExceptionAcknowledgementReadRepository;
   readonly cashStatementMatchReads: CashStatementMatchReadRepository;
 };

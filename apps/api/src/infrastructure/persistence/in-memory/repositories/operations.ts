@@ -94,6 +94,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.stocktakeSessions.values(),
           ...store.stocktakeCounts.values(),
           ...store.operationalCloses.values(),
+          ...store.operationalCloseExceptionAcknowledgements.values(),
           ...store.cashStatementMatches.values(),
         ].some((row) => row.workspaceId === workspaceId) ||
         store.accountEntries.some((row) => row.workspaceId === workspaceId) ||

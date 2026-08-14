@@ -107,6 +107,68 @@ export const operationalCloseReopens = pgTable(
   ],
 );
 
+/**
+ * An acknowledgement is a close-time operational fact, not a correction. It
+ * records which unresolved Board source the operator reviewed and why the day
+ * may continue with that known condition still visible.
+ */
+export const operationalCloseExceptionAcknowledgements = pgTable(
+  "operational_close_exception_acknowledgements",
+  {
+    id: uuid("id").notNull(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    businessDate: date("business_date", { mode: "string" }).notNull(),
+    exceptionKind: text("exception_kind").notNull(),
+    sourceKind: text("source_kind").notNull(),
+    sourceReference: text("source_reference").notNull(),
+    sourceId: text("source_id").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull(),
+    policyVersionId: uuid("policy_version_id").notNull(),
+    transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id").notNull(),
+    reason: text("reason").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    uniqueIndex("operational_close_exception_ack_identity_uq").on(
+      table.workspaceId,
+      table.businessDate,
+      table.exceptionKind,
+      table.sourceKind,
+      table.sourceId,
+    ),
+    index("operational_close_exception_ack_date_idx").on(
+      table.workspaceId,
+      table.businessDate,
+      table.recordedAt,
+    ),
+    foreignKey({
+      columns: [table.workspaceId, table.policyVersionId],
+      foreignColumns: [workspacePolicies.workspaceId, workspacePolicies.id],
+      name: "operational_close_exception_ack_workspace_policy_fk",
+    }),
+    check(
+      "operational_close_exception_ack_kind_ck",
+      sql`${table.exceptionKind} in ('unallocated_payment', 'fulfilment_remainder_unresolved', 'return_settlement_unresolved', 'reconciliation_variance')`,
+    ),
+    check(
+      "operational_close_exception_ack_source_kind_ck",
+      sql`${table.sourceKind} in ('sale', 'purchase', 'payment', 'delivery', 'workspace')`,
+    ),
+    check(
+      "operational_close_exception_ack_evidence_ck",
+      sql`cardinality(${table.evidenceReferences}) > 0`,
+    ),
+    workspaceCommandForeignKey(table, "operational_close_exception_ack_workspace_command_fk"),
+  ],
+);
+
 export const cashStatementMatches = pgTable(
   "cash_statement_matches",
   {

@@ -11,6 +11,7 @@ import {
   cashStatementMatchIdSchema,
   cashStatementMatchReversalIdSchema,
   commandIdSchema,
+  operationalCloseExceptionAcknowledgementIdSchema,
   operationalCloseIdSchema,
   operationalCloseReopenIdSchema,
   reconciliationObservationIdSchema,
@@ -27,6 +28,7 @@ import {
   operationsExceptionDefinitionSchema,
   operationsExceptionKindSchema,
   operationsExceptionSeveritySchema,
+  operationsExceptionSourceSchema,
 } from "../operations/exceptions.ts";
 
 export const OPERATIONAL_CLOSE_STATES = ["closed", "reopened"] as const;
@@ -63,6 +65,27 @@ export const reopenOperationalCloseCommandSchema = defineVersionedCommand(
 );
 export type ReopenOperationalCloseCommand = z.infer<typeof reopenOperationalCloseCommandSchema>;
 
+const operationalCloseExceptionSourceSchema = operationsExceptionSourceSchema.extend({
+  id: z.string().min(1),
+});
+
+const operationalCloseExceptionAcknowledgementPayloadSchema = z.object({
+  operationalCloseExceptionAcknowledgementId: operationalCloseExceptionAcknowledgementIdSchema,
+  businessDate: z.iso.date(),
+  exceptionKind: operationsExceptionKindSchema,
+  source: operationalCloseExceptionSourceSchema,
+  evidenceReferences: evidenceReferencesInputSchema.refine((refs) => refs.length > 0, {
+    message: "Acknowledging an exception requires evidence references.",
+  }),
+  reason: z.string().trim().min(1).max(500),
+});
+export const recordOperationalCloseExceptionAcknowledgementCommandSchema = defineCommand(
+  operationalCloseExceptionAcknowledgementPayloadSchema,
+);
+export type RecordOperationalCloseExceptionAcknowledgementCommand = z.infer<
+  typeof recordOperationalCloseExceptionAcknowledgementCommandSchema
+>;
+
 const closeReopenDtoSchema = z.object({
   id: operationalCloseReopenIdSchema,
   reason: z.string(),
@@ -93,6 +116,24 @@ export const operationalCloseDtoSchema = z.object({
 });
 export type OperationalCloseDto = z.infer<typeof operationalCloseDtoSchema>;
 
+export const operationalCloseExceptionAcknowledgementDtoSchema = z.object({
+  id: operationalCloseExceptionAcknowledgementIdSchema,
+  workspaceId: workspaceIdSchema,
+  businessDate: z.iso.date(),
+  exceptionKind: operationsExceptionKindSchema,
+  source: operationalCloseExceptionSourceSchema,
+  evidenceReferences: evidenceReferencesDtoSchema,
+  policyVersionId: workspacePolicyVersionIdSchema,
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+  reason: z.string(),
+});
+export type OperationalCloseExceptionAcknowledgementDto = z.infer<
+  typeof operationalCloseExceptionAcknowledgementDtoSchema
+>;
+
 export const operationalCloseGetInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   operationalCloseId: operationalCloseIdSchema,
@@ -119,6 +160,7 @@ export const OPERATIONAL_CLOSE_READINESS_BLOCKERS = [
   "missing_observation",
   "already_closed",
   "blocking_exception",
+  "unacknowledged_exception",
 ] as const;
 export const operationalCloseReadinessBlockerSchema = z.enum(OPERATIONAL_CLOSE_READINESS_BLOCKERS);
 export type OperationalCloseReadinessBlocker = z.infer<
@@ -132,6 +174,7 @@ export const operationalCloseExceptionSummarySchema = z.object({
   explanation: operationsExceptionDefinitionSchema.shape.explanation,
   nextAction: operationsExceptionDefinitionSchema.shape.nextAction,
   resolutionCondition: operationsExceptionDefinitionSchema.shape.resolutionCondition,
+  acknowledgedCount: z.int().nonnegative(),
 });
 export type OperationalCloseExceptionSummary = z.infer<
   typeof operationalCloseExceptionSummarySchema
@@ -144,6 +187,7 @@ export const operationalCloseReadinessSchema = z.object({
   state: z.enum(["ready", "blocked"]),
   blockers: z.array(operationalCloseReadinessBlockerSchema),
   exceptionSummary: z.array(operationalCloseExceptionSummarySchema),
+  acknowledgements: z.array(operationalCloseExceptionAcknowledgementDtoSchema),
   policyVersionId: workspacePolicyVersionIdSchema.nullable(),
   requiredObservationKinds: z.array(reconciliationObservationKindSchema),
   availableObservationKinds: z.array(reconciliationObservationKindSchema),

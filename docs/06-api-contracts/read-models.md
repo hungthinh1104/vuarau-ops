@@ -235,10 +235,15 @@ is not a balance, inventory or fulfilment mutation.
 the Vietnam business period from the workspace operational profile unless an
 explicit business date is supplied for historical review. It returns `ready` or
 `blocked` with stable blockers for missing/invalid policy, missing measurable
-observation kinds in the period, or an already closed revision. It includes the
-policy version, period, available/missing kinds and current close revision. It
-does not calculate a variance or choose observations for `RecordOperationalClose`;
-that command remains authoritative.
+observation kinds in the period, an already closed revision, a blocking exception,
+or an unacknowledged acknowledgeable exception. Each exception summary includes
+`acknowledgedCount`; the `acknowledgements` list contains the source-linked,
+append-only facts for that business date. An acknowledgement is evidence that
+the operator reviewed an unresolved condition, not a resolution: the Board row,
+source facts and canonical projections remain unchanged. It includes the policy
+version, period, available/missing kinds and current close revision. It does not
+calculate a variance or choose observations for `RecordOperationalClose`; that
+command remains authoritative.
 
 ## Read performance rules
 

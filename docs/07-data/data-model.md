@@ -309,11 +309,12 @@ references without becoming an inventory or customer-money source.
 inspected-intake source links without changing payable, quality-policy or
 inventory semantics. `quality_inspections.evidence_references` follows the same
 metadata-only rule.
-Backup V21 preserves operational profile, price rules, CostObservation,
+Backup V22 preserves operational profile, price rules, CostObservation,
 ReconciliationObservation, DebtObservation, CashAccount and all canonical cash source/
 movement rows plus workspace policy versions; it does not export `cash_balances`.
 It also preserves delivery-return settlements and fulfilment-remainder case
-lineage; restore validates the Sale and case links before rebuilding projections.
+lineage, plus source-linked operational close exception acknowledgements; restore
+validates the Sale, case, policy and Board-source links before rebuilding projections.
 V1–V11 remain restore-compatible with an empty policy collection.
 
 Backup V17 additionally exports and restores `demand_observations` and commercial

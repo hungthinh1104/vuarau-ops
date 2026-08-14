@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type {
   CashStatementMatchDto,
+  OperationalCloseExceptionAcknowledgementDto,
   OperationalCloseDto,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
@@ -8,6 +9,7 @@ import {
   cashStatementMatches,
   cashStatementMatchReversals,
   operationalCloses,
+  operationalCloseExceptionAcknowledgements,
   operationalCloseReopens,
 } from "../../schema/index.ts";
 import { fromIso } from "../row-mappers.ts";
@@ -135,6 +137,83 @@ export const createCloseWriteRepositories = (tx: Tx) => ({
         })
         .onConflictDoNothing()
         .returning({ id: operationalCloseReopens.id });
+      return rows.length === 1;
+    },
+  },
+  operationalCloseExceptionAcknowledgements: {
+    async lockIdentity(
+      workspaceId: WorkspaceId,
+      businessDate: string,
+      exceptionKind: OperationalCloseExceptionAcknowledgementDto["exceptionKind"],
+      sourceId: string,
+    ) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`operational-close-exception:${workspaceId}:${businessDate}:${exceptionKind}:${sourceId}`}, 0))`,
+      );
+    },
+    async findByIdentity(args: {
+      workspaceId: WorkspaceId;
+      businessDate: string;
+      exceptionKind: OperationalCloseExceptionAcknowledgementDto["exceptionKind"];
+      sourceId: string;
+    }) {
+      const row = (
+        await tx
+          .select()
+          .from(operationalCloseExceptionAcknowledgements)
+          .where(
+            and(
+              eq(operationalCloseExceptionAcknowledgements.workspaceId, args.workspaceId),
+              eq(operationalCloseExceptionAcknowledgements.businessDate, args.businessDate),
+              eq(operationalCloseExceptionAcknowledgements.exceptionKind, args.exceptionKind),
+              eq(operationalCloseExceptionAcknowledgements.sourceId, args.sourceId),
+            ),
+          )
+          .limit(1)
+      )[0];
+      if (row === undefined) return null;
+      return {
+        id: row.id as OperationalCloseExceptionAcknowledgementDto["id"],
+        workspaceId: row.workspaceId as OperationalCloseExceptionAcknowledgementDto["workspaceId"],
+        businessDate: row.businessDate,
+        exceptionKind:
+          row.exceptionKind as OperationalCloseExceptionAcknowledgementDto["exceptionKind"],
+        source: {
+          kind: row.sourceKind as OperationalCloseExceptionAcknowledgementDto["source"]["kind"],
+          reference: row.sourceReference,
+          id: row.sourceId,
+        },
+        evidenceReferences: row.evidenceReferences,
+        policyVersionId:
+          row.policyVersionId as OperationalCloseExceptionAcknowledgementDto["policyVersionId"],
+        transactionTime: row.transactionTime.toISOString(),
+        recordedAt: row.recordedAt.toISOString(),
+        actorId: row.actorId as OperationalCloseExceptionAcknowledgementDto["actorId"],
+        commandId: row.commandId as OperationalCloseExceptionAcknowledgementDto["commandId"],
+        reason: row.reason,
+      } satisfies OperationalCloseExceptionAcknowledgementDto;
+    },
+    async insert(acknowledgement: OperationalCloseExceptionAcknowledgementDto) {
+      const rows = await tx
+        .insert(operationalCloseExceptionAcknowledgements)
+        .values({
+          id: acknowledgement.id,
+          workspaceId: acknowledgement.workspaceId,
+          businessDate: acknowledgement.businessDate,
+          exceptionKind: acknowledgement.exceptionKind,
+          sourceKind: acknowledgement.source.kind,
+          sourceReference: acknowledgement.source.reference,
+          sourceId: acknowledgement.source.id,
+          evidenceReferences: [...acknowledgement.evidenceReferences],
+          policyVersionId: acknowledgement.policyVersionId,
+          transactionTime: fromIso(acknowledgement.transactionTime),
+          recordedAt: fromIso(acknowledgement.recordedAt),
+          actorId: acknowledgement.actorId,
+          commandId: acknowledgement.commandId,
+          reason: acknowledgement.reason,
+        })
+        .onConflictDoNothing()
+        .returning({ id: operationalCloseExceptionAcknowledgements.id });
       return rows.length === 1;
     },
   },

@@ -3,6 +3,7 @@ import {
   cashStatementMatches,
   cashStatementMatchReversals,
   operationalCloses,
+  operationalCloseExceptionAcknowledgements,
   operationalCloseReopens,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
@@ -10,6 +11,7 @@ import type { Tx } from "../shared/types.ts";
 type CloseBackupRows = {
   operationalCloses: Record<string, unknown>[];
   operationalCloseReopens: Record<string, unknown>[];
+  operationalCloseExceptionAcknowledgements: Record<string, unknown>[];
   cashStatementMatches: Record<string, unknown>[];
   cashStatementMatchReversals: Record<string, unknown>[];
 };
@@ -21,12 +23,16 @@ export async function readOperationsCloseBackup(
   tx: Tx,
   workspaceId: string,
 ): Promise<CloseBackupRows> {
-  const [closeRows, reopenRows, matchRows, reversalRows] = await Promise.all([
+  const [closeRows, reopenRows, acknowledgementRows, matchRows, reversalRows] = await Promise.all([
     tx.select().from(operationalCloses).where(eq(operationalCloses.workspaceId, workspaceId)),
     tx
       .select()
       .from(operationalCloseReopens)
       .where(eq(operationalCloseReopens.workspaceId, workspaceId)),
+    tx
+      .select()
+      .from(operationalCloseExceptionAcknowledgements)
+      .where(eq(operationalCloseExceptionAcknowledgements.workspaceId, workspaceId)),
     tx.select().from(cashStatementMatches).where(eq(cashStatementMatches.workspaceId, workspaceId)),
     tx
       .select()
@@ -58,6 +64,7 @@ export async function readOperationsCloseBackup(
       });
     }),
     operationalCloseReopens: reopenRows.map(plain),
+    operationalCloseExceptionAcknowledgements: acknowledgementRows.map(plain),
     cashStatementMatches: matchRows.map((row) =>
       plain({
         id: row.id,

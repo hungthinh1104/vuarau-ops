@@ -66,7 +66,7 @@ export function getOperationalCloseReadiness(
       const businessDate =
         input.businessDate ?? vietnamBusinessDateForInstant(asOf, profile.businessDayStartMinute);
       const period = vietnamBusinessDayRange(businessDate, profile.businessDayStartMinute);
-      const [policies, closePage, boardCounts, integrity] = await Promise.all([
+      const [policies, closePage, boardCounts, integrity, acknowledgements] = await Promise.all([
         repos.workspacePolicyReads.listAll(input.workspaceId),
         repos.operationalCloseReads.list({
           workspaceId: input.workspaceId,
@@ -81,6 +81,10 @@ export function getOperationalCloseReadiness(
           now: asOf,
         }),
         repos.operationsReads.integrity(input.workspaceId),
+        repos.operationalCloseExceptionAcknowledgementReads.listForBusinessDate(
+          input.workspaceId,
+          businessDate,
+        ),
       ]);
       const currentClose = closePage.rows[0] ?? null;
       const policy = resolvePolicyForDecision(
@@ -92,7 +96,11 @@ export function getOperationalCloseReadiness(
       let requiredObservationKinds: ReconciliationObservationKind[] = [];
       let policyVersionId: WorkspacePolicyVersionId | null = null;
       const blockers: (
-        "policy_unavailable" | "missing_observation" | "already_closed" | "blocking_exception"
+        | "policy_unavailable"
+        | "missing_observation"
+        | "already_closed"
+        | "blocking_exception"
+        | "unacknowledged_exception"
       )[] = [];
       if (policy === null) {
         blockers.push("policy_unavailable");
@@ -133,10 +141,23 @@ export function getOperationalCloseReadiness(
       };
       const exceptionSummary = OPERATIONS_EXCEPTION_KINDS.flatMap((kind) => {
         const count = exceptionCounts[kind];
-        return count > 0 ? [{ kind, count, ...operationsExceptionDefinition(kind) }] : [];
+        const acknowledgedCount = acknowledgements.filter(
+          (acknowledgement) => acknowledgement.exceptionKind === kind,
+        ).length;
+        return count > 0
+          ? [{ kind, count, acknowledgedCount, ...operationsExceptionDefinition(kind) }]
+          : [];
       });
       if (exceptionSummary.some((exception) => exception.closeImpact === "blocking"))
         blockers.push("blocking_exception");
+      if (
+        exceptionSummary.some(
+          (exception) =>
+            exception.closeImpact === "acknowledgeable" &&
+            exception.acknowledgedCount < exception.count,
+        )
+      )
+        blockers.push("unacknowledged_exception");
       return operationalCloseReadinessSchema.parse({
         workspaceId: input.workspaceId,
         businessDate,
@@ -145,6 +166,7 @@ export function getOperationalCloseReadiness(
         state: blockers.length === 0 ? "ready" : "blocked",
         blockers,
         exceptionSummary,
+        acknowledgements,
         policyVersionId,
         requiredObservationKinds,
         availableObservationKinds,

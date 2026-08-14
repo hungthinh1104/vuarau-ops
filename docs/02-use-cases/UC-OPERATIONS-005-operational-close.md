@@ -11,7 +11,9 @@ close fact, not a recalculation of any ledger.
 - Actor: owner or accountant.
 - Permission: `operations.close`.
 - Preconditions: an approved effective `operating_cycle_reconciliation` policy;
-  every required observation belongs to the workspace and is measurable.
+  every required observation belongs to the workspace and is measurable; every
+  acknowledgeable unresolved Board condition has an explicit source-linked
+  acknowledgement for the business date before close.
 - Input: close ID, business date, observation IDs, evidence references and reason.
 - State: an immutable `closed` row per revision, optionally followed by one
   append-only `reopened` fact; after reopen, one explicitly linked close revision
@@ -22,19 +24,23 @@ close fact, not a recalculation of any ledger.
 - Concurrency: reopen requires the current `expectedVersion`.
 - Effects: no customer/supplier ledger, CashMovement or InventoryMovement is
   created by the close itself.
-- Audit: record and reopen actions include actor, command, policy lineage and
-  evidence references.
+- Audit: record, reopen and exception-acknowledgement actions include actor,
+  command, policy lineage and evidence references. An acknowledgement preserves
+  the unresolved Board source and changes no ledger, inventory or fulfilment fact.
 
 ## Fail-closed paths
 
-Missing or malformed policy, missing observation, duplicate kind, foreign workspace,
-duplicate business date, disallowed reopen and stale version are rejected before a
-canonical close transition is written.
+Missing or malformed policy, missing observation, unacknowledged acknowledgeable
+exception, duplicate kind, foreign workspace, duplicate business date, disallowed
+reopen and stale version are rejected before a canonical close transition is
+written. Blocking or policy-blocked exceptions cannot be acknowledged as a close
+shortcut.
 
 ## UI states
 
 Operations shows only server-returned close state, period, observation count,
 policy version and reopen state. It also shows an explicit `ready` or `blocked`
 readiness result for the current or selected business date, including missing
-observation kinds and links to the policy or observation capture surface.
+observation kinds, unacknowledged exception count and links to the server-authored
+Board source or observation capture surface.
 Loading/error is explicit; the UI never infers a close from a healthy projection.

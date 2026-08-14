@@ -4,16 +4,37 @@ import {
   cashMovementIdSchema,
   defaultWorkspaceOperationalProfile,
   operationalCloseIdSchema,
+  type DeliveryId,
+  type DeliveryLineId,
+  type FulfilmentRemainderCaseId,
   type ReconciliationObservationId,
+  type SaleId,
+  type SaleLineId,
 } from "@vuarau/domain-contracts";
-import { ACTOR_ID, activeCustomer, TRANSACTION_TIME, WORKSPACE_ID } from "@vuarau/test-fixtures";
+import {
+  ACTOR_ID,
+  activeCustomer,
+  PRODUCT_CA_CHUA_ID,
+  QUALITY_GRADE_1_ID,
+  TRANSACTION_TIME,
+  WORKSPACE_ID,
+} from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
 import { approveWorkspacePolicy, createWorkspacePolicyDraft } from "../policy/policy.handlers.ts";
 import { recordReconciliationObservation } from "../evidence/evidence.handlers.ts";
+import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
+import { postSale } from "../sale/post-sale.handler.ts";
+import {
+  createDeliveryDraft,
+  dispatchDelivery,
+  recordFulfilmentRemainderCase,
+} from "../delivery/delivery.handlers.ts";
+import { getOperationsBoard } from "../dashboard/dashboard.queries.ts";
 import { createCashAccount } from "../cash/cash.handlers.ts";
 import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 import {
   recordOperationalClose,
+  recordOperationalCloseExceptionAcknowledgement,
   reopenOperationalClose,
   recordCashStatementMatch,
   reverseCashStatementMatch,
@@ -124,6 +145,210 @@ beforeEach(() => {
 
 // TC-CLOSE-002 TC-CLOSE-003
 describe("operational close", () => {
+  it("TC-CLOSE-009 — persists a source-linked acknowledgement without clearing the unresolved exception", async () => {
+    await approvePolicy("operating_cycle_reconciliation", {
+      contractVersion: 1,
+      parameters: {
+        strategy: "observation_signoff",
+        requiredObservationKinds: ["cash_count"],
+        allowReopen: true,
+      },
+    });
+    const saleId = uuid<SaleId>();
+    const saleLineId = uuid<SaleLineId>();
+    const deliveryId = uuid<DeliveryId>();
+    const deliveryLineId = uuid<DeliveryLineId>();
+    const openCaseId = uuid<FulfilmentRemainderCaseId>();
+    expect(
+      await createSaleDraft(harness.ctx, {
+        ...envelope("ack-sale-draft"),
+        payload: {
+          saleId,
+          customerId: activeCustomer.id,
+          currency: "VND",
+          lines: [
+            {
+              lineId: saleLineId,
+              productId: PRODUCT_CA_CHUA_ID,
+              productName: "Cà chua",
+              qualityGradeId: QUALITY_GRADE_1_ID,
+              qualityGradeName: "Loại 1",
+              quantity: { valueScaled: 100_000, unit: "kg" },
+              unitPrice: { amountMinor: 10_000, currency: "VND" },
+            },
+          ],
+          note: null,
+          evidenceReferences: [],
+          dueAt: null,
+          replacesSaleId: null,
+        },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      await postSale(harness.ctx, {
+        ...envelope("ack-sale-post"),
+        expectedVersion: 1,
+        payload: { saleId },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      await createDeliveryDraft(harness.ctx, {
+        ...envelope("ack-delivery-draft"),
+        payload: {
+          deliveryId,
+          saleId,
+          lines: [
+            {
+              deliveryLineId,
+              saleLineId,
+              productId: PRODUCT_CA_CHUA_ID,
+              qualityGradeId: QUALITY_GRADE_1_ID,
+              quantity: { valueScaled: 60_000, unit: "kg" },
+            },
+          ],
+          note: null,
+          evidenceReferences: ["dispatch-sheet://close-ack/001"],
+        },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      await dispatchDelivery(harness.ctx, {
+        ...envelope("ack-delivery-dispatch"),
+        expectedVersion: 1,
+        payload: { deliveryId },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      await recordFulfilmentRemainderCase(harness.ctx, {
+        ...envelope("ack-remainder-open"),
+        payload: {
+          fulfilmentRemainderCaseId: openCaseId,
+          saleId,
+          caseKind: "opened",
+          outcome: null,
+          reason: "Phần còn lại cần được quyết định tại chốt ngày.",
+          relatedCaseId: null,
+          evidenceReferences: ["review://close-ack/001"],
+        },
+      }),
+    ).toMatchObject({ ok: true });
+
+    const board = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      filter: "fulfilment_remainder_unresolved",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(board.ok).toBe(true);
+    if (!board.ok) return;
+    const exception = board.value.page.items[0]?.exceptions.find(
+      (item) => item.kind === "fulfilment_remainder_unresolved",
+    );
+    expect(exception).toBeDefined();
+    if (exception === undefined) return;
+
+    const observationId = await recordObservation("cash_count");
+    const before = await getOperationalCloseReadiness(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      businessDate: "2026-07-20",
+    });
+    expect(before).toMatchObject({
+      ok: true,
+      value: { state: "blocked", blockers: ["unacknowledged_exception"] },
+    });
+
+    const acknowledgementInput = {
+      ...envelope("ack-remainder"),
+      payload: {
+        operationalCloseExceptionAcknowledgementId: uuid(),
+        businessDate: "2026-07-20",
+        exceptionKind: exception.kind,
+        source: exception.source,
+        evidenceReferences: ["review://close-ack/002"],
+        reason: "Đã nhìn thấy phần còn lại và chấp nhận tiếp tục với việc chưa giải quyết.",
+      },
+    } as const;
+    const acknowledged = await recordOperationalCloseExceptionAcknowledgement(
+      harness.ctx,
+      acknowledgementInput,
+    );
+    expect(acknowledged).toMatchObject({
+      ok: true,
+      value: {
+        businessDate: "2026-07-20",
+        exceptionKind: "fulfilment_remainder_unresolved",
+        source: exception.source,
+      },
+    });
+    expect(
+      await recordOperationalCloseExceptionAcknowledgement(harness.ctx, acknowledgementInput),
+    ).toEqual(acknowledged);
+    const duplicateSource = await recordOperationalCloseExceptionAcknowledgement(harness.ctx, {
+      ...acknowledgementInput,
+      commandId: uuid(),
+      idempotencyKey: "close-ack-remainder-different-command",
+      payload: {
+        ...acknowledgementInput.payload,
+        operationalCloseExceptionAcknowledgementId: uuid(),
+      },
+    });
+    expect(duplicateSource).toMatchObject({
+      ok: false,
+      error: { code: "OPERATIONAL_CLOSE_EXCEPTION_ACKNOWLEDGEMENT_ALREADY_RECORDED" },
+    });
+
+    const after = await getOperationalCloseReadiness(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      businessDate: "2026-07-20",
+    });
+    expect(after).toMatchObject({
+      ok: true,
+      value: {
+        state: "ready",
+        blockers: [],
+        acknowledgements: [
+          expect.objectContaining({ exceptionKind: "fulfilment_remainder_unresolved" }),
+        ],
+        exceptionSummary: [
+          expect.objectContaining({
+            kind: "fulfilment_remainder_unresolved",
+            acknowledgedCount: 1,
+          }),
+        ],
+      },
+    });
+    expect(after.ok && after.value.missingObservationKinds).toEqual([]);
+    expect(
+      await recordOperationalClose(harness.ctx, {
+        ...envelope("ack-close"),
+        payload: {
+          operationalCloseId: uuid(),
+          businessDate: "2026-07-20",
+          observationIds: [observationId],
+          evidenceReferences: ["review://close-ack/close"],
+          reason: "Đóng ngày với phần còn lại đã được ghi nhận là chưa giải quyết.",
+        },
+      }),
+    ).toMatchObject({ ok: true, value: { state: "closed" } });
+    expect(
+      await getOperationsBoard(harness.ctx, {
+        workspaceId: WORKSPACE_ID,
+        filter: "fulfilment_remainder_unresolved",
+        sort: "updated_desc",
+        search: "",
+        cursor: null,
+        limit: 20,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { page: { items: [expect.objectContaining({ id: saleId })] } },
+    });
+    expect(harness.db.inventoryMovementRecords()).toHaveLength(1);
+    expect(harness.db.entriesFor(WORKSPACE_ID, activeCustomer.id)).toHaveLength(1);
+  });
+
   it("TC-CLOSE-008 — reports server-authored blockers before an operational close can be recorded", async () => {
     const noPolicy = await getOperationalCloseReadiness(harness.ctx, { workspaceId: WORKSPACE_ID });
     expect(noPolicy).toMatchObject({

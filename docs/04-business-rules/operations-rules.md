@@ -161,9 +161,11 @@ from `customer_account_entries` and then runs the workspace integrity read. A
 non-healthy result is a failure, not a warning. Retrying the same restore command
 returns its original receipt and does not insert another copy.
 
-Backup V21 also carries append-only delivery-return-settlement and
-fulfilment-remainder-case facts, so recovery does not reopen an explicitly
-resolved return or lose a remainder decision.
+Backup V22 also carries append-only delivery-return-settlement,
+fulfilment-remainder-case and source-linked operational-close-acknowledgement
+facts, so recovery does not reopen an explicitly resolved return, lose a
+remainder decision or remove close review evidence. Acknowledgements remain
+review facts; restore does not clear the unresolved Board conditions.
 
 This is application-level logical recovery. Physical database restore and PITR
 remain deployment infrastructure.

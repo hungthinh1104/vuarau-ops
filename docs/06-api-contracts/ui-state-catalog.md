@@ -122,9 +122,10 @@ or silently resend a command. The signal remains visible in the compact mobile
 header as well as the desktop header.
 
 Operations close readiness is a server-authored `ready` or `blocked` condition.
-When blocked, the screen names the policy, observation or existing-close reason;
-it never treats a healthy projection or a failed read as proof that closing is
-allowed.
+When blocked, the screen names the policy, observation, blocking exception,
+unacknowledged exception or existing-close reason; it never treats a healthy
+projection or a failed read as proof that closing is allowed. An acknowledgement
+is a source-linked review fact and does not remove the Board exception.
 
 The Operations Board separates ordinary workflow state from unresolved
 consequence. `needs_delivery`, `in_delivery`, `needs_receiving`, `awaiting_payment`

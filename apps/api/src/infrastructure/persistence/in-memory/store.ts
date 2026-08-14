@@ -31,6 +31,7 @@ import type {
   PaymentAllocationDto,
   PaymentAllocationReversalDto,
   OperationalCloseDto,
+  OperationalCloseExceptionAcknowledgementDto,
   CashStatementMatchDto,
 } from "@vuarau/domain-contracts";
 import type {
@@ -184,6 +185,10 @@ export type Store = {
   stocktakeSessions: Map<string, StocktakeSessionState>;
   stocktakeCounts: Map<string, StocktakeCountState>;
   operationalCloses: Map<string, OperationalCloseDto>;
+  operationalCloseExceptionAcknowledgements: Map<
+    string,
+    OperationalCloseExceptionAcknowledgementDto
+  >;
   cashStatementMatches: Map<string, CashStatementMatchDto>;
 };
 
@@ -248,6 +253,7 @@ export function emptyStore(): Store {
     stocktakeSessions: new Map(),
     stocktakeCounts: new Map(),
     operationalCloses: new Map(),
+    operationalCloseExceptionAcknowledgements: new Map(),
     cashStatementMatches: new Map(),
   };
 }

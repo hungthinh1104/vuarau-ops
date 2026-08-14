@@ -89,7 +89,11 @@ import type {
   DemandObservationRepository,
 } from "./evidence-ports.ts";
 import type { WorkspacePolicyRepository } from "./policy-ports.ts";
-import type { CashStatementMatchRepository, OperationalCloseRepository } from "./close-ports.ts";
+import type {
+  CashStatementMatchRepository,
+  OperationalCloseExceptionAcknowledgementRepository,
+  OperationalCloseRepository,
+} from "./close-ports.ts";
 import type { OperationsRepository } from "./operations-ports.ts";
 import type { DeliveryReturnSettlementRepository } from "./delivery-return-settlement-ports.ts";
 import type { FulfilmentRemainderCaseRepository } from "./fulfilment-remainder-ports.ts";
@@ -657,6 +661,7 @@ export type Repositories = ReadRepositories & {
   readonly cashMovements: CashMovementRepository;
   readonly cashBalances: CashBalanceRepository;
   readonly operationalCloses: OperationalCloseRepository;
+  readonly operationalCloseExceptionAcknowledgements: OperationalCloseExceptionAcknowledgementRepository;
   readonly cashStatementMatches: CashStatementMatchRepository;
   readonly qualityIssueCodes: QualityIssueCodeRepository;
   readonly goodsArrivals: GoodsArrivalRepository;

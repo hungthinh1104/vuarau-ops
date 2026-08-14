@@ -84,7 +84,10 @@ import {
 } from "../../../modules/account/account.queries.ts";
 import { getOperationalReport } from "../../../modules/report/report.queries.ts";
 import { getOperationsBoard } from "../../../modules/dashboard/dashboard.queries.ts";
-import { recordOperationalClose } from "../../../modules/close/close.handlers.ts";
+import {
+  recordOperationalClose,
+  recordOperationalCloseExceptionAcknowledgement,
+} from "../../../modules/close/close.handlers.ts";
 import { getOperationalCloseReadiness } from "../../../modules/close/close.queries.ts";
 import {
   exportWorkspaceBackup,
@@ -760,6 +763,36 @@ describe.skipIf(skipWithoutDatabase())("canonical synthetic depot day against Po
         })
       ).ok,
     ).toBe(true);
+    const unresolvedReturn = await getOperationsBoard(context(), {
+      workspaceId: ctx.workspaceId,
+      filter: "return_settlement_unresolved",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(unresolvedReturn.ok).toBe(true);
+    if (unresolvedReturn.ok) {
+      const source = unresolvedReturn.value.page.items[0]?.exceptions.find(
+        (exception) => exception.kind === "return_settlement_unresolved",
+      )?.source;
+      expect(source).toBeDefined();
+      if (source?.id !== null && source !== undefined) {
+        expect(
+          await recordOperationalCloseExceptionAcknowledgement(context(), {
+            ...command("return-settlement-close-ack"),
+            payload: {
+              operationalCloseExceptionAcknowledgementId: crypto.randomUUID(),
+              businessDate: "2026-07-29",
+              exceptionKind: "return_settlement_unresolved",
+              source: { ...source, id: source.id },
+              evidenceReferences: ["rehearsal://return-settlement-close-ack"],
+              reason: "Đã ghi nhận hàng trả còn chờ quyết định tiền.",
+            },
+          }),
+        ).toMatchObject({ ok: true });
+      }
+    }
     const missingCloseEvidence = await getOperationalCloseReadiness(context(), {
       workspaceId: ctx.workspaceId,
       businessDate: "2026-07-29",

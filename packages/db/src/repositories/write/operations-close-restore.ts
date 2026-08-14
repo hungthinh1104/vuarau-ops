@@ -1,8 +1,9 @@
-import type { WorkspaceBackupV19 } from "@vuarau/domain-contracts";
+import type { WorkspaceBackupV22 } from "@vuarau/domain-contracts";
 import {
   cashStatementMatches,
   cashStatementMatchReversals,
   operationalCloses,
+  operationalCloseExceptionAcknowledgements,
   operationalCloseReopens,
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
@@ -10,7 +11,7 @@ import type { ScopedRow } from "./operations-payment-allocation.ts";
 
 export async function restoreCloseFacts(
   tx: Tx,
-  payload: WorkspaceBackupV19["payload"],
+  payload: WorkspaceBackupV22["payload"],
   scoped: ScopedRow,
   date: (value: unknown) => Date,
 ): Promise<void> {
@@ -45,6 +46,24 @@ export async function restoreCloseFacts(
           recordedAt: date(row["recordedAt"]),
         };
       }) as unknown as (typeof operationalCloseReopens.$inferInsert)[],
+    );
+  }
+  if (payload.operationalCloseExceptionAcknowledgements.length > 0) {
+    await tx.insert(operationalCloseExceptionAcknowledgements).values(
+      payload.operationalCloseExceptionAcknowledgements.map((raw) => {
+        const row = scoped(raw);
+        const source = row["source"] as Record<string, unknown> | undefined;
+        return {
+          ...row,
+          exceptionKind: row["exceptionKind"],
+          sourceKind: row["sourceKind"] ?? source?.["kind"],
+          sourceReference: row["sourceReference"] ?? source?.["reference"],
+          sourceId: row["sourceId"] ?? source?.["id"],
+          evidenceReferences: row["evidenceReferences"] ?? [],
+          transactionTime: date(row["transactionTime"]),
+          recordedAt: date(row["recordedAt"]),
+        };
+      }) as unknown as (typeof operationalCloseExceptionAcknowledgements.$inferInsert)[],
     );
   }
   if (payload.cashStatementMatches.length > 0) {

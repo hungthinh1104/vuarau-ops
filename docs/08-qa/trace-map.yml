@@ -1618,13 +1618,27 @@ use_cases:
     doc: docs/02-use-cases/UC-OPERATIONS-005-operational-close.md
     rules: [BR-CLOSE-001, BR-CLOSE-002, BR-CLOSE-003, BR-CLOSE-004, BR-CASH-014, BR-OPS-010]
     cases: []
-    tests: [TC-CLOSE-001, TC-CLOSE-002, TC-CLOSE-003, TC-CLOSE-004, TC-OPS-026, TC-E2E-034]
+    tests:
+      [
+        TC-CLOSE-001,
+        TC-CLOSE-002,
+        TC-CLOSE-003,
+        TC-CLOSE-004,
+        TC-CLOSE-008,
+        TC-CLOSE-009,
+        TC-CLOSE-DB-003,
+        TC-OPS-026,
+        TC-E2E-034,
+      ]
     implementation:
       - packages/domain-contracts/src/close/index.ts
       - packages/domain-kernel/src/close/index.ts
       - apps/api/src/modules/close/close.handlers.ts
       - apps/api/src/modules/close/close.queries.ts
       - packages/db/src/schema/close.ts
+      - packages/db/src/repositories/write/close.ts
+      - packages/db/src/repositories/read/close.ts
+      - apps/api/src/infrastructure/trpc/routers/operations.ts
       - apps/web/src/ui/controllers/operations-controller.tsx
       - apps/web/src/ui/screens/operations-view.tsx
 
@@ -4820,11 +4834,17 @@ contract_tests:
   TC-CLOSE-008:
     title: Close readiness names policy, missing observation and existing-close blockers
     file: apps/api/src/modules/close/close.app.test.ts
+  TC-CLOSE-009:
+    title: Source-linked close acknowledgement preserves the unresolved Board exception and projections
+    file: apps/api/src/modules/close/close.app.test.ts
+  TC-CLOSE-DB-003:
+    title: PostgreSQL persists and replays close acknowledgement while the Board remains unresolved
+    file: apps/api/src/infrastructure/persistence/drizzle/close-exception-ack.db.test.ts
   TC-CLOSE-006:
     title: Close accepts observed-only facts and rejects observations outside the business period
     file: packages/domain-kernel/src/close/close.test.ts
   TC-OPS-018:
-    title: Backup V21 carries close, reopen, statement-match, reversal and operational decision lineage
+    title: Backup V22 carries close, reopen, acknowledgement, statement-match, reversal and operational decision lineage
     file: apps/api/src/modules/operations/operations.app.test.ts
 
   TC-PROPERTY-MONEY-001:

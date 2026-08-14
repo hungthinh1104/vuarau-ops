@@ -1,7 +1,7 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV21,
+  WorkspaceBackupV22,
 } from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
@@ -486,7 +486,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
       }))
   );
 }
-function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV21["payload"] {
+function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV22["payload"] {
   const payload = command.payload.backup.payload;
   const operationalProfile =
     "operationalProfile" in payload
@@ -562,6 +562,10 @@ function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV21[
     operationalCloses: "operationalCloses" in payload ? payload.operationalCloses : [],
     operationalCloseReopens:
       "operationalCloseReopens" in payload ? payload.operationalCloseReopens : [],
+    operationalCloseExceptionAcknowledgements:
+      "operationalCloseExceptionAcknowledgements" in payload
+        ? payload.operationalCloseExceptionAcknowledgements
+        : [],
     cashStatementMatches: "cashStatementMatches" in payload ? payload.cashStatementMatches : [],
     cashStatementMatchReversals:
       "cashStatementMatchReversals" in payload ? payload.cashStatementMatchReversals : [],

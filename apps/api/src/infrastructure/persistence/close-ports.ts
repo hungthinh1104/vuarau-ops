@@ -1,9 +1,26 @@
 import type {
   CashStatementMatchDto,
   CashStatementMatchReversalId,
+  OperationalCloseExceptionAcknowledgementDto,
   OperationalCloseDto,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
+
+export type OperationalCloseExceptionAcknowledgementRepository = {
+  lockIdentity(
+    workspaceId: WorkspaceId,
+    businessDate: string,
+    exceptionKind: OperationalCloseExceptionAcknowledgementDto["exceptionKind"],
+    sourceId: string,
+  ): Promise<void>;
+  findByIdentity(args: {
+    workspaceId: WorkspaceId;
+    businessDate: string;
+    exceptionKind: OperationalCloseExceptionAcknowledgementDto["exceptionKind"];
+    sourceId: string;
+  }): Promise<OperationalCloseExceptionAcknowledgementDto | null>;
+  insert(acknowledgement: OperationalCloseExceptionAcknowledgementDto): Promise<boolean>;
+};
 
 export type OperationalCloseRepository = {
   /** Shared lock used by ordinary commands for the close check. */

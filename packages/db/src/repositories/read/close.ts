@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 import type {
   CashStatementMatchDto,
+  OperationalCloseExceptionAcknowledgementDto,
   OperationalCloseDto,
   WorkspaceId,
 } from "@vuarau/domain-contracts";
@@ -8,6 +9,7 @@ import {
   cashStatementMatches,
   cashStatementMatchReversals,
   operationalCloses,
+  operationalCloseExceptionAcknowledgements,
   operationalCloseReopens,
 } from "../../schema/index.ts";
 import { toCashStatementMatchDto, toOperationalCloseDto } from "../shared/close-mappers.ts";
@@ -84,6 +86,47 @@ export const createCloseReadRepositories = (tx: Tx) => ({
         }),
       );
       return paged(result, args.page, (close) => ({ sortValue: close.businessDate, id: close.id }));
+    },
+  },
+  operationalCloseExceptionAcknowledgementReads: {
+    async listForBusinessDate(workspaceId: WorkspaceId, businessDate: string) {
+      const rows = await tx
+        .select()
+        .from(operationalCloseExceptionAcknowledgements)
+        .where(
+          and(
+            eq(operationalCloseExceptionAcknowledgements.workspaceId, workspaceId),
+            eq(operationalCloseExceptionAcknowledgements.businessDate, businessDate),
+          ),
+        )
+        .orderBy(
+          desc(operationalCloseExceptionAcknowledgements.recordedAt),
+          desc(operationalCloseExceptionAcknowledgements.id),
+        );
+      return rows.map(
+        (row) =>
+          ({
+            id: row.id as OperationalCloseExceptionAcknowledgementDto["id"],
+            workspaceId:
+              row.workspaceId as OperationalCloseExceptionAcknowledgementDto["workspaceId"],
+            businessDate: row.businessDate,
+            exceptionKind:
+              row.exceptionKind as OperationalCloseExceptionAcknowledgementDto["exceptionKind"],
+            source: {
+              kind: row.sourceKind as OperationalCloseExceptionAcknowledgementDto["source"]["kind"],
+              reference: row.sourceReference,
+              id: row.sourceId,
+            },
+            evidenceReferences: row.evidenceReferences,
+            policyVersionId:
+              row.policyVersionId as OperationalCloseExceptionAcknowledgementDto["policyVersionId"],
+            transactionTime: row.transactionTime.toISOString(),
+            recordedAt: row.recordedAt.toISOString(),
+            actorId: row.actorId as OperationalCloseExceptionAcknowledgementDto["actorId"],
+            commandId: row.commandId as OperationalCloseExceptionAcknowledgementDto["commandId"],
+            reason: row.reason,
+          }) satisfies OperationalCloseExceptionAcknowledgementDto,
+      );
     },
   },
   cashStatementMatchReads: {

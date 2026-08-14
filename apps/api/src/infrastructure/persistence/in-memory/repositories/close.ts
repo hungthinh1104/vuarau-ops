@@ -4,7 +4,10 @@ import { key } from "../store.ts";
 
 export const createCloseRepositories = (
   store: Store,
-): Pick<Repositories, "operationalCloses" | "cashStatementMatches"> => ({
+): Pick<
+  Repositories,
+  "operationalCloses" | "operationalCloseExceptionAcknowledgements" | "cashStatementMatches"
+> => ({
   operationalCloses: {
     lockBusinessDateShared: async () => undefined,
     lockBusinessDateExclusive: async () => undefined,
@@ -60,6 +63,42 @@ export const createCloseRepositories = (
         version: current.version + 1,
         reopen: { ...reopen, evidenceReferences: [...reopen.evidenceReferences] },
       });
+      return true;
+    },
+  },
+  operationalCloseExceptionAcknowledgements: {
+    lockIdentity: async () => undefined,
+    findByIdentity: async ({ workspaceId, businessDate, exceptionKind, sourceId }) =>
+      [...store.operationalCloseExceptionAcknowledgements.values()].find(
+        (acknowledgement) =>
+          acknowledgement.workspaceId === workspaceId &&
+          acknowledgement.businessDate === businessDate &&
+          acknowledgement.exceptionKind === exceptionKind &&
+          acknowledgement.source.id === sourceId,
+      ) ?? null,
+    insert: async (acknowledgement) => {
+      const duplicate = [...store.operationalCloseExceptionAcknowledgements.values()].some(
+        (current) =>
+          current.workspaceId === acknowledgement.workspaceId &&
+          current.businessDate === acknowledgement.businessDate &&
+          current.exceptionKind === acknowledgement.exceptionKind &&
+          current.source.id === acknowledgement.source.id,
+      );
+      if (
+        duplicate ||
+        store.operationalCloseExceptionAcknowledgements.has(
+          key(acknowledgement.workspaceId, acknowledgement.id),
+        )
+      )
+        return false;
+      store.operationalCloseExceptionAcknowledgements.set(
+        key(acknowledgement.workspaceId, acknowledgement.id),
+        {
+          ...acknowledgement,
+          evidenceReferences: [...acknowledgement.evidenceReferences],
+          source: { ...acknowledgement.source },
+        },
+      );
       return true;
     },
   },

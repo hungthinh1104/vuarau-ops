@@ -1,8 +1,10 @@
 import type {
   CashStatementMatchDto,
   CommandEnvelope,
+  OperationalCloseExceptionAcknowledgementDto,
   OperationalCloseDto,
   RecordCashStatementMatchCommand,
+  RecordOperationalCloseExceptionAcknowledgementCommand,
   RecordOperationalCloseCommand,
   ReopenOperationalCloseCommand,
   ReverseCashStatementMatchCommand,
@@ -12,15 +14,18 @@ import type {
 import {
   cashStatementMatchDtoSchema,
   cashCustodyDepositPolicyDefinitionSchema,
+  operationalCloseExceptionAcknowledgementDtoSchema,
   operationalClosePolicyDefinitionSchema,
   operationalCloseDtoSchema,
   recordCashStatementMatchCommandSchema,
+  recordOperationalCloseExceptionAcknowledgementCommandSchema,
   recordOperationalCloseCommandSchema,
   reopenOperationalCloseCommandSchema,
   reverseCashStatementMatchCommandSchema,
 } from "@vuarau/domain-contracts";
 import {
   decideRecordCashStatementMatch,
+  decideRecordOperationalCloseExceptionAcknowledgement,
   decideRecordOperationalClose,
   decideReopenOperationalClose,
   decideReverseCashStatementMatch,
@@ -189,6 +194,106 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
         ...decision.value.audit,
       });
       return ok(decision.value.close);
+    },
+  });
+}
+
+export function recordOperationalCloseExceptionAcknowledgement(
+  ctx: CommandContext,
+  input: unknown,
+) {
+  return runCommand<
+    RecordOperationalCloseExceptionAcknowledgementCommand,
+    OperationalCloseExceptionAcknowledgementDto
+  >({
+    commandType: "RecordOperationalCloseExceptionAcknowledgement",
+    schema: recordOperationalCloseExceptionAcknowledgementCommandSchema,
+    resultSchema: operationalCloseExceptionAcknowledgementDtoSchema,
+    input,
+    ctx,
+    requiredPermission: "operations.close",
+    businessDayPolicy: "bypass",
+    profileLock: "none",
+    execute: async ({ command, repos, recordedAt, operationalProfile }) => {
+      await repos.operationalCloses.lockBusinessDateExclusive(
+        command.workspaceId,
+        command.payload.businessDate,
+      );
+      const period = vietnamBusinessDayRange(
+        command.payload.businessDate,
+        operationalProfile.businessDayStartMinute,
+      );
+      const policy = await effectiveClosePolicy(repos, command.workspaceId, period.end, recordedAt);
+      if (!policy.ok) return policy;
+      const currentClose = await repos.operationalCloses.findByBusinessDate(
+        command.workspaceId,
+        command.payload.businessDate,
+      );
+      if (currentClose?.state === "closed") {
+        return err(
+          "OPERATIONAL_CLOSE_ALREADY_EXISTS",
+          "A new close-time acknowledgement cannot be added after the day is closed.",
+        );
+      }
+      const identity = {
+        workspaceId: command.workspaceId,
+        businessDate: command.payload.businessDate,
+        exceptionKind: command.payload.exceptionKind,
+        sourceId: command.payload.source.id,
+      } as const;
+      await repos.operationalCloseExceptionAcknowledgements.lockIdentity(
+        identity.workspaceId,
+        identity.businessDate,
+        identity.exceptionKind,
+        identity.sourceId,
+      );
+      const existing =
+        await repos.operationalCloseExceptionAcknowledgements.findByIdentity(identity);
+      if (existing !== null) {
+        return err(
+          "OPERATIONAL_CLOSE_EXCEPTION_ACKNOWLEDGEMENT_ALREADY_RECORDED",
+          "This unresolved source has already been acknowledged for the business date.",
+        );
+      }
+      const board = await repos.dashboardReads.operationsBoard({
+        workspaceId: command.workspaceId,
+        filter: command.payload.exceptionKind,
+        sort: "updated_desc",
+        search: command.payload.source.reference,
+        cursor: null,
+        limit: 20,
+        page: { after: null, limit: 20 },
+        now: recordedAt,
+      });
+      const sourceExists = board.page.items.some(
+        (row) =>
+          row.kind === command.payload.source.kind &&
+          row.id === command.payload.source.id &&
+          row.reference === command.payload.source.reference &&
+          row.exceptions.some((exception) => exception.kind === command.payload.exceptionKind),
+      );
+      const decision = decideRecordOperationalCloseExceptionAcknowledgement(
+        command,
+        policy.value.policy.id,
+        sourceExists,
+        recordedAt,
+      );
+      if (!decision.ok) return decision;
+      if (
+        !(await repos.operationalCloseExceptionAcknowledgements.insert(
+          decision.value.acknowledgement,
+        ))
+      ) {
+        return err(
+          "OPERATIONAL_CLOSE_EXCEPTION_ACKNOWLEDGEMENT_ALREADY_RECORDED",
+          "This unresolved source has already been acknowledged for the business date.",
+        );
+      }
+      await repos.audit.append({
+        ...auditBase(command, recordedAt),
+        ...decision.value.audit,
+      });
+      return ok(decision.value.acknowledgement);
     },
   });
 }

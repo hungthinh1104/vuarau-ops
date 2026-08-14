@@ -215,7 +215,9 @@ function CloseReadinessPanel(props: {
   const readiness = props.readiness;
   if (readiness.state === "ready") {
     const acknowledged = readiness.exceptionSummary.filter(
-      (exception) => exception.closeImpact !== "informational",
+      (exception) =>
+        exception.closeImpact === "acknowledgeable" &&
+        exception.acknowledgedCount >= exception.count,
     );
     return (
       <section className="rounded-card border border-border bg-surface p-4">
@@ -228,11 +230,13 @@ function CloseReadinessPanel(props: {
         </p>
         {acknowledged.length > 0 ? (
           <div className="mt-3 rounded-card border border-warning/30 bg-warning-soft p-3">
-            <p className="text-body-sm font-medium">Có ngoại lệ cần ghi nhận trước khi chốt:</p>
+            <p className="text-body-sm font-medium">
+              Ngày sẽ chốt với các việc còn mở đã được ghi nhận:
+            </p>
             <ul className="mt-2 grid gap-2 text-body-sm">
               {acknowledged.map((exception) => (
                 <li key={exception.kind}>
-                  {exception.count} việc: {exception.explanation} {exception.nextAction}
+                  {exception.count} việc: {exception.explanation} Đã lưu lý do và nguồn kiểm tra.
                 </li>
               ))}
             </ul>
@@ -272,6 +276,21 @@ function CloseReadinessPanel(props: {
                 <li key={exception.kind}>
                   {exception.count} việc chưa giải quyết: {exception.explanation}{" "}
                   {exception.nextAction}
+                </li>
+              ))
+          : null}
+        {readiness.blockers.includes("unacknowledged_exception")
+          ? readiness.exceptionSummary
+              .filter(
+                (exception) =>
+                  exception.closeImpact === "acknowledgeable" &&
+                  exception.acknowledgedCount < exception.count,
+              )
+              .map((exception) => (
+                <li key={exception.kind}>
+                  {exception.count - exception.acknowledgedCount} việc còn mở cần được ghi nhận
+                  trước khi chốt.{" "}
+                  <Link href={`/operations-board?filter=${exception.kind}`}>Mở bảng việc</Link>
                 </li>
               ))
           : null}

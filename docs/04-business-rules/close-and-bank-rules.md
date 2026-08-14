@@ -38,12 +38,14 @@ profile, or accepts an explicit business date for historical review. It reports
 observation kind has no measurable observation inside that business period, when
 a closed revision already exists, or when the Operations Board exposes a
 server-authored unresolved condition whose policy classification is `blocking`.
-A reopened revision is not itself a blocker. The read exposes the policy lineage,
-period, available and missing observation kinds, current close revision and the
-canonical exception summary. Acknowledgeable or informational conditions are
-reported for review and do not change balance, inventory or fulfilment truth; the
-read does not calculate a variance, select observations for a command, or replace
-the final close decision.
+A reopened revision is not itself a blocker. Acknowledgeable conditions also
+block close until an authorized operator records a source-linked, append-only
+acknowledgement with evidence and policy lineage. The readiness read exposes the
+acknowledgement list and per-exception acknowledged count; acknowledging does not
+resolve or hide the Board condition and does not change balance, inventory or
+fulfilment truth. Informational conditions remain review signals. The read does
+not calculate a variance, select observations for a command, or replace the final
+close decision.
 
 ### BR-CASH-012 — Statement match is exact and financial-neutral
 
@@ -64,8 +66,9 @@ them without creating a cash movement or ledger entry.
 
 ### BR-CASH-014 — Backup and restore preserve reconciliation lineage
 
-Backup V21 carries close, reopen, statement-match, statement-reversal,
-delivery-return-settlement and fulfilment-remainder-case rows.
+Backup V22 carries close, reopen, source-linked close-exception acknowledgement,
+statement-match, statement-reversal, delivery-return-settlement and
+fulfilment-remainder-case rows.
 Restore validates every workspace, policy, observation, cash-account and movement
 reference before inserting the rows into an empty target, then rechecks canonical
 projections.

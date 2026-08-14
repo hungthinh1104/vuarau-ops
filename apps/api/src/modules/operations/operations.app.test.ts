@@ -483,10 +483,10 @@ describe("M14 logical operations evidence", () => {
     });
   });
 
-  it("keeps WorkspaceBackupV1 restore-compatible while exporting V21", async () => {
+  it("keeps WorkspaceBackupV1 restore-compatible while exporting V22", async () => {
     const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
     if (!exported.ok) return;
-    expect(exported.value.version).toBe(21);
+    expect(exported.value.version).toBe(22);
     const {
       suppliers: _suppliers,
       supplierPayments: _supplierPayments,
@@ -544,6 +544,7 @@ describe("M14 logical operations evidence", () => {
       stocktakeCounts: _stocktakeCounts,
       operationalCloses: _operationalCloses,
       operationalCloseReopens: _operationalCloseReopens,
+      operationalCloseExceptionAcknowledgements: _operationalCloseExceptionAcknowledgements,
       cashStatementMatches: _cashStatementMatches,
       cashStatementMatchReversals: _cashStatementMatchReversals,
       ...payload
@@ -585,7 +586,7 @@ describe("M14 logical operations evidence", () => {
     expect(restored.ok).toBe(true);
   });
 
-  it("TC-OPS-018 — Backup V21 preserves operational close policy and observation lineage", async () => {
+  it("TC-OPS-018 — Backup V22 preserves operational close policy and observation lineage", async () => {
     const envelope = (label: string) => ({
       commandId: crypto.randomUUID(),
       idempotencyKey: `backup-close-${label}-${crypto.randomUUID()}`,
@@ -674,7 +675,7 @@ describe("M14 logical operations evidence", () => {
     expect(exported).toMatchObject({
       ok: true,
       value: {
-        version: 21,
+        version: 22,
         payload: {
           operationalCloses: [expect.objectContaining({ id: operationalCloseId })],
           operationalCloseReopens: [],

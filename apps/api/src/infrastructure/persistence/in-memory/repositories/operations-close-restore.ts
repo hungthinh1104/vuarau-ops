@@ -1,7 +1,8 @@
 import type {
   CashStatementMatchDto,
   OperationalCloseDto,
-  WorkspaceBackupV19,
+  OperationalCloseExceptionAcknowledgementDto,
+  WorkspaceBackupV22,
 } from "@vuarau/domain-contracts";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
@@ -9,7 +10,7 @@ import type { Store } from "../store.ts";
 export function restoreCloseFacts(
   store: Store,
   workspaceId: string,
-  payload: WorkspaceBackupV19["payload"],
+  payload: WorkspaceBackupV22["payload"],
 ): void {
   const remap = <T extends Record<string, unknown>>(row: T) => ({
     ...row,
@@ -61,5 +62,18 @@ export function restoreCloseFacts(
             },
     }) as unknown as CashStatementMatchDto;
     store.cashStatementMatches.set(key(workspaceId, row.id), row);
+  }
+  for (const raw of payload.operationalCloseExceptionAcknowledgements) {
+    const source = raw["source"] as Record<string, unknown> | undefined;
+    const row = remap({
+      ...raw,
+      source: {
+        kind: raw["sourceKind"] ?? source?.["kind"],
+        reference: raw["sourceReference"] ?? source?.["reference"],
+        id: raw["sourceId"] ?? source?.["id"],
+      },
+      evidenceReferences: raw["evidenceReferences"] ?? [],
+    }) as unknown as OperationalCloseExceptionAcknowledgementDto;
+    store.operationalCloseExceptionAcknowledgements.set(key(workspaceId, row.id), row);
   }
 }
