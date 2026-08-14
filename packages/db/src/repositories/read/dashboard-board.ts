@@ -39,6 +39,7 @@ function mapBoardRows(rawRows: readonly Row[]) {
         : (String(row["fulfilment_remainder_outcome"]) as FulfilmentRemainderOutcome);
     const returnSettlementResolved = Boolean(row["return_settlement_resolved"]);
     const unallocatedPayment = Boolean(row["unallocated_payment"]);
+    const reconciliationVariance = Boolean(row["reconciliation_variance"]);
     const unallocatedPaymentAmount = nullableMoney(row, "unallocated_payment_amount");
     const href = String(row["href"] ?? "");
     const deliveryId =
@@ -70,6 +71,7 @@ function mapBoardRows(rawRows: readonly Row[]) {
         returnedFulfilment,
         unallocatedPayment,
         unallocatedPaymentAmountMinor: unallocatedPaymentAmount?.amountMinor ?? null,
+        reconciliationVariance,
         fulfilmentRemainderUnresolved,
         fulfilmentRemainderOutcome,
         returnSettlementResolved,
@@ -289,7 +291,7 @@ export async function queryFastOperationsBoardPage(
       from fulfilment_remainder_cases frc
       join candidate_sales cs on cs.id=frc.sale_id
       where frc.workspace_id=${input.workspaceId}::uuid
-      order by frc.sale_id, frc.recorded_at desc, frc.id desc
+      order by frc.sale_id, frc.transaction_time desc, frc.recorded_at desc, frc.id desc
     ), dispatched_remaining as (
       select sl.id as sale_line_id,
         sum(greatest(dl.quantity_scaled-coalesce(ret.returned,0),0)) as remaining
@@ -429,6 +431,7 @@ export async function queryFastOperationsBoardPage(
       sale_physical.return_settlement_resolved,
       sale_physical.fulfilment_remainder_unresolved,
       sale_physical.fulfilment_remainder_outcome,
+      (sale_physical.physical_state='attention') as reconciliation_variance,
       (coalesce(unallocated_by_customer.amount,0) > 0) as unallocated_payment,
       case when coalesce(unallocated_by_customer.amount,0) > 0 then unallocated_by_customer.amount else null end as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, cs.updated_at,
@@ -461,6 +464,7 @@ export async function queryFastOperationsBoardPage(
       false as return_settlement_resolved,
       false as fulfilment_remainder_unresolved,
       null as fulfilment_remainder_outcome,
+      false as reconciliation_variance,
       false as unallocated_payment,
       null as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, cs.updated_at,

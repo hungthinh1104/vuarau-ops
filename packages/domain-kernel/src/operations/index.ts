@@ -17,13 +17,14 @@ export type OperationsBoardExceptionFacts = {
   readonly returnedFulfilment: boolean;
   readonly unallocatedPayment: boolean;
   readonly unallocatedPaymentAmountMinor: number | null;
+  /** A canonical source comparison found a mismatch; state labels are not enough. */
+  readonly reconciliationVariance: boolean;
   /** A separate source fact; ordinary needs_delivery/in_delivery is not enough. */
   readonly fulfilmentRemainderUnresolved: boolean;
   readonly fulfilmentRemainderOutcome?: FulfilmentRemainderOutcome | null;
   /** A return settlement fact exists; goods-only resolution does not change money. */
   readonly returnSettlementResolved: boolean;
   readonly deliveryId: string | null;
-  readonly reconciliationHref?: string;
 };
 
 function sourceFacts(
@@ -98,29 +99,15 @@ export function deriveOperationsBoardExceptions(
       ]),
     );
   }
-  if (
-    input.kind === "sale" &&
-    input.financialState === "reconciliation_required" &&
-    !input.unallocatedPayment
-  ) {
+  if (input.reconciliationVariance) {
     result.push(
       exception(input, "reconciliation_variance", [
-        { key: "reconciliation_status", value: "required" },
+        { key: "reconciliation_status", value: "variance" },
         {
           key: "unallocated_payment_amount_minor",
           value: String(input.unallocatedPaymentAmountMinor ?? 0),
         },
       ]),
-    );
-  }
-  if (input.commercialState === "attention" || input.physicalState === "attention") {
-    result.push(
-      exception(
-        input,
-        "reconciliation_variance",
-        [{ key: "integrity_status", value: "attention" }],
-        input.reconciliationHref ?? "/operations",
-      ),
     );
   }
   return result;

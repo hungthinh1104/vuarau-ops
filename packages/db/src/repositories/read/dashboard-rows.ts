@@ -56,7 +56,7 @@ export async function queryRows(
                       : input.filter === "return_settlement_unresolved"
                         ? sql`returned_fulfilment and not return_settlement_resolved`
                         : input.filter === "reconciliation_variance"
-                          ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
+                          ? sql`reconciliation_variance`
                           : sql`true`;
   const searchPattern = `%${input.search.toLocaleLowerCase()}%`;
   const searchClause =
@@ -304,7 +304,7 @@ export async function queryRows(
         count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required') over() as attention_count,
         count(*) filter (where fulfilment_remainder_unresolved) over() as fulfilment_remainder_unresolved_count,
         count(*) filter (where returned_fulfilment and not return_settlement_resolved) over() as return_settlement_unresolved_count,
-        count(*) filter (where commercial_state='attention' or physical_state='attention' or (financial_state='reconciliation_required' and not unallocated_payment)) over() as reconciliation_variance_count,
+        count(*) filter (where reconciliation_variance) over() as reconciliation_variance_count,
         count(*) filter (where commercial_state='posted') over() as commercial_posted_count,
         count(*) filter (where commercial_state='confirmed') over() as commercial_confirmed_count,
         count(*) filter (where commercial_state='voided') over() as commercial_voided_count,
@@ -376,7 +376,7 @@ export async function queryRows(
         frc.outcome
       from fulfilment_remainder_cases frc
       where frc.workspace_id=${input.workspaceId}::uuid
-      order by frc.sale_id, frc.recorded_at desc, frc.id desc
+      order by frc.sale_id, frc.transaction_time desc, frc.recorded_at desc, frc.id desc
     ), dispatched_remaining as (
       select dl.sale_line_id,
         sum(greatest(dl.quantity_scaled-coalesce(ret.returned,0),0)) as remaining
@@ -513,6 +513,7 @@ export async function queryRows(
       coalesce(sale_physical.return_settlement_resolved, false) as return_settlement_resolved,
       coalesce(sale_physical.fulfilment_remainder_unresolved, false) as fulfilment_remainder_unresolved,
       sale_physical.fulfilment_remainder_outcome,
+      (sale_physical.physical_state='attention') as reconciliation_variance,
       (coalesce(unallocated_by_customer.amount,0) > 0) as unallocated_payment,
       case when coalesce(unallocated_by_customer.amount,0) > 0 then unallocated_by_customer.amount else null end as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, ${saleUpdatedAt} as updated_at,
@@ -542,6 +543,7 @@ export async function queryRows(
       false as return_settlement_resolved,
       false as fulfilment_remainder_unresolved,
       null as fulfilment_remainder_outcome,
+      false as reconciliation_variance,
       false as unallocated_payment,
       null as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, ${purchaseUpdatedAt} as updated_at,
@@ -664,6 +666,7 @@ export async function queryRows(
           returnedFulfilment,
           unallocatedPayment,
           unallocatedPaymentAmountMinor: unallocatedPaymentAmount?.amountMinor ?? null,
+          reconciliationVariance: Boolean(row["reconciliation_variance"]),
           fulfilmentRemainderUnresolved,
           fulfilmentRemainderOutcome,
           returnSettlementResolved,

@@ -60,7 +60,11 @@ export const createFulfilmentRemainderWriteRepositories = (tx: Tx) => ({
             eq(fulfilmentRemainderCases.saleId, saleId),
           ),
         )
-        .orderBy(desc(fulfilmentRemainderCases.recordedAt), desc(fulfilmentRemainderCases.id))
+        .orderBy(
+          desc(fulfilmentRemainderCases.transactionTime),
+          desc(fulfilmentRemainderCases.recordedAt),
+          desc(fulfilmentRemainderCases.id),
+        )
         .limit(1);
       return rows[0] === undefined ? null : toDto(rows[0]);
     },

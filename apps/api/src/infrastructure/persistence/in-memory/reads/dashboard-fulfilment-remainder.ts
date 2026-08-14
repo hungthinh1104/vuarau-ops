@@ -9,9 +9,11 @@ export function saleFulfilmentRemainderStatus(
   const latest = [...store.fulfilmentRemainderCases.values()]
     .filter((row) => row.workspaceId === workspaceId && row.saleId === saleId)
     .sort((a, b) =>
-      a.recordedAt === b.recordedAt
-        ? b.id.localeCompare(a.id)
-        : b.recordedAt.localeCompare(a.recordedAt),
+      a.transactionTime === b.transactionTime
+        ? a.recordedAt === b.recordedAt
+          ? b.id.localeCompare(a.id)
+          : b.recordedAt.localeCompare(a.recordedAt)
+        : b.transactionTime.localeCompare(a.transactionTime),
     )[0];
   return { unresolved: latest?.caseKind === "opened", outcome: latest?.outcome ?? null };
 }

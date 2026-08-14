@@ -53,7 +53,7 @@ export async function queryOperationsBoardCounts(
         frc.outcome
       from fulfilment_remainder_cases frc
       where frc.workspace_id=${input.workspaceId}::uuid
-      order by frc.sale_id, frc.recorded_at desc, frc.id desc
+      order by frc.sale_id, frc.transaction_time desc, frc.recorded_at desc, frc.id desc
     ), sale_physical as (
       select s.id,
         case
@@ -160,6 +160,7 @@ export async function queryOperationsBoardCounts(
         sp.returned_fulfilment,
         sp.return_settlement_resolved,
         sp.fulfilment_remainder_unresolved,
+        (sp.physical_state='attention') as reconciliation_variance,
         coalesce(u.amount,0) > 0 as unallocated_payment,
         case
           when sv.id is not null then 'voided'
@@ -181,6 +182,7 @@ export async function queryOperationsBoardCounts(
         false as returned_fulfilment,
         false as return_settlement_resolved,
         false as fulfilment_remainder_unresolved,
+        false as reconciliation_variance,
         false as unallocated_payment,
         case when pv.id is null then 'payable' else 'voided' end as financial_state
       from purchases p
@@ -200,7 +202,7 @@ export async function queryOperationsBoardCounts(
       count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required')::int as attention_count,
       count(*) filter (where fulfilment_remainder_unresolved)::int as fulfilment_remainder_unresolved_count,
       count(*) filter (where returned_fulfilment and not return_settlement_resolved)::int as return_settlement_unresolved_count,
-      count(*) filter (where commercial_state='attention' or physical_state='attention' or (financial_state='reconciliation_required' and not unallocated_payment))::int as reconciliation_variance_count,
+      count(*) filter (where reconciliation_variance)::int as reconciliation_variance_count,
       count(*) filter (where commercial_state='posted')::int as commercial_posted_count,
       count(*) filter (where commercial_state='confirmed')::int as commercial_confirmed_count,
       count(*) filter (where commercial_state='voided')::int as commercial_voided_count,

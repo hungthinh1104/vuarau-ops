@@ -14,9 +14,11 @@ export const createFulfilmentRemainderRepositories = (
       [...store.fulfilmentRemainderCases.values()]
         .filter((row) => row.workspaceId === workspaceId && row.saleId === saleId)
         .sort((a, b) =>
-          a.recordedAt === b.recordedAt
-            ? b.id.localeCompare(a.id)
-            : b.recordedAt.localeCompare(a.recordedAt),
+          a.transactionTime === b.transactionTime
+            ? a.recordedAt === b.recordedAt
+              ? b.id.localeCompare(a.id)
+              : b.recordedAt.localeCompare(a.recordedAt)
+            : b.transactionTime.localeCompare(a.transactionTime),
         )[0] ?? null,
     findCorrectionByTarget: async (workspaceId, caseId) =>
       [...store.fulfilmentRemainderCases.values()].find(

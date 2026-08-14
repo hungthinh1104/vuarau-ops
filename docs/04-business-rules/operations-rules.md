@@ -240,6 +240,12 @@ consequence, approved resolution options, the next action and the resolution
 condition. Money is resolved only by a money-bearing source fact: goods, delivery
 or return quantity never implies a refund, credit, debt change or allocation.
 
+`reconciliation_variance` is emitted only when the read adapter passes an
+explicit canonical comparison fact. In the current Delivery path that fact is
+the exact dispatched-minus-returned quantity exceeding the ordered Sale line;
+`financialState = reconciliation_required` by itself is not enough. The browser
+does not infer this exception from a workflow enum.
+
 The first implemented vertical slices preserve an unallocated customer Payment
 until an authorized allocation or explicit credit/reversal decision appends the
 resolving fact. A returned Delivery remains unresolved until an authorized

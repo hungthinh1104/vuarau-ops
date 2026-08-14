@@ -15,6 +15,7 @@ const saleFacts = {
   unallocatedPaymentAmountMinor: 300_000,
   fulfilmentRemainderUnresolved: false,
   returnSettlementResolved: false,
+  reconciliationVariance: false,
   deliveryId: "delivery-1",
 };
 
@@ -73,12 +74,22 @@ describe("operations unresolved-state derivation", () => {
   });
 
   it("TC-OPS-025 — keeps reconciliation variance distinct from an unallocated payment", () => {
+    const stateOnly = deriveOperationsBoardExceptions({
+      ...saleFacts,
+      returnedFulfilment: false,
+      unallocatedPayment: false,
+      unallocatedPaymentAmountMinor: null,
+      financialState: "reconciliation_required",
+    });
+    expect(stateOnly).toEqual([]);
+
     const variance = deriveOperationsBoardExceptions({
       ...saleFacts,
       returnedFulfilment: false,
       unallocatedPayment: false,
       unallocatedPaymentAmountMinor: null,
       financialState: "reconciliation_required",
+      reconciliationVariance: true,
     });
     expect(variance.map((exception) => exception.kind)).toEqual(["reconciliation_variance"]);
   });
