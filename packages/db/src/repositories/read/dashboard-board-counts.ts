@@ -46,6 +46,14 @@ export async function queryOperationsBoardCounts(
       ) settled on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
       where dr.workspace_id=${input.workspaceId}::uuid
       group by d.sale_id
+    ), fulfilment_remainder_status as (
+      select distinct on (frc.sale_id)
+        frc.sale_id,
+        frc.case_kind,
+        frc.outcome
+      from fulfilment_remainder_cases frc
+      where frc.workspace_id=${input.workspaceId}::uuid
+      order by frc.sale_id, frc.recorded_at desc, frc.id desc
     ), sale_physical as (
       select s.id,
         case
@@ -59,10 +67,12 @@ export async function queryOperationsBoardCounts(
           and sl.quantity_scaled > coalesce(sdf.dispatched, 0) - coalesce(sdf.returned, 0)
         ) as returned_fulfilment
         ,coalesce(bool_or(return_settlement_status.all_resolved), false) as return_settlement_resolved
+        ,coalesce(bool_or(fulfilment_remainder_status.case_kind = 'opened'), false) as fulfilment_remainder_unresolved
       from sales s
       join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
       left join sale_delivery_facts sdf on sdf.sale_line_id=sl.id
       left join return_settlement_status on return_settlement_status.sale_id=s.id
+      left join fulfilment_remainder_status on fulfilment_remainder_status.sale_id=s.id
       where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
       group by s.id
     ), allocation_reversals as (
@@ -149,6 +159,7 @@ export async function queryOperationsBoardCounts(
         sp.physical_state,
         sp.returned_fulfilment,
         sp.return_settlement_resolved,
+        sp.fulfilment_remainder_unresolved,
         coalesce(u.amount,0) > 0 as unallocated_payment,
         case
           when sv.id is not null then 'voided'
@@ -169,6 +180,7 @@ export async function queryOperationsBoardCounts(
         pp.physical_state,
         false as returned_fulfilment,
         false as return_settlement_resolved,
+        false as fulfilment_remainder_unresolved,
         false as unallocated_payment,
         case when pv.id is null then 'payable' else 'voided' end as financial_state
       from purchases p
@@ -186,7 +198,7 @@ export async function queryOperationsBoardCounts(
       count(*) filter (where financial_state='awaiting_payment')::int as awaiting_payment_count,
       count(*) filter (where financial_state='overdue')::int as overdue_count,
       count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required')::int as attention_count,
-      0::int as fulfilment_remainder_unresolved_count,
+      count(*) filter (where fulfilment_remainder_unresolved)::int as fulfilment_remainder_unresolved_count,
       count(*) filter (where returned_fulfilment and not return_settlement_resolved)::int as return_settlement_unresolved_count,
       count(*) filter (where commercial_state='attention' or physical_state='attention' or (financial_state='reconciliation_required' and not unallocated_payment))::int as reconciliation_variance_count,
       count(*) filter (where commercial_state='posted')::int as commercial_posted_count,

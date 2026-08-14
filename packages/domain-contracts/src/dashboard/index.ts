@@ -153,6 +153,8 @@ export const operationsBoardRowSchema = z.object({
   financialState: z.string().min(1),
   /** A return reopened net fulfilment and needs an operator decision/action. */
   returnedFulfilment: z.boolean(),
+  /** The latest explicit remainder decision; null means no decision fact. */
+  fulfilmentRemainderOutcome: z.string().nullable(),
   /** Customer money remains canonical but is not allocated to a Sale. */
   unallocatedPayment: z.boolean(),
   unallocatedPaymentAmount: moneySchema.nullable(),

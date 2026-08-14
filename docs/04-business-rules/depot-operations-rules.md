@@ -35,6 +35,13 @@ not real-worker adoption.
   V1 supports only `RecordDeliveryReturnSettlement(goods_only)`, which records
   that the returned goods have no money effect. Refund, customer credit and
   replacement outcomes remain policy-blocked until ASM-037 is field-validated.
+- **BR-DELIVERY-009** — A positive posted-Sale fulfilment remainder becomes an
+  unresolved operational consequence only after an explicit append-only
+  `RecordFulfilmentRemainderCase(opened)` fact. A decision must follow the open
+  case and names one of `continue_fulfilment`, `commercial_correction` or
+  `cancel_remainder`; a correction links the decision it supersedes. Retries
+  return the original receipt, stale corrections and duplicate opens are
+  rejected, and no case command changes inventory, receivable or payable truth.
 
 ## Documents
 

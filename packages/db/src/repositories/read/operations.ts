@@ -75,10 +75,9 @@ import {
 } from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 import { readOperationsCloseBackup } from "./operations-close-backup.ts";
-
+import { readFulfilmentRemainderCases } from "./operations-remainder.ts";
 const safeCount = (row: Record<string, unknown> | undefined, name: string): number =>
   persistedBigintToSafeNumber(row?.[name] ?? 0, `operations ${name}`);
-
 export const createOperationsReadRepositories = (tx: Tx) => ({
   operationsReads: {
     async integrity(workspaceId: string) {
@@ -431,6 +430,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         deliveryReturnRows,
         deliveryReturnLineRows,
         deliveryReturnSettlementRows,
+        fulfilmentRemainderCaseRows,
         documentRows,
         documentShareRows,
         costObservationRows,
@@ -571,6 +571,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
           .select()
           .from(deliveryReturnSettlements)
           .where(eq(deliveryReturnSettlements.workspaceId, workspaceId)),
+        readFulfilmentRemainderCases(tx, workspaceId),
         tx.select().from(documents).where(eq(documents.workspaceId, workspaceId)),
         tx.select().from(documentShares).where(eq(documentShares.workspaceId, workspaceId)),
         tx.select().from(costObservations).where(eq(costObservations.workspaceId, workspaceId)),
@@ -676,6 +677,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         deliveryReturns: list(deliveryReturnRows),
         deliveryReturnLines: list(deliveryReturnLineRows.map((row) => row.line)),
         deliveryReturnSettlements: list(deliveryReturnSettlementRows),
+        fulfilmentRemainderCases: list(fulfilmentRemainderCaseRows),
         documents: list(documentRows),
         documentShares: list(documentShareRows),
         costObservations: list(costObservationRows),

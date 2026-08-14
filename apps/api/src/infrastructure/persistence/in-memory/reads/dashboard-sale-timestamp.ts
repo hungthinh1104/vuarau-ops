@@ -31,6 +31,12 @@ export function saleOperationsUpdatedAt(
             settlement.workspaceId === workspaceId && saleReturnIds.includes(settlement.returnId),
         )
         .map((settlement) => settlement.recordedAt),
+      ...[...store.fulfilmentRemainderCases.values()]
+        .filter(
+          (remainderCase) =>
+            remainderCase.workspaceId === workspaceId && remainderCase.saleId === sale.id,
+        )
+        .map((remainderCase) => remainderCase.recordedAt),
       ...store.paymentAllocations
         .filter((allocation) => allocationIds.has(allocation.id))
         .map((allocation) => allocation.recordedAt),

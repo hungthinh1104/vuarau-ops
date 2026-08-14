@@ -2,6 +2,7 @@ import {
   OPERATIONS_EXCEPTION_DEFINITIONS,
   type OperationsException,
   type OperationsExceptionKind,
+  type FulfilmentRemainderOutcome,
 } from "@vuarau/domain-contracts";
 
 export type OperationsBoardExceptionFacts = {
@@ -18,6 +19,7 @@ export type OperationsBoardExceptionFacts = {
   readonly unallocatedPaymentAmountMinor: number | null;
   /** A separate source fact; ordinary needs_delivery/in_delivery is not enough. */
   readonly fulfilmentRemainderUnresolved: boolean;
+  readonly fulfilmentRemainderOutcome?: FulfilmentRemainderOutcome | null;
   /** A return settlement fact exists; goods-only resolution does not change money. */
   readonly returnSettlementResolved: boolean;
   readonly deliveryId: string | null;

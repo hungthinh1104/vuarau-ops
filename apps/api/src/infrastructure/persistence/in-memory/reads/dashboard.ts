@@ -26,6 +26,7 @@ import {
   operationsBoardCursorOf,
 } from "./dashboard-helpers.ts";
 import { saleReturnSettlementStatus } from "./dashboard-return-settlement.ts";
+import { saleFulfilmentRemainderStatus } from "./dashboard-fulfilment-remainder.ts";
 import { saleOperationsUpdatedAt } from "./dashboard-sale-timestamp.ts";
 import { deriveOperationsBoardExceptions } from "@vuarau/domain-kernel";
 
@@ -449,6 +450,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             sale.id,
             physical.returnedFulfilment,
           );
+        const remainder = saleFulfilmentRemainderStatus(store, input.workspaceId, sale.id);
         const allocationIds = new Set(
           store.paymentAllocations
             .filter(
@@ -474,6 +476,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           physicalState: physical.state,
           financialState: financial.state,
           returnedFulfilment: physical.returnedFulfilment,
+          fulfilmentRemainderOutcome: remainder.outcome,
           unallocatedPayment: financial.unallocatedPaymentAmountMinor > 0,
           unallocatedPaymentAmount:
             financial.unallocatedPaymentAmountMinor > 0
@@ -484,6 +487,8 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             voided: sale.voidRecord !== null,
             physicalState: physical.state,
             returnedFulfilment: returnSettlementUnresolved,
+            fulfilmentRemainderUnresolved: remainder.unresolved,
+            fulfilmentRemainderOutcome: remainder.outcome,
             unallocatedPayment: financial.unallocatedPaymentAmountMinor > 0,
             financialState: financial.state,
           }),
@@ -504,7 +509,8 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             returnedFulfilment: physical.returnedFulfilment,
             unallocatedPayment: financial.unallocatedPaymentAmountMinor > 0,
             unallocatedPaymentAmountMinor: financial.unallocatedPaymentAmountMinor,
-            fulfilmentRemainderUnresolved: false,
+            fulfilmentRemainderUnresolved: remainder.unresolved,
+            fulfilmentRemainderOutcome: remainder.outcome,
             returnSettlementResolved,
             deliveryId: physical.deliveryId,
           }),
@@ -575,6 +581,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           physicalState: remaining ? "needs_receiving" : "received",
           financialState: purchase.voidRecord === null ? "payable" : "voided",
           returnedFulfilment: false,
+          fulfilmentRemainderOutcome: null,
           unallocatedPayment: false,
           unallocatedPaymentAmount: null,
           ageSeconds: Math.max(0, (Date.parse(input.now) - Date.parse(purchase.recordedAt)) / 1000),
@@ -592,6 +599,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             unallocatedPayment: false,
             unallocatedPaymentAmountMinor: null,
             fulfilmentRemainderUnresolved: false,
+            fulfilmentRemainderOutcome: null,
             returnSettlementResolved: false,
             deliveryId: null,
           }),

@@ -7,6 +7,8 @@ import type {
   RecordDeliveryReturnCommand,
   DeliveryReturnSettlementDto,
   RecordDeliveryReturnSettlementCommand,
+  FulfilmentRemainderCaseDto,
+  RecordFulfilmentRemainderCaseCommand,
   UpdateDeliveryDraftCommand,
 } from "@vuarau/domain-contracts";
 import {
@@ -16,6 +18,8 @@ import {
   markDeliveryDeliveredCommandSchema,
   recordDeliveryReturnCommandSchema,
   recordDeliveryReturnSettlementCommandSchema,
+  recordFulfilmentRemainderCaseCommandSchema,
+  fulfilmentRemainderCaseDtoSchema,
   deliveryReturnSettlementDtoSchema,
   updateDeliveryDraftCommandSchema,
   deliveryDtoSchema,
@@ -27,6 +31,8 @@ import {
   decideMarkDeliveryDelivered,
   decideRecordDeliveryReturn,
   decideRecordDeliveryReturnSettlement,
+  decideRecordFulfilmentRemainderCase,
+  saleHasPositiveFulfilmentRemainder,
   decideUpdateDeliveryDraft,
   err,
   exactIntegerSum,
@@ -491,6 +497,65 @@ export function recordDeliveryReturnSettlement(ctx: CommandContext, input: unkno
         commandId: command.commandId,
       });
       return ok(decision.value.settlement);
+    },
+  });
+}
+
+export function recordFulfilmentRemainderCase(ctx: CommandContext, input: unknown) {
+  return runCommand<RecordFulfilmentRemainderCaseCommand, FulfilmentRemainderCaseDto>({
+    commandType: "RecordFulfilmentRemainderCase",
+    schema: recordFulfilmentRemainderCaseCommandSchema,
+    resultSchema: fulfilmentRemainderCaseDtoSchema,
+    input,
+    ctx,
+    requiredPermission: "delivery.update",
+    businessDayPolicy: "enforce",
+    requiredWorkflows: ["delivery"],
+    execute: async ({ command, repos, recordedAt }) => {
+      const sale = await repos.sales.findByIdForUpdate(command.workspaceId, command.payload.saleId);
+      if (sale === null) return err("FULFILMENT_REMAINDER_SALE_NOT_FOUND", "No Sale.");
+      const fulfilment = await repos.deliveries.fulfilmentBySaleLine(command.workspaceId, sale.id);
+      const latest = await repos.fulfilmentRemainderCases.findLatestForSale(
+        command.workspaceId,
+        sale.id,
+      );
+      const target =
+        command.payload.relatedCaseId === null
+          ? null
+          : await repos.fulfilmentRemainderCases.findByIdForUpdate(
+              command.workspaceId,
+              command.payload.relatedCaseId,
+            );
+      const successor =
+        target === null
+          ? null
+          : await repos.fulfilmentRemainderCases.findCorrectionByTarget(
+              command.workspaceId,
+              target.id,
+            );
+      const decision = decideRecordFulfilmentRemainderCase({
+        command,
+        recordedAt,
+        sale,
+        positiveRemainder: saleHasPositiveFulfilmentRemainder(sale, fulfilment),
+        latest,
+        target,
+        successorExists: successor !== null || (latest !== null && target?.id !== latest.id),
+      });
+      if (!decision.ok) return decision;
+      if (!(await repos.fulfilmentRemainderCases.insert(decision.value.remainderCase))) {
+        return err(
+          "FULFILMENT_REMAINDER_CASE_ALREADY_RECORDED",
+          "Remainder case identity already exists.",
+        );
+      }
+      await repos.audit.append({
+        ...decision.value.audit,
+        workspaceId: command.workspaceId,
+        actorId: command.actorId,
+        commandId: command.commandId,
+      });
+      return ok(decision.value.remainderCase);
     },
   });
 }

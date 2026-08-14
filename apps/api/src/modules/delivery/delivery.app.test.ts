@@ -14,6 +14,7 @@ import type {
   DeliveryLineId,
   DeliveryReturnId,
   DeliveryReturnSettlementId,
+  FulfilmentRemainderCaseId,
   SaleId,
   SaleLineId,
 } from "@vuarau/domain-contracts";
@@ -27,6 +28,7 @@ import {
   markDeliveryDelivered,
   recordDeliveryReturn,
   recordDeliveryReturnSettlement,
+  recordFulfilmentRemainderCase,
 } from "./delivery.handlers.ts";
 import { getSaleFulfilment } from "./delivery.queries.ts";
 import { getOperationalReport } from "../report/report.queries.ts";
@@ -79,6 +81,151 @@ beforeEach(async () => {
 });
 
 describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
+  it("TC-DELIVERY-009 — requires an explicit remainder fact and preserves decision corrections", async () => {
+    const remainderDeliveryId = "00000000-0000-4000-8000-000000000d41" as DeliveryId;
+    const remainderDeliveryLineId = "00000000-0000-4000-8000-000000000d42" as DeliveryLineId;
+    const openedId = "00000000-0000-4000-8000-000000000d43" as FulfilmentRemainderCaseId;
+    const decisionId = "00000000-0000-4000-8000-000000000d44" as FulfilmentRemainderCaseId;
+    const correctionId = "00000000-0000-4000-8000-000000000d45" as FulfilmentRemainderCaseId;
+    const create = await createDeliveryDraft(harness.ctx, {
+      ...base("d41"),
+      payload: {
+        deliveryId: remainderDeliveryId,
+        saleId,
+        lines: [
+          {
+            deliveryLineId: remainderDeliveryLineId,
+            saleLineId,
+            productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: QUALITY_GRADE_1_ID,
+            quantity: { valueScaled: 60_000, unit: "kg" },
+          },
+        ],
+        note: null,
+        evidenceReferences: ["dispatch-sheet://remainder/001"],
+      },
+    });
+    expect(create.ok).toBe(true);
+    const dispatched = await dispatchDelivery(harness.ctx, {
+      ...base("d42"),
+      expectedVersion: 1,
+      payload: { deliveryId: remainderDeliveryId },
+    });
+    expect(dispatched.ok).toBe(true);
+
+    const ordinary = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      cursor: null,
+      limit: 20,
+      filter: "fulfilment_remainder_unresolved",
+      sort: "updated_desc",
+      search: "",
+    });
+    expect(ordinary.ok && ordinary.value.page.items).toEqual([]);
+
+    const openedInput = {
+      ...base("d43"),
+      payload: {
+        fulfilmentRemainderCaseId: openedId,
+        saleId,
+        caseKind: "opened" as const,
+        outcome: null,
+        reason: "Khách mới nhận một phần, cần quyết định phần còn lại.",
+        relatedCaseId: null,
+        evidenceReferences: ["review://remainder/001"],
+      },
+    };
+    const opened = await recordFulfilmentRemainderCase(harness.ctx, openedInput);
+    expect(opened.ok).toBe(true);
+    expect(await recordFulfilmentRemainderCase(harness.ctx, openedInput)).toEqual(opened);
+    const duplicateOpen = await recordFulfilmentRemainderCase(harness.ctx, {
+      ...openedInput,
+      commandId: "00000000-0000-4000-8000-000000000d46",
+      idempotencyKey: "delivery-d46",
+      payload: { ...openedInput.payload, fulfilmentRemainderCaseId: correctionId },
+    });
+    expect(duplicateOpen).toMatchObject({
+      ok: false,
+      error: { code: "FULFILMENT_REMAINDER_CASE_ALREADY_OPEN" },
+    });
+
+    const unresolved = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      cursor: null,
+      limit: 20,
+      filter: "fulfilment_remainder_unresolved",
+      sort: "updated_desc",
+      search: "",
+    });
+    expect(unresolved.ok && unresolved.value.page.items).toEqual([
+      expect.objectContaining({
+        id: saleId,
+        nextAction: "Mở Sale để quyết định phần còn lại.",
+        exceptions: [expect.objectContaining({ kind: "fulfilment_remainder_unresolved" })],
+      }),
+    ]);
+
+    const accountsBefore = harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID);
+    const decisionInput = {
+      ...base("d44"),
+      payload: {
+        fulfilmentRemainderCaseId: decisionId,
+        saleId,
+        caseKind: "decision" as const,
+        outcome: "commercial_correction" as const,
+        reason: "Đã chuyển phần còn lại sang quy trình điều chỉnh thương mại.",
+        relatedCaseId: null,
+        evidenceReferences: ["review://remainder/002"],
+      },
+    };
+    const decision = await recordFulfilmentRemainderCase(harness.ctx, decisionInput);
+    expect(decision.ok).toBe(true);
+    expect(await recordFulfilmentRemainderCase(harness.ctx, decisionInput)).toEqual(decision);
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toEqual(accountsBefore);
+    expect(harness.db.inventoryMovementRecords()).toHaveLength(1);
+
+    const resolved = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      cursor: null,
+      limit: 20,
+      filter: "fulfilment_remainder_unresolved",
+      sort: "updated_desc",
+      search: "",
+    });
+    expect(resolved.ok && resolved.value.page.items).toEqual([]);
+    const resolvedSale = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      cursor: null,
+      limit: 20,
+      filter: "all",
+      sort: "updated_desc",
+      search: "",
+    });
+    expect(resolvedSale.ok && resolvedSale.value.page.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: saleId,
+          fulfilmentRemainderOutcome: "commercial_correction",
+          nextAction: "Mở Sale để điều chỉnh thương mại.",
+        }),
+      ]),
+    );
+
+    const corrected = await recordFulfilmentRemainderCase(harness.ctx, {
+      ...base("d45"),
+      payload: {
+        ...decisionInput.payload,
+        fulfilmentRemainderCaseId: correctionId,
+        caseKind: "correction" as const,
+        outcome: "cancel_remainder" as const,
+        relatedCaseId: decisionId,
+        reason: "Correction: phần còn lại được huỷ theo xác nhận mới.",
+      },
+    });
+    expect(corrected.ok).toBe(true);
+    expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toEqual(accountsBefore);
+  });
+
   it("supports a depot that does not use quality grades", async () => {
     harness.db.setOperationalProfile({
       ...defaultWorkspaceOperationalProfile(WORKSPACE_ID),

@@ -65,6 +65,11 @@ function deliveryLines(
   return ok(lines);
 }
 
+export {
+  decideRecordFulfilmentRemainderCase,
+  saleHasPositiveFulfilmentRemainder,
+} from "./fulfilment-remainder.ts";
+
 export function canCreateDeliveryDraftForSale(args: {
   readonly sale: SaleState;
   readonly replacementAncestryHasFulfilment: boolean;

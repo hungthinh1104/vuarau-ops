@@ -197,6 +197,12 @@ work-queue signal in the dedicated `returned_fulfilment` filter. A separate
 lacks a settlement fact; its next action is to record the return consequence.
 V1's only supported resolution is `goods_only`, which explicitly has no money
 effect. Neither signal infers a credit, refund, exchange or customer-debt effect.
+Likewise, a positive Sale remainder is ordinary fulfilment workflow until an
+explicit `fulfilment_remainder_cases` `opened` fact is recorded. The Board then
+shows `fulfilment_remainder_unresolved=true` and the next action
+`Mở Sale để quyết định phần còn lại.`. A decision clears the unresolved filter;
+`commercial_correction` keeps the row's commercial action visible and
+`cancel_remainder` does not create a delivery or money effect.
 Similarly, `unallocatedPayment=true` exposes the exact
 `unallocatedPaymentAmount` derived from active Payment, reversal and allocation
 facts. It appears in the dedicated `unallocated_payment` filter and its next

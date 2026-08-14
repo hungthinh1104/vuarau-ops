@@ -7,6 +7,7 @@ import {
   deliveryLineIdSchema,
   deliveryReturnIdSchema,
   deliveryReturnSettlementIdSchema,
+  fulfilmentRemainderCaseIdSchema,
   productIdSchema,
   qualityGradeIdSchema,
   saleIdSchema,
@@ -125,6 +126,52 @@ export const deliveryReturnSettlementDtoSchema = z.object({
   commandId: commandIdSchema,
 });
 export type DeliveryReturnSettlementDto = z.infer<typeof deliveryReturnSettlementDtoSchema>;
+
+/**
+ * An explicit operator fact for a positive fulfilment remainder. The ordinary
+ * physical states `needs_delivery` and `in_delivery` do not create this case.
+ * Decisions are fact-only in this slice; they do not mutate inventory, money or
+ * the Sale itself.
+ */
+export const FULFILMENT_REMAINDER_OUTCOMES = [
+  "continue_fulfilment",
+  "commercial_correction",
+  "cancel_remainder",
+] as const;
+export const fulfilmentRemainderOutcomeSchema = z.enum(FULFILMENT_REMAINDER_OUTCOMES);
+export type FulfilmentRemainderOutcome = z.infer<typeof fulfilmentRemainderOutcomeSchema>;
+export const FULFILMENT_REMAINDER_CASE_KINDS = ["opened", "decision", "correction"] as const;
+export const fulfilmentRemainderCaseKindSchema = z.enum(FULFILMENT_REMAINDER_CASE_KINDS);
+export type FulfilmentRemainderCaseKind = z.infer<typeof fulfilmentRemainderCaseKindSchema>;
+export const recordFulfilmentRemainderCaseCommandSchema = defineCommand(
+  z.object({
+    fulfilmentRemainderCaseId: fulfilmentRemainderCaseIdSchema,
+    saleId: saleIdSchema,
+    caseKind: fulfilmentRemainderCaseKindSchema,
+    outcome: fulfilmentRemainderOutcomeSchema.nullable().default(null),
+    reason: z.string().trim().min(1).max(500),
+    relatedCaseId: fulfilmentRemainderCaseIdSchema.nullable().default(null),
+    evidenceReferences: evidenceReferencesInputSchema,
+  }),
+);
+export type RecordFulfilmentRemainderCaseCommand = z.infer<
+  typeof recordFulfilmentRemainderCaseCommandSchema
+>;
+export const fulfilmentRemainderCaseDtoSchema = z.object({
+  id: fulfilmentRemainderCaseIdSchema,
+  workspaceId: workspaceIdSchema,
+  saleId: saleIdSchema,
+  caseKind: fulfilmentRemainderCaseKindSchema,
+  outcome: fulfilmentRemainderOutcomeSchema.nullable(),
+  reason: z.string(),
+  relatedCaseId: fulfilmentRemainderCaseIdSchema.nullable(),
+  evidenceReferences: evidenceReferencesDtoSchema,
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+});
+export type FulfilmentRemainderCaseDto = z.infer<typeof fulfilmentRemainderCaseDtoSchema>;
 
 export const deliveryReturnDtoSchema = z.object({
   id: deliveryReturnIdSchema,

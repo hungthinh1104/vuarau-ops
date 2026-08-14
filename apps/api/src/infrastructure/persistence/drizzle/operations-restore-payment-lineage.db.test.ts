@@ -5,7 +5,7 @@ import {
   skipWithoutDatabase,
   type DbTestContext,
 } from "@vuarau/db";
-import type { WorkspaceBackupV20 } from "@vuarau/domain-contracts";
+import type { WorkspaceBackupV21 } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
 import {
@@ -58,7 +58,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
   async function prepareBackup(
     saleUnitPrice = 100_000,
     allocationAmount = 30_000,
-  ): Promise<WorkspaceBackupV20> {
+  ): Promise<WorkspaceBackupV21> {
     for (const [policyKind, definition] of [
       [
         "payment_terms_aging",
@@ -221,7 +221,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
     });
   }
 
-  const count = (backup: WorkspaceBackupV20, key: string, increment = 0) =>
+  const count = (backup: WorkspaceBackupV21, key: string, increment = 0) =>
     Number(backup.recordCounts[key] ?? 0) + increment;
 
   it("rejects an allocation whose customer differs from its payment and sale", async () => {
@@ -239,7 +239,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
       customers: [...backup.payload.customers, clonedCustomer],
       paymentAllocations: [{ ...allocation, customerId: clonedCustomer.id }],
     };
-    const malformed: WorkspaceBackupV20 = {
+    const malformed: WorkspaceBackupV21 = {
       ...backup,
       payload: malformedPayload,
       recordCounts: {
@@ -338,7 +338,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
       customers: [...backup.payload.customers, clonedCustomer],
       paymentAllocationReversals: [reversal],
     };
-    const malformed: WorkspaceBackupV20 = {
+    const malformed: WorkspaceBackupV21 = {
       ...backup,
       payload: malformedPayload,
       recordCounts: {

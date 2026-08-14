@@ -161,8 +161,9 @@ from `customer_account_entries` and then runs the workspace integrity read. A
 non-healthy result is a failure, not a warning. Retrying the same restore command
 returns its original receipt and does not insert another copy.
 
-Backup V20 also carries append-only delivery-return-settlement facts, so recovery
-does not reopen a return that was explicitly resolved as `goods_only`.
+Backup V21 also carries append-only delivery-return-settlement and
+fulfilment-remainder-case facts, so recovery does not reopen an explicitly
+resolved return or lose a remainder decision.
 
 This is application-level logical recovery. Physical database restore and PITR
 remain deployment infrastructure.

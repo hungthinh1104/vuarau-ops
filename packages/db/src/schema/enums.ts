@@ -161,6 +161,16 @@ export const deliveryReturnSettlementCaseKindEnum = pgEnum("delivery_return_sett
 export const deliveryReturnSettlementOutcomeEnum = pgEnum("delivery_return_settlement_outcome", [
   "goods_only",
 ]);
+export const fulfilmentRemainderCaseKindEnum = pgEnum("fulfilment_remainder_case_kind", [
+  "opened",
+  "decision",
+  "correction",
+]);
+export const fulfilmentRemainderOutcomeEnum = pgEnum("fulfilment_remainder_outcome", [
+  "continue_fulfilment",
+  "commercial_correction",
+  "cancel_remainder",
+]);
 export const documentTypeEnum = pgEnum("document_type", [
   "sale_receipt",
   "customer_statement",

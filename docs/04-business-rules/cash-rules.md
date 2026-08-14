@@ -26,7 +26,7 @@
 - **BR-CASH-010** — Operational cash and expense reports are source-backed, use
   `transactionTime` plus the workspace business-day boundary and never become a
   second ledger.
-- **BR-CASH-011** — Backup V19 includes price rules, CashAccount, reconciliation/debt/supply-commitment/supplier/demand observations, Customer Orders, Supply Commitments, workspace policy versions, close/match facts and all canonical cash sources/
+- **BR-CASH-011** — Backup V21 includes price rules, CashAccount, reconciliation/debt/supply-commitment/supplier/demand observations, Customer Orders, Supply Commitments, workspace policy versions, close/match facts, delivery settlements, fulfilment-remainder cases and all canonical cash sources/
   movements. Restore rebuilds projections and must reconcile before commit success.
 - **BR-CASH-012–014** — Statement matching and its append-only reversal are exact,
   policy-backed and financially neutral; see [close and bank rules](close-and-bank-rules.md).

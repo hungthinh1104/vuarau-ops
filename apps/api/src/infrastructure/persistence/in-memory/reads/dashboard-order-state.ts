@@ -1,4 +1,5 @@
 import type { DeliveryState } from "@vuarau/domain-kernel";
+import type { FulfilmentRemainderOutcome } from "@vuarau/domain-contracts";
 import type { Store } from "../store.ts";
 import { key } from "../store.ts";
 import { exactAdd, exactSubtract } from "./exact-number.ts";
@@ -103,14 +104,23 @@ export function saleNextAction(input: {
   readonly voided: boolean;
   readonly physicalState: string;
   readonly returnedFulfilment: boolean;
+  readonly fulfilmentRemainderUnresolved?: boolean;
+  readonly fulfilmentRemainderOutcome?: FulfilmentRemainderOutcome | null;
   readonly unallocatedPayment: boolean;
   readonly financialState: string;
 }): string | null {
   if (input.voided) return null;
   if (input.physicalState === "attention") return "Kiểm tra";
   if (input.returnedFulfilment) return "Xử lý hàng trả";
+  if (input.fulfilmentRemainderUnresolved) return "Mở Sale để quyết định phần còn lại.";
   if (input.unallocatedPayment) return "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.";
-  if (input.physicalState === "needs_delivery") return "Giao hàng";
+  if (input.fulfilmentRemainderOutcome === "commercial_correction")
+    return "Mở Sale để điều chỉnh thương mại.";
+  if (
+    input.physicalState === "needs_delivery" &&
+    input.fulfilmentRemainderOutcome !== "cancel_remainder"
+  )
+    return "Giao hàng";
   if (input.physicalState === "in_delivery") return "Theo dõi giao hàng";
   return ["awaiting_payment", "overdue"].includes(input.financialState) ? "Thu tiền" : null;
 }

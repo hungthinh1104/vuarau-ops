@@ -60,9 +60,12 @@ import {
   getOperationsBoard,
 } from "../../../modules/dashboard/dashboard.queries.ts";
 import { exportWorkspaceBackup } from "../../../modules/operations/operations.queries.ts";
+import {
+  assertFulfilmentRemainderDecision,
+  assertInFlightDeliveryBoard,
+} from "./depot-operations.test-support.ts";
 
 // TC-DELIVERY-003, TC-DOCUMENT-002, TC-REPORT-001
-// TC-DELIVERY-003 TC-DOCUMENT-002 TC-REPORT-001
 describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", () => {
   let ctx: DbTestContext;
   let deps: CommandDeps;
@@ -87,7 +90,7 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
   });
   afterEach(async () => ctx.close());
 
-  it("proves receive 100, dispatch 60+40, retry, return 10, documents, reports and backup", async () => {
+  it("TC-DELIVERY-010 — proves receive 100, dispatch 60+40, remainder decision, return, documents, reports and backup", async () => {
     const productId = ctx.productIds[0];
     const supplierId = crypto.randomUUID() as SupplierId;
     const purchaseId = crypto.randomUUID() as PurchaseId;
@@ -244,23 +247,17 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       const dispatched = await dispatchDelivery(context(), dispatchInput);
       expect(dispatched.ok).toBe(true);
       if (index === 0) {
-        const inFlight = await getOperationsBoard(context(), {
+        await assertInFlightDeliveryBoard({
+          context,
           workspaceId: ctx.workspaceId,
-          filter: "in_delivery",
-          sort: "updated_desc",
-          search: "",
-          cursor: null,
-          limit: 20,
+          saleId,
         });
-        expect(inFlight.ok).toBe(true);
-        if (inFlight.ok)
-          expect(inFlight.value.page.items).toContainEqual(
-            expect.objectContaining({
-              id: saleId,
-              physicalState: "in_delivery",
-              nextAction: "Theo dõi giao hàng",
-            }),
-          );
+        await assertFulfilmentRemainderDecision({
+          context,
+          envelope,
+          workspaceId: ctx.workspaceId,
+          saleId,
+        });
       }
       if (index === 1) expect(await dispatchDelivery(context(), dispatchInput)).toEqual(dispatched);
       expect(
@@ -537,13 +534,14 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       payload: {},
     });
     expect(backup.ok && backup.value).toMatchObject({
-      version: 20,
-      schemaCompatibility: "m36-return-settlement",
+      version: 21,
+      schemaCompatibility: "m37-fulfilment-remainder",
     });
     if (backup.ok) {
       expect(backup.value.payload.deliveries).toHaveLength(2);
       expect(backup.value.payload.deliveryReturns).toHaveLength(1);
       expect(backup.value.payload.deliveryReturnSettlements).toHaveLength(1);
+      expect(backup.value.payload.fulfilmentRemainderCases).toHaveLength(2);
       expect(backup.value.payload.documents).toHaveLength(4);
       expect(backup.value.payload.documentShares).toHaveLength(1);
     }

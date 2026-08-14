@@ -1,7 +1,7 @@
 import type {
   RestoreWorkspaceBackupCommand,
   WorkspaceRestoreResultDto,
-  WorkspaceBackupV20,
+  WorkspaceBackupV21,
 } from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
@@ -91,6 +91,8 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   const deliveryReturns = new Set(
     "deliveryReturns" in payload ? payload.deliveryReturns.map((row) => row["id"]) : [],
   );
+  const fulfilmentRemainderRows = payload.fulfilmentRemainderCases;
+  const fulfilmentRemainderIds = new Set(fulfilmentRemainderRows.map((row) => row["id"]));
   const deliveryReferences = deliveryReferenceValidator(payload);
   const purchaseReferences = purchaseReferenceValidator(payload);
   const documents = new Set(
@@ -380,6 +382,15 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
       products,
       qualityGrades,
     }) &&
+    fulfilmentRemainderRows.every((row) => {
+      if (!sales.has(row["saleId"])) return false;
+      if (row["caseKind"] === "opened") {
+        return row["outcome"] == null && row["relatedCaseId"] == null;
+      }
+      if (row["outcome"] == null) return false;
+      if (row["caseKind"] === "decision") return row["relatedCaseId"] == null;
+      return row["relatedCaseId"] != null && fulfilmentRemainderIds.has(row["relatedCaseId"]);
+    }) &&
     validDocumentAndCashReferences(payload, [customers, sales, purchases, deliveries, documents]) &&
     payload.payments.every(
       (row) => row["cashAccountId"] == null || cashAccounts.has(row["cashAccountId"]),
@@ -475,8 +486,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
       }))
   );
 }
-
-function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV20["payload"] {
+function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV21["payload"] {
   const payload = command.payload.backup.payload;
   const operationalProfile =
     "operationalProfile" in payload
@@ -512,6 +522,8 @@ function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV20[
     deliveryReturnLines: "deliveryReturnLines" in payload ? payload.deliveryReturnLines : [],
     deliveryReturnSettlements:
       "deliveryReturnSettlements" in payload ? payload.deliveryReturnSettlements : [],
+    fulfilmentRemainderCases:
+      "fulfilmentRemainderCases" in payload ? payload.fulfilmentRemainderCases : [],
     documents: "documents" in payload ? payload.documents : [],
     documentShares: "documentShares" in payload ? payload.documentShares : [],
     qualityIssueCodes: "qualityIssueCodes" in payload ? payload.qualityIssueCodes : [],
@@ -555,7 +567,6 @@ function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV20[
       "cashStatementMatchReversals" in payload ? payload.cashStatementMatchReversals : [],
   };
 }
-
 export function restoreWorkspaceBackup(
   ctx: CommandContext,
   input: unknown,

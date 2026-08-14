@@ -7,6 +7,7 @@ import { createCashRepositories } from "./repositories/cash.ts";
 import { createCustomerRepositories } from "./repositories/customer.ts";
 import { createDeliveryRepositories } from "./repositories/delivery.ts";
 import { createDeliveryReturnSettlementRepositories } from "./repositories/delivery-return-settlement.ts";
+import { createFulfilmentRemainderRepositories } from "./repositories/fulfilment-remainder.ts";
 import { createDocumentRepositories } from "./repositories/document.ts";
 import { createIntakeRepositories } from "./repositories/intake.ts";
 import { createInventoryRepositories } from "./repositories/inventory.ts";
@@ -75,6 +76,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createInventoryRepositories(store, ids),
   ...createDeliveryRepositories(store),
   ...createDeliveryReturnSettlementRepositories(store),
+  ...createFulfilmentRemainderRepositories(store),
   ...createDocumentRepositories(store),
   ...createOperationsRepositories(store),
   ...createCostObservationRepositories(store),

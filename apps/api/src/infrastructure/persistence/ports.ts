@@ -92,6 +92,7 @@ import type { WorkspacePolicyRepository } from "./policy-ports.ts";
 import type { CashStatementMatchRepository, OperationalCloseRepository } from "./close-ports.ts";
 import type { OperationsRepository } from "./operations-ports.ts";
 import type { DeliveryReturnSettlementRepository } from "./delivery-return-settlement-ports.ts";
+import type { FulfilmentRemainderCaseRepository } from "./fulfilment-remainder-ports.ts";
 
 /** Every method takes `workspaceId` as a required argument (BR-CUSTOMER-002). */
 export type WorkspaceMembership = {
@@ -646,6 +647,7 @@ export type Repositories = ReadRepositories & {
   readonly stocktakes: StocktakeRepository;
   readonly deliveries: DeliveryRepository;
   readonly deliveryReturnSettlements: DeliveryReturnSettlementRepository;
+  readonly fulfilmentRemainderCases: FulfilmentRemainderCaseRepository;
   readonly documents: DocumentRepository;
   readonly operations: OperationsRepository;
   readonly cashAccounts: CashAccountRepository;

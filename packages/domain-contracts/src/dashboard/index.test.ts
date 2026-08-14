@@ -90,6 +90,7 @@ describe("dashboard contracts", () => {
             physicalState: "needs_delivery",
             financialState: "awaiting_payment",
             returnedFulfilment: false,
+            fulfilmentRemainderOutcome: null,
             unallocatedPayment: false,
             unallocatedPaymentAmount: null,
             ageSeconds: 60,

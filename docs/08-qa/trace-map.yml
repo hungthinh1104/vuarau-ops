@@ -1082,11 +1082,24 @@ use_cases:
     title: Inspect Sale fulfilment
     risk: P0
     doc: docs/02-use-cases/depot-operations-use-cases.md
-    rules: [BR-DELIVERY-001, BR-DELIVERY-002, BR-DELIVERY-006, BR-DELIVERY-007, BR-DELIVERY-008]
+    rules:
+      [
+        BR-DELIVERY-001,
+        BR-DELIVERY-002,
+        BR-DELIVERY-006,
+        BR-DELIVERY-007,
+        BR-DELIVERY-008,
+        BR-DELIVERY-009,
+      ]
     cases: []
-    tests: [TC-DELIVERY-001, TC-DELIVERY-003, TC-E2E-030, TC-E2E-032]
+    tests:
+      [TC-DELIVERY-001, TC-DELIVERY-003, TC-DELIVERY-009, TC-DELIVERY-010, TC-E2E-030, TC-E2E-032]
     implementation:
       - apps/api/src/modules/delivery/delivery.queries.ts
+      - apps/api/src/modules/delivery/delivery.handlers.ts
+      - apps/api/src/infrastructure/trpc/routers/delivery.ts
+      - packages/domain-kernel/src/delivery/fulfilment-remainder.ts
+      - packages/db/src/repositories/write/fulfilment-remainder.ts
       - packages/db/src/repositories/read/delivery.ts
 
   UC-DOCUMENT-001:
@@ -2995,6 +3008,25 @@ business_rules:
       - packages/db/src/repositories/read/dashboard-board-counts.ts
       - packages/db/src/repositories/read/dashboard-rows.ts
       - apps/web/src/ui/screens/operations-board-view.tsx
+  BR-DELIVERY-009:
+    title: Fulfilment remainder decisions are explicit, append-only and money-neutral
+    risk: P0
+    doc: docs/04-business-rules/depot-operations-rules.md
+    tests: [TC-DELIVERY-009, TC-DELIVERY-010]
+    implementation:
+      - packages/domain-contracts/src/delivery/index.ts
+      - packages/domain-contracts/src/shared/rejection-codes.ts
+      - packages/domain-kernel/src/delivery/fulfilment-remainder.ts
+      - apps/api/src/modules/delivery/delivery.handlers.ts
+      - apps/api/src/infrastructure/trpc/routers/delivery.ts
+      - packages/db/src/schema/delivery.ts
+      - packages/db/src/repositories/write/fulfilment-remainder.ts
+      - packages/db/src/repositories/read/dashboard-board.ts
+      - packages/db/src/repositories/read/dashboard-board-counts.ts
+      - packages/db/src/repositories/read/dashboard-rows.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/dashboard.ts
+      - apps/api/src/modules/delivery/delivery.app.test.ts
+      - apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
   BR-DOCUMENT-001:
     title: Document generations are immutable source snapshots and versions
     risk: P0
@@ -4218,6 +4250,12 @@ contract_tests:
   TC-OPS-026:
     title: PostgreSQL Operations Board counts preserve canonical exception parity
     file: apps/api/src/infrastructure/persistence/drizzle/dashboard-board-counts.db.test.ts
+  TC-DELIVERY-009:
+    title: Application fulfilment remainder cases require an explicit source fact and preserve corrections
+    file: apps/api/src/modules/delivery/delivery.app.test.ts
+  TC-DELIVERY-010:
+    title: PostgreSQL preserves fulfilment remainder decisions through the Board and backup
+    file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
   TC-DOCUMENT-002:
     title: PostgreSQL proves append-only documents, digest validation, secure sharing and backup
     file: apps/api/src/infrastructure/persistence/drizzle/depot-operations.db.test.ts
@@ -4786,7 +4824,7 @@ contract_tests:
     title: Close accepts observed-only facts and rejects observations outside the business period
     file: packages/domain-kernel/src/close/close.test.ts
   TC-OPS-018:
-    title: Backup V19 carries close, reopen, statement-match and reversal lineage
+    title: Backup V21 carries close, reopen, statement-match, reversal and operational decision lineage
     file: apps/api/src/modules/operations/operations.app.test.ts
 
   TC-PROPERTY-MONEY-001:

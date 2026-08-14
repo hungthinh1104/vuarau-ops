@@ -6,6 +6,7 @@ import {
   markDeliveryDeliveredCommandSchema,
   recordDeliveryReturnCommandSchema,
   recordDeliveryReturnSettlementCommandSchema,
+  recordFulfilmentRemainderCaseCommandSchema,
   deliveryGetInputSchema,
   deliveryListInputSchema,
   saleFulfilmentInputSchema,
@@ -18,6 +19,7 @@ import {
   markDeliveryDelivered,
   recordDeliveryReturn,
   recordDeliveryReturnSettlement,
+  recordFulfilmentRemainderCase,
   updateDeliveryDraft,
 } from "../../../modules/delivery/delivery.handlers.ts";
 import {
@@ -48,6 +50,9 @@ export const deliveryRouter = router({
   recordReturnSettlement: commandProcedure
     .input(recordDeliveryReturnSettlementCommandSchema)
     .mutation(async ({ ctx, input }) => unwrap(await recordDeliveryReturnSettlement(ctx, input))),
+  recordFulfilmentRemainderCase: commandProcedure
+    .input(recordFulfilmentRemainderCaseCommandSchema)
+    .mutation(async ({ ctx, input }) => unwrap(await recordFulfilmentRemainderCase(ctx, input))),
   get: authenticatedProcedure
     .input(deliveryGetInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getDelivery(ctx, input))),

@@ -60,7 +60,7 @@ command changes, update its schema and tests first, then keep this catalog align
 | `purchase`         | `createDraft`, `updateDraft`, `discardDraft`, `confirm`, `void`                                                                                                                                                    |
 | `receiving`        | `record`, `reverse`                                                                                                                                                                                                |
 | `inventory`        | `adjust`, `reclassify`, `stocktakeStart`, `stocktakeCount`, `stocktakeApprove`, `stocktakeReopen`, `rebuild`                                                                                                       |
-| `delivery`         | `createDraft`, `updateDraft`, `cancelDraft`, `dispatch`, `markDelivered`, `recordReturn`, `recordReturnSettlement`                                                                                                 |
+| `delivery`         | `createDraft`, `updateDraft`, `cancelDraft`, `dispatch`, `markDelivered`, `recordReturn`, `recordReturnSettlement`, `recordFulfilmentRemainderCase`                                                                |
 | `document`         | `generate`, `share`, `revokeShare`                                                                                                                                                                                 |
 | `operations`       | `exportBackup`, `restoreBackup`, `recordClose`, `reopenClose`                                                                                                                                                      |
 | `cash`             | `createAccount`, `updateAccount`, `deactivateAccount`, `reactivateAccount`, `recordExpense`, `reverseExpense`, `transfer`, `reverseTransfer`, `adjust`, `rebuild`, `recordStatementMatch`, `reverseStatementMatch` |
@@ -120,6 +120,7 @@ must not borrow the meaning of a neighbouring context.
 | `delivery.dispatch`                                        | none                                                                | appends outbound movements                               |
 | `delivery.recordReturn`                                    | none                                                                | appends compensating inbound movements                   |
 | `delivery.markDelivered`                                   | none                                                                | acknowledgement only; dispatch already moved stock       |
+| `delivery.recordFulfilmentRemainderCase`                   | none                                                                | append-only operational/commercial decision fact         |
 | `operations.recordClose` / `operations.reopenClose`        | none                                                                | none; signs off or reopens source observations           |
 | `cash.recordStatementMatch` / `cash.reverseStatementMatch` | none                                                                | none; links or compensates reconciliation metadata       |
 

@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { type WorkspaceId, type WorkspaceBackupV20 } from "@vuarau/domain-contracts";
+import { type WorkspaceId, type WorkspaceBackupV21 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -68,9 +68,10 @@ import { restoreStocktakes } from "./operations-stocktake-restore.ts";
 import { restoreCloseFacts } from "./operations-close-restore.ts";
 import { backupActorIds } from "./operations-actors.ts";
 import { restoreWorkspaceChangeFeed } from "./operations-change-feed-restore.ts";
+import { restoreFulfilmentRemainderCases } from "./operations-remainder-restore.ts";
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV20["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV21["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }
@@ -361,6 +362,7 @@ export const createOperationsWriteRepositories = (tx: Tx) => ({
           .insert(deliveryReturnSettlements)
           .values(settlementRows as unknown as (typeof deliveryReturnSettlements.$inferInsert)[]);
       }
+      await restoreFulfilmentRemainderCases(tx, payload, scoped, date);
       if (payload.purchases.length > 0) {
         await tx.insert(purchases).values(
           payload.purchases.map((raw) => {

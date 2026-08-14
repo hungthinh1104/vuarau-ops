@@ -8,6 +8,7 @@ import type {
   SupplierAccountEntryDto,
   DeliveryDto,
   DeliveryReturnSettlementDto,
+  FulfilmentRemainderCaseDto,
   DocumentDto,
   DocumentShareId,
   WorkspaceOperationalProfileDto,
@@ -113,6 +114,7 @@ export type Store = {
   deliveries: Map<string, DeliveryState>;
   deliveryReturns: DeliveryReturnState[];
   deliveryReturnSettlements: Map<string, DeliveryReturnSettlementDto>;
+  fulfilmentRemainderCases: Map<string, FulfilmentRemainderCaseDto>;
   documents: Map<string, DocumentDto>;
   documentShares: Map<
     string,
@@ -211,6 +213,7 @@ export function emptyStore(): Store {
     deliveries: new Map(),
     deliveryReturns: [],
     deliveryReturnSettlements: new Map(),
+    fulfilmentRemainderCases: new Map(),
     documents: new Map(),
     documentShares: new Map(),
     sales: new Map(),

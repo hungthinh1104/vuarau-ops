@@ -17,6 +17,8 @@ import { sales, saleLines } from "./sale.ts";
 import {
   deliveryReturnSettlementCaseKindEnum,
   deliveryReturnSettlementOutcomeEnum,
+  fulfilmentRemainderCaseKindEnum,
+  fulfilmentRemainderOutcomeEnum,
   deliveryStatusEnum,
   unitEnum,
 } from "./enums.ts";
@@ -210,6 +212,52 @@ export const deliveryReturnSettlements = pgTable(
       "delivery_return_settlements_case_link_ck",
       sql`(${table.caseKind} = 'correction' and ${table.relatedSettlementId} is not null)
         or (${table.caseKind} = 'decision' and ${table.relatedSettlementId} is null)`,
+    ),
+  ],
+);
+
+/** Append-only source fact and decision chain for a positive Sale remainder. */
+export const fulfilmentRemainderCases = pgTable(
+  "fulfilment_remainder_cases",
+  {
+    id: uuid("id").notNull(),
+    workspaceId: uuid("workspace_id").notNull(),
+    saleId: uuid("sale_id").notNull(),
+    caseKind: fulfilmentRemainderCaseKindEnum("case_kind").notNull(),
+    outcome: fulfilmentRemainderOutcomeEnum("outcome"),
+    reason: text("reason").notNull(),
+    relatedCaseId: uuid("related_case_id"),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
+    transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    index("fulfilment_remainder_cases_workspace_sale_time_idx").on(
+      table.workspaceId,
+      table.saleId,
+      table.recordedAt,
+      table.id,
+    ),
+    foreignKey({
+      columns: [table.workspaceId, table.saleId],
+      foreignColumns: [sales.workspaceId, sales.id],
+      name: "fulfilment_remainder_cases_workspace_sale_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.relatedCaseId],
+      foreignColumns: [table.workspaceId, table.id],
+      name: "fulfilment_remainder_cases_workspace_related_fk",
+    }),
+    check(
+      "fulfilment_remainder_cases_case_link_ck",
+      sql`(${table.caseKind} = 'correction' and ${table.relatedCaseId} is not null and ${table.outcome} is not null)
+        or (${table.caseKind} = 'decision' and ${table.relatedCaseId} is null and ${table.outcome} is not null)
+        or (${table.caseKind} = 'opened' and ${table.relatedCaseId} is null and ${table.outcome} is null)`,
     ),
   ],
 );

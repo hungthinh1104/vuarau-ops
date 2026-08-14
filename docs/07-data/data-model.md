@@ -74,6 +74,7 @@ Drizzle definitions and database constraints.
 | `delivery_returns`            | Return source facts against dispatched Delivery with source references                      | append-only                                                |
 | `delivery_return_lines`       | Exact returned physical quantities                                                          | append-only                                                |
 | `delivery_return_settlements` | Append-only operator decision for a return consequence; V1 `goods_only` has no money effect | append-only                                                |
+| `fulfilment_remainder_cases`  | Append-only open, decision or correction facts for a positive Sale remainder                | append-only                                                |
 
 ### Cashbook
 
@@ -308,9 +309,11 @@ references without becoming an inventory or customer-money source.
 inspected-intake source links without changing payable, quality-policy or
 inventory semantics. `quality_inspections.evidence_references` follows the same
 metadata-only rule.
-Backup V19 preserves operational profile, price rules, CostObservation,
+Backup V21 preserves operational profile, price rules, CostObservation,
 ReconciliationObservation, DebtObservation, CashAccount and all canonical cash source/
 movement rows plus workspace policy versions; it does not export `cash_balances`.
+It also preserves delivery-return settlements and fulfilment-remainder case
+lineage; restore validates the Sale and case links before rebuilding projections.
 V1–V11 remain restore-compatible with an empty policy collection.
 
 Backup V17 additionally exports and restores `demand_observations` and commercial
