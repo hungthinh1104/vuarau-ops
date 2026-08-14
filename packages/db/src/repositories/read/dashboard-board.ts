@@ -417,6 +417,7 @@ export async function queryFastOperationsBoardPage(
   return {
     counts: {
       all: 0,
+      outstandingDelivery: 0,
       needsReceiving: 0,
       needsDelivery: 0,
       inDelivery: 0,
@@ -429,6 +430,7 @@ export async function queryFastOperationsBoardPage(
       returnSettlementUnresolved: 0,
       reconciliationVariance: 0,
       exceptionCounts: {
+        outstanding_delivery: 0,
         unallocated_payment: 0,
         fulfilment_remainder_unresolved: 0,
         return_settlement_unresolved: 0,

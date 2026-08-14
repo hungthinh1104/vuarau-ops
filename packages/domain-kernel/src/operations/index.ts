@@ -63,6 +63,21 @@ export function deriveOperationsBoardExceptions(
   input: OperationsBoardExceptionFacts,
 ): OperationsException[] {
   const result: OperationsException[] = [];
+  if (
+    input.kind === "sale" &&
+    !input.returnedFulfilment &&
+    !input.fulfilmentRemainderUnresolved &&
+    (input.physicalState === "needs_delivery" || input.physicalState === "in_delivery")
+  ) {
+    result.push(
+      exception(
+        input,
+        "outstanding_delivery",
+        [{ key: "delivery_status", value: input.physicalState }],
+        input.deliveryId === null ? input.href : `/deliveries/${input.deliveryId}`,
+      ),
+    );
+  }
   if (input.kind === "sale" && input.returnedFulfilment) {
     result.push(
       exception(
