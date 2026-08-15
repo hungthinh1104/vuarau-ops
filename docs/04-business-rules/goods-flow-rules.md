@@ -70,7 +70,11 @@ claim that a depot has validated the workflow in live operations.
 - **BR-INVENTORY-003** — Each Receipt line creates exactly one positive
   inventory movement. Retry cannot append a second movement.
 - **BR-INVENTORY-004** — Receipt reversal is append-only and creates one inverse
-  movement referencing each original movement.
+  movement referencing each original movement. Goods Truth projections exclude
+  every line of a reversed Receipt from active received quantity; they do not
+  add the replacement Receipt while also retaining the reversed original. Thus
+  `100 ordered → 60 received → reverse 60 → replacement 60` remains `60 received,
+40 remaining`.
 - **BR-INVENTORY-005** — Inventory truth is the movement ledger. The disposable
   projection is keyed by workspace, Product, QualityGrade and unit; grades and
   incompatible units are never silently merged or converted.

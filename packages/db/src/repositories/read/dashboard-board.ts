@@ -24,7 +24,7 @@ const nullableMoney = (row: Row, name: string) =>
 function mapBoardRows(rawRows: readonly Row[]) {
   return rawRows.map((row) => {
     const id = String(row["id"] ?? "");
-    const kind = String(row["kind"] ?? "") as "sale" | "purchase";
+    const kind = String(row["kind"] ?? "") as "sale" | "purchase" | "payment";
     const reference = String(row["reference"] ?? "");
     const amountMinor = numberOf(row, "amount");
     const commercialState = String(row["commercial_state"] ?? "");
@@ -104,31 +104,80 @@ export async function queryFastOperationsBoardPage(
     input.page.limit === Number.MAX_SAFE_INTEGER ? sql`all` : sql`${input.page.limit + 1}`;
   const rows = await tx.execute(sql`
     with recursive
-    customer_payment_activity as (
-      select payment_events.workspace_id, payment_events.customer_id, max(payment_events.recorded_at) as recorded_at
+    payment_activity_events as (
+      select payment_events.workspace_id, payment_events.payment_id, max(payment_events.recorded_at) as recorded_at
       from (
-        select p.workspace_id, p.customer_id, p.recorded_at
+        select p.workspace_id, p.id as payment_id, p.recorded_at
         from payments p
         where p.workspace_id=${input.workspaceId}::uuid
         union all
-        select p.workspace_id, p.customer_id, pr.recorded_at
+        select p.workspace_id, p.id as payment_id, pr.recorded_at
         from payment_reversals pr
         join payments p
           on p.workspace_id=pr.workspace_id and p.id=pr.payment_id
         where pr.workspace_id=${input.workspaceId}::uuid
+        union all
+        select pa.workspace_id, pa.payment_id, pa.recorded_at
+        from payment_allocations pa
+        where pa.workspace_id=${input.workspaceId}::uuid
+        union all
+        select pa.workspace_id, pa.payment_id, par.recorded_at
+        from payment_allocation_reversals par
+        join payment_allocations pa
+          on pa.workspace_id=par.workspace_id and pa.id=par.allocation_id
+        where par.workspace_id=${input.workspaceId}::uuid
+        union all
+        select dc.workspace_id, dc.payment_reference::uuid, dc.recorded_at
+        from debt_observations dc
+        where dc.workspace_id=${input.workspaceId}::uuid
+          and dc.kind='customer_credit_preserved'
       ) payment_events
-      group by payment_events.workspace_id, payment_events.customer_id
+      group by payment_events.workspace_id, payment_events.payment_id
+    ), payment_activity as (
+      select p.workspace_id, p.id, greatest(p.recorded_at, coalesce(events.recorded_at, p.recorded_at)) as updated_at
+      from payments p
+      left join payment_activity_events events
+        on events.workspace_id=p.workspace_id and events.payment_id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
+    ), payment_allocated as (
+      select pa.workspace_id, pa.payment_id,
+        coalesce(sum(pa.amount_minor-coalesce(reversed.amount,0)),0) as amount
+      from payment_allocations pa
+      left join (
+        select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0) as amount
+        from payment_allocation_reversals par
+        where par.workspace_id=${input.workspaceId}::uuid
+        group by par.workspace_id, par.allocation_id
+      ) reversed on reversed.workspace_id=pa.workspace_id and reversed.allocation_id=pa.id
+      where pa.workspace_id=${input.workspaceId}::uuid
+      group by pa.workspace_id, pa.payment_id
+    ), preserved_credit_by_payment as (
+      select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
+      from debt_observations dc
+      where dc.workspace_id=${input.workspaceId}::uuid
+        and dc.kind='customer_credit_preserved'
+        and not exists (
+          select 1 from debt_observations successor
+          where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
+        )
+      group by dc.payment_reference
+    ), payment_remaining as (
+      select p.workspace_id, p.id, p.customer_id,
+        greatest(
+          p.amount_minor-p.reversed_amount_minor-coalesce(allocated.amount,0)-coalesce(preserved.amount,0),
+          0
+        ) as amount
+      from payments p
+      left join payment_allocated allocated
+        on allocated.workspace_id=p.workspace_id and allocated.payment_id=p.id
+      left join preserved_credit_by_payment preserved on preserved.payment_id=p.id::text
+      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
     ), sale_activity_events as (
       select events.workspace_id, events.id, max(events.recorded_at) as recorded_at
       from (
         select sv.workspace_id, sv.sale_id as id, sv.recorded_at
         from sale_voids sv
         where sv.workspace_id=${input.workspaceId}::uuid
-        union all
-        select s.workspace_id, s.id, cpa.recorded_at
-        from customer_payment_activity cpa
-        join sales s
-          on s.workspace_id=cpa.workspace_id and s.customer_id=cpa.customer_id
         union all
         select d.workspace_id, d.sale_id as id, d.recorded_at
         from deliveries d
@@ -239,6 +288,11 @@ export async function queryFastOperationsBoardPage(
       union all
       select purchase_activity.id, 'purchase' as kind, purchase_activity.updated_at
       from purchase_activity
+      union all
+      select payment_activity.id, 'payment' as kind, payment_activity.updated_at
+      from payment_activity
+      join payment_remaining on payment_remaining.workspace_id=payment_activity.workspace_id
+        and payment_remaining.id=payment_activity.id and payment_remaining.amount > 0
     ), candidate_scope as materialized (
       select candidate_rows.*
       from candidate_rows
@@ -249,10 +303,8 @@ export async function queryFastOperationsBoardPage(
       select id from candidate_scope where kind='sale'
     ), candidate_purchases as (
       select id from candidate_scope where kind='purchase'
-    ), candidate_customers as (
-      select distinct s.customer_id
-      from sales s join candidate_sales cs on cs.id=s.id
-      where s.workspace_id=${input.workspaceId}::uuid
+    ), candidate_payments as (
+      select id from candidate_scope where kind='payment'
     ), delivered as (
       select sl.id as sale_line_id, sum(dl.quantity_scaled) as dispatched
       from delivery_lines dl
@@ -355,35 +407,9 @@ export async function queryFastOperationsBoardPage(
       left join allocation_reversals ar on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
       where pa.workspace_id=${input.workspaceId}::uuid
       group by pa.sale_id
-    ), preserved_credit_by_payment as (
-      select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
-      from debt_observations dc
-      where dc.workspace_id=${input.workspaceId}::uuid
-        and dc.kind='customer_credit_preserved'
-        and not exists (
-          select 1 from debt_observations successor
-          where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
-        )
-      group by dc.payment_reference
-    ), unallocated_by_customer as (
-      select p.customer_id,
-        coalesce(sum(greatest(p.amount_minor-p.reversed_amount_minor-coalesce(allocated_payment.amount,0)-coalesce(preserved_credit.amount,0),0)),0) as amount
-      from payments p
-      join candidate_customers cc on cc.customer_id=p.customer_id
-      left join (
-        select pa.payment_id,
-          coalesce(sum(pa.amount_minor-coalesce(ar.amount,0)),0) as amount
-        from payment_allocations pa
-        left join allocation_reversals ar on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
-        where pa.workspace_id=${input.workspaceId}::uuid
-        group by pa.payment_id
-      ) allocated_payment on allocated_payment.payment_id=p.id
-      left join preserved_credit_by_payment preserved_credit on preserved_credit.payment_id=p.id::text
-      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
-      group by p.customer_id
     ), direct_received as (
       select prl.workspace_id, prl.purchase_line_id,
-        coalesce(sum(case when prr.id is null then prl.quantity_scaled else -prl.quantity_scaled end),0) as received
+        coalesce(sum(case when prr.id is null then prl.quantity_scaled else 0 end),0) as received
       from purchase_receipt_lines prl
       join purchase_receipts pr on pr.workspace_id=prl.workspace_id and pr.id=prl.receipt_id
       join purchase_lines pl on pl.workspace_id=prl.workspace_id and pl.id=prl.purchase_line_id
@@ -438,7 +464,6 @@ export async function queryFastOperationsBoardPage(
       sale_physical.physical_state,
       case
         when sv.id is not null then 'voided'
-        when coalesce(unallocated_by_customer.amount,0) > 0 then 'reconciliation_required'
         when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
         when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
         else 'awaiting_payment'
@@ -447,17 +472,16 @@ export async function queryFastOperationsBoardPage(
       sale_physical.returned_fulfilment,
       sale_physical.return_settlement_resolved,
       sale_physical.fulfilment_remainder_unresolved,
-      sale_physical.fulfilment_remainder_outcome,
+      sale_physical.fulfilment_remainder_outcome::text as fulfilment_remainder_outcome,
       (sale_physical.physical_state='attention') as reconciliation_variance,
-      (coalesce(unallocated_by_customer.amount,0) > 0) as unallocated_payment,
-      case when coalesce(unallocated_by_customer.amount,0) > 0 then unallocated_by_customer.amount else null end as unallocated_payment_amount,
+      false as unallocated_payment,
+      null::bigint as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, cs.updated_at,
       case
         when sv.id is not null then null
         when sale_physical.physical_state='attention' then 'Kiểm tra'
         when sale_physical.returned_fulfilment and not sale_physical.return_settlement_resolved then 'Xử lý hàng trả'
         when sale_physical.fulfilment_remainder_unresolved then 'Mở Sale để quyết định phần còn lại.'
-        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.'
         when sale_physical.fulfilment_remainder_outcome='commercial_correction' then 'Mở Sale để điều chỉnh thương mại.'
         when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
         when sale_physical.physical_state='in_delivery' then 'Theo dõi giao hàng'
@@ -471,28 +495,46 @@ export async function queryFastOperationsBoardPage(
     join sale_physical on sale_physical.id=s.id
     left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
     left join allocated on allocated.sale_id=s.id
-    left join unallocated_by_customer on unallocated_by_customer.customer_id=s.customer_id
     union all
     select p.id, 'purchase' as kind, ('PUR-' || upper(substr(p.id::text,1,8))) as reference,
       s.display_name as counterparty, p.total_amount_minor as amount, p.currency,
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
       purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state,
-      null as due_at,
+      null::timestamptz as due_at,
       false as returned_fulfilment,
       false as return_settlement_resolved,
       false as fulfilment_remainder_unresolved,
-      null as fulfilment_remainder_outcome,
+      null::text as fulfilment_remainder_outcome,
       false as reconciliation_variance,
       false as unallocated_payment,
-      null as unallocated_payment_amount,
+      null::bigint as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, cs.updated_at,
       case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
-      null as delivery_id, ('/purchases/' || p.id::text) as href
+      null::uuid as delivery_id, ('/purchases/' || p.id::text) as href
     from candidate_scope cs
     join purchases p on p.workspace_id=${input.workspaceId}::uuid and p.id=cs.id and cs.kind='purchase'
     join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id
     join purchase_physical on purchase_physical.id=p.id
     left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
+    union all
+    select p.id, 'payment' as kind, ('PAY-' || upper(substr(p.id::text,1,8))) as reference,
+      c.display_name as counterparty, remaining.amount::bigint as amount, p.currency,
+      'not_applicable' as commercial_state, 'not_applicable' as physical_state,
+      'unallocated' as financial_state, null::timestamptz as due_at,
+      false as returned_fulfilment, false as return_settlement_resolved,
+      false as fulfilment_remainder_unresolved, null::text as fulfilment_remainder_outcome,
+      false as reconciliation_variance, true as unallocated_payment,
+      remaining.amount::bigint as unallocated_payment_amount,
+      extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds,
+      pa.updated_at,
+      'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.' as next_action,
+      null::uuid as delivery_id, ('/payments/' || p.id::text) as href
+    from candidate_scope cs
+    join candidate_payments cp on cp.id=cs.id
+    join payments p on p.workspace_id=${input.workspaceId}::uuid and p.id=cs.id
+    join payment_remaining remaining on remaining.workspace_id=p.workspace_id and remaining.id=p.id
+    join payment_activity pa on pa.workspace_id=p.workspace_id and pa.id=p.id
+    join customers c on c.workspace_id=p.workspace_id and c.id=p.customer_id
     order by updated_at desc, id desc
     limit ${limitClause}
   `);

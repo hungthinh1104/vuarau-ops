@@ -270,6 +270,24 @@ describe("operational close", () => {
       ]),
     );
 
+    const blockedWrite = await recordOperationalClose(harness.ctx, {
+      ...envelope("ack-readiness-bypass-attempt"),
+      payload: {
+        operationalCloseId: uuid(),
+        businessDate: "2026-07-20",
+        observationIds: [observationId],
+        evidenceReferences: ["review://close-ack/readiness-bypass"],
+        reason: "Thử bỏ qua exception chưa được acknowledge bằng write-path.",
+      },
+    });
+    expect(blockedWrite).toMatchObject({
+      ok: false,
+      error: {
+        code: "OPERATIONAL_CLOSE_READINESS_BLOCKED",
+        details: { blockers: ["unacknowledged_exception"] },
+      },
+    });
+
     const acknowledgementInput = {
       ...envelope("ack-remainder"),
       payload: {
@@ -394,6 +412,26 @@ describe("operational close", () => {
         missingObservationKinds: ["cash_count", "inventory_count"],
       },
     });
+    const bypassAttempt = await recordOperationalClose(harness.ctx, {
+      ...envelope("readiness-bypass-attempt"),
+      payload: {
+        operationalCloseId: uuid(),
+        businessDate: "2026-07-20",
+        observationIds: [uuid()],
+        evidenceReferences: ["review://close/readiness-bypass"],
+        reason: "Thử bỏ qua readiness bằng write-path.",
+      },
+    });
+    expect(bypassAttempt).toMatchObject({
+      ok: false,
+      error: {
+        code: "OPERATIONAL_CLOSE_READINESS_BLOCKED",
+        details: {
+          blockers: ["missing_observation"],
+          missingObservationKinds: ["cash_count", "inventory_count"],
+        },
+      },
+    });
 
     const cashObservationId = await recordObservation("cash_count");
     const missingInventory = await getOperationalCloseReadiness(harness.ctx, {
@@ -468,7 +506,13 @@ describe("operational close", () => {
     });
     expect(invalid).toMatchObject({
       ok: false,
-      error: { code: "OPERATIONAL_CLOSE_OBSERVATIONS_INVALID" },
+      error: {
+        code: "OPERATIONAL_CLOSE_READINESS_BLOCKED",
+        details: {
+          blockers: ["missing_observation"],
+          missingObservationKinds: ["inventory_count"],
+        },
+      },
     });
   });
 

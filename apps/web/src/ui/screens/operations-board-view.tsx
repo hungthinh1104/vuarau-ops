@@ -87,6 +87,8 @@ function stateLabel(value: string): string {
     awaiting_payment: "Chờ thanh toán",
     paid: "Đã thanh toán",
     payable: "Phải trả",
+    not_applicable: "Không áp dụng",
+    unallocated: "Chưa phân bổ",
     overdue: "Quá hạn",
     overdue_receivable: "Phải thu quá hạn",
     reconciliation_required: "Cần đối soát",
@@ -106,6 +108,7 @@ function stateTone(value: string): "info" | "warning" | "positive" | "neutral" {
       "overdue",
       "overdue_receivable",
       "reconciliation_required",
+      "unallocated",
     ].includes(value)
   )
     return "warning";
@@ -267,7 +270,11 @@ function columns() {
       cell: (info) => (
         <div className="grid gap-1">
           <span className="text-caption text-ink-muted">
-            {info.row.original.kind === "sale" ? "Bán" : "Mua"}
+            {info.row.original.kind === "sale"
+              ? "Bán"
+              : info.row.original.kind === "purchase"
+                ? "Mua"
+                : "Thanh toán"}
           </span>
           <Badge tone={stateTone(info.getValue())}>{stateLabel(info.getValue())}</Badge>
         </div>

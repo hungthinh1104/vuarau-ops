@@ -19,10 +19,7 @@ import type { Tx } from "../shared/types.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import { exactIntegerSum } from "@vuarau/domain-kernel";
 import { queryFastOperationsBoardPage } from "./dashboard-board.ts";
-import {
-  queryOperationsBoardCounts,
-  queryOperationsBoardCountsSplit,
-} from "./dashboard-board-counts.ts";
+import { queryOperationsBoardCounts } from "./dashboard-board-counts.ts";
 import { queryRows } from "./dashboard-rows.ts";
 type Row = Record<string, unknown>;
 const numberOf = (row: Row, name: string): number => {
@@ -276,7 +273,7 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
       input: OperationsBoardCountsInput & { readonly now: string },
     ): Promise<OperationsBoardCountsDto> {
       if (input.search.length === 0) {
-        const result = await queryOperationsBoardCountsSplit(tx, input);
+        const result = await queryOperationsBoardCounts(tx, input);
         return {
           workspaceId: input.workspaceId,
           asOf: input.now,

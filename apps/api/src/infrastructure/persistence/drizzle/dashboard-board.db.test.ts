@@ -163,12 +163,20 @@ describe.skipIf(skipWithoutDatabase())(
       if (board.ok) {
         expect(board.value.page.items).toContainEqual(
           expect.objectContaining({
-            id: saleId,
-            financialState: "reconciliation_required",
+            id: paymentId,
+            kind: "payment",
+            financialState: "unallocated",
             unallocatedPayment: true,
             unallocatedPaymentAmount: { amountMinor: 325_000, currency: "VND" },
             nextAction: "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.",
             updatedAt: "2026-07-29T12:01:00.000Z",
+          }),
+        );
+        expect(board.value.page.items.filter((row) => row.kind === "sale")).toContainEqual(
+          expect.objectContaining({
+            id: saleId,
+            unallocatedPayment: false,
+            unallocatedPaymentAmount: null,
           }),
         );
       }
@@ -194,7 +202,8 @@ describe.skipIf(skipWithoutDatabase())(
         limit: 20,
       });
       expect(attention.ok).toBe(true);
-      if (attention.ok) expect(attention.value.page.items.map((row) => row.id)).toContain(saleId);
+      if (attention.ok)
+        expect(attention.value.page.items.map((row) => row.id)).toContain(paymentId);
 
       const unallocated = await getOperationsBoard(context(), {
         workspaceId: ctx.workspaceId,
@@ -208,7 +217,8 @@ describe.skipIf(skipWithoutDatabase())(
       if (unallocated.ok) {
         expect(unallocated.value.page.items).toContainEqual(
           expect.objectContaining({
-            id: saleId,
+            id: paymentId,
+            kind: "payment",
             unallocatedPayment: true,
             unallocatedPaymentAmount: { amountMinor: 325_000, currency: "VND" },
           }),

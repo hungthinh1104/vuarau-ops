@@ -5,7 +5,12 @@ import {
   skipWithoutDatabase,
   type DbTestContext,
 } from "@vuarau/db";
-import type { PurchaseId, PurchaseLineId, SupplierId } from "@vuarau/domain-contracts";
+import type {
+  PurchaseId,
+  PurchaseLineId,
+  PurchaseReceiptId,
+  SupplierId,
+} from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
 import {
@@ -19,10 +24,14 @@ import {
 } from "../../../modules/purchase/purchase.handlers.ts";
 import { getPurchase } from "../../../modules/purchase/purchase.queries.ts";
 import { getPurchaseReceivingSummary } from "../../../modules/inventory/inventory.queries.ts";
-import { recordPurchaseReceipt } from "../../../modules/inventory/inventory.handlers.ts";
+import {
+  recordPurchaseReceipt,
+  reversePurchaseReceipt,
+} from "../../../modules/inventory/inventory.handlers.ts";
 import { getInventoryBalances } from "../../../modules/inventory/inventory.queries.ts";
 import { createSupplier } from "../../../modules/supplier/supplier.handlers.ts";
 import { getSupplierBalance } from "../../../modules/supplier/supplier.queries.ts";
+import { getOperationsBoard } from "../../../modules/dashboard/dashboard.queries.ts";
 
 describe.skipIf(skipWithoutDatabase())("Purchase correction against PostgreSQL", () => {
   let ctx: DbTestContext;
@@ -196,5 +205,132 @@ describe.skipIf(skipWithoutDatabase())("Purchase correction against PostgreSQL",
       supplierId,
     });
     expect(payable.ok && payable.value?.balance.amountMinor).toBe(0);
+  });
+
+  it("TC-GOODS-RECEIPT-REVERSAL-001 excludes a reversed receipt before adding its replacement", async () => {
+    const supplierId = crypto.randomUUID() as SupplierId;
+    const purchaseId = crypto.randomUUID() as PurchaseId;
+    const purchaseLineId = crypto.randomUUID() as PurchaseLineId;
+    const firstReceiptId = crypto.randomUUID() as PurchaseReceiptId;
+    const replacementReceiptId = crypto.randomUUID() as PurchaseReceiptId;
+    expect(
+      (
+        await createSupplier(context(), {
+          ...command("receipt-reversal-supplier"),
+          payload: {
+            supplierId,
+            displayName: "Nhà cung cấp receipt reversal",
+            phone: null,
+            note: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await createPurchaseDraft(context(), {
+          ...command("receipt-reversal-purchase"),
+          payload: {
+            purchaseId,
+            supplierId,
+            currency: "VND",
+            lines: [
+              {
+                lineId: purchaseLineId,
+                productId: ctx.productIds[0],
+                productName: "Cà chua",
+                quantity: { valueScaled: 100_000, unit: "kg" },
+                unitPrice: { amountMinor: 10_000, currency: "VND" },
+              },
+            ],
+            note: null,
+            evidenceReferences: [],
+            dueAt: null,
+            replacesPurchaseId: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await confirmPurchase(context(), {
+          ...command("receipt-reversal-confirm"),
+          expectedVersion: 1,
+          payload: { purchaseId },
+        })
+      ).ok,
+    ).toBe(true);
+    const receipt = (receiptId: PurchaseReceiptId, label: string) => ({
+      ...command(label),
+      payload: {
+        receiptId,
+        purchaseId,
+        lines: [
+          {
+            receiptLineId: crypto.randomUUID(),
+            purchaseLineId,
+            productId: ctx.productIds[0],
+            qualityGradeId: ctx.qualityGradeId,
+            qualityGradeName: "Loại 1",
+            quantity: { valueScaled: 60_000, unit: "kg" as const },
+          },
+        ],
+        note: null,
+        evidenceReferences: [`test://${label}`],
+      },
+    });
+    expect(
+      (await recordPurchaseReceipt(context(), receipt(firstReceiptId, "receipt-reversal-first")))
+        .ok,
+    ).toBe(true);
+    expect(
+      (
+        await reversePurchaseReceipt(context(), {
+          ...command("receipt-reversal-reverse"),
+          payload: {
+            reversalId: crypto.randomUUID(),
+            receiptId: firstReceiptId,
+            reasonCode: "wrong_quantity",
+            reason: "Receipt đầu tiên được ghi nhầm trong regression test.",
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await recordPurchaseReceipt(
+          context(),
+          receipt(replacementReceiptId, "receipt-reversal-replacement"),
+        )
+      ).ok,
+    ).toBe(true);
+
+    const summary = await getPurchaseReceivingSummary(context(), {
+      workspaceId: ctx.workspaceId,
+      purchaseId,
+    });
+    expect(summary.ok && summary.value.lines[0]).toMatchObject({
+      ordered: { valueScaled: 100_000, unit: "kg" },
+      received: { valueScaled: 60_000, unit: "kg" },
+      remaining: { valueScaled: 40_000, unit: "kg" },
+    });
+    const board = await getOperationsBoard(context(), {
+      workspaceId: ctx.workspaceId,
+      filter: "all",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(board.ok).toBe(true);
+    if (board.ok) {
+      expect(board.value.page.items).toContainEqual(
+        expect.objectContaining({
+          id: purchaseId,
+          kind: "purchase",
+          physicalState: "needs_receiving",
+        }),
+      );
+    }
   });
 });

@@ -40,7 +40,7 @@ export function matchesOperationsBoardFilter(
     return (
       row.commercialState === "attention" ||
       row.physicalState === "attention" ||
-      row.financialState === "reconciliation_required"
+      row.financialState === "unallocated"
     );
   }
   return row.exceptions.some((exception) => exception.kind === filter);
@@ -103,7 +103,7 @@ export function boardCounts(rows: readonly OperationsBoardDto["page"]["items"][n
       (row) =>
         row.commercialState === "attention" ||
         row.physicalState === "attention" ||
-        row.financialState === "reconciliation_required",
+        row.financialState === "unallocated",
     ).length,
   };
 }

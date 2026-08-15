@@ -264,7 +264,11 @@ if that evidence made the canonical comparison healthy.
 
 The first implemented vertical slices preserve an unallocated customer Payment
 until an authorized allocation or explicit credit/reversal decision appends the
-resolving fact. A returned Delivery remains unresolved until an authorized
+resolving fact. An unallocated Payment is its own Board source row (`kind =
+payment`, `financialState = unallocated`); it is never grafted onto every Sale
+for the same customer. A Sale's financial state and `updatedAt` change only from
+its own canonical sale/allocation facts, so one new Payment cannot manufacture
+activity or uncertainty on unrelated Sales. A returned Delivery remains unresolved until an authorized
 `goods_only` settlement fact is appended; that fact has no money effect, and
 other return outcomes remain policy-blocked. PostgreSQL page rows, filters and counts use the same condition
 vocabulary as the in-memory read and shared domain deriver. Close readiness
@@ -275,6 +279,12 @@ do not alter balances, inventory or fulfilment. Close exception summaries carry
 the server-authored next-action label and nullable destination; the operations
 screen links to the matching Board filter only when the API supplies a valid
 destination and otherwise states that no destination is available.
+
+The read contract is also a write contract: `recordOperationalClose` takes the
+business-date lock and re-evaluates this same readiness derivation inside its
+transaction immediately before inserting the close. A UI/read result is
+informational and cannot authorize a blocked close; the server returns
+`OPERATIONAL_CLOSE_READINESS_BLOCKED` with the current blocker details.
 
 #### Semantic classification
 

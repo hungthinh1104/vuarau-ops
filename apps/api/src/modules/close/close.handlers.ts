@@ -39,6 +39,7 @@ import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { vietnamBusinessDayRange } from "@vuarau/domain-contracts";
+import { evaluateOperationalCloseReadiness } from "./close.queries.ts";
 
 async function effectiveClosePolicy(
   repos: Repositories,
@@ -165,6 +166,24 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
         return err(
           "OPERATIONAL_CLOSE_STATE_INVALID",
           "A close revision must explicitly supersede the currently reopened close.",
+        );
+      }
+      const readiness = await evaluateOperationalCloseReadiness(repos, {
+        workspaceId: command.workspaceId,
+        businessDate: command.payload.businessDate,
+        asOf: recordedAt,
+        profile: operationalProfile,
+      });
+      if (readiness.state === "blocked") {
+        return err(
+          "OPERATIONAL_CLOSE_READINESS_BLOCKED",
+          "Operational close readiness is blocked.",
+          {
+            businessDate: command.payload.businessDate,
+            blockers: readiness.blockers,
+            missingObservationKinds: readiness.missingObservationKinds,
+            exceptionSummary: readiness.exceptionSummary,
+          },
         );
       }
       const observations = await Promise.all(

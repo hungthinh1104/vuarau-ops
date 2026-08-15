@@ -917,7 +917,7 @@ use_cases:
     doc: docs/02-use-cases/goods-flow-use-cases.md
     rules: [BR-INVENTORY-003, BR-INVENTORY-004]
     cases: []
-    tests: [TC-GOODS-001, TC-GOODS-004, TC-E2E-029]
+    tests: [TC-GOODS-001, TC-GOODS-004, TC-GOODS-RECEIPT-REVERSAL-001, TC-E2E-029]
     implementation:
       - packages/domain-kernel/src/inventory/index.ts
       - apps/api/src/modules/inventory/inventory.handlers.ts
@@ -1922,7 +1922,7 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/goods-flow-rules.md
     cases: []
-    tests: [TC-GOODS-001]
+    tests: [TC-GOODS-001, TC-GOODS-RECEIPT-REVERSAL-001]
     implementation: [apps/api/src/modules/inventory/inventory.handlers.ts]
   BR-INVENTORY-005:
     title: Inventory projection is keyed by Product, QualityGrade and unit
@@ -4346,6 +4346,9 @@ contract_tests:
     file: apps/api/src/modules/purchase/purchase-correction.app.test.ts
   TC-PURCHASE-CORRECTION-004:
     title: PostgreSQL purchase correction preserves policy lineage and physical truth
+    file: apps/api/src/infrastructure/persistence/drizzle/purchase-correction.db.test.ts
+  TC-GOODS-RECEIPT-REVERSAL-001:
+    title: PostgreSQL receipt reversal excludes the original before replacement receiving
     file: apps/api/src/infrastructure/persistence/drizzle/purchase-correction.db.test.ts
   TC-GOODS-004:
     title: Inventory domain tests prove receipt limits and signed adjustment

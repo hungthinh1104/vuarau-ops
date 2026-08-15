@@ -49,7 +49,7 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
 
   afterEach(async () => ctx.close());
 
-  it("TC-OPS-026 — counts overlapping physical and money attention causes once", async () => {
+  it("TC-OPS-026 — keeps payment uncertainty separate from Sale integrity work", async () => {
     const productId = ctx.productIds[0];
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
@@ -139,19 +139,34 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
       limit: 20,
     });
     expect(board.ok).toBe(true);
-    if (board.ok)
+    if (board.ok) {
       expect(board.value.page.items).toContainEqual(
         expect.objectContaining({
           id: saleId,
+          kind: "sale",
           physicalState: "attention",
-          financialState: "reconciliation_required",
+          financialState: "awaiting_payment",
           nextAction: "Kiểm tra",
           exceptions: expect.arrayContaining([
-            expect.objectContaining({ kind: "unallocated_payment", closeImpact: "blocking" }),
             expect.objectContaining({ kind: "reconciliation_variance", closeImpact: "blocking" }),
           ]),
         }),
       );
+      expect(board.value.page.items).toContainEqual(
+        expect.objectContaining({
+          kind: "payment",
+          financialState: "unallocated",
+          unallocatedPayment: true,
+          exceptions: expect.arrayContaining([
+            expect.objectContaining({
+              kind: "unallocated_payment",
+              closeImpact: "blocking",
+              source: expect.objectContaining({ kind: "payment" }),
+            }),
+          ]),
+        }),
+      );
+    }
 
     const counts = await getOperationsBoardCounts(context(), {
       workspaceId: ctx.workspaceId,
@@ -160,7 +175,7 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
     });
     expect(counts.ok).toBe(true);
     if (counts.ok) {
-      expect(counts.value.counts.attention).toBe(1);
+      expect(counts.value.counts.attention).toBe(2);
       expect(counts.value.counts.unallocatedPayment).toBe(1);
       expect(counts.value.counts.reconciliationVariance).toBe(1);
       expect(counts.value.counts.outstandingDelivery).toBe(0);
@@ -182,14 +197,14 @@ describe.skipIf(skipWithoutDatabase())("Operations Board counts against PostgreS
         workspaceId: ctx.workspaceId,
         filter,
         sort: "updated_desc",
-        search: "SALE",
+        search: filter === "unallocated_payment" ? "PAY" : "SALE",
         cursor: null,
         limit: 20,
       });
       const filteredCounts = await getOperationsBoardCounts(context(), {
         workspaceId: ctx.workspaceId,
         filter,
-        search: "SALE",
+        search: filter === "unallocated_payment" ? "PAY" : "SALE",
       });
       expect(filteredPage.ok).toBe(true);
       expect(filteredCounts.ok).toBe(true);

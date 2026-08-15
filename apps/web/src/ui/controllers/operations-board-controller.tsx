@@ -35,6 +35,7 @@ export function OperationsBoardController() {
   const [filter, setFilter] = useState<OperationsBoardFilter>(() => filterOf(params.get("filter")));
   const [sort, setSort] = useState<OperationsBoardSort>(() => sortOf(params.get("sort")));
   const [search, setSearch] = useState(() => params.get("q") ?? "");
+  const urlQuery = params.toString();
 
   const updateUrl = (next: {
     filter?: OperationsBoardFilter;
@@ -56,13 +57,17 @@ export function OperationsBoardController() {
   };
 
   useEffect(() => {
-    const urlFilter = filterOf(params.get("filter"));
-    const urlSort = sortOf(params.get("sort"));
-    const urlSearch = params.get("q") ?? "";
+    const urlParams = new URLSearchParams(urlQuery);
+    const urlFilter = filterOf(urlParams.get("filter"));
+    const urlSort = sortOf(urlParams.get("sort"));
+    const urlSearch = urlParams.get("q") ?? "";
     if (urlFilter !== filter) setFilter(urlFilter);
     if (urlSort !== sort) setSort(urlSort);
     if (urlSearch !== search) setSearch(urlSearch);
-  }, [filter, params, search, sort]);
+    // Only reconcile when the URL changes. Including the local state here lets
+    // the effect observe the old URL during router.replace and undo a user's
+    // filter click before the new query can settle.
+  }, [urlQuery]);
 
   const input = useMemo(
     () => ({ workspaceId, filter, sort, search, limit: 25 }),

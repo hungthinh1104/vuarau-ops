@@ -55,6 +55,14 @@ rules refine them but may not weaken them.
     domain contract. Derivers, Board DTOs, close readiness, UI and tests carry that
     classification through; the frontend never derives a category from a label,
     workflow enum or missing row.
+12. **Server write paths re-check control gates.** A read-model readiness result is
+    never authorization to write. Operational Close acquires the business-date
+    lock and re-evaluates the same readiness facts immediately before recording;
+    a blocked result cannot be bypassed by calling the command directly.
+13. **Goods corrections preserve active net quantity.** A reversed Receipt is
+    excluded from the active Goods Truth projection before any replacement Receipt
+    is counted. Reversal is an appended inverse fact, not a second subtraction in
+    a projection that already excludes the reversed source.
 
 ## Evidence vocabulary
 

@@ -1,13 +1,8 @@
 import { sql } from "drizzle-orm";
-import type {
-  CursorPosition,
-  DeliveryId,
-  FulfilmentRemainderOutcome,
-  OperationsBoardInput,
-} from "@vuarau/domain-contracts";
+import type { CursorPosition, OperationsBoardInput } from "@vuarau/domain-contracts";
 import type { Tx } from "../shared/types.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
-import { deriveOperationsBoardExceptions } from "@vuarau/domain-kernel";
+import { mapOperationsBoardRows } from "./dashboard-row-mapper.ts";
 type Row = Record<string, unknown>;
 const numberOf = (row: Row, name: string): number => {
   const raw = row[name] ?? 0;
@@ -18,8 +13,6 @@ const numberOf = (row: Row, name: string): number => {
   }
   return persistedBigintToSafeNumber(raw, `dashboard ${name}`);
 };
-const stringOf = (row: Row, name: string): string => String(row[name] ?? "");
-const asMoney = (amountMinor: number) => ({ amountMinor, currency: "VND" as const });
 function statusCounts(row: Row | undefined, entries: readonly (readonly [string, string])[]) {
   if (row === undefined) return [];
   return entries
@@ -52,7 +45,7 @@ export async function queryRows(
                   : input.filter === "overdue" || input.filter === "overdue_receivable"
                     ? sql`financial_state = 'overdue'`
                     : input.filter === "attention"
-                      ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'reconciliation_required')`
+                      ? sql`(commercial_state = 'attention' or physical_state = 'attention' or financial_state = 'unallocated')`
                       : input.filter === "fulfilment_remainder_unresolved"
                         ? sql`fulfilment_remainder_unresolved`
                         : input.filter === "return_settlement_unresolved"
@@ -81,6 +74,13 @@ export async function queryRows(
       join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id
       where p.workspace_id=${input.workspaceId}::uuid
         and lower(('PUR-' || upper(substr(p.id::text,1,8))) || ' ' || s.display_name) like ${searchPattern}
+      union all
+      select p.id, 'payment' as kind
+      from payments p
+      join customers c on c.workspace_id=p.workspace_id and c.id=p.customer_id
+      where p.workspace_id=${input.workspaceId}::uuid
+        and p.status <> 'reversed'
+        and lower(('PAY-' || upper(substr(p.id::text,1,8))) || ' ' || c.display_name) like ${searchPattern}
     ),`;
   const saleSearchJoin =
     input.search.length === 0
@@ -94,6 +94,12 @@ export async function queryRows(
       : sql`
       join search_candidates search_purchase
         on search_purchase.kind='purchase' and search_purchase.id=p.id`;
+  const paymentSearchJoin =
+    input.search.length === 0
+      ? sql` `
+      : sql`
+      join search_candidates search_payment
+        on search_payment.kind='payment' and search_payment.id=p.id`;
   const cursorClause = (() => {
     const after = input.page.after;
     if (after === null) return sql`true`;
@@ -122,29 +128,10 @@ export async function queryRows(
     input.sort === "updated_desc";
   const activityCtes = options.includeActivity
     ? sql`
-    customer_payment_activity as (
-      select payment_events.workspace_id, payment_events.customer_id, max(payment_events.recorded_at) as recorded_at
-      from (
-        select p.workspace_id, p.customer_id, p.recorded_at
-        from payments p
-        where p.workspace_id=${input.workspaceId}::uuid
-        union all
-        select p.workspace_id, p.customer_id, pr.recorded_at
-        from payment_reversals pr
-        join payments p
-          on p.workspace_id=pr.workspace_id and p.id=pr.payment_id
-        where pr.workspace_id=${input.workspaceId}::uuid
-      ) payment_events
-      group by payment_events.workspace_id, payment_events.customer_id
-    ), sale_activity_events as (
+    sale_activity_events as (
       select sv.workspace_id, sv.sale_id as id, sv.recorded_at
       from sale_voids sv
       where sv.workspace_id=${input.workspaceId}::uuid
-      union all
-      select s.workspace_id, s.id, cpa.recorded_at
-      from customer_payment_activity cpa
-      join sales s
-        on s.workspace_id=cpa.workspace_id and s.customer_id=cpa.customer_id
       union all
       select d.workspace_id, d.sale_id as id, d.recorded_at
       from deliveries d
@@ -239,6 +226,69 @@ export async function queryRows(
       where p.workspace_id=${input.workspaceId}::uuid
     ),`
     : sql``;
+  const paymentCtes = sql`
+    payment_activity_events as (
+      select p.workspace_id, p.id as payment_id, p.recorded_at
+      from payments p
+      where p.workspace_id=${input.workspaceId}::uuid
+      union all
+      select p.workspace_id, p.id as payment_id, pr.recorded_at
+      from payment_reversals pr
+      join payments p on p.workspace_id=pr.workspace_id and p.id=pr.payment_id
+      where pr.workspace_id=${input.workspaceId}::uuid
+      union all
+      select pa.workspace_id, pa.payment_id, pa.recorded_at
+      from payment_allocations pa
+      where pa.workspace_id=${input.workspaceId}::uuid
+      union all
+      select pa.workspace_id, pa.payment_id, par.recorded_at
+      from payment_allocation_reversals par
+      join payment_allocations pa on pa.workspace_id=par.workspace_id and pa.id=par.allocation_id
+      where par.workspace_id=${input.workspaceId}::uuid
+      union all
+      select dc.workspace_id, dc.payment_reference::uuid, dc.recorded_at
+      from debt_observations dc
+      where dc.workspace_id=${input.workspaceId}::uuid and dc.kind='customer_credit_preserved'
+    ), payment_activity as (
+      select p.workspace_id, p.id,
+        greatest(p.recorded_at, coalesce(events.recorded_at, p.recorded_at)) as updated_at
+      from payments p
+      left join (
+        select workspace_id, payment_id, max(recorded_at) as recorded_at
+        from payment_activity_events
+        group by workspace_id, payment_id
+      ) events on events.workspace_id=p.workspace_id and events.payment_id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
+    ), payment_allocated as (
+      select pa.workspace_id, pa.payment_id,
+        coalesce(sum(pa.amount_minor-coalesce(reversed.amount,0)),0) as amount
+      from payment_allocations pa
+      left join (
+        select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0) as amount
+        from payment_allocation_reversals par
+        where par.workspace_id=${input.workspaceId}::uuid
+        group by par.workspace_id, par.allocation_id
+      ) reversed on reversed.workspace_id=pa.workspace_id and reversed.allocation_id=pa.id
+      where pa.workspace_id=${input.workspaceId}::uuid
+      group by pa.workspace_id, pa.payment_id
+    ), preserved_credit_by_payment as (
+      select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
+      from debt_observations dc
+      where dc.workspace_id=${input.workspaceId}::uuid
+        and dc.kind='customer_credit_preserved'
+        and not exists (
+          select 1 from debt_observations successor
+          where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
+        )
+      group by dc.payment_reference
+    ), payment_remaining as (
+      select p.workspace_id, p.id,
+        greatest(p.amount_minor-p.reversed_amount_minor-coalesce(allocated.amount,0)-coalesce(preserved.amount,0),0) as amount
+      from payments p
+      left join payment_allocated allocated on allocated.workspace_id=p.workspace_id and allocated.payment_id=p.id
+      left join preserved_credit_by_payment preserved on preserved.payment_id=p.id::text
+      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
+    ),`;
   const candidateCtes = useFastPage
     ? sql`
     candidate_rows as (
@@ -255,6 +305,14 @@ export async function queryRows(
       from purchases p
       join purchase_activity on purchase_activity.workspace_id=p.workspace_id and purchase_activity.id=p.id
       where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
+      union all
+      select p.id, 'payment' as kind, payment_activity.updated_at,
+        remaining.amount as amount,
+        extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds
+      from payments p
+      join payment_activity on payment_activity.workspace_id=p.workspace_id and payment_activity.id=p.id
+      join payment_remaining remaining on remaining.workspace_id=p.workspace_id and remaining.id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed' and remaining.amount > 0
     ), candidate_scope as (
       select candidate_rows.*
       from candidate_rows
@@ -268,6 +326,9 @@ export async function queryRows(
     : sql``;
   const purchaseCandidateJoin = useFastPage
     ? sql`join candidate_scope purchase_candidate on purchase_candidate.kind='purchase' and purchase_candidate.id=p.id`
+    : sql``;
+  const paymentCandidateJoin = useFastPage
+    ? sql`join candidate_scope payment_candidate on payment_candidate.kind='payment' and payment_candidate.id=p.id`
     : sql``;
   const saleUpdatedAt = useFastPage
     ? sql`sale_candidate.updated_at`
@@ -304,7 +365,7 @@ export async function queryRows(
         count(*) filter (where financial_state='awaiting_payment') over() as awaiting_payment_count,
         count(*) filter (where financial_state='overdue') over() as overdue_count,
         count(*) filter (where physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved) over() as outstanding_delivery_count,
-        count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='reconciliation_required') over() as attention_count,
+        count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='unallocated') over() as attention_count,
         count(*) filter (where fulfilment_remainder_unresolved) over() as fulfilment_remainder_unresolved_count,
         count(*) filter (where returned_fulfilment and not return_settlement_resolved) over() as return_settlement_unresolved_count,
         count(*) filter (where reconciliation_variance) over() as reconciliation_variance_count,
@@ -320,7 +381,7 @@ export async function queryRows(
         count(*) filter (where physical_state='attention') over() as physical_attention_count,
         count(*) filter (where financial_state='paid') over() as financial_paid_count,
         count(*) filter (where financial_state='payable') over() as financial_payable_count,
-        count(*) filter (where financial_state='reconciliation_required') over() as financial_reconciliation_required_count,
+        count(*) filter (where financial_state='unallocated') over() as financial_unallocated_count,
         count(*) filter (where financial_state='awaiting_payment') over() as financial_awaiting_payment_count,
         count(*) filter (where financial_state='overdue') over() as financial_overdue_count,
         count(*) filter (where financial_state='voided') over() as financial_voided_count
@@ -341,7 +402,7 @@ export async function queryRows(
       where ${filterClause}
     )`;
   const rows = await tx.execute(sql`
-    with recursive ${searchCtes} delivered as (
+    with recursive ${searchCtes} ${paymentCtes} delivered as (
       select dl.sale_line_id,
         sum(dl.quantity_scaled) as dispatched
       from delivery_lines dl join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
@@ -431,38 +492,9 @@ export async function queryRows(
       left join allocation_reversals ar
         on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
       where pa.workspace_id=${input.workspaceId}::uuid group by pa.sale_id
-    ), preserved_credit_by_payment as (
-      select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
-      from debt_observations dc
-      where dc.workspace_id=${input.workspaceId}::uuid
-        and dc.kind='customer_credit_preserved'
-        and not exists (
-          select 1 from debt_observations successor
-          where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
-        )
-      group by dc.payment_reference
-    ), unallocated_by_customer as (
-      select p.customer_id,
-        coalesce(sum(greatest(
-          p.amount_minor-p.reversed_amount_minor-coalesce(allocated_payment.amount,0)-coalesce(preserved_credit.amount,0),
-          0
-        )),0) as amount
-      from payments p
-      left join (
-        select pa.payment_id,
-          coalesce(sum(pa.amount_minor-coalesce(ar.amount,0)),0) as amount
-        from payment_allocations pa
-        left join allocation_reversals ar
-          on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
-        where pa.workspace_id=${input.workspaceId}::uuid
-        group by pa.payment_id
-      ) allocated_payment on allocated_payment.payment_id=p.id
-      left join preserved_credit_by_payment preserved_credit on preserved_credit.payment_id=p.id::text
-      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
-      group by p.customer_id
     ), direct_received as (
       select prl.workspace_id, prl.purchase_line_id,
-        coalesce(sum(case when prr.id is null then prl.quantity_scaled else -prl.quantity_scaled end),0) as received
+        coalesce(sum(case when prr.id is null then prl.quantity_scaled else 0 end),0) as received
       from purchase_receipt_lines prl
       join purchase_receipts pr on pr.workspace_id=prl.workspace_id and pr.id=prl.receipt_id
       left join purchase_receipt_reversals prr on prr.workspace_id=pr.workspace_id and prr.receipt_id=pr.id
@@ -518,23 +550,21 @@ export async function queryRows(
       sale_physical.physical_state,
       case
         when sv.id is not null then 'voided'
-        when coalesce(unallocated_by_customer.amount,0) > 0 then 'reconciliation_required'
         when coalesce(allocated.amount,0) >= s.total_amount_minor then 'paid'
         when s.due_at is not null and s.due_at < ${input.now}::timestamptz then 'overdue'
         else 'awaiting_payment'
       end as financial_state, s.due_at as due_at, sale_physical.returned_fulfilment, coalesce(sale_physical.return_settlement_resolved, false) as return_settlement_resolved,
       coalesce(sale_physical.fulfilment_remainder_unresolved, false) as fulfilment_remainder_unresolved,
-      sale_physical.fulfilment_remainder_outcome,
+      sale_physical.fulfilment_remainder_outcome::text as fulfilment_remainder_outcome,
       (sale_physical.physical_state='attention') as reconciliation_variance,
-      (coalesce(unallocated_by_customer.amount,0) > 0) as unallocated_payment,
-      case when coalesce(unallocated_by_customer.amount,0) > 0 then unallocated_by_customer.amount else null end as unallocated_payment_amount,
+      false as unallocated_payment,
+      null::bigint as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, ${saleUpdatedAt} as updated_at,
       case
         when sv.id is not null then null
         when sale_physical.physical_state='attention' then 'Kiểm tra'
         when sale_physical.returned_fulfilment and not coalesce(sale_physical.return_settlement_resolved, false) then 'Xử lý hàng trả'
         when coalesce(sale_physical.fulfilment_remainder_unresolved, false) then 'Mở Sale để quyết định phần còn lại.'
-        when coalesce(unallocated_by_customer.amount,0) > 0 then 'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.'
         when sale_physical.fulfilment_remainder_outcome='commercial_correction' then 'Mở Sale để điều chỉnh thương mại.'
         when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
         when sale_physical.physical_state='in_delivery' then 'Theo dõi giao hàng'
@@ -543,27 +573,44 @@ export async function queryRows(
       end as next_action,
       sale_physical.delivery_id, ('/sales/' || s.id::text) as href
     from sales s ${saleSearchJoin} ${saleCandidateJoin} join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
-      join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id left join unallocated_by_customer on unallocated_by_customer.customer_id=s.customer_id
+      join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id
       ${saleActivityJoin}
     where s.workspace_id=${input.workspaceId}::uuid and s.status='posted'
     union all
     select p.id, 'purchase' as kind, ('PUR-' || upper(substr(p.id::text,1,8))) as reference,
       s.display_name as counterparty, p.total_amount_minor as amount, p.currency,
       case when pv.id is null then 'confirmed' else 'voided' end as commercial_state,
-      purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state, null as due_at, false as returned_fulfilment,
+      purchase_physical.physical_state, case when pv.id is null then 'payable' else 'voided' end as financial_state, null::timestamptz as due_at, false as returned_fulfilment,
       false as return_settlement_resolved,
       false as fulfilment_remainder_unresolved,
-      null as fulfilment_remainder_outcome,
+      null::text as fulfilment_remainder_outcome,
       false as reconciliation_variance,
       false as unallocated_payment,
-      null as unallocated_payment_amount,
+      null::bigint as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, ${purchaseUpdatedAt} as updated_at,
       case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
-      null as delivery_id, ('/purchases/' || p.id::text) as href
+      null::uuid as delivery_id, ('/purchases/' || p.id::text) as href
     from purchases p ${purchaseSearchJoin} ${purchaseCandidateJoin} join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id join purchase_physical on purchase_physical.id=p.id
       ${purchaseActivityJoin}
       left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
     where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
+    union all
+    select p.id, 'payment' as kind, ('PAY-' || upper(substr(p.id::text,1,8))) as reference,
+      c.display_name as counterparty, remaining.amount::bigint as amount, p.currency,
+      'not_applicable' as commercial_state, 'not_applicable' as physical_state,
+      'unallocated' as financial_state, null::timestamptz as due_at, false as returned_fulfilment,
+      false as return_settlement_resolved, false as fulfilment_remainder_unresolved,
+      null::text as fulfilment_remainder_outcome, false as reconciliation_variance,
+      true as unallocated_payment, remaining.amount::bigint as unallocated_payment_amount,
+      extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds,
+      payment_activity.updated_at,
+      'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.' as next_action,
+      null::uuid as delivery_id, ('/payments/' || p.id::text) as href
+    from payments p ${paymentSearchJoin} ${paymentCandidateJoin}
+      join customers c on c.workspace_id=p.workspace_id and c.id=p.customer_id
+      join payment_activity on payment_activity.workspace_id=p.workspace_id and payment_activity.id=p.id
+      join payment_remaining remaining on remaining.workspace_id=p.workspace_id and remaining.id=p.id
+    where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed' and remaining.amount > 0
     ), ${rowsCte}
     select *
     from filtered_rows
@@ -625,75 +672,12 @@ export async function queryRows(
       financial: statusCounts(first, [
         ["paid", "financial_paid_count"],
         ["payable", "financial_payable_count"],
-        ["reconciliation_required", "financial_reconciliation_required_count"],
+        ["unallocated", "financial_unallocated_count"],
         ["awaiting_payment", "financial_awaiting_payment_count"],
         ["overdue", "financial_overdue_count"],
         ["voided", "financial_voided_count"],
       ]),
     },
-    rows: rawRows.map((row) => {
-      const id = stringOf(row, "id");
-      const kind = stringOf(row, "kind") as "sale" | "purchase";
-      const reference = stringOf(row, "reference");
-      const amountMinor = numberOf(row, "amount");
-      const commercialState = stringOf(row, "commercial_state");
-      const physicalState = stringOf(row, "physical_state");
-      const financialState = stringOf(row, "financial_state");
-      const returnedFulfilment = Boolean(row["returned_fulfilment"]);
-      const fulfilmentRemainderUnresolved = Boolean(row["fulfilment_remainder_unresolved"]);
-      const fulfilmentRemainderOutcome =
-        row["fulfilment_remainder_outcome"] === null ||
-        row["fulfilment_remainder_outcome"] === undefined
-          ? null
-          : (String(row["fulfilment_remainder_outcome"]) as FulfilmentRemainderOutcome);
-      const returnSettlementResolved = Boolean(row["return_settlement_resolved"]);
-      const unallocatedPayment = Boolean(row["unallocated_payment"]);
-      const unallocatedPaymentAmount =
-        row["unallocated_payment_amount"] === null ||
-        row["unallocated_payment_amount"] === undefined
-          ? null
-          : asMoney(numberOf(row, "unallocated_payment_amount"));
-      const href = stringOf(row, "href");
-      const deliveryId =
-        row["delivery_id"] === null ? null : (stringOf(row, "delivery_id") as DeliveryId);
-      return {
-        id,
-        kind,
-        reference,
-        counterparty: stringOf(row, "counterparty"),
-        amount: asMoney(amountMinor),
-        commercialState,
-        physicalState,
-        financialState,
-        returnedFulfilment,
-        fulfilmentRemainderOutcome,
-        unallocatedPayment,
-        unallocatedPaymentAmount,
-        ageSeconds: numberOf(row, "age_seconds"),
-        nextAction: row["next_action"] === null ? null : stringOf(row, "next_action"),
-        exceptions: deriveOperationsBoardExceptions({
-          id,
-          kind,
-          reference,
-          href,
-          amountMinor,
-          dueAt: row["due_at"] ? new Date(String(row["due_at"])).toISOString() : null,
-          commercialState,
-          physicalState,
-          financialState,
-          returnedFulfilment,
-          unallocatedPayment,
-          unallocatedPaymentAmountMinor: unallocatedPaymentAmount?.amountMinor ?? null,
-          reconciliationVariance: Boolean(row["reconciliation_variance"]),
-          fulfilmentRemainderUnresolved,
-          fulfilmentRemainderOutcome,
-          returnSettlementResolved,
-          deliveryId,
-        }),
-        updatedAt: new Date(String(row["updated_at"])).toISOString(),
-        href,
-        deliveryId,
-      };
-    }),
+    rows: mapOperationsBoardRows(rawRows),
   };
 }

@@ -147,7 +147,7 @@ export type OperationsBoardInput = z.infer<typeof operationsBoardInputSchema>;
 
 export const operationsBoardRowSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(["sale", "purchase"]),
+  kind: z.enum(["sale", "purchase", "payment"]),
   reference: z.string().min(1),
   counterparty: z.string().min(1),
   amount: moneySchema,

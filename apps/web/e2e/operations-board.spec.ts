@@ -87,10 +87,12 @@ test.describe("Operations board production pagination", () => {
       await page.goto("/today");
       await page.getByRole("link", { name: "Bảng điều hành" }).first().click();
       await expect(page.getByRole("heading", { name: "Bảng điều hành" })).toBeVisible();
-      await page.getByRole("button", { name: /Tiền chưa phân bổ/ }).click();
+      const unallocatedFilter = page.getByRole("button", { name: /Tiền chưa phân bổ/ });
+      await unallocatedFilter.click();
+      await expect(unallocatedFilter).toHaveAttribute("aria-pressed", "true");
       const mobileBoard = page.getByRole("list", { name: "Việc cần xử lý" });
       await expect(
-        mobileBoard.getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") }),
+        mobileBoard.getByRole("link", { name: new RegExp(`PAY-${paymentId!.slice(0, 8)}`, "i") }),
       ).toBeVisible();
       const explanation = mobileBoard
         .locator("details")
@@ -107,16 +109,19 @@ test.describe("Operations board production pagination", () => {
       await expect(explanation.getByText("Tiền chưa phân bổ (đơn vị nhỏ nhất)")).toBeVisible();
       await expect(explanation.getByRole("link", { name: "Mở bước xử lý" })).toHaveAttribute(
         "href",
-        new RegExp(`/sales/${saleId}`),
+        `/payments/${paymentId}`,
       );
 
-      // The Board's source link identifies the Sale; the allocation command is
-      // the explicit resolution fact and never changes the goods quantity.
+      // The Board's source link identifies the Payment; the allocation command
+      // is the explicit resolution fact and never changes the goods quantity.
       await expect(
         mobileBoard
-          .getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") })
+          .getByRole("link", { name: new RegExp(`PAY-${paymentId!.slice(0, 8)}`, "i") })
           .first(),
-      ).toHaveAttribute("href", `/sales/${saleId}`);
+      ).toHaveAttribute("href", `/payments/${paymentId}`);
+      await expect(
+        mobileBoard.getByRole("link", { name: new RegExp(`SALE-${saleId.slice(0, 8)}`, "i") }),
+      ).toHaveCount(0);
       await api.approvePaymentAllocationPolicy();
       await api.allocatePayment({ paymentId: paymentId!, saleId, amountMinor: 500_000 });
 

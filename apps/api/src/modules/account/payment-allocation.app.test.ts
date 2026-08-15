@@ -219,13 +219,30 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
     expect(board.value.page.items).toContainEqual(
       expect.objectContaining({
         id: SALE_ID,
-        financialState: "reconciliation_required",
-        unallocatedPayment: true,
-        unallocatedPaymentAmount: { amountMinor: 625_000, currency: "VND" },
-        nextAction: "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.",
+        financialState: "awaiting_payment",
+        unallocatedPayment: false,
+        unallocatedPaymentAmount: null,
       }),
     );
-    expect(board.value.counts?.attention).toBe(1);
+    expect(board.value.page.items).toContainEqual(
+      expect.objectContaining({
+        id: PAYMENT_ID,
+        kind: "payment",
+        financialState: "unallocated",
+        unallocatedPayment: true,
+        unallocatedPaymentAmount: { amountMinor: 500_000, currency: "VND" },
+      }),
+    );
+    expect(board.value.page.items).toContainEqual(
+      expect.objectContaining({
+        id: extraPaymentId,
+        kind: "payment",
+        financialState: "unallocated",
+        unallocatedPayment: true,
+        unallocatedPaymentAmount: { amountMinor: 125_000, currency: "VND" },
+      }),
+    );
+    expect(board.value.counts?.attention).toBe(2);
 
     const attention = await getOperationsBoard(harness.ctx, {
       workspaceId: WORKSPACE_ID,
@@ -236,7 +253,12 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
       limit: 20,
     });
     expect(attention.ok).toBe(true);
-    if (attention.ok) expect(attention.value.page.items.map((row) => row.id)).toContain(SALE_ID);
+    if (attention.ok) {
+      expect(attention.value.page.items.map((row) => row.id)).toEqual(
+        expect.arrayContaining([PAYMENT_ID, extraPaymentId]),
+      );
+      expect(attention.value.page.items.map((row) => row.id)).not.toContain(SALE_ID);
+    }
 
     const unallocated = await getOperationsBoard(harness.ctx, {
       workspaceId: WORKSPACE_ID,
@@ -248,14 +270,21 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
     });
     expect(unallocated.ok).toBe(true);
     if (unallocated.ok) {
-      expect(unallocated.value.page.items).toContainEqual(
-        expect.objectContaining({
-          id: SALE_ID,
-          unallocatedPayment: true,
-          unallocatedPaymentAmount: { amountMinor: 625_000, currency: "VND" },
-          nextAction: "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.",
-        }),
+      expect(unallocated.value.page.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: PAYMENT_ID,
+            kind: "payment",
+            unallocatedPaymentAmount: { amountMinor: 500_000, currency: "VND" },
+          }),
+          expect.objectContaining({
+            id: extraPaymentId,
+            kind: "payment",
+            unallocatedPaymentAmount: { amountMinor: 125_000, currency: "VND" },
+          }),
+        ]),
       );
+      expect(unallocated.value.page.items.map((row) => row.id)).not.toContain(SALE_ID);
     }
     const unallocatedCounts = await getOperationsBoardCounts(harness.ctx, {
       workspaceId: WORKSPACE_ID,
@@ -263,7 +292,7 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
       search: "",
     });
     expect(unallocatedCounts.ok).toBe(true);
-    if (unallocatedCounts.ok) expect(unallocatedCounts.value.counts.unallocatedPayment).toBe(1);
+    if (unallocatedCounts.ok) expect(unallocatedCounts.value.counts.unallocatedPayment).toBe(2);
   });
 
   it("records customer-credit preservation without adding a ledger entry", async () => {

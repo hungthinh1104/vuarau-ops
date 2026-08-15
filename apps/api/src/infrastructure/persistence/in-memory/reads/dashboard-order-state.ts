@@ -32,82 +32,6 @@ export function saleFinancialFacts(
         exactAdd(sum, reversal.amount.amountMinor, "dashboard.payment_reversal.amount_minor"),
       0,
     );
-  const unallocated = [...store.payments.values()]
-    .filter(
-      (payment) =>
-        payment.workspaceId === workspaceId &&
-        payment.customerId === sale?.customerId &&
-        payment.status !== "reversed",
-    )
-    .reduce((sum, payment) => {
-      const allocatedToPayment = store.paymentAllocations
-        .filter(
-          (allocation) =>
-            allocation.workspaceId === workspaceId && allocation.paymentId === payment.id,
-        )
-        .reduce(
-          (total, allocation) =>
-            exactAdd(
-              total,
-              allocation.amount.amountMinor,
-              "dashboard.payment_allocation.amount_minor",
-            ),
-          0,
-        );
-      const reversedAllocations = store.paymentAllocationReversals
-        .filter(
-          (reversal) =>
-            reversal.workspaceId === workspaceId &&
-            store.paymentAllocations.some(
-              (allocation) =>
-                allocation.id === reversal.allocationId && allocation.paymentId === payment.id,
-            ),
-        )
-        .reduce(
-          (total, reversal) =>
-            exactAdd(total, reversal.amount.amountMinor, "dashboard.payment_reversal.amount_minor"),
-          0,
-        );
-      const preservedCredit = [...store.debtObservations.values()]
-        .filter(
-          (observation) =>
-            observation.workspaceId === workspaceId &&
-            observation.kind === "customer_credit_preserved" &&
-            observation.facts.paymentReference === payment.id &&
-            ![...store.debtObservations.values()].some(
-              (successor) => successor.relatedObservationId === observation.id,
-            ),
-        )
-        .reduce(
-          (total, observation) =>
-            exactAdd(
-              total,
-              observation.facts.amount?.amountMinor ?? 0,
-              "dashboard.customer_credit_preserved.amount_minor",
-            ),
-          0,
-        );
-      const remaining = exactAdd(
-        exactSubtract(
-          exactSubtract(
-            payment.amount.amountMinor,
-            payment.reversedAmount.amountMinor,
-            "dashboard.payment_remaining.amount_minor",
-          ),
-          allocatedToPayment,
-          "dashboard.payment_remaining.amount_minor",
-        ),
-        exactSubtract(
-          reversedAllocations,
-          preservedCredit,
-          "dashboard.payment_remaining.amount_minor",
-        ),
-        "dashboard.payment_remaining.amount_minor",
-      );
-      return exactAdd(sum, Math.max(0, remaining), "dashboard.unallocated_payment.amount_minor");
-    }, 0);
-  if (unallocated > 0)
-    return { state: "reconciliation_required", unallocatedPaymentAmountMinor: unallocated };
   if (
     sale !== undefined &&
     exactSubtract(allocated, reversed, "dashboard.sale_paid.amount_minor") >=
@@ -123,6 +47,77 @@ export function saleFinancialFacts(
   return { state: "awaiting_payment", unallocatedPaymentAmountMinor: 0 };
 }
 
+export function paymentUnallocatedAmount(
+  store: Store,
+  workspaceId: string,
+  paymentId: string,
+): number {
+  const payment = store.payments.get(key(workspaceId, paymentId));
+  if (payment === undefined || payment.status === "reversed") return 0;
+  const allocated = store.paymentAllocations
+    .filter(
+      (allocation) => allocation.workspaceId === workspaceId && allocation.paymentId === paymentId,
+    )
+    .reduce(
+      (sum, allocation) =>
+        exactAdd(sum, allocation.amount.amountMinor, "dashboard.payment_allocation.amount_minor"),
+      0,
+    );
+  const reversedAllocations = store.paymentAllocationReversals
+    .filter(
+      (reversal) =>
+        reversal.workspaceId === workspaceId &&
+        store.paymentAllocations.some(
+          (allocation) =>
+            allocation.id === reversal.allocationId && allocation.paymentId === paymentId,
+        ),
+    )
+    .reduce(
+      (sum, reversal) =>
+        exactAdd(sum, reversal.amount.amountMinor, "dashboard.payment_reversal.amount_minor"),
+      0,
+    );
+  const preservedCredit = [...store.debtObservations.values()]
+    .filter(
+      (observation) =>
+        observation.workspaceId === workspaceId &&
+        observation.kind === "customer_credit_preserved" &&
+        observation.facts.paymentReference === paymentId &&
+        ![...store.debtObservations.values()].some(
+          (successor) => successor.relatedObservationId === observation.id,
+        ),
+    )
+    .reduce(
+      (sum, observation) =>
+        exactAdd(
+          sum,
+          observation.facts.amount?.amountMinor ?? 0,
+          "dashboard.customer_credit_preserved.amount_minor",
+        ),
+      0,
+    );
+  return Math.max(
+    0,
+    exactAdd(
+      exactSubtract(
+        exactSubtract(
+          payment.amount.amountMinor,
+          payment.reversedAmount.amountMinor,
+          "dashboard.payment_remaining.amount_minor",
+        ),
+        allocated,
+        "dashboard.payment_remaining.amount_minor",
+      ),
+      exactSubtract(
+        reversedAllocations,
+        preservedCredit,
+        "dashboard.payment_remaining.amount_minor",
+      ),
+      "dashboard.payment_remaining.amount_minor",
+    ),
+  );
+}
+
 export function saleNextAction(input: {
   readonly voided: boolean;
   readonly physicalState: string;
@@ -136,7 +131,6 @@ export function saleNextAction(input: {
   if (input.physicalState === "attention") return "Kiểm tra";
   if (input.returnedFulfilment) return "Xử lý hàng trả";
   if (input.fulfilmentRemainderUnresolved) return "Mở Sale để quyết định phần còn lại.";
-  if (input.unallocatedPayment) return "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.";
   if (input.fulfilmentRemainderOutcome === "commercial_correction")
     return "Mở Sale để điều chỉnh thương mại.";
   if (

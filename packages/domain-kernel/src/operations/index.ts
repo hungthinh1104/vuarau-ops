@@ -7,7 +7,7 @@ import {
 
 export type OperationsBoardExceptionFacts = {
   readonly id: string;
-  readonly kind: "sale" | "purchase";
+  readonly kind: "sale" | "purchase" | "payment";
   readonly reference: string;
   readonly href: string;
   readonly amountMinor: number;
@@ -104,7 +104,7 @@ export function deriveOperationsBoardExceptions(
       ),
     );
   }
-  if (input.kind === "sale" && input.unallocatedPayment) {
+  if ((input.kind === "sale" || input.kind === "payment") && input.unallocatedPayment) {
     result.push(
       exception(input, "unallocated_payment", [
         {

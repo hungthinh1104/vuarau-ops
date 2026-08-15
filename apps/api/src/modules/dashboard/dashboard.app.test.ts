@@ -24,6 +24,7 @@ import {
   getDashboardSummary,
   getOperationsBoard,
 } from "./dashboard.queries.ts";
+import { recordCustomerPayment } from "../payment/record-payment.handler.ts";
 
 const boardInput = (workspaceId: typeof WORKSPACE_ID): OperationsBoardInput => ({
   workspaceId,
@@ -70,6 +71,53 @@ describe("dashboard reads", () => {
       count: 1,
       amount: { amountMinor: 0, currency: "VND" },
     });
+  });
+
+  it("TC-OPS-025 — keeps one unallocated payment separate from every Sale of the customer", async () => {
+    const harness = createHarness();
+    const firstSale = { ...postedSale, id: crypto.randomUUID() as typeof postedSale.id };
+    const secondSale = { ...postedSale, id: crypto.randomUUID() as typeof postedSale.id };
+    harness.db.seedSale(firstSale);
+    harness.db.seedSale(secondSale);
+    const paymentId = crypto.randomUUID();
+    expect(
+      (
+        await recordCustomerPayment(harness.ctx, {
+          commandId: crypto.randomUUID(),
+          idempotencyKey: `dashboard-unallocated-payment-${crypto.randomUUID()}`,
+          workspaceId: WORKSPACE_ID,
+          actorId: harness.ctx.principal.actorId,
+          occurredAt: "2026-07-20T12:01:00.000Z",
+          payload: {
+            paymentId,
+            customerId: firstSale.customerId,
+            amount: { amountMinor: 325_000, currency: "VND" },
+            method: "cash",
+            payerName: null,
+            note: null,
+          },
+        })
+      ).ok,
+    ).toBe(true);
+
+    const board = await getOperationsBoard(harness.ctx, {
+      ...boardInput(WORKSPACE_ID),
+      limit: 10,
+    });
+    expect(board.ok).toBe(true);
+    if (!board.ok) return;
+    expect(board.value.page.items.filter((row) => row.kind === "payment")).toContainEqual(
+      expect.objectContaining({
+        id: paymentId,
+        unallocatedPayment: true,
+        financialState: "unallocated",
+        href: `/payments/${paymentId}`,
+      }),
+    );
+    expect(
+      board.value.page.items.filter((row) => row.kind === "sale" && row.unallocatedPayment),
+    ).toHaveLength(0);
+    expect(board.value.page.items.filter((row) => row.kind === "payment")).toHaveLength(1);
   });
 
   it("returns a stable cursor for the next board page without repeating rows", async () => {

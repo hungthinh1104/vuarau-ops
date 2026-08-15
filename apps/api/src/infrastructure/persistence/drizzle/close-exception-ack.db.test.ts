@@ -27,7 +27,10 @@ import {
 } from "../../../modules/delivery/delivery.handlers.ts";
 import { getOperationsBoard } from "../../../modules/dashboard/dashboard.queries.ts";
 import { getOperationalCloseReadiness } from "../../../modules/close/close.queries.ts";
-import { recordOperationalCloseExceptionAcknowledgement } from "../../../modules/close/close.handlers.ts";
+import {
+  recordOperationalClose,
+  recordOperationalCloseExceptionAcknowledgement,
+} from "../../../modules/close/close.handlers.ts";
 
 describe.skipIf(skipWithoutDatabase())("close exception acknowledgement against PostgreSQL", () => {
   let ctx: DbTestContext;
@@ -181,6 +184,26 @@ describe.skipIf(skipWithoutDatabase())("close exception acknowledgement against 
     )?.source;
     expect(source).toBeDefined();
     if (source === undefined || source.id === null) return;
+
+    const bypassAttempt = await recordOperationalClose(context(), {
+      ...command("close-readiness-bypass"),
+      payload: {
+        operationalCloseId: crypto.randomUUID(),
+        businessDate: "2026-07-29",
+        observationIds: [crypto.randomUUID()],
+        evidenceReferences: ["review://close-ack/db-readiness-bypass"],
+        reason: "Thử ghi close khi readiness PostgreSQL còn blocker.",
+      },
+    });
+    expect(bypassAttempt).toMatchObject({
+      ok: false,
+      error: {
+        code: "OPERATIONAL_CLOSE_READINESS_BLOCKED",
+        details: {
+          blockers: expect.arrayContaining(["missing_observation", "unacknowledged_exception"]),
+        },
+      },
+    });
 
     const input = {
       ...command("acknowledge"),
