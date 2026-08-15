@@ -212,6 +212,17 @@ those canonical sources/projections and are never a second source of truth.
 A reconciliation may rebuild a healthy-but-drifted projection. It must not repair a
 missing, duplicated or corrupted canonical fact by mutating history.
 
+### Fresh semantic fact projections
+
+Some read models share a business meaning without sharing their search, ordering
+or pagination shape. Those meanings may have a regular PostgreSQL view backed by
+canonical tables. `payment_exposure_v1` is the current example: it projects
+active Payment exposure, including allocation reversals and the active tip of a
+preserved-credit correction chain. It is fresh read-only data, not a canonical
+money fact, ledger entry, invariant owner or write authorization. Its arithmetic
+must remain in parity with the pure domain-kernel owner before a consumer is
+migrated.
+
 ## Key constraints and indexes
 
 The schema/migrations contain the exact current constraint/index names. The

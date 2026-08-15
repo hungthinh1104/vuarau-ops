@@ -10,6 +10,7 @@ import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
 import { subtractExactIntegers, sumExactIntegers } from "../shared/money.ts";
+import { deriveActivePaymentAmount } from "../payment/payment-exposure.ts";
 
 export type PaymentAllocationContext = {
   readonly payment: PaymentState;
@@ -35,9 +36,9 @@ export function calculateActivePaymentAllocationAmount(
       .filter((reversal) => reversal.allocationId === allocation.id)
       .map((reversal) => reversal.amount.amountMinor),
   );
-  const remaining =
-    reversed === null ? null : subtractExactIntegers(allocation.amount.amountMinor, reversed);
-  return remaining === null ? null : Math.max(0, remaining);
+  return reversed === null
+    ? null
+    : deriveActivePaymentAmount(allocation.amount.amountMinor, reversed);
 }
 
 function persistedRange(field: string): DomainResult<never> {

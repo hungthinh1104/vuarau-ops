@@ -1,4 +1,5 @@
 import type { DeliveryState } from "@vuarau/domain-kernel";
+import { activeCustomerCreditAmount, derivePaymentExposure } from "@vuarau/domain-kernel";
 import type { FulfilmentRemainderOutcome } from "@vuarau/domain-contracts";
 import type { Store } from "../store.ts";
 import { key } from "../store.ts";
@@ -54,68 +55,42 @@ export function paymentUnallocatedAmount(
 ): number {
   const payment = store.payments.get(key(workspaceId, paymentId));
   if (payment === undefined || payment.status === "reversed") return 0;
-  const allocated = store.paymentAllocations
-    .filter(
-      (allocation) => allocation.workspaceId === workspaceId && allocation.paymentId === paymentId,
-    )
-    .reduce(
-      (sum, allocation) =>
-        exactAdd(sum, allocation.amount.amountMinor, "dashboard.payment_allocation.amount_minor"),
-      0,
-    );
-  const reversedAllocations = store.paymentAllocationReversals
-    .filter(
-      (reversal) =>
-        reversal.workspaceId === workspaceId &&
-        store.paymentAllocations.some(
-          (allocation) =>
-            allocation.id === reversal.allocationId && allocation.paymentId === paymentId,
-        ),
-    )
-    .reduce(
-      (sum, reversal) =>
-        exactAdd(sum, reversal.amount.amountMinor, "dashboard.payment_reversal.amount_minor"),
-      0,
-    );
-  const preservedCredit = [...store.debtObservations.values()]
-    .filter(
+  const preservedCredit = activeCustomerCreditAmount(
+    [...store.debtObservations.values()].filter(
       (observation) =>
         observation.workspaceId === workspaceId &&
         observation.kind === "customer_credit_preserved" &&
-        observation.facts.paymentReference === paymentId &&
-        ![...store.debtObservations.values()].some(
-          (successor) => successor.relatedObservationId === observation.id,
-        ),
-    )
-    .reduce(
-      (sum, observation) =>
-        exactAdd(
-          sum,
-          observation.facts.amount?.amountMinor ?? 0,
-          "dashboard.customer_credit_preserved.amount_minor",
-        ),
-      0,
-    );
-  return Math.max(
-    0,
-    exactAdd(
-      exactSubtract(
-        exactSubtract(
-          payment.amount.amountMinor,
-          payment.reversedAmount.amountMinor,
-          "dashboard.payment_remaining.amount_minor",
-        ),
-        allocated,
-        "dashboard.payment_remaining.amount_minor",
-      ),
-      exactSubtract(
-        reversedAllocations,
-        preservedCredit,
-        "dashboard.payment_remaining.amount_minor",
-      ),
-      "dashboard.payment_remaining.amount_minor",
+        observation.facts.paymentReference === paymentId,
     ),
   );
+  if (preservedCredit === null) {
+    throw new RangeError("dashboard.customer_credit_preserved.amount_minor");
+  }
+  const exposure = derivePaymentExposure({
+    originalAmountMinor: payment.amount.amountMinor,
+    reversedAmountMinor: payment.reversedAmount.amountMinor,
+    allocations: store.paymentAllocations
+      .filter(
+        (allocation) =>
+          allocation.workspaceId === workspaceId && allocation.paymentId === paymentId,
+      )
+      .map((allocation) => ({
+        amountMinor: allocation.amount.amountMinor,
+        reversedAmountMinor: store.paymentAllocationReversals
+          .filter(
+            (reversal) =>
+              reversal.workspaceId === workspaceId && reversal.allocationId === allocation.id,
+          )
+          .reduce(
+            (sum, reversal) =>
+              exactAdd(sum, reversal.amount.amountMinor, "dashboard.payment_reversal.amount_minor"),
+            0,
+          ),
+      })),
+    preservedCreditAmountMinor: preservedCredit,
+  });
+  if (exposure === null) throw new RangeError("dashboard.payment_exposure.available_amount_minor");
+  return exposure.availableAmountMinor;
 }
 
 export function saleNextAction(input: {

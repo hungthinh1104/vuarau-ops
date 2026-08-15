@@ -104,13 +104,17 @@ Computed by exactly one function. No command sets `status` directly. See
 **Risk:** P1 · **Tests:** TC-OPS-024
 
 For a customer, the unresolved payment amount is the exact sum of each active
-Payment's remaining amount after effective allocations and allocation reversals:
+Payment's remaining amount after effective allocations, allocation reversals and
+an explicit preserved-credit fact:
 
 ```
-unallocated = max(payment − reversed − effective allocations, 0)
+available = max(payment − reversed − effective allocations − active preserved credit, 0)
 ```
 
-The amount remains a canonical payment fact; it is not silently treated as
+The arithmetic owner is the pure `derivePaymentExposure` kernel function. The
+fresh PostgreSQL `payment_exposure_v1` view is its database projection for
+read-model consumers; it is not a second canonical fact. The amount remains a
+canonical payment fact; it is not silently treated as
 `awaiting_payment`, a Sale payment, or a new credit adjustment. The Operations
 Board exposes one exception row sourced from that Payment (`kind = payment`)
 and its amount separately, with allocation or intentional

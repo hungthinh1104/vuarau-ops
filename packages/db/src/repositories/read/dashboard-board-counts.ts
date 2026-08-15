@@ -91,27 +91,6 @@ export async function queryOperationsBoardCounts(
       select sale_id, coalesce(sum(amount),0) as amount
       from allocation_facts
       group by sale_id
-    ), allocated_payment as (
-      select payment_id, coalesce(sum(amount),0) as amount
-      from allocation_facts
-      group by payment_id
-    ), preserved_credit_by_payment as (
-      select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
-      from debt_observations dc
-      where dc.workspace_id=${input.workspaceId}::uuid
-        and dc.kind='customer_credit_preserved'
-        and not exists (
-          select 1 from debt_observations successor
-          where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
-        )
-      group by dc.payment_reference
-    ), payment_remaining as (
-      select p.id, p.customer_id,
-        greatest(p.amount_minor-p.reversed_amount_minor-coalesce(allocated_payment.amount,0)-coalesce(preserved_credit.amount,0),0) as amount
-      from payments p
-      left join allocated_payment on allocated_payment.payment_id=p.id
-      left join preserved_credit_by_payment preserved_credit on preserved_credit.payment_id=p.id::text
-      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
     ), direct_received as (
       select prl.workspace_id, prl.purchase_line_id,
         coalesce(sum(case when prr.id is null then prl.quantity_scaled else 0 end),0) as received
@@ -208,8 +187,10 @@ export async function queryOperationsBoardCounts(
         true as unallocated_payment,
         'unallocated' as financial_state
       from payments p
-      join payment_remaining remaining on remaining.id=p.id
-      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed' and remaining.amount > 0
+      join payment_exposure_v1 payment_exposure
+        on payment_exposure.workspace_id=p.workspace_id and payment_exposure.payment_id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
+        and payment_exposure.available_amount_minor > 0
     )
     select
       count(*)::int as all_count,

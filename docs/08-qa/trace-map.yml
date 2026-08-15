@@ -2544,8 +2544,11 @@ business_rules:
     risk: P1
     doc: docs/04-business-rules/payment-rules.md
     cases: [CASE-PAYMENT-005]
-    tests: [TC-OPS-024]
+    tests: [TC-OPS-024, TC-OPS-027]
     implementation:
+      - packages/domain-kernel/src/payment/payment-exposure.ts
+      - packages/db/src/schema/payment.ts
+      - packages/db/migrations/0082_payment_exposure_view.sql
       - packages/domain-contracts/src/dashboard/index.ts
       - apps/api/src/infrastructure/persistence/in-memory/reads/dashboard-order-state.ts
       - packages/db/src/repositories/read/dashboard-board.ts
@@ -4293,6 +4296,9 @@ contract_tests:
   TC-OPS-026:
     title: PostgreSQL Operations Board counts preserve canonical exception parity
     file: apps/api/src/infrastructure/persistence/drizzle/dashboard-board-counts.db.test.ts
+  TC-OPS-027:
+    title: PostgreSQL Payment exposure view stays in parity with the domain kernel
+    file: packages/db/src/payment-exposure-parity.db.test.ts
   TC-DELIVERY-009:
     title: Application fulfilment remainder cases require an explicit source fact and preserve corrections
     file: apps/api/src/modules/delivery/delivery.app.test.ts

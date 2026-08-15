@@ -128,6 +128,12 @@ export const api = {
               from information_schema.columns
               where table_schema = 'public'
                 and column_name = 'workspace_id'
+                and table_name in (
+                  select table_name
+                  from information_schema.tables
+                  where table_schema = 'public'
+                    and table_type = 'BASE TABLE'
+                )
               group by table_schema, table_name
               having table_name not in (
                 'customers',

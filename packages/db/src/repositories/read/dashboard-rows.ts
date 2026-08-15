@@ -259,35 +259,6 @@ export async function queryRows(
         group by workspace_id, payment_id
       ) events on events.workspace_id=p.workspace_id and events.payment_id=p.id
       where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
-    ), payment_allocated as (
-      select pa.workspace_id, pa.payment_id,
-        coalesce(sum(pa.amount_minor-coalesce(reversed.amount,0)),0) as amount
-      from payment_allocations pa
-      left join (
-        select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0) as amount
-        from payment_allocation_reversals par
-        where par.workspace_id=${input.workspaceId}::uuid
-        group by par.workspace_id, par.allocation_id
-      ) reversed on reversed.workspace_id=pa.workspace_id and reversed.allocation_id=pa.id
-      where pa.workspace_id=${input.workspaceId}::uuid
-      group by pa.workspace_id, pa.payment_id
-    ), preserved_credit_by_payment as (
-      select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
-      from debt_observations dc
-      where dc.workspace_id=${input.workspaceId}::uuid
-        and dc.kind='customer_credit_preserved'
-        and not exists (
-          select 1 from debt_observations successor
-          where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
-        )
-      group by dc.payment_reference
-    ), payment_remaining as (
-      select p.workspace_id, p.id,
-        greatest(p.amount_minor-p.reversed_amount_minor-coalesce(allocated.amount,0)-coalesce(preserved.amount,0),0) as amount
-      from payments p
-      left join payment_allocated allocated on allocated.workspace_id=p.workspace_id and allocated.payment_id=p.id
-      left join preserved_credit_by_payment preserved on preserved.payment_id=p.id::text
-      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
     ),`;
   const candidateCtes = useFastPage
     ? sql`
@@ -307,12 +278,14 @@ export async function queryRows(
       where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
       union all
       select p.id, 'payment' as kind, payment_activity.updated_at,
-        remaining.amount as amount,
+        payment_exposure.available_amount_minor as amount,
         extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds
       from payments p
       join payment_activity on payment_activity.workspace_id=p.workspace_id and payment_activity.id=p.id
-      join payment_remaining remaining on remaining.workspace_id=p.workspace_id and remaining.id=p.id
-      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed' and remaining.amount > 0
+      join payment_exposure_v1 payment_exposure
+        on payment_exposure.workspace_id=p.workspace_id and payment_exposure.payment_id=p.id
+      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
+        and payment_exposure.available_amount_minor > 0
     ), candidate_scope as (
       select candidate_rows.*
       from candidate_rows
@@ -596,12 +569,12 @@ export async function queryRows(
     where p.workspace_id=${input.workspaceId}::uuid and p.status='confirmed'
     union all
     select p.id, 'payment' as kind, ('PAY-' || upper(substr(p.id::text,1,8))) as reference,
-      c.display_name as counterparty, remaining.amount::bigint as amount, p.currency,
+      c.display_name as counterparty, payment_exposure.available_amount_minor as amount, p.currency,
       'not_applicable' as commercial_state, 'not_applicable' as physical_state,
       'unallocated' as financial_state, null::timestamptz as due_at, false as returned_fulfilment,
       false as return_settlement_resolved, false as fulfilment_remainder_unresolved,
       null::text as fulfilment_remainder_outcome, false as reconciliation_variance,
-      true as unallocated_payment, remaining.amount::bigint as unallocated_payment_amount,
+      true as unallocated_payment, payment_exposure.available_amount_minor as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds,
       payment_activity.updated_at,
       'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.' as next_action,
@@ -609,8 +582,10 @@ export async function queryRows(
     from payments p ${paymentSearchJoin} ${paymentCandidateJoin}
       join customers c on c.workspace_id=p.workspace_id and c.id=p.customer_id
       join payment_activity on payment_activity.workspace_id=p.workspace_id and payment_activity.id=p.id
-      join payment_remaining remaining on remaining.workspace_id=p.workspace_id and remaining.id=p.id
-    where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed' and remaining.amount > 0
+      join payment_exposure_v1 payment_exposure
+        on payment_exposure.workspace_id=p.workspace_id and payment_exposure.payment_id=p.id
+    where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
+      and payment_exposure.available_amount_minor > 0
     ), ${rowsCte}
     select *
     from filtered_rows

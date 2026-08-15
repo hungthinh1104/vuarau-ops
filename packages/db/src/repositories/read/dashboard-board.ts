@@ -139,39 +139,6 @@ export async function queryFastOperationsBoardPage(
       left join payment_activity_events events
         on events.workspace_id=p.workspace_id and events.payment_id=p.id
       where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
-    ), payment_allocated as (
-      select pa.workspace_id, pa.payment_id,
-        coalesce(sum(pa.amount_minor-coalesce(reversed.amount,0)),0) as amount
-      from payment_allocations pa
-      left join (
-        select par.workspace_id, par.allocation_id, coalesce(sum(par.amount_minor),0) as amount
-        from payment_allocation_reversals par
-        where par.workspace_id=${input.workspaceId}::uuid
-        group by par.workspace_id, par.allocation_id
-      ) reversed on reversed.workspace_id=pa.workspace_id and reversed.allocation_id=pa.id
-      where pa.workspace_id=${input.workspaceId}::uuid
-      group by pa.workspace_id, pa.payment_id
-    ), preserved_credit_by_payment as (
-      select dc.payment_reference as payment_id, coalesce(sum(dc.amount_minor),0) as amount
-      from debt_observations dc
-      where dc.workspace_id=${input.workspaceId}::uuid
-        and dc.kind='customer_credit_preserved'
-        and not exists (
-          select 1 from debt_observations successor
-          where successor.workspace_id=dc.workspace_id and successor.related_observation_id=dc.id
-        )
-      group by dc.payment_reference
-    ), payment_remaining as (
-      select p.workspace_id, p.id, p.customer_id,
-        greatest(
-          p.amount_minor-p.reversed_amount_minor-coalesce(allocated.amount,0)-coalesce(preserved.amount,0),
-          0
-        ) as amount
-      from payments p
-      left join payment_allocated allocated
-        on allocated.workspace_id=p.workspace_id and allocated.payment_id=p.id
-      left join preserved_credit_by_payment preserved on preserved.payment_id=p.id::text
-      where p.workspace_id=${input.workspaceId}::uuid and p.status <> 'reversed'
     ), sale_activity_events as (
       select events.workspace_id, events.id, max(events.recorded_at) as recorded_at
       from (
@@ -291,8 +258,10 @@ export async function queryFastOperationsBoardPage(
       union all
       select payment_activity.id, 'payment' as kind, payment_activity.updated_at
       from payment_activity
-      join payment_remaining on payment_remaining.workspace_id=payment_activity.workspace_id
-        and payment_remaining.id=payment_activity.id and payment_remaining.amount > 0
+      join payment_exposure_v1 payment_exposure
+        on payment_exposure.workspace_id=payment_activity.workspace_id
+        and payment_exposure.payment_id=payment_activity.id
+        and payment_exposure.available_amount_minor > 0
     ), candidate_scope as materialized (
       select candidate_rows.*
       from candidate_rows
@@ -518,13 +487,13 @@ export async function queryFastOperationsBoardPage(
     left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
     union all
     select p.id, 'payment' as kind, ('PAY-' || upper(substr(p.id::text,1,8))) as reference,
-      c.display_name as counterparty, remaining.amount::bigint as amount, p.currency,
+      c.display_name as counterparty, payment_exposure.available_amount_minor as amount, p.currency,
       'not_applicable' as commercial_state, 'not_applicable' as physical_state,
       'unallocated' as financial_state, null::timestamptz as due_at,
       false as returned_fulfilment, false as return_settlement_resolved,
       false as fulfilment_remainder_unresolved, null::text as fulfilment_remainder_outcome,
       false as reconciliation_variance, true as unallocated_payment,
-      remaining.amount::bigint as unallocated_payment_amount,
+      payment_exposure.available_amount_minor as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds,
       pa.updated_at,
       'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.' as next_action,
@@ -532,7 +501,8 @@ export async function queryFastOperationsBoardPage(
     from candidate_scope cs
     join candidate_payments cp on cp.id=cs.id
     join payments p on p.workspace_id=${input.workspaceId}::uuid and p.id=cs.id
-    join payment_remaining remaining on remaining.workspace_id=p.workspace_id and remaining.id=p.id
+    join payment_exposure_v1 payment_exposure
+      on payment_exposure.workspace_id=p.workspace_id and payment_exposure.payment_id=p.id
     join payment_activity pa on pa.workspace_id=p.workspace_id and pa.id=p.id
     join customers c on c.workspace_id=p.workspace_id and c.id=p.customer_id
     order by updated_at desc, id desc

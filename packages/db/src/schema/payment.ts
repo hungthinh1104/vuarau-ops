@@ -5,6 +5,7 @@ import {
   index,
   integer,
   pgTable,
+  pgView,
   text,
   timestamp,
   uniqueIndex,
@@ -219,3 +220,17 @@ export const paymentAllocationReversals = pgTable(
     ),
   ],
 );
+
+/** Fresh, read-only semantic projection shared by Board and payment reads. */
+export const paymentExposureV1 = pgView("payment_exposure_v1", {
+  workspaceId: uuid("workspace_id").notNull(),
+  paymentId: uuid("payment_id").notNull(),
+  customerId: uuid("customer_id").notNull(),
+  currency: currencyCodeEnum("currency").notNull(),
+  originalAmountMinor: bigint("original_amount_minor", { mode: "number" }).notNull(),
+  reversedAmountMinor: bigint("reversed_amount_minor", { mode: "number" }).notNull(),
+  effectiveAmountMinor: bigint("effective_amount_minor", { mode: "number" }).notNull(),
+  allocatedAmountMinor: bigint("allocated_amount_minor", { mode: "number" }).notNull(),
+  preservedCreditAmountMinor: bigint("preserved_credit_amount_minor", { mode: "number" }).notNull(),
+  availableAmountMinor: bigint("available_amount_minor", { mode: "number" }).notNull(),
+}).existing();
