@@ -4912,7 +4912,7 @@ contract_tests:
     file: apps/api/src/modules/close/close.app.test.ts
   TC-CLOSE-010:
     title: Close acknowledgement matches the current exact exception source rather than a same-kind count
-    file: apps/api/src/modules/close/close.app.test.ts
+    file: apps/api/src/modules/close/close-exception-acknowledgement.app.test.ts
   TC-CLOSE-DB-003:
     title: PostgreSQL persists and replays close acknowledgement while the Board remains unresolved
     file: apps/api/src/infrastructure/persistence/drizzle/close-exception-ack.db.test.ts
