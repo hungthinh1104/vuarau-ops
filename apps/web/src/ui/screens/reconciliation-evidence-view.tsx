@@ -6,7 +6,6 @@ import type {
   ReconciliationObservationKind,
   Unit,
 } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
@@ -14,6 +13,7 @@ import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { EvidenceNav } from "@/ui/patterns/evidence/evidence-nav.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -85,15 +85,8 @@ export function ReconciliationEvidenceView(props: {
       <PageHeader
         title="Ghi nhận đối soát hiện trường"
         description="Lưu riêng số kỳ vọng và số quan sát được. Màn hình này chưa tự tính chênh lệch, chưa đóng sổ và không tự thay đổi tiền hay tồn kho."
-        actions={
-          <Link
-            href="/evidence"
-            className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-          >
-            Ảnh hoặc phiếu chi phí
-          </Link>
-        }
       />
+      <EvidenceNav active="reconciliation" />
       {props.canRecord ? <ObservationForm {...props} /> : null}
       <section aria-labelledby="reconciliation-history-title" className="grid gap-3">
         <div>

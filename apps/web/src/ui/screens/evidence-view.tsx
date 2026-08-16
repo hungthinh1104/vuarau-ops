@@ -8,7 +8,6 @@ import type {
   Page,
   Unit,
 } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { formatInstant, formatMoney, formatQuantity } from "@/ui/format.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
@@ -49,6 +48,8 @@ const CASE_COPY: Readonly<Record<CostObservationCaseKind, string>> = {
   correction: "Điều chỉnh bản ghi trước",
 };
 
+import { EvidenceNav } from "@/ui/patterns/evidence/evidence-nav.tsx";
+
 export function EvidenceView(props: {
   readonly canRecord: boolean;
   readonly query: QueryLike<Page<CostObservationDto>>;
@@ -84,41 +85,8 @@ export function EvidenceView(props: {
       <PageHeader
         title="Ghi nhận ảnh hoặc phiếu chi phí"
         description="Lưu quan sát nguồn cho chi phí, hao hụt và số lượng. Bản ghi này không tự tạo doanh thu, lợi nhuận, công nợ hay tồn kho."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/evidence/reconciliation"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Đối soát hiện trường
-            </Link>
-            <Link
-              href="/evidence/supply"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Cam kết nguồn cung
-            </Link>
-            <Link
-              href="/evidence/supplier"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Quan sát nhà cung cấp
-            </Link>
-            <Link
-              href="/evidence/demand"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Nhu cầu khách hàng
-            </Link>
-            <Link
-              href="/evidence/debt"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Ảnh hoặc phiếu công nợ
-            </Link>
-          </div>
-        }
       />
+      <EvidenceNav active="cost" />
       {props.canRecord ? <ObservationForm {...props} /> : null}
       <section aria-labelledby="evidence-history-title" className="grid gap-3">
         <div>

@@ -40,6 +40,8 @@ const CASE_COPY: Readonly<Record<CostObservationCaseKind, string>> = {
   correction: "Điều chỉnh bản ghi trước",
 };
 
+import { EvidenceNav } from "@/ui/patterns/evidence/evidence-nav.tsx";
+
 export function DemandObservationView(props: {
   readonly canRecord: boolean;
   readonly query: QueryLike<Page<DemandObservationDto>>;
@@ -111,6 +113,7 @@ export function DemandObservationView(props: {
           </div>
         }
       />
+      <EvidenceNav active="demand" />
       {props.canRecord ? <DemandObservationForm {...props} /> : null}
       <section aria-labelledby="demand-observation-history" className="grid gap-3">
         <div>

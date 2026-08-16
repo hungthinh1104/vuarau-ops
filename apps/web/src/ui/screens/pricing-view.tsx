@@ -259,7 +259,7 @@ function PriceRuleForm(
   return (
     <section
       aria-labelledby="pricing-record-title"
-      className="grid gap-4 rounded-panel border border-border bg-surface p-4"
+      className="grid gap-6 rounded-panel border border-border bg-surface p-5"
     >
       <div>
         <h2 id="pricing-record-title" className="text-subheading font-semibold">
@@ -269,114 +269,136 @@ function PriceRuleForm(
           Mỗi lần ghi tạo một quy tắc mới; không cập nhật quy tắc cũ.
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <SearchInput
-          label="Tìm mặt hàng"
-          value={props.productSearch}
-          onChange={(event) => props.onProductSearch(event.target.value)}
-          onClear={() => props.onProductSearch("")}
-          placeholder="Tên hoặc tên gọi khác"
-        />
-        <Select
-          label="Mặt hàng"
-          required
-          value={props.productId}
-          onChange={(event) => props.onProductId(event.target.value)}
-          placeholder="Chọn mặt hàng"
-          options={props.productOptions}
-        />
-        <Select
-          label="Loại quy tắc giá"
-          value={props.kind}
-          onChange={(event) => props.onKind(event.target.value as PriceRuleKind)}
-          options={PRICE_RULE_KINDS.map((value) => ({ value, label: KIND_COPY[value] }))}
-        />
-        <Select
-          label="Hạng hàng (tuỳ chọn)"
-          value={props.qualityGradeId}
-          onChange={(event) => props.onQualityGradeId(event.target.value)}
-          placeholder="Tất cả hạng hàng"
-          options={props.gradeOptions}
-        />
-        {props.kind === "customer" ? (
-          <>
-            <SearchInput
-              label="Tìm khách hàng"
-              value={props.customerSearch}
-              onChange={(event) => props.onCustomerSearch(event.target.value)}
-              onClear={() => props.onCustomerSearch("")}
-              placeholder="Tên hoặc số điện thoại"
-            />
-            <Select
-              label="Khách hàng"
-              required
-              value={props.customerId}
-              onChange={(event) => props.onCustomerId(event.target.value)}
-              placeholder="Chọn khách hàng"
-              options={props.customerOptions}
-            />
-          </>
-        ) : null}
-        <Select
-          label="Đơn vị"
-          value={props.unit}
-          onChange={(event) => props.onUnit(event.target.value as Unit)}
-          options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
-        />
-        <QuantityInput
-          label="Ngưỡng số lượng"
-          hint={`Đơn vị ${UNIT_LABEL_VI[props.unit]}, tối đa 3 chữ số sau dấu phẩy`}
-          unit={props.unit}
-          unitLabel={UNIT_LABEL_VI[props.unit]}
-          value={props.minimumQuantity}
-          onChange={(event) => props.onMinimumQuantity(event.target.value)}
-        />
-        <TextInput
-          label="Độ ưu tiên"
-          hint="Số lớn hơn được ưu tiên khi các điều kiện khác khớp."
-          inputMode="numeric"
-          value={props.priority}
-          onChange={(event) => props.onPriority(event.target.value)}
-        />
-        <TextInput
-          label="Hiệu lực từ"
-          type="datetime-local"
-          value={props.effectiveFrom}
-          onChange={(event) => props.onEffectiveFrom(event.target.value)}
-          required
-        />
-        <TextInput
-          label="Hiệu lực đến (tuỳ chọn)"
-          type="datetime-local"
-          value={props.effectiveTo}
-          onChange={(event) => props.onEffectiveTo(event.target.value)}
-        />
-        <MoneyInput
-          label="Giá cơ sở (VND)"
-          hint="Nhập số nguyên, có thể dùng dấu chấm phân tách."
-          currency="VND"
-          value={props.basePrice}
-          onChange={(event) => props.onBasePrice(event.target.value)}
-          required
-        />
-        <MoneyInput
-          label="Giảm trên đơn vị (VND)"
-          currency="VND"
-          value={props.discount}
-          onChange={(event) => props.onDiscount(event.target.value)}
-        />
-        <MoneyInput
-          label="Phí trên đơn vị (VND)"
-          currency="VND"
-          value={props.fee}
-          onChange={(event) => props.onFee(event.target.value)}
-        />
-        <div className="rounded-card border border-border bg-surface-muted p-3">
-          <p className="text-caption text-ink-muted">Giá cuối dự kiến</p>
-          <p className="text-subheading font-bold">{preview}</p>
-          <p className="text-caption text-ink-muted">Hệ thống sẽ kiểm tra và không nhận giá âm.</p>
+
+      {/* Fieldset 1: Đối tượng áp dụng */}
+      <div className="grid gap-4 rounded-card border border-border bg-surface-muted p-4">
+        <h3 className="text-label font-semibold text-ink">1. Đối tượng áp dụng</h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          <SearchInput
+            label="Tìm mặt hàng"
+            value={props.productSearch}
+            onChange={(event) => props.onProductSearch(event.target.value)}
+            onClear={() => props.onProductSearch("")}
+            placeholder="Tên hoặc tên gọi khác"
+          />
+          <Select
+            label="Mặt hàng"
+            required
+            value={props.productId}
+            onChange={(event) => props.onProductId(event.target.value)}
+            placeholder="Chọn mặt hàng"
+            options={props.productOptions}
+          />
+          <Select
+            label="Loại quy tắc giá"
+            value={props.kind}
+            onChange={(event) => props.onKind(event.target.value as PriceRuleKind)}
+            options={PRICE_RULE_KINDS.map((value) => ({ value, label: KIND_COPY[value] }))}
+          />
+          <Select
+            label="Hạng hàng (tuỳ chọn)"
+            value={props.qualityGradeId}
+            onChange={(event) => props.onQualityGradeId(event.target.value)}
+            placeholder="Tất cả hạng hàng"
+            options={props.gradeOptions}
+          />
+          {props.kind === "customer" ? (
+            <>
+              <SearchInput
+                label="Tìm khách hàng"
+                value={props.customerSearch}
+                onChange={(event) => props.onCustomerSearch(event.target.value)}
+                onClear={() => props.onCustomerSearch("")}
+                placeholder="Tên hoặc số điện thoại"
+              />
+              <Select
+                label="Khách hàng"
+                required
+                value={props.customerId}
+                onChange={(event) => props.onCustomerId(event.target.value)}
+                placeholder="Chọn khách hàng"
+                options={props.customerOptions}
+              />
+            </>
+          ) : null}
         </div>
       </div>
+
+      {/* Fieldset 2: Đơn vị & Điều kiện áp dụng */}
+      <div className="grid gap-4 rounded-card border border-border bg-surface-muted p-4">
+        <h3 className="text-label font-semibold text-ink">2. Đơn vị & Điều kiện áp dụng</h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Select
+            label="Đơn vị"
+            value={props.unit}
+            onChange={(event) => props.onUnit(event.target.value as Unit)}
+            options={UNITS.map((value) => ({ value, label: UNIT_LABEL_VI[value] }))}
+          />
+          <QuantityInput
+            label="Ngưỡng số lượng"
+            hint={`Đơn vị ${UNIT_LABEL_VI[props.unit]}, tối đa 3 chữ số sau dấu phẩy`}
+            unit={props.unit}
+            unitLabel={UNIT_LABEL_VI[props.unit]}
+            value={props.minimumQuantity}
+            onChange={(event) => props.onMinimumQuantity(event.target.value)}
+          />
+          <TextInput
+            label="Độ ưu tiên"
+            hint="Số lớn hơn được ưu tiên khi các điều kiện khác khớp."
+            inputMode="numeric"
+            value={props.priority}
+            onChange={(event) => props.onPriority(event.target.value)}
+          />
+          <TextInput
+            label="Hiệu lực từ"
+            type="datetime-local"
+            value={props.effectiveFrom}
+            onChange={(event) => props.onEffectiveFrom(event.target.value)}
+            required
+          />
+          <TextInput
+            label="Hiệu lực đến (tuỳ chọn)"
+            type="datetime-local"
+            value={props.effectiveTo}
+            onChange={(event) => props.onEffectiveTo(event.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Fieldset 3: Đơn giá & Điều chỉnh */}
+      <div className="grid gap-4 rounded-card border border-border bg-surface-muted p-4">
+        <h3 className="text-label font-semibold text-ink">3. Đơn giá & Xem trước giá cuối</h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          <MoneyInput
+            label="Giá cơ sở (VND)"
+            hint="Nhập số nguyên, có thể dùng dấu chấm phân tách."
+            currency="VND"
+            value={props.basePrice}
+            onChange={(event) => props.onBasePrice(event.target.value)}
+            required
+          />
+          <MoneyInput
+            label="Giảm trên đơn vị (VND)"
+            currency="VND"
+            value={props.discount}
+            onChange={(event) => props.onDiscount(event.target.value)}
+          />
+          <MoneyInput
+            label="Phí trên đơn vị (VND)"
+            currency="VND"
+            value={props.fee}
+            onChange={(event) => props.onFee(event.target.value)}
+          />
+          <div className="rounded-card border border-border bg-surface p-3">
+            <p className="text-caption text-ink-muted">Giá cuối dự kiến</p>
+            <p className="text-subheading font-bold">{preview}</p>
+            <p className="text-caption text-ink-muted">
+              Hệ thống sẽ kiểm tra và không nhận giá âm.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <TextInput
         label={props.kind === "override" ? "Lý do thay thế" : "Lý do (tuỳ chọn)"}
         value={props.reason}

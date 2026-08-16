@@ -8,7 +8,6 @@ import type {
   SupplyCommitmentObservationKind,
   Unit,
 } from "@vuarau/domain-contracts";
-import Link from "next/link";
 import { formatInstant, formatQuantity } from "@/ui/format.ts";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
@@ -16,6 +15,7 @@ import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { EvidenceNav } from "@/ui/patterns/evidence/evidence-nav.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -78,23 +78,8 @@ export function SupplyCommitmentEvidenceView(props: {
       <PageHeader
         title="Cam kết nguồn cung"
         description="Ghi lại lời hứa, khả năng có hàng và thời điểm dự kiến từ nhà cung cấp, nông hộ hoặc đầu mối. Bản ghi chưa tạo mua hàng, phải trả, tồn kho, đề xuất nhập thêm hay điểm nhà cung cấp."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/evidence"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Chi phí / hao hụt
-            </Link>
-            <Link
-              href="/evidence/reconciliation"
-              className="touch-target inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-            >
-              Đối soát hiện trường
-            </Link>
-          </div>
-        }
       />
+      <EvidenceNav active="supply" />
       {props.canRecord ? <SupplyCommitmentForm {...props} /> : null}
       <section aria-labelledby="supply-commitment-history-title" className="grid gap-3">
         <div>

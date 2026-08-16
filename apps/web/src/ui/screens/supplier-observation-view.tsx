@@ -16,6 +16,7 @@ import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { SourceEvidenceList } from "@/ui/patterns/evidence/source-evidence-list.tsx";
 import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { PageHeader } from "@/ui/patterns/layout/page-layout.tsx";
+import { EvidenceNav } from "@/ui/patterns/evidence/evidence-nav.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { Badge } from "@/ui/primitives/badge.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -142,6 +143,7 @@ export function SupplierObservationView(props: {
           </Link>
         }
       />
+      <EvidenceNav active="supplier" />
       {props.canRecord ? <SupplierObservationForm {...props} /> : null}
       <section aria-labelledby="supplier-observation-history" className="grid gap-3">
         <div>
