@@ -12,21 +12,17 @@ import type {
 } from "@vuarau/domain-contracts";
 import {
   defaultWorkspaceOperationalProfile,
-  operationalClosePolicyDefinitionSchema,
   operationalCloseReadinessSchema,
   OPERATIONS_EXCEPTION_KINDS,
   operationsExceptionDefinition,
   operationsControlException,
   vietnamBusinessDateForInstant,
-  vietnamBusinessDayRange,
 } from "@vuarau/domain-contracts";
-import {
-  isMeasurableReconciliationObservation,
-  resolvePolicyForDecision,
-} from "@vuarau/domain-kernel";
+import { isMeasurableReconciliationObservation } from "@vuarau/domain-kernel";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
+import { loadOperationalCloseContext, type OperationalCloseContext } from "./close-context.ts";
 
 /**
  * The close readiness calculation is shared by the read surface and the
@@ -40,18 +36,20 @@ export async function evaluateOperationalCloseReadiness(
     businessDate: string;
     asOf: string;
     profile: WorkspaceOperationalProfileDto;
+    context?: OperationalCloseContext;
   },
 ): Promise<OperationalCloseReadiness> {
   const { workspaceId, businessDate, asOf, profile } = input;
-  const period = vietnamBusinessDayRange(businessDate, profile.businessDayStartMinute);
-  const [policies, closePage, boardCounts, integrity, acknowledgements] = await Promise.all([
-    repos.workspacePolicyReads.listAll(workspaceId),
-    repos.operationalCloseReads.list({
+  const context =
+    input.context ??
+    (await loadOperationalCloseContext({
+      repos,
       workspaceId,
-      fromBusinessDate: businessDate,
-      toBusinessDate: businessDate,
-      page: { after: null, limit: 1 },
-    }),
+      businessDate,
+      knowledgeAt: asOf,
+      operationalProfile: profile,
+    }));
+  const [boardCounts, integrity, acknowledgements, exceptionIdentities] = await Promise.all([
     repos.dashboardReads.operationsBoardCounts({
       workspaceId,
       filter: "all",
@@ -63,9 +61,9 @@ export async function evaluateOperationalCloseReadiness(
       workspaceId,
       businessDate,
     ),
+    repos.operationsReads.listCurrentExceptionIdentities({ workspaceId, asOf }),
   ]);
-  const currentClose = closePage.rows[0] ?? null;
-  const policy = resolvePolicyForDecision(policies, "operating_cycle_reconciliation", asOf, asOf);
+  const { currentClose, period, policy, policyDefinition } = context;
   let requiredObservationKinds: ReconciliationObservationKind[] = [];
   let policyVersionId: WorkspacePolicyVersionId | null = null;
   const blockers: (
@@ -75,15 +73,11 @@ export async function evaluateOperationalCloseReadiness(
     | "blocking_exception"
     | "unacknowledged_exception"
   )[] = [];
-  if (policy === null) {
+  if (policy === null || policyDefinition === null) {
     blockers.push("policy_unavailable");
   } else {
-    const definition = operationalClosePolicyDefinitionSchema.safeParse(policy.definition);
-    if (!definition.success) blockers.push("policy_unavailable");
-    else {
-      requiredObservationKinds = [...definition.data.parameters.requiredObservationKinds];
-      policyVersionId = policy.id;
-    }
+    requiredObservationKinds = [...policyDefinition.parameters.requiredObservationKinds];
+    policyVersionId = policy.id;
   }
   const observations =
     requiredObservationKinds.length === 0
@@ -112,10 +106,19 @@ export async function evaluateOperationalCloseReadiness(
       integrity.status === "attention" ? 1 : 0,
     ),
   };
+  const acknowledgementIdentity = (kind: string, source: { kind: string; id: string }) =>
+    `${kind}:${source.kind}:${source.id}`;
+  const acknowledgedIdentities = new Set(
+    acknowledgements.map((acknowledgement) =>
+      acknowledgementIdentity(acknowledgement.exceptionKind, acknowledgement.source),
+    ),
+  );
   const exceptionSummary = OPERATIONS_EXCEPTION_KINDS.flatMap((kind) => {
     const count = exceptionCounts[kind];
-    const acknowledgedCount = acknowledgements.filter(
-      (acknowledgement) => acknowledgement.exceptionKind === kind,
+    const acknowledgedCount = exceptionIdentities.filter(
+      (identity) =>
+        identity.kind === kind &&
+        acknowledgedIdentities.has(acknowledgementIdentity(identity.kind, identity.source)),
     ).length;
     const definition = operationsExceptionDefinition(kind);
     const boardCount = boardCounts.counts.exceptionCounts[kind];
@@ -138,10 +141,9 @@ export async function evaluateOperationalCloseReadiness(
   if (exceptionSummary.some((exception) => exception.closeImpact === "blocking"))
     blockers.push("blocking_exception");
   if (
-    exceptionSummary.some(
-      (exception) =>
-        exception.closeImpact === "acknowledgeable" &&
-        exception.acknowledgedCount < exception.count,
+    exceptionIdentities.some(
+      (identity) =>
+        !acknowledgedIdentities.has(acknowledgementIdentity(identity.kind, identity.source)),
     )
   )
     blockers.push("unacknowledged_exception");

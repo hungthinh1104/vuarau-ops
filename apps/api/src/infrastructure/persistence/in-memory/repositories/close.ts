@@ -68,12 +68,13 @@ export const createCloseRepositories = (
   },
   operationalCloseExceptionAcknowledgements: {
     lockIdentity: async () => undefined,
-    findByIdentity: async ({ workspaceId, businessDate, exceptionKind, sourceId }) =>
+    findByIdentity: async ({ workspaceId, businessDate, exceptionKind, sourceKind, sourceId }) =>
       [...store.operationalCloseExceptionAcknowledgements.values()].find(
         (acknowledgement) =>
           acknowledgement.workspaceId === workspaceId &&
           acknowledgement.businessDate === businessDate &&
           acknowledgement.exceptionKind === exceptionKind &&
+          acknowledgement.source.kind === sourceKind &&
           acknowledgement.source.id === sourceId,
       ) ?? null,
     insert: async (acknowledgement) => {
@@ -82,6 +83,7 @@ export const createCloseRepositories = (
           current.workspaceId === acknowledgement.workspaceId &&
           current.businessDate === acknowledgement.businessDate &&
           current.exceptionKind === acknowledgement.exceptionKind &&
+          current.source.kind === acknowledgement.source.kind &&
           current.source.id === acknowledgement.source.id,
       );
       if (

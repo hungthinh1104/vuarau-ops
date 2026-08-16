@@ -7,6 +7,7 @@ import { key } from "../store.ts";
 import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
 import { exactAdd } from "./exact-number.ts";
+import { createDashboardReads } from "./dashboard.ts";
 
 export const createOperationsReads = (store: Store): Pick<Repositories, "operationsReads"> => ({
   operationsReads: {
@@ -305,6 +306,25 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
             ? ("healthy" as const)
             : ("attention" as const),
       };
+    },
+    listCurrentExceptionIdentities: async ({ workspaceId, asOf }) => {
+      const board = await createDashboardReads(store).dashboardReads.operationsBoard({
+        workspaceId,
+        filter: "all",
+        sort: "updated_desc",
+        search: "",
+        cursor: null,
+        limit: Number.MAX_SAFE_INTEGER,
+        page: { after: null, limit: Number.MAX_SAFE_INTEGER },
+        now: asOf,
+      });
+      return board.page.items.flatMap((row) =>
+        row.exceptions.flatMap((exception) =>
+          exception.closeImpact !== "acknowledgeable" || exception.source.id === null
+            ? []
+            : [{ kind: exception.kind, source: { ...exception.source, id: exception.source.id } }],
+        ),
+      );
     },
     backupPayload: async (workspaceId) => {
       const workspaceName = store.workspaceNames.get(workspaceId);

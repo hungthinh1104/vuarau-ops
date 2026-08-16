@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import type { WorkspaceRole } from "@vuarau/domain-contracts";
+import type { IsoInstant, WorkspaceId, WorkspaceRole } from "@vuarau/domain-contracts";
 import { normalizeWorkspaceRoles } from "@vuarau/domain-contracts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import {
@@ -76,6 +76,7 @@ import type { Tx } from "../shared/types.ts";
 import { readOperationsCloseBackup } from "./operations-close-backup.ts";
 import { readFulfilmentRemainderCases } from "./operations-remainder.ts";
 import { readBackupControlPlane } from "./operations-backup-control-plane.ts";
+import { readCurrentOperationsExceptionIdentities } from "./operations-exception-identities.ts";
 const safeCount = (row: Record<string, unknown> | undefined, name: string): number =>
   persistedBigintToSafeNumber(row?.[name] ?? 0, `operations ${name}`);
 export const createOperationsReadRepositories = (tx: Tx) => ({
@@ -368,6 +369,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
             : ("attention" as const),
       };
     },
+    listCurrentExceptionIdentities: (args: { workspaceId: WorkspaceId; asOf: IsoInstant }) =>
+      readCurrentOperationsExceptionIdentities(tx, args),
     async backupPayload(workspaceId: string) {
       const workspace = await tx
         .select()

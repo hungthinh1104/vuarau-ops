@@ -145,16 +145,18 @@ export const createCloseWriteRepositories = (tx: Tx) => ({
       workspaceId: WorkspaceId,
       businessDate: string,
       exceptionKind: OperationalCloseExceptionAcknowledgementDto["exceptionKind"],
+      sourceKind: OperationalCloseExceptionAcknowledgementDto["source"]["kind"],
       sourceId: string,
     ) {
       await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtextextended(${`operational-close-exception:${workspaceId}:${businessDate}:${exceptionKind}:${sourceId}`}, 0))`,
+        sql`select pg_advisory_xact_lock(hashtextextended(${`operational-close-exception:${workspaceId}:${businessDate}:${exceptionKind}:${sourceKind}:${sourceId}`}, 0))`,
       );
     },
     async findByIdentity(args: {
       workspaceId: WorkspaceId;
       businessDate: string;
       exceptionKind: OperationalCloseExceptionAcknowledgementDto["exceptionKind"];
+      sourceKind: OperationalCloseExceptionAcknowledgementDto["source"]["kind"];
       sourceId: string;
     }) {
       const row = (
@@ -166,6 +168,7 @@ export const createCloseWriteRepositories = (tx: Tx) => ({
               eq(operationalCloseExceptionAcknowledgements.workspaceId, args.workspaceId),
               eq(operationalCloseExceptionAcknowledgements.businessDate, args.businessDate),
               eq(operationalCloseExceptionAcknowledgements.exceptionKind, args.exceptionKind),
+              eq(operationalCloseExceptionAcknowledgements.sourceKind, args.sourceKind),
               eq(operationalCloseExceptionAcknowledgements.sourceId, args.sourceId),
             ),
           )

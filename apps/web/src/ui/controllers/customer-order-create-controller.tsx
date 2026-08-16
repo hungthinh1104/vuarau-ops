@@ -22,7 +22,7 @@ const newLine = (): CustomerOrderDraftLine => ({
   productId: "",
   source: "catalog",
   productName: "",
-  quantity: "1",
+  quantity: "",
   unit: "kg",
   price: "",
 });

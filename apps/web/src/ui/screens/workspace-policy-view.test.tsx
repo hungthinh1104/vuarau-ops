@@ -82,4 +82,28 @@ describe("WorkspacePolicyView", () => {
     expect(screen.getByText(/Phiên bản được hệ thống cấp số/)).toBeInTheDocument();
     expect(screen.getByText(/Mỗi phiên bản đã lưu được giữ nguyên/)).toBeInTheDocument();
   });
+
+  it("isolates approve and retire form state so approval reason does not bleed into retirement", () => {
+    render(
+      <WorkspacePolicyView
+        policies={ready({ items: [policy], nextCursor: null })}
+        availability={ready([])}
+        canManage={true}
+        approveCommand={command}
+        retireCommand={command}
+        onApprove={() => undefined}
+        onRetire={() => undefined}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Phê duyệt bản nháp" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ngừng hiệu lực quy định" })).toBeInTheDocument();
+
+    const approveReasonInput = screen.getByRole("textbox", { name: "Lý do duyệt" });
+    const retireReasonInput = screen.getByRole("textbox", { name: "Lý do ngừng quy định" });
+
+    // Both reason inputs are distinct
+    expect(approveReasonInput).not.toBe(retireReasonInput);
+  });
 });

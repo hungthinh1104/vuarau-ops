@@ -11,12 +11,14 @@ export type OperationalCloseExceptionAcknowledgementRepository = {
     workspaceId: WorkspaceId,
     businessDate: string,
     exceptionKind: OperationalCloseExceptionAcknowledgementDto["exceptionKind"],
+    sourceKind: OperationalCloseExceptionAcknowledgementDto["source"]["kind"],
     sourceId: string,
   ): Promise<void>;
   findByIdentity(args: {
     workspaceId: WorkspaceId;
     businessDate: string;
     exceptionKind: OperationalCloseExceptionAcknowledgementDto["exceptionKind"];
+    sourceKind: OperationalCloseExceptionAcknowledgementDto["source"]["kind"];
     sourceId: string;
   }): Promise<OperationalCloseExceptionAcknowledgementDto | null>;
   insert(acknowledgement: OperationalCloseExceptionAcknowledgementDto): Promise<boolean>;

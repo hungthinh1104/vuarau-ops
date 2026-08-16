@@ -1671,6 +1671,7 @@ use_cases:
         TC-CLOSE-004,
         TC-CLOSE-008,
         TC-CLOSE-009,
+        TC-CLOSE-010,
         TC-CLOSE-DB-003,
         TC-OPS-026,
         TC-E2E-034,
@@ -3646,14 +3647,18 @@ business_rules:
     risk: P1
     doc: docs/04-business-rules/close-and-bank-rules.md
     cases: []
-    tests: [TC-CLOSE-008, TC-CLOSE-DB-002]
+    tests: [TC-CLOSE-008, TC-CLOSE-010, TC-CLOSE-DB-002]
     implementation:
       - packages/domain-contracts/src/close/index.ts
       - packages/domain-kernel/src/close/index.ts
       - apps/api/src/infrastructure/persistence/read-ports.ts
       - apps/api/src/infrastructure/persistence/in-memory/reads/reconciliation-observation.ts
+      - apps/api/src/infrastructure/persistence/operations-read-ports.ts
+      - apps/api/src/infrastructure/persistence/in-memory/reads/operations.ts
       - packages/db/src/repositories/read/reconciliation-observation.ts
+      - packages/db/src/repositories/read/operations-exception-identities.ts
       - apps/api/src/modules/close/close.queries.ts
+      - apps/api/src/modules/close/close-context.ts
       - apps/api/src/infrastructure/trpc/routers/operations.ts
       - apps/web/src/ui/controllers/operations-controller.tsx
       - apps/web/src/ui/screens/operations-view.tsx
@@ -4904,6 +4909,9 @@ contract_tests:
     file: apps/api/src/modules/close/close.app.test.ts
   TC-CLOSE-009:
     title: Source-linked close acknowledgement preserves the unresolved Board exception and projections
+    file: apps/api/src/modules/close/close.app.test.ts
+  TC-CLOSE-010:
+    title: Close acknowledgement matches the current exact exception source rather than a same-kind count
     file: apps/api/src/modules/close/close.app.test.ts
   TC-CLOSE-DB-003:
     title: PostgreSQL persists and replays close acknowledgement while the Board remains unresolved

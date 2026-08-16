@@ -12,8 +12,8 @@ close fact, not a recalculation of any ledger.
 - Permission: `operations.close`.
 - Preconditions: an approved effective `operating_cycle_reconciliation` policy;
   every required observation belongs to the workspace and is measurable; every
-  acknowledgeable unresolved Board condition has an explicit source-linked
-  acknowledgement for the business date before close.
+  acknowledgeable unresolved Board condition has an acknowledgement for its exact
+  `(exceptionKind, source.kind, source.id)` identity before close.
 - Input: close ID, business date, observation IDs, evidence references and reason.
 - State: an immutable `closed` row per revision, optionally followed by one
   append-only `reopened` fact; after reopen, one explicitly linked close revision
@@ -27,6 +27,13 @@ close fact, not a recalculation of any ledger.
 - Audit: record, reopen and exception-acknowledgement actions include actor,
   command, policy lineage and evidence references. An acknowledgement preserves
   the unresolved Board source and changes no ledger, inventory or fulfilment fact.
+  It cannot acknowledge another condition merely because the two share an
+  exception kind.
+
+Close readiness and `RecordOperationalClose` resolve the business-day period,
+policy lineage and latest close revision once from the same close context. The
+current scope is all open workspace Board work, not a UI page or an incidental
+date filter; changing that scope requires an explicit policy-contract change.
 
 ## Fail-closed paths
 

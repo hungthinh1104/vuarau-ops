@@ -285,4 +285,84 @@ describe("OperationsBoardView", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("canonicalizes effective next action uniformly between desktop and mobile when row.nextAction is null", () => {
+    const exceptionOnlyRow = {
+      ...row,
+      nextAction: null,
+      exceptions: [
+        {
+          kind: "return_settlement_unresolved" as const,
+          category: "uncertainty" as const,
+          severity: "high" as const,
+          closeImpact: "acknowledgeable" as const,
+          source: { kind: "sale" as const, reference: "SALE-1", id: "sale-1" },
+          sourceFacts: [{ key: "return_id", value: "return-1" }],
+          explanation: "Hàng đã trả nhưng hệ quả chưa được quyết định.",
+          unknown: "Hàng trả sẽ được xử lý thế nào.",
+          resolutionOptions: [{ code: "goods_only", label: "Xác nhận chỉ nhận lại hàng" }],
+          nextAction: {
+            label: "Mở phiếu trả để ghi nhận quyết định xử lý.",
+            href: "/sales/sale-1",
+          },
+          resolutionCondition: "Fact goods_only append-only.",
+        },
+      ],
+    };
+    render(
+      <OperationsBoardView
+        query={{
+          ...query,
+          data: { ...query.data, page: { items: [exceptionOnlyRow], nextCursor: null } },
+        }}
+        rows={[exceptionOnlyRow]}
+        filter="all"
+        sort="updated_desc"
+        search=""
+        onFilterChange={() => undefined}
+        onSortChange={() => undefined}
+        onSearchChange={() => undefined}
+        onRetry={() => undefined}
+        onLoadMore={() => undefined}
+      />,
+    );
+
+    // Both desktop row and mobile card should show the exception's next action label
+    const desktopRow = screen.getByRole("row", { name: /SALE-1/ });
+    expect(
+      within(desktopRow).getAllByText("Mở phiếu trả để ghi nhận quyết định xử lý.").length,
+    ).toBeGreaterThanOrEqual(1);
+
+    const mobileList = screen.getByRole("list", { name: "Việc cần xử lý" });
+    expect(
+      within(mobileList).getAllByText("Mở phiếu trả để ghi nhận quyết định xử lý.").length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders unknown state fallback as Trạng thái chưa xác định instead of Cần kiểm tra", () => {
+    const unknownStateRow = {
+      ...row,
+      commercialState:
+        "unknown_custom_future_state" as unknown as OperationsBoardRow["commercialState"],
+    };
+    render(
+      <OperationsBoardView
+        query={{
+          ...query,
+          data: { ...query.data, page: { items: [unknownStateRow], nextCursor: null } },
+        }}
+        rows={[unknownStateRow]}
+        filter="all"
+        sort="updated_desc"
+        search=""
+        onFilterChange={() => undefined}
+        onSortChange={() => undefined}
+        onSearchChange={() => undefined}
+        onRetry={() => undefined}
+        onLoadMore={() => undefined}
+      />,
+    );
+
+    expect(screen.getAllByText("Trạng thái chưa xác định").length).toBeGreaterThanOrEqual(1);
+  });
 });

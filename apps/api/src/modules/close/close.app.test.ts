@@ -24,6 +24,7 @@ import { approveWorkspacePolicy, createWorkspacePolicyDraft } from "../policy/po
 import { recordReconciliationObservation } from "../evidence/evidence.handlers.ts";
 import { createSaleDraft } from "../sale/create-sale-draft.handler.ts";
 import { postSale } from "../sale/post-sale.handler.ts";
+import { voidSale } from "../sale/void-sale.handler.ts";
 import {
   createDeliveryDraft,
   dispatchDelivery,
@@ -133,6 +134,43 @@ async function recordObservation(
   return id;
 }
 
+async function postOverdueSale(label: string): Promise<SaleId> {
+  const saleId = uuid<SaleId>();
+  expect(
+    await createSaleDraft(harness.ctx, {
+      ...envelope(`${label}-draft`),
+      payload: {
+        saleId,
+        customerId: activeCustomer.id,
+        currency: "VND",
+        lines: [
+          {
+            lineId: uuid<SaleLineId>(),
+            productId: PRODUCT_CA_CHUA_ID,
+            productName: "Cà chua",
+            qualityGradeId: QUALITY_GRADE_1_ID,
+            qualityGradeName: "Loại 1",
+            quantity: { valueScaled: 1_000, unit: "kg" },
+            unitPrice: { amountMinor: 10_000, currency: "VND" },
+          },
+        ],
+        note: null,
+        evidenceReferences: [],
+        dueAt: "2026-07-19T05:00:00.000Z",
+        replacesSaleId: null,
+      },
+    }),
+  ).toMatchObject({ ok: true });
+  expect(
+    await postSale(harness.ctx, {
+      ...envelope(`${label}-post`),
+      expectedVersion: 1,
+      payload: { saleId },
+    }),
+  ).toMatchObject({ ok: true });
+  return saleId;
+}
+
 beforeEach(() => {
   sequence = 0;
   harness = createHarness();
@@ -145,6 +183,96 @@ beforeEach(() => {
 
 // TC-CLOSE-002 TC-CLOSE-003
 describe("operational close", () => {
+  it("TC-CLOSE-010 — acknowledgement follows the current source identity, not a same-kind count", async () => {
+    await approvePolicy("operating_cycle_reconciliation", {
+      contractVersion: 1,
+      parameters: {
+        strategy: "observation_signoff",
+        requiredObservationKinds: ["cash_count"],
+        allowReopen: true,
+      },
+    });
+    const acknowledgedSaleId = await postOverdueSale("identity-acknowledged-sale");
+    const stillOpenSaleId = await postOverdueSale("identity-still-open-sale");
+    const board = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      filter: "overdue_receivable",
+      sort: "updated_desc",
+      search: "",
+      cursor: null,
+      limit: 20,
+    });
+    expect(board.ok).toBe(true);
+    if (!board.ok) return;
+    const acknowledgedException = board.value.page.items
+      .find((item) => item.id === acknowledgedSaleId)
+      ?.exceptions.find((exception) => exception.kind === "overdue_receivable");
+    expect(acknowledgedException).toBeDefined();
+    if (acknowledgedException === undefined || acknowledgedException.source.id === null) return;
+
+    expect(
+      await recordOperationalCloseExceptionAcknowledgement(harness.ctx, {
+        ...envelope("identity-acknowledge-a"),
+        payload: {
+          operationalCloseExceptionAcknowledgementId: uuid(),
+          businessDate: "2026-07-20",
+          exceptionKind: "overdue_receivable",
+          source: { ...acknowledgedException.source, id: acknowledgedException.source.id },
+          evidenceReferences: ["review://close-identity/a"],
+          reason: "Đã đọc Sale A quá hạn trước khi thu tiền.",
+        },
+      }),
+    ).toMatchObject({ ok: true });
+
+    expect(
+      await voidSale(harness.ctx, {
+        ...envelope("identity-resolve-a-void"),
+        payload: {
+          saleVoidId: uuid(),
+          saleId: acknowledgedSaleId,
+          reasonCode: "wrong_amount",
+          reason: "Sale A được void sau acknowledgement để kiểm tra identity còn lại.",
+          evidenceReferences: [],
+        },
+      }),
+    ).toMatchObject({ ok: true });
+
+    const observationId = await recordObservation("cash_count");
+    const readiness = await getOperationalCloseReadiness(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      businessDate: "2026-07-20",
+    });
+    expect(readiness).toMatchObject({
+      ok: true,
+      value: {
+        state: "blocked",
+        blockers: ["unacknowledged_exception"],
+        exceptionSummary: expect.arrayContaining([
+          expect.objectContaining({
+            kind: "overdue_receivable",
+            count: 1,
+            acknowledgedCount: 0,
+          }),
+        ]),
+      },
+    });
+    expect(
+      await recordOperationalClose(harness.ctx, {
+        ...envelope("identity-close-bypass"),
+        payload: {
+          operationalCloseId: uuid(),
+          businessDate: "2026-07-20",
+          observationIds: [observationId],
+          evidenceReferences: ["review://close-identity/close"],
+          reason: `Không thể để acknowledgement của Sale A làm mất blocker Sale ${stillOpenSaleId}.`,
+        },
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { code: "OPERATIONAL_CLOSE_READINESS_BLOCKED" },
+    });
+  });
+
   it("TC-CLOSE-009 — persists a source-linked acknowledgement without clearing the unresolved exception", async () => {
     await approvePolicy("operating_cycle_reconciliation", {
       contractVersion: 1,

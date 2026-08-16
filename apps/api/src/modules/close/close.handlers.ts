@@ -38,35 +38,17 @@ import type { DomainResult } from "@vuarau/domain-kernel";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
-import { vietnamBusinessDayRange } from "@vuarau/domain-contracts";
 import { evaluateOperationalCloseReadiness } from "./close.queries.ts";
+import { loadOperationalCloseContext, type OperationalCloseContext } from "./close-context.ts";
 
-async function effectiveClosePolicy(
-  repos: Repositories,
-  workspaceId: RecordOperationalCloseCommand["workspaceId"],
-  asOf: RecordOperationalCloseCommand["occurredAt"],
-  knowledgeAt: RecordOperationalCloseCommand["occurredAt"],
-) {
-  const policy = resolvePolicyForDecision(
-    await repos.workspacePolicyReads.listAll(workspaceId),
-    "operating_cycle_reconciliation",
-    asOf,
-    knowledgeAt,
-  );
-  if (policy === null) {
+function closePolicyFromContext(context: OperationalCloseContext) {
+  if (context.policy === null || context.policyDefinition === null) {
     return err(
       "OPERATIONAL_CLOSE_POLICY_UNAVAILABLE",
       "An approved operational close policy is required.",
     );
   }
-  const definition = operationalClosePolicyDefinitionSchema.safeParse(policy.definition);
-  if (!definition.success) {
-    return err(
-      "OPERATIONAL_CLOSE_POLICY_UNAVAILABLE",
-      "The effective operational close policy is invalid.",
-    );
-  }
-  return ok({ policy, definition: definition.data });
+  return ok({ policy: context.policy, definition: context.policyDefinition });
 }
 
 async function effectiveDepositPolicy(
@@ -146,16 +128,16 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
         command.workspaceId,
         command.payload.businessDate,
       );
-      const period = vietnamBusinessDayRange(
-        command.payload.businessDate,
-        operationalProfile.businessDayStartMinute,
-      );
-      const policy = await effectiveClosePolicy(repos, command.workspaceId, period.end, recordedAt);
+      const closeContext = await loadOperationalCloseContext({
+        repos,
+        workspaceId: command.workspaceId,
+        businessDate: command.payload.businessDate,
+        knowledgeAt: recordedAt,
+        operationalProfile,
+      });
+      const policy = closePolicyFromContext(closeContext);
       if (!policy.ok) return policy;
-      const existing = await repos.operationalCloses.findByBusinessDate(
-        command.workspaceId,
-        command.payload.businessDate,
-      );
+      const existing = closeContext.currentClose;
       if (existing !== null && existing.state !== "reopened") {
         return err("OPERATIONAL_CLOSE_ALREADY_EXISTS", "This business date is already closed.");
       }
@@ -173,6 +155,7 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
         businessDate: command.payload.businessDate,
         asOf: recordedAt,
         profile: operationalProfile,
+        context: closeContext,
       });
       if (readiness.state === "blocked") {
         return err(
@@ -199,7 +182,7 @@ export function recordOperationalClose(ctx: CommandContext, input: unknown) {
         found,
         policy.value.definition,
         policy.value.policy.id,
-        period,
+        closeContext.period,
         recordedAt,
         existing?.id ?? null,
         (existing?.version ?? 0) + 1,
@@ -238,16 +221,16 @@ export function recordOperationalCloseExceptionAcknowledgement(
         command.workspaceId,
         command.payload.businessDate,
       );
-      const period = vietnamBusinessDayRange(
-        command.payload.businessDate,
-        operationalProfile.businessDayStartMinute,
-      );
-      const policy = await effectiveClosePolicy(repos, command.workspaceId, period.end, recordedAt);
+      const closeContext = await loadOperationalCloseContext({
+        repos,
+        workspaceId: command.workspaceId,
+        businessDate: command.payload.businessDate,
+        knowledgeAt: recordedAt,
+        operationalProfile,
+      });
+      const policy = closePolicyFromContext(closeContext);
       if (!policy.ok) return policy;
-      const currentClose = await repos.operationalCloses.findByBusinessDate(
-        command.workspaceId,
-        command.payload.businessDate,
-      );
+      const currentClose = closeContext.currentClose;
       if (currentClose?.state === "closed") {
         return err(
           "OPERATIONAL_CLOSE_ALREADY_EXISTS",
@@ -258,12 +241,14 @@ export function recordOperationalCloseExceptionAcknowledgement(
         workspaceId: command.workspaceId,
         businessDate: command.payload.businessDate,
         exceptionKind: command.payload.exceptionKind,
+        sourceKind: command.payload.source.kind,
         sourceId: command.payload.source.id,
       } as const;
       await repos.operationalCloseExceptionAcknowledgements.lockIdentity(
         identity.workspaceId,
         identity.businessDate,
         identity.exceptionKind,
+        identity.sourceKind,
         identity.sourceId,
       );
       const existing =
@@ -274,22 +259,17 @@ export function recordOperationalCloseExceptionAcknowledgement(
           "This unresolved source has already been acknowledged for the business date.",
         );
       }
-      const board = await repos.dashboardReads.operationsBoard({
-        workspaceId: command.workspaceId,
-        filter: command.payload.exceptionKind,
-        sort: "updated_desc",
-        search: command.payload.source.reference,
-        cursor: null,
-        limit: 20,
-        page: { after: null, limit: 20 },
-        now: recordedAt,
-      });
-      const sourceExists = board.page.items.some(
-        (row) =>
-          row.kind === command.payload.source.kind &&
-          row.id === command.payload.source.id &&
-          row.reference === command.payload.source.reference &&
-          row.exceptions.some((exception) => exception.kind === command.payload.exceptionKind),
+      const sourceExists = (
+        await repos.operationsReads.listCurrentExceptionIdentities({
+          workspaceId: command.workspaceId,
+          asOf: recordedAt,
+        })
+      ).some(
+        (identity) =>
+          identity.kind === command.payload.exceptionKind &&
+          identity.source.kind === command.payload.source.kind &&
+          identity.source.id === command.payload.source.id &&
+          identity.source.reference === command.payload.source.reference,
       );
       const decision = decideRecordOperationalCloseExceptionAcknowledgement(
         command,

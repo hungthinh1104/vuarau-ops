@@ -35,7 +35,7 @@ const emptyLine = (
   lineId: crypto.randomUUID() as PurchaseLineId,
   productId: products[0]?.id ?? ("" as ProductId),
   productName: products[0]?.displayName ?? "",
-  quantity: "1",
+  quantity: "",
   unit: "kg",
   price: "",
 });

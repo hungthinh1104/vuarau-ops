@@ -330,6 +330,7 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     setSubmitted(true);
     if (!allValid) {
       metrics.count("validation_error_count");
+      focusFirstInvalidField(lines, resolved, setActiveLineId, qualityGradeRequired);
       return null;
     }
     if (!dirty && draftRef.current !== null) return draftRef.current;
@@ -395,12 +396,9 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
   async function post(): Promise<void> {
     if (replacementPending) return;
     setSubmitted(true);
-    if (!totalsReady || !fulfilmentReady) {
+    if (!totalsReady || !fulfilmentReady || !allValid) {
       metrics.count("validation_error_count");
-      return;
-    }
-    if (!allValid && (!navigator.onLine || pendingCustomerCreate !== null)) {
-      metrics.count("validation_error_count");
+      focusFirstInvalidField(lines, resolved, setActiveLineId, qualityGradeRequired);
       return;
     }
     metrics.mark("post_attempted_at");
@@ -527,11 +525,59 @@ export function useQuickSaleFormModel(props: { readonly customerIdOverride?: Cus
     setNote,
     setEvidence,
     setUnitNotice,
+    setSubmitted,
     submitted,
     total,
+    totalsReady,
+    allValid,
     unitNotice,
     visibleProducts,
   };
+}
+
+export function focusFirstInvalidField(
+  lines: readonly SaleLineDraft[],
+  resolved: readonly ReturnType<typeof resolveLine>[],
+  setActiveLineId: (lineId: string) => void,
+  qualityGradeRequired = false,
+): boolean {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    const issues = resolved[i]?.issues ?? {};
+    const hasNameIssue = issues.productName !== undefined || line.productName.trim().length === 0;
+    const hasGradeIssue =
+      qualityGradeRequired &&
+      (line.qualityGradeId === null ||
+        line.qualityGradeId === undefined ||
+        line.qualityGradeName === null ||
+        line.qualityGradeName === undefined);
+    const hasQtyIssue = issues.quantity !== undefined || resolved[i]?.quantity === null;
+    const hasPriceIssue = issues.unitPrice !== undefined || resolved[i]?.unitPrice === null;
+
+    if (hasNameIssue || hasGradeIssue || hasQtyIssue || hasPriceIssue) {
+      setActiveLineId(line.lineId);
+      const targetField = hasNameIssue
+        ? "product"
+        : hasGradeIssue
+          ? "qualityGrade"
+          : hasQtyIssue
+            ? "quantity"
+            : "price";
+
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => {
+          const el = document.querySelector<HTMLElement>(`[data-sale-field="${targetField}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            el.focus();
+          }
+        });
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 export type QuickSaleFormModel = ReturnType<typeof useQuickSaleFormModel>;

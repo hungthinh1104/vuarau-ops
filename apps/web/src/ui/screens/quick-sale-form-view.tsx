@@ -23,7 +23,10 @@ import { Button } from "@/ui/primitives/button.tsx";
 import { Dialog } from "@/ui/primitives/dialog.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
 import { QuickSaleView } from "@/ui/screens/quick-sale-view.tsx";
-import type { QuickSaleFormModel } from "@/ui/controllers/quick-sale-form-model.ts";
+import {
+  focusFirstInvalidField,
+  type QuickSaleFormModel,
+} from "@/ui/controllers/quick-sale-form-model.ts";
 import { useQuickSaleFormInteractions } from "@/ui/controllers/quick-sale-form-interactions.ts";
 
 export function QuickSaleFormView(model: QuickSaleFormModel) {
@@ -418,7 +421,14 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               posted={postCommand.phase.kind === "succeeded"}
               onDiscard={() => void discard()}
               onSaveDraft={() => void saveDraft()}
-              onConfirm={() => setConfirmOpen(true)}
+              onConfirm={() => {
+                if (!model.allValid || !model.totalsReady || !model.fulfilmentReady) {
+                  model.setSubmitted(true);
+                  focusFirstInvalidField(lines, resolved, setActiveLineId, qualityGradeRequired);
+                  return;
+                }
+                setConfirmOpen(true);
+              }}
             />
           }
         />

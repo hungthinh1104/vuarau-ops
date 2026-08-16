@@ -11,20 +11,20 @@
   --color-border: #e8e6e5;
   --color-border-strong: #d6d3d1;
 
-  --color-brand: #3ba6f1;
-  --color-brand-hover: #3398e1;
-  --color-brand-soft: #e8f5fe;
-  --color-primary: #3ba6f1;
+  --color-brand: #0369a1;
+  --color-brand-hover: #0284c7;
+  --color-brand-soft: #e0f2fe;
+  --color-primary: #0369a1;
   --color-primary-foreground: #ffffff;
-  --color-primary-soft: #e8f5fe;
+  --color-primary-soft: #e0f2fe;
   --color-secondary: #f5f5f4;
   --color-secondary-foreground: #0c0a09;
   --color-muted: #f5f5f4;
   --color-muted-foreground: #78716c;
-  --color-accent: #e8f5fe;
+  --color-accent: #e0f2fe;
   --color-accent-foreground: #0c0a09;
   --color-input: #d6d3d1;
-  --color-ring: #3ba6f1;
+  --color-ring: #0369a1;
 
   --color-success: #26763d;
   --color-success-foreground: #ffffff;
@@ -319,5 +319,16 @@
   .document-table td,
   .document-table th {
     break-inside: avoid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

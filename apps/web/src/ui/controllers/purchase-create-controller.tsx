@@ -31,7 +31,7 @@ const newLine = (): PurchaseDraftLine => ({
   lineId: crypto.randomUUID() as PurchaseLineId,
   productId: "",
   productName: "",
-  quantity: "1",
+  quantity: "",
   unit: "kg",
   price: "",
 });

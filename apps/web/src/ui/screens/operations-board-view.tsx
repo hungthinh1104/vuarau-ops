@@ -74,6 +74,12 @@ const SORTS: readonly { value: OperationsBoardSort; label: string }[] = [
   { value: "amount_desc", label: "Giá trị cao nhất" },
 ];
 
+export function getEffectiveNextAction(
+  row: Pick<OperationsBoardRow, "nextAction" | "exceptions">,
+): string {
+  return row.nextAction ?? row.exceptions[0]?.nextAction.label ?? "Không cần xử lý";
+}
+
 function stateLabel(value: string): string {
   const labels: Record<string, string> = {
     posted: "Đã chốt",
@@ -94,7 +100,7 @@ function stateLabel(value: string): string {
     reconciliation_required: "Cần đối soát",
     attention: "Cần kiểm tra",
   };
-  return labels[value] ?? "Cần kiểm tra";
+  return labels[value] ?? "Trạng thái chưa xác định";
 }
 
 function stateTone(value: string): "info" | "warning" | "positive" | "neutral" {
@@ -311,7 +317,7 @@ function columns() {
       header: "Việc tiếp theo",
       cell: (info) => (
         <div className="grid gap-1">
-          <span className="font-medium">{info.row.original.nextAction ?? "Không cần xử lý"}</span>
+          <span className="font-medium">{getEffectiveNextAction(info.row.original)}</span>
           <span className="text-caption text-ink-muted">
             {ageLabel(info.row.original.ageSeconds)} · {formatInstant(info.getValue())}
           </span>
@@ -432,9 +438,7 @@ export function OperationsBoardView(props: OperationsBoardViewProps) {
                             {row.counterparty} · {formatMoney(row.amount)}
                           </span>
                           <span className="mt-1 block text-body-sm font-medium">
-                            {row.nextAction ??
-                              row.exceptions[0]?.nextAction.label ??
-                              "Không cần xử lý"}
+                            {getEffectiveNextAction(row)}
                           </span>
                           <span className="mt-1 block text-caption text-ink-muted">
                             {ageLabel(row.ageSeconds)} · {formatInstant(row.updatedAt)}

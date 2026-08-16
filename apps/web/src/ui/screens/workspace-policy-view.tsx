@@ -209,90 +209,121 @@ export function WorkspacePolicyView(props: WorkspacePolicyViewProps) {
   );
 }
 
+function PolicyApproveAction(props: {
+  readonly policy: WorkspacePolicyDto;
+  readonly onApprove: (payload: ApproveWorkspacePolicyCommand["payload"]) => void;
+}) {
+  const [evidence, setEvidence] = useState("");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="grid gap-3 rounded-card border border-border/80 bg-surface-muted p-3">
+      <h4 className="text-body-sm font-semibold">Phê duyệt bản nháp</h4>
+      <EvidenceReferenceInput
+        label="Ảnh hoặc phiếu liên quan để duyệt"
+        value={evidence}
+        onChange={setEvidence}
+        hint="Mỗi dòng một mục; cần ít nhất một mục để duyệt."
+      />
+      <TextInput
+        label="Lý do duyệt"
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+      />
+      {error ? <p className="text-caption text-danger">{error}</p> : null}
+      <Button
+        onClick={() => {
+          const evidenceReferences = evidence
+            .split("\n")
+            .map((value) => value.trim())
+            .filter(Boolean);
+          if (evidenceReferences.length === 0 || reason.trim() === "") {
+            setError("Cần thông tin liên quan và lý do trước khi duyệt.");
+            return;
+          }
+          setError(null);
+          props.onApprove({
+            policyVersionId: props.policy.id,
+            evidenceReferences,
+            reason: reason.trim(),
+          });
+        }}
+      >
+        Duyệt bản nháp
+      </Button>
+    </div>
+  );
+}
+
+function PolicyRetireAction(props: {
+  readonly policy: WorkspacePolicyDto;
+  readonly onRetire: (payload: RetireWorkspacePolicyCommand["payload"]) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [effectiveTo, setEffectiveTo] = useState(props.policy.effectiveTo?.slice(0, 16) ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="grid gap-3 rounded-card border border-danger/30 bg-danger-soft/20 p-3">
+      <h4 className="text-body-sm font-semibold text-danger">Ngừng hiệu lực quy định</h4>
+      <TextInput
+        label="Lý do ngừng quy định"
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+      />
+      <TextInput
+        label="Kết thúc hiệu lực kinh doanh (tuỳ chọn)"
+        type="datetime-local"
+        value={effectiveTo}
+        onChange={(event) => setEffectiveTo(event.target.value)}
+      />
+      {error ? <p className="text-caption text-danger">{error}</p> : null}
+      <Button
+        tone="danger"
+        onClick={() => {
+          if (reason.trim() === "") {
+            setError("Cần lý do khi ngừng quy định.");
+            return;
+          }
+          const parsedEffectiveTo =
+            effectiveTo === ""
+              ? { ok: true as const, value: null }
+              : parseVietnamDateTimeLocal(effectiveTo, "Thời điểm kết thúc hiệu lực");
+          if (!parsedEffectiveTo.ok) {
+            setError(parsedEffectiveTo.reason);
+            return;
+          }
+          setError(null);
+          props.onRetire({
+            policyVersionId: props.policy.id,
+            effectiveTo: parsedEffectiveTo.value,
+            reason: reason.trim(),
+          });
+        }}
+      >
+        Ngừng quy định
+      </Button>
+    </div>
+  );
+}
+
 function PolicyStateActions(props: {
   readonly policy: WorkspacePolicyDto;
   readonly onApprove: (payload: ApproveWorkspacePolicyCommand["payload"]) => void;
   readonly onRetire: (payload: RetireWorkspacePolicyCommand["payload"]) => void;
 }) {
-  const [evidence, setEvidence] = useState("");
-  const [reason, setReason] = useState("");
-  const [effectiveTo, setEffectiveTo] = useState(props.policy.effectiveTo?.slice(0, 16) ?? "");
-  const [error, setError] = useState<string | null>(null);
   const canApprove = props.policy.state === "draft";
   const canRetire = props.policy.state !== "retired";
+
+  if (!canApprove && !canRetire) return null;
+
   return (
     <div className="mt-4 grid gap-3 border-t border-border pt-3">
       {canApprove ? (
-        <>
-          <EvidenceReferenceInput
-            label="Ảnh hoặc phiếu liên quan để duyệt"
-            value={evidence}
-            onChange={setEvidence}
-            hint="Mỗi dòng một mục; cần ít nhất một mục để duyệt."
-          />
-          <TextInput
-            label="Lý do duyệt"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-          />
-          <Button
-            onClick={() => {
-              const evidenceReferences = evidence
-                .split("\n")
-                .map((value) => value.trim())
-                .filter(Boolean);
-              if (evidenceReferences.length === 0 || reason.trim() === "") {
-                setError("Cần thông tin liên quan và lý do trước khi duyệt.");
-                return;
-              }
-              setError(null);
-              props.onApprove({
-                policyVersionId: props.policy.id,
-                evidenceReferences,
-                reason: reason.trim(),
-              });
-            }}
-          >
-            Duyệt bản nháp
-          </Button>
-        </>
+        <PolicyApproveAction policy={props.policy} onApprove={props.onApprove} />
       ) : null}
-      {canRetire ? (
-        <>
-          <TextInput
-            label="Kết thúc hiệu lực kinh doanh (tuỳ chọn)"
-            type="datetime-local"
-            value={effectiveTo}
-            onChange={(event) => setEffectiveTo(event.target.value)}
-          />
-          <Button
-            tone="danger"
-            onClick={() => {
-              if (reason.trim() === "") {
-                setError("Cần lý do khi ngừng quy định.");
-                return;
-              }
-              const parsedEffectiveTo =
-                effectiveTo === ""
-                  ? { ok: true as const, value: null }
-                  : parseVietnamDateTimeLocal(effectiveTo, "Thời điểm kết thúc hiệu lực");
-              if (!parsedEffectiveTo.ok) {
-                setError(parsedEffectiveTo.reason);
-                return;
-              }
-              setError(null);
-              props.onRetire({
-                policyVersionId: props.policy.id,
-                effectiveTo: parsedEffectiveTo.value,
-                reason: reason.trim(),
-              });
-            }}
-          >
-            Ngừng quy định
-          </Button>
-        </>
-      ) : null}
-      {error ? <p className="text-caption text-danger">{error}</p> : null}
+      {canRetire ? <PolicyRetireAction policy={props.policy} onRetire={props.onRetire} /> : null}
     </div>
   );
 }
