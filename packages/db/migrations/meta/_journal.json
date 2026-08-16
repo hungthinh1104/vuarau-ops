@@ -589,6 +589,13 @@
       "when": 1786776466897,
       "tag": "0083_abandoned_skreet",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1786841383356,
+      "tag": "0084_first_red_skull",
+      "breakpoints": true
     }
   ]
 }

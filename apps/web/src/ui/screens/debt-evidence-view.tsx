@@ -316,25 +316,27 @@ function DebtObservationCard({
       </div>
       <p className="mt-3 text-caption text-ink-muted">
         {item.kind === "customer_credit_preserved"
-          ? "Fact này chỉ xác nhận phần Payment giữ lại là tín dụng khách hàng; không tạo thêm ledger entry."
+          ? "Bản ghi lịch sử này không còn là write-path tài chính; khoản giữ lại mới được ghi từ phiếu thu."
           : "Chưa kết luận overdue hoặc thay đổi ledger."}
       </p>
       <SourceEvidenceList references={item.evidenceReferences} className="mt-3" />
       {item.relatedObservationId === null ? null : (
         <p className="mt-2 text-caption text-warning">Đã liên kết với bản ghi trước.</p>
       )}
-      <Button
-        tone="secondary"
-        className="mt-3"
-        onClick={() =>
-          onStartCorrection(
-            item.id,
-            `${KIND_COPY[item.kind]} · ${formatInstant(item.transactionTime)}`,
-          )
-        }
-      >
-        Điều chỉnh bản ghi này
-      </Button>
+      {item.kind === "customer_credit_preserved" ? null : (
+        <Button
+          tone="secondary"
+          className="mt-3"
+          onClick={() =>
+            onStartCorrection(
+              item.id,
+              `${KIND_COPY[item.kind]} · ${formatInstant(item.transactionTime)}`,
+            )
+          }
+        >
+          Điều chỉnh bản ghi này
+        </Button>
+      )}
     </li>
   );
 }

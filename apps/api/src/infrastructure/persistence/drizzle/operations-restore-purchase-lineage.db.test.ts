@@ -10,7 +10,7 @@ import type {
   PurchaseLineId,
   PurchaseReceiptId,
   SupplierId,
-  WorkspaceBackupV22,
+  WorkspaceBackupV23,
 } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
@@ -54,7 +54,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore purchase lineage", ()
     await ctx.close();
   });
 
-  async function prepareBackup(): Promise<WorkspaceBackupV22> {
+  async function prepareBackup(): Promise<WorkspaceBackupV23> {
     const supplierId = crypto.randomUUID() as SupplierId;
     const purchaseId = crypto.randomUUID() as PurchaseId;
     const purchaseLineId = crypto.randomUUID() as PurchaseLineId;
@@ -219,7 +219,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore purchase lineage", ()
       ),
     };
     const count = (key: string) => Number(backup.recordCounts[key] ?? 0) + 1;
-    const malformed: WorkspaceBackupV22 = {
+    const malformed: WorkspaceBackupV23 = {
       ...backup,
       payload: malformedPayload,
       recordCounts: {

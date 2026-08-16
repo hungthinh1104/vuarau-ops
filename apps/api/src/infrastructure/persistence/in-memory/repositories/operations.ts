@@ -76,6 +76,7 @@ export const createOperationsRepositories = (store: Store): Pick<Repositories, "
           ...store.costObservations.values(),
           ...store.reconciliationObservations.values(),
           ...store.debtObservations.values(),
+          ...store.customerPaymentCreditPreservations.values(),
           ...store.supplyCommitmentObservations.values(),
           ...store.supplierObservations.values(),
           ...store.demandObservations.values(),

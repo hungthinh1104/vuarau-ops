@@ -105,7 +105,7 @@ Computed by exactly one function. No command sets `status` directly. See
 
 For a customer, the unresolved payment amount is the exact sum of each active
 Payment's remaining amount after effective allocations, allocation reversals and
-an explicit preserved-credit fact:
+explicit current customer-credit preservation facts:
 
 ```
 available = max(payment − reversed − effective allocations − active preserved credit, 0)
@@ -119,11 +119,15 @@ canonical payment fact; it is not silently treated as
 Board exposes one exception row sourced from that Payment (`kind = payment`)
 and its amount separately, with allocation or intentional
 customer-credit preservation as the operator decision. Preservation is the
-`customer_credit_preserved` debt-observation fact: it must name the exact Payment,
-customer and amount still unallocated. It changes no account ledger entry and
-cannot be combined with a later allocation or reversal that would exceed the
-remaining payment. The exception resolves only when the canonical payment is
-allocated/reversed or the exact remaining amount is covered by that fact.
+append-only financial command `PreserveCustomerPaymentAsCredit`, authorized by
+`debt.allocate`, not a generic Evidence write. It records the exact Payment,
+customer, amount, reason and source references in
+`customer_payment_credit_preservations`. A correction appends a replacement row
+linked to the current preservation tip; only chain tips contribute to exposure.
+It changes no customer-account ledger entry and cannot be combined with a later
+allocation or reversal that would exceed the remaining payment. The exception
+resolves only when the canonical payment is allocated/reversed or its entire
+remaining amount is covered by active preservation facts.
 
 ---
 
@@ -144,4 +148,5 @@ None yet.
 
 - [../02-use-cases/UC-PAYMENT-001-record-customer-payment.md](../02-use-cases/UC-PAYMENT-001-record-customer-payment.md)
 - [../02-use-cases/UC-PAYMENT-002-reverse-customer-payment.md](../02-use-cases/UC-PAYMENT-002-reverse-customer-payment.md)
+- [../02-use-cases/UC-PAYMENT-004-preserve-customer-credit.md](../02-use-cases/UC-PAYMENT-004-preserve-customer-credit.md)
 - [../05-casebook/payment-cases.md](../05-casebook/payment-cases.md)

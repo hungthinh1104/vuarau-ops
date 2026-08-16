@@ -42,6 +42,12 @@ column is how these two fields drift apart in production.
 | T-PAY-004 | `recorded` \| `partially_reversed` | `reversed`           | `ReverseCustomerPayment` | `amount = remaining`                                                                                                     | Same                                                                                                                                                                 | `payment.reversed` | Same                                                                                                                                  | **yes**  |
 | T-PAY-005 | `reversed`                         | —                    | `ReverseCustomerPayment` | Refused                                                                                                                  | none                                                                                                                                                                 | none               | `PAYMENT_ALREADY_REVERSED` (BR-PAYMENT-006)                                                                                           | —        |
 
+`PreserveCustomerPaymentAsCredit` is deliberately not a Payment-state transition:
+it appends an authorized financial attribution of the currently unallocated amount
+without changing Payment status, reversal total, version, cash or customer ledger.
+Its correction chain is held in `customer_payment_credit_preservations` and its
+active tips contribute to `payment_exposure_v1` (BR-PAYMENT-009).
+
 ## Reversal is not a negative payment
 
 A reversal produces a `payment_reversals` row plus a compensating ledger entry. It

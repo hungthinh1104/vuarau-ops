@@ -161,7 +161,7 @@ from `customer_account_entries` and then runs the workspace integrity read. A
 non-healthy result is a failure, not a warning. Retrying the same restore command
 returns its original receipt and does not insert another copy.
 
-Backup V22 also carries append-only delivery-return-settlement,
+Backup V23 also carries append-only delivery-return-settlement,
 fulfilment-remainder-case and source-linked operational-close-acknowledgement
 facts, so recovery does not reopen an explicitly resolved return, lose a
 remainder decision or remove close review evidence. Acknowledgements remain

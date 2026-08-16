@@ -2,7 +2,6 @@
 
 import type { PaymentSummaryDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { METHOD_COPY } from "@/ui/domain/payment-copy.ts";
 import { formatInstant, formatRecordedGap } from "@/ui/format.ts";
 import type { QueryLike } from "@/ui/patterns/feedback/query-states.tsx";
@@ -17,12 +16,14 @@ export function PaymentDetailView({
   canReverse,
   balance,
   reversal,
+  customerCreditPreservation,
 }: {
   readonly query: QueryLike<PaymentSummaryDto>;
   readonly onRetry: () => void;
   readonly canReverse: boolean;
   readonly balance: ReactNode;
   readonly reversal?: ReactNode;
+  readonly customerCreditPreservation?: ReactNode;
 }) {
   return (
     <PageFrame size="standard">
@@ -74,16 +75,9 @@ export function PaymentDetailView({
                   </p>
                 ) : null}
                 <SourceEvidenceList references={recorded.evidenceReferences} className="mt-3" />
-                {recorded.status === "reversed" ? null : (
-                  <Link
-                    href={`/evidence/debt?kind=customer_credit_preserved&paymentReference=${recorded.id}&customerId=${recorded.customerId}`}
-                    className="mt-4 inline-flex min-h-11 items-center rounded-button border border-border px-4 text-label font-semibold text-ink hover:border-border-strong"
-                  >
-                    Ghi nhận tín dụng khách hàng
-                  </Link>
-                )}
               </section>
               {balance}
+              {recorded.status === "reversed" ? null : customerCreditPreservation}
               {canReverse ? reversal : null}
             </>
           )}

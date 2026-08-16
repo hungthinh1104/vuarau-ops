@@ -1,6 +1,9 @@
 import { z } from "zod";
 import {
+  actorIdSchema,
   cashAccountIdSchema,
+  commandIdSchema,
+  customerPaymentCreditPreservationIdSchema,
   customerIdSchema,
   paymentIdSchema,
   paymentReversalIdSchema,
@@ -71,6 +74,60 @@ export const reverseCustomerPaymentCommandSchema = defineVersionedCommand(
   reverseCustomerPaymentPayloadSchema,
 );
 export type ReverseCustomerPaymentCommand = z.infer<typeof reverseCustomerPaymentCommandSchema>;
+
+/**
+ * An intentional financial attribution of the remaining amount of one Payment
+ * to customer credit. It is not Evidence: it changes the amount available for
+ * a later Sale allocation, while creating no second money or ledger entry.
+ */
+export const CUSTOMER_PAYMENT_CREDIT_PRESERVATION_CASE_KINDS = [
+  "preservation",
+  "correction",
+] as const;
+export const customerPaymentCreditPreservationCaseKindSchema = z.enum(
+  CUSTOMER_PAYMENT_CREDIT_PRESERVATION_CASE_KINDS,
+);
+export type CustomerPaymentCreditPreservationCaseKind = z.infer<
+  typeof customerPaymentCreditPreservationCaseKindSchema
+>;
+
+export const preserveCustomerPaymentAsCreditPayloadSchema = z.object({
+  preservationId: customerPaymentCreditPreservationIdSchema,
+  paymentId: paymentIdSchema,
+  amount: moneySchema,
+  caseKind: customerPaymentCreditPreservationCaseKindSchema,
+  relatedPreservationId: customerPaymentCreditPreservationIdSchema.nullable().default(null),
+  reason: z.string().trim().min(1).max(500),
+  evidenceReferences: evidenceReferencesInputSchema,
+});
+export type PreserveCustomerPaymentAsCreditPayload = z.infer<
+  typeof preserveCustomerPaymentAsCreditPayloadSchema
+>;
+export const preserveCustomerPaymentAsCreditCommandSchema = defineVersionedCommand(
+  preserveCustomerPaymentAsCreditPayloadSchema,
+);
+export type PreserveCustomerPaymentAsCreditCommand = z.infer<
+  typeof preserveCustomerPaymentAsCreditCommandSchema
+>;
+
+export const customerPaymentCreditPreservationDtoSchema = z.object({
+  id: customerPaymentCreditPreservationIdSchema,
+  workspaceId: workspaceIdSchema,
+  paymentId: paymentIdSchema,
+  customerId: customerIdSchema,
+  amount: moneySchema,
+  caseKind: customerPaymentCreditPreservationCaseKindSchema,
+  relatedPreservationId: customerPaymentCreditPreservationIdSchema.nullable(),
+  reason: z.string(),
+  evidenceReferences: evidenceReferencesDtoSchema,
+  transactionTime: isoInstantSchema,
+  recordedAt: isoInstantSchema,
+  actorId: actorIdSchema,
+  commandId: commandIdSchema,
+});
+export type CustomerPaymentCreditPreservationDto = z.infer<
+  typeof customerPaymentCreditPreservationDtoSchema
+>;
 
 export const paymentCapabilitiesSchema = z.object({
   reverse: capabilitySchema,

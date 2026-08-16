@@ -1,5 +1,5 @@
 import type { DeliveryState } from "@vuarau/domain-kernel";
-import { activeCustomerCreditAmount, derivePaymentExposure } from "@vuarau/domain-kernel";
+import { activeCustomerPaymentCreditAmount, derivePaymentExposure } from "@vuarau/domain-kernel";
 import type { FulfilmentRemainderOutcome } from "@vuarau/domain-contracts";
 import type { Store } from "../store.ts";
 import { key } from "../store.ts";
@@ -55,16 +55,14 @@ export function paymentUnallocatedAmount(
 ): number {
   const payment = store.payments.get(key(workspaceId, paymentId));
   if (payment === undefined || payment.status === "reversed") return 0;
-  const preservedCredit = activeCustomerCreditAmount(
-    [...store.debtObservations.values()].filter(
-      (observation) =>
-        observation.workspaceId === workspaceId &&
-        observation.kind === "customer_credit_preserved" &&
-        observation.facts.paymentReference === paymentId,
+  const preservedCredit = activeCustomerPaymentCreditAmount(
+    [...store.customerPaymentCreditPreservations.values()].filter(
+      (preservation) =>
+        preservation.workspaceId === workspaceId && preservation.paymentId === paymentId,
     ),
   );
   if (preservedCredit === null) {
-    throw new RangeError("dashboard.customer_credit_preserved.amount_minor");
+    throw new RangeError("dashboard.customer_payment_credit_preservation.amount_minor");
   }
   const exposure = derivePaymentExposure({
     originalAmountMinor: payment.amount.amountMinor,

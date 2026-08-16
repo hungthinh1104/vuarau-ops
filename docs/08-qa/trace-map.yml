@@ -492,6 +492,22 @@ use_cases:
       - apps/api/src/modules/payment/payment.queries.ts
       - packages/domain-kernel/src/payment/capabilities.ts
 
+  UC-PAYMENT-004:
+    title: Preserve an unallocated Payment as customer credit
+    risk: P0
+    doc: docs/02-use-cases/UC-PAYMENT-004-preserve-customer-credit.md
+    rules:
+      [BR-PAYMENT-009, BR-COMMAND-001, BR-COMMAND-002, BR-AUTH-001, BR-AUTH-004, BR-CUSTOMER-002]
+    cases: [CASE-PAYMENT-005]
+    tests: [TC-PAYMENT-014, TC-PAYMENT-015, TC-OPS-024, TC-OPS-027, TC-OPS-028]
+    implementation:
+      - packages/domain-kernel/src/payment/customer-credit-preservation.ts
+      - apps/api/src/modules/payment/customer-credit-preservation.handler.ts
+      - apps/api/src/infrastructure/trpc/routers/payment.ts
+      - packages/db/src/schema/payment.ts
+      - packages/db/src/repositories/write/customer-payment-credit-preservation.ts
+      - apps/web/src/ui/controllers/payment-detail-controller.tsx
+
   UC-ACCOUNT-001:
     title: View the customer account balance and timeline
     risk: P0
@@ -2544,17 +2560,22 @@ business_rules:
     risk: P1
     doc: docs/04-business-rules/payment-rules.md
     cases: [CASE-PAYMENT-005]
-    tests: [TC-OPS-024, TC-OPS-027]
+    tests: [TC-PAYMENT-014, TC-PAYMENT-015, TC-OPS-024, TC-OPS-027, TC-OPS-028]
     implementation:
       - packages/domain-kernel/src/payment/payment-exposure.ts
+      - packages/domain-kernel/src/payment/customer-credit-preservation.ts
       - packages/db/src/schema/payment.ts
       - packages/db/migrations/0082_payment_exposure_view.sql
+      - packages/db/migrations/0084_first_red_skull.sql
       - packages/domain-contracts/src/dashboard/index.ts
+      - packages/domain-contracts/src/payment/index.ts
+      - apps/api/src/modules/payment/customer-credit-preservation.handler.ts
       - apps/api/src/infrastructure/persistence/in-memory/reads/dashboard-order-state.ts
       - packages/db/src/repositories/read/dashboard-board.ts
       - packages/db/src/repositories/read/dashboard-board-counts.ts
       - packages/db/src/repositories/read/dashboard-rows.ts
       - apps/web/src/ui/screens/operations-board-view.tsx
+      - apps/web/src/ui/controllers/payment-detail-controller.tsx
 
   # --- customer account ---------------------------------------------------------
   BR-ACCOUNT-001:
@@ -4299,6 +4320,9 @@ contract_tests:
   TC-OPS-027:
     title: PostgreSQL Payment exposure view stays in parity with the domain kernel
     file: packages/db/src/payment-exposure-parity.db.test.ts
+  TC-OPS-028:
+    title: PostgreSQL backup and restore preserve customer-credit Payment lineage
+    file: apps/api/src/infrastructure/persistence/drizzle/operations-restore-payment-lineage.db.test.ts
   TC-DELIVERY-009:
     title: Application fulfilment remainder cases require an explicit source fact and preserve corrections
     file: apps/api/src/modules/delivery/delivery.app.test.ts
@@ -4404,6 +4428,12 @@ contract_tests:
   TC-PAYMENT-013:
     title: Payment detail renders source evidence safely without changing money semantics
     file: apps/web/src/ui/screens/payment-detail-view.test.tsx
+  TC-PAYMENT-014:
+    title: Customer-credit preservation is a bounded financial fact with correction-tip semantics
+    file: packages/domain-kernel/src/payment/customer-credit-preservation.test.ts
+  TC-PAYMENT-015:
+    title: Payment detail captures an explicit preservation intent without client-side availability inference
+    file: apps/web/src/ui/patterns/payment/customer-credit-preservation-panel.test.tsx
   TC-ACCOUNT-008:
     title: Customer account procedures return DTOs matching the published schema
     file: apps/api/src/infrastructure/trpc/router.contract.test.ts
@@ -4882,7 +4912,7 @@ contract_tests:
     title: Close accepts observed-only facts and rejects observations outside the business period
     file: packages/domain-kernel/src/close/close.test.ts
   TC-OPS-018:
-    title: Backup V22 carries close, reopen, acknowledgement, statement-match, reversal and operational decision lineage
+    title: Backup V23 carries close, reopen, acknowledgement, statement-match, reversal and operational decision lineage
     file: apps/api/src/modules/operations/operations.app.test.ts
 
   TC-PROPERTY-MONEY-001:

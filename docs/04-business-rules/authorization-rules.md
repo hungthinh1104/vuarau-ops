@@ -80,6 +80,7 @@ the caller's membership, using the static table in
 | `sale.get`, `sale.list`               | `sale.read`                                                | all roles                                     | implemented                       |
 | `RecordCustomerPayment`               | `payment.record`                                           | owner, accountant, sales                      | implemented                       |
 | `ReverseCustomerPayment`              | `payment.reverse`                                          | owner, accountant                             | implemented                       |
+| `PreserveCustomerPaymentAsCredit`     | `debt.allocate`                                            | owner, accountant                             | implemented                       |
 | `RecordPaymentAllocation`             | `debt.allocate`                                            | owner, accountant                             | implemented                       |
 | `ReversePaymentAllocation`            | `debt.allocate`                                            | owner, accountant                             | implemented                       |
 | `payment.get`, `payment.list`         | `payment.read`                                             | owner, accountant, sales                      | implemented                       |

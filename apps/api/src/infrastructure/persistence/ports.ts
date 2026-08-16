@@ -84,6 +84,7 @@ import type {
   CostObservationRepository,
   ReconciliationObservationRepository,
   DebtObservationRepository,
+  CustomerPaymentCreditPreservationRepository,
   SupplyCommitmentObservationRepository,
   SupplierObservationRepository,
   DemandObservationRepository,
@@ -670,6 +671,7 @@ export type Repositories = ReadRepositories & {
   readonly costObservations: CostObservationRepository;
   readonly reconciliationObservations: ReconciliationObservationRepository;
   readonly debtObservations: DebtObservationRepository;
+  readonly customerPaymentCreditPreservations: CustomerPaymentCreditPreservationRepository;
   readonly supplyCommitmentObservations: SupplyCommitmentObservationRepository;
   readonly supplierObservations: SupplierObservationRepository;
   readonly demandObservations: DemandObservationRepository;

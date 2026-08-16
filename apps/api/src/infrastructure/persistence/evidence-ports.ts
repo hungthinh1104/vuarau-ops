@@ -12,6 +12,8 @@ import type {
   SupplierObservationId,
   DemandObservationDto,
   DemandObservationId,
+  CustomerPaymentCreditPreservationDto,
+  CustomerPaymentCreditPreservationId,
 } from "@vuarau/domain-contracts";
 
 export type CostObservationRepository = {
@@ -59,11 +61,23 @@ export type DebtObservationRepository = {
     workspaceId: WorkspaceId,
     observationId: DebtObservationId,
   ): Promise<DebtObservationDto | null>;
+  insert(observation: DebtObservationDto): Promise<boolean>;
+};
+
+export type CustomerPaymentCreditPreservationRepository = {
+  findByIdForUpdate(
+    workspaceId: WorkspaceId,
+    preservationId: CustomerPaymentCreditPreservationId,
+  ): Promise<CustomerPaymentCreditPreservationDto | null>;
+  findCorrectionByTarget(
+    workspaceId: WorkspaceId,
+    preservationId: CustomerPaymentCreditPreservationId,
+  ): Promise<CustomerPaymentCreditPreservationDto | null>;
   listByPayment(
     workspaceId: WorkspaceId,
-    paymentReference: string,
-  ): Promise<readonly DebtObservationDto[]>;
-  insert(observation: DebtObservationDto): Promise<boolean>;
+    paymentId: string,
+  ): Promise<readonly CustomerPaymentCreditPreservationDto[]>;
+  insert(preservation: CustomerPaymentCreditPreservationDto): Promise<boolean>;
 };
 
 export type SupplyCommitmentObservationRepository = {

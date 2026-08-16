@@ -1,9 +1,8 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { WorkspaceRole } from "@vuarau/domain-contracts";
 import { normalizeWorkspaceRoles } from "@vuarau/domain-contracts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 import {
-  auditLogs,
   cashAccounts,
   cashAdjustments,
   cashMovements,
@@ -11,9 +10,9 @@ import {
   cashTransferReversals,
   expenses,
   expenseReversals,
-  commandReceipts,
   customerAccountBalances,
   customerAccountEntries,
+  customerPaymentCreditPreservations,
   customers,
   customerOrders,
   customerOrderLines,
@@ -76,6 +75,7 @@ import {
 import type { Tx } from "../shared/types.ts";
 import { readOperationsCloseBackup } from "./operations-close-backup.ts";
 import { readFulfilmentRemainderCases } from "./operations-remainder.ts";
+import { readBackupControlPlane } from "./operations-backup-control-plane.ts";
 const safeCount = (row: Record<string, unknown> | undefined, name: string): number =>
   persistedBigintToSafeNumber(row?.[name] ?? 0, `operations ${name}`);
 export const createOperationsReadRepositories = (tx: Tx) => ({
@@ -411,9 +411,8 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         reversalRows,
         paymentAllocationRows,
         paymentAllocationReversalRows,
+        customerPaymentCreditPreservationRows,
         entryRows,
-        auditRows,
-        receiptRows,
         supplierRows,
         supplierPaymentRows,
         supplierPaymentReversalRows,
@@ -517,18 +516,12 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
           .where(eq(paymentAllocationReversals.workspaceId, workspaceId)),
         tx
           .select()
-          .from(customerAccountEntries)
-          .where(eq(customerAccountEntries.workspaceId, workspaceId)),
-        tx.select().from(auditLogs).where(eq(auditLogs.workspaceId, workspaceId)),
+          .from(customerPaymentCreditPreservations)
+          .where(eq(customerPaymentCreditPreservations.workspaceId, workspaceId)),
         tx
           .select()
-          .from(commandReceipts)
-          .where(
-            and(
-              eq(commandReceipts.workspaceId, workspaceId),
-              ne(commandReceipts.commandType, "ExportWorkspaceBackup"),
-            ),
-          ),
+          .from(customerAccountEntries)
+          .where(eq(customerAccountEntries.workspaceId, workspaceId)),
         tx.select().from(suppliers).where(eq(suppliers.workspaceId, workspaceId)),
         tx.select().from(supplierPayments).where(eq(supplierPayments.workspaceId, workspaceId)),
         tx
@@ -586,6 +579,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         tx.select().from(stocktakeSessions).where(eq(stocktakeSessions.workspaceId, workspaceId)),
         tx.select().from(stocktakeCounts).where(eq(stocktakeCounts.workspaceId, workspaceId)),
       ]);
+      const { auditRows, receiptRows } = await readBackupControlPlane(tx, workspaceId);
       const closeBackup = await readOperationsCloseBackup(tx, workspaceId);
       const plain = (value: unknown): Record<string, unknown> =>
         JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
@@ -651,6 +645,7 @@ export const createOperationsReadRepositories = (tx: Tx) => ({
         paymentReversals: list(reversalRows),
         paymentAllocations: list(paymentAllocationRows),
         paymentAllocationReversals: list(paymentAllocationReversalRows),
+        customerPaymentCreditPreservations: list(customerPaymentCreditPreservationRows),
         accountEntries: list(entryRows),
         audit: list(auditRows),
         commandReceipts: list(receiptRows),

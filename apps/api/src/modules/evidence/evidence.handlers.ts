@@ -25,7 +25,6 @@ import {
   recordSupplierObservationCommandSchema,
   supplyCommitmentObservationDtoSchema,
   supplierObservationDtoSchema,
-  paymentIdSchema,
 } from "@vuarau/domain-contracts";
 import {
   decideRecordCostObservation,
@@ -34,15 +33,11 @@ import {
   decideRecordSupplyCommitmentObservation,
   decideRecordSupplierObservation,
   decideRecordDemandObservation,
-  calculateActivePaymentAllocationAmount,
-  subtractExactIntegers,
-  sumExactIntegers,
   err,
   ok,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
-import { activeCustomerCreditAmount } from "../account/customer-credit.ts";
 
 export function recordCostObservation(ctx: CommandContext, input: unknown) {
   return runCommand<RecordCostObservationCommand, CostObservationDto>({
@@ -142,78 +137,6 @@ export function recordDebtObservation(ctx: CommandContext, input: unknown) {
     requiredPermission: "evidence.record",
     businessDayPolicy: "enforce",
     execute: async ({ command, repos, recordedAt }) => {
-      if (command.payload.kind === "customer_credit_preserved") {
-        const paymentId = paymentIdSchema.safeParse(command.payload.facts.paymentReference);
-        if (!paymentId.success) {
-          return err(
-            "CUSTOMER_CREDIT_PRESERVATION_PAYMENT_INVALID",
-            "Customer-credit preservation must reference a valid payment.",
-          );
-        }
-        const payment = await repos.payments.findByIdForUpdate(command.workspaceId, paymentId.data);
-        if (payment === null) {
-          return err(
-            "CUSTOMER_CREDIT_PRESERVATION_PAYMENT_INVALID",
-            "Customer-credit preservation must reference a payment in this workspace.",
-          );
-        }
-        if (payment.customerId !== command.payload.facts.customerId) {
-          return err(
-            "CUSTOMER_CREDIT_PRESERVATION_CUSTOMER_MISMATCH",
-            "Customer-credit preservation must use the payment customer.",
-          );
-        }
-        if (payment.amount.currency !== command.payload.facts.amount?.currency) {
-          return err(
-            "PAYMENT_CURRENCY_MISMATCH",
-            "Customer-credit preservation currency must match the payment.",
-          );
-        }
-
-        const existingCreditFacts = await repos.debtObservations.listByPayment(
-          command.workspaceId,
-          payment.id,
-        );
-        const activeCredit = activeCustomerCreditAmount(
-          existingCreditFacts,
-          command.payload.relatedObservationId,
-        );
-        const allocations = await repos.paymentAllocations.listByCustomer(
-          command.workspaceId,
-          payment.customerId,
-        );
-        const activeAllocated = sumExactIntegers(
-          allocations.allocations
-            .filter((allocation) => allocation.paymentId === payment.id)
-            .map((allocation) =>
-              calculateActivePaymentAllocationAmount(allocation, allocations.reversals),
-            )
-            .filter((amount): amount is number => amount !== null),
-        );
-        const effectiveAmount = subtractExactIntegers(
-          payment.amount.amountMinor,
-          payment.reversedAmount.amountMinor,
-        );
-        const afterAllocation =
-          effectiveAmount === null || activeAllocated === null
-            ? null
-            : subtractExactIntegers(effectiveAmount, activeAllocated);
-        const available =
-          afterAllocation === null || activeCredit === null
-            ? null
-            : subtractExactIntegers(afterAllocation, activeCredit);
-        if (
-          available === null ||
-          command.payload.facts.amount === null ||
-          command.payload.facts.amount.amountMinor > Math.max(0, available)
-        ) {
-          return err(
-            "CUSTOMER_CREDIT_PRESERVATION_EXCEEDS_UNALLOCATED",
-            "Customer-credit preservation exceeds the payment's unallocated amount.",
-            { availableAmountMinor: Math.max(0, available ?? 0) },
-          );
-        }
-      }
       const target =
         command.payload.relatedObservationId === null
           ? null

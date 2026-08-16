@@ -83,6 +83,7 @@ commands:
   - { id: operations.reopenClose, owner: UC-OPERATIONS-005, classification: control }
   - { id: payment.record, owner: UC-PAYMENT-001, classification: append_only }
   - { id: payment.reverse, owner: UC-PAYMENT-002, classification: append_only }
+  - { id: payment.preserveCustomerCredit, owner: UC-PAYMENT-004, classification: append_only }
   - { id: policy.createDraft, owner: UC-POLICY-001, classification: policy }
   - { id: policy.approve, owner: UC-POLICY-001, classification: policy }
   - { id: policy.retire, owner: UC-POLICY-001, classification: policy }
@@ -144,6 +145,7 @@ catalog_aliases:
   DiscardSaleDraft: sale.discardDraft
   RecordCustomerPayment: payment.record
   ReverseCustomerPayment: payment.reverse
+  PreserveCustomerPaymentAsCredit: payment.preserveCustomerCredit
   RecordSupplierPayment: supplier.recordPayment
   ReverseSupplierPayment: supplier.reversePayment
   CreatePurchaseDraft: purchase.createDraft

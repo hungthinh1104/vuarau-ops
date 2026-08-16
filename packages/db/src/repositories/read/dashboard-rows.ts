@@ -246,9 +246,9 @@ export async function queryRows(
       join payment_allocations pa on pa.workspace_id=par.workspace_id and pa.id=par.allocation_id
       where par.workspace_id=${input.workspaceId}::uuid
       union all
-      select dc.workspace_id, dc.payment_reference::uuid, dc.recorded_at
-      from debt_observations dc
-      where dc.workspace_id=${input.workspaceId}::uuid and dc.kind='customer_credit_preserved'
+      select cp.workspace_id, cp.payment_id, cp.recorded_at
+      from customer_payment_credit_preservations cp
+      where cp.workspace_id=${input.workspaceId}::uuid
     ), payment_activity as (
       select p.workspace_id, p.id,
         greatest(p.recorded_at, coalesce(events.recorded_at, p.recorded_at)) as updated_at

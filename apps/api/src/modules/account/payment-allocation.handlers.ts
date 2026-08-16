@@ -15,6 +15,7 @@ import type { DomainResult } from "@vuarau/domain-kernel";
 import {
   decideRecordPaymentAllocation,
   decideReversePaymentAllocation,
+  activeCustomerPaymentCreditAmount,
   err,
   ok,
   resolvePolicyForDecision,
@@ -23,7 +24,6 @@ import type { CommandContext } from "../shared/command-pipeline.ts";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { CommandIntegrityError } from "../shared/integrity.ts";
-import { activeCustomerCreditAmount } from "./customer-credit.ts";
 
 async function requireManualAllocationPolicy(
   workspaceId: RecordPaymentAllocationCommand["workspaceId"],
@@ -97,14 +97,17 @@ export function recordPaymentAllocation(
         command.workspaceId,
         payment.customerId,
       );
-      const preservedCredit = activeCustomerCreditAmount(
-        await repos.debtObservations.listByPayment(command.workspaceId, payment.id),
+      const preservedCredit = activeCustomerPaymentCreditAmount(
+        await repos.customerPaymentCreditPreservations.listByPayment(
+          command.workspaceId,
+          payment.id,
+        ),
       );
       if (preservedCredit === null) {
         return err(
           "PERSISTED_NUMBER_OUT_OF_RANGE",
           "Persisted monetary data is outside the supported exact range.",
-          { field: "payment.customer_credit_preserved.amount_minor" },
+          { field: "payment.customer_payment_credit_preservation.amount_minor" },
         );
       }
       const decision = decideRecordPaymentAllocation(

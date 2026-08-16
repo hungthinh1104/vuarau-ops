@@ -46,19 +46,6 @@ export const createDebtObservationWriteRepositories = (tx: Tx) => ({
         .limit(1);
       return rows[0] === undefined ? null : toDebtObservationDto(rows[0]);
     },
-    async listByPayment(workspaceId: string, paymentReference: string) {
-      const rows = await tx
-        .select()
-        .from(debtObservations)
-        .where(
-          and(
-            eq(debtObservations.workspaceId, workspaceId),
-            eq(debtObservations.kind, "customer_credit_preserved"),
-            eq(debtObservations.paymentReference, paymentReference),
-          ),
-        );
-      return rows.map(toDebtObservationDto);
-    },
     async insert(observation: DebtObservationDto) {
       const rows = await tx
         .insert(debtObservations)

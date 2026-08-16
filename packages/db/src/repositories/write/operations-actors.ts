@@ -1,6 +1,6 @@
-import type { WorkspaceBackupV19 } from "@vuarau/domain-contracts";
+import type { WorkspaceBackupV23 } from "@vuarau/domain-contracts";
 
-export function backupActorIds(payload: WorkspaceBackupV19["payload"]): string[] {
+export function backupActorIds(payload: WorkspaceBackupV23["payload"]): string[] {
   return [
     ...payload.cashAccounts.map((row) => row["custodianActorId"]),
     ...payload.expenses.map((row) => row["actorId"]),
@@ -33,6 +33,7 @@ export function backupActorIds(payload: WorkspaceBackupV19["payload"]): string[]
     ...payload.debtObservations.map((row) => row["actorId"]),
     ...payload.paymentAllocations.map((row) => row["actorId"]),
     ...payload.paymentAllocationReversals.map((row) => row["actorId"]),
+    ...payload.customerPaymentCreditPreservations.map((row) => row["actorId"]),
     ...payload.supplyCommitmentObservations.map((row) => row["actorId"]),
     ...payload.supplierObservations.map((row) => row["actorId"]),
     ...payload.demandObservations.map((row) => row["actorId"]),

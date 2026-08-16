@@ -3,11 +3,12 @@ import { paymentDtoSchema, reverseCustomerPaymentCommandSchema } from "@vuarau/d
 import type { DomainResult } from "@vuarau/domain-kernel";
 import {
   calculateActivePaymentAllocationAmount,
+  activeCustomerPaymentCreditAmount,
   decideReversePayment,
+  derivePaymentExposure,
   err,
   negateMoney,
   ok,
-  subtractExactIntegers,
   sumExactIntegers,
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
@@ -17,7 +18,6 @@ import { applyAccountEffects } from "../shared/account-effects.ts";
 import { applyCashMovements } from "../cash/cash-effects.ts";
 import { toPaymentDto } from "../shared/mappers.ts";
 import { currentRequestId } from "../../infrastructure/logging.ts";
-import { activeCustomerCreditAmount } from "../account/customer-credit.ts";
 
 /**
  * UC-PAYMENT-002. Undoes a payment's financial effect while preserving the fact
@@ -144,56 +144,69 @@ export function reverseCustomerPayment(
         command.workspaceId,
         payment.customerId,
       );
-      const activeAllocationAmounts = allocations.allocations
+      const paymentAllocations = allocations.allocations
         .filter((allocation) => allocation.paymentId === payment.id)
-        .map((allocation) =>
-          calculateActivePaymentAllocationAmount(allocation, allocations.reversals),
-        );
-      const activeAllocatedAmount = activeAllocationAmounts.some((amount) => amount === null)
+        .map((allocation) => ({
+          allocation,
+          activeAmountMinor: calculateActivePaymentAllocationAmount(
+            allocation,
+            allocations.reversals,
+          ),
+        }));
+      const activeAllocatedAmount = paymentAllocations.some(
+        ({ activeAmountMinor }) => activeAmountMinor === null,
+      )
         ? null
-        : sumExactIntegers(activeAllocationAmounts as number[]);
-      const effectivePaymentAfterReversal = subtractExactIntegers(
-        payment.amount.amountMinor,
-        updatedPayment.reversedAmount.amountMinor,
+        : sumExactIntegers(
+            paymentAllocations.map(({ activeAmountMinor }) => activeAmountMinor as number),
+          );
+      const preservedCreditAmount = activeCustomerPaymentCreditAmount(
+        await repos.customerPaymentCreditPreservations.listByPayment(
+          command.workspaceId,
+          payment.id,
+        ),
       );
-      if (activeAllocatedAmount === null || effectivePaymentAfterReversal === null) {
+      const exposure = derivePaymentExposure({
+        originalAmountMinor: payment.amount.amountMinor,
+        reversedAmountMinor: updatedPayment.reversedAmount.amountMinor,
+        allocations: paymentAllocations.map(({ allocation, activeAmountMinor }) => ({
+          amountMinor: allocation.amount.amountMinor,
+          reversedAmountMinor:
+            activeAmountMinor === null
+              ? Number.NaN
+              : allocation.amount.amountMinor - activeAmountMinor,
+        })),
+        preservedCreditAmountMinor: preservedCreditAmount ?? Number.NaN,
+      });
+      if (activeAllocatedAmount === null || preservedCreditAmount === null || exposure === null) {
         return err(
           "PERSISTED_NUMBER_OUT_OF_RANGE",
           "Persisted monetary data is outside the supported exact range.",
           { field: "payment.active_allocation.amount_minor", requestId: currentRequestId() },
         );
       }
-      if (activeAllocatedAmount > effectivePaymentAfterReversal) {
+      if (activeAllocatedAmount > exposure.effectiveAmountMinor) {
         return err(
           "PAYMENT_REVERSAL_WOULD_EXCEED_ALLOCATIONS",
           "Reverse the active payment allocations before reversing this payment amount.",
           {
             activeAllocatedAmount,
-            effectivePaymentAfterReversal,
+            effectivePaymentAfterReversal: exposure.effectiveAmountMinor,
             paymentId: payment.id,
           },
         );
       }
-      const preservedCreditAmount = activeCustomerCreditAmount(
-        await repos.debtObservations.listByPayment(command.workspaceId, payment.id),
-      );
-      if (preservedCreditAmount === null) {
-        return err(
-          "PERSISTED_NUMBER_OUT_OF_RANGE",
-          "Persisted monetary data is outside the supported exact range.",
-          {
-            field: "payment.customer_credit_preserved.amount_minor",
-            requestId: currentRequestId(),
-          },
-        );
-      }
-      if (preservedCreditAmount > effectivePaymentAfterReversal) {
+      if (
+        preservedCreditAmount > exposure.effectiveAmountMinor ||
+        activeAllocatedAmount + preservedCreditAmount > exposure.effectiveAmountMinor
+      ) {
         return err(
           "PAYMENT_REVERSAL_WOULD_EXCEED_CUSTOMER_CREDIT",
           "Correct the preserved customer-credit fact before reversing this payment amount.",
           {
             preservedCreditAmount,
-            effectivePaymentAfterReversal,
+            effectivePaymentAfterReversal: exposure.effectiveAmountMinor,
+            activeAllocatedAmount,
             paymentId: payment.id,
           },
         );

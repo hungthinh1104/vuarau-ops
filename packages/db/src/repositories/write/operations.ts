@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { type WorkspaceId, type WorkspaceBackupV22 } from "@vuarau/domain-contracts";
+import { type WorkspaceId, type WorkspaceBackupV23 } from "@vuarau/domain-contracts";
 import {
   actors,
   auditLogs,
@@ -71,7 +71,7 @@ import { restoreWorkspaceChangeFeed } from "./operations-change-feed-restore.ts"
 import { restoreFulfilmentRemainderCases } from "./operations-remainder-restore.ts";
 export const createOperationsWriteRepositories = (tx: Tx) => ({
   operations: {
-    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV22["payload"]) {
+    async restoreBackup(workspaceId: WorkspaceId, payload: WorkspaceBackupV23["payload"]) {
       if (await targetContainsBusinessData(tx, workspaceId)) {
         return { kind: "unsafe_target" as const, reason: "target contains business data" };
       }

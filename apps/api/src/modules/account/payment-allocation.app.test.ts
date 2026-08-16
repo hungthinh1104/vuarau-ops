@@ -23,7 +23,7 @@ import { getCustomerDebtAging } from "./account.queries.ts";
 import { getOperationsBoard, getOperationsBoardCounts } from "../dashboard/dashboard.queries.ts";
 import { exportWorkspaceBackup } from "../operations/operations.queries.ts";
 import { restoreWorkspaceBackup } from "../operations/restore-workspace.handler.ts";
-import { recordDebtObservation } from "../evidence/evidence.handlers.ts";
+import { preserveCustomerPaymentAsCredit } from "../payment/customer-credit-preservation.handler.ts";
 import {
   recordPaymentAllocation,
   reversePaymentAllocation,
@@ -300,26 +300,17 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
     await setupManualAllocation(harness);
 
     const beforeEntries = harness.db.accountEntries();
-    const preserved = await recordDebtObservation(harness.ctx, {
+    const preserved = await preserveCustomerPaymentAsCredit(harness.ctx, {
       ...envelope("allocation-board-credit-preserved", LATEST_TRANSACTION_TIME),
+      expectedVersion: 1,
       payload: {
-        debtObservationId: crypto.randomUUID(),
-        kind: "customer_credit_preserved",
-        caseKind: "normal",
-        description: "Khách xác nhận giữ lại khoản trả dư cho giao dịch sau.",
-        participantWording: "Khách hàng xác nhận.",
-        facts: {
-          amount: { amountMinor: 500_000, currency: "VND" },
-          agreedDueAt: null,
-          promiseToPayAt: null,
-          termCode: null,
-          termText: null,
-          paymentReference: PAYMENT_ID,
-          allocationProposal: null,
-          customerId: CUSTOMER_ID,
-        },
+        preservationId: crypto.randomUUID(),
+        paymentId: PAYMENT_ID,
+        amount: { amountMinor: 500_000, currency: "VND" },
+        caseKind: "preservation",
+        relatedPreservationId: null,
+        reason: "Khách xác nhận giữ lại khoản trả dư cho giao dịch sau.",
         evidenceReferences: ["receipt://customer-credit/001"],
-        relatedObservationId: null,
       },
     });
     expect(preserved.ok).toBe(true);
@@ -372,26 +363,17 @@ describe("UC-ACCOUNT-005 / BR-AGING-002 / TC-AGING-004", () => {
   it("refuses customer-credit preservation beyond the payment remainder", async () => {
     const harness = createHarness();
     await setupManualAllocation(harness);
-    const result = await recordDebtObservation(harness.ctx, {
+    const result = await preserveCustomerPaymentAsCredit(harness.ctx, {
       ...envelope("allocation-board-credit-too-large", LATEST_TRANSACTION_TIME),
+      expectedVersion: 1,
       payload: {
-        debtObservationId: crypto.randomUUID(),
-        kind: "customer_credit_preserved",
-        caseKind: "normal",
-        description: "Số tiền vượt khoản thu thực tế.",
-        participantWording: "Không có.",
-        facts: {
-          amount: { amountMinor: 500_001, currency: "VND" },
-          agreedDueAt: null,
-          promiseToPayAt: null,
-          termCode: null,
-          termText: null,
-          paymentReference: PAYMENT_ID,
-          allocationProposal: null,
-          customerId: CUSTOMER_ID,
-        },
+        preservationId: crypto.randomUUID(),
+        paymentId: PAYMENT_ID,
+        amount: { amountMinor: 500_001, currency: "VND" },
+        caseKind: "preservation",
+        relatedPreservationId: null,
+        reason: "Số tiền vượt khoản thu thực tế.",
         evidenceReferences: ["receipt://customer-credit/invalid"],
-        relatedObservationId: null,
       },
     });
     expect(result).toMatchObject({

@@ -29,7 +29,7 @@ canonical tables
 
 The first fact is `payment_exposure_v1`. It derives original, reversed,
 effective, actively allocated, preserved-credit and available amounts from the
-canonical Payment, allocation, reversal and debt-observation tables. Its
+canonical Payment, allocation, reversal and customer-credit-preservation tables. Its
 arithmetic owner is `derivePaymentExposure` in the domain kernel. Board page
 variants and Board counts consume the view; they retain only query-specific
 activity, search, ordering and pagination logic. The in-memory Board uses the
@@ -54,7 +54,7 @@ optimization remains local to each read model.
 
 **Cost:** a view migration is part of the schema contract, and a view change
 must preserve kernel/database parity. PostgreSQL still has to aggregate active
-allocation and observation rows for each read.
+allocation and customer-credit-preservation rows for each read.
 
 **Not solved:** Receiving, fulfilment, Close context/gate and Next Action remain
 separate follow-up slices. No generic rules engine or materialized read model
@@ -81,4 +81,5 @@ can replace the regular view.
 
 - Rule: BR-PAYMENT-009.
 - Test: TC-OPS-027 (`payment-exposure-parity.db.test.ts`).
-- View: `packages/db/migrations/0082_payment_exposure_view.sql`.
+- View migrations: `packages/db/migrations/0082_payment_exposure_view.sql` and
+  `packages/db/migrations/0084_first_red_skull.sql`.

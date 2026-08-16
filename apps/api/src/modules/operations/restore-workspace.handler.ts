@@ -4,7 +4,7 @@ import {
   workspaceOperationalProfileDtoSchema,
   workspaceRestoreResultDtoSchema,
   type RestoreWorkspaceBackupCommand,
-  type WorkspaceBackupV22,
+  type WorkspaceBackupV23,
   type WorkspaceRestoreResultDto,
 } from "@vuarau/domain-contracts";
 import { err, ok, type DomainResult } from "@vuarau/domain-kernel";
@@ -116,8 +116,6 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
   );
   const customerPayments = new Set(payload.payments.map((row) => row["id"]));
   const customerPaymentReversals = new Set(payload.paymentReversals.map((row) => row["id"]));
-  const paymentAllocationRows = payload.paymentAllocations ?? [];
-  const paymentAllocationReversalRows = payload.paymentAllocationReversals ?? [];
   const paymentReferences = paymentReferenceValidator(payload);
   const qualityIssueRows = "qualityIssueCodes" in payload ? payload.qualityIssueCodes : [];
   const goodsArrivalRows = "goodsArrivals" in payload ? payload.goodsArrivals : [];
@@ -219,12 +217,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
         hasGrade(row["qualityGradeId"]),
     ) &&
     payload.accountEntries.every((row) => customers.has(row["customerId"])) &&
-    paymentAllocationRows.every(
-      (row) => customers.has(row["customerId"]) && paymentReferences.validAllocation(row),
-    ) &&
-    paymentAllocationReversalRows.every(
-      (row) => customers.has(row["customerId"]) && paymentReferences.validReversal(row),
-    ) &&
+    paymentReferences.validLineageForCustomers(customers) &&
     (!("purchases" in payload) ||
       payload.purchases.every((row) => suppliers.has(row["supplierId"]))) &&
     (!("supplierPayments" in payload) ||
@@ -483,7 +476,7 @@ function validReferences(command: RestoreWorkspaceBackupCommand): boolean {
       }))
   );
 }
-function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV22["payload"] {
+function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV23["payload"] {
   const payload = command.payload.backup.payload;
   const operationalProfile =
     "operationalProfile" in payload
@@ -554,6 +547,10 @@ function v20Payload(command: RestoreWorkspaceBackupCommand): WorkspaceBackupV22[
     paymentAllocations: "paymentAllocations" in payload ? payload.paymentAllocations : [],
     paymentAllocationReversals:
       "paymentAllocationReversals" in payload ? payload.paymentAllocationReversals : [],
+    customerPaymentCreditPreservations:
+      "customerPaymentCreditPreservations" in payload
+        ? payload.customerPaymentCreditPreservations
+        : [],
     stocktakeSessions: "stocktakeSessions" in payload ? payload.stocktakeSessions : [],
     stocktakeCounts: "stocktakeCounts" in payload ? payload.stocktakeCounts : [],
     operationalCloses: "operationalCloses" in payload ? payload.operationalCloses : [],

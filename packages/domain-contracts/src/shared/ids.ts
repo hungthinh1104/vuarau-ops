@@ -151,6 +151,13 @@ export const reconciliationObservationIdSchema = z.uuid().brand<"ReconciliationO
 export type ReconciliationObservationId = z.infer<typeof reconciliationObservationIdSchema>;
 export const debtObservationIdSchema = z.uuid().brand<"DebtObservationId">();
 export type DebtObservationId = z.infer<typeof debtObservationIdSchema>;
+/** An append-only financial attribution of a Payment's remaining amount. */
+export const customerPaymentCreditPreservationIdSchema = z
+  .uuid()
+  .brand<"CustomerPaymentCreditPreservationId">();
+export type CustomerPaymentCreditPreservationId = z.infer<
+  typeof customerPaymentCreditPreservationIdSchema
+>;
 export const supplyCommitmentObservationIdSchema = z
   .uuid()
   .brand<"SupplyCommitmentObservationId">();

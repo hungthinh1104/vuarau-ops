@@ -442,8 +442,9 @@ export const createOperationsReads = (store: Store): Pick<Repositories, "operati
         paymentReversals: rows(store.reversals),
         paymentAllocations: rows(store.paymentAllocations),
         paymentAllocationReversals: rows(store.paymentAllocationReversals),
+        customerPaymentCreditPreservations: rows(store.customerPaymentCreditPreservations.values()),
         accountEntries: rows(store.accountEntries),
-        audit: rows(store.audit),
+        audit: rows(store.audit).filter((row) => row.action !== "workspace.backup_exported"),
         commandReceipts: rows(store.receipts.values()).filter(
           (receipt) => receipt.commandType !== "ExportWorkspaceBackup",
         ),

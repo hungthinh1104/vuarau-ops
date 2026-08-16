@@ -99,6 +99,9 @@ describe("M14 logical operations evidence", () => {
     expect(second.value.payload.commandReceipts).not.toContainEqual(
       expect.objectContaining({ commandType: "ExportWorkspaceBackup" }),
     );
+    expect(second.value.payload.audit).not.toContainEqual(
+      expect.objectContaining({ action: "workspace.backup_exported" }),
+    );
     expect(JSON.stringify(second.value.payload.commandReceipts)).not.toContain(
       "vuarau.workspace-backup",
     );
@@ -483,10 +486,10 @@ describe("M14 logical operations evidence", () => {
     });
   });
 
-  it("keeps WorkspaceBackupV1 restore-compatible while exporting V22", async () => {
+  it("keeps WorkspaceBackupV1 restore-compatible while exporting V23", async () => {
     const exported = await exportWorkspaceBackup(harness.ctx, exportInput());
     if (!exported.ok) return;
-    expect(exported.value.version).toBe(22);
+    expect(exported.value.version).toBe(23);
     const {
       suppliers: _suppliers,
       supplierPayments: _supplierPayments,
@@ -547,6 +550,7 @@ describe("M14 logical operations evidence", () => {
       operationalCloseExceptionAcknowledgements: _operationalCloseExceptionAcknowledgements,
       cashStatementMatches: _cashStatementMatches,
       cashStatementMatchReversals: _cashStatementMatchReversals,
+      customerPaymentCreditPreservations: _customerPaymentCreditPreservations,
       ...payload
     } = exported.value.payload;
     const legacyPayload = {
@@ -583,10 +587,10 @@ describe("M14 logical operations evidence", () => {
       occurredAt: LATEST_TRANSACTION_TIME,
       payload: { backup: legacy, reason: "Kiểm tra tương thích V1" },
     });
-    expect(restored.ok).toBe(true);
+    expect(restored.ok, JSON.stringify(restored)).toBe(true);
   });
 
-  it("TC-OPS-018 — Backup V22 preserves operational close policy and observation lineage", async () => {
+  it("TC-OPS-018 — Backup V23 preserves operational close policy and observation lineage", async () => {
     const envelope = (label: string) => ({
       commandId: crypto.randomUUID(),
       idempotencyKey: `backup-close-${label}-${crypto.randomUUID()}`,
@@ -675,7 +679,7 @@ describe("M14 logical operations evidence", () => {
     expect(exported).toMatchObject({
       ok: true,
       value: {
-        version: 22,
+        version: 23,
         payload: {
           operationalCloses: [expect.objectContaining({ id: operationalCloseId })],
           operationalCloseReopens: [],

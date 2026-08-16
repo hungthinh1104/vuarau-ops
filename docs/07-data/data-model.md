@@ -20,22 +20,23 @@ Drizzle definitions and database constraints.
 
 ### Customer, Sale and customer money
 
-| Table                          | Purpose                                                                                     | Mutability                                                                       |
-| ------------------------------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `customers`                    | Buyer master data                                                                           | mutable lifecycle                                                                |
-| `sales`                        | Sale aggregate (`draft → posted/discarded`) with source references and payment-term lineage | draft/status/version only; posted commercial content and term snapshot immutable |
-| `sale_lines`                   | Product/grade/quantity/price snapshots for Sale                                             | replaceable while draft; finalized snapshots preserved                           |
-| `sale_voids`                   | Posted-Sale compensation/reason with source references                                      | append-only adjacent fact                                                        |
-| `payments`                     | Customer money, source references and reversal summary                                      | constrained lifecycle/version fields                                             |
-| `payment_reversals`            | Customer-payment compensation and source references                                         | append-only                                                                      |
-| `payment_allocations`          | Append-only commercial attribution of a payment to a posted Sale                            | append-only                                                                      |
-| `payment_allocation_reversals` | Compensation facts for payment attribution                                                  | append-only                                                                      |
-| `customer_account_entries`     | Canonical customer debt ledger                                                              | append-only                                                                      |
-| `customer_account_balances`    | Rebuildable customer balance projection                                                     | recomputable                                                                     |
-| `customer_orders`              | Commercial Customer Order lifecycle and commercial snapshots                                | draft fields replaceable; confirmed/cancelled state explicit                     |
-| `customer_order_lines`         | Customer Order product/name/quantity/price snapshots                                        | replaceable while draft; preserved on confirmation                               |
-| `supply_commitments`           | Supplier promise lifecycle and arrival/terms snapshots                                      | commercial-only; no payable or inventory effect                                  |
-| `supply_commitment_lines`      | Supplier promise product/grade/quantity/price snapshots                                     | replaceable while draft; preserved on confirmation                               |
+| Table                                   | Purpose                                                                                                                       | Mutability                                                                       |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `customers`                             | Buyer master data                                                                                                             | mutable lifecycle                                                                |
+| `sales`                                 | Sale aggregate (`draft → posted/discarded`) with source references and payment-term lineage                                   | draft/status/version only; posted commercial content and term snapshot immutable |
+| `sale_lines`                            | Product/grade/quantity/price snapshots for Sale                                                                               | replaceable while draft; finalized snapshots preserved                           |
+| `sale_voids`                            | Posted-Sale compensation/reason with source references                                                                        | append-only adjacent fact                                                        |
+| `payments`                              | Customer money, source references and reversal summary                                                                        | constrained lifecycle/version fields                                             |
+| `payment_reversals`                     | Customer-payment compensation and source references                                                                           | append-only                                                                      |
+| `payment_allocations`                   | Append-only commercial attribution of a payment to a posted Sale                                                              | append-only                                                                      |
+| `payment_allocation_reversals`          | Compensation facts for payment attribution                                                                                    | append-only                                                                      |
+| `customer_payment_credit_preservations` | Append-only authorized attribution of unallocated Payment to customer credit; correction chains replace only their active tip | append-only financial fact; no ledger effect                                     |
+| `customer_account_entries`              | Canonical customer debt ledger                                                                                                | append-only                                                                      |
+| `customer_account_balances`             | Rebuildable customer balance projection                                                                                       | recomputable                                                                     |
+| `customer_orders`                       | Commercial Customer Order lifecycle and commercial snapshots                                                                  | draft fields replaceable; confirmed/cancelled state explicit                     |
+| `customer_order_lines`                  | Customer Order product/name/quantity/price snapshots                                                                          | replaceable while draft; preserved on confirmation                               |
+| `supply_commitments`                    | Supplier promise lifecycle and arrival/terms snapshots                                                                        | commercial-only; no payable or inventory effect                                  |
+| `supply_commitment_lines`               | Supplier promise product/grade/quantity/price snapshots                                                                       | replaceable while draft; preserved on confirmation                               |
 
 ### Product, supplier and Purchase
 
@@ -115,8 +116,8 @@ debt, payable or inventory ledger. It preserves expected and observed facts
 separately; a correction appends a new row linked to the earlier observation.
 
 `debt_observations` is deliberately not an overdue, allocation, customer
-ledger or cashbook source. It preserves what was agreed or observed; a
-correction appends a new row linked to the earlier observation.
+ledger, cashbook or Payment-credit source. It preserves what was agreed or
+observed; a correction appends a new row linked to the earlier observation.
 
 `supply_commitment_observations` is deliberately not a Purchase, payable,
 receipt, inventory, reorder or supplier-score source. It preserves what a
@@ -218,7 +219,7 @@ Some read models share a business meaning without sharing their search, ordering
 or pagination shape. Those meanings may have a regular PostgreSQL view backed by
 canonical tables. `payment_exposure_v1` is the current example: it projects
 active Payment exposure, including allocation reversals and the active tip of a
-preserved-credit correction chain. It is fresh read-only data, not a canonical
+financial customer-credit-preservation correction chain. It is fresh read-only data, not a canonical
 money fact, ledger entry, invariant owner or write authorization. Its arithmetic
 must remain in parity with the pure domain-kernel owner before a consumer is
 migrated.
@@ -321,7 +322,7 @@ references without becoming an inventory or customer-money source.
 inspected-intake source links without changing payable, quality-policy or
 inventory semantics. `quality_inspections.evidence_references` follows the same
 metadata-only rule.
-Backup V22 preserves operational profile, price rules, CostObservation,
+Backup V23 preserves operational profile, price rules, CostObservation,
 ReconciliationObservation, DebtObservation, CashAccount and all canonical cash source/
 movement rows plus workspace policy versions; it does not export `cash_balances`.
 It also preserves delivery-return settlements and fulfilment-remainder case

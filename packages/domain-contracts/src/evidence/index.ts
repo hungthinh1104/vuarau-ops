@@ -192,9 +192,11 @@ export const reconciliationObservationPageSchema = pageOf(reconciliationObservat
 /**
  * Debt observations preserve what a participant agreed, promised or referenced
  * without declaring a sale overdue, allocating a payment or changing a ledger.
- * `customer_credit_preserved` is the one bounded exception: it is an explicit
- * attribution fact for an already-recorded Payment, so it can clear the
- * unallocated-payment workflow without creating another money entry.
+ *
+ * `customer_credit_preserved` remains in this read contract only so historical
+ * evidence can be rendered and restored. New preservation is the dedicated
+ * `PreserveCustomerPaymentAsCredit` financial command, never this Evidence
+ * command.
  */
 export const DEBT_OBSERVATION_KINDS = [
   "agreed_due_date",
@@ -628,6 +630,8 @@ export const OBSERVATION_FACT_REGISTRY = {
     collection_note: [...debtContext, "termText"],
     payment_reference: [...debtContext, "amount", "paymentReference"],
     allocation_proposal: [...debtContext, "amount", "allocationProposal"],
+    // Historical only. The command rejects it before an Evidence row can be
+    // appended; keeping it here preserves parsing of prior records.
     customer_credit_preserved: [...debtContext, "amount", "paymentReference"],
     other: [...(Object.keys(debtObservationFactsSchema.shape) as ObservationFactKey[])],
   } satisfies Record<DebtObservationKind, readonly ObservationFactKey[]>,

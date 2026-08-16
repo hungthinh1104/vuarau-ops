@@ -18,7 +18,7 @@ import type {
   SaleLineId,
   SupplierId,
   SupplierPaymentId,
-  WorkspaceBackupV22,
+  WorkspaceBackupV23,
   WorkspacePolicyVersionId,
   DeliveryId,
   DeliveryLineId,
@@ -110,7 +110,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
 
   async function prepareCanonicalBackup(
     options: { withDeliveryLineageFixture?: boolean } = {},
-  ): Promise<WorkspaceBackupV22> {
+  ): Promise<WorkspaceBackupV23> {
     const productId = crypto.randomUUID() as ProductId;
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
@@ -968,7 +968,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     const backup = await prepareCanonicalBackup();
     await emptyRecoveryWorkspace();
     const duplicateCustomer = backup.payload.customers[0]!;
-    const malformed: WorkspaceBackupV22 = {
+    const malformed: WorkspaceBackupV23 = {
       ...backup,
       payload: {
         ...backup.payload,
@@ -1025,7 +1025,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
           : row,
       ),
     };
-    const malformed: WorkspaceBackupV22 = {
+    const malformed: WorkspaceBackupV23 = {
       ...backup,
       payload,
       digest: backupDigest(payload),
@@ -1058,7 +1058,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
         },
       ],
     };
-    const tampered: WorkspaceBackupV22 = {
+    const tampered: WorkspaceBackupV23 = {
       ...backup,
       payload,
       digest: backupDigest(payload),

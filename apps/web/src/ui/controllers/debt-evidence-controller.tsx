@@ -39,7 +39,9 @@ export function DebtEvidenceController() {
   const observationId = useRef(crypto.randomUUID() as DebtObservationId);
   const [kind, setKind] = useState<DebtObservationKind>(() => {
     const parsed = debtObservationKindSchema.safeParse(searchParams.get("kind"));
-    return parsed.success ? parsed.data : "agreed_due_date";
+    return parsed.success && parsed.data !== "customer_credit_preserved"
+      ? parsed.data
+      : "agreed_due_date";
   });
   const [caseKind, setCaseKind] = useState<CostObservationCaseKind>("normal");
   const [description, setDescription] = useState("");
@@ -176,7 +178,7 @@ export function DebtEvidenceController() {
       onEvidenceReferences={setEvidenceReferences}
       onStartCorrection={(id, label) => {
         const item = observations.data?.items.find((candidate) => candidate.id === id);
-        if (item === undefined) return;
+        if (item === undefined || item.kind === "customer_credit_preserved") return;
         setCaseKind("correction");
         setRelatedObservationId(debtObservationIdSchema.parse(id));
         setRelatedObservationLabel(label);
@@ -209,7 +211,9 @@ export function DebtEvidenceController() {
   );
 }
 
-export const DEBT_KIND_OPTIONS = DEBT_OBSERVATION_KINDS.map((value) => ({ value, label: value }));
+export const DEBT_KIND_OPTIONS = DEBT_OBSERVATION_KINDS.filter(
+  (value) => value !== "customer_credit_preserved",
+).map((value) => ({ value, label: value }));
 export const DEBT_CASE_OPTIONS = COST_OBSERVATION_CASE_KINDS.map((value) => ({
   value,
   label: value,

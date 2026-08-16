@@ -12,6 +12,7 @@ import {
   FOREIGN_ACTOR_ID,
   OTHER_WORKSPACE_ID,
   TRANSACTION_TIME,
+  WAREHOUSE_ACTOR_ID,
   WORKSPACE_ID,
 } from "@vuarau/test-fixtures";
 import { createHarness, type Harness } from "../../testing/command-test-harness.ts";
@@ -406,6 +407,35 @@ describe("supply commitment observation application", () => {
 });
 
 describe("debt observation application", () => {
+  it("refuses legacy evidence-recording actors from preserving payment credit", async () => {
+    const result = await recordDebtObservation(
+      harness.contextFor(WAREHOUSE_ACTOR_ID),
+      debtInput({
+        actorId: WAREHOUSE_ACTOR_ID,
+        payload: {
+          ...debtInput().payload,
+          kind: "customer_credit_preserved",
+          facts: {
+            amount: { amountMinor: 10_000, currency: "VND" },
+            agreedDueAt: null,
+            promiseToPayAt: null,
+            termCode: null,
+            termText: null,
+            paymentReference: crypto.randomUUID(),
+            allocationProposal: null,
+            customerId: null,
+          },
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "CUSTOMER_CREDIT_PRESERVATION_REQUIRES_FINANCIAL_COMMAND" },
+    });
+    expect(harness.db.auditRecords()).toHaveLength(0);
+  });
+
   it("rejects stale facts and negative magnitudes before persistence", async () => {
     const stale = await recordDebtObservation(
       harness.ctx,

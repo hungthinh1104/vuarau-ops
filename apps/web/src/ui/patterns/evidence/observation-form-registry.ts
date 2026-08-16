@@ -136,7 +136,7 @@ export const OBSERVATION_FORM_REGISTRY = {
     },
     customer_credit_preserved: {
       fields: ["amount", "reference"],
-      hint: "Xác nhận khoản Payment còn lại được giữ nguyên là tín dụng khách hàng.",
+      hint: "Chỉ dùng để hiển thị bản ghi lịch sử; khoản giữ lại mới được ghi từ phiếu thu.",
     },
     other: { fields: ["amount", "date", "party", "reference"], hint: "Chỉ ghi điều đã quan sát." },
   } satisfies Record<DebtObservationKind, ObservationFormContract>,

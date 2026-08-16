@@ -8,6 +8,7 @@ import {
   pgView,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -218,6 +219,69 @@ export const paymentAllocationReversals = pgTable(
       table.recordedAt,
       table.id,
     ),
+  ],
+);
+
+/**
+ * Append-only financial attribution of a Payment's remaining amount to customer
+ * credit. A correction replaces its predecessor for current exposure; neither
+ * row creates a second money or customer-account entry.
+ */
+export const customerPaymentCreditPreservations = pgTable(
+  "customer_payment_credit_preservations",
+  {
+    id: uuid("id").primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    paymentId: uuid("payment_id").notNull(),
+    customerId: uuid("customer_id").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
+    currency: currencyCodeEnum("currency").notNull(),
+    caseKind: text("case_kind").notNull(),
+    relatedPreservationId: uuid("related_preservation_id"),
+    reason: text("reason").notNull(),
+    evidenceReferences: text("evidence_references").array().notNull().default([]),
+    transactionTime: timestamp("transaction_time", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id),
+    commandId: uuid("command_id").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.workspaceId, table.paymentId, table.customerId],
+      foreignColumns: [payments.workspaceId, payments.id, payments.customerId],
+      name: "customer_payment_credit_preservations_workspace_payment_customer_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+      name: "customer_payment_credit_preservations_workspace_customer_fk",
+    }),
+    foreignKey({
+      columns: [table.workspaceId, table.relatedPreservationId],
+      foreignColumns: [table.workspaceId, table.id],
+      name: "customer_payment_credit_preservations_workspace_related_fk",
+    }),
+    workspaceCommandForeignKey(table, "customer_payment_credit_preservations_workspace_command_fk"),
+    check(
+      "customer_payment_credit_preservations_amount_positive_ck",
+      sql`${table.amountMinor} > 0`,
+    ),
+    check(
+      "customer_payment_credit_preservations_case_link_ck",
+      sql`(${table.caseKind} = 'correction' and ${table.relatedPreservationId} is not null)
+        or (${table.caseKind} = 'preservation' and ${table.relatedPreservationId} is null)`,
+    ),
+    index("customer_payment_credit_preservations_payment_idx").on(
+      table.workspaceId,
+      table.paymentId,
+      table.recordedAt,
+      table.id,
+    ),
+    unique("customer_payment_credit_preservations_workspace_id_uq").on(table.workspaceId, table.id),
   ],
 );
 

@@ -3,7 +3,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   reverseCustomerPaymentCommandSchema,
+  preserveCustomerPaymentAsCreditCommandSchema,
   type CustomerId,
+  type CustomerPaymentCreditPreservationId,
   type PaymentId,
   type PaymentReversalId,
   type WorkspaceId,
@@ -16,6 +18,7 @@ import { hasPermission } from "@/api/session.ts";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { QueryStates } from "@/ui/patterns/feedback/query-states.tsx";
 import { PaymentReversalPanel } from "@/ui/patterns/payment/payment-reversal-panel.tsx";
+import { CustomerCreditPreservationPanel } from "@/ui/patterns/payment/customer-credit-preservation-panel.tsx";
 import { BalanceCard } from "@/ui/patterns/finance/balance-card.tsx";
 import { PaymentDetailView } from "@/ui/screens/payment-detail-view.tsx";
 
@@ -28,6 +31,11 @@ export function PaymentDetailController() {
   const reverseCommand = useContractCommand(
     reverseCustomerPaymentCommandSchema,
     reverse.mutateAsync,
+  );
+  const preserveCustomerCredit = useMutation(trpc.payment.preserveCustomerCredit.mutationOptions());
+  const preserveCustomerCreditCommand = useContractCommand(
+    preserveCustomerPaymentAsCreditCommandSchema,
+    preserveCustomerCredit.mutateAsync,
   );
 
   return (
@@ -72,6 +80,37 @@ export function PaymentDetailController() {
             <CommandOutcome
               command={reverseCommand}
               attemptedAction="Hoàn tác thanh toán"
+              onReload={() => void payment.refetch()}
+            />
+          </>
+        )
+      }
+      customerCreditPreservation={
+        payment.data === undefined || !hasPermission(session, "debt.allocate") ? undefined : (
+          <>
+            <CustomerCreditPreservationPanel
+              onSubmit={({ amountMinor, reason, evidenceReferences }) => {
+                void preserveCustomerCreditCommand.submit(
+                  {
+                    preservationId: crypto.randomUUID() as CustomerPaymentCreditPreservationId,
+                    paymentId: payment.data!.id,
+                    amount: { amountMinor, currency: payment.data!.amount.currency },
+                    caseKind: "preservation",
+                    relatedPreservationId: null,
+                    reason,
+                    evidenceReferences: [...evidenceReferences],
+                  },
+                  { expectedVersion: payment.data!.version },
+                );
+              }}
+              disabled={
+                preserveCustomerCreditCommand.phase.kind === "sending" ||
+                preserveCustomerCreditCommand.phase.kind === "succeeded"
+              }
+            />
+            <CommandOutcome
+              command={preserveCustomerCreditCommand}
+              attemptedAction="Giữ tín dụng khách hàng"
               onReload={() => void payment.refetch()}
             />
           </>

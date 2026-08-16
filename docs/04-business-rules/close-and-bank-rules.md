@@ -66,7 +66,7 @@ them without creating a cash movement or ledger entry.
 
 ### BR-CASH-014 — Backup and restore preserve reconciliation lineage
 
-Backup V22 carries close, reopen, source-linked close-exception acknowledgement,
+Backup V23 carries close, reopen, source-linked close-exception acknowledgement,
 statement-match, statement-reversal, delivery-return-settlement and
 fulfilment-remainder-case rows.
 Restore validates every workspace, policy, observation, cash-account and movement

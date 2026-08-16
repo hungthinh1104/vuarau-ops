@@ -40,14 +40,12 @@ export function paymentOperationsBoardRows(
             ),
           )
           .map((reversal) => reversal.recordedAt),
-        ...[...store.debtObservations.values()]
+        ...[...store.customerPaymentCreditPreservations.values()]
           .filter(
-            (observation) =>
-              observation.workspaceId === workspaceId &&
-              observation.kind === "customer_credit_preserved" &&
-              observation.facts.paymentReference === payment.id,
+            (preservation) =>
+              preservation.workspaceId === workspaceId && preservation.paymentId === payment.id,
           )
-          .map((observation) => observation.recordedAt),
+          .map((preservation) => preservation.recordedAt),
       ],
       payment.recordedAt,
     );

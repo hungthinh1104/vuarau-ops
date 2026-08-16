@@ -5,7 +5,7 @@ import {
   skipWithoutDatabase,
   type DbTestContext,
 } from "@vuarau/db";
-import type { WorkspaceBackupV22 } from "@vuarau/domain-contracts";
+import type { WorkspaceBackupV23 } from "@vuarau/domain-contracts";
 import type { CommandContext, CommandDeps } from "../../../modules/shared/command-pipeline.ts";
 import { randomIdGenerator } from "../../clock.ts";
 import {
@@ -15,6 +15,7 @@ import {
 import { createSaleDraft } from "../../../modules/sale/create-sale-draft.handler.ts";
 import { postSale } from "../../../modules/sale/post-sale.handler.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
+import { preserveCustomerPaymentAsCredit } from "../../../modules/payment/customer-credit-preservation.handler.ts";
 import {
   recordPaymentAllocation,
   reversePaymentAllocation,
@@ -58,7 +59,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
   async function prepareBackup(
     saleUnitPrice = 100_000,
     allocationAmount = 30_000,
-  ): Promise<WorkspaceBackupV22> {
+  ): Promise<WorkspaceBackupV23> {
     for (const [policyKind, definition] of [
       [
         "payment_terms_aging",
@@ -179,8 +180,10 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
     await ctx.database.sql.begin(async (sql) => {
       await sql`set local session_replication_role = replica`;
       for (const table of [
+        "workspace_change_feed",
         "customer_account_balances",
         "customer_account_entries",
+        "customer_payment_credit_preservations",
         "payment_allocation_reversals",
         "payment_allocations",
         "payment_reversals",
@@ -221,8 +224,65 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
     });
   }
 
-  const count = (backup: WorkspaceBackupV22, key: string, increment = 0) =>
+  const count = (backup: WorkspaceBackupV23, key: string, increment = 0) =>
     Number(backup.recordCounts[key] ?? 0) + increment;
+
+  it("TC-OPS-028 — restores customer-credit preservation with its exact Payment lineage", async () => {
+    const backupBeforePreservation = await prepareBackup();
+    const paymentId = backupBeforePreservation.payload.payments[0]?.["id"];
+    if (typeof paymentId !== "string") throw new Error("Payment backup fixture is missing its id.");
+
+    const preserved = await preserveCustomerPaymentAsCredit(context(), {
+      ...command("preserve-customer-credit"),
+      expectedVersion: 1,
+      payload: {
+        preservationId: crypto.randomUUID(),
+        paymentId,
+        amount: { amountMinor: 20_000, currency: "VND" },
+        caseKind: "preservation",
+        relatedPreservationId: null,
+        reason: "Giữ phần Payment chưa phân bổ khi phục hồi.",
+        evidenceReferences: ["field://restore-payment/credit"],
+      },
+    });
+    expect(preserved).toMatchObject({ ok: true });
+
+    const exported = await exportWorkspaceBackup(context(), {
+      ...command("export-with-credit-preservation"),
+      payload: {},
+    });
+    expect(exported.ok).toBe(true);
+    if (!exported.ok) return;
+    expect(exported.value.payload.customerPaymentCreditPreservations).toHaveLength(1);
+    expect(exported.value.payload.customerPaymentCreditPreservations[0]).toMatchObject({
+      paymentId,
+      amountMinor: 20_000,
+      caseKind: "preservation",
+    });
+
+    await emptyWorkspace();
+    const restored = await restoreWorkspaceBackup(context(), {
+      ...command("restore-credit-preservation"),
+      payload: {
+        backup: exported.value,
+        reason: "Phục hồi lineage tín dụng khách hàng.",
+      },
+    });
+    expect(restored).toMatchObject({ ok: true });
+
+    const rows = await ctx.database.sql`
+      select payment_id, amount_minor, case_kind
+      from customer_payment_credit_preservations
+      where workspace_id = ${ctx.workspaceId}::uuid
+    `;
+    expect(rows).toEqual([
+      expect.objectContaining({
+        payment_id: paymentId,
+        amount_minor: 20_000,
+        case_kind: "preservation",
+      }),
+    ]);
+  });
 
   it("rejects an allocation whose customer differs from its payment and sale", async () => {
     const backup = await prepareBackup();
@@ -239,7 +299,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
       customers: [...backup.payload.customers, clonedCustomer],
       paymentAllocations: [{ ...allocation, customerId: clonedCustomer.id }],
     };
-    const malformed: WorkspaceBackupV22 = {
+    const malformed: WorkspaceBackupV23 = {
       ...backup,
       payload: malformedPayload,
       recordCounts: {
@@ -303,7 +363,14 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
       expect(board.value.page.items).toContainEqual(
         expect.objectContaining({
           id: sale["id"],
-          financialState: "reconciliation_required",
+          financialState: "awaiting_payment",
+        }),
+      );
+      expect(board.value.page.items).toContainEqual(
+        expect.objectContaining({
+          kind: "payment",
+          financialState: "unallocated",
+          unallocatedPaymentAmount: { amountMinor: 50_000, currency: "VND" },
         }),
       );
     }
@@ -338,7 +405,7 @@ describe.skipIf(skipWithoutDatabase())("PostgreSQL restore payment lineage", () 
       customers: [...backup.payload.customers, clonedCustomer],
       paymentAllocationReversals: [reversal],
     };
-    const malformed: WorkspaceBackupV22 = {
+    const malformed: WorkspaceBackupV23 = {
       ...backup,
       payload: malformedPayload,
       recordCounts: {

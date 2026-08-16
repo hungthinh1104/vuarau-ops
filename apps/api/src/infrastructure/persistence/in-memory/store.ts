@@ -24,6 +24,7 @@ import type {
   CostObservationDto,
   ReconciliationObservationDto,
   DebtObservationDto,
+  CustomerPaymentCreditPreservationDto,
   SupplyCommitmentObservationDto,
   SupplierObservationDto,
   DemandObservationDto,
@@ -137,6 +138,7 @@ export type Store = {
   reversals: PaymentReversalState[];
   paymentAllocations: PaymentAllocationDto[];
   paymentAllocationReversals: PaymentAllocationReversalDto[];
+  customerPaymentCreditPreservations: Map<string, CustomerPaymentCreditPreservationDto>;
   saleVoids: SaleVoidState[];
   accountEntries: CustomerAccountEntryDto[];
   balances: Map<string, CustomerAccountBalance>;
@@ -226,6 +228,7 @@ export function emptyStore(): Store {
     reversals: [],
     paymentAllocations: [],
     paymentAllocationReversals: [],
+    customerPaymentCreditPreservations: new Map(),
     saleVoids: [],
     accountEntries: [],
     balances: new Map(),

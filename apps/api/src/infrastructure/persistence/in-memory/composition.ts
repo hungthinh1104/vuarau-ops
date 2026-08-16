@@ -15,6 +15,7 @@ import { createOperationsRepositories } from "./repositories/operations.ts";
 import { createCostObservationRepositories } from "./repositories/cost-observation.ts";
 import { createReconciliationObservationRepositories } from "./repositories/reconciliation-observation.ts";
 import { createDebtObservationRepositories } from "./repositories/debt-observation.ts";
+import { createCustomerPaymentCreditPreservationRepositories } from "./repositories/customer-payment-credit-preservation.ts";
 import { createSupplyCommitmentObservationRepositories } from "./repositories/supply-commitment-observation.ts";
 import { createSupplierObservationRepositories } from "./repositories/supplier-observation.ts";
 import { createDemandObservationRepositories } from "./repositories/demand-observation.ts";
@@ -82,6 +83,7 @@ export const createInMemoryRepositories = (store: Store, ids: IdGenerator): Repo
   ...createCostObservationRepositories(store),
   ...createReconciliationObservationRepositories(store),
   ...createDebtObservationRepositories(store),
+  ...createCustomerPaymentCreditPreservationRepositories(store),
   ...createSupplyCommitmentObservationRepositories(store),
   ...createSupplierObservationRepositories(store),
   ...createDemandObservationRepositories(store),

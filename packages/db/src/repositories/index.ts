@@ -24,6 +24,7 @@ import { createIntakeWriteRepositories } from "./write/intake.ts";
 import { createCostObservationWriteRepositories } from "./write/cost-observation.ts";
 import { createReconciliationObservationWriteRepositories } from "./write/reconciliation-observation.ts";
 import { createDebtObservationWriteRepositories } from "./write/debt-observation.ts";
+import { createCustomerPaymentCreditPreservationWriteRepositories } from "./write/customer-payment-credit-preservation.ts";
 import { createSupplyCommitmentObservationWriteRepositories } from "./write/supply-commitment-observation.ts";
 import { createWorkspacePolicyWriteRepositories } from "./write/policy.ts";
 import { createWorkspacePolicyReadRepositories } from "./read/policy.ts";
@@ -69,6 +70,7 @@ export function createRepositories(tx: Tx, ids: IdMinter) {
     ...createCostObservationWriteRepositories(tx),
     ...createReconciliationObservationWriteRepositories(tx),
     ...createDebtObservationWriteRepositories(tx),
+    ...createCustomerPaymentCreditPreservationWriteRepositories(tx),
     ...createSupplyCommitmentObservationWriteRepositories(tx),
     ...createWorkspacePolicyWriteRepositories(tx),
     ...createWorkspacePolicyReadRepositories(tx),

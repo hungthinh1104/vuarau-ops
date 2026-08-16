@@ -1,5 +1,9 @@
-import type { WorkspaceBackupV17, WorkspaceId } from "@vuarau/domain-contracts";
-import { paymentAllocationReversals, paymentAllocations } from "../../schema/index.ts";
+import type { WorkspaceBackupV23, WorkspaceId } from "@vuarau/domain-contracts";
+import {
+  customerPaymentCreditPreservations,
+  paymentAllocationReversals,
+  paymentAllocations,
+} from "../../schema/index.ts";
 import type { Tx } from "../shared/types.ts";
 
 export type ScopedRow = (row: Record<string, unknown>) => Record<string, unknown> & {
@@ -12,7 +16,7 @@ export function createBackupRowScope(workspaceId: WorkspaceId): ScopedRow {
 
 export async function restorePaymentAllocationFacts(
   tx: Tx,
-  payload: WorkspaceBackupV17["payload"],
+  payload: WorkspaceBackupV23["payload"],
   scoped: ScopedRow,
   date: (value: unknown) => Date,
 ): Promise<void> {
@@ -40,6 +44,19 @@ export async function restorePaymentAllocationFacts(
           recordedAt: date(row["recordedAt"]),
         };
       }) as unknown as (typeof paymentAllocationReversals.$inferInsert)[],
+    );
+  }
+  if (payload.customerPaymentCreditPreservations.length > 0) {
+    await tx.insert(customerPaymentCreditPreservations).values(
+      payload.customerPaymentCreditPreservations.map((raw) => {
+        const row = scoped(raw);
+        return {
+          ...row,
+          evidenceReferences: row["evidenceReferences"] ?? [],
+          transactionTime: date(row["transactionTime"]),
+          recordedAt: date(row["recordedAt"]),
+        };
+      }) as unknown as (typeof customerPaymentCreditPreservations.$inferInsert)[],
     );
   }
 }

@@ -19,20 +19,14 @@ export function decideRecordDebtObservation(
   correctionTargetAlreadyCorrected: boolean,
 ): DomainResult<{ observation: DebtObservationDto; audit: AuditDraft }> {
   const { payload } = command;
+  if (payload.kind === "customer_credit_preserved") {
+    return err(
+      "CUSTOMER_CREDIT_PRESERVATION_REQUIRES_FINANCIAL_COMMAND",
+      "Customer-credit preservation must use the dedicated financial command.",
+    );
+  }
   const factCheck = validateObservationFacts("debt", payload.kind, payload.facts);
   if (!factCheck.ok) return factCheck;
-  if (payload.kind === "customer_credit_preserved") {
-    if (
-      payload.facts.amount === null ||
-      payload.facts.paymentReference === null ||
-      payload.facts.customerId === null
-    ) {
-      return err(
-        "OBSERVATION_FACT_NOT_ALLOWED",
-        "Customer-credit preservation requires a payment, customer and exact amount.",
-      );
-    }
-  }
   if (payload.caseKind === "correction" && payload.relatedObservationId === null) {
     return err(
       "DEBT_OBSERVATION_CORRECTION_TARGET_REQUIRED",

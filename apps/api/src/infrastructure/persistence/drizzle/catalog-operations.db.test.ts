@@ -261,6 +261,9 @@ describe.skipIf(skipWithoutDatabase())("M14 and M15 against Postgres", () => {
       expect(next.value.payload.commandReceipts).not.toContainEqual(
         expect.objectContaining({ commandType: "ExportWorkspaceBackup" }),
       );
+      expect(next.value.payload.audit).not.toContainEqual(
+        expect.objectContaining({ action: "workspace.backup_exported" }),
+      );
     }
     expect(first.value.digest).toBe(backupDigest(first.value.payload));
     expect(JSON.stringify(first.value)).not.toMatch(/SUPABASE|bearer|password|jwt/i);

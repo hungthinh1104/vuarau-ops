@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import {
   cashAccounts,
   customerAccountEntries,
+  customerPaymentCreditPreservations,
   customers,
   deliveries,
   documents,
@@ -43,6 +44,7 @@ export async function targetContainsBusinessData(
     paymentRows,
     paymentAllocationRows,
     paymentAllocationReversalRows,
+    customerPaymentCreditPreservationRows,
     entryRows,
     supplierRows,
     purchaseRows,
@@ -106,6 +108,11 @@ export async function targetContainsBusinessData(
       .select({ id: paymentAllocationReversals.id })
       .from(paymentAllocationReversals)
       .where(eq(paymentAllocationReversals.workspaceId, workspaceId))
+      .limit(1),
+    tx
+      .select({ id: customerPaymentCreditPreservations.id })
+      .from(customerPaymentCreditPreservations)
+      .where(eq(customerPaymentCreditPreservations.workspaceId, workspaceId))
       .limit(1),
     tx
       .select({ id: customerAccountEntries.id })
@@ -181,6 +188,7 @@ export async function targetContainsBusinessData(
       paymentRows,
       paymentAllocationRows,
       paymentAllocationReversalRows,
+      customerPaymentCreditPreservationRows,
       entryRows,
       supplierRows,
       purchaseRows,

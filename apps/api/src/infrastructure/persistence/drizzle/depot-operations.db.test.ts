@@ -539,7 +539,7 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
       payload: {},
     });
     expect(backup.ok && backup.value).toMatchObject({
-      version: 22,
+      version: 23,
       schemaCompatibility: "m38-close-exception-acknowledgement",
     });
     if (backup.ok) {

@@ -10,7 +10,7 @@ import type { AuditDraft } from "../shared/effects.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
 import { subtractExactIntegers, sumExactIntegers } from "../shared/money.ts";
-import { deriveActivePaymentAmount } from "../payment/payment-exposure.ts";
+import { deriveActivePaymentAmount, derivePaymentExposure } from "../payment/payment-exposure.ts";
 
 export type PaymentAllocationContext = {
   readonly payment: PaymentState;
@@ -102,25 +102,27 @@ export function decideRecordPaymentAllocation(
   if (activeAllocations.some((amount) => amount === null)) {
     return persistedRange("payment.allocation.amount_minor");
   }
-  const allocatedPayment = sumExactIntegers(
-    activeAllocations.filter((amount): amount is number => amount !== null),
-  );
   const allocatedSale = sumExactIntegers(
     context.allocations.map((allocation, index) =>
       allocation.saleId === context.sale.id ? activeAllocations[index]! : 0,
     ),
   );
-  const effectivePayment = subtractExactIntegers(
-    context.payment.amount.amountMinor,
-    context.payment.reversedAmount.amountMinor,
-  );
-  const remainingPayment =
-    allocatedPayment === null || effectivePayment === null
-      ? null
-      : subtractExactIntegers(
-          subtractExactIntegers(effectivePayment, allocatedPayment) ?? 0,
-          context.reservedCustomerCreditAmount ?? 0,
-        );
+  const paymentExposure = derivePaymentExposure({
+    originalAmountMinor: context.payment.amount.amountMinor,
+    reversedAmountMinor: context.payment.reversedAmount.amountMinor,
+    allocations: context.allocations.map((allocation, index) => {
+      const activeAmountMinor = activeAllocations[index];
+      return {
+        amountMinor: allocation.amount.amountMinor,
+        reversedAmountMinor:
+          activeAmountMinor === null || activeAmountMinor === undefined
+            ? Number.NaN
+            : allocation.amount.amountMinor - activeAmountMinor,
+      };
+    }),
+    preservedCreditAmountMinor: context.reservedCustomerCreditAmount ?? 0,
+  });
+  const remainingPayment = paymentExposure?.availableAmountMinor ?? null;
   const remainingSale =
     allocatedSale === null
       ? null

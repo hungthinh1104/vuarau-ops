@@ -2,7 +2,8 @@ import type { Repositories } from "../../ports.ts";
 import type {
   PaymentAllocationDto,
   PaymentAllocationReversalDto,
-  WorkspaceBackupV17,
+  CustomerPaymentCreditPreservationDto,
+  WorkspaceBackupV23,
 } from "@vuarau/domain-contracts";
 import { key } from "../store.ts";
 import type { Store } from "../store.ts";
@@ -48,7 +49,7 @@ export const createPaymentAllocationRepositories = (
 
 export function restorePaymentAllocationFacts(
   store: Store,
-  payload: WorkspaceBackupV17["payload"],
+  payload: WorkspaceBackupV23["payload"],
   remap: <T extends Record<string, unknown>>(row: T) => T & { workspaceId: string },
 ): void {
   for (const raw of payload.paymentAllocations) {
@@ -65,6 +66,16 @@ export function restorePaymentAllocationFacts(
         ...raw,
         evidenceReferences: raw["evidenceReferences"] ?? [],
       }) as unknown as PaymentAllocationReversalDto,
+    );
+  }
+  for (const raw of payload.customerPaymentCreditPreservations) {
+    const preservation = remap({
+      ...raw,
+      evidenceReferences: raw["evidenceReferences"] ?? [],
+    }) as unknown as CustomerPaymentCreditPreservationDto;
+    store.customerPaymentCreditPreservations.set(
+      key(preservation.workspaceId, preservation.id),
+      preservation,
     );
   }
 }
