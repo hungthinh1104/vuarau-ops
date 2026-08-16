@@ -13,6 +13,7 @@ import { SignJWT } from "jose";
  * which nobody doubted.
  */
 export const E2E_WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
+export const E2E_SECOND_WORKSPACE_ID = "11111111-1111-4111-8111-111111111112";
 /**
  * What the seeded depot calls itself. The picker shows this, and it comes from
  * `session.workspaces` — not from anything configured in the browser
@@ -27,8 +28,17 @@ export const E2E_ACTORS = {
   accountant: "22222222-2222-4222-8222-222222222202",
   sales: "22222222-2222-4222-8222-222222222203",
   warehouse: "22222222-2222-4222-8222-222222222204",
+  delivery: "22222222-2222-4222-8222-222222222205",
   /** A real, seeded account that belongs to no depot (`no_workspace_membership`). */
   unassigned: "22222222-2222-4222-8222-222222222206",
+  /** Active accountant + sales membership in the primary depot. */
+  multiRole: "22222222-2222-4222-8222-222222222207",
+  /** Inactive membership; the actor row remains for audit/history. */
+  revoked: "22222222-2222-4222-8222-222222222208",
+  /** Owner of the second seeded depot, not a member of the primary depot. */
+  foreignWorkspace: "22222222-2222-4222-8222-222222222209",
+  /** Active warehouse in the primary depot and delivery in the second depot. */
+  multiWorkspace: "22222222-2222-4222-8222-222222222210",
 } as const;
 
 export type E2ERole = keyof typeof E2E_ACTORS;
