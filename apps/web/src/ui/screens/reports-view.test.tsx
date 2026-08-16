@@ -286,7 +286,7 @@ describe("ReportsView", () => {
     expect(screen.getByText("875.000 ₫")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Tồn kho hiện tại" }).parentElement?.parentElement,
-    ).toHaveTextContent("N/A");
+    ).toHaveTextContent("Chưa có số");
     expect(screen.queryByText(/trong phạm vi tải hiện tại/)).not.toBeInTheDocument();
   });
 });

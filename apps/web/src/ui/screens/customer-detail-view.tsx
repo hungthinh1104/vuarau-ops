@@ -53,9 +53,18 @@ export function CustomerDetailView(props: {
               balance={detail.balance}
               classification={detail.classification}
             />
-            <p className="text-body-sm text-ink-muted">
-              {detail.customer.isActive ? "Đang giao dịch" : "Đã ngưng giao dịch"}
-            </p>
+            <div className="flex flex-col gap-2">
+              <LinkButton
+                tone="secondary"
+                href={`/customers/${customerId}/account/reconciliation`}
+                className="w-full justify-center"
+              >
+                Giải thích số dư
+              </LinkButton>
+              <p className="text-body-sm text-ink-muted">
+                {detail.customer.isActive ? "Đang giao dịch" : "Đã ngưng giao dịch"}
+              </p>
+            </div>
           </SummaryRail>
         }
       >
@@ -81,68 +90,64 @@ export function CustomerDetailView(props: {
             </p>
           ) : null}
 
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          {/* Primary Daily Actions */}
+          <div className="flex flex-wrap gap-3">
             {props.canCreateSale && detail.customer.isActive ? (
-              <LinkButton href={`/customers/${customerId}/sales/new`} className="flex-1">
-                Tạo đơn mới
-              </LinkButton>
+              <LinkButton href={`/customers/${customerId}/sales/new`}>Tạo đơn mới</LinkButton>
             ) : null}
             {props.canRecordPayment ? (
-              <LinkButton
-                tone="secondary"
-                href={`/customers/${customerId}/payments/new`}
-                className="flex-1"
-              >
+              <LinkButton tone="secondary" href={`/customers/${customerId}/payments/new`}>
                 Ghi nhận thanh toán
               </LinkButton>
             ) : null}
             {detail.capabilities.update.allowed ? (
-              <LinkButton
-                tone="secondary"
-                href={`/customers/${customerId}/edit`}
-                className="flex-1"
-              >
+              <LinkButton tone="secondary" href={`/customers/${customerId}/edit`}>
                 Sửa hồ sơ
               </LinkButton>
             ) : null}
-            {props.canAdjustDebt ? (
-              <LinkButton
-                tone="secondary"
-                href={`/customers/${customerId}/account/adjust`}
-                className="flex-1"
-              >
-                Điều chỉnh công nợ
-              </LinkButton>
-            ) : null}
-            <LinkButton
-              tone="secondary"
-              href={`/customers/${customerId}/account/reconciliation`}
-              className="flex-1"
-            >
-              Giải thích số dư
-            </LinkButton>
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-            {detail.capabilities.deactivate.allowed ? (
-              <Button
-                tone="danger"
-                disabled={props.customerCommandLocked}
-                onClick={props.onDeactivate}
-              >
-                Ngưng khách hàng
-              </Button>
-            ) : null}
-            {detail.capabilities.reactivate.allowed ? (
-              <Button
-                tone="secondary"
-                disabled={props.customerCommandLocked}
-                onClick={props.onReactivate}
-              >
-                Kích hoạt lại
-              </Button>
-            ) : null}
-          </div>
+          {/* Corrective & Lifecycle Section */}
+          {props.canAdjustDebt ||
+          detail.capabilities.deactivate.allowed ||
+          detail.capabilities.reactivate.allowed ? (
+            <section
+              aria-labelledby="customer-control-heading"
+              className="rounded-card border border-border bg-surface-muted p-4"
+            >
+              <h3 id="customer-control-heading" className="text-label font-semibold text-ink">
+                Điều chỉnh & Quản lý tài khoản
+              </h3>
+              <p className="mt-1 text-caption text-ink-muted">
+                Các thao tác điều chỉnh công nợ và thay đổi trạng thái hoạt động của khách hàng.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {props.canAdjustDebt ? (
+                  <LinkButton tone="secondary" href={`/customers/${customerId}/account/adjust`}>
+                    Điều chỉnh công nợ
+                  </LinkButton>
+                ) : null}
+                {detail.capabilities.deactivate.allowed ? (
+                  <Button
+                    tone="danger"
+                    disabled={props.customerCommandLocked}
+                    onClick={props.onDeactivate}
+                  >
+                    Ngưng khách hàng
+                  </Button>
+                ) : null}
+                {detail.capabilities.reactivate.allowed ? (
+                  <Button
+                    tone="secondary"
+                    disabled={props.customerCommandLocked}
+                    onClick={props.onReactivate}
+                  >
+                    Kích hoạt lại
+                  </Button>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
           {props.outcomes}
           {props.documentSection}
           <CustomerTimelineSection

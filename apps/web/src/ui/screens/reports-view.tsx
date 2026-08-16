@@ -208,7 +208,7 @@ function AmountCard(props: {
       status={copyForReportStatus(props.widget.availability.state)}
     >
       {props.widget.amount === null ? (
-        <strong className="text-heading">N/A</strong>
+        <strong className="text-heading">Chưa có số</strong>
       ) : (
         <strong className="tabular text-heading text-ink">
           {formatMoney(props.widget.amount)}
@@ -233,7 +233,7 @@ function QuantityCard(props: {
       status={copyForReportStatus(props.widget.availability.state)}
     >
       {props.widget.quantities.length === 0 ? (
-        <strong className="text-heading">N/A</strong>
+        <strong className="text-heading">Chưa có số</strong>
       ) : (
         props.widget.quantities.map((quantity) => (
           <strong key={quantity.unit} className="tabular text-heading text-ink">
@@ -253,7 +253,7 @@ function QuantityCard(props: {
 function WidgetUnavailable(props: { readonly title: string; readonly onRetry: () => void }) {
   return (
     <OverviewCardShell title={props.title} status="unavailable">
-      N/A{" "}
+      Chưa có số{" "}
       <Button tone="secondary" onClick={props.onRetry}>
         Thử lại
       </Button>

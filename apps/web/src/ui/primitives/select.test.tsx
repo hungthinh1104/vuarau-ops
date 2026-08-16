@@ -136,7 +136,7 @@ describe("Select", () => {
 
     render(<SearchableTest />);
     await user.click(screen.getByRole("combobox", { name: "Mặt hàng" }));
-    await user.type(screen.getByRole("searchbox", { name: "Tìm mặt hàng" }), "Option 2");
+    await user.type(await screen.findByRole("searchbox", { name: "Tìm mặt hàng" }), "Option 2");
     await user.click(await screen.findByRole("option", { name: "Option 2" }));
 
     expect(onChange).toHaveBeenCalledOnce();

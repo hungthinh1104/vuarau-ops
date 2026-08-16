@@ -108,17 +108,63 @@ export function SupplierDetailView(props: SupplierDetailViewProps) {
               />
               {record.note === null ? null : <p>{record.note}</p>}
               <div className="flex flex-wrap gap-2">
-                {props.canUpdate ? (
-                  <LinkButton tone="secondary" href={`/suppliers/${record.id}/edit`}>
-                    Sửa hồ sơ
-                  </LinkButton>
-                ) : null}
                 {props.canCreatePurchase && record.isActive ? (
                   <LinkButton href={`/purchases/new?supplierId=${record.id}`}>
                     Tạo đơn mua
                   </LinkButton>
                 ) : null}
+                {props.canUpdate ? (
+                  <LinkButton tone="secondary" href={`/suppliers/${record.id}/edit`}>
+                    Sửa hồ sơ
+                  </LinkButton>
+                ) : null}
               </div>
+
+              {/* Section: Công nợ & Đối chiếu */}
+              {props.canReadAccount ? (
+                <div className="flex flex-col gap-4">
+                  <QueryStates
+                    query={props.balance}
+                    loadingLabel="Đang tải công nợ"
+                    onRetry={props.onBalanceRetry}
+                  >
+                    {(summary) => (
+                      <section className="rounded-card border border-border bg-surface p-4">
+                        <h2 className="text-subheading font-semibold">Công nợ nhà cung cấp</h2>
+                        <p className="text-heading font-bold">
+                          {summary === null
+                            ? formatMoney({ amountMinor: 0, currency: "VND" })
+                            : formatMoney(summary.balance)}
+                        </p>
+                        <p className="text-caption text-ink-muted">
+                          {summary?.classification === "supplier_credit"
+                            ? "Nhà cung cấp đang giữ tiền ứng trước"
+                            : summary?.classification === "payable"
+                              ? "Vựa đang phải trả"
+                              : "Đã cân bằng"}
+                        </p>
+                      </section>
+                    )}
+                  </QueryStates>
+                  {props.moneyActions(record)}
+                  <QueryStates
+                    query={props.reconciliation}
+                    loadingLabel="Đang đối chiếu"
+                    onRetry={props.onReconciliationRetry}
+                  >
+                    {(result) => (
+                      <p role="status" className="text-body-sm">
+                        Đối chiếu: <strong>{RECONCILIATION_STATUS_COPY[result.status]}</strong>
+                        {result.diagnostics.length === 0
+                          ? ""
+                          : ` · ${result.diagnostics.length} điểm cần kiểm tra`}
+                      </p>
+                    )}
+                  </QueryStates>
+                </div>
+              ) : null}
+
+              {/* Section: Hiệu quả nhà cung cấp */}
               <QueryStates
                 query={props.performance}
                 loadingLabel="Đang dựng hiệu quả nhà cung cấp"
@@ -126,6 +172,8 @@ export function SupplierDetailView(props: SupplierDetailViewProps) {
               >
                 {(performance) => <SupplierPerformanceSection performance={performance} />}
               </QueryStates>
+
+              {/* Section: Lịch sử giá mua đã chốt */}
               <section
                 aria-labelledby="supplier-price-history-title"
                 className="flex flex-col gap-3"
@@ -214,104 +262,63 @@ export function SupplierDetailView(props: SupplierDetailViewProps) {
                   </Button>
                 )}
               </section>
+
+              {/* Section: Sổ công nợ chi tiết */}
               {props.canReadAccount ? (
-                <>
+                <section aria-labelledby="supplier-timeline-title" className="flex flex-col gap-3">
+                  <h2 id="supplier-timeline-title" className="text-subheading font-semibold">
+                    Dòng thời gian công nợ
+                  </h2>
                   <QueryStates
-                    query={props.balance}
-                    loadingLabel="Đang tải công nợ"
-                    onRetry={props.onBalanceRetry}
+                    query={props.timeline}
+                    loadingLabel="Đang tải sổ công nợ"
+                    onRetry={props.onTimelineRetry}
                   >
-                    {(summary) => (
-                      <section className="rounded-card border border-border bg-surface p-4">
-                        <h2 className="text-subheading font-semibold">Công nợ nhà cung cấp</h2>
-                        <p className="text-heading font-bold">
-                          {summary === null
-                            ? formatMoney({ amountMinor: 0, currency: "VND" })
-                            : formatMoney(summary.balance)}
-                        </p>
-                        <p className="text-caption text-ink-muted">
-                          {summary?.classification === "supplier_credit"
-                            ? "Nhà cung cấp đang giữ tiền ứng trước"
-                            : summary?.classification === "payable"
-                              ? "Vựa đang phải trả"
-                              : "Đã cân bằng"}
-                        </p>
-                      </section>
-                    )}
+                    {() =>
+                      props.entries.length === 0 ? (
+                        <p>Chưa có phát sinh.</p>
+                      ) : (
+                        <ol className="divide-y divide-border rounded-card border border-border bg-surface">
+                          {props.entries.map((entry) => {
+                            const href = sourceHref(entry);
+                            return (
+                              <li key={entry.id} className="px-4 py-3">
+                                <div className="flex justify-between gap-3">
+                                  <span>{SUPPLIER_SOURCE_COPY[entry.sourceType]}</span>
+                                  <strong>{formatSignedMoney(entry.amount)}</strong>
+                                </div>
+                                <p className="text-caption text-ink-muted">
+                                  {formatInstant(entry.transactionTime)}
+                                  {entry.recordedAt === entry.transactionTime
+                                    ? ""
+                                    : ` · ghi ${formatInstant(entry.recordedAt)}`}
+                                </p>
+                                {entry.reason === null ? null : <p>{entry.reason}</p>}
+                                {href === null ? null : (
+                                  <Link
+                                    href={href}
+                                    className="font-semibold text-info underline-offset-4 hover:underline"
+                                  >
+                                    Mở chứng từ
+                                  </Link>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      )
+                    }
                   </QueryStates>
-                  {props.moneyActions(record)}
-                  <QueryStates
-                    query={props.reconciliation}
-                    loadingLabel="Đang đối chiếu"
-                    onRetry={props.onReconciliationRetry}
-                  >
-                    {(result) => (
-                      <p role="status" className="text-body-sm">
-                        Đối chiếu: <strong>{RECONCILIATION_STATUS_COPY[result.status]}</strong>
-                        {result.diagnostics.length === 0
-                          ? ""
-                          : ` · ${result.diagnostics.length} điểm cần kiểm tra`}
-                      </p>
-                    )}
-                  </QueryStates>
-                  <section
-                    aria-labelledby="supplier-timeline-title"
-                    className="flex flex-col gap-3"
-                  >
-                    <h2 id="supplier-timeline-title" className="text-subheading font-semibold">
-                      Dòng thời gian công nợ
-                    </h2>
-                    <QueryStates
-                      query={props.timeline}
-                      loadingLabel="Đang tải sổ công nợ"
-                      onRetry={props.onTimelineRetry}
+                  {props.nextCursor === null ? null : (
+                    <Button
+                      tone="secondary"
+                      disabled={props.timelineFetching}
+                      onClick={props.onLoadMore}
                     >
-                      {() =>
-                        props.entries.length === 0 ? (
-                          <p>Chưa có phát sinh.</p>
-                        ) : (
-                          <ol className="divide-y divide-border rounded-card border border-border bg-surface">
-                            {props.entries.map((entry) => {
-                              const href = sourceHref(entry);
-                              return (
-                                <li key={entry.id} className="px-4 py-3">
-                                  <div className="flex justify-between gap-3">
-                                    <span>{SUPPLIER_SOURCE_COPY[entry.sourceType]}</span>
-                                    <strong>{formatSignedMoney(entry.amount)}</strong>
-                                  </div>
-                                  <p className="text-caption text-ink-muted">
-                                    {formatInstant(entry.transactionTime)}
-                                    {entry.recordedAt === entry.transactionTime
-                                      ? ""
-                                      : ` · ghi ${formatInstant(entry.recordedAt)}`}
-                                  </p>
-                                  {entry.reason === null ? null : <p>{entry.reason}</p>}
-                                  {href === null ? null : (
-                                    <Link
-                                      href={href}
-                                      className="font-semibold text-info underline-offset-4 hover:underline"
-                                    >
-                                      Mở chứng từ
-                                    </Link>
-                                  )}
-                                </li>
-                              );
-                            })}
-                          </ol>
-                        )
-                      }
-                    </QueryStates>
-                    {props.nextCursor === null ? null : (
-                      <Button
-                        tone="secondary"
-                        disabled={props.timelineFetching}
-                        onClick={props.onLoadMore}
-                      >
-                        {props.timelineFetching ? "Đang tải" : "Tải thêm"}
-                      </Button>
-                    )}
-                  </section>
-                </>
+                      {props.timelineFetching ? "Đang tải" : "Tải thêm"}
+                    </Button>
+                  )}
+                </section>
               ) : null}
             </div>
           </DetailLayout>
