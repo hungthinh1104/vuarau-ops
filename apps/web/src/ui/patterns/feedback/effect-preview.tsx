@@ -23,10 +23,12 @@ export type InventoryEffect = {
 
 export type EffectPreviewProps = {
   readonly title?: string | undefined;
-  readonly entity?: {
-    readonly label: string;
-    readonly name: string;
-  } | undefined;
+  readonly entity?:
+    | {
+        readonly label: string;
+        readonly name: string;
+      }
+    | undefined;
   readonly moneyEffect?: MoneyEffect | undefined;
   readonly inventoryEffect?: InventoryEffect | undefined;
   readonly advisory?: string | undefined;
@@ -62,9 +64,7 @@ export function EffectPreview({
       <div className="mt-3 grid gap-3">
         {moneyEffect !== undefined ? <MoneyEffectSection effect={moneyEffect} /> : null}
 
-        {inventoryEffect !== undefined ? (
-          <InventoryEffectSection effect={inventoryEffect} />
-        ) : null}
+        {inventoryEffect !== undefined ? <InventoryEffectSection effect={inventoryEffect} /> : null}
       </div>
 
       {advisory ? (
@@ -116,11 +116,7 @@ function InventoryEffectSection({ effect }: { readonly effect: InventoryEffect }
       <dd className="tabular text-right text-ink">{beforeText}</dd>
 
       <dt className="text-ink-muted">{effect.changeLabel}</dt>
-      <dd
-        className={`tabular text-right font-medium ${
-          isDecrease ? "text-danger" : "text-leaf"
-        }`}
-      >
+      <dd className={`tabular text-right font-medium ${isDecrease ? "text-danger" : "text-leaf"}`}>
         {isDecrease ? "−" : "+"}
         {formatQuantity({
           valueScaled: Math.abs(effect.changeQuantity.valueScaled),

@@ -1,8 +1,15 @@
 "use client";
 
-import type { CustomerDetailDto, CustomerId, Money, PaymentMethod } from "@vuarau/domain-contracts";
+import {
+  classifyBalance,
+  type CustomerDetailDto,
+  type CustomerId,
+  type Money,
+  type PaymentMethod,
+} from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import type { CommandOutcomeView } from "@/ui/domain/command-state.ts";
+import { describeBalance, formatMoney } from "@/ui/format.ts";
 import { BalancePreview } from "@/ui/patterns/finance/balance-preview.tsx";
 import { CommandOutcome } from "@/ui/patterns/feedback/command-outcome.tsx";
 import { PermissionDenied } from "@/ui/patterns/feedback/permission-denied.tsx";
@@ -142,14 +149,39 @@ export function PaymentCreateView(props: PaymentCreateViewProps) {
               <ActionDock
                 label="Hành động ghi nhận thanh toán"
                 summary={
-                  <div>
-                    <p className="text-caption font-semibold text-ink-muted">
-                      Công nợ sau khi ghi nhận
-                    </p>
-                    <p className="text-body-sm font-semibold text-ink">
-                      Kiểm tra số tiền trước khi lưu
-                    </p>
-                  </div>
+                  props.amount !== null && props.amount.amountMinor > 0 ? (
+                    <div>
+                      <p className="text-caption font-semibold text-ink-muted">
+                        {detail.customer.displayName} · Trả {formatMoney(props.amount)}
+                      </p>
+                      {(() => {
+                        const resultingMinor =
+                          detail.balance.amountMinor - props.amount.amountMinor;
+                        const resultingClassification = classifyBalance({
+                          amountMinor: resultingMinor,
+                          currency: detail.balance.currency,
+                        });
+                        const after = describeBalance(
+                          { amountMinor: resultingMinor, currency: detail.balance.currency },
+                          resultingClassification,
+                        );
+                        return (
+                          <p className="text-body-sm font-semibold text-ink">
+                            Sau giao dịch: {after.label} {after.amount ?? "0 ₫"}
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-caption font-semibold text-ink-muted">
+                        Khách hàng: {detail.customer.displayName}
+                      </p>
+                      <p className="text-body-sm font-semibold text-ink">
+                        Nhập số tiền để xem công nợ dự kiến
+                      </p>
+                    </div>
+                  )
                 }
                 primary={
                   <Button

@@ -142,6 +142,7 @@ describe("BR-VALUATION-003 / TC-VALUATION-004", () => {
 
     expect(screen.getByText(/Tồn:\s*100 ₫/)).toBeInTheDocument();
     expect(screen.getByText(/Giá vốn:\s*50 ₫/)).toBeInTheDocument();
+    expect(screen.getByText(/Hao hụt phân loại:\s*Chưa có dữ liệu/)).toBeInTheDocument();
   });
 });
 

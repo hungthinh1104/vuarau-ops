@@ -339,7 +339,13 @@ function InventoryPlanning(props: ProductInventoryViewProps) {
         description="Khuyến nghị theo mức tồn đã được vựa duyệt; không thay thế phần đối chiếu đơn ở trên."
       >
         <QueryStates query={props.planningQuery} loadingLabel="Đang tính kế hoạch tồn kho">
-          {(result) => <StockPlanningResultView productId={props.productId} result={result} />}
+          {(result) => (
+            <StockPlanningResultView
+              productId={props.productId}
+              result={result}
+              grades={props.grades}
+            />
+          )}
         </QueryStates>
       </Section>
       <Section
@@ -347,7 +353,7 @@ function InventoryPlanning(props: ProductInventoryViewProps) {
         description="Chỉ hiện khi vựa đã có cách tính giá trị tồn kho đang dùng."
       >
         <QueryStates query={props.valuationQuery} loadingLabel="Đang tính giá trị tồn kho">
-          {(valuation) => <InventoryValuationResultView result={valuation} />}
+          {(valuation) => <InventoryValuationResultView result={valuation} grades={props.grades} />}
         </QueryStates>
       </Section>
     </div>
@@ -372,9 +378,11 @@ function InventoryAdjustments(props: ProductInventoryViewProps) {
 function StockPlanningResultView({
   productId,
   result,
+  grades,
 }: {
   readonly productId: ProductDto["id"];
   readonly result: StockPlanningDto;
+  readonly grades: readonly QualityGradeDto[];
 }) {
   if (result.status === "unavailable") {
     return (
@@ -385,6 +393,7 @@ function StockPlanningResultView({
     );
   }
   const rows = result.rows.filter((row) => row.productId === productId);
+  const gradeMap = new Map(grades.map((g) => [g.id, g.name]));
   return rows.length === 0 ? (
     <p className="text-body-sm text-ink-muted">Mặt hàng này chưa có quy tắc tồn kho.</p>
   ) : (
@@ -394,7 +403,11 @@ function StockPlanningResultView({
           key={`${row.qualityGradeId ?? "legacy"}:${row.unit}`}
           className="grid gap-1 rounded-card border border-border bg-surface p-3 sm:grid-cols-3"
         >
-          <span>{row.qualityGradeId === null ? "Chưa phân loại" : "Hạng hàng đã chọn"}</span>
+          <span>
+            {row.qualityGradeId === null
+              ? "Chưa phân loại"
+              : (gradeMap.get(row.qualityGradeId) ?? "Hạng hàng")}
+          </span>
           <span className="tabular-nums">Hiện tại: {formatQuantity(row.currentQuantity)}</span>
           <span className="tabular-nums">Đề xuất: {formatQuantity(row.suggestedQuantity)}</span>
         </div>
@@ -403,7 +416,13 @@ function StockPlanningResultView({
   );
 }
 
-function InventoryValuationResultView({ result }: { readonly result: InventoryValuationResult }) {
+function InventoryValuationResultView({
+  result,
+  grades,
+}: {
+  readonly result: InventoryValuationResult;
+  readonly grades?: readonly QualityGradeDto[] | undefined;
+}) {
   if (result.status === "unavailable") {
     return (
       <p role="status" className="rounded-card border border-warning/30 bg-warning-soft p-3">
@@ -412,6 +431,7 @@ function InventoryValuationResultView({ result }: { readonly result: InventoryVa
       </p>
     );
   }
+  const gradeMap = new Map(grades?.map((g) => [g.id, g.name]) ?? []);
   return (
     <div className="grid gap-2">
       <p className="text-caption text-ink-muted">
@@ -425,17 +445,23 @@ function InventoryValuationResultView({ result }: { readonly result: InventoryVa
             key={`${row.qualityGradeId ?? "legacy"}:${row.unit}`}
             className="grid gap-1 rounded-card border border-border bg-surface p-3 sm:grid-cols-3"
           >
-            <span>{row.qualityGradeId ?? "Chưa phân loại"}</span>
-            <span className="tabular-nums">
-              Tồn:{" "}
-              {row.inventoryValue === null ? "Không định giá" : formatMoney(row.inventoryValue)}
+            <span>
+              {row.qualityGradeId === null
+                ? "Chưa phân loại"
+                : (gradeMap.get(row.qualityGradeId) ?? row.qualityGradeId)}
             </span>
             <span className="tabular-nums">
-              Giá vốn: {row.cogs === null ? "Không định giá" : formatMoney(row.cogs)}
+              Tồn:{" "}
+              {row.inventoryValue === null ? "Chưa có dữ liệu" : formatMoney(row.inventoryValue)}
+            </span>
+            <span className="tabular-nums">
+              Giá vốn: {row.cogs === null ? "Chưa có dữ liệu" : formatMoney(row.cogs)}
             </span>
             <span className="tabular-nums">
               Hao hụt phân loại:{" "}
-              {row.classifiedLossCost === null ? "0 ₫" : formatMoney(row.classifiedLossCost)}
+              {row.classifiedLossCost === null
+                ? "Chưa có dữ liệu"
+                : formatMoney(row.classifiedLossCost)}
             </span>
           </div>
         ))

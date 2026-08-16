@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
   Cursor,
   IsoInstant,
+  InventoryBalanceDto,
   InventoryMovementDto,
   InventoryReclassificationId,
   Page,
@@ -154,6 +155,7 @@ export function ProductInventoryController() {
           <InventoryAdjustmentCommandPanel
             productId={productId}
             grades={activeGrades}
+            balances={balances.data ?? []}
             onChanged={refreshInventory}
           />
         ) : undefined
@@ -276,6 +278,7 @@ function InventoryStocktakeCommandPanel(props: {
 function InventoryAdjustmentCommandPanel(props: {
   readonly productId: ProductId;
   readonly grades: readonly QualityGradeDto[];
+  readonly balances?: readonly InventoryBalanceDto[] | undefined;
   readonly onChanged: () => void;
 }) {
   const trpc = useTRPC();
@@ -298,6 +301,7 @@ function InventoryAdjustmentCommandPanel(props: {
   return (
     <InventoryAdjustmentPanel
       grades={props.grades}
+      balances={props.balances}
       completed={command.result !== null}
       locked={command.phase.kind === "sending" || command.phase.kind === "unknown"}
       onSubmit={submit}

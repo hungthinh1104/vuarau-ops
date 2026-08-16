@@ -2,7 +2,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { QualityGradeDto } from "@vuarau/domain-contracts";
 import { describe, expect, it, vi } from "vitest";
-import { QUALITY_GRADE_1_ID, QUALITY_GRADE_2_ID, WORKSPACE_ID } from "@vuarau/test-fixtures/ids";
+import {
+  PRODUCT_CA_CHUA_ID,
+  QUALITY_GRADE_1_ID,
+  QUALITY_GRADE_2_ID,
+  WORKSPACE_ID,
+} from "@vuarau/test-fixtures/ids";
 import { RECORDED_AT } from "@vuarau/test-fixtures/time";
 import { InventoryAdjustmentPanel } from "./inventory-adjustment-panel.tsx";
 import { InventoryReclassificationPanel } from "./inventory-reclassification-panel.tsx";
@@ -60,6 +65,44 @@ describe("inventory command panels", () => {
     expect(screen.queryByRole("button", { name: "Ghi điều chỉnh" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Ghi điều chỉnh khác" }));
     expect(onStartAnother).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders live inventory effect preview before committing adjustment", async () => {
+    const user = userEvent.setup();
+    render(
+      <InventoryAdjustmentPanel
+        grades={grades}
+        balances={[
+          {
+            workspaceId: WORKSPACE_ID,
+            productId: PRODUCT_CA_CHUA_ID,
+            qualityGradeId: QUALITY_GRADE_1_ID,
+            qualityGradeName: "Loại 1",
+            unit: "kg",
+            quantityScaled: 40_000,
+            classification: "positive",
+            movementCount: 1,
+            lastMovementTransactionTime: RECORDED_AT,
+            updatedAt: RECORDED_AT,
+          },
+        ]}
+        completed={false}
+        locked={false}
+        onSubmit={() => undefined}
+        onStartAnother={() => undefined}
+      />,
+    );
+
+    // Select grade, enter quantity, enter reason
+    await user.click(screen.getByRole("combobox", { name: "Hạng hàng" }));
+    await user.click(await screen.findByRole("option", { name: "Loại 1" }));
+    await user.type(screen.getByRole("textbox", { name: "Số lượng" }), "5");
+    await user.type(screen.getByRole("textbox", { name: "Giải thích" }), "Kiểm đếm định kỳ");
+
+    expect(screen.getByText("Dự kiến thay đổi tồn kho")).toBeInTheDocument();
+    expect(screen.getByText(/40 kg/)).toBeInTheDocument();
+    expect(screen.getByText(/45 kg/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ghi điều chỉnh" })).toBeEnabled();
   });
 
   it("requires a deliberate reset before a second reclassification", async () => {

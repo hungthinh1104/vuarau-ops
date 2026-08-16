@@ -194,23 +194,27 @@ export function DeliveryDetailView({
                   }
                   feedback={feedback}
                 />
-              ) : canGenerateDocument ? (
-                <ActionDock
-                  label="Hành động giao hàng"
-                  summary={<p className="text-body-sm font-semibold text-ink">Đơn đã giao</p>}
-                  primary={
-                    <Button
-                      tone="secondary"
-                      disabled={documentLocked}
-                      onClick={() => onGenerateDocument(delivery)}
-                    >
-                      {documentLocked ? "Đang tạo chứng từ" : "Tạo chứng từ giao hàng"}
-                    </Button>
-                  }
-                  feedback={feedback}
-                />
               ) : (
-                feedback
+                <div className="flex flex-col gap-3">
+                  {feedback}
+                  {canGenerateDocument ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface p-4">
+                      <div>
+                        <p className="font-semibold text-ink">Chứng từ giao hàng</p>
+                        <p className="text-body-sm text-ink-muted">
+                          In hoặc chia sẻ chứng từ cho đơn giao đã hoàn tất.
+                        </p>
+                      </div>
+                      <Button
+                        tone="secondary"
+                        disabled={documentLocked}
+                        onClick={() => onGenerateDocument(delivery)}
+                      >
+                        {documentLocked ? "Đang tạo chứng từ…" : "Tạo chứng từ giao hàng"}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
               )}
 
               {["dispatched", "delivered"].includes(delivery.status) && canReturn

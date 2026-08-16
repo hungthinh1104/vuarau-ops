@@ -1,6 +1,11 @@
 "use client";
 
-import type { QualityGradeDto, QualityGradeId, Unit } from "@vuarau/domain-contracts";
+import type {
+  InventoryBalanceDto,
+  QualityGradeDto,
+  QualityGradeId,
+  Unit,
+} from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { UNIT_LABEL_VI, UNITS } from "@vuarau/domain-contracts";
@@ -9,6 +14,7 @@ import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { Select } from "@/ui/primitives/select.tsx";
 import { QuantityInput } from "@/ui/primitives/quantity-input.tsx";
 import { Textarea } from "@/ui/primitives/textarea.tsx";
+import { EffectPreview } from "@/ui/patterns/feedback/effect-preview.tsx";
 
 type InventoryAdjustmentReasonCode =
   "opening_balance" | "count_correction" | "spoilage" | "shrinkage" | "other";
@@ -24,6 +30,7 @@ export type InventoryAdjustmentIntent = {
 
 export type InventoryAdjustmentPanelProps = {
   readonly grades: readonly QualityGradeDto[];
+  readonly balances?: readonly InventoryBalanceDto[] | undefined;
   readonly completed: boolean;
   readonly locked: boolean;
   readonly feedback?: ReactNode;
@@ -33,6 +40,7 @@ export type InventoryAdjustmentPanelProps = {
 
 export function InventoryAdjustmentPanel({
   grades,
+  balances,
   completed,
   locked,
   feedback,
@@ -54,6 +62,13 @@ export function InventoryAdjustmentPanel({
     Number.isSafeInteger(quantityScaled) &&
     quantityScaled > 0 &&
     reason.trim().length > 0;
+
+  const currentBalance = balances?.find(
+    (b) => b.qualityGradeId === qualityGradeId && b.unit === unit,
+  );
+  const currentQuantityScaled = currentBalance?.quantityScaled ?? 0;
+  const deltaScaled = direction === "increase" ? quantityScaled : -quantityScaled;
+  const resultingQuantityScaled = currentQuantityScaled + deltaScaled;
 
   function resetForm(): void {
     setDirection("increase");
@@ -133,6 +148,19 @@ export function InventoryAdjustmentPanel({
         value={reason}
         onChange={(event) => setReason(event.target.value)}
       />
+      {valid && grade !== undefined ? (
+        <EffectPreview
+          title="Dự kiến thay đổi tồn kho"
+          inventoryEffect={{
+            productName: grade.name,
+            currentQuantity: { valueScaled: currentQuantityScaled, unit },
+            changeQuantity: { valueScaled: deltaScaled, unit },
+            changeLabel: direction === "increase" ? "Điều chỉnh tăng" : "Điều chỉnh giảm",
+            resultingQuantity: { valueScaled: resultingQuantityScaled, unit },
+          }}
+          advisory="Tồn kho sẽ cập nhật ngay sau khi ghi nhận."
+        />
+      ) : null}
       {completed ? (
         <Button tone="secondary" onClick={resetForm}>
           Ghi điều chỉnh khác

@@ -4,7 +4,7 @@ import { UNIT_LABEL_VI, type DeliveryDto } from "@vuarau/domain-contracts";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { parseSourceEvidence } from "@/ui/domain/source-evidence.ts";
-import { parseQuantityText } from "@/ui/domain/numeric-text.ts";
+import { formatQuantityInput, parseQuantityText } from "@/ui/domain/numeric-text.ts";
 import { formatQuantity } from "@/ui/format.ts";
 import { EvidenceReferenceInput } from "@/ui/patterns/evidence/evidence-reference-input.tsx";
 import { Button } from "@/ui/primitives/button.tsx";
@@ -81,19 +81,34 @@ export function DeliveryReturnPanel({
                 {formatQuantity(line.quantity)}
               </span>
             </span>
-            <QuantityInput
-              label={`Số lượng trả ${line.productName}`}
-              unit={line.quantity.unit}
-              unitLabel={UNIT_LABEL_VI[line.quantity.unit]}
-              disabled={completed || locked}
-              value={quantities[line.deliveryLineId] ?? ""}
-              onChange={(event) =>
-                setQuantities((current) => ({
-                  ...current,
-                  [line.deliveryLineId]: event.target.value,
-                }))
-              }
-            />
+            <div className="flex flex-col gap-1">
+              <QuantityInput
+                label={`Số lượng trả ${line.productName}`}
+                unit={line.quantity.unit}
+                unitLabel={UNIT_LABEL_VI[line.quantity.unit]}
+                disabled={completed || locked}
+                value={quantities[line.deliveryLineId] ?? ""}
+                onChange={(event) =>
+                  setQuantities((current) => ({
+                    ...current,
+                    [line.deliveryLineId]: event.target.value,
+                  }))
+                }
+              />
+              <Button
+                tone="link"
+                disabled={completed || locked}
+                onClick={() =>
+                  setQuantities((current) => ({
+                    ...current,
+                    [line.deliveryLineId]: formatQuantityInput(line.quantity),
+                  }))
+                }
+                className="self-end text-caption font-medium text-info"
+              >
+                Trả đủ ({formatQuantity(line.quantity)})
+              </Button>
+            </div>
           </div>
         ))}
       </div>
