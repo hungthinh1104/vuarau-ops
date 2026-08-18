@@ -89,8 +89,9 @@ async function seed(): Promise<void> {
         transaction_time,recorded_at,posted_at,discarded_at,due_at,replaces_sale_id
       )
       select ${uuidExpression("f223")},'${WORKSPACE_ID}'::uuid,
-        ${uuidExpression("f221", "((i-1)%10000)+1")},'posted','VND',1000,null,2,
-        timestamp '2026-01-01' + (i%86400)*interval '1 second',
+        ${uuidExpression("f221", "case when i%5 <> 0 then 1 else 2+((i-1)%9999) end")},'posted','VND',1000,null,2,
+        case when i%4 < 3 then timestamp '2026-02-15' - (i%3600)*interval '1 second'
+             else timestamp '2026-01-01' + (i%86400)*interval '1 second' end,
         timestamp '2026-02-01' + (i%86400)*interval '1 second',
         timestamp '2026-02-01' + (i%86400)*interval '1 second',null,null,null
       from generate_series(1,100000) i
@@ -101,7 +102,7 @@ async function seed(): Promise<void> {
         unit_price_minor,line_total_minor,currency,position
       )
       select ${uuidExpression("f224")},'${WORKSPACE_ID}'::uuid,
-        ${uuidExpression("f223")},${uuidExpression("f222", "((i-1)%10000)+1")},
+        ${uuidExpression("f223")},${uuidExpression("f222", "case when i%3 = 0 then 1 else 2+((i-1)%9999) end")},
         'Scale product',1000,'kg',1000,1000,'VND',0
       from generate_series(1,100000) i
     `);
@@ -112,7 +113,8 @@ async function seed(): Promise<void> {
       )
       select ${uuidExpression("f225")},'${WORKSPACE_ID}'::uuid,'${SUPPLIER_ID}'::uuid,
         'confirmed','VND',1000,null,null,2,
-        timestamp '2026-01-01' + (i%86400)*interval '1 second',
+        case when i%4 < 3 then timestamp '2026-02-15' - (i%3600)*interval '1 second'
+             else timestamp '2026-01-01' + (i%86400)*interval '1 second' end,
         timestamp '2026-02-01' + (i%86400)*interval '1 second',
         timestamp '2026-02-01' + (i%86400)*interval '1 second',null,null
       from generate_series(1,100000) i
@@ -123,7 +125,7 @@ async function seed(): Promise<void> {
         unit_price_minor,line_total_minor,currency
       )
       select ${uuidExpression("f226")},'${WORKSPACE_ID}'::uuid,
-        ${uuidExpression("f225")},${uuidExpression("f222", "((i-1)%10000)+1")},
+        ${uuidExpression("f225")},${uuidExpression("f222", "case when i%3 = 0 then 1 else 2+((i-1)%9999) end")},
         'Scale product',1000,'kg',1000,1000,'VND'
       from generate_series(1,100000) i
     `);
@@ -133,7 +135,7 @@ async function seed(): Promise<void> {
         reversal_of_entry_id,reason_code,reason,transaction_time,recorded_at,actor_id,command_id
       )
       select ${uuidExpression("f227")},'${WORKSPACE_ID}'::uuid,
-        ${uuidExpression("f221", "((i-1)%10000)+1")},
+        ${uuidExpression("f221", "case when i%5 <> 0 then 1 else 2+((i-1)%9999) end")},
         case when i%2=0 then 1000 else -500 end,'VND','manual_adjustment',
         ${uuidExpression("f227")},null,'opening_balance','scale',
         timestamp '2026-01-01' + (i%86400)*interval '1 second',
@@ -161,7 +163,7 @@ async function seed(): Promise<void> {
         recorded_at,actor_id,command_id
       )
       select ${uuidExpression("f229")},'${WORKSPACE_ID}'::uuid,
-        ${uuidExpression("f222", "((i-1)%10000)+1")},
+        ${uuidExpression("f222", "case when i%3 = 0 then 1 else 2+((i-1)%9999) end")},
         case when i%2=0 then 1000 else -500 end,'kg','inventory_adjustment',
         ${uuidExpression("f229")},null,null,'count_correction','scale',
         timestamp '2026-01-01' + (i%86400)*interval '1 second',
@@ -206,7 +208,8 @@ async function seed(): Promise<void> {
       )
       select ${uuidExpression("f22a")},'${WORKSPACE_ID}'::uuid,
         ${uuidExpression("f223")},'dispatched',null,null,2,
-        timestamp '2026-01-01' + (i%86400)*interval '1 second',
+        case when i%4 < 3 then timestamp '2026-02-15' - (i%3600)*interval '1 second'
+             else timestamp '2026-01-01' + (i%86400)*interval '1 second' end,
         timestamp '2026-02-01' + (i%86400)*interval '1 second',
         timestamp '2026-01-01' + (i%86400)*interval '1 second',null,'${ACTOR_ID}'::uuid
       from generate_series(1,25000) i
@@ -218,7 +221,7 @@ async function seed(): Promise<void> {
       )
       select ${uuidExpression("f22b")},'${WORKSPACE_ID}'::uuid,
         ${uuidExpression("f22a")},${uuidExpression("f224")},
-        ${uuidExpression("f222", "((i-1)%10000)+1")},'Scale product',1000,'kg'
+        ${uuidExpression("f222", "case when i%3 = 0 then 1 else 2+((i-1)%9999) end")},'Scale product',1000,'kg'
       from generate_series(1,25000) i
     `);
     await tx.unsafe(`
@@ -615,6 +618,11 @@ try {
           sales: 100_000,
           purchases: 100_000,
           ledgerAndMovementRows: 1_000_000,
+          skew: {
+            hotCustomerShare: "80%",
+            hotProductShare: "33%",
+            recentTimestampBurstShare: "75%",
+          },
         },
         evidence,
       },

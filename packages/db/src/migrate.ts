@@ -6,11 +6,25 @@ import { createDatabase } from "./client.ts";
 
 const MIGRATIONS_FOLDER = join(dirname(fileURLToPath(import.meta.url)), "..", "migrations");
 
+export function repositoryMigrationCount(): number {
+  return readMigrationFiles({ migrationsFolder: MIGRATIONS_FOLDER }).length;
+}
+
 /** Applies pending migrations. Safe to run repeatedly; Drizzle tracks what ran. */
-export async function runMigrations(connectionString: string): Promise<void> {
+export async function runMigrations(
+  connectionString: string,
+  options: { readonly migrationCount?: number } = {},
+): Promise<void> {
   const { db, sql } = createDatabase(connectionString, { max: 1 });
   try {
-    const migrations = readMigrationFiles({ migrationsFolder: MIGRATIONS_FOLDER });
+    const allMigrations = readMigrationFiles({ migrationsFolder: MIGRATIONS_FOLDER });
+    const migrations =
+      options.migrationCount === undefined
+        ? allMigrations
+        : allMigrations.slice(
+            0,
+            Math.max(0, Math.min(options.migrationCount, allMigrations.length)),
+          );
 
     // Drizzle's stock Postgres migrator compares only the newest `created_at`.
     // That silently skips a migration when parallel branches generated a lower

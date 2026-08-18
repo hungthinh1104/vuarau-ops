@@ -58,6 +58,104 @@ describe("live invalidation scheduler", () => {
     expect(reads).toEqual(["0", "200"]);
   });
 
+  it("drains beyond the former twenty-page ceiling", async () => {
+    const reads: string[] = [];
+    const read = vi.fn(async (since: string) => {
+      reads.push(since);
+      const start = Number(since) + 1;
+      const end = Math.min(start + 199, 4_201);
+      return {
+        workspaceId: WORKSPACE_ID,
+        changes: Array.from({ length: Math.max(0, end - start + 1) }, (_, offset) => ({
+          revision: String(start + offset),
+          commandType: "PostSale",
+          topics: ["sale" as const],
+          recordedAt: "2026-08-10T17:00:00.000Z",
+        })),
+        nextRevision: "4201",
+      };
+    });
+
+    await expect(drainDurableChanges(read, "0")).resolves.toEqual({
+      revision: "4201",
+      topics: ["sale"],
+    });
+    expect(reads).toHaveLength(22);
+    expect(reads.at(-1)).toBe("4200");
+  });
+
+  it("fails closed when a non-empty feed page does not advance", async () => {
+    const read = vi.fn(async () => ({
+      workspaceId: WORKSPACE_ID,
+      changes: [
+        {
+          revision: "0",
+          commandType: "PostSale" as const,
+          topics: ["sale" as const],
+          recordedAt: "2026-08-10T17:00:00.000Z",
+        },
+      ],
+      nextRevision: "1",
+    }));
+
+    await expect(drainDurableChanges(read, "0")).rejects.toThrow("changes_feed_did_not_advance");
+  });
+
+  it("stops at the captured high-water mark while new writes continue", async () => {
+    const reads: string[] = [];
+    const read = vi.fn(async (since: string) => {
+      reads.push(since);
+      if (since === "0") {
+        return {
+          workspaceId: WORKSPACE_ID,
+          changes: [
+            {
+              revision: "1",
+              commandType: "PostSale",
+              topics: ["sale" as const],
+              recordedAt: "2026-08-10T17:00:00.000Z",
+            },
+          ],
+          nextRevision: "3",
+        };
+      }
+      return {
+        workspaceId: WORKSPACE_ID,
+        changes: [
+          {
+            revision: "2",
+            commandType: "PostSale",
+            topics: ["dashboard" as const],
+            recordedAt: "2026-08-10T17:00:00.000Z",
+          },
+          {
+            revision: "3",
+            commandType: "PostSale",
+            topics: ["sale" as const],
+            recordedAt: "2026-08-10T17:00:00.000Z",
+          },
+        ],
+        nextRevision: "1000",
+      };
+    });
+
+    await expect(drainDurableChanges(read, "0")).resolves.toMatchObject({ revision: "3" });
+    expect(reads).toEqual(["0", "1"]);
+  });
+
+  it("fails closed with a full invalidation when the durable feed has a gap", async () => {
+    const read = vi.fn(async () => ({
+      workspaceId: WORKSPACE_ID,
+      changes: [],
+      nextRevision: "5",
+    }));
+
+    const result = await drainDurableChanges(read, "0");
+    expect(result.revision).toBe("5");
+    expect(result.topics).toContain("sale");
+    expect(result.topics).toContain("workspace");
+  });
+
   it("coalesces a sustained 20-events-per-second burst into bounded refetch windows", async () => {
     vi.useFakeTimers();
     try {

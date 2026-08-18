@@ -184,7 +184,7 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
     expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toEqual(accountsBefore);
     expect(harness.db.inventoryMovementRecords()).toHaveLength(1);
 
-    const resolved = await getOperationsBoard(harness.ctx, {
+    const awaitingConsequence = await getOperationsBoard(harness.ctx, {
       workspaceId: WORKSPACE_ID,
       cursor: null,
       limit: 20,
@@ -192,7 +192,13 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
       sort: "updated_desc",
       search: "",
     });
-    expect(resolved.ok && resolved.value.page.items).toEqual([]);
+    expect(awaitingConsequence.ok && awaitingConsequence.value.page.items).toEqual([
+      expect.objectContaining({
+        id: saleId,
+        nextAction: "Mở Sale để điều chỉnh thương mại.",
+        exceptions: [expect.objectContaining({ kind: "fulfilment_remainder_unresolved" })],
+      }),
+    ]);
     const resolvedSale = await getOperationsBoard(harness.ctx, {
       workspaceId: WORKSPACE_ID,
       cursor: null,
@@ -224,6 +230,16 @@ describe("M19 Delivery application flow (TC-DELIVERY-002)", () => {
     });
     expect(corrected.ok).toBe(true);
     expect(harness.db.entriesFor(WORKSPACE_ID, CUSTOMER_ID)).toEqual(accountsBefore);
+
+    const completed = await getOperationsBoard(harness.ctx, {
+      workspaceId: WORKSPACE_ID,
+      cursor: null,
+      limit: 20,
+      filter: "fulfilment_remainder_unresolved",
+      sort: "updated_desc",
+      search: "",
+    });
+    expect(completed.ok && completed.value.page.items).toEqual([]);
   });
 
   it("supports a depot that does not use quality grades", async () => {

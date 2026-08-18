@@ -264,7 +264,8 @@ make a suite pass is forbidden — see
   from class/configuration checks.
 - **Production-shape load evidence.** `pnpm perf:production-scale` is an explicit PostgreSQL
   rehearsal rather than part of every unit run: it creates 10k customers/products,
-  100k Sales/Purchases and one million ledger/movement rows, checks p95 budgets
+  100k Sales/Purchases and one million ledger/movement rows with an 80% hot-customer
+  skew, 33% hot-product skew and a 75% recent-activity burst. It checks p95 budgets
   and fails on unexplained sequential scans. CI/release runs it with a disposable
   PostgreSQL database.
 

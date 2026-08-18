@@ -10,6 +10,8 @@ export function saleReturnSettlementStatus(
   readonly saleReturnIds: readonly string[];
   readonly returnSettlementResolved: boolean;
   readonly returnSettlementUnresolved: boolean;
+  readonly unresolvedReturnId: string | null;
+  readonly unresolvedDeliveryId: string | null;
 } {
   const saleReturnIds = store.deliveryReturns
     .filter((returned) => returned.workspaceId === workspaceId)
@@ -25,9 +27,27 @@ export function saleReturnSettlementStatus(
         (settlement) => settlement.workspaceId === workspaceId && settlement.returnId === returnId,
       ),
     );
+  const unresolvedReturnRecord = store.deliveryReturns
+    .filter((returned) => saleReturnIds.includes(returned.id))
+    .filter(
+      (returned) =>
+        ![...store.deliveryReturnSettlements.values()].some(
+          (settlement) =>
+            settlement.workspaceId === workspaceId && settlement.returnId === returned.id,
+        ),
+    )
+    .toSorted((left, right) =>
+      left.recordedAt === right.recordedAt
+        ? right.id.localeCompare(left.id)
+        : right.recordedAt.localeCompare(left.recordedAt),
+    )[0];
+  const unresolvedReturn = unresolvedReturnRecord?.id;
+  const unresolvedDeliveryId = unresolvedReturnRecord?.deliveryId ?? null;
   return {
     saleReturnIds,
     returnSettlementResolved,
     returnSettlementUnresolved: returnedFulfilment && !returnSettlementResolved,
+    unresolvedReturnId: unresolvedReturn ?? null,
+    unresolvedDeliveryId,
   };
 }

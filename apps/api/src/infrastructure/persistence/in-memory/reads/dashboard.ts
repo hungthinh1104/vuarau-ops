@@ -444,14 +444,19 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
         const physical = salePhysicalState(store, input.workspaceId, sale.id);
         const financial = saleFinancialFacts(store, input.workspaceId, sale.id, input.now);
-        const { saleReturnIds, returnSettlementResolved, returnSettlementUnresolved } =
-          saleReturnSettlementStatus(
-            store,
-            input.workspaceId,
-            sale.id,
-            physical.returnedFulfilment,
-          );
+        const {
+          saleReturnIds,
+          returnSettlementResolved,
+          unresolvedReturnId,
+          unresolvedDeliveryId,
+        } = saleReturnSettlementStatus(
+          store,
+          input.workspaceId,
+          sale.id,
+          physical.returnedFulfilment,
+        );
         const remainder = saleFulfilmentRemainderStatus(store, input.workspaceId, sale.id);
+        const actionDeliveryId = unresolvedDeliveryId ?? physical.deliveryId;
         const allocationIds = new Set(
           store.paymentAllocations
             .filter(
@@ -484,7 +489,8 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
           nextAction: saleNextAction({
             voided: sale.voidRecord !== null,
             physicalState: physical.state,
-            returnedFulfilment: returnSettlementUnresolved,
+            returnedFulfilment: physical.returnedFulfilment,
+            returnSettlementResolved,
             fulfilmentRemainderUnresolved: remainder.unresolved,
             fulfilmentRemainderOutcome: remainder.outcome,
             unallocatedPayment: false,
@@ -512,7 +518,8 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             fulfilmentRemainderUnresolved: remainder.unresolved,
             fulfilmentRemainderOutcome: remainder.outcome,
             returnSettlementResolved,
-            deliveryId: physical.deliveryId,
+            returnId: unresolvedReturnId,
+            deliveryId: actionDeliveryId,
           }),
           updatedAt: saleOperationsUpdatedAt(
             store,
@@ -522,8 +529,7 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             allocationIds,
           ),
           href: `/sales/${sale.id}`,
-          deliveryId:
-            physical.deliveryId as OperationsBoardDto["page"]["items"][number]["deliveryId"],
+          deliveryId: actionDeliveryId as OperationsBoardDto["page"]["items"][number]["deliveryId"],
         });
       }
       rows.push(...paymentOperationsBoardRows(store, input.workspaceId, input.now));

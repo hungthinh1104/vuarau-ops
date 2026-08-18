@@ -8,6 +8,8 @@ import {
 } from "@vuarau/domain-contracts";
 import {
   deriveProductCoverageQuantity,
+  derivePurchaseLineReceivingFacts,
+  deriveSaleLineFulfilmentFacts,
   type InventoryValuationMovement,
 } from "@vuarau/domain-kernel";
 import { PersistedIntegrityError, PersistedNumberOutOfRangeError } from "@vuarau/db";
@@ -244,12 +246,12 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
               );
             }
           }
-          const received = exactAdd(
-            receivedFact?.valueScaled ?? 0,
-            acceptedFact?.valueScaled ?? 0,
-            "product_coverage.received_total",
-          );
-          if (received > line.quantity.valueScaled) {
+          const receiving = derivePurchaseLineReceivingFacts({
+            orderedQuantityScaled: line.quantity.valueScaled,
+            directReceivedNetQuantityScaled: receivedFact?.valueScaled ?? 0,
+            inspectedAcceptedNetQuantityScaled: acceptedFact?.valueScaled ?? 0,
+          });
+          if (receiving.integrity) {
             throw new PersistedIntegrityError(
               "Product coverage contains an over-received purchase line.",
             );
@@ -259,7 +261,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
             totals.inboundRemaining,
             remainingQuantity(
               line.quantity.valueScaled,
-              received,
+              receiving.receivedNetQuantityScaled,
               "product_coverage.inbound_remaining",
             ),
             "product_coverage.inbound_remaining",
@@ -268,6 +270,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
       }
 
       const fulfilmentBySaleLine = new Map<string, { unit: Unit; valueScaled: number }>();
+      const returnedBySaleLine = new Map<string, { unit: Unit; valueScaled: number }>();
       const deliveryLineToSaleLine = new Map<string, string>();
       for (const delivery of store.deliveries.values()) {
         if (
@@ -312,6 +315,15 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
               "product_coverage.returned_outbound",
             ),
           });
+          const returnedCurrent = returnedBySaleLine.get(saleLineId);
+          returnedBySaleLine.set(saleLineId, {
+            unit: line.quantity.unit,
+            valueScaled: exactAdd(
+              returnedCurrent?.valueScaled ?? 0,
+              line.quantity.valueScaled,
+              "product_coverage.returned_outbound",
+            ),
+          });
         }
       }
       for (const sale of store.sales.values()) {
@@ -330,7 +342,23 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
             );
           }
           const fulfilled = fulfilledFact?.valueScaled ?? 0;
-          if (fulfilled > line.quantity.valueScaled) {
+          const returnedFact = returnedBySaleLine.get(line.lineId);
+          if (returnedFact !== undefined && returnedFact.unit !== line.quantity.unit) {
+            throw new PersistedIntegrityError(
+              `Sale line ${line.lineId} has a returned quantity unit mismatch.`,
+            );
+          }
+          const fulfilment = deriveSaleLineFulfilmentFacts({
+            orderedQuantityScaled: line.quantity.valueScaled,
+            dispatchedQuantityScaled: exactAdd(
+              fulfilled,
+              returnedFact?.valueScaled ?? 0,
+              "product_coverage.dispatched_outbound",
+            ),
+            returnedQuantityScaled: returnedFact?.valueScaled ?? 0,
+            activeDispatchedRemainingQuantityScaled: 0,
+          });
+          if (fulfilment.integrity) {
             throw new PersistedIntegrityError(
               "Product coverage contains an over-fulfilled sale line.",
             );
@@ -345,7 +373,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
             totals.outboundRemaining,
             remainingQuantity(
               line.quantity.valueScaled,
-              fulfilled,
+              fulfilment.netFulfilledQuantityScaled,
               "product_coverage.outbound_remaining",
             ),
             "product_coverage.outbound_remaining",

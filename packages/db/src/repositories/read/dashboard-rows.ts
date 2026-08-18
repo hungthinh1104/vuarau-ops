@@ -29,7 +29,7 @@ export async function queryRows(
 ) {
   const filterClause =
     input.filter === "outstanding_delivery"
-      ? sql`physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved`
+      ? sql`physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved and fulfilment_remainder_outcome is distinct from 'cancel_remainder'`
       : input.filter === "incomplete_receiving" || input.filter === "needs_receiving"
         ? sql`physical_state = 'needs_receiving'`
         : input.filter === "needs_delivery"
@@ -337,7 +337,7 @@ export async function queryRows(
         count(*) filter (where unallocated_payment) over() as unallocated_payment_count,
         count(*) filter (where financial_state='awaiting_payment') over() as awaiting_payment_count,
         count(*) filter (where financial_state='overdue') over() as overdue_count,
-        count(*) filter (where physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved) over() as outstanding_delivery_count,
+        count(*) filter (where physical_state in ('needs_delivery', 'in_delivery') and not returned_fulfilment and not fulfilment_remainder_unresolved and fulfilment_remainder_outcome is distinct from 'cancel_remainder') over() as outstanding_delivery_count,
         count(*) filter (where commercial_state='attention' or physical_state='attention' or financial_state='unallocated') over() as attention_count,
         count(*) filter (where fulfilment_remainder_unresolved) over() as fulfilment_remainder_unresolved_count,
         count(*) filter (where returned_fulfilment and not return_settlement_resolved) over() as return_settlement_unresolved_count,
@@ -375,26 +375,12 @@ export async function queryRows(
       where ${filterClause}
     )`;
   const rows = await tx.execute(sql`
-    with recursive ${searchCtes} ${paymentCtes} delivered as (
-      select dl.sale_line_id,
-        sum(dl.quantity_scaled) as dispatched
-      from delivery_lines dl join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-      where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
-      group by dl.sale_line_id
-    ), latest_delivery as (
+    with recursive ${searchCtes} ${paymentCtes} latest_delivery as (
       select distinct on (d.sale_id) d.sale_id, d.id as delivery_id
       from deliveries d
       where d.workspace_id=${input.workspaceId}::uuid and d.status in ('dispatched','delivered')
       order by d.sale_id, d.transaction_time desc, d.recorded_at desc, d.id desc
-    ), returned as (
-      select dl.sale_line_id, sum(drl.quantity_scaled) as returned
-      from delivery_return_lines drl
-      join delivery_lines dl
-        on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
-      join delivery_returns dr
-        on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
-      where dr.workspace_id=${input.workspaceId}::uuid group by dl.sale_line_id
-    ), return_settlement_status as (
+    ), return_settlement_rollup as (
       select d.sale_id,
         bool_and(settled.return_id is not null) as all_resolved
       from delivery_returns dr
@@ -406,6 +392,28 @@ export async function queryRows(
       ) settled on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
       where dr.workspace_id=${input.workspaceId}::uuid
       group by d.sale_id
+    ), unresolved_return as (
+      select distinct on (d.sale_id)
+        d.sale_id,
+        dr.id as return_id,
+        d.id as delivery_id
+      from delivery_returns dr
+      join deliveries d on d.workspace_id=dr.workspace_id and d.id=dr.delivery_id
+      left join (
+        select distinct workspace_id, return_id
+        from delivery_return_settlements
+        where workspace_id=${input.workspaceId}::uuid
+      ) settled on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
+      where dr.workspace_id=${input.workspaceId}::uuid
+        and settled.return_id is null
+      order by d.sale_id, dr.recorded_at desc, dr.id desc
+    ), return_settlement_status as (
+      select rollup.sale_id,
+        rollup.all_resolved,
+        unresolved_return.return_id as unresolved_return_id,
+        unresolved_return.delivery_id as unresolved_delivery_id
+      from return_settlement_rollup rollup
+      left join unresolved_return on unresolved_return.sale_id=rollup.sale_id
     ), fulfilment_remainder_status as (
       select distinct on (frc.sale_id)
         frc.sale_id,
@@ -413,41 +421,42 @@ export async function queryRows(
         frc.outcome
       from fulfilment_remainder_cases frc
       where frc.workspace_id=${input.workspaceId}::uuid
-      order by frc.sale_id, frc.transaction_time desc, frc.recorded_at desc, frc.id desc
-    ), dispatched_remaining as (
-      select dl.sale_line_id,
-        sum(greatest(dl.quantity_scaled-coalesce(ret.returned,0),0)) as remaining
-      from delivery_lines dl
-      join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-      left join (
-        select drl.delivery_line_id, sum(drl.quantity_scaled) as returned
-        from delivery_return_lines drl
-        join delivery_returns dr on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
-        where dr.workspace_id=${input.workspaceId}::uuid
-        group by drl.delivery_line_id
-      ) ret on ret.delivery_line_id=dl.id
-      where dl.workspace_id=${input.workspaceId}::uuid and d.status='dispatched'
-      group by dl.sale_line_id
+        and not exists (
+          select 1
+          from fulfilment_remainder_cases successor
+          where successor.workspace_id=frc.workspace_id
+            and successor.related_case_id=frc.id
+        )
+      order by frc.sale_id, frc.recorded_at desc, frc.id desc
     ), sale_physical as (
       select s.id,
         case
-          when bool_or(coalesce(delivered.dispatched,0)-coalesce(returned.returned,0) > sl.quantity_scaled) then 'attention'
-          when coalesce(sum(greatest(sl.quantity_scaled-coalesce(delivered.dispatched,0)+coalesce(returned.returned,0),0)),0)=0 then 'delivered'
-          when coalesce(sum(dispatched_remaining.remaining),0)>0 then 'in_delivery'
+          when bool_or(coalesce(sale_facts.integrity, false)) then 'attention'
+          when coalesce(sum(coalesce(sale_facts.remaining_quantity_scaled, sl.quantity_scaled)),0)=0 then 'delivered'
+          when coalesce(sum(sale_facts.active_dispatched_remaining_quantity_scaled),0)>0 then 'in_delivery'
           else 'needs_delivery'
         end as physical_state,
         bool_or(
-          coalesce(returned.returned, 0) > 0
-          and sl.quantity_scaled > coalesce(delivered.dispatched, 0) - coalesce(returned.returned, 0)
+          coalesce(sale_facts.returned_quantity_scaled, 0) > 0
+          and sl.quantity_scaled > coalesce(sale_facts.net_fulfilled_quantity_scaled, 0)
         ) as returned_fulfilment,
-        max(latest_delivery.delivery_id::text)::uuid as delivery_id,
+        coalesce(
+          max(return_settlement_status.unresolved_delivery_id::text)::uuid,
+          max(latest_delivery.delivery_id::text)::uuid
+        ) as delivery_id,
+        max(return_settlement_status.unresolved_return_id::text)::uuid as return_id,
         coalesce(bool_or(return_settlement_status.all_resolved), false) as return_settlement_resolved,
-        coalesce(bool_or(fulfilment_remainder_status.case_kind = 'opened'), false) as fulfilment_remainder_unresolved,
+        coalesce(
+          bool_or(
+            fulfilment_remainder_status.case_kind = 'opened'
+            or fulfilment_remainder_status.outcome = 'commercial_correction'
+          ),
+          false
+        ) as fulfilment_remainder_unresolved,
         max(fulfilment_remainder_status.outcome) as fulfilment_remainder_outcome
       from sales s ${saleSearchJoin} ${saleCandidateJoin} join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
-      left join delivered on delivered.sale_line_id=sl.id
-      left join returned on returned.sale_line_id=sl.id
-      left join dispatched_remaining on dispatched_remaining.sale_line_id=sl.id
+      left join sale_line_fulfilment_facts_v1 sale_facts
+        on sale_facts.workspace_id=sl.workspace_id and sale_facts.sale_line_id=sl.id
       left join latest_delivery on latest_delivery.sale_id=s.id
       left join return_settlement_status on return_settlement_status.sale_id=s.id
       left join fulfilment_remainder_status on fulfilment_remainder_status.sale_id=s.id
@@ -465,53 +474,11 @@ export async function queryRows(
       left join allocation_reversals ar
         on ar.workspace_id=pa.workspace_id and ar.allocation_id=pa.id
       where pa.workspace_id=${input.workspaceId}::uuid group by pa.sale_id
-    ), direct_received as (
-      select prl.workspace_id, prl.purchase_line_id,
-        coalesce(sum(case when prr.id is null then prl.quantity_scaled else 0 end),0) as received
-      from purchase_receipt_lines prl
-      join purchase_receipts pr on pr.workspace_id=prl.workspace_id and pr.id=prl.receipt_id
-      left join purchase_receipt_reversals prr on prr.workspace_id=pr.workspace_id and prr.receipt_id=pr.id
-      where prl.workspace_id=${input.workspaceId}::uuid
-      group by prl.workspace_id, prl.purchase_line_id
-    ), disposition_roots as (
-      select qd.workspace_id, qd.id as disposition_id, gal.purchase_line_id
-      from quality_dispositions qd
-      join goods_arrival_lines gal
-        on gal.workspace_id=qd.workspace_id and gal.id=qd.source_arrival_line_id
-      where qd.workspace_id=${input.workspaceId}::uuid and qd.source_type='arrival_line'
-      union all
-      select child.workspace_id, child.id, parent.purchase_line_id
-      from quality_dispositions child
-      join quality_disposition_allocations source_allocation
-        on source_allocation.workspace_id=child.workspace_id
-        and source_allocation.id=child.source_quarantine_allocation_id
-        and source_allocation.outcome='quarantined'
-      join disposition_roots parent
-        on parent.workspace_id=source_allocation.workspace_id
-        and parent.disposition_id=source_allocation.disposition_id
-      where child.workspace_id=${input.workspaceId}::uuid and child.source_type='quarantine_allocation'
-    ), inspected_accepted as (
-      select qda.workspace_id, roots.purchase_line_id,
-        coalesce(sum(qda.value_scaled),0) as accepted
-      from quality_disposition_allocations qda
-      join quality_dispositions qd
-        on qd.workspace_id=qda.workspace_id and qd.id=qda.disposition_id
-      join disposition_roots roots
-        on roots.workspace_id=qd.workspace_id and roots.disposition_id=qd.id
-      left join quality_disposition_reversals qdr
-        on qdr.workspace_id=qd.workspace_id and qdr.disposition_id=qd.id
-      where qda.workspace_id=${input.workspaceId}::uuid
-        and qda.outcome='accepted' and qdr.id is null
-      group by qda.workspace_id, roots.purchase_line_id
     ), purchase_received as (
-      select pl.purchase_id, pl.id as line_id, pl.quantity_scaled,
-        (coalesce(direct.received,0) + coalesce(inspected.accepted,0)) as received
-      from purchase_lines pl
-      left join direct_received direct
-        on direct.workspace_id=pl.workspace_id and direct.purchase_line_id=pl.id
-      left join inspected_accepted inspected
-        on inspected.workspace_id=pl.workspace_id and inspected.purchase_line_id=pl.id
-      where pl.workspace_id=${input.workspaceId}::uuid
+      select purchase_id, purchase_line_id as line_id, ordered_quantity_scaled as quantity_scaled,
+        received_net_quantity_scaled as received
+      from purchase_line_receiving_facts_v1
+      where workspace_id=${input.workspaceId}::uuid
     ), ${activityCtes} ${candidateCtes} purchase_physical as (
       select p.id, case when bool_and(pr.received >= pr.quantity_scaled) then 'received' else 'needs_receiving' end as physical_state
       from purchases p ${purchaseSearchJoin} ${purchaseCandidateJoin} join purchase_received pr on pr.purchase_id=p.id
@@ -533,18 +500,7 @@ export async function queryRows(
       false as unallocated_payment,
       null::bigint as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-s.recorded_at)) as age_seconds, ${saleUpdatedAt} as updated_at,
-      case
-        when sv.id is not null then null
-        when sale_physical.physical_state='attention' then 'Kiểm tra'
-        when sale_physical.returned_fulfilment and not coalesce(sale_physical.return_settlement_resolved, false) then 'Xử lý hàng trả'
-        when coalesce(sale_physical.fulfilment_remainder_unresolved, false) then 'Mở Sale để quyết định phần còn lại.'
-        when sale_physical.fulfilment_remainder_outcome='commercial_correction' then 'Mở Sale để điều chỉnh thương mại.'
-        when sale_physical.physical_state='needs_delivery' then 'Giao hàng'
-        when sale_physical.physical_state='in_delivery' then 'Theo dõi giao hàng'
-        when coalesce(allocated.amount,0) < s.total_amount_minor then 'Thu tiền'
-        else null
-      end as next_action,
-      sale_physical.delivery_id, ('/sales/' || s.id::text) as href
+      sale_physical.delivery_id, sale_physical.return_id, ('/sales/' || s.id::text) as href
     from sales s ${saleSearchJoin} ${saleCandidateJoin} join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
       join sale_physical on sale_physical.id=s.id left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id left join allocated on allocated.sale_id=s.id
       ${saleActivityJoin}
@@ -561,8 +517,7 @@ export async function queryRows(
       false as unallocated_payment,
       null::bigint as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds, ${purchaseUpdatedAt} as updated_at,
-      case when pv.id is not null then null when purchase_physical.physical_state='needs_receiving' then 'Nhận hàng' else null end as next_action,
-      null::uuid as delivery_id, ('/purchases/' || p.id::text) as href
+      null::uuid as delivery_id, null::uuid as return_id, ('/purchases/' || p.id::text) as href
     from purchases p ${purchaseSearchJoin} ${purchaseCandidateJoin} join suppliers s on s.workspace_id=p.workspace_id and s.id=p.supplier_id join purchase_physical on purchase_physical.id=p.id
       ${purchaseActivityJoin}
       left join purchase_voids pv on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
@@ -577,8 +532,7 @@ export async function queryRows(
       true as unallocated_payment, payment_exposure.available_amount_minor as unallocated_payment_amount,
       extract(epoch from (${input.now}::timestamptz-p.recorded_at)) as age_seconds,
       payment_activity.updated_at,
-      'Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.' as next_action,
-      null::uuid as delivery_id, ('/payments/' || p.id::text) as href
+      null::uuid as delivery_id, null::uuid as return_id, ('/payments/' || p.id::text) as href
     from payments p ${paymentSearchJoin} ${paymentCandidateJoin}
       join customers c on c.workspace_id=p.workspace_id and c.id=p.customer_id
       join payment_activity on payment_activity.workspace_id=p.workspace_id and payment_activity.id=p.id

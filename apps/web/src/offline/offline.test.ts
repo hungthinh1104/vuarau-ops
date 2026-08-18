@@ -209,6 +209,32 @@ describe("offline Quick Sale outbox", () => {
     ]);
   });
 
+  it("releases a dependency-blocked child after a restart sees its parent confirmed", async () => {
+    const built = chain("sale-restart");
+    const parent = built.commands[0]!;
+    const child = built.commands[1]!;
+    const persisted = [
+      { ...parent, state: "confirmed" as const, result: { id: "sale-draft" } },
+      {
+        ...child,
+        state: "dependency_blocked" as const,
+        dependencyBlockedBy: parent.id,
+      },
+    ];
+    const store = new MemoryOfflineStore(persisted);
+    const sender = vi.fn(async () => ({ id: "sale-posted" }));
+    const engine = new OfflineSyncEngine(store as unknown as OfflineDatabase, sender, () => null);
+
+    await engine.sync(partition);
+
+    expect(sender).toHaveBeenCalledOnce();
+    expect(sender).toHaveBeenCalledWith(child.kind, child.envelope);
+    expect([...store.records.values()]).toMatchObject([
+      { id: parent.id, state: "confirmed" },
+      { id: child.id, state: "confirmed", result: { id: "sale-posted" } },
+    ]);
+  });
+
   it("rebuilds one deterministic chain while keeping queued envelopes immutable", () => {
     const first = chain("sale-a");
     const second = chain("sale-a");

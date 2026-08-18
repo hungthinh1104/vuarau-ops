@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveOperationsBoardExceptions } from "./index.ts";
+import { deriveOperationsBoardExceptions, deriveOperationsBoardNextAction } from "./index.ts";
 
 const saleFacts = {
   id: "sale-1",
@@ -21,6 +21,32 @@ const saleFacts = {
 };
 
 describe("operations unresolved-state derivation", () => {
+  it("keeps one canonical priority for a pending commercial consequence", () => {
+    expect(
+      deriveOperationsBoardNextAction({
+        voided: false,
+        physicalState: "needs_delivery",
+        returnedFulfilment: false,
+        returnSettlementResolved: false,
+        fulfilmentRemainderUnresolved: true,
+        fulfilmentRemainderOutcome: "commercial_correction",
+        financialState: "awaiting_payment",
+        kind: "sale",
+        unallocatedPayment: false,
+      }),
+    ).toBe("Mở Sale để điều chỉnh thương mại.");
+    expect(
+      deriveOperationsBoardExceptions({
+        ...saleFacts,
+        returnedFulfilment: false,
+        unallocatedPayment: false,
+        unallocatedPaymentAmountMinor: null,
+        fulfilmentRemainderUnresolved: false,
+        fulfilmentRemainderOutcome: "cancel_remainder",
+      }),
+    ).toEqual([]);
+  });
+
   it("TC-OPS-025 — exposes returned and unallocated source-backed exceptions", () => {
     const exceptions = deriveOperationsBoardExceptions(saleFacts);
 
@@ -48,6 +74,18 @@ describe("operations unresolved-state derivation", () => {
           },
         }),
       ]),
+    );
+  });
+
+  it("keeps the exact unresolved Return identity beside the Sale aggregate", () => {
+    const [exception] = deriveOperationsBoardExceptions({
+      ...saleFacts,
+      unallocatedPayment: false,
+      unallocatedPaymentAmountMinor: null,
+      returnId: "return-1",
+    });
+    expect(exception?.sourceFacts).toEqual(
+      expect.arrayContaining([{ key: "return_id", value: "return-1" }]),
     );
   });
 

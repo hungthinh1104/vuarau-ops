@@ -66,6 +66,8 @@ function deliveryLines(
 }
 
 export {
+  currentFulfilmentRemainderCase,
+  fulfilmentRemainderNeedsConsequence,
   decideRecordFulfilmentRemainderCase,
   saleHasPositiveFulfilmentRemainder,
 } from "./fulfilment-remainder.ts";

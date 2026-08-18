@@ -3,7 +3,10 @@ import type {
   FulfilmentRemainderOutcome,
   OperationsBoardDto,
 } from "@vuarau/domain-contracts";
-import { deriveOperationsBoardExceptions } from "@vuarau/domain-kernel";
+import {
+  deriveOperationsBoardExceptions,
+  deriveOperationsBoardNextAction,
+} from "@vuarau/domain-kernel";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
 
 type Row = Record<string, unknown>;
@@ -39,6 +42,10 @@ export function mapOperationsBoardRows(
         ? null
         : (String(row["fulfilment_remainder_outcome"]) as FulfilmentRemainderOutcome);
     const returnSettlementResolved = Boolean(row["return_settlement_resolved"]);
+    const returnId =
+      row["return_id"] === null || row["return_id"] === undefined
+        ? null
+        : stringOf(row, "return_id");
     const unallocatedPayment = Boolean(row["unallocated_payment"]);
     const unallocatedPaymentAmount =
       row["unallocated_payment_amount"] === null || row["unallocated_payment_amount"] === undefined
@@ -61,7 +68,17 @@ export function mapOperationsBoardRows(
       unallocatedPayment,
       unallocatedPaymentAmount,
       ageSeconds: numberOf(row, "age_seconds"),
-      nextAction: row["next_action"] === null ? null : stringOf(row, "next_action"),
+      nextAction: deriveOperationsBoardNextAction({
+        voided: commercialState === "voided",
+        physicalState,
+        returnedFulfilment,
+        returnSettlementResolved,
+        fulfilmentRemainderUnresolved,
+        fulfilmentRemainderOutcome,
+        financialState,
+        kind,
+        unallocatedPayment,
+      }),
       exceptions: deriveOperationsBoardExceptions({
         id,
         kind,
@@ -79,6 +96,7 @@ export function mapOperationsBoardRows(
         fulfilmentRemainderUnresolved,
         fulfilmentRemainderOutcome,
         returnSettlementResolved,
+        returnId,
         deliveryId,
       }),
       updatedAt: new Date(String(row["updated_at"])).toISOString(),

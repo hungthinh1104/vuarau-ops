@@ -124,6 +124,13 @@ export const classifyInventory = (quantityScaled: number) =>
       ? ("negative" as const)
       : ("zero" as const);
 
+export {
+  derivePurchaseLineReceivingFacts,
+  deriveSaleLineFulfilmentFacts,
+  type PurchaseLineReceivingFacts,
+  type SaleLineFulfilmentFacts,
+} from "./operational-facts.ts";
+
 /**
  * Product coverage has one arithmetic contract across adapters:
  * on-hand goods plus confirmed inbound still to receive, less posted outbound

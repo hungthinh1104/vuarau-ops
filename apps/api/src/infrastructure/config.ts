@@ -30,6 +30,7 @@ import { isIP } from "node:net";
 export const APP_ENVIRONMENTS = ["development", "pilot"] as const;
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
 export const DEFAULT_MAX_BATCH_OPERATIONS = 20;
+export const DEFAULT_DATABASE_POOL_MAX = 10;
 
 export type AuthConfig = {
   readonly issuer: string;
@@ -39,6 +40,8 @@ export type AuthConfig = {
 export type ServerConfig = {
   readonly appEnv: AppEnvironment;
   readonly databaseUrl: string;
+  /** Per-process pool ceiling; deployment capacity is instances × this value. */
+  readonly databasePoolMax: number;
   readonly port: number;
   readonly auth: AuthConfig;
   readonly pilot: {
@@ -253,6 +256,10 @@ export function readServerConfig(env: Env): ConfigResult {
     }
     return value;
   };
+  const databasePoolMax = positiveInteger("DATABASE_POOL_MAX", DEFAULT_DATABASE_POOL_MAX);
+  if (databasePoolMax > 100) {
+    fail("DATABASE_POOL_MAX", "must be no greater than 100 per API process");
+  }
   const requestLimits = {
     maxBodyBytes: positiveInteger("MAX_REQUEST_BYTES", 1_048_576),
     maxBatchOperations: positiveInteger("MAX_BATCH_OPERATIONS", DEFAULT_MAX_BATCH_OPERATIONS),
@@ -296,6 +303,7 @@ export function readServerConfig(env: Env): ConfigResult {
     config: {
       appEnv,
       databaseUrl: databaseUrl!,
+      databasePoolMax,
       port,
       auth,
       pilot:
@@ -329,6 +337,7 @@ export function describeConfig(config: ServerConfig): readonly string[] {
     `app env:        ${config.appEnv}`,
     `port:           ${config.port}`,
     `database:       ${databaseHost}`,
+    `database pool:  ${config.databasePoolMax} connections per process`,
     `token issuer:   ${config.auth.issuer}`,
     `token audience: ${config.auth.audience}`,
     `verification:   ${"jwksUrl" in config.auth ? "JWKS (asymmetric)" : "HS256 shared secret"}`,

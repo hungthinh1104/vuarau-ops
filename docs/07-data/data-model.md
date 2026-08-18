@@ -224,6 +224,16 @@ money fact, ledger entry, invariant owner or write authorization. Its arithmetic
 must remain in parity with the pure domain-kernel owner before a consumer is
 migrated.
 
+The physical counterparts are `sale_line_fulfilment_facts_v1` and
+`purchase_line_receiving_facts_v1`. They are per-line, fresh projections over
+Delivery/Return and Receipt/QualityDisposition history respectively. Their pure
+owners are `deriveSaleLineFulfilmentFacts` and
+`derivePurchaseLineReceivingFacts`; Board and Product Coverage consume them
+without changing the canonical tables. Reversed receipts are excluded from
+the active net and a replacement receipt is counted normally, so
+100 ordered → 60 received → reverse → replacement 60 remains received 60,
+remaining 40.
+
 ## Key constraints and indexes
 
 The schema/migrations contain the exact current constraint/index names. The

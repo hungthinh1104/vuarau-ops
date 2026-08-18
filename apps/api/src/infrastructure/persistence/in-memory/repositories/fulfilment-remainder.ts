@@ -1,4 +1,5 @@
 import type { Repositories } from "../../ports.ts";
+import { currentFulfilmentRemainderCase } from "@vuarau/domain-kernel";
 import type { Store } from "../store.ts";
 import { key } from "../store.ts";
 
@@ -11,15 +12,11 @@ export const createFulfilmentRemainderRepositories = (
     findByIdForUpdate: async (workspaceId, caseId) =>
       store.fulfilmentRemainderCases.get(key(workspaceId, caseId)) ?? null,
     findLatestForSale: async (workspaceId, saleId) =>
-      [...store.fulfilmentRemainderCases.values()]
-        .filter((row) => row.workspaceId === workspaceId && row.saleId === saleId)
-        .sort((a, b) =>
-          a.transactionTime === b.transactionTime
-            ? a.recordedAt === b.recordedAt
-              ? b.id.localeCompare(a.id)
-              : b.recordedAt.localeCompare(a.recordedAt)
-            : b.transactionTime.localeCompare(a.transactionTime),
-        )[0] ?? null,
+      currentFulfilmentRemainderCase(
+        [...store.fulfilmentRemainderCases.values()].filter(
+          (row) => row.workspaceId === workspaceId && row.saleId === saleId,
+        ),
+      ),
     findCorrectionByTarget: async (workspaceId, caseId) =>
       [...store.fulfilmentRemainderCases.values()].find(
         (row) => row.workspaceId === workspaceId && row.relatedCaseId === caseId,

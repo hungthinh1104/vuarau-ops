@@ -7,7 +7,9 @@ import type {
 import { describe, expect, it } from "vitest";
 import type { SaleState } from "../shared/state.ts";
 import {
+  currentFulfilmentRemainderCase,
   decideRecordFulfilmentRemainderCase,
+  fulfilmentRemainderNeedsConsequence,
   saleHasPositiveFulfilmentRemainder,
 } from "./fulfilment-remainder.ts";
 
@@ -59,6 +61,53 @@ const decisionTarget: FulfilmentRemainderCaseDto = {
 };
 
 describe("fulfilment remainder decision", () => {
+  it("keeps a commercial correction unresolved until its consequence is recorded", () => {
+    const decision = {
+      ...decisionTarget,
+      caseKind: "decision" as const,
+      outcome: "commercial_correction" as const,
+    };
+    expect(fulfilmentRemainderNeedsConsequence(decision)).toBe(true);
+    expect(
+      fulfilmentRemainderNeedsConsequence({
+        ...decision,
+        outcome: "continue_fulfilment" as const,
+      }),
+    ).toBe(false);
+    expect(
+      fulfilmentRemainderNeedsConsequence({
+        ...decision,
+        outcome: "cancel_remainder" as const,
+      }),
+    ).toBe(false);
+  });
+
+  it("uses the chain tip when a correction carries an older business timestamp", () => {
+    const opened = {
+      ...decisionTarget,
+      caseKind: "opened" as const,
+      outcome: null,
+      relatedCaseId: null,
+    };
+    const decision = {
+      ...decisionTarget,
+      id: "00000000-0000-4000-8000-000000000908" as FulfilmentRemainderCaseDto["id"],
+      transactionTime: "2026-08-13T01:00:00.000Z",
+      recordedAt: "2026-08-14T01:00:02.000Z",
+      relatedCaseId: null,
+    };
+    const correction = {
+      ...decisionTarget,
+      id: "00000000-0000-4000-8000-000000000909" as FulfilmentRemainderCaseDto["id"],
+      caseKind: "correction" as const,
+      relatedCaseId: decision.id,
+      transactionTime: "2026-08-12T01:00:00.000Z",
+      recordedAt: "2026-08-14T01:00:03.000Z",
+    };
+
+    expect(currentFulfilmentRemainderCase([opened, decision, correction])).toEqual(correction);
+  });
+
   it("only recognizes a positive remainder from physical fulfilment facts", () => {
     expect(saleHasPositiveFulfilmentRemainder(sale, new Map())).toBe(true);
     expect(

@@ -20,6 +20,7 @@ import { createInvalidationBus } from "./infrastructure/invalidation.ts";
 import { createEventsHandler } from "./infrastructure/events.ts";
 import { createChangesHandler } from "./infrastructure/changes.ts";
 import { createMetricsHandler } from "./infrastructure/metrics-handler.ts";
+import { installGracefulShutdown } from "./infrastructure/graceful-shutdown.ts";
 import {
   readPilotRuntimeConfig,
   validatePilotWorkspace,
@@ -32,9 +33,9 @@ import {
  * Configuration is read and judged **before anything listens** (BR-OPS-002): a
  * missing variable is a startup failure naming the variable, not a request that
  * fails at a loading bay. The process enforces request-size and per-instance
- * rate limits. TLS termination, deployment-wide rate limiting and graceful
- * shutdown remain environment responsibilities
- * (docs/11-operations/deployment-contract.md).
+ * rate limits. TLS termination and deployment-wide rate limiting remain
+ * environment responsibilities; this process owns a bounded request/SSE drain
+ * and database-pool shutdown (docs/11-operations/deployment-contract.md).
  */
 export function createApiHandler(
   deps: CommandDeps,
@@ -111,8 +112,9 @@ const verifier = createSupabaseJwtVerifier({
 });
 
 async function startServer(): Promise<void> {
-  const database = createDatabase(config.databaseUrl);
+  const database = createDatabase(config.databaseUrl, { max: config.databasePoolMax });
   let pilot: PilotRuntimeConfig | null = null;
+  let shuttingDown = false;
 
   if (config.pilot !== null) {
     const runtime = readPilotRuntimeConfig(config.pilot.configPath, config.pilot.releaseSha);
@@ -147,7 +149,9 @@ async function startServer(): Promise<void> {
     ...(pilot === null ? {} : { pilotScope: pilot.scope }),
   };
 
-  const health = createHealthHandler(() => checkReadiness(database));
+  const health = createHealthHandler(() =>
+    shuttingDown ? Promise.resolve({ ok: false, failing: "shutdown" }) : checkReadiness(database),
+  );
   const publicDocument = createPublicDocumentHandler(deps);
   const trpc = createApiHandler(deps, verifier, config.requestLimits.maxBatchOperations);
   const events = createEventsHandler(deps, verifier, invalidationBus);
@@ -155,7 +159,7 @@ async function startServer(): Promise<void> {
   const metrics = createMetricsHandler(deps, verifier);
   const guard = createRequestGuard(config.requestLimits);
 
-  createServer((req, res) => {
+  const server = createServer((req, res) => {
     /*
      * A correlation id per request, taken from the caller when it offers one so a
      * trace survives a proxy, and minted otherwise. Echoed in the response header,
@@ -183,13 +187,33 @@ async function startServer(): Promise<void> {
     void withRequestId(requestId, async () => {
       if (guard(req, res)) return;
       if (await health(req, res)) return;
+      if (shuttingDown) {
+        res.writeHead(503, {
+          "content-type": "application/json",
+          connection: "close",
+          "retry-after": "10",
+        });
+        res.end(JSON.stringify({ error: "server_shutting_down" }));
+        return;
+      }
       if (await events(req, res)) return;
       if (await changes(req, res)) return;
       if (await metrics(req, res)) return;
       if (await publicDocument(req, res)) return;
       trpc(req, res);
     });
-  }).listen(config.port, () => {
+  });
+  const shutdown = installGracefulShutdown({
+    server,
+    onShutdownStarted: () => {
+      shuttingDown = true;
+    },
+    closeResources: async () => {
+      await database.sql.end();
+    },
+  });
+  server.once("close", shutdown.dispose);
+  server.listen(config.port, () => {
     for (const line of describeConfig(config)) console.warn(line);
     log({
       event: "startup",

@@ -272,29 +272,7 @@ export const createDashboardReadRepositories = (tx: Tx) => ({
     async operationsBoardCounts(
       input: OperationsBoardCountsInput & { readonly now: string },
     ): Promise<OperationsBoardCountsDto> {
-      if (input.search.length === 0) {
-        const result = await queryOperationsBoardCounts(tx, input);
-        return {
-          workspaceId: input.workspaceId,
-          asOf: input.now,
-          counts: result.counts,
-        };
-      }
-      const result = await queryRows(
-        tx,
-        {
-          ...input,
-          // Counts describe the complete search scope, not the selected chip.
-          // Keep accepting the legacy filter field at the API boundary, but do
-          // not let it narrow the population used for the count strip.
-          filter: "all",
-          sort: "updated_desc",
-          cursor: null,
-          limit: 1,
-          page: { after: null, limit: 1 },
-        },
-        { includeActivity: false, includeCounts: true },
-      );
+      const result = await queryOperationsBoardCounts(tx, input);
       return {
         workspaceId: input.workspaceId,
         asOf: input.now,

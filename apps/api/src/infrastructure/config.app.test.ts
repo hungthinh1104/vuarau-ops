@@ -46,6 +46,17 @@ describe("BR-OPS-002 / TC-OPS-001 — reading the server configuration", () => {
     if (!result.ok) return;
     expect(result.config.appEnv).toBe("development");
     expect(result.config.port).toBe(3000);
+    expect(result.config.databasePoolMax).toBe(10);
+  });
+
+  it("makes the per-process database pool budget explicit and bounded", () => {
+    const result = readServerConfig({ ...development, DATABASE_POOL_MAX: "24" });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.config.databasePoolMax).toBe(24);
+    expect(problemsFor({ ...development, DATABASE_POOL_MAX: "0" })).toContain("DATABASE_POOL_MAX");
+    expect(problemsFor({ ...development, DATABASE_POOL_MAX: "101" })).toContain(
+      "DATABASE_POOL_MAX",
+    );
   });
 
   it("rejects unsafe request, batch and rate-limit values together", () => {

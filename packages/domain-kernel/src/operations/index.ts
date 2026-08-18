@@ -25,8 +25,49 @@ export type OperationsBoardExceptionFacts = {
   readonly fulfilmentRemainderOutcome?: FulfilmentRemainderOutcome | null;
   /** A return settlement fact exists; goods-only resolution does not change money. */
   readonly returnSettlementResolved: boolean;
+  /** Exact unresolved Return identity; Sale is only the display aggregate. */
+  readonly returnId?: string | null;
   readonly deliveryId: string | null;
 };
+
+/**
+ * The Board row is consumed by multiple read adapters. Keep its short action
+ * label beside the exception derivation so SQL, in-memory reads and fast-path
+ * reads cannot silently grow different priority rules.
+ */
+export function deriveOperationsBoardNextAction(input: {
+  readonly voided: boolean;
+  readonly physicalState: string;
+  readonly returnedFulfilment: boolean;
+  readonly returnSettlementResolved?: boolean;
+  readonly fulfilmentRemainderUnresolved?: boolean;
+  readonly fulfilmentRemainderOutcome?: FulfilmentRemainderOutcome | null;
+  readonly financialState: string;
+  readonly kind: "sale" | "purchase" | "payment";
+  readonly unallocatedPayment: boolean;
+}): string | null {
+  if (input.voided) return null;
+  if (input.kind === "payment" && input.unallocatedPayment) {
+    return "Mở khoản thanh toán để phân bổ hoặc ghi nhận tín dụng.";
+  }
+  if (input.kind === "purchase") {
+    return input.physicalState === "needs_receiving" ? "Nhận hàng" : null;
+  }
+  if (input.physicalState === "attention") return "Kiểm tra";
+  if (input.returnedFulfilment && !input.returnSettlementResolved) return "Xử lý hàng trả";
+  if (input.fulfilmentRemainderOutcome === "commercial_correction") {
+    return "Mở Sale để điều chỉnh thương mại.";
+  }
+  if (input.fulfilmentRemainderUnresolved) return "Mở Sale để quyết định phần còn lại.";
+  if (
+    input.physicalState === "needs_delivery" &&
+    input.fulfilmentRemainderOutcome !== "cancel_remainder"
+  ) {
+    return "Giao hàng";
+  }
+  if (input.physicalState === "in_delivery") return "Theo dõi giao hàng";
+  return ["awaiting_payment", "overdue"].includes(input.financialState) ? "Thu tiền" : null;
+}
 
 function sourceFacts(
   input: OperationsBoardExceptionFacts,
@@ -73,6 +114,7 @@ export function deriveOperationsBoardExceptions(
     input.kind === "sale" &&
     !input.returnedFulfilment &&
     !input.fulfilmentRemainderUnresolved &&
+    input.fulfilmentRemainderOutcome !== "cancel_remainder" &&
     (input.physicalState === "needs_delivery" || input.physicalState === "in_delivery")
   ) {
     result.push(
@@ -98,6 +140,7 @@ export function deriveOperationsBoardExceptions(
         "return_settlement_unresolved",
         [
           { key: "returned_fulfilment", value: "true" },
+          { key: "return_id", value: input.returnId ?? "none" },
           { key: "delivery_id", value: input.deliveryId ?? "none" },
         ],
         input.deliveryId === null ? input.href : `/deliveries/${input.deliveryId}`,

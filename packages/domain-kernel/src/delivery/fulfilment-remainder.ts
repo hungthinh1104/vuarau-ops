@@ -30,6 +30,37 @@ export function saleHasPositiveFulfilmentRemainder(
   });
 }
 
+/** Selects the append-only chain tip, independent of a backdated business time. */
+export function currentFulfilmentRemainderCase(
+  cases: readonly FulfilmentRemainderCaseDto[],
+): FulfilmentRemainderCaseDto | null {
+  const successorIds = new Set(
+    cases.flatMap((remainderCase) =>
+      remainderCase.relatedCaseId === null ? [] : [remainderCase.relatedCaseId],
+    ),
+  );
+  return (
+    cases
+      .filter((remainderCase) => !successorIds.has(remainderCase.id))
+      .toSorted((a, b) =>
+        a.recordedAt === b.recordedAt
+          ? b.id.localeCompare(a.id)
+          : b.recordedAt.localeCompare(a.recordedAt),
+      )[0] ?? null
+  );
+}
+
+/**
+ * A decision is not automatically the consequence it asks for. Commercial
+ * correction stays unresolved until a follow-up correction fact is recorded;
+ * ordinary continuation and an explicit cancellation are complete decisions.
+ */
+export function fulfilmentRemainderNeedsConsequence(
+  remainderCase: FulfilmentRemainderCaseDto | null,
+): boolean {
+  return remainderCase?.caseKind === "opened" || remainderCase?.outcome === "commercial_correction";
+}
+
 export function decideRecordFulfilmentRemainderCase(args: {
   command: RecordFulfilmentRemainderCaseCommand;
   recordedAt: IsoInstant;

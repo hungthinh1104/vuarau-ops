@@ -158,6 +158,7 @@ const SOURCE_FACT_LABELS: Readonly<Record<string, string>> = {
   delivery_id: "Mã Delivery",
   receiving_status: "Trạng thái nhận hàng",
   returned_fulfilment: "Đã trả phần fulfilment",
+  return_id: "Mã Return",
   unallocated_payment_amount_minor: "Tiền chưa phân bổ (đơn vị nhỏ nhất)",
   due_at: "Hạn thanh toán",
   overdue_status: "Trạng thái quá hạn",

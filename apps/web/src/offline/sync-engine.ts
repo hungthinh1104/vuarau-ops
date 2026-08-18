@@ -78,7 +78,14 @@ export class OfflineSyncEngine {
     let confirmed = false;
     const accepted = new Set<string>();
     for (const record of [...chain].sort((a, b) => a.sequence - b.sequence)) {
-      if (record.state === "confirmed") continue;
+      // `commands()` is durable storage. After a browser restart the parent
+      // can already be confirmed even though this sync invocation has not
+      // accepted it. Treat that persisted fact as an accepted dependency;
+      // otherwise a dependency-blocked child can remain stranded forever.
+      if (record.state === "confirmed") {
+        accepted.add(record.id);
+        continue;
+      }
       if (
         record.state === "dependency_blocked" &&
         (record.dependencyBlockedBy === undefined ||
@@ -104,14 +111,10 @@ export class OfflineSyncEngine {
           dependencyBlockedBy: null,
         });
         accepted.add(record.id);
-        const releaseDependents = (
-          this.database as OfflineDatabase & {
-            releaseDependents?: (partition: OfflinePartition, blockerId: string) => Promise<void>;
-          }
-        ).releaseDependents;
-        if (releaseDependents !== undefined) {
-          await releaseDependents.call(this.database, partition, record.id);
-        }
+        // Releasing descendants is part of the durable database contract. If
+        // it is skipped, a restart can leave a confirmed parent with a child
+        // permanently stranded in dependency_blocked.
+        await this.database.releaseDependents(partition, record.id);
         confirmed = true;
       } catch (error) {
         const domainError = this.classify(error);

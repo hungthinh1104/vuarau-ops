@@ -1,5 +1,10 @@
 import type { DeliveryState } from "@vuarau/domain-kernel";
-import { activeCustomerPaymentCreditAmount, derivePaymentExposure } from "@vuarau/domain-kernel";
+import {
+  activeCustomerPaymentCreditAmount,
+  deriveOperationsBoardNextAction,
+  deriveSaleLineFulfilmentFacts,
+  derivePaymentExposure,
+} from "@vuarau/domain-kernel";
 import type { FulfilmentRemainderOutcome } from "@vuarau/domain-contracts";
 import type { Store } from "../store.ts";
 import { key } from "../store.ts";
@@ -95,24 +100,13 @@ export function saleNextAction(input: {
   readonly voided: boolean;
   readonly physicalState: string;
   readonly returnedFulfilment: boolean;
+  readonly returnSettlementResolved?: boolean;
   readonly fulfilmentRemainderUnresolved?: boolean;
   readonly fulfilmentRemainderOutcome?: FulfilmentRemainderOutcome | null;
   readonly unallocatedPayment: boolean;
   readonly financialState: string;
 }): string | null {
-  if (input.voided) return null;
-  if (input.physicalState === "attention") return "Kiểm tra";
-  if (input.returnedFulfilment) return "Xử lý hàng trả";
-  if (input.fulfilmentRemainderUnresolved) return "Mở Sale để quyết định phần còn lại.";
-  if (input.fulfilmentRemainderOutcome === "commercial_correction")
-    return "Mở Sale để điều chỉnh thương mại.";
-  if (
-    input.physicalState === "needs_delivery" &&
-    input.fulfilmentRemainderOutcome !== "cancel_remainder"
-  )
-    return "Giao hàng";
-  if (input.physicalState === "in_delivery") return "Theo dõi giao hàng";
-  return ["awaiting_payment", "overdue"].includes(input.financialState) ? "Thu tiền" : null;
+  return deriveOperationsBoardNextAction({ ...input, kind: "sale" });
 }
 
 export function salePhysicalState(
@@ -151,9 +145,9 @@ export function salePhysicalState(
       if (delivery.status === "dispatched")
         for (const line of delivery.lines)
           activeDispatchRemaining.set(
-            line.deliveryLineId,
+            line.saleLineId,
             exactAdd(
-              activeDispatchRemaining.get(line.deliveryLineId) ?? 0,
+              activeDispatchRemaining.get(line.saleLineId) ?? 0,
               line.quantity.valueScaled,
               "dashboard.active_dispatch.value_scaled",
             ),
@@ -192,29 +186,44 @@ export function salePhysicalState(
       );
       if (delivery.status === "dispatched")
         activeDispatchRemaining.set(
-          line.deliveryLineId,
-          exactSubtract(
-            activeDispatchRemaining.get(line.deliveryLineId) ?? 0,
-            line.quantity.valueScaled,
-            "dashboard.active_dispatch.value_scaled",
+          deliveryLine.saleLineId,
+          Math.max(
+            0,
+            exactSubtract(
+              activeDispatchRemaining.get(deliveryLine.saleLineId) ?? 0,
+              line.quantity.valueScaled,
+              "dashboard.active_dispatch.value_scaled",
+            ),
           ),
         );
     }
   }
   const deliveryId = latestDelivery?.id ?? null;
-  const returnedFulfilment = sale.lines.some(
-    (line) =>
-      (returnedByLine.get(line.lineId) ?? 0) > 0 &&
-      (fulfilled.get(line.lineId) ?? 0) < line.quantity.valueScaled,
+  const facts = sale.lines.map((line) => {
+    const netFulfilled = fulfilled.get(line.lineId) ?? 0;
+    const returned = returnedByLine.get(line.lineId) ?? 0;
+    return deriveSaleLineFulfilmentFacts({
+      orderedQuantityScaled: line.quantity.valueScaled,
+      dispatchedQuantityScaled: exactAdd(
+        netFulfilled,
+        returned,
+        "dashboard.sale_dispatched.value_scaled",
+      ),
+      returnedQuantityScaled: returned,
+      activeDispatchedRemainingQuantityScaled: activeDispatchRemaining.get(line.lineId) ?? 0,
+    });
+  });
+  const returnedFulfilment = facts.some(
+    (fact, index) =>
+      fact.returnedQuantityScaled > 0 &&
+      fact.netFulfilledQuantityScaled < sale.lines[index]!.quantity.valueScaled,
   );
-  if (sale.lines.some((line) => (fulfilled.get(line.lineId) ?? 0) > line.quantity.valueScaled))
+  if (facts.some((fact) => fact.integrity))
     return { state: "attention", deliveryId, returnedFulfilment: false };
-  const hasRemaining = sale.lines.some(
-    (line) => line.quantity.valueScaled > (fulfilled.get(line.lineId) ?? 0),
-  );
-  if (!hasRemaining) return { state: "delivered", deliveryId, returnedFulfilment: false };
+  if (facts.every((fact) => fact.remainingQuantityScaled === 0))
+    return { state: "delivered", deliveryId, returnedFulfilment: false };
   return {
-    state: [...activeDispatchRemaining.values()].some((value) => value > 0)
+    state: facts.some((fact) => fact.activeDispatchedRemainingQuantityScaled > 0)
       ? "in_delivery"
       : "needs_delivery",
     deliveryId,

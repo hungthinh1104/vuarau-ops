@@ -1,5 +1,5 @@
 import type { FulfilmentRemainderCaseDto } from "@vuarau/domain-contracts";
-import { and, desc, eq } from "drizzle-orm";
+import { aliasedTable, and, desc, eq, notExists } from "drizzle-orm";
 import { fulfilmentRemainderCases } from "../../schema/index.ts";
 import { fromIso, toIso } from "../row-mappers.ts";
 import type { Tx } from "../shared/types.ts";
@@ -51,6 +51,7 @@ export const createFulfilmentRemainderWriteRepositories = (tx: Tx) => ({
       return rows[0] === undefined ? null : toDto(rows[0]);
     },
     async findLatestForSale(workspaceId: string, saleId: string) {
+      const successor = aliasedTable(fulfilmentRemainderCases, "successor");
       const rows = await tx
         .select()
         .from(fulfilmentRemainderCases)
@@ -58,13 +59,20 @@ export const createFulfilmentRemainderWriteRepositories = (tx: Tx) => ({
           and(
             eq(fulfilmentRemainderCases.workspaceId, workspaceId),
             eq(fulfilmentRemainderCases.saleId, saleId),
+            notExists(
+              tx
+                .select({ id: successor.id })
+                .from(successor)
+                .where(
+                  and(
+                    eq(successor.workspaceId, workspaceId),
+                    eq(successor.relatedCaseId, fulfilmentRemainderCases.id),
+                  ),
+                ),
+            ),
           ),
         )
-        .orderBy(
-          desc(fulfilmentRemainderCases.transactionTime),
-          desc(fulfilmentRemainderCases.recordedAt),
-          desc(fulfilmentRemainderCases.id),
-        )
+        .orderBy(desc(fulfilmentRemainderCases.recordedAt), desc(fulfilmentRemainderCases.id))
         .limit(1);
       return rows[0] === undefined ? null : toDto(rows[0]);
     },

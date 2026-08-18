@@ -50,6 +50,7 @@ a configuration the API would refuse (BR-OPS-002).
 | ----------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `APP_ENV`                     | yes, `pilot`     | Turns on the stricter rules below. Defaults to `development`                                                                       |
 | `DATABASE_URL`                | yes              | `postgres://…`; pilot must include `sslmode=require`, `verify-ca` or `verify-full`. Credentials belong to the deployment, not here |
+| `DATABASE_POOL_MAX`           | no               | Defaults to 10 connections per API process; capacity is instances x this value and values above 100 are refused                    |
 | `SUPABASE_JWT_ISSUER`         | yes              | Must be **https** in a pilot                                                                                                       |
 | `SUPABASE_JWT_AUDIENCE`       | no               | Defaults to `authenticated`                                                                                                        |
 | `SUPABASE_JWKS_URL`           | yes, in a pilot  | The **only** verification method a pilot accepts                                                                                   |
@@ -124,8 +125,14 @@ used to spoof another bucket.
 Do not configure a public subnet, load-balancer client range or `0.0.0.0/0`.
 Ensure the Next/edge hop replaces, rather than appends to, inbound
 `X-Forwarded-For`. This separates browser clients behind one Next proxy for the
-application's per-instance limit. A multi-instance deployment still requires a
+application’s per-instance limit. A multi-instance deployment still requires a
 shared/global edge limiter.
+
+The API also has a bounded graceful-shutdown path: readiness becomes `503` with
+`failing=shutdown`, new non-health requests receive `503`, existing requests and
+SSE streams get a bounded drain window, and the PostgreSQL pool is closed. The
+deployment must still send `SIGTERM`, wait for the process to exit, and keep the
+edge/global limiter and TLS termination outside the process.
 
 ## Token verification
 
@@ -242,7 +249,9 @@ reason to skip the table above.
 
 - **A hosting vendor, a container runtime, or a CI deployment pipeline.** Choosing
   one before a depot has used the product is choosing it on no evidence.
-- **TLS termination and graceful shutdown.** Both belong to the environment.
+- **TLS termination.** This belongs to the environment. The API owns bounded
+  request/SSE drain and database-pool shutdown; the environment owns signal
+  delivery and the termination grace period.
 - **Global/shared rate limiting.** The application enforces proxy-aware,
   per-client buckets inside each API instance; the edge must enforce the shared
   deployment limit across instances.

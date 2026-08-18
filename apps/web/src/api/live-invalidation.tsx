@@ -160,9 +160,11 @@ async function readChanges(workspaceId: WorkspaceId, since: string, signal: Abor
 }
 
 /**
- * Drain every page without treating the feed's latest position as the page
- * cursor. `nextRevision` is a high-water mark; when a page is capped, the
- * last returned change is the only safe cursor for the next request.
+ * Drain every page to the high-water mark captured by the first read. The
+ * latest position is not a page cursor: when a page is capped, the last
+ * returned change is the only safe cursor for the next request. If the feed
+ * has a gap (for example after retention), advance to the high-water mark and
+ * invalidate every root so a missing page cannot look like a successful sync.
  */
 export async function drainDurableChanges(
   read: (since: string) => Promise<WorkspaceChangesSinceDto>,
@@ -170,13 +172,26 @@ export async function drainDurableChanges(
 ): Promise<{ readonly revision: string; readonly topics: readonly WorkspaceChangeTopic[] }> {
   const topics = new Set<WorkspaceChangeTopic>();
   let cursor = initialRevision;
-  for (let page = 0; page < 20; page += 1) {
+  let highWater: string | null = null;
+  for (;;) {
     const result = await read(cursor);
+    highWater ??= result.nextRevision;
+    const pageCursor = cursor;
     for (const change of result.changes) {
       cursor = change.revision;
       for (const topic of change.topics) topics.add(topic);
     }
-    if (result.changes.length === 0 || cursor === result.nextRevision) break;
+    if (result.changes.length === 0) {
+      if (cursor !== highWater) {
+        cursor = highWater;
+        for (const topic of ALL_TOPICS) topics.add(topic);
+      }
+      break;
+    }
+    if (cursor === pageCursor) {
+      throw new Error("changes_feed_did_not_advance");
+    }
+    if (BigInt(cursor) >= BigInt(highWater)) break;
   }
   return { revision: cursor, topics: [...topics] };
 }
