@@ -66,6 +66,7 @@ export async function readProductCoverage(
         bool_or(
           dl.unit <> scoped_sl.unit
           or dl.product_id is distinct from scoped_sl.product_id
+          or dl.quality_grade_id is distinct from scoped_sl.quality_grade_id
           or coalesce(returned.invalid_return_unit, false)
         ) as invalid_unit
       from delivery_lines dl

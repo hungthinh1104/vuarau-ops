@@ -113,7 +113,9 @@ describe("fulfilment remainder decision", () => {
     expect(
       saleHasPositiveFulfilmentRemainder(
         sale,
-        new Map([[sale.lines[0]!.lineId, { dispatched: 100_000, returned: 0 }]]),
+        new Map([
+          [sale.lines[0]!.lineId, { dispatchedQuantityScaled: 100_000, returnedQuantityScaled: 0 }],
+        ]),
       ),
     ).toBe(false);
   });

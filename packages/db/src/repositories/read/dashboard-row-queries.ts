@@ -110,6 +110,10 @@ export function buildActivityCtes(
 }
 
 export function buildScopedFactCtes(): SQL {
+  // This is a deliberately candidate-scoped performance projection, not a
+  // second business rule. Its arithmetic must stay byte-for-byte aligned with
+  // sale_line_fulfilment_facts_v1 and purchase_line_receiving_facts_v1; the DB
+  // parity suite is the guard before changing either projection.
   return sql`
     sale_scoped_facts as (
       with returned as (
@@ -130,6 +134,7 @@ export function buildScopedFactCtes(): SQL {
           coalesce(returned.returned_quantity_scaled, 0) as returned_quantity_scaled,
           d.status as delivery_status,
           (dl.unit <> sl.unit or dl.product_id is distinct from sl.product_id
+            or dl.quality_grade_id is distinct from sl.quality_grade_id
             or coalesce(returned.invalid_return_unit, false)) as invalid_unit
         from delivery_lines dl
         join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id

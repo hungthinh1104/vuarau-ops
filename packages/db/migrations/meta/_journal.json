@@ -610,6 +610,13 @@
       "when": 1787072739150,
       "tag": "0086_dry_silk_fever",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1787077511155,
+      "tag": "0087_silent_goods_truth",
+      "breakpoints": true
     }
   ]
 }

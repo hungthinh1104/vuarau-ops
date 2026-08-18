@@ -318,6 +318,11 @@ const checks = [
   {
     name: "customer_reconciliation",
     budgetMs: 75,
+    // The hot-customer fixture intentionally puts 80% of the ledger rows on
+    // this account. Reconciliation is a source-truth aggregate, not a page
+    // read; PostgreSQL is expected to choose a sequential scan for that
+    // population. The latency budget remains strict.
+    sequentialScanPolicy: "canonical_aggregate",
     query: `select count(*),sum(amount_minor) from customer_account_entries
       where workspace_id='${WORKSPACE_ID}' and customer_id='f2210000-0000-4000-8000-000000000001'`,
   },

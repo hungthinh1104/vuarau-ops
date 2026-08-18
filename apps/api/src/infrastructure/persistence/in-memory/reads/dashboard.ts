@@ -10,12 +10,15 @@ import type {
   OperationsBoardCountsDto,
   OperationsBoardCountsInput,
   Quantity,
+  WorkspaceId,
 } from "@vuarau/domain-contracts";
 import { encodeCursor, vietnamBusinessDateForInstant } from "@vuarau/domain-contracts";
 import type { Repositories } from "../../ports.ts";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
+import { fulfilmentFactsForSale } from "../repositories/delivery.ts";
+import { receivingFactsForPurchase } from "../repositories/purchase.ts";
 import { exactAdd, exactSubtract } from "./exact-number.ts";
 import { saleFinancialFacts, saleNextAction, salePhysicalState } from "./dashboard-order-state.ts";
 import {
@@ -51,100 +54,59 @@ function quantities(values: readonly Quantity[]): Quantity[] {
   }));
 }
 
-function receivedFor(store: Store, workspaceId: string): Quantity[] {
-  return quantities(
-    store.inventoryMovements
-      .filter(
-        (movement) =>
-          movement.workspaceId === workspaceId &&
-          (movement.sourceType === "purchase_receipt" ||
-            movement.sourceType === "purchase_receipt_reversal" ||
-            movement.sourceType === "quality_disposition" ||
-            movement.sourceType === "quality_disposition_reversal"),
-      )
-      .map((movement) => movement.quantity),
-  );
-}
-
-function outstandingFor(store: Store, workspaceId: string): Quantity[] {
-  const fulfilled = new Map<string, number>();
-  const deliveryLineToSaleLine = new Map<string, string>();
-  for (const delivery of store.deliveries.values()) {
+async function receivedFor(
+  store: Store,
+  workspaceId: WorkspaceId,
+): Promise<{ quantities: Quantity[]; integrity: boolean }> {
+  const values: Quantity[] = [];
+  let integrity = false;
+  for (const purchase of store.purchases.values()) {
     if (
-      delivery.workspaceId !== workspaceId ||
-      !["dispatched", "delivered"].includes(delivery.status)
+      purchase.workspaceId !== workspaceId ||
+      purchase.status !== "confirmed" ||
+      purchase.voidRecord !== null
     )
       continue;
-    for (const line of delivery.lines) {
-      deliveryLineToSaleLine.set(line.deliveryLineId, line.saleLineId);
-      fulfilled.set(
-        line.saleLineId,
-        exactAdd(
-          fulfilled.get(line.saleLineId) ?? 0,
-          line.quantity.valueScaled,
-          "dashboard.outstanding_delivery.value_scaled",
-        ),
-      );
+    const facts = await receivingFactsForPurchase(store, workspaceId, purchase.id);
+    for (const line of purchase.lines) {
+      const fact = facts.get(line.lineId);
+      if (fact === undefined) continue;
+      integrity ||= fact.integrity;
+      values.push({
+        unit: line.quantity.unit,
+        valueScaled: fact.receivedNetQuantityScaled,
+      });
     }
   }
-  for (const returned of store.deliveryReturns) {
-    if (returned.workspaceId !== workspaceId) continue;
-    for (const line of returned.lines) {
-      const saleLineId = deliveryLineToSaleLine.get(line.deliveryLineId);
-      if (saleLineId === undefined) continue;
-      fulfilled.set(
-        saleLineId,
-        exactSubtract(
-          fulfilled.get(saleLineId) ?? 0,
-          line.quantity.valueScaled,
-          "dashboard.outstanding_delivery.value_scaled",
-        ),
-      );
-    }
-  }
+  return { quantities: quantities(values), integrity };
+}
+
+async function outstandingFor(
+  store: Store,
+  workspaceId: string,
+): Promise<{ quantities: Quantity[]; integrity: boolean }> {
   const remaining: Quantity[] = [];
+  let integrity = false;
   for (const sale of store.sales.values()) {
     if (sale.workspaceId !== workspaceId || sale.status !== "posted" || sale.voidRecord !== null)
       continue;
+    const facts = fulfilmentFactsForSale(store, workspaceId, sale.id, null);
     for (const line of sale.lines) {
-      const valueScaled = exactSubtract(
-        line.quantity.valueScaled,
-        fulfilled.get(line.lineId) ?? 0,
-        "dashboard.outstanding_delivery.value_scaled",
-      );
+      const fact = facts.get(line.lineId);
+      const valueScaled = fact?.remainingQuantityScaled ?? line.quantity.valueScaled;
+      integrity ||= fact?.integrity ?? false;
       if (valueScaled > 0) remaining.push({ ...line.quantity, valueScaled });
     }
   }
-  return quantities(remaining);
-}
-
-function acceptedAfterInspectionFor(store: Store, workspaceId: string): Map<string, number> {
-  const accepted = new Map<string, number>();
-  for (const disposition of store.qualityDispositions.values()) {
-    if (disposition.workspaceId !== workspaceId || disposition.reversal !== null) continue;
-    const root = intakeSourceRoot(store, workspaceId, disposition.source);
-    const purchaseLineId = root?.line.purchaseLineId;
-    if (purchaseLineId === null || purchaseLineId === undefined) continue;
-    for (const allocation of disposition.allocations) {
-      if (allocation.outcome !== "accepted") continue;
-      accepted.set(
-        purchaseLineId,
-        exactAdd(
-          accepted.get(purchaseLineId) ?? 0,
-          allocation.quantity.valueScaled,
-          "dashboard.accepted_inbound.value_scaled",
-        ),
-      );
-    }
-  }
-  return accepted;
+  return { quantities: quantities(remaining), integrity };
 }
 
 export const createDashboardReads = (store: Store): Pick<Repositories, "dashboardReads"> => ({
   dashboardReads: {
     summary: async (workspaceId) => {
       const asOf = now();
-      const outstandingDelivery = outstandingFor(store, workspaceId);
+      const outstandingDelivery = await outstandingFor(store, workspaceId);
+      const received = await receivedFor(store, workspaceId);
       const sales = [...store.sales.values()].filter(
         (sale) => sale.workspaceId === workspaceId && sale.status === "posted",
       );
@@ -205,8 +167,15 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         amount: money(value),
         count,
       });
-      const quantity = (value: Quantity[], count: number): DashboardSummaryDto["received"] => ({
-        availability: availability(asOf),
+      const quantity = (
+        value: Quantity[],
+        count: number,
+        integrityFailure = false,
+        diagnostic = "dashboard_integrity_failure",
+      ): DashboardSummaryDto["received"] => ({
+        availability: integrityFailure
+          ? { state: "attention", diagnostics: [diagnostic], updatedAt: asOf }
+          : availability(asOf),
         quantities: quantities(value),
         count,
       });
@@ -216,10 +185,10 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
         sales: amount(salesAmount, activeSales.length),
         purchases: amount(purchaseAmount, activePurchases.length),
         received: quantity(
-          receivedFor(store, workspaceId),
-          [...store.purchaseReceipts.values()].filter(
-            (receipt) => receipt.workspaceId === workspaceId,
-          ).length,
+          received.quantities,
+          received.quantities.length,
+          received.integrity,
+          "receiving_integrity_failure",
         ),
         stock: quantity(
           [...store.inventoryBalances.values()]
@@ -229,7 +198,12 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             (balance) => balance.workspaceId === workspaceId,
           ).length,
         ),
-        outstandingDelivery: quantity(outstandingDelivery, outstandingDelivery.length),
+        outstandingDelivery: quantity(
+          outstandingDelivery.quantities,
+          outstandingDelivery.quantities.length,
+          outstandingDelivery.integrity,
+          "fulfilment_integrity_failure",
+        ),
         receivables: amount(
           receivables,
           [...store.balances.values()].filter(
@@ -439,7 +413,6 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
     },
     operationsBoard: async (input): Promise<OperationsBoardDto> => {
       const rows: Array<OperationsBoardDto["page"]["items"][number]> = [];
-      const inspectedAccepted = acceptedAfterInspectionFor(store, input.workspaceId);
       for (const sale of store.sales.values()) {
         if (sale.workspaceId !== input.workspaceId || sale.status !== "posted") continue;
         const physical = salePhysicalState(store, input.workspaceId, sale.id);
@@ -535,27 +508,20 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
       rows.push(...paymentOperationsBoardRows(store, input.workspaceId, input.now));
       for (const purchase of store.purchases.values()) {
         if (purchase.workspaceId !== input.workspaceId || purchase.status !== "confirmed") continue;
-        const received = [...store.purchaseReceipts.values()]
-          .filter(
-            (receipt) =>
-              receipt.workspaceId === input.workspaceId &&
-              receipt.purchaseId === purchase.id &&
-              receipt.reversal === null,
-          )
-          .flatMap((receipt) => receipt.lines);
-        const remaining = purchase.lines.some((line) => {
-          const got = received
-            .filter((item) => item.purchaseLineId === line.lineId)
-            .reduce(
-              (sum, item) =>
-                exactAdd(sum, item.quantity.valueScaled, "dashboard.received.value_scaled"),
-              0,
-            );
-          const accepted = inspectedAccepted.get(line.lineId) ?? 0;
-          return (
-            exactAdd(got, accepted, "dashboard.received.value_scaled") < line.quantity.valueScaled
-          );
-        });
+        const receivingFacts = await receivingFactsForPurchase(
+          store,
+          input.workspaceId,
+          purchase.id,
+        );
+        const receivingIntegrity = [...receivingFacts.values()].some((facts) => facts.integrity);
+        const remaining = [...receivingFacts.values()].some(
+          (facts) => facts.remainingQuantityScaled > 0,
+        );
+        const physicalState = receivingIntegrity
+          ? "attention"
+          : remaining
+            ? "needs_receiving"
+            : "received";
         const purchaseReceiptTimes = [...store.purchaseReceipts.values()]
           .filter(
             (receipt) =>
@@ -585,14 +551,15 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             "Nhà cung cấp",
           amount: purchase.totalAmount,
           commercialState: purchase.voidRecord === null ? "confirmed" : "voided",
-          physicalState: remaining ? "needs_receiving" : "received",
+          physicalState,
           financialState: purchase.voidRecord === null ? "payable" : "voided",
           returnedFulfilment: false,
           fulfilmentRemainderOutcome: null,
           unallocatedPayment: false,
           unallocatedPaymentAmount: null,
           ageSeconds: Math.max(0, (Date.parse(input.now) - Date.parse(purchase.recordedAt)) / 1000),
-          nextAction: purchase.voidRecord !== null || !remaining ? null : "Nhận hàng",
+          nextAction:
+            purchase.voidRecord !== null || !remaining || receivingIntegrity ? null : "Nhận hàng",
           exceptions: deriveOperationsBoardExceptions({
             id: purchase.id,
             kind: "purchase",
@@ -600,13 +567,13 @@ export const createDashboardReads = (store: Store): Pick<Repositories, "dashboar
             href: `/purchases/${purchase.id}`,
             amountMinor: purchase.totalAmount.amountMinor,
             dueAt: null,
-            physicalState: remaining ? "needs_receiving" : "received",
+            physicalState,
             commercialState: purchase.voidRecord === null ? "confirmed" : "voided",
             financialState: purchase.voidRecord === null ? "payable" : "voided",
             returnedFulfilment: false,
             unallocatedPayment: false,
             unallocatedPaymentAmountMinor: null,
-            reconciliationVariance: false,
+            reconciliationVariance: receivingIntegrity,
             fulfilmentRemainderUnresolved: false,
             fulfilmentRemainderOutcome: null,
             returnSettlementResolved: false,

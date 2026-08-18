@@ -74,6 +74,8 @@ import type {
   CashMovementDraft,
   StocktakeCountState,
   StocktakeSessionState,
+  SaleLineFulfilmentFacts,
+  PurchaseLineReceivingFacts,
 } from "@vuarau/domain-kernel";
 import type { CustomerOrderRepository } from "./customer-order-ports.ts";
 import type { SupplyCommitmentRepository } from "./supply-commitment-ports.ts";
@@ -309,10 +311,10 @@ export type ReceiptRepository = {
   findById(workspaceId: WorkspaceId, receiptId: string): Promise<PurchaseReceiptState | null>;
   insert(receipt: PurchaseReceiptState): Promise<void>;
   insertReversal(reversal: PurchaseReceiptReversalState): Promise<boolean>;
-  netReceivedByPurchaseLine(
+  receivingFactsByPurchaseLine(
     workspaceId: WorkspaceId,
     purchaseId: string,
-  ): Promise<ReadonlyMap<string, number>>;
+  ): Promise<ReadonlyMap<string, PurchaseLineReceivingFacts>>;
 };
 export type InventoryBalanceState = {
   workspaceId: WorkspaceId;
@@ -384,7 +386,7 @@ export type DeliveryRepository = {
   fulfilmentBySaleLine(
     workspaceId: WorkspaceId,
     saleId: SaleId,
-  ): Promise<ReadonlyMap<string, { readonly dispatched: number; readonly returned: number }>>;
+  ): Promise<ReadonlyMap<string, SaleLineFulfilmentFacts>>;
 };
 
 export type DocumentRepository = {

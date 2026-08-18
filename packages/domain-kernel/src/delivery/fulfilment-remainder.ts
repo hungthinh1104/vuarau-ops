@@ -8,16 +8,20 @@ import type { SaleState } from "../shared/state.ts";
 import type { DomainResult } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
 import { exactIntegerDifference } from "../shared/money.ts";
+import type { SaleLineFulfilmentFacts } from "../inventory/operational-facts.ts";
 
 export function saleHasPositiveFulfilmentRemainder(
   sale: SaleState,
-  fulfilment: ReadonlyMap<string, { readonly dispatched: number; readonly returned: number }>,
+  fulfilment: ReadonlyMap<
+    string,
+    Pick<SaleLineFulfilmentFacts, "dispatchedQuantityScaled" | "returnedQuantityScaled">
+  >,
 ): boolean {
   return sale.lines.some((line) => {
     const fact = fulfilment.get(line.lineId);
     const netFulfilled = exactIntegerDifference(
-      fact?.dispatched ?? 0,
-      fact?.returned ?? 0,
+      fact?.dispatchedQuantityScaled ?? 0,
+      fact?.returnedQuantityScaled ?? 0,
       "fulfilment.remainder.net_fulfilled.quantity_scaled",
     );
     return (

@@ -222,7 +222,17 @@ export async function queryRows(
       where ${filterClause}
     )`;
   const rows = await tx.execute(sql`
-    with recursive ${searchCtes} ${paymentCtes} ${activityQueryCtes} ${candidateCtes} ${scopedFactCtes} latest_delivery as (
+    with recursive ${searchCtes} ${paymentCtes} ${activityQueryCtes} ${candidateCtes} ${scopedFactCtes} current_return_settlements as (
+      select settlements.workspace_id, settlements.return_id
+      from delivery_return_settlements settlements
+      where settlements.workspace_id=${input.workspaceId}::uuid
+        and not exists (
+          select 1
+          from delivery_return_settlements successor
+          where successor.workspace_id=settlements.workspace_id
+            and successor.related_settlement_id=settlements.id
+        )
+    ), latest_delivery as (
       select distinct on (d.sale_id) d.sale_id, d.id as delivery_id
       from deliveries d
       ${
@@ -244,23 +254,8 @@ export async function queryRows(
         on return_rollup_candidate.kind='sale' and return_rollup_candidate.id=d.sale_id`
           : sql``
       }
-      left join (
-        select distinct settlements.workspace_id, settlements.return_id
-        from delivery_return_settlements settlements
-        ${
-          useFastPage
-            ? sql`join delivery_returns settled_return
-          on settled_return.workspace_id=settlements.workspace_id
-          and settled_return.id=settlements.return_id
-          join deliveries settled_delivery
-          on settled_delivery.workspace_id=settled_return.workspace_id
-          and settled_delivery.id=settled_return.delivery_id
-          join candidate_scope settled_candidate
-          on settled_candidate.kind='sale' and settled_candidate.id=settled_delivery.sale_id`
-            : sql``
-        }
-        where settlements.workspace_id=${input.workspaceId}::uuid
-      ) settled on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
+      left join current_return_settlements settled
+        on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
       where dr.workspace_id=${input.workspaceId}::uuid
       group by d.sale_id
     ), unresolved_return as (
@@ -276,26 +271,11 @@ export async function queryRows(
         on unresolved_return_candidate.kind='sale' and unresolved_return_candidate.id=d.sale_id`
           : sql``
       }
-      left join (
-        select distinct settlements.workspace_id, settlements.return_id
-        from delivery_return_settlements settlements
-        ${
-          useFastPage
-            ? sql`join delivery_returns settled_return
-          on settled_return.workspace_id=settlements.workspace_id
-          and settled_return.id=settlements.return_id
-          join deliveries settled_delivery
-          on settled_delivery.workspace_id=settled_return.workspace_id
-          and settled_delivery.id=settled_return.delivery_id
-          join candidate_scope settled_candidate
-          on settled_candidate.kind='sale' and settled_candidate.id=settled_delivery.sale_id`
-            : sql``
-        }
-        where settlements.workspace_id=${input.workspaceId}::uuid
-      ) settled on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
+      left join current_return_settlements settled
+        on settled.workspace_id=dr.workspace_id and settled.return_id=dr.id
       where dr.workspace_id=${input.workspaceId}::uuid
         and settled.return_id is null
-      order by d.sale_id, dr.recorded_at desc, dr.id desc
+      order by d.sale_id, dr.id asc
     ), return_settlement_status as (
       select rollup.sale_id,
         rollup.all_resolved,
@@ -371,11 +351,16 @@ export async function queryRows(
       where pa.workspace_id=${input.workspaceId}::uuid group by pa.sale_id
     ), purchase_received as (
       select purchase_id, purchase_line_id as line_id, ordered_quantity_scaled as quantity_scaled,
-        received_net_quantity_scaled as received
+        received_net_quantity_scaled as received, integrity
       from ${useFastPage ? sql`purchase_scoped_facts` : sql`purchase_line_receiving_facts_v1`}
       where workspace_id=${input.workspaceId}::uuid
     ), purchase_physical as (
-      select p.id, case when bool_and(pr.received >= pr.quantity_scaled) then 'received' else 'needs_receiving' end as physical_state
+      select p.id,
+        case
+          when bool_or(pr.integrity) then 'attention'
+          when bool_and(pr.received >= pr.quantity_scaled) then 'received'
+          else 'needs_receiving'
+        end as physical_state
       from purchases p ${purchaseSearchJoin} ${purchaseCandidateJoin} join purchase_received pr on pr.purchase_id=p.id
       where p.workspace_id=${input.workspaceId}::uuid group by p.id
     ), board_rows as (

@@ -8,13 +8,13 @@ import {
 } from "@vuarau/domain-contracts";
 import {
   deriveProductCoverageQuantity,
-  derivePurchaseLineReceivingFacts,
-  deriveSaleLineFulfilmentFacts,
   type InventoryValuationMovement,
 } from "@vuarau/domain-kernel";
 import { PersistedIntegrityError, PersistedNumberOutOfRangeError } from "@vuarau/db";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
+import { fulfilmentFactsForSale } from "../repositories/delivery.ts";
+import { receivingFactsForPurchase } from "../repositories/purchase.ts";
 import { intakeSourceRoot } from "../repositories/intake.ts";
 
 const MIN_SAFE_BIGINT = BigInt(Number.MIN_SAFE_INTEGER);
@@ -38,14 +38,6 @@ function exactQuantityOperation(
 
 function exactAdd(left: number, right: number, field: string): number {
   return exactQuantityOperation(left, right, "add", field);
-}
-
-function exactSubtract(left: number, right: number, field: string): number {
-  return exactQuantityOperation(left, right, "subtract", field);
-}
-
-function remainingQuantity(total: number, fulfilled: number, field: string): number {
-  return Math.max(0, exactSubtract(total, fulfilled, field));
 }
 
 export const createInventoryReads = (store: Store): Pick<Repositories, "inventoryReads"> => ({
@@ -180,54 +172,6 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
         totals.onHand = exactAdd(totals.onHand, balance.quantityScaled, "product_coverage.on_hand");
       }
 
-      const acceptedByPurchaseLine = new Map<string, { unit: Unit; valueScaled: number }>();
-      for (const disposition of store.qualityDispositions.values()) {
-        if (disposition.workspaceId !== workspaceId || disposition.reversal !== null) continue;
-        const root = intakeSourceRoot(store, workspaceId, disposition.source);
-        if (
-          root?.active !== true ||
-          root.line.purchaseLineId === null ||
-          root.line.purchaseLineId === undefined
-        )
-          continue;
-        for (const allocation of disposition.allocations) {
-          if (allocation.outcome !== "accepted") continue;
-          const current = acceptedByPurchaseLine.get(root.line.purchaseLineId);
-          if (current !== undefined && current.unit !== allocation.quantity.unit) {
-            throw new PersistedIntegrityError(
-              `Purchase line ${root.line.purchaseLineId} has mixed accepted units.`,
-            );
-          }
-          acceptedByPurchaseLine.set(root.line.purchaseLineId, {
-            unit: allocation.quantity.unit,
-            valueScaled: exactAdd(
-              current?.valueScaled ?? 0,
-              allocation.quantity.valueScaled,
-              "product_coverage.accepted_inbound",
-            ),
-          });
-        }
-      }
-      const receivedByPurchaseLine = new Map<string, { unit: Unit; valueScaled: number }>();
-      for (const receipt of store.purchaseReceipts.values()) {
-        if (receipt.workspaceId !== workspaceId || receipt.reversal !== null) continue;
-        for (const line of receipt.lines) {
-          const current = receivedByPurchaseLine.get(line.purchaseLineId);
-          if (current !== undefined && current.unit !== line.quantity.unit) {
-            throw new PersistedIntegrityError(
-              `Purchase line ${line.purchaseLineId} has mixed receipt units.`,
-            );
-          }
-          receivedByPurchaseLine.set(line.purchaseLineId, {
-            unit: line.quantity.unit,
-            valueScaled: exactAdd(
-              current?.valueScaled ?? 0,
-              line.quantity.valueScaled,
-              "product_coverage.received_inbound",
-            ),
-          });
-        }
-      }
       for (const purchase of store.purchases.values()) {
         if (
           purchase.workspaceId !== workspaceId ||
@@ -235,23 +179,11 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           purchase.voidRecord !== null
         )
           continue;
+        const receivingFacts = await receivingFactsForPurchase(store, workspaceId, purchase.id);
         for (const line of purchase.lines) {
           if (!requested.has(line.productId)) continue;
-          const receivedFact = receivedByPurchaseLine.get(line.lineId);
-          const acceptedFact = acceptedByPurchaseLine.get(line.lineId);
-          for (const fact of [receivedFact, acceptedFact]) {
-            if (fact !== undefined && fact.unit !== line.quantity.unit) {
-              throw new PersistedIntegrityError(
-                `Purchase line ${line.lineId} has a quantity unit mismatch.`,
-              );
-            }
-          }
-          const receiving = derivePurchaseLineReceivingFacts({
-            orderedQuantityScaled: line.quantity.valueScaled,
-            directReceivedNetQuantityScaled: receivedFact?.valueScaled ?? 0,
-            inspectedAcceptedNetQuantityScaled: acceptedFact?.valueScaled ?? 0,
-          });
-          if (receiving.integrity) {
+          const receiving = receivingFacts.get(line.lineId);
+          if (receiving === undefined || receiving.integrity) {
             throw new PersistedIntegrityError(
               "Product coverage contains an over-received purchase line.",
             );
@@ -259,73 +191,12 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           const totals = ensure(line.productId, null, null, line.quantity.unit);
           totals.inboundRemaining = exactAdd(
             totals.inboundRemaining,
-            remainingQuantity(
-              line.quantity.valueScaled,
-              receiving.receivedNetQuantityScaled,
-              "product_coverage.inbound_remaining",
-            ),
+            receiving.remainingQuantityScaled,
             "product_coverage.inbound_remaining",
           );
         }
       }
 
-      const fulfilmentBySaleLine = new Map<string, { unit: Unit; valueScaled: number }>();
-      const returnedBySaleLine = new Map<string, { unit: Unit; valueScaled: number }>();
-      const deliveryLineToSaleLine = new Map<string, string>();
-      for (const delivery of store.deliveries.values()) {
-        if (
-          delivery.workspaceId !== workspaceId ||
-          !["dispatched", "delivered"].includes(delivery.status)
-        )
-          continue;
-        for (const line of delivery.lines) {
-          deliveryLineToSaleLine.set(line.deliveryLineId, line.saleLineId);
-          const current = fulfilmentBySaleLine.get(line.saleLineId);
-          if (current !== undefined && current.unit !== line.quantity.unit) {
-            throw new PersistedIntegrityError(
-              `Sale line ${line.saleLineId} has mixed delivery units.`,
-            );
-          }
-          fulfilmentBySaleLine.set(line.saleLineId, {
-            unit: line.quantity.unit,
-            valueScaled: exactAdd(
-              current?.valueScaled ?? 0,
-              line.quantity.valueScaled,
-              "product_coverage.fulfilled_outbound",
-            ),
-          });
-        }
-      }
-      for (const returned of store.deliveryReturns) {
-        if (returned.workspaceId !== workspaceId) continue;
-        for (const line of returned.lines) {
-          const saleLineId = deliveryLineToSaleLine.get(line.deliveryLineId);
-          if (saleLineId === undefined) continue;
-          const current = fulfilmentBySaleLine.get(saleLineId);
-          if (current !== undefined && current.unit !== line.quantity.unit) {
-            throw new PersistedIntegrityError(
-              `Sale line ${saleLineId} has mixed delivery and return units.`,
-            );
-          }
-          fulfilmentBySaleLine.set(saleLineId, {
-            unit: line.quantity.unit,
-            valueScaled: exactSubtract(
-              current?.valueScaled ?? 0,
-              line.quantity.valueScaled,
-              "product_coverage.returned_outbound",
-            ),
-          });
-          const returnedCurrent = returnedBySaleLine.get(saleLineId);
-          returnedBySaleLine.set(saleLineId, {
-            unit: line.quantity.unit,
-            valueScaled: exactAdd(
-              returnedCurrent?.valueScaled ?? 0,
-              line.quantity.valueScaled,
-              "product_coverage.returned_outbound",
-            ),
-          });
-        }
-      }
       for (const sale of store.sales.values()) {
         if (
           sale.workspaceId !== workspaceId ||
@@ -333,32 +204,11 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           sale.voidRecord !== null
         )
           continue;
+        const fulfilmentFacts = fulfilmentFactsForSale(store, workspaceId, sale.id, null);
         for (const line of sale.lines) {
           if (line.productId === null || !requested.has(line.productId)) continue;
-          const fulfilledFact = fulfilmentBySaleLine.get(line.lineId);
-          if (fulfilledFact !== undefined && fulfilledFact.unit !== line.quantity.unit) {
-            throw new PersistedIntegrityError(
-              `Sale line ${line.lineId} has a quantity unit mismatch.`,
-            );
-          }
-          const fulfilled = fulfilledFact?.valueScaled ?? 0;
-          const returnedFact = returnedBySaleLine.get(line.lineId);
-          if (returnedFact !== undefined && returnedFact.unit !== line.quantity.unit) {
-            throw new PersistedIntegrityError(
-              `Sale line ${line.lineId} has a returned quantity unit mismatch.`,
-            );
-          }
-          const fulfilment = deriveSaleLineFulfilmentFacts({
-            orderedQuantityScaled: line.quantity.valueScaled,
-            dispatchedQuantityScaled: exactAdd(
-              fulfilled,
-              returnedFact?.valueScaled ?? 0,
-              "product_coverage.dispatched_outbound",
-            ),
-            returnedQuantityScaled: returnedFact?.valueScaled ?? 0,
-            activeDispatchedRemainingQuantityScaled: 0,
-          });
-          if (fulfilment.integrity) {
+          const fulfilment = fulfilmentFacts.get(line.lineId);
+          if (fulfilment === undefined || fulfilment.integrity) {
             throw new PersistedIntegrityError(
               "Product coverage contains an over-fulfilled sale line.",
             );
@@ -371,11 +221,7 @@ export const createInventoryReads = (store: Store): Pick<Repositories, "inventor
           );
           totals.outboundRemaining = exactAdd(
             totals.outboundRemaining,
-            remainingQuantity(
-              line.quantity.valueScaled,
-              fulfilment.netFulfilledQuantityScaled,
-              "product_coverage.outbound_remaining",
-            ),
+            fulfilment.remainingQuantityScaled,
             "product_coverage.outbound_remaining",
           );
         }

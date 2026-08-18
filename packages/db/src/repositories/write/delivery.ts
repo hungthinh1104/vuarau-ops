@@ -1,6 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { SaleId, WorkspaceId, DeliveryId } from "@vuarau/domain-contracts";
-import type { DeliveryState, DeliveryReturnState } from "@vuarau/domain-kernel";
+import type {
+  DeliveryState,
+  DeliveryReturnState,
+  SaleLineFulfilmentFacts,
+} from "@vuarau/domain-kernel";
 import {
   deliveries,
   deliveryLines,
@@ -176,32 +180,42 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
       excludeDeliveryId: DeliveryId | null,
     ) {
       const rows = await tx.execute(sql`
-          with dispatched as (
-            select dl.sale_line_id, sum(dl.quantity_scaled) as quantity
+          with excluded_dispatched as (
+            select dl.sale_line_id, sum(dl.quantity_scaled) as dispatched
             from ${deliveryLines} dl
             join ${deliveries} d
               on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
             where d.workspace_id = ${workspaceId}::uuid
               and d.sale_id = ${saleId}::uuid
               and d.status in ('dispatched', 'delivered')
-              and (${excludeDeliveryId}::uuid is null or d.id <> ${excludeDeliveryId}::uuid)
+              and d.id = ${excludeDeliveryId}::uuid
             group by dl.sale_line_id
-          ), returned as (
-            select dl.sale_line_id, sum(drl.quantity_scaled) as quantity
+          ), excluded_returned as (
+            select dl.sale_line_id, sum(drl.quantity_scaled) as returned
             from ${deliveryReturnLines} drl
-            join ${deliveryReturns} dr on dr.id = drl.return_id
-            join ${deliveryLines} dl on dl.id = drl.delivery_line_id
+            join ${deliveryReturns} dr
+              on dr.workspace_id = drl.workspace_id and dr.id = drl.return_id
+            join ${deliveryLines} dl
+              on dl.workspace_id = drl.workspace_id and dl.id = drl.delivery_line_id
             join ${deliveries} d
               on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
             where d.workspace_id = ${workspaceId}::uuid
               and d.sale_id = ${saleId}::uuid
-              and (${excludeDeliveryId}::uuid is null or d.id <> ${excludeDeliveryId}::uuid)
+              and d.status in ('dispatched', 'delivered')
+              and d.id = ${excludeDeliveryId}::uuid
             group by dl.sale_line_id
           )
-          select coalesce(dispatched.sale_line_id, returned.sale_line_id) as "saleLineId",
-            (coalesce(dispatched.quantity, 0) - coalesce(returned.quantity, 0)) as "net"
-          from dispatched
-          full join returned using (sale_line_id)
+          select facts.sale_line_id as "saleLineId",
+            facts.net_fulfilled_quantity_scaled
+              - coalesce(excluded_dispatched.dispatched, 0)
+              + coalesce(excluded_returned.returned, 0) as "net"
+          from sale_line_fulfilment_facts_v1 facts
+          left join excluded_dispatched
+            on excluded_dispatched.sale_line_id = facts.sale_line_id
+          left join excluded_returned
+            on excluded_returned.sale_line_id = facts.sale_line_id
+          where facts.workspace_id = ${workspaceId}::uuid
+            and facts.sale_id = ${saleId}::uuid
         `);
       return new Map(
         (rows as unknown as Array<{ saleLineId: string; net: number | string }>).map((row) => [
@@ -212,32 +226,15 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
     },
     async fulfilmentBySaleLine(workspaceId: WorkspaceId, saleId: SaleId) {
       const rows = await tx.execute(sql`
-          with dispatched as (
-            select dl.sale_line_id, sum(dl.quantity_scaled) as quantity
-            from ${deliveryLines} dl
-            join ${deliveries} d
-              on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
-            where d.workspace_id = ${workspaceId}::uuid
-              and d.sale_id = ${saleId}::uuid
-              and d.status in ('dispatched', 'delivered')
-            group by dl.sale_line_id
-          ), returned as (
-            select dl.sale_line_id, sum(drl.quantity_scaled) as quantity
-            from ${deliveryReturnLines} drl
-            join ${deliveryReturns} dr
-              on dr.workspace_id = ${workspaceId}::uuid and dr.id = drl.return_id
-            join ${deliveryLines} dl on dl.id = drl.delivery_line_id
-            join ${deliveries} d
-              on d.workspace_id = dl.workspace_id and d.id = dl.delivery_id
-            where d.workspace_id = ${workspaceId}::uuid
-              and d.sale_id = ${saleId}::uuid
-            group by dl.sale_line_id
-          )
-          select coalesce(dispatched.sale_line_id, returned.sale_line_id) as "saleLineId",
-            coalesce(dispatched.quantity, 0) as "dispatched",
-            coalesce(returned.quantity, 0) as "returned"
-          from dispatched
-          full join returned using (sale_line_id)
+          select sale_line_id as "saleLineId",
+            dispatched_quantity_scaled as "dispatched",
+            returned_quantity_scaled as "returned",
+            net_fulfilled_quantity_scaled as "netFulfilled",
+            active_dispatched_remaining_quantity_scaled as "activeDispatchedRemaining",
+            remaining_quantity_scaled as "remaining",
+            integrity
+          from sale_line_fulfilment_facts_v1
+          where workspace_id = ${workspaceId}::uuid and sale_id = ${saleId}::uuid
         `);
       return new Map(
         (
@@ -245,13 +242,36 @@ export const createDeliveryWriteRepositories = (tx: Tx) => ({
             saleLineId: string;
             dispatched: number | string;
             returned: number | string;
+            netFulfilled: number | string;
+            activeDispatchedRemaining: number | string;
+            remaining: number | string;
+            integrity: boolean;
           }>
         ).map((row) => [
           String(row.saleLineId),
           {
-            dispatched: persistedBigintToSafeNumber(row.dispatched, "delivery dispatched quantity"),
-            returned: persistedBigintToSafeNumber(row.returned, "delivery returned quantity"),
-          },
+            dispatchedQuantityScaled: persistedBigintToSafeNumber(
+              row.dispatched,
+              "delivery dispatched quantity",
+            ),
+            returnedQuantityScaled: persistedBigintToSafeNumber(
+              row.returned,
+              "delivery returned quantity",
+            ),
+            netFulfilledQuantityScaled: persistedBigintToSafeNumber(
+              row.netFulfilled,
+              "delivery net fulfilled quantity",
+            ),
+            activeDispatchedRemainingQuantityScaled: persistedBigintToSafeNumber(
+              row.activeDispatchedRemaining,
+              "delivery active remaining quantity",
+            ),
+            remainingQuantityScaled: persistedBigintToSafeNumber(
+              row.remaining,
+              "delivery remaining quantity",
+            ),
+            integrity: row.integrity,
+          } satisfies SaleLineFulfilmentFacts,
         ]),
       );
     },

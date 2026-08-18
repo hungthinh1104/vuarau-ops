@@ -5,7 +5,8 @@ import { encodeCursor, vietnamBusinessDateForInstant } from "@vuarau/domain-cont
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
 import { key, takePage } from "../store.ts";
 import type { Store } from "../store.ts";
-import { exactAdd, exactSubtract } from "./exact-number.ts";
+import { exactAdd } from "./exact-number.ts";
+import { fulfilmentFactsForSale } from "../repositories/delivery.ts";
 
 export const createReportReads = (store: Store): Pick<Repositories, "reportReads"> => ({
   reportReads: {
@@ -20,6 +21,7 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
     }) => {
       type Row = OperationalReportDto["page"]["items"][number];
       let rows: Row[] = [];
+      const diagnostics: string[] = [];
       if (reportType === "customer_account_activity") {
         rows = store.accountEntries
           .filter((entry) => entry.workspaceId === workspaceId)
@@ -265,45 +267,12 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
             sale.voidRecord !== null
           )
             continue;
-          const fulfilled = new Map<string, number>();
-          for (const delivery of store.deliveries.values()) {
-            if (
-              delivery.workspaceId !== workspaceId ||
-              delivery.saleId !== sale.id ||
-              !["dispatched", "delivered"].includes(delivery.status)
-            )
-              continue;
-            for (const line of delivery.lines)
-              fulfilled.set(
-                line.saleLineId,
-                exactAdd(
-                  fulfilled.get(line.saleLineId) ?? 0,
-                  line.quantity.valueScaled,
-                  "report.outstanding_delivery.value_scaled",
-                ),
-              );
-            for (const returned of delivery.returns)
-              for (const returnLine of returned.lines) {
-                const deliveryLine = delivery.lines.find(
-                  (line) => line.deliveryLineId === returnLine.deliveryLineId,
-                );
-                if (deliveryLine !== undefined)
-                  fulfilled.set(
-                    deliveryLine.saleLineId,
-                    exactSubtract(
-                      fulfilled.get(deliveryLine.saleLineId) ?? 0,
-                      returnLine.quantity.valueScaled,
-                      "report.outstanding_delivery.value_scaled",
-                    ),
-                  );
-              }
-          }
+          const fulfilment = fulfilmentFactsForSale(store, workspaceId, sale.id, null);
+          if ([...fulfilment.values()].some((facts) => facts.integrity))
+            diagnostics.push("fulfilment_integrity_failure");
           for (const line of sale.lines) {
-            const remaining = exactSubtract(
-              line.quantity.valueScaled,
-              fulfilled.get(line.lineId) ?? 0,
-              "report.outstanding_delivery.value_scaled",
-            );
+            const facts = fulfilment.get(line.lineId);
+            const remaining = facts?.remainingQuantityScaled ?? line.quantity.valueScaled;
             if (remaining > 0)
               rows.push({
                 id: line.lineId,
@@ -353,8 +322,8 @@ export const createReportReads = (store: Store): Pick<Repositories, "reportReads
         reportType,
         businessDate,
         timezone: "Asia/Ho_Chi_Minh",
-        integrity: "healthy",
-        diagnostics: [],
+        integrity: diagnostics.length === 0 ? "healthy" : "attention",
+        diagnostics,
         totals: {
           amount:
             amounts.length === 0

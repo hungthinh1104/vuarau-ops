@@ -100,6 +100,12 @@ workspace timelines; the report repository now applies workspace/date/cursor and
 `LIMIT` in PostgreSQL before mapping. The repeated plan above is the post-fix
 evidence.
 
+The one-account reconciliation check is a source-truth aggregate rather than a
+page read. The scale fixture deliberately assigns 80% of customer ledger rows to
+one hot customer, so PostgreSQL may choose a sequential scan for that account;
+the release gate still enforces its 75 ms p95 budget. Page and keyset reads keep
+the stricter no-sequential-scan policy.
+
 Totals intentionally aggregate the selected canonical population. The harness
 measures those full-population aggregates separately with a 250 ms p95 budget and
 permits their explained sequential scans; every page/read query still fails on a

@@ -1,10 +1,9 @@
 import type { WorkspaceId } from "@vuarau/domain-contracts";
-import { PersistedNumberOutOfRangeError } from "@vuarau/db";
 import type { PurchaseState } from "@vuarau/domain-kernel";
 import type { Repositories } from "../../infrastructure/persistence/ports.ts";
 import { CommandIntegrityError } from "./integrity.ts";
 
-type ReceivingRepositories = Pick<Repositories, "purchaseReceipts" | "qualityDispositions">;
+type ReceivingRepositories = Pick<Repositories, "purchaseReceipts">;
 
 /**
  * One quantity contract for both receiving paths.
@@ -19,26 +18,17 @@ export async function acceptedQuantityByPurchaseLine(
   workspaceId: WorkspaceId,
   purchase: Pick<PurchaseState, "id" | "lines">,
 ): Promise<ReadonlyMap<string, number>> {
-  const direct = await repos.purchaseReceipts.netReceivedByPurchaseLine(workspaceId, purchase.id);
-  const inspected = await repos.qualityDispositions.acceptedQuantitiesForPurchaseLines(
-    workspaceId,
-    purchase.lines.map((line) => line.lineId),
-  );
-  const combined = new Map(direct);
+  const facts = await repos.purchaseReceipts.receivingFactsByPurchaseLine(workspaceId, purchase.id);
+  const combined = new Map<string, number>();
   for (const line of purchase.lines) {
-    const quantity = inspected.get(line.lineId);
-    if (quantity === undefined) continue;
-    if (quantity.unit !== line.quantity.unit) {
+    const fact = facts.get(line.lineId);
+    if (fact?.integrity === true) {
       throw new CommandIntegrityError(
         "INVENTORY_RECONCILIATION_INTEGRITY_FAILURE",
-        `Purchase line ${line.lineId} has mixed receiving units.`,
+        `Purchase line ${line.lineId} has invalid receiving facts.`,
       );
     }
-    const total = BigInt(combined.get(line.lineId) ?? 0) + BigInt(quantity.valueScaled);
-    if (total < BigInt(Number.MIN_SAFE_INTEGER) || total > BigInt(Number.MAX_SAFE_INTEGER)) {
-      throw new PersistedNumberOutOfRangeError(`purchase_receiving.${line.lineId}.quantity`);
-    }
-    combined.set(line.lineId, Number(total));
+    combined.set(line.lineId, fact?.receivedNetQuantityScaled ?? 0);
   }
   return combined;
 }

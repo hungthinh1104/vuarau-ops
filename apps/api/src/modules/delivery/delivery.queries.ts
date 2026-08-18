@@ -5,12 +5,7 @@ import type {
   SaleFulfilmentInput,
 } from "@vuarau/domain-contracts";
 import { denied, roleHasPermission } from "@vuarau/domain-contracts";
-import {
-  canCreateDeliveryDraftForSale,
-  err,
-  exactIntegerDifference,
-  ok,
-} from "@vuarau/domain-kernel";
+import { canCreateDeliveryDraftForSale, err, ok } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
 
@@ -98,30 +93,20 @@ export async function getSaleFulfilment(ctx: CommandContext, input: SaleFulfilme
             role: membership.role,
           });
       const lines: SaleFulfilmentDto["lines"] = sale.lines.map((line) => {
-        const amounts = fulfilment.get(line.lineId) ?? { dispatched: 0, returned: 0 };
-        const net = exactIntegerDifference(
-          amounts.dispatched,
-          amounts.returned,
-          "delivery.fulfilment.net_quantity_scaled",
-        );
-        const remaining = exactIntegerDifference(
-          line.quantity.valueScaled,
-          net,
-          "delivery.fulfilment.remaining_quantity_scaled",
-        );
+        const facts = fulfilment.get(line.lineId);
+        const dispatched = facts?.dispatchedQuantityScaled ?? 0;
+        const returned = facts?.returnedQuantityScaled ?? 0;
+        const net = facts?.netFulfilledQuantityScaled ?? 0;
+        const remaining = facts?.remainingQuantityScaled ?? line.quantity.valueScaled;
         const invalid =
           line.productId === null ||
           (line.qualityGradeId !== null && line.qualityGradeName === null) ||
-          amounts.dispatched < 0 ||
-          amounts.returned < 0 ||
-          amounts.returned > amounts.dispatched ||
-          net < 0 ||
-          net > line.quantity.valueScaled;
+          facts?.integrity === true;
         const fulfilmentState = invalid
           ? ("attention" as const)
           : remaining === 0
             ? ("fulfilled" as const)
-            : amounts.returned > 0
+            : returned > 0
               ? ("returned_partial" as const)
               : net > 0
                 ? ("partially_fulfilled" as const)
@@ -133,8 +118,8 @@ export async function getSaleFulfilment(ctx: CommandContext, input: SaleFulfilme
           qualityGradeId: line.qualityGradeId,
           qualityGradeName: line.qualityGradeName,
           ordered: line.quantity,
-          dispatched: { valueScaled: amounts.dispatched, unit: line.quantity.unit },
-          returned: { valueScaled: amounts.returned, unit: line.quantity.unit },
+          dispatched: { valueScaled: dispatched, unit: line.quantity.unit },
+          returned: { valueScaled: returned, unit: line.quantity.unit },
           netFulfilled: { valueScaled: net, unit: line.quantity.unit },
           remaining: { valueScaled: remaining, unit: line.quantity.unit },
           fulfilmentState,

@@ -422,7 +422,13 @@ export function QuickSaleFormView(model: QuickSaleFormModel) {
               onDiscard={() => void discard()}
               onSaveDraft={() => void saveDraft()}
               onConfirm={() => {
-                if (!model.allValid || !model.totalsReady || !model.fulfilmentReady) {
+                // Keep the confirmation boundary aligned with `resolveLine`:
+                // semantic row errors such as quantity 0 still have exact
+                // arithmetic and must reach the confirmation/post path so the
+                // server rejection can attach to the offending row. Only block
+                // when the preview cannot be formed or the fulfilment identity
+                // is incomplete.
+                if (!model.totalsReady || !model.fulfilmentReady) {
                   model.setSubmitted(true);
                   focusFirstInvalidField(lines, resolved, setActiveLineId, qualityGradeRequired);
                   return;

@@ -196,37 +196,20 @@ async function outstandingDeliveryAtScale(
 ): Promise<OperationalReportDto> {
   const after = args.page.after;
   const values = (await tx.execute(sql`
-    with dispatched as (
-      select dl.sale_line_id, sum(dl.quantity_scaled) as quantity
-      from delivery_lines dl
-      join deliveries d
-        on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-      where d.workspace_id=${args.workspaceId}::uuid
-        and d.status in ('dispatched','delivered')
-      group by dl.sale_line_id
-    ), returned as (
-      select dl.sale_line_id, sum(drl.quantity_scaled) as quantity
-      from delivery_return_lines drl
-      join delivery_returns dr
-        on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
-      join delivery_lines dl
-        on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
-      where dr.workspace_id=${args.workspaceId}::uuid
-      group by dl.sale_line_id
-    ), outstanding as (
+    with outstanding as (
       select s.id as sale_id, c.display_name, sl.id as sale_line_id,
-        sl.product_name, sl.quantity_scaled, sl.unit,
-        (coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0)) as net_fulfilled
+        sl.product_name, sl.unit, facts.remaining_quantity_scaled as remaining,
+        facts.integrity
       from sales s
       join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
       join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
-      left join dispatched on dispatched.sale_line_id=sl.id
-      left join returned on returned.sale_line_id=sl.id
+      join sale_line_fulfilment_facts_v1 facts
+        on facts.workspace_id=sl.workspace_id and facts.sale_line_id=sl.id
       left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
       where s.workspace_id=${args.workspaceId}::uuid and s.status='posted' and sv.id is null
         and (${args.productId}::uuid is null or sl.product_id=${args.productId}::uuid)
         and (${args.unit}::unit is null or sl.unit=${args.unit}::unit)
-        and sl.quantity_scaled > coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0)
+        and facts.remaining_quantity_scaled > 0
     )
     select * from outstanding
     where (${after?.id ?? null}::uuid is null or sale_line_id < ${after?.id ?? null}::uuid)
@@ -234,33 +217,18 @@ async function outstandingDeliveryAtScale(
     limit ${args.page.limit + 1}
   `)) as Record<string, unknown>[];
   const totals = (await tx.execute(sql`
-    with dispatched as (
-      select dl.sale_line_id, sum(dl.quantity_scaled) as quantity
-      from delivery_lines dl
-      join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-      where d.workspace_id=${args.workspaceId}::uuid and d.status in ('dispatched','delivered')
-      group by dl.sale_line_id
-    ), returned as (
-      select dl.sale_line_id, sum(drl.quantity_scaled) as quantity
-      from delivery_return_lines drl
-      join delivery_returns dr
-        on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
-      join delivery_lines dl
-        on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
-      where dr.workspace_id=${args.workspaceId}::uuid
-      group by dl.sale_line_id
-    )
     select sl.unit,
-      coalesce(sum(sl.quantity_scaled-coalesce(dispatched.quantity,0)+coalesce(returned.quantity,0)),0) as quantity
+      coalesce(sum(facts.remaining_quantity_scaled),0) as quantity,
+      coalesce(bool_or(facts.integrity), false) as integrity
     from sales s
     join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
-    left join dispatched on dispatched.sale_line_id=sl.id
-    left join returned on returned.sale_line_id=sl.id
+    join sale_line_fulfilment_facts_v1 facts
+      on facts.workspace_id=sl.workspace_id and facts.sale_line_id=sl.id
     left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
     where s.workspace_id=${args.workspaceId}::uuid and s.status='posted' and sv.id is null
       and (${args.productId}::uuid is null or sl.product_id=${args.productId}::uuid)
       and (${args.unit}::unit is null or sl.unit=${args.unit}::unit)
-      and sl.quantity_scaled > coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0)
+      and facts.remaining_quantity_scaled > 0
     group by sl.unit
   `)) as Record<string, unknown>[];
   const items: OperationalReportDto["page"]["items"] = values
@@ -278,10 +246,7 @@ async function outstandingDeliveryAtScale(
       transactionTime: null,
       amount: null,
       quantity: {
-        valueScaled: persistedBigintToSafeNumber(
-          BigInt(String(row["quantity_scaled"])) - BigInt(String(row["net_fulfilled"])),
-          "outstanding delivery quantity",
-        ),
+        valueScaled: persistedBigintToSafeNumber(row["remaining"], "outstanding delivery quantity"),
         unit: row["unit"] as typeof inventoryMovements.$inferSelect.unit,
       },
       status: "outstanding",
@@ -290,8 +255,10 @@ async function outstandingDeliveryAtScale(
     reportType: "outstanding_delivery",
     businessDate: args.businessDate,
     timezone: "Asia/Ho_Chi_Minh",
-    integrity: "healthy",
-    diagnostics: [],
+    integrity: totals.some((row) => row["integrity"] === true) ? "attention" : "healthy",
+    diagnostics: totals.some((row) => row["integrity"] === true)
+      ? ["fulfilment_integrity_failure"]
+      : [],
     totals: {
       amount: null,
       quantities: totals.map((row) => ({
@@ -507,63 +474,43 @@ export const createReportReadRepositories = (tx: Tx) => ({
         }));
       } else if (args.reportType === "outstanding_delivery") {
         const values = await tx.execute(sql`
-            with dispatched as (
-              select dl.sale_line_id, sum(dl.quantity_scaled) quantity
-              from delivery_lines dl
-              join deliveries d
-                on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-              where d.workspace_id=${args.workspaceId}::uuid
-                and d.status in ('dispatched','delivered')
-              group by dl.sale_line_id
-            ), returned as (
-              select dl.sale_line_id, sum(drl.quantity_scaled) quantity
-              from delivery_return_lines drl
-              join delivery_returns dr
-                on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
-              join delivery_lines dl
-                on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
-              where dr.workspace_id=${args.workspaceId}::uuid
-              group by dl.sale_line_id
-            )
             select s.id as sale_id, c.display_name,
-              sl.id as sale_line_id, sl.product_name, sl.quantity_scaled, sl.unit,
-              (coalesce(dispatched.quantity,0)-coalesce(returned.quantity,0))
-                as net_fulfilled
+              sl.id as sale_line_id, sl.product_name, sl.unit,
+              facts.remaining_quantity_scaled as remaining,
+              facts.integrity
             from sales s
             join customers c on c.workspace_id=s.workspace_id and c.id=s.customer_id
             join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
-            left join dispatched on dispatched.sale_line_id=sl.id
-            left join returned on returned.sale_line_id=sl.id
+            join sale_line_fulfilment_facts_v1 facts
+              on facts.workspace_id=sl.workspace_id and facts.sale_line_id=sl.id
             left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
             where s.workspace_id=${args.workspaceId}::uuid and s.status='posted' and sv.id is null
+              and (${args.productId}::uuid is null or sl.product_id=${args.productId}::uuid)
+              and (${args.unit}::unit is null or sl.unit=${args.unit}::unit)
+              and facts.remaining_quantity_scaled > 0
           `);
+        if (values.some((value) => value["integrity"] === true))
+          diagnostics.push("fulfilment_integrity_failure");
         rows = values.flatMap((value) => {
-          const ordered = persistedBigintToSafeNumber(
-            value["quantity_scaled"],
-            "outstanding delivery ordered quantity",
-          );
-          const net = persistedBigintToSafeNumber(
-            value["net_fulfilled"],
-            "outstanding delivery fulfilled quantity",
-          );
-          return ordered - net <= 0
-            ? []
-            : [
-                {
-                  id: String(value["sale_line_id"]),
-                  label: `${String(value["display_name"])} · ${String(value["product_name"])}`,
-                  sourceType: "sale",
-                  sourceId: String(value["sale_id"]),
-                  documentHref: `/sales/${String(value["sale_id"])}`,
-                  transactionTime: null,
-                  amount: null,
-                  quantity: {
-                    valueScaled: ordered - net,
-                    unit: value["unit"] as typeof inventoryMovements.$inferSelect.unit,
-                  },
-                  status: "outstanding",
-                },
-              ];
+          return [
+            {
+              id: String(value["sale_line_id"]),
+              label: `${String(value["display_name"])} · ${String(value["product_name"])}`,
+              sourceType: "sale",
+              sourceId: String(value["sale_id"]),
+              documentHref: `/sales/${String(value["sale_id"])}`,
+              transactionTime: null,
+              amount: null,
+              quantity: {
+                valueScaled: persistedBigintToSafeNumber(
+                  value["remaining"],
+                  "outstanding delivery quantity",
+                ),
+                unit: value["unit"] as typeof inventoryMovements.$inferSelect.unit,
+              },
+              status: "outstanding",
+            },
+          ];
         });
       }
       rows.sort((a, b) => {

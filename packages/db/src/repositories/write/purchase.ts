@@ -5,6 +5,7 @@ import type {
   PurchaseVoidState,
   PurchaseReceiptState,
   PurchaseReceiptReversalState,
+  PurchaseLineReceivingFacts,
 } from "@vuarau/domain-kernel";
 import {
   purchases,
@@ -285,22 +286,52 @@ export const createPurchaseWriteRepositories = (tx: Tx) => ({
         .returning({ id: purchaseReceiptReversals.id });
       return rows.length === 1;
     },
-    async netReceivedByPurchaseLine(workspaceId: WorkspaceId, purchaseId: string) {
+    async receivingFactsByPurchaseLine(workspaceId: WorkspaceId, purchaseId: string) {
       const rows = await tx.execute(sql`
-          select prl.purchase_line_id as "purchaseLineId",
-            coalesce(sum(case when prr.id is null then prl.quantity_scaled else 0 end), 0) as "net"
-          from purchase_receipt_lines prl
-          join purchase_receipts pr on pr.id = prl.receipt_id and pr.workspace_id = prl.workspace_id
-          left join purchase_receipt_reversals prr
-            on prr.workspace_id = pr.workspace_id and prr.receipt_id = pr.id
-          where pr.workspace_id = ${workspaceId}::uuid and pr.purchase_id = ${purchaseId}::uuid
-          group by prl.purchase_line_id
+          select purchase_line_id as "purchaseLineId",
+            direct_received_net_quantity_scaled as "directReceived",
+            inspected_accepted_net_quantity_scaled as "inspectedAccepted",
+            received_net_quantity_scaled as "received",
+            remaining_quantity_scaled as "remaining",
+            integrity
+          from purchase_line_receiving_facts_v1
+          where workspace_id = ${workspaceId}::uuid and purchase_id = ${purchaseId}::uuid
         `);
       return new Map(
-        (rows as unknown as Array<{ purchaseLineId: string; net: string }>).map((row) => [
-          row.purchaseLineId,
-          persistedBigintToSafeNumber(row.net, "purchase receipt net quantity"),
-        ]),
+        (
+          rows as unknown as Array<{
+            purchaseLineId: string;
+            directReceived: number | string;
+            inspectedAccepted: number | string;
+            received: number | string;
+            remaining: number | string;
+            integrity: boolean;
+          }>
+        ).map(
+          (row) =>
+            [
+              row.purchaseLineId,
+              {
+                directReceivedNetQuantityScaled: persistedBigintToSafeNumber(
+                  row.directReceived,
+                  "purchase direct received quantity",
+                ),
+                inspectedAcceptedNetQuantityScaled: persistedBigintToSafeNumber(
+                  row.inspectedAccepted,
+                  "purchase inspected accepted quantity",
+                ),
+                receivedNetQuantityScaled: persistedBigintToSafeNumber(
+                  row.received,
+                  "purchase received net quantity",
+                ),
+                remainingQuantityScaled: persistedBigintToSafeNumber(
+                  row.remaining,
+                  "purchase remaining quantity",
+                ),
+                integrity: row.integrity,
+              } satisfies PurchaseLineReceivingFacts,
+            ] as const,
+        ),
       );
     },
   },

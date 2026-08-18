@@ -61,8 +61,20 @@ function amountWidget(asOfValue: string, row: Row, amountName = "amount", countN
   };
 }
 
-function quantityWidget(asOfValue: string, rows: readonly Row[], count: number) {
-  return { availability: available(asOfValue), quantities: quantityTotals(rows), count };
+function quantityWidget(
+  asOfValue: string,
+  rows: readonly Row[],
+  count: number,
+  integrityFailure = false,
+  diagnostic = "dashboard_integrity_failure",
+) {
+  return {
+    availability: integrityFailure
+      ? { state: "attention" as const, diagnostics: [diagnostic], updatedAt: asOfValue }
+      : available(asOfValue),
+    quantities: quantityTotals(rows),
+    count,
+  };
 }
 
 async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSummaryDto> {
@@ -84,11 +96,17 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
         where p.workspace_id=${workspaceId}::uuid and p.status='confirmed'
       `),
       tx.execute(sql`
-        select im.unit, coalesce(sum(im.quantity_scaled), 0) as value
-        from inventory_movements im
-        where im.workspace_id=${workspaceId}::uuid
-          and im.source_type in ('purchase_receipt','purchase_receipt_reversal','quality_disposition','quality_disposition_reversal')
-        group by im.unit
+        select facts.unit,
+          coalesce(sum(facts.received_net_quantity_scaled), 0) as value,
+          coalesce(bool_or(facts.integrity), false) as integrity
+        from purchase_line_receiving_facts_v1 facts
+        join purchases p
+          on p.workspace_id=facts.workspace_id and p.id=facts.purchase_id
+        left join purchase_voids pv
+          on pv.workspace_id=p.workspace_id and pv.purchase_id=p.id
+        where facts.workspace_id=${workspaceId}::uuid
+          and p.status='confirmed' and pv.id is null
+        group by facts.unit
       `),
       tx.execute(sql`
         select ib.unit, coalesce(sum(ib.quantity_scaled), 0) as value
@@ -97,27 +115,15 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
         group by ib.unit
       `),
       tx.execute(sql`
-        with dispatched as (
-          select dl.sale_line_id, sum(dl.quantity_scaled) as value
-          from delivery_lines dl join deliveries d on d.workspace_id=dl.workspace_id and d.id=dl.delivery_id
-          where d.workspace_id=${workspaceId}::uuid and d.status in ('dispatched','delivered')
-          group by dl.sale_line_id
-        ), returned as (
-          select dl.sale_line_id, sum(drl.quantity_scaled) as value
-          from delivery_return_lines drl
-          join delivery_returns dr
-            on dr.workspace_id=drl.workspace_id and dr.id=drl.return_id
-          join delivery_lines dl
-            on dl.workspace_id=drl.workspace_id and dl.id=drl.delivery_line_id
-          where dr.workspace_id=${workspaceId}::uuid group by dl.sale_line_id
-        )
-        select sl.unit, coalesce(sum(greatest(sl.quantity_scaled-coalesce(dispatched.value,0)+coalesce(returned.value,0),0)),0) as value
+        select facts.unit,
+          coalesce(sum(facts.remaining_quantity_scaled),0) as value,
+          coalesce(bool_or(facts.integrity), false) as integrity
         from sales s join sale_lines sl on sl.workspace_id=s.workspace_id and sl.sale_id=s.id
-        left join dispatched on dispatched.sale_line_id=sl.id
-        left join returned on returned.sale_line_id=sl.id
+        join sale_line_fulfilment_facts_v1 facts
+          on facts.workspace_id=sl.workspace_id and facts.sale_line_id=sl.id
         left join sale_voids sv on sv.workspace_id=s.workspace_id and sv.sale_id=s.id
         where s.workspace_id=${workspaceId}::uuid and s.status='posted' and sv.id is null
-        group by sl.unit
+        group by facts.unit
       `),
       tx.execute(sql`
         select count(*) filter (where balance_minor > 0)::int as count, coalesce(sum(greatest(balance_minor,0)),0) as amount
@@ -132,17 +138,27 @@ async function querySummary(tx: Tx, workspaceId: string): Promise<DashboardSumma
         from cash_balances where workspace_id=${workspaceId}::uuid
       `),
     ]);
+  const receivedRows = received as Row[];
+  const outstandingRows = outstanding as Row[];
   return {
     workspaceId: workspaceId as DashboardSummaryDto["workspaceId"],
     asOf: timestamp,
     sales: amountWidget(timestamp, (sales[0] ?? {}) as Row),
     purchases: amountWidget(timestamp, (purchases[0] ?? {}) as Row),
-    received: quantityWidget(timestamp, received as Row[], (received as Row[]).length),
+    received: quantityWidget(
+      timestamp,
+      receivedRows,
+      receivedRows.length,
+      receivedRows.some((row) => row["integrity"] === true),
+      "receiving_integrity_failure",
+    ),
     stock: quantityWidget(timestamp, stock as Row[], (stock as Row[]).length),
     outstandingDelivery: quantityWidget(
       timestamp,
-      outstanding as Row[],
-      (outstanding as Row[]).length,
+      outstandingRows,
+      outstandingRows.length,
+      outstandingRows.some((row) => row["integrity"] === true),
+      "fulfilment_integrity_failure",
     ),
     receivables: amountWidget(timestamp, (receivables[0] ?? {}) as Row),
     payables: amountWidget(timestamp, (payables[0] ?? {}) as Row),

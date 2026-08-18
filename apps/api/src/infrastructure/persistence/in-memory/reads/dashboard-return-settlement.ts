@@ -1,5 +1,6 @@
 import type { Store } from "../store.ts";
 import { key } from "../store.ts";
+import { currentDeliveryReturnSettlement } from "@vuarau/domain-kernel";
 
 export function saleReturnSettlementStatus(
   store: Store,
@@ -22,25 +23,27 @@ export function saleReturnSettlementStatus(
   const returnSettlementResolved =
     returnedFulfilment &&
     saleReturnIds.length > 0 &&
-    saleReturnIds.every((returnId) =>
-      [...store.deliveryReturnSettlements.values()].some(
-        (settlement) => settlement.workspaceId === workspaceId && settlement.returnId === returnId,
-      ),
+    saleReturnIds.every(
+      (returnId) =>
+        currentDeliveryReturnSettlement(
+          [...store.deliveryReturnSettlements.values()].filter(
+            (settlement) => settlement.workspaceId === workspaceId,
+          ),
+          returnId,
+        ) !== null,
     );
   const unresolvedReturnRecord = store.deliveryReturns
     .filter((returned) => saleReturnIds.includes(returned.id))
     .filter(
       (returned) =>
-        ![...store.deliveryReturnSettlements.values()].some(
-          (settlement) =>
-            settlement.workspaceId === workspaceId && settlement.returnId === returned.id,
-        ),
+        currentDeliveryReturnSettlement(
+          [...store.deliveryReturnSettlements.values()].filter(
+            (settlement) => settlement.workspaceId === workspaceId,
+          ),
+          returned.id,
+        ) === null,
     )
-    .toSorted((left, right) =>
-      left.recordedAt === right.recordedAt
-        ? right.id.localeCompare(left.id)
-        : right.recordedAt.localeCompare(left.recordedAt),
-    )[0];
+    .toSorted((left, right) => left.id.localeCompare(right.id))[0];
   const unresolvedReturn = unresolvedReturnRecord?.id;
   const unresolvedDeliveryId = unresolvedReturnRecord?.deliveryId ?? null;
   return {

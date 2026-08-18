@@ -81,3 +81,31 @@ export function decideRecordDeliveryReturnSettlement(
   };
   return ok({ settlement, audit });
 }
+
+/**
+ * Returns the current append-only settlement tip for one Delivery Return.
+ * Lineage, not transaction time, decides which fact is current. Timestamp/id
+ * ordering is only a deterministic corruption fallback when multiple tips
+ * exist.
+ */
+export function currentDeliveryReturnSettlement(
+  settlements: readonly DeliveryReturnSettlementDto[],
+  returnId: DeliveryReturnSettlementDto["returnId"],
+): DeliveryReturnSettlementDto | null {
+  const candidates = settlements.filter((settlement) => settlement.returnId === returnId);
+  if (candidates.length === 0) return null;
+  const successorIds = new Set(
+    candidates.flatMap((settlement) =>
+      settlement.relatedSettlementId === null ? [] : [settlement.relatedSettlementId],
+    ),
+  );
+  return (
+    candidates
+      .filter((settlement) => !successorIds.has(settlement.id))
+      .toSorted((left, right) =>
+        left.recordedAt === right.recordedAt
+          ? right.id.localeCompare(left.id)
+          : right.recordedAt.localeCompare(left.recordedAt),
+      )[0] ?? null
+  );
+}

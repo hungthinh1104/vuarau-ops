@@ -3,7 +3,10 @@ import type {
   RecordDeliveryReturnSettlementCommand,
 } from "@vuarau/domain-contracts";
 import { describe, expect, it } from "vitest";
-import { decideRecordDeliveryReturnSettlement } from "./return-settlement.ts";
+import {
+  currentDeliveryReturnSettlement,
+  decideRecordDeliveryReturnSettlement,
+} from "./return-settlement.ts";
 
 const command = (overrides: Partial<RecordDeliveryReturnSettlementCommand> = {}) =>
   ({
@@ -40,6 +43,17 @@ const target: DeliveryReturnSettlementDto = {
 };
 
 describe("return settlement decision", () => {
+  it("selects the current lineage tip instead of the newest timestamp", () => {
+    const correction = {
+      ...target,
+      id: "00000000-0000-4000-8000-000000000105" as DeliveryReturnSettlementDto["id"],
+      caseKind: "correction" as const,
+      relatedSettlementId: target.id,
+      recordedAt: "2020-01-01T00:00:00.000Z" as DeliveryReturnSettlementDto["recordedAt"],
+    };
+    expect(currentDeliveryReturnSettlement([target, correction], target.returnId)).toBe(correction);
+  });
+
   it("records goods-only as an explicit no-money fact", () => {
     const result = decideRecordDeliveryReturnSettlement(
       command(),

@@ -2,13 +2,13 @@ import type { DeliveryState } from "@vuarau/domain-kernel";
 import {
   activeCustomerPaymentCreditAmount,
   deriveOperationsBoardNextAction,
-  deriveSaleLineFulfilmentFacts,
   derivePaymentExposure,
 } from "@vuarau/domain-kernel";
 import type { FulfilmentRemainderOutcome } from "@vuarau/domain-contracts";
 import type { Store } from "../store.ts";
 import { key } from "../store.ts";
 import { exactAdd, exactSubtract } from "./exact-number.ts";
+import { fulfilmentFactsForSale } from "../repositories/delivery.ts";
 
 export function saleFinancialFacts(
   store: Store,
@@ -120,9 +120,6 @@ export function salePhysicalState(
 } {
   const sale = store.sales.get(key(workspaceId, saleId));
   if (sale === undefined) return { state: "unknown", deliveryId: null, returnedFulfilment: false };
-  const fulfilled = new Map<string, number>();
-  const returnedByLine = new Map<string, number>();
-  const activeDispatchRemaining = new Map<string, number>();
   let latestDelivery: DeliveryState | null = null;
   for (const delivery of store.deliveries.values()) {
     if (delivery.workspaceId !== workspaceId || delivery.saleId !== saleId) continue;
@@ -133,86 +130,11 @@ export function salePhysicalState(
           `${latestDelivery.transactionTime}|${latestDelivery.recordedAt}|${latestDelivery.id}`
       )
         latestDelivery = delivery;
-      for (const line of delivery.lines)
-        fulfilled.set(
-          line.saleLineId,
-          exactAdd(
-            fulfilled.get(line.saleLineId) ?? 0,
-            line.quantity.valueScaled,
-            "dashboard.sale_fulfilled.value_scaled",
-          ),
-        );
-      if (delivery.status === "dispatched")
-        for (const line of delivery.lines)
-          activeDispatchRemaining.set(
-            line.saleLineId,
-            exactAdd(
-              activeDispatchRemaining.get(line.saleLineId) ?? 0,
-              line.quantity.valueScaled,
-              "dashboard.active_dispatch.value_scaled",
-            ),
-          );
-    }
-  }
-  for (const returned of store.deliveryReturns) {
-    if (returned.workspaceId !== workspaceId) continue;
-    const delivery = store.deliveries.get(key(workspaceId, returned.deliveryId));
-    if (
-      delivery === undefined ||
-      delivery.saleId !== saleId ||
-      (delivery.status !== "dispatched" && delivery.status !== "delivered")
-    )
-      continue;
-    for (const line of returned.lines) {
-      const deliveryLine = delivery.lines.find(
-        (candidate) => candidate.deliveryLineId === line.deliveryLineId,
-      );
-      if (deliveryLine === undefined) continue;
-      fulfilled.set(
-        deliveryLine.saleLineId,
-        exactSubtract(
-          fulfilled.get(deliveryLine.saleLineId) ?? 0,
-          line.quantity.valueScaled,
-          "dashboard.sale_fulfilled.value_scaled",
-        ),
-      );
-      returnedByLine.set(
-        deliveryLine.saleLineId,
-        exactAdd(
-          returnedByLine.get(deliveryLine.saleLineId) ?? 0,
-          line.quantity.valueScaled,
-          "dashboard.sale_returned.value_scaled",
-        ),
-      );
-      if (delivery.status === "dispatched")
-        activeDispatchRemaining.set(
-          deliveryLine.saleLineId,
-          Math.max(
-            0,
-            exactSubtract(
-              activeDispatchRemaining.get(deliveryLine.saleLineId) ?? 0,
-              line.quantity.valueScaled,
-              "dashboard.active_dispatch.value_scaled",
-            ),
-          ),
-        );
     }
   }
   const deliveryId = latestDelivery?.id ?? null;
-  const facts = sale.lines.map((line) => {
-    const netFulfilled = fulfilled.get(line.lineId) ?? 0;
-    const returned = returnedByLine.get(line.lineId) ?? 0;
-    return deriveSaleLineFulfilmentFacts({
-      orderedQuantityScaled: line.quantity.valueScaled,
-      dispatchedQuantityScaled: exactAdd(
-        netFulfilled,
-        returned,
-        "dashboard.sale_dispatched.value_scaled",
-      ),
-      returnedQuantityScaled: returned,
-      activeDispatchedRemainingQuantityScaled: activeDispatchRemaining.get(line.lineId) ?? 0,
-    });
-  });
+  const fulfilmentFacts = fulfilmentFactsForSale(store, workspaceId, saleId, null);
+  const facts = sale.lines.map((line) => fulfilmentFacts.get(line.lineId)!);
   const returnedFulfilment = facts.some(
     (fact, index) =>
       fact.returnedQuantityScaled > 0 &&

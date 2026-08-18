@@ -30,6 +30,7 @@ import type { DomainResult, PurchaseState } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applySupplierAccountEffects } from "../supplier/supplier-account-effects.ts";
+import { acceptedQuantityByPurchaseLine } from "../shared/purchase-receiving.ts";
 
 const dto = (purchase: PurchaseState): PurchaseDto => ({
   ...purchase,
@@ -319,15 +320,7 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
         command.payload.purchaseId,
       );
       if (current === null) return err("PURCHASE_NOT_FOUND", "No such Purchase.");
-      const received = await repos.purchaseReceipts.netReceivedByPurchaseLine(
-        command.workspaceId,
-        current.id,
-      );
-      const acceptedAfterInspection =
-        await repos.qualityDispositions.acceptedQuantitiesForPurchaseLines(
-          command.workspaceId,
-          current.lines.map((line) => line.lineId),
-        );
+      const received = await acceptedQuantityByPurchaseLine(repos, command.workspaceId, current);
       const hasActiveArrival = await repos.goodsArrivals.hasActiveForPurchase(
         command.workspaceId,
         current.id,
@@ -340,9 +333,7 @@ export function voidPurchase(ctx: CommandContext, input: unknown) {
         purchase: current,
         reasonCode: command.payload.reasonCode,
         hasActiveReceipts:
-          hasActiveArrival ||
-          [...received.values()].some((quantity) => quantity > 0) ||
-          [...acceptedAfterInspection.values()].some((quantity) => quantity.valueScaled > 0),
+          hasActiveArrival || [...received.values()].some((quantity) => quantity > 0),
         correctionPolicyVersionId: correctionPolicy?.policyVersionId ?? null,
       });
       if (!voidCapability.allowed) {
