@@ -260,6 +260,9 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
         await assertFulfilmentRemainderDecision({
           context,
           envelope,
+          setRecordedAt: (instant) => {
+            deps = { ...deps, clock: { now: () => instant as never } };
+          },
           workspaceId: ctx.workspaceId,
           saleId,
         });
@@ -540,7 +543,7 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     });
     expect(backup.ok && backup.value).toMatchObject({
       version: 23,
-      schemaCompatibility: "m38-close-exception-acknowledgement",
+      schemaCompatibility: "m39-customer-payment-credit-preservation",
     });
     if (backup.ok) {
       expect(backup.value.payload.deliveries).toHaveLength(2);

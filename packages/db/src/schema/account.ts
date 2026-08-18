@@ -64,6 +64,11 @@ export const customerAccountEntries = pgTable(
       table.recordedAt,
       table.id,
     ),
+    index("customer_account_entries_workspace_customer_amount_idx").on(
+      table.workspaceId,
+      table.customerId,
+      table.amountMinor,
+    ),
     index("customer_account_entries_workspace_time_idx").on(
       table.workspaceId,
       table.transactionTime,

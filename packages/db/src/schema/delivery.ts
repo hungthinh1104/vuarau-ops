@@ -85,6 +85,7 @@ export const deliveryLines = pgTable(
   (table) => [
     uniqueIndex("delivery_lines_delivery_sale_line_uq").on(table.deliveryId, table.saleLineId),
     uniqueIndex("delivery_lines_workspace_id_uq").on(table.workspaceId, table.id),
+    index("delivery_lines_workspace_sale_line_idx").on(table.workspaceId, table.saleLineId),
     foreignKey({
       columns: [table.workspaceId, table.deliveryId],
       foreignColumns: [deliveries.workspaceId, deliveries.id],

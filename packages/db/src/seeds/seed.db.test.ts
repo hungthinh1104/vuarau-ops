@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDatabase, skipWithoutDatabase, listMembers, type Database } from "@vuarau/db";
+import { createDatabase, eq, skipWithoutDatabase, listMembers, type Database } from "@vuarau/db";
 import type { WorkspaceId } from "@vuarau/domain-contracts";
 import { customers, products, qualityGrades, suppliers, workspaces } from "../schema/index.ts";
 import { seed } from "./seed.ts";
@@ -58,10 +58,22 @@ describe.skipIf(skipWithoutDatabase())("development seed", () => {
     );
 
     const [customerRows, productRows, qualityGradeRows, supplierRows] = await Promise.all([
-      database.db.select().from(customers),
-      database.db.select().from(products),
-      database.db.select().from(qualityGrades),
-      database.db.select().from(suppliers),
+      database.db
+        .select()
+        .from(customers)
+        .where(eq(customers.workspaceId, "11111111-1111-4111-8111-111111111111")),
+      database.db
+        .select()
+        .from(products)
+        .where(eq(products.workspaceId, "11111111-1111-4111-8111-111111111111")),
+      database.db
+        .select()
+        .from(qualityGrades)
+        .where(eq(qualityGrades.workspaceId, "11111111-1111-4111-8111-111111111111")),
+      database.db
+        .select()
+        .from(suppliers)
+        .where(eq(suppliers.workspaceId, "11111111-1111-4111-8111-111111111111")),
     ]);
     expect(customerRows).toHaveLength(5);
     expect(customerRows.filter((row) => row.isActive)).toHaveLength(4);
@@ -71,7 +83,17 @@ describe.skipIf(skipWithoutDatabase())("development seed", () => {
     expect(supplierRows).toHaveLength(2);
 
     await seed(DATABASE_URL!);
-    expect(await database.db.select().from(customers)).toHaveLength(5);
-    expect(await database.db.select().from(products)).toHaveLength(6);
+    expect(
+      await database.db
+        .select()
+        .from(customers)
+        .where(eq(customers.workspaceId, "11111111-1111-4111-8111-111111111111")),
+    ).toHaveLength(5);
+    expect(
+      await database.db
+        .select()
+        .from(products)
+        .where(eq(products.workspaceId, "11111111-1111-4111-8111-111111111111")),
+    ).toHaveLength(6);
   });
 });

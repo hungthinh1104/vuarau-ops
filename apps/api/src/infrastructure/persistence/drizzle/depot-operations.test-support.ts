@@ -24,9 +24,14 @@ type RemainderEnvelope = {
 export async function assertFulfilmentRemainderDecision(args: {
   context: () => PipelineCommandContext;
   envelope: (label: string, occurredAt: string) => RemainderEnvelope;
+  setRecordedAt: (instant: string) => void;
   workspaceId: WorkspaceId;
   saleId: SaleId;
 }): Promise<void> {
+  // The production ordering is recorded_at DESC, id DESC. Keep this fixture's
+  // append-only chronology explicit instead of relying on random UUID order
+  // when both commands happen inside one clock tick.
+  args.setRecordedAt("2026-07-29T12:00:01.000Z");
   const openRemainder = await recordFulfilmentRemainderCase(args.context(), {
     ...args.envelope("remainder-open", "2026-07-29T04:02:00.000Z"),
     payload: {
@@ -40,6 +45,7 @@ export async function assertFulfilmentRemainderDecision(args: {
     },
   });
   expect(openRemainder.ok).toBe(true);
+  args.setRecordedAt("2026-07-29T12:00:02.000Z");
   const unresolvedRemainder = await getOperationsBoard(args.context(), {
     workspaceId: args.workspaceId,
     filter: "fulfilment_remainder_unresolved",

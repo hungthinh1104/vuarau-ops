@@ -42,6 +42,7 @@ import {
   reverseExpense,
 } from "../../../modules/cash/cash.handlers.ts";
 import { recordCustomerPayment } from "../../../modules/payment/record-payment.handler.ts";
+import { preserveCustomerPaymentAsCredit } from "../../../modules/payment/customer-credit-preservation.handler.ts";
 import { getCashReconciliation } from "../../../modules/cash/cash.queries.ts";
 import {
   approveWorkspacePolicy,
@@ -530,6 +531,40 @@ describe.skipIf(skipWithoutDatabase())("cashbook against PostgreSQL", () => {
       businessDate: "2026-07-29",
     });
     expect(blocked).toMatchObject({
+      ok: true,
+      value: { state: "blocked", blockers: ["missing_observation", "blocking_exception"] },
+    });
+
+    // The preceding cashbook cases intentionally leave payments unallocated.
+    // Close must surface that as a blocking exception until each payment is
+    // explicitly retained as customer credit (or allocated to a Sale).
+    const unresolvedPayments = await ctx.database.db
+      .select({ id: payments.id, amountMinor: payments.amountMinor, currency: payments.currency })
+      .from(payments)
+      .where(eq(payments.workspaceId, ctx.workspaceId));
+    for (const payment of unresolvedPayments) {
+      expect(
+        await preserveCustomerPaymentAsCredit(context(), {
+          ...command(`close-credit-${payment.id}`),
+          expectedVersion: 1,
+          payload: {
+            preservationId: crypto.randomUUID(),
+            paymentId: payment.id,
+            amount: { amountMinor: payment.amountMinor, currency: payment.currency },
+            caseKind: "preservation",
+            relatedPreservationId: null,
+            reason: "Giữ khoản tiền chưa phân bổ thành tín dụng khách hàng cho kiểm thử đóng ca.",
+            evidenceReferences: [`review://close/customer-credit/${payment.id}`],
+          },
+        }),
+      ).toMatchObject({ ok: true });
+    }
+
+    const missingOnly = await getOperationalCloseReadiness(context(), {
+      workspaceId: ctx.workspaceId,
+      businessDate: "2026-07-29",
+    });
+    expect(missingOnly).toMatchObject({
       ok: true,
       value: { state: "blocked", blockers: ["missing_observation"] },
     });
