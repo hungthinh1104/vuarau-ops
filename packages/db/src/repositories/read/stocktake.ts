@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { StocktakeSessionId, WorkspaceId } from "@vuarau/domain-contracts";
 import { stocktakeCounts, stocktakeSessions } from "../../schema/index.ts";
 import { toStocktakeCountState, toStocktakeSessionState } from "../shared/stocktake-mappers.ts";
@@ -23,6 +23,58 @@ export const createStocktakeReadRepositories = (tx: Tx) => ({
           and(
             eq(stocktakeCounts.workspaceId, workspaceId),
             eq(stocktakeCounts.sessionId, sessionId),
+          ),
+        )
+        .orderBy(asc(stocktakeCounts.recordedAt), asc(stocktakeCounts.id));
+      return toStocktakeSessionState(session, counts.map(toStocktakeCountState));
+    },
+    async findActiveByScope(workspaceId: WorkspaceId, scopeReference: string) {
+      const rows = await tx
+        .select()
+        .from(stocktakeSessions)
+        .where(
+          and(
+            eq(stocktakeSessions.workspaceId, workspaceId),
+            eq(stocktakeSessions.scopeReference, scopeReference),
+            inArray(stocktakeSessions.status, ["draft", "reopened"]),
+          ),
+        )
+        .limit(1);
+      const session = rows[0];
+      if (session === undefined) return null;
+      const counts = await tx
+        .select()
+        .from(stocktakeCounts)
+        .where(
+          and(
+            eq(stocktakeCounts.workspaceId, workspaceId),
+            eq(stocktakeCounts.sessionId, session.id),
+          ),
+        )
+        .orderBy(asc(stocktakeCounts.recordedAt), asc(stocktakeCounts.id));
+      return toStocktakeSessionState(session, counts.map(toStocktakeCountState));
+    },
+    async findLatestByScope(workspaceId: WorkspaceId, scopeReference: string) {
+      const rows = await tx
+        .select()
+        .from(stocktakeSessions)
+        .where(
+          and(
+            eq(stocktakeSessions.workspaceId, workspaceId),
+            eq(stocktakeSessions.scopeReference, scopeReference),
+          ),
+        )
+        .orderBy(desc(stocktakeSessions.recordedAt), desc(stocktakeSessions.id))
+        .limit(1);
+      const session = rows[0];
+      if (session === undefined) return null;
+      const counts = await tx
+        .select()
+        .from(stocktakeCounts)
+        .where(
+          and(
+            eq(stocktakeCounts.workspaceId, workspaceId),
+            eq(stocktakeCounts.sessionId, session.id),
           ),
         )
         .orderBy(asc(stocktakeCounts.recordedAt), asc(stocktakeCounts.id));

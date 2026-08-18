@@ -32,9 +32,26 @@ export const createStocktakeRepositories = (store: Store): Pick<Repositories, "s
       const session = store.stocktakeSessions.get(key(workspaceId, sessionId));
       return session === undefined ? null : withCounts(store, session);
     },
+    findOpenByScope: async (workspaceId, scopeReference, excludeSessionId) => {
+      const match = [...store.stocktakeSessions.values()].find(
+        (s) =>
+          s.workspaceId === workspaceId &&
+          s.scopeReference === scopeReference &&
+          (s.status === "draft" || s.status === "reopened") &&
+          (excludeSessionId === undefined || s.id !== excludeSessionId),
+      );
+      return match === undefined ? null : withCounts(store, match);
+    },
     insert: async (session) => {
       const sessionKey = key(session.workspaceId, session.id);
       if (store.stocktakeSessions.has(sessionKey)) return false;
+      const openExists = [...store.stocktakeSessions.values()].some(
+        (s) =>
+          s.workspaceId === session.workspaceId &&
+          s.scopeReference === session.scopeReference &&
+          (s.status === "draft" || s.status === "reopened"),
+      );
+      if (openExists) return false;
       store.stocktakeSessions.set(sessionKey, {
         ...session,
         counts: [],

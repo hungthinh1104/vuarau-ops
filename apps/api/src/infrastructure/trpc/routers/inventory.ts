@@ -18,6 +18,9 @@ import {
   approveStocktakeCommandSchema,
   reopenStocktakeCommandSchema,
   stocktakeGetInputSchema,
+  stocktakeActiveInputSchema,
+  stocktakeLatestInputSchema,
+  stocktakePreflightInputSchema,
 } from "@vuarau/domain-contracts";
 import { authenticatedProcedure, commandProcedure, router, unwrap } from "../trpc.ts";
 import {
@@ -44,6 +47,10 @@ import {
   listPurchaseReceipts,
   getStockPlanning,
   getStocktake,
+  getActiveStocktake,
+  getLatestStocktakeByScope,
+  getStocktakePreview,
+  getStocktakePreflight,
 } from "../../../modules/inventory/inventory.queries.ts";
 import { rebuildInventory } from "../../../modules/inventory/rebuild-inventory.handler.ts";
 
@@ -105,6 +112,18 @@ export const inventoryRouter = router({
   stocktakeGet: authenticatedProcedure
     .input(stocktakeGetInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getStocktake(ctx, input))),
+  stocktakeActive: authenticatedProcedure
+    .input(stocktakeActiveInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getActiveStocktake(ctx, input))),
+  stocktakeLatestByScope: authenticatedProcedure
+    .input(stocktakeLatestInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getLatestStocktakeByScope(ctx, input))),
+  stocktakePreview: authenticatedProcedure
+    .input(stocktakeGetInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getStocktakePreview(ctx, input))),
+  stocktakePreflight: authenticatedProcedure
+    .input(stocktakePreflightInputSchema)
+    .query(async ({ ctx, input }) => unwrap(await getStocktakePreflight(ctx, input))),
   reconciliation: authenticatedProcedure
     .input(inventoryReconciliationInputSchema)
     .query(async ({ ctx, input }) => unwrap(await getInventoryReconciliation(ctx, input))),

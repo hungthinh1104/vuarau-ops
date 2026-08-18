@@ -80,6 +80,10 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     actorId: ctx.actorId,
     occurredAt,
   });
+  const expectOk = async <T extends { ok: boolean }>(promise: Promise<T>) => {
+    const result = await promise;
+    expect(result.ok).toBe(true);
+  };
 
   beforeEach(async () => {
     ctx = await createDbTestContext(`depot-operations-${crypto.randomUUID()}`);
@@ -95,117 +99,105 @@ describe.skipIf(skipWithoutDatabase())("Depot operations against PostgreSQL", ()
     const supplierId = crypto.randomUUID() as SupplierId;
     const purchaseId = crypto.randomUUID() as PurchaseId;
     const purchaseLineId = crypto.randomUUID() as PurchaseLineId;
-    expect(
-      (
-        await createSupplier(context(), {
-          ...envelope("supplier", "2026-07-29T01:00:00.000Z"),
-          payload: {
-            supplierId,
-            displayName: "Nhà vườn M19",
-            phone: null,
-            note: null,
-          },
-        })
-      ).ok,
-    ).toBe(true);
-    expect(
-      (
-        await createPurchaseDraft(context(), {
-          ...envelope("purchase", "2026-07-29T01:01:00.000Z"),
-          payload: {
-            purchaseId,
-            supplierId,
-            currency: "VND",
-            lines: [
-              {
-                lineId: purchaseLineId,
-                productId,
-                productName: "Cà chua",
-                quantity: { valueScaled: 100_000, unit: "kg" },
-                unitPrice: { amountMinor: 10_000, currency: "VND" },
-              },
-            ],
-            note: null,
-            dueAt: null,
-            replacesPurchaseId: null,
-          },
-        })
-      ).ok,
-    ).toBe(true);
-    expect(
-      (
-        await confirmPurchase(context(), {
-          ...envelope("confirm", "2026-07-29T01:02:00.000Z"),
-          expectedVersion: 1,
-          payload: { purchaseId },
-        })
-      ).ok,
-    ).toBe(true);
+    await expectOk(
+      createSupplier(context(), {
+        ...envelope("supplier", "2026-07-29T01:00:00.000Z"),
+        payload: {
+          supplierId,
+          displayName: "Nhà vườn M19",
+          phone: null,
+          note: null,
+        },
+      }),
+    );
+    await expectOk(
+      createPurchaseDraft(context(), {
+        ...envelope("purchase", "2026-07-29T01:01:00.000Z"),
+        payload: {
+          purchaseId,
+          supplierId,
+          currency: "VND",
+          lines: [
+            {
+              lineId: purchaseLineId,
+              productId,
+              productName: "Cà chua",
+              quantity: { valueScaled: 100_000, unit: "kg" },
+              unitPrice: { amountMinor: 10_000, currency: "VND" },
+            },
+          ],
+          note: null,
+          dueAt: null,
+          replacesPurchaseId: null,
+        },
+      }),
+    );
+    await expectOk(
+      confirmPurchase(context(), {
+        ...envelope("confirm", "2026-07-29T01:02:00.000Z"),
+        expectedVersion: 1,
+        payload: { purchaseId },
+      }),
+    );
     await assertIncompleteReceivingBoard({
       context,
       workspaceId: ctx.workspaceId,
       purchaseId,
     });
-    expect(
-      (
-        await recordPurchaseReceipt(context(), {
-          ...envelope("receive", "2026-07-29T01:03:00.000Z"),
-          payload: {
-            receiptId: crypto.randomUUID() as PurchaseReceiptId,
-            purchaseId,
-            lines: [
-              {
-                receiptLineId: crypto.randomUUID() as PurchaseReceiptLineId,
-                purchaseLineId,
-                productId,
-                qualityGradeId: ctx.qualityGradeId,
-                qualityGradeName: "Loại 1",
-                quantity: { valueScaled: 100_000, unit: "kg" },
-              },
-            ],
-            note: null,
-          },
-        })
-      ).ok,
-    ).toBe(true);
+    await expectOk(
+      recordPurchaseReceipt(context(), {
+        ...envelope("receive", "2026-07-29T01:03:00.000Z"),
+        payload: {
+          receiptId: crypto.randomUUID() as PurchaseReceiptId,
+          purchaseId,
+          lines: [
+            {
+              receiptLineId: crypto.randomUUID() as PurchaseReceiptLineId,
+              purchaseLineId,
+              productId,
+              qualityGradeId: ctx.qualityGradeId,
+              qualityGradeName: "Loại 1",
+              quantity: { valueScaled: 100_000, unit: "kg" },
+            },
+          ],
+          note: null,
+        },
+      }),
+    );
 
     const saleId = crypto.randomUUID() as SaleId;
     const saleLineId = crypto.randomUUID() as SaleLineId;
-    expect(
-      (
-        await createSaleDraft(context(), {
-          ...envelope("sale", "2026-07-29T02:00:00.000Z"),
-          payload: {
-            saleId,
-            customerId: ctx.customerId,
-            currency: "VND",
-            lines: [
-              {
-                lineId: saleLineId,
-                productId,
-                productName: "Cà chua",
-                qualityGradeId: ctx.qualityGradeId,
-                qualityGradeName: "Loại 1",
-                quantity: { valueScaled: 100_000, unit: "kg" },
-                unitPrice: { amountMinor: 20_000, currency: "VND" },
-              },
-            ],
-            note: null,
-            dueAt: null,
-            replacesSaleId: null,
-          },
-        })
-      ).ok,
-    ).toBe(true);
-    expect(
-      (
-        await postSale(context(), {
-          ...envelope("post", "2026-07-29T02:01:00.000Z"),
-          expectedVersion: 1,
-          payload: { saleId },
-        })
-      ).ok,
-    ).toBe(true);
+    await expectOk(
+      createSaleDraft(context(), {
+        ...envelope("sale", "2026-07-29T02:00:00.000Z"),
+        payload: {
+          saleId,
+          customerId: ctx.customerId,
+          currency: "VND",
+          lines: [
+            {
+              lineId: saleLineId,
+              productId,
+              productName: "Cà chua",
+              qualityGradeId: ctx.qualityGradeId,
+              qualityGradeName: "Loại 1",
+              quantity: { valueScaled: 100_000, unit: "kg" },
+              unitPrice: { amountMinor: 20_000, currency: "VND" },
+            },
+          ],
+          note: null,
+          dueAt: null,
+          replacesSaleId: null,
+        },
+      }),
+    );
+    await expectOk(
+      postSale(context(), {
+        ...envelope("post", "2026-07-29T02:01:00.000Z"),
+        expectedVersion: 1,
+        payload: { saleId },
+      }),
+    );
     const debtBeforeDelivery = await ctx.accountEntryRows();
 
     const deliveries = [

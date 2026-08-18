@@ -8,6 +8,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { stocktakeStateEnum, unitEnum } from "./enums.ts";
@@ -42,6 +43,9 @@ export const stocktakeSessions = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.id] }),
+    uniqueIndex("stocktake_sessions_workspace_scope_open_uq")
+      .on(table.workspaceId, table.scopeReference)
+      .where(sql`status in ('draft', 'reopened')`),
     index("stocktake_sessions_workspace_status_idx").on(
       table.workspaceId,
       table.status,

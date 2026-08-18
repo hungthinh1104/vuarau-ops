@@ -425,6 +425,8 @@ export type PurchaseReadRepository = {
 };
 export type StocktakeReadRepository = {
   get(workspaceId: WorkspaceId, sessionId: StocktakeSessionId): Promise<StocktakeDto | null>;
+  findActiveByScope(workspaceId: WorkspaceId, scopeReference: string): Promise<StocktakeDto | null>;
+  findLatestByScope(workspaceId: WorkspaceId, scopeReference: string): Promise<StocktakeDto | null>;
 };
 
 export type DeliveryReadRepository = {

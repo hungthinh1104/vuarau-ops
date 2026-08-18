@@ -305,6 +305,7 @@ export const approveStocktakeCommandSchema = defineCommand(
   z.object({
     stocktakeSessionId: stocktakeSessionIdSchema,
     expectedVersion: z.int().positive(),
+    expectedPreviewHash: z.string().min(1),
     evidenceReferences: evidenceReferencesInputSchema,
     reason: z.string().trim().min(1).max(500),
   }),
@@ -324,6 +325,48 @@ export const stocktakeGetInputSchema = z.object({
   stocktakeSessionId: stocktakeSessionIdSchema,
 });
 export type StocktakeGetInput = z.infer<typeof stocktakeGetInputSchema>;
+export const stocktakeActiveInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  scopeReference: z.string().trim().min(1).max(500),
+});
+export type StocktakeActiveInput = z.infer<typeof stocktakeActiveInputSchema>;
+export const stocktakeLatestInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  scopeReference: z.string().trim().min(1).max(500),
+});
+export type StocktakeLatestInput = z.infer<typeof stocktakeLatestInputSchema>;
+export const stocktakePreflightInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  asOf: isoInstantSchema,
+});
+export type StocktakePreflightInput = z.infer<typeof stocktakePreflightInputSchema>;
+export const stocktakePreflightDtoSchema = z.object({
+  canStart: z.boolean(),
+  policyVersionId: workspacePolicyVersionIdSchema.nullable(),
+  reasonCode: z.string().nullable(),
+  message: z.string().nullable(),
+});
+export type StocktakePreflightDto = z.infer<typeof stocktakePreflightDtoSchema>;
+export const stocktakeVarianceRowSchema = z.object({
+  productId: productIdSchema,
+  qualityGradeId: qualityGradeIdSchema.nullable(),
+  qualityGradeName: z.string().nullable(),
+  unit: unitSchema,
+  expectedQuantityScaled: z.int(),
+  countedQuantityScaled: z.int().nonnegative(),
+  varianceScaled: z.int(),
+  activeCountId: stocktakeCountIdSchema,
+});
+export type StocktakeVarianceRow = z.infer<typeof stocktakeVarianceRowSchema>;
+export const stocktakePreviewDtoSchema = z.object({
+  calculationVersion: z.literal("stocktake-preview-v1"),
+  stocktakeSessionId: stocktakeSessionIdSchema,
+  sessionVersion: z.int().positive(),
+  asOf: isoInstantSchema,
+  rows: z.array(stocktakeVarianceRowSchema),
+  previewHash: z.string().min(1),
+});
+export type StocktakePreviewDto = z.infer<typeof stocktakePreviewDtoSchema>;
 export const stocktakeCountDtoSchema = z.object({
   id: stocktakeCountIdSchema,
   workspaceId: workspaceIdSchema,
@@ -349,6 +392,7 @@ export const stocktakeDtoSchema = z.object({
   version: z.int().positive(),
   policyVersionId: workspacePolicyVersionIdSchema,
   counts: z.array(stocktakeCountDtoSchema),
+  activeCounts: z.array(stocktakeCountDtoSchema),
   varianceMovementIds: z.array(inventoryMovementIdSchema),
   transactionTime: isoInstantSchema,
   recordedAt: isoInstantSchema,

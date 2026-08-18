@@ -121,6 +121,7 @@ export const createInventoryRepositories = (
           movement.qualityGradeId === qualityGradeId &&
           movement.quantity.unit === unit,
       ),
+    lockProductScopes: async () => {},
   },
   inventoryBalances: {
     get: async (workspaceId, productId, qualityGradeId, unit) =>

@@ -13,7 +13,7 @@ import {
   createWorkspacePolicyDraft,
 } from "../../../modules/policy/policy.handlers.ts";
 import { adjustInventory } from "../../../modules/inventory/inventory.handlers.ts";
-import { getStocktake } from "../../../modules/inventory/inventory.queries.ts";
+import { getStocktake, getStocktakePreview } from "../../../modules/inventory/inventory.queries.ts";
 import {
   approveStocktake,
   recordStocktakeCount,
@@ -130,11 +130,19 @@ describe.skipIf(skipWithoutDatabase())("stocktake against PostgreSQL", () => {
     });
     expect(count).toMatchObject({ ok: true, value: { version: 2 } });
 
+    const preview = await getStocktakePreview(context(), {
+      workspaceId: ctx.workspaceId,
+      stocktakeSessionId,
+    });
+    expect(preview.ok).toBe(true);
+    if (!preview.ok || preview.value === null) throw new Error("preview failed");
+
     const approved = await approveStocktake(context(), {
       ...command("approve"),
       payload: {
         stocktakeSessionId,
         expectedVersion: 2,
+        expectedPreviewHash: preview.value.previewHash,
         evidenceReferences: ["review://stocktake/postgres-001"],
         reason: "Đã chốt kiểm kê PostgreSQL.",
       },
@@ -162,7 +170,64 @@ describe.skipIf(skipWithoutDatabase())("stocktake against PostgreSQL", () => {
         status: "reopened",
         policyVersionId,
         counts: [{ quantity: { valueScaled: 25_000 } }],
+        activeCounts: [{ quantity: { valueScaled: 25_000 } }],
       },
+    });
+  });
+
+  it("enforces single open stocktake session per scope in PostgreSQL", async () => {
+    const policyVersionId = crypto.randomUUID();
+    await createWorkspacePolicyDraft(context(), {
+      ...command("policy-draft"),
+      payload: {
+        policyVersionId,
+        policyKind: "stocktake_variance",
+        version: 1,
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        effectiveTo: null,
+        definition: {
+          contractVersion: 1,
+          parameters: { strategy: "absolute_count", allowReopen: true },
+        },
+        evidenceReferences: [],
+        reason: "Policy kiểm kê PostgreSQL.",
+      },
+    });
+    await approveWorkspacePolicy(context(), {
+      ...command("policy-approve"),
+      payload: {
+        policyVersionId,
+        evidenceReferences: [],
+        reason: "Đã duyệt policy.",
+      },
+    });
+
+    const scopeReference = "product:" + ctx.productIds[0]!;
+    const first = await startStocktake(context(), {
+      ...command("start-1"),
+      payload: {
+        stocktakeSessionId: crypto.randomUUID() as StocktakeSessionId,
+        asOf: "2026-07-20T05:00:00.000Z",
+        scopeReference,
+        note: null,
+        evidenceReferences: [],
+      },
+    });
+    expect(first.ok).toBe(true);
+
+    const second = await startStocktake(context(), {
+      ...command("start-2"),
+      payload: {
+        stocktakeSessionId: crypto.randomUUID() as StocktakeSessionId,
+        asOf: "2026-07-20T05:00:00.000Z",
+        scopeReference,
+        note: null,
+        evidenceReferences: [],
+      },
+    });
+    expect(second).toMatchObject({
+      ok: false,
+      error: { code: "STOCKTAKE_SCOPE_IN_PROGRESS" },
     });
   });
 });

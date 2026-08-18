@@ -5,6 +5,10 @@ import type {
   StockPlanningInput,
   StockPlanningDto,
   StocktakeGetInput,
+  StocktakeActiveInput,
+  StocktakeLatestInput,
+  StocktakePreflightInput,
+  StocktakePreflightDto,
   WorkspacePolicyVersionId,
   InventoryTimelineInput,
   IsoInstant,
@@ -21,6 +25,8 @@ import {
   roleHasPermission,
 } from "@vuarau/domain-contracts";
 import {
+  activeStocktakeCounts,
+  buildStocktakePreview,
   calculateInventoryValuation,
   calculateFixedThresholdPlan,
   canVoidPurchase,
@@ -33,6 +39,7 @@ import {
 } from "@vuarau/domain-kernel";
 import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runQuery, toPage, toPageQuery } from "../shared/read-pipeline.ts";
+import { effectiveStocktakePolicy } from "./stocktake.handlers.ts";
 
 export async function getReceipt(
   ctx: CommandContext,
@@ -297,6 +304,80 @@ export async function getStocktake(ctx: CommandContext, input: StocktakeGetInput
   return result.value === null
     ? err("STOCKTAKE_NOT_FOUND", "No such stocktake session.")
     : ok(result.value);
+}
+
+export async function getActiveStocktake(ctx: CommandContext, input: StocktakeActiveInput) {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "inventory.read",
+    execute: ({ repos }) =>
+      repos.stocktakeReads.findActiveByScope(input.workspaceId, input.scopeReference),
+  });
+}
+
+export async function getLatestStocktakeByScope(ctx: CommandContext, input: StocktakeLatestInput) {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "inventory.read",
+    execute: ({ repos }) =>
+      repos.stocktakeReads.findLatestByScope(input.workspaceId, input.scopeReference),
+  });
+}
+
+export async function getStocktakePreview(ctx: CommandContext, input: StocktakeGetInput) {
+  return runQuery({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "inventory.read",
+    execute: async ({ repos }) => {
+      const session = await repos.stocktakes.findById(input.workspaceId, input.stocktakeSessionId);
+      if (session === null) return null;
+      const activeCounts = activeStocktakeCounts(session.counts);
+      const aggregates = await repos.inventoryMovements.aggregateByScopesAsOf(
+        input.workspaceId,
+        activeCounts.map((count) => ({
+          productId: count.productId,
+          qualityGradeId: count.qualityGradeId,
+          unit: count.quantity.unit,
+        })),
+        session.asOf,
+      );
+      const preview = buildStocktakePreview({ session, aggregates });
+      return preview.ok ? preview.value : null;
+    },
+  });
+}
+
+export async function getStocktakePreflight(ctx: CommandContext, input: StocktakePreflightInput) {
+  return runQuery<StocktakePreflightDto>({
+    ctx,
+    workspaceId: input.workspaceId,
+    permission: "inventory.read",
+    execute: async ({ repos }) => {
+      const policyResult = await effectiveStocktakePolicy(
+        repos,
+        input.workspaceId,
+        input.asOf,
+        ctx.deps.clock.now(),
+      );
+      if (!policyResult.ok) {
+        return {
+          canStart: false,
+          policyVersionId: null,
+          reasonCode: policyResult.error.code,
+          message: policyResult.error.message,
+        };
+      }
+      return {
+        canStart: true,
+        policyVersionId: policyResult.value.policy.id,
+        reasonCode: null,
+        message: null,
+      };
+    },
+  });
 }
 
 export const getInventoryValuation = (ctx: CommandContext, input: InventoryValuationInput) =>

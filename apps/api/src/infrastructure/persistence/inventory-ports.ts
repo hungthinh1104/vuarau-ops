@@ -58,4 +58,5 @@ export type InventoryMovementRepository = {
     qualityGradeId: QualityGradeId,
     unit: InventoryMovementState["quantity"]["unit"],
   ): Promise<boolean>;
+  lockProductScopes(workspaceId: WorkspaceId, productIds: readonly ProductId[]): Promise<void>;
 };

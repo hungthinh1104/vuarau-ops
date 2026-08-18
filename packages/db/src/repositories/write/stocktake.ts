@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, not } from "drizzle-orm";
 import type { StocktakeCountState, StocktakeSessionState } from "@vuarau/domain-kernel";
 import { stocktakeCounts, stocktakeSessions } from "../../schema/index.ts";
 import { fromIso } from "../row-mappers.ts";
@@ -36,6 +36,35 @@ export const createStocktakeWriteRepositories = (tx: Tx) => ({
       loadSession(tx, workspaceId, sessionId, false),
     findByIdForUpdate: (workspaceId: WorkspaceId, sessionId: StocktakeSessionState["id"]) =>
       loadSession(tx, workspaceId, sessionId, true),
+    async findOpenByScope(
+      workspaceId: WorkspaceId,
+      scopeReference: string,
+      excludeSessionId?: StocktakeSessionState["id"],
+    ) {
+      const filters = [
+        eq(stocktakeSessions.workspaceId, workspaceId),
+        eq(stocktakeSessions.scopeReference, scopeReference),
+        inArray(stocktakeSessions.status, ["draft", "reopened"]),
+      ];
+      if (excludeSessionId !== undefined) {
+        filters.push(not(eq(stocktakeSessions.id, excludeSessionId)));
+      }
+      const rows = await tx
+        .select()
+        .from(stocktakeSessions)
+        .where(and(...filters))
+        .limit(1);
+      const row = rows[0];
+      if (row === undefined) return null;
+      const countRows = await tx
+        .select()
+        .from(stocktakeCounts)
+        .where(
+          and(eq(stocktakeCounts.workspaceId, workspaceId), eq(stocktakeCounts.sessionId, row.id)),
+        )
+        .orderBy(asc(stocktakeCounts.recordedAt), asc(stocktakeCounts.id));
+      return toStocktakeSessionState(row, countRows.map(toStocktakeCountState));
+    },
     async insert(session: StocktakeSessionState) {
       const rows = await tx
         .insert(stocktakeSessions)

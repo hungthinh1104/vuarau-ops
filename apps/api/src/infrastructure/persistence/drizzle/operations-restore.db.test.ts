@@ -55,7 +55,10 @@ import {
 } from "../../../modules/purchase/purchase.handlers.ts";
 import { recordPurchaseReceipt } from "../../../modules/inventory/inventory.handlers.ts";
 import { recordPriceRule } from "../../../modules/pricing/pricing.handlers.ts";
-import { getInventoryReconciliation } from "../../../modules/inventory/inventory.queries.ts";
+import {
+  getInventoryReconciliation,
+  getStocktakePreview,
+} from "../../../modules/inventory/inventory.queries.ts";
 import {
   approveStocktake,
   recordStocktakeCount,
@@ -104,9 +107,7 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
     };
   });
 
-  afterEach(async () => {
-    await ctx.close();
-  });
+  afterEach(async () => ctx.close());
 
   async function prepareCanonicalBackup(
     options: { withDeliveryLineageFixture?: boolean } = {},
@@ -626,11 +627,17 @@ describe.skipIf(skipWithoutDatabase())("M14 PostgreSQL logical recovery", () => 
       },
     });
     expect(stocktakeCount.ok).toBe(true);
+    const preview = await getStocktakePreview(context(), {
+      workspaceId: ctx.workspaceId,
+      stocktakeSessionId,
+    });
+    expect(preview.ok && preview.value !== null).toBe(true);
     const stocktakeApproved = await approveStocktake(context(), {
       ...command("recovery-stocktake-approve"),
       payload: {
         stocktakeSessionId,
         expectedVersion: 2,
+        expectedPreviewHash: preview.ok && preview.value ? preview.value.previewHash : "",
         evidenceReferences: ["review://recovery/stocktake-001"],
         reason: "Chốt phiên kiểm kê cho diễn tập phục hồi.",
       },

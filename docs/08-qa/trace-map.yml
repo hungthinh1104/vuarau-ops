@@ -1039,7 +1039,20 @@ use_cases:
     doc: docs/02-use-cases/UC-INVENTORY-007-stocktake.md
     rules: [BR-INVENTORY-005, BR-INVENTORY-014]
     cases: []
-    tests: [TC-STOCKTAKE-001, TC-STOCKTAKE-002, TC-STOCKTAKE-003]
+    tests:
+      [
+        TC-STOCKTAKE-001,
+        TC-STOCKTAKE-002,
+        TC-STOCKTAKE-003,
+        TC-STOCKTAKE-004,
+        TC-STOCKTAKE-005,
+        TC-STOCKTAKE-006,
+        TC-STOCKTAKE-007,
+        TC-STOCKTAKE-008,
+        TC-STOCKTAKE-009,
+        TC-STOCKTAKE-010,
+        TC-STOCKTAKE-011,
+      ]
     implementation:
       - packages/domain-contracts/src/inventory/index.ts
       - packages/domain-kernel/src/inventory/stocktake.ts
@@ -2019,7 +2032,20 @@ business_rules:
     risk: P0
     doc: docs/04-business-rules/inventory-planning-rules.md
     cases: []
-    tests: [TC-STOCKTAKE-001, TC-STOCKTAKE-002, TC-STOCKTAKE-003]
+    tests:
+      [
+        TC-STOCKTAKE-001,
+        TC-STOCKTAKE-002,
+        TC-STOCKTAKE-003,
+        TC-STOCKTAKE-004,
+        TC-STOCKTAKE-005,
+        TC-STOCKTAKE-006,
+        TC-STOCKTAKE-007,
+        TC-STOCKTAKE-008,
+        TC-STOCKTAKE-009,
+        TC-STOCKTAKE-010,
+        TC-STOCKTAKE-011,
+      ]
     implementation:
       - packages/domain-kernel/src/inventory/stocktake.ts
       - apps/api/src/modules/inventory/stocktake.handlers.ts

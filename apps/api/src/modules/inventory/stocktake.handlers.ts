@@ -18,6 +18,7 @@ import {
 } from "@vuarau/domain-contracts";
 import {
   activeStocktakeCounts,
+  buildStocktakePreview,
   decideApproveStocktake,
   decideRecordStocktakeCount,
   decideReopenStocktake,
@@ -35,7 +36,7 @@ import type { CommandContext } from "../shared/command-pipeline.ts";
 import { runCommand } from "../shared/command-pipeline.ts";
 import { applyInventoryMovements } from "./inventory-effects.ts";
 
-async function effectiveStocktakePolicy(
+export async function effectiveStocktakePolicy(
   repos: Repositories,
   workspaceId: StartStocktakeCommand["workspaceId"],
   asOf: StartStocktakeCommand["payload"]["asOf"],
@@ -59,14 +60,6 @@ async function effectiveStocktakePolicy(
     return err("STOCKTAKE_POLICY_UNAVAILABLE", "The effective stocktake policy is invalid.");
   }
   return ok({ policy, definition: definition.data });
-}
-
-function inventoryScopeKey(scope: {
-  readonly productId: string;
-  readonly qualityGradeId: string | null;
-  readonly unit: string;
-}): string {
-  return `${scope.productId}:${scope.qualityGradeId ?? "ungraded"}:${scope.unit}`;
 }
 
 async function policyByVersion(
@@ -113,6 +106,16 @@ export function startStocktake(ctx: CommandContext, input: unknown) {
     businessDayPolicy: "enforce",
     requiredWorkflows: ["inventory"],
     execute: async ({ command, repos, recordedAt }) => {
+      const openSession = await repos.stocktakes.findOpenByScope(
+        command.workspaceId,
+        command.payload.scopeReference,
+      );
+      if (openSession !== null) {
+        return err(
+          "STOCKTAKE_SCOPE_IN_PROGRESS",
+          "An open stocktake session already exists for this scope.",
+        );
+      }
       const policy = await effectiveStocktakePolicy(
         repos,
         command.workspaceId,
@@ -123,7 +126,10 @@ export function startStocktake(ctx: CommandContext, input: unknown) {
       const decision = decideStartStocktake(command, policy.value.policy.id, recordedAt);
       if (!decision.ok) return decision;
       if (!(await repos.stocktakes.insert(decision.value))) {
-        return err("STOCKTAKE_ALREADY_EXISTS", "A stocktake session with this id already exists.");
+        return err(
+          "STOCKTAKE_SCOPE_IN_PROGRESS",
+          "A stocktake session with this id or an open session for this scope already exists.",
+        );
       }
       await repos.audit.append({
         ...auditBase(command, recordedAt),
@@ -247,8 +253,11 @@ export function approveStocktake(ctx: CommandContext, input: unknown) {
       if (!policy.ok) return policy;
       const decision = decideApproveStocktake({ session, command });
       if (!decision.ok) return decision;
-      const drafts: Array<Parameters<typeof applyInventoryMovements>[1][number]> = [];
+
       const activeCounts = activeStocktakeCounts(session.counts);
+      const involvedProductIds = [...new Set(activeCounts.map((count) => count.productId))];
+      await repos.inventoryMovements.lockProductScopes(command.workspaceId, involvedProductIds);
+
       const aggregates = await repos.inventoryMovements.aggregateByScopesAsOf(
         command.workspaceId,
         activeCounts.map((count) => ({
@@ -258,41 +267,28 @@ export function approveStocktake(ctx: CommandContext, input: unknown) {
         })),
         session.asOf,
       );
-      const aggregateByScope = new Map(
-        aggregates.map((aggregate) => [inventoryScopeKey(aggregate), aggregate.quantityScaled]),
-      );
-      for (const count of activeCounts) {
-        const aggregate = aggregateByScope.get(
-          inventoryScopeKey({
-            productId: count.productId,
-            qualityGradeId: count.qualityGradeId,
-            unit: count.quantity.unit,
-          }),
+
+      const preview = buildStocktakePreview({ session, aggregates });
+      if (!preview.ok) return preview;
+      if (preview.value.previewHash !== command.payload.expectedPreviewHash) {
+        return err(
+          "STOCKTAKE_PREVIEW_STALE",
+          "The stocktake preview is stale because inventory at asOf has changed.",
         );
-        const expected = aggregate === undefined ? 0 : aggregate;
-        if (expected === null) {
-          return err(
-            "STOCKTAKE_COUNT_INVALID",
-            "Persisted inventory is outside the supported exact quantity range.",
-          );
-        }
-        const variance = count.quantity.valueScaled - expected;
-        if (!Number.isSafeInteger(variance)) {
-          return err(
-            "STOCKTAKE_COUNT_INVALID",
-            "Stocktake variance is outside the supported exact quantity range.",
-          );
-        }
-        if (variance === 0) continue;
+      }
+
+      const drafts: Array<Parameters<typeof applyInventoryMovements>[1][number]> = [];
+      for (const row of preview.value.rows) {
+        if (row.varianceScaled === 0) continue;
         drafts.push({
           workspaceId: command.workspaceId,
-          productId: count.productId,
-          qualityGradeId: count.qualityGradeId,
-          qualityGradeName: count.qualityGradeName,
-          quantity: { valueScaled: variance, unit: count.quantity.unit },
+          productId: row.productId,
+          qualityGradeId: row.qualityGradeId,
+          qualityGradeName: row.qualityGradeName,
+          quantity: { valueScaled: row.varianceScaled, unit: row.unit },
           sourceType: "stocktake_variance",
           sourceId: command.commandId,
-          sourceLineId: count.id,
+          sourceLineId: row.activeCountId,
           reversalOfMovementId: null,
           reasonCode: "stocktake_variance",
           reason: command.payload.reason,
@@ -356,6 +352,17 @@ export function reopenStocktake(ctx: CommandContext, input: unknown) {
       if (session === null) return err("STOCKTAKE_NOT_FOUND", "No such stocktake session.");
       if (session.version !== command.payload.expectedVersion) {
         return err("STOCKTAKE_VERSION_CONFLICT", "The stocktake changed concurrently.");
+      }
+      const openSession = await repos.stocktakes.findOpenByScope(
+        command.workspaceId,
+        session.scopeReference,
+        session.id,
+      );
+      if (openSession !== null) {
+        return err(
+          "STOCKTAKE_SCOPE_IN_PROGRESS",
+          "An open stocktake session already exists for this scope.",
+        );
       }
       const policy = await policyByVersion(repos, command.workspaceId, session.policyVersionId);
       if (!policy.ok) return policy;

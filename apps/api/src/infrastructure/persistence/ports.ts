@@ -353,6 +353,11 @@ export type StocktakeRepository = {
     workspaceId: WorkspaceId,
     sessionId: StocktakeSessionState["id"],
   ): Promise<StocktakeSessionState | null>;
+  findOpenByScope(
+    workspaceId: WorkspaceId,
+    scopeReference: string,
+    excludeSessionId?: StocktakeSessionState["id"],
+  ): Promise<StocktakeSessionState | null>;
   insert(session: StocktakeSessionState): Promise<boolean>;
   insertCount(count: StocktakeCountState): Promise<boolean>;
   update(session: StocktakeSessionState, expectedVersion: number): Promise<boolean>;

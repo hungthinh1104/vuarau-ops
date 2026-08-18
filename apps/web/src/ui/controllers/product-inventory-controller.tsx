@@ -21,6 +21,7 @@ import {
   approveStocktakeCommandSchema,
   recordStocktakeCountCommandSchema,
   reclassifyInventoryCommandSchema,
+  reopenStocktakeCommandSchema,
   startStocktakeCommandSchema,
 } from "@vuarau/domain-contracts";
 import { useParams } from "next/navigation";
@@ -171,7 +172,11 @@ export function ProductInventoryController() {
       }
       stocktake={
         session.permissions.includes("inventory.adjust") ? (
-          <InventoryStocktakeCommandPanel productId={productId} grades={activeGrades} />
+          <InventoryStocktakeCommandPanel
+            productId={productId}
+            grades={activeGrades}
+            onChanged={refreshInventory}
+          />
         ) : undefined
       }
     />
@@ -181,14 +186,61 @@ export function ProductInventoryController() {
 function InventoryStocktakeCommandPanel(props: {
   readonly productId: ProductId;
   readonly grades: readonly QualityGradeDto[];
+  readonly onChanged?: () => void;
 }) {
+  const { workspaceId } = useSession();
   const trpc = useTRPC();
-  const [session, setSession] = useState<StocktakeDto | null>(null);
+  const scopeReference = `product:${props.productId}`;
+
+  const operationalProfile = useQuery(
+    trpc.session.operationalProfile.queryOptions({ workspaceId }),
+  );
+
+  const activeStocktakeQuery = useQuery(
+    trpc.inventory.stocktakeActive.queryOptions({ workspaceId, scopeReference }),
+  );
+  const latestStocktakeQuery = useQuery(
+    trpc.inventory.stocktakeLatestByScope.queryOptions({ workspaceId, scopeReference }),
+  );
+
+  const [localSession, setLocalSession] = useState<StocktakeDto | null>(null);
+  const currentSession =
+    activeStocktakeQuery.data ?? localSession ?? latestStocktakeQuery.data ?? null;
+
+  const previewQuery = useQuery(
+    trpc.inventory.stocktakePreview.queryOptions(
+      {
+        workspaceId,
+        stocktakeSessionId: currentSession?.id ?? ("" as StocktakeSessionId),
+      },
+      {
+        enabled:
+          currentSession !== null &&
+          (currentSession.status === "draft" || currentSession.status === "reopened"),
+      },
+    ),
+  );
+
+  const preflightQuery = useQuery(
+    trpc.inventory.stocktakePreflight.queryOptions(
+      {
+        workspaceId,
+        asOf: new Date().toISOString() as IsoInstant,
+      },
+      {
+        enabled: currentSession === null,
+      },
+    ),
+  );
+
   const sessionId = useRef(crypto.randomUUID() as StocktakeSessionId);
   const countId = useRef(crypto.randomUUID() as StocktakeCountId);
+
   const startMutation = useMutation(trpc.inventory.stocktakeStart.mutationOptions());
   const countMutation = useMutation(trpc.inventory.stocktakeCount.mutationOptions());
   const approveMutation = useMutation(trpc.inventory.stocktakeApprove.mutationOptions());
+  const reopenMutation = useMutation(trpc.inventory.stocktakeReopen.mutationOptions());
+
   const startCommand = useContractCommand(startStocktakeCommandSchema, startMutation.mutateAsync);
   const countCommand = useContractCommand(
     recordStocktakeCountCommandSchema,
@@ -198,13 +250,21 @@ function InventoryStocktakeCommandPanel(props: {
     approveStocktakeCommandSchema,
     approveMutation.mutateAsync,
   );
+  const reopenCommand = useContractCommand(
+    reopenStocktakeCommandSchema,
+    reopenMutation.mutateAsync,
+  );
+
   const latestCommand =
-    approveCommand.result !== null
-      ? approveCommand
-      : countCommand.result !== null
-        ? countCommand
-        : startCommand;
-  const locked = [startCommand, countCommand, approveCommand].some(
+    reopenCommand.result !== null
+      ? reopenCommand
+      : approveCommand.result !== null
+        ? approveCommand
+        : countCommand.result !== null
+          ? countCommand
+          : startCommand;
+
+  const locked = [startCommand, countCommand, approveCommand, reopenCommand].some(
     (command) => command.phase.kind === "sending" || command.phase.kind === "unknown",
   );
 
@@ -213,7 +273,14 @@ function InventoryStocktakeCommandPanel(props: {
       <CommandOutcome
         command={latestCommand}
         attemptedAction="Kiểm kê tồn kho"
-        onReload={() => undefined}
+        onReload={() => {
+          void Promise.all([
+            activeStocktakeQuery.refetch(),
+            latestStocktakeQuery.refetch(),
+            previewQuery.refetch(),
+            preflightQuery.refetch(),
+          ]);
+        }}
       />
     );
   }
@@ -222,52 +289,93 @@ function InventoryStocktakeCommandPanel(props: {
     <InventoryStocktakePanel
       productId={props.productId}
       grades={props.grades}
-      session={session}
+      qualityGradeMode={operationalProfile.data?.qualityGradeMode ?? "required"}
+      session={currentSession}
+      preview={previewQuery.data ?? null}
+      preflight={preflightQuery.data ?? null}
       locked={locked}
-      onStart={({ scopeReference, note }) => {
+      onStart={({ scopeReference: scopeRef, note }) => {
         void startCommand
           .submit({
             stocktakeSessionId: sessionId.current,
             asOf: new Date().toISOString(),
-            scopeReference,
+            scopeReference: scopeRef,
             note,
             evidenceReferences: [],
           })
           .then((result) => {
-            if (result !== null) setSession(result);
+            if (result !== null) {
+              setLocalSession(result);
+              sessionId.current = crypto.randomUUID() as StocktakeSessionId;
+              startCommand.reset();
+              void Promise.all([activeStocktakeQuery.refetch(), latestStocktakeQuery.refetch()]);
+            }
           });
       }}
-      onCount={({ qualityGradeId, qualityGradeName, quantity }) => {
-        if (session === null) return;
+      onCount={({ qualityGradeId, qualityGradeName, quantity, supersedesCountId }) => {
+        if (currentSession === null) return;
         void countCommand
           .submit({
             stocktakeCountId: countId.current,
-            stocktakeSessionId: session.id,
+            stocktakeSessionId: currentSession.id,
             productId: props.productId,
             qualityGradeId,
             qualityGradeName,
             quantity,
-            supersedesCountId: null,
+            supersedesCountId,
             evidenceReferences: [],
           })
           .then((result) => {
             if (result !== null) {
+              setLocalSession(result);
               countId.current = crypto.randomUUID() as StocktakeCountId;
-              setSession(result);
+              countCommand.reset();
+              void Promise.all([activeStocktakeQuery.refetch(), previewQuery.refetch()]);
             }
           });
       }}
-      onApprove={(reason) => {
-        if (session === null) return;
+      onApprove={({ expectedVersion, expectedPreviewHash, reason }) => {
+        if (currentSession === null) return;
         void approveCommand
           .submit({
-            stocktakeSessionId: session.id,
-            expectedVersion: session.version,
+            stocktakeSessionId: currentSession.id,
+            expectedVersion,
+            expectedPreviewHash,
             evidenceReferences: [],
             reason,
           })
           .then((result) => {
-            if (result !== null) setSession(result);
+            if (result !== null) {
+              setLocalSession(result);
+              approveCommand.reset();
+              void Promise.all([
+                activeStocktakeQuery.refetch(),
+                latestStocktakeQuery.refetch(),
+                props.onChanged?.(),
+              ]);
+            }
+          });
+      }}
+      onReopen={(reason) => {
+        if (currentSession === null) return;
+        void reopenCommand
+          .submit({
+            stocktakeSessionId: currentSession.id,
+            expectedVersion: currentSession.version,
+            evidenceReferences: [],
+            reason,
+          })
+          .then((result) => {
+            if (result !== null) {
+              setLocalSession(result);
+              reopenCommand.reset();
+              void Promise.all([
+                activeStocktakeQuery.refetch(),
+                latestStocktakeQuery.refetch(),
+                previewQuery.refetch(),
+                props.onChanged?.(),
+              ]);
+            }
           });
       }}
       feedback={feedback()}

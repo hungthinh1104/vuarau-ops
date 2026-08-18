@@ -3,7 +3,7 @@ import type { IsoInstant, ProductId, QualityGradeId, WorkspaceId } from "@vuarau
 import type { InventoryMovementState } from "@vuarau/domain-kernel";
 import { PersistedNumberOutOfRangeError } from "../../errors.ts";
 import { persistedBigintToSafeNumber } from "../../schema/safe-bigint.ts";
-import { inventoryMovements, inventoryBalances } from "../../schema/index.ts";
+import { inventoryMovements, inventoryBalances, products } from "../../schema/index.ts";
 import { fromIso, fromIsoOrNull, toIso, toIsoOrNull } from "../row-mappers.ts";
 import type { Tx, IdMinter } from "../shared/types.ts";
 
@@ -270,6 +270,18 @@ export const createInventoryWriteRepositories = (tx: Tx, ids: IdMinter) => ({
         )
         .limit(1);
       return rows.length > 0;
+    },
+    async lockProductScopes(workspaceId: WorkspaceId, productIds: readonly ProductId[]) {
+      if (productIds.length === 0) return;
+      const sorted = [...new Set(productIds)].sort((a, b) => a.localeCompare(b));
+      for (const productId of sorted) {
+        await tx
+          .select({ id: products.id })
+          .from(products)
+          .where(and(eq(products.workspaceId, workspaceId), eq(products.id, productId)))
+          .limit(1)
+          .for("update");
+      }
     },
   },
   inventoryBalances: {
