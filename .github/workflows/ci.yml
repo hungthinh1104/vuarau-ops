@@ -54,6 +54,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # `context:test` shells out to ripgrep (`rg`). GitHub runner images do not
+      # guarantee that binary, so install the explicit CI dependency before the
+      # canonical static gate rather than letting repository checks depend on image drift.
+      - name: Install context search dependency
+        run: sudo apt-get update && sudo apt-get install --yes ripgrep
+
       # --- canonical static gate ----------------------------------------------
       # Keep the static list in package.json. This includes context:test and
       # docs:check:test, so CI cannot silently omit agent-retrieval regressions.
