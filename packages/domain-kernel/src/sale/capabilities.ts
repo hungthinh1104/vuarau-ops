@@ -4,11 +4,15 @@ import type { SaleState } from "../shared/state.ts";
 import { validateSaleLines } from "./sale-lines.ts";
 
 /**
- * Capabilities are computed from the same checks the decision functions perform,
- * so a greyed-out button and a server refusal always agree (ADR-0003).
+ * Capabilities reuse the same deterministic Sale-state predicates the decision
+ * functions perform where the read has enough facts. They deliberately do not
+ * pre-run application-layer Product/QualityGrade/profile, authorization,
+ * cross-dimension or transaction-time checks, so `allowed` is not a promise that
+ * the eventual command will succeed (ADR-0003).
  *
  * They are a rendering hint, never a substitute for validation: by the time the
- * user taps, another worker may have posted or voided the sale.
+ * user taps, another worker may have posted or voided the sale, and the command
+ * pipeline may have additional current-state guards.
  *
  * These are **state** capabilities only. Whether the caller's role may post or
  * void at all is an authority question, answered separately from the role table
