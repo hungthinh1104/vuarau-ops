@@ -39,11 +39,13 @@ const steps: readonly EvidenceStep[] = [
       "db",
       "packages/db/src/provisioning.db.test.ts",
       "apps/api/src/infrastructure/persistence/drizzle/pilot-onboarding.db.test.ts",
+      "apps/api/src/infrastructure/persistence/drizzle/full-depot-day.db.test.ts",
     ],
     proves: [
       "atomic audited owner bootstrap",
       "duplicate-safe Customer/Product command replay",
       "workspace isolation and no partial invalid-file mutation",
+      "one continuous depot day survives real PostgreSQL transactions, constraints and reconciliation reads",
     ],
   },
   {
