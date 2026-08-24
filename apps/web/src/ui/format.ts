@@ -74,18 +74,22 @@ export function describeBalance(
   }
 }
 
+const DISPLAY_TIME_ZONE = "Asia/Ho_Chi_Minh";
+
 const DATE_TIME = new Intl.DateTimeFormat(VI, {
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: DISPLAY_TIME_ZONE,
 });
 
 const DATE_ONLY = new Intl.DateTimeFormat(VI, {
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
+  timeZone: DISPLAY_TIME_ZONE,
 });
 
 export function formatInstant(iso: string): string {
